@@ -165,35 +165,102 @@ Android 上这是 **APK（压缩包）内部的虚拟路径**，`File.Open` 会�
 
 ### 2.2 程序集划分
 
+> **实现状态（2026-09-13）**：下表 ✅ 的 5 个 asmdef 已建成并通过编译验证，
+> 类型落位已用反射逐个核对。标 ⬜ 的留待对应阶段创建。
+>
+> **命名变更说明**：本节初稿写的是 `WanXiang.Framework.asmdef`，实际落地时改名为
+> **`WanXiang.Runtime`**。原因：目录名 `Framework/` 与程序集名 `WanXiang.Framework`
+> 同名会让「程序集」和「目录」两个概念难以区分（说「Framework 没引用 Core」时
+> 分不清指哪个）。程序集名用 `Runtime` 与 `Editor` 形成对照，语义更清晰。
+
 ```
 Assets/
 ├── WanXiang/
-│   ├── Core/                    WanXiang.Core.asmdef
-│   ├── Framework/               WanXiang.Framework.asmdef
-│   │   ├── UI/
-│   │   ├── Res/
-│   │   ├── Input/
-│   │   ├── Audio/
-│   │   ├── Save/
-│   │   └── Config/
-│   ├── Modules/                 WanXiang.Modules.asmdef
+│   ├── Core/                    WanXiang.Core.asmdef              ✅ 零依赖基座
+│   ├── Framework/               WanXiang.Runtime.asmdef           ✅ 框架运行时
+│   │   ├── UI/                    └ 分层 Canvas / 面板基类 / 栈管理 / 动效
+│   │   ├── Res/                   └ 资源加载接口（P4 接 YooAsset）
+│   │   ├── Input/                 └ 输入系统（P3）
+│   │   ├── Audio/                 └ 音频（P6）
+│   │   ├── Save/                  └ 存档
+│   │   ├── Config/                └ 配置表读取
+│   │   └── Integration/         WanXiang.Integration.QFramework.asmdef ✅
+│   ├── Modules/                 WanXiang.Modules.asmdef           ⬜ 业务模块（P5/P6）
 │   │   ├── Battle/
 │   │   ├── Bestiary/
-│   │   ├── Roguelike/
-│   │   └── ...
-│   ├── Game/                    WanXiang.Game.asmdef   ← 主程序集（启动）
-│   └── Editor/                  WanXiang.Editor.asmdef  ← 不进包
-├── Hotfix/                      WanXiang.Hotfix.asmdef  ← HybridCLR 热更程序集
-└── AOT/                         WanXiang.AOT.asmdef     ← AOT 补充元数据
+│   │   └── Roguelike/
+│   ├── Game/                    WanXiang.Game.asmdef              ⬜ 主程序集（启动）
+│   ├── Editor/                  WanXiang.Editor.asmdef            ✅ 编辑器扩展，不进包
+│   └── Samples/                 WanXiang.Samples.asmdef           ✅ 示例与冒烟测试
+├── Plugins/Demigiant/DOTween/
+│   └── Modules/                 DOTween.Modules.asmdef            ✅ 见下方说明
+├── Hotfix/                      WanXiang.Hotfix.asmdef            ⬜ HybridCLR 热更程序集
+└── AOT/                         WanXiang.AOT.asmdef               ⬜ AOT 补充元数据
 ```
+
+#### 依赖方向（铁律）
+
+```
+        Core  ←──────────┬──────────────┬───────────┐
+          ↑              │              │           │
+      Runtime ───────────┘              │           │
+          ↑                             │           │
+   Integration.QFramework               │           │
+          ↑                             │           │
+      Editor / Samples ─────────────────┘           │
+                                                    │
+      Modules / Game / Hotfix ──────────────────────┘
+```
+
+**箭头只能朝上（依赖 Core，不能反向）。** Unity 的 asmdef 会在编译期强制这一点，
+不需要靠自律。
+
+#### 三条容易踩的实现细节
+
+**① asmdef 无法反向引用 `Assembly-CSharp`。**
+在给目录加 asmdef 之前，那里的代码属于 `Assembly-CSharp`（预定义程序集），
+可以随便引用别人；加了 asmdef 之后就变成独立程序集，**只能引用显式列出的程序集**。
+
+**② `autoReferenced` 只影响预定义程序集，asmdef 之间必须显式引用。**
+`autoReferenced: true` 的意思是「允许 `Assembly-CSharp` 自动引用我」，
+不代表「其它 asmdef 能自动引用我」。两个 asmdef 之间一定要写进 `references`。
+忘了写的症状是 `CS0246: 找不到类型或命名空间`，即使那个类明明就在工程里。
+
+**③ `UnityEngine.UI`（uGUI）不需要写进 asmdef 的 `references`。**
+它是引擎自带的程序集（`com.unity.ugui` 以 DLL 形式提供），对 asmdef 自动可见。
+实测确认：不写也能用 `Image` / `CanvasGroup`。不确定的包先试着不写，
+编译报错再加——多加无用引用会让依赖图变脏。
+
+#### 为什么给 DOTween 的 Modules 目录单独建 asmdef
+
+DOTween 的分发形态很特殊：
+
+| 部分 | 形态 | 落在哪个程序集 |
+|------|------|---------------|
+| `DOTween.dll` | 预编译 DLL | `DOTween`（有自带 asmdef） |
+| `Modules/DOTweenModuleUI.cs` 等 | 源码 | 无 asmdef 时 → `Assembly-CSharp-firstpass` |
+
+`DOFade` / `DOAnchorPos` 这些**uGUI 扩展方法在 Modules 里**，也就是说它们在
+`Assembly-CSharp-firstpass`。而 asmdef **无法反向引用 `-firstpass`**（见上面 ①）。
+
+所以：不处理的话，我们的 `WanXiang.Runtime` 永远写不出 `CanvasGroup.DOFade(...)`。
+
+解法是给 Modules 目录补一个 `DOTween.Modules.asmdef`，把这段源码从
+`-firstpass` 里「挖」出来变成独立程序集，再让 `WanXiang.Runtime` 引用它。
+**这是必须做的一步，不是可选优化。**
 
 **热更相关的程序集规则（重要，后面 §5.3 展开）：**
 
 - `WanXiang.Hotfix` 是唯一可热更的程序集，业务逻辑尽量往这里放
 - `WanXiang.AOT` 存放热更代码**会被 AOT 泛型实例化引用到的类型**，需要生成补充元数据
 - 主程序集 `WanXiang.Game` 只保留启动器与极少量不可热更的逻辑
+- ⚠ **DOTween 不能进热更层**：它以 DLL 分发，属于 AOT 侧。热更层调用时
+  只用非泛型快捷方法（`DOMove` / `DOScale` / `DOFade` / `DOAnchorPos`），
+  不要用 `DOTween.To<T>` 这类泛型 API——后者需要额外补充元数据
 
 ### 2.3 目录规范
+
+**代码目录**（`Assets/WanXiang/`）按「一层架构角色 + 一层业务分层」组织：
 
 ```
 Assets/WanXiang/Modules/Battle/
@@ -204,8 +271,16 @@ Assets/WanXiang/Modules/Battle/
 ├── Utility/        ElementUtility                （无状态工具）
 ├── View/           BoardView, UnitView           （MonoBehaviour，只管显示）
 └── Config/         BattleConfig (SO)
+```
 
-Assets/GameRes/                                    ← 所有资源，与代码分离
+**资源目录**：
+
+> **命名变更说明**：本节初稿写的是 `Assets/GameRes`，但工程里已经先有了
+> `Assets/ArtRes`。**沿用 `ArtRes`** —— 一个工程里出现两个平行的资源根
+> 是最容易让项目变乱的做法，改了名字也不能解决问题。以现状为准，改文档。
+
+```
+Assets/ArtRes/                                    ← 所有资源，与代码分离
 ├── UI/Panels/      面板 Prefab
 ├── UI/Sprites/     图集
 ├── Prefabs/
@@ -213,7 +288,15 @@ Assets/GameRes/                                    ← 所有资源，与代码�
 └── Config/         ScriptableObject 资产
 ```
 
-**代码与资源物理分离**（`Assets/WanXiang` vs `Assets/GameRes`）。商业项目里美术和程序是两条线，混在一起会让版本管理变成灾难（美术提交时误改代码、代码提交时误删资源）。
+**代码与资源物理分离**（`Assets/WanXiang` vs `Assets/ArtRes`）。商业项目里美术和程序是两条线，混在一起会让版本管理变成灾难（美术提交时误改代码、代码提交时误删资源）。
+
+#### 空目录不要预先创建
+
+Git 不跟踪空目录，Unity 也会给每个目录生成 `.meta`。提前建一堆空目录的结果是：
+要么它们进不了版本库（下次拉取后又消失），要么只留下一串无内容的 `.meta`。
+
+**目录在真正有文件放进去的那一刻创建。** 本节的作用是「决定新文件该放哪」的判据，
+不是一张待办清单。
 
 ---
 
@@ -926,6 +1009,36 @@ Label_Preload_Battle    进入战斗前预载
 
 你的"改键功能"这个需求，基本就决定了必须用新 Input System —— 自己实现一套完整的重绑定（含冲突检测、持久化、UI 显示）成本远高于引入官方方案。
 
+#### ⚠ 安装时必做的一步：输入后端必须选 `Both`，不能选 `New`
+
+装完 Input System 包后 Unity 会问「是否启用新输入后端」，这个选择存在
+`ProjectSettings.asset` 的 `activeInputHandler` 字段里，三个取值：
+
+| 值 | 含义 | 后果 |
+|----|------|------|
+| `0` | Input Manager (Old) | 新 Input System 装了也不生效，等于白装 |
+| `1` | Input System Package (New) | **旧 API 全部在运行期抛异常** |
+| `2` | Both | 新旧并存，各用各的 |
+
+**本工程已设为 `Both`（2026-09-13）。** 原因是选 `New` 会直接打死 QFramework：
+
+| 位置 | 代码 | 影响 |
+|------|------|------|
+| `QFramework/.../UIKit/Scripts/Extension/UIRectTransform.cs:35,45` | `Input.mousePosition` | UIKit 的 `InRect()` / `GetLocalPosInRect()` 失效 |
+| `QFramework/.../ConsoleKit/Framework/ConsoleWindow.cs:69,72` | `Input.GetKeyUp(KeyCode.F1)` | 控制台窗口（F1）打不开 |
+
+这两处都是 QFramework 的**真代码**，不是文档注释里的示例。
+`UIRectTransform.InRect()` 是 UIKit 判断「点击是否落在某个 RectTransform 上」的
+核心方法。它一旦抛 `InvalidOperationException`，UI 点击判断会在**运行期**炸掉——
+编译期完全正常，定位成本很高。
+
+选 `Both` 的代价：多一点包体、运行时多一层输入事件转发。对 PC / Steam 项目
+完全可以接受，换来的是 QFramework 和所有第三方插件照常工作。
+
+> **通用判据**：装新输入系统前先跑一遍
+> `grep -rn --include=*.cs -E "\bInput\.(GetKey|GetMouseButton|mousePosition)" Assets/`
+> 看有多少存量代码依赖旧 API。本项目查出的就是上表两处。
+
 ### 6.2 Action Map 组织
 
 ```
@@ -1116,20 +1229,40 @@ hotfix/*     ← 紧急修复，从 main 拉，修完合回 main 与 develop
 
 按依赖顺序分 7 个阶段，每阶段有明确交付物与验收标准。
 
-| 阶段 | 内容 | 交付物 | 验收标准 |
-|------|------|--------|---------|
-| **P0 工程地基** | 建工程、锁版本、asmdef 分层、目录规范、Git 与 .gitignore、CI 骨架 | 可编译空工程 | 三层 asmdef 依赖违规能被编译器拦住 |
-| **P1 数据层** | 配置表工具链（Excel→二进制）+ 存档系统（版本迁移 + 原子写入） | 工具 + 运行时 | ① 改字段顺序后加载**立刻报错**而非静默读错 ② 存档 v1 能被当前版本正确迁移 ③ 杀进程不会损坏存档 |
-| **P2 UI 框架** | 分层 Canvas、面板基类、栈管理、异步加载、对象池、返回键 | UI 框架 + 3 个示例面板 | ① 打开/关闭 100 次无内存泄漏 ② 快速连点不重复加载 ③ 弹窗与 HUD 层级正确 |
-| **P3 输入系统** | Action Map、上下文切换、改键、持久化 | Input 框架 | 改键后重启游戏配置仍在；战斗中开弹窗不会误触技能 |
-| **P4 资源与热更** | Addressables 分组、Profile 环境、启动流程、HybridCLR 接入 | 可热更的骨架 | ① 改一张配置表能热更生效 ② 改一行战斗逻辑能热更生效 ③ 能一键回滚 |
-| **P5 战斗原型** | 3×3 棋盘、自动战斗、五行结算（对应 GDD 的 STEP 1） | 灰盒战斗 | 灰盒下连看 10 场不无聊 |
-| **P6 业务模块** | 图鉴、融合、肉鸽地图、设置等 | 可玩循环 | 一局完整通关 35-50 分钟 |
+| 阶段 | 状态 | 内容 | 新增依赖包 | 验收标准 |
+|------|------|------|-----------|---------|
+| **P0 工程地基** | ✅ 已完成 | 建工程、锁版本、asmdef 分层、目录规范、Git 与 .gitignore | UniTask 2.5.11 / DOTween 1.3.030 / QFramework | 三层 asmdef 依赖违规能被编译器拦住 |
+| **P1 数据层** | ✅ 已交付 | 配置表工具链（Excel→二进制）+ 存档系统（版本迁移 + 原子写入） | — | ① 改字段顺序后加载**立刻报错**而非静默读错 ② 存档 v1 能被当前版本正确迁移 ③ 杀进程不会损坏存档 |
+| **P2 UI 框架** | ✅ 已交付 | 分层 Canvas、面板基类、栈管理、异步加载、返回键、面板动效 | DOTween（已验证引用链打通） | ① 打开/关闭 100 次无内存泄漏 ② 快速连点不重复加载 ③ 弹窗与 HUD 层级正确 |
+| **P3 输入系统** | ⬜ **下一步** | Action Map、上下文切换、改键、持久化 | **Input System 1.19.0 ✅ 已装** | 改键后重启游戏配置仍在；战斗中开弹窗不会误触技能 |
+| **P4 资源与热更** | ⬜ | YooAsset 分组、Profile 环境、启动流程、HybridCLR 接入 | HybridCLR 8.14.1 + YooAsset 2.3.19 | ① 改一张配置表能热更生效 ② 改一行战斗逻辑能热更生效 ③ 能一键回滚 |
+| **P5 战斗原型** | ⬜ 可与 P0–P3 穿插 | 3×3 棋盘、自动战斗、五行结算（对应 GDD 的 STEP 1） | Luban（独立命令行工具，非 UPM 包） | 灰盒下连看 10 场不无聊 |
+| **P6 业务模块** | ⬜ | 图鉴、融合、肉鸽地图、设置等 | — | 一局完整通关 35-50 分钟 |
+
+> **P4 行的修正**：本节初稿写的是「Addressables 分组」，与 §9 决策表的
+> **YooAsset（非 Addressables）** 矛盾，已改正。以 §9 为准。
+
+### 依赖包总览（截至 2026-09-13）
+
+| 包 | 版本 | 状态 | 装法 | 备注 |
+|----|------|------|------|------|
+| UniTask | `2.5.11` | ✅ 已装 | OpenUPM | scopedRegistry 已配 |
+| DOTween | `1.3.030` | ✅ 已装 | 本地 `.unitypackage` 导入 | 需补 `Modules/DOTween.Modules.asmdef` |
+| QFramework | 用户导入版 | ✅ 已装 | 用户导入 | 8 个 asmdef |
+| MCP for Unity | `10.2.0` | ✅ 已装 | git URL | 见工作区 MCP 自检脚本 |
+| Input System | `1.19.0` | ✅ 已装 | Unity 官方源 | **2022.3 上的上限版本，见下方警告** |
+| HybridCLR | `8.14.1` | ⬜ P4 再装 | OpenUPM | |
+| YooAsset | `2.3.19` | ⬜ P4 再装 | OpenUPM | 3.x 是重写版，先用成熟的 2.x |
+| Luban | 最新 | ⬜ P5 前后 | 独立 CLI，非 UPM 包 | 需 .NET SDK 8.0+ |
+
+> ⚠ **Input System 的版本天花板**：`1.20.0` 起要求 Unity 6（`minUnity: 6000.0`）。
+> 在本工程的 2022.3 上，**`1.19.0` 是能装的最高版本**，不要写成 `1.x` 让包管理器
+> 自己解析——它可能会挑到一个装不上的版本然后报一堆解析错误。
 
 **关键顺序说明：**
 
 - **P1 在 P2 之前**：UI 框架要能读配置（面板配置表）才能跑
-- **P2 在 P4 之前**：UI 框架的资源加载接口要先定义好，再接 Addressables（用接口隔离，前期可以用 `Resources` 占位）
+- **P2 在 P4 之前**：UI 框架的资源加载接口要先定义好，再接 YooAsset（用接口隔离，前期用 `Resources` 占位）
 - **P5 战斗原型可以并行启动**：它不依赖 P4 的热更（本地开发阶段可以先不热更）。**不要等所有框架都完美了再验证玩法**——玩法不好玩，框架再好也没用
 
 > **给独立开发者的建议：P5 战斗原型和 P0-P2 框架可以穿插进行。** 每搭完一块框架，就用战斗原型验证一下它好不好用。框架是给玩法服务的，不是反过来。
