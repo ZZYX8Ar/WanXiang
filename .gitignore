@@ -87,6 +87,36 @@ desktop.ini
 /BuildReport/
 /AssetBundleReport/
 
+# HybridCLR 的工作目录。
+# 装 HybridCLR 环境时，它会把 Unity 自带的 il2cpp 复制到
+# HybridCLRData/LocalIl2CppData-{平台}/ 再打补丁（这样不必去改
+# Program Files 下的 Unity 安装，免得要管理员权限）。
+# 里面还放 AOT 裁剪后的 dll、生成的热更 dll、以及 il2cpp 编译中间产物。
+# 全部可由「重新安装 HybridCLR 环境 + 重新构建」重建，体积数百 MB，
+# 绝对不能进版本库。
+/HybridCLRData/
+# HybridCLR 在 Assets 之外生成的产物目录（不同版本位置略有差异，一并忽略）
+/[Hh]ybridCLRGenerate/
+/AssembliesPostIl2CppStrip/
+/StrippedAOTDlls/
+
+# 临时诊断补丁：编辑器诊断通道写出的 csc 响应文件。
+# 只有一个内容：UnityEngine 门面引用 + 额外编译宏，用来绕开
+#   Error building Player: Currently selected scripting backend (IL2CPP) is not installed.
+# 为什么不能入库：
+#   1. 第一行是 -r:"C:/Program Files/Unity/Hub/Editor/<本机版本>/..." 的**绝对路径**，
+#      换台机器、换个 Unity 安装位置就失效；
+#   2. 它是「缺 IL2CPP 模块」的临时绕行手段，提交了会掩盖真问题，
+#      别人 clone 下来会以为工程本来就要这么配。
+# 正式修复：Unity Hub 里给编辑器装上 Windows Build Support (IL2CPP)，
+#          然后跑诊断通道的 csc.defines.off + facade.clear 把它清掉。
+# ⚠ 只在 Assets 根目录忽略：这是诊断通道唯一会写 .rsp 的位置，
+#   不影响工程内其他目录将来可能出现的正当 rsp 文件。
+#   连带忽略它的 .meta —— 否则会提交一个「有 meta 无资源」的孤儿文件，
+#   别人 clone 后 Unity 会把它当残留清掉，白白产生一次 diff。
+/Assets/*.rsp
+/Assets/*.rsp.meta
+
 # 热更 DLL 的本地拷贝（P4 接入后生效，正式产物走 CDN 不进库）
 /HotfixDlls/
 *.hotfix.dll

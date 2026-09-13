@@ -1,7 +1,9 @@
 {
   "dependencies": {
+    "com.code-philosophy.hybridclr": "8.14.1",
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
     "com.cysharp.unitask": "2.5.11",
+    "com.tuyoogame.yooasset": "2.3.19",
     "com.unity.collab-proxy": "2.12.4",
     "com.unity.feature.2d": "2.0.1",
     "com.unity.ide.rider": "3.0.36",
@@ -50,7 +52,9 @@
       "name": "package.openupm.com",
       "url": "https://package.openupm.com",
       "scopes": [
-        "com.cysharp"
+        "com.cysharp",
+        "com.tuyoogame",
+        "com.code-philosophy"
       ]
     }
   ]
