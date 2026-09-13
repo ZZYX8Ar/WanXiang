@@ -322,7 +322,7 @@ public sealed class BackpackPanel : UIPanelBase
 | 关掉非栈顶面板后，下层面板点不动了                         | `RefreshStackStates()` 按栈形状重算，而非手工维护两处状态  |
 | 并发点击导致面板被实例化两次                            | `_pendingOpens` 合并同一面板的并发加载请求             |
 | 短加载显示转圈反而显得卡                              | 加载指示延迟 100ms 才显示                         |
-| 战斗中点弹窗后按空格，同时触发了绝技释放                      | 面板打开即暂停下层，输入上下文由框架统一切换（P3 接入）            |
+| 战斗中点弹窗后按空格，同时触发了绝技释放                      | 面板打开即暂停下层，输入上下文由框架统一切换（P3 已实现）            |
 | 调试面板混进正式包                                 | `UILayer.Debug` 在非开发版不创建                 |
 | 面板脚本挂错节点，布局错乱且无报错                         | 加载时校验并在根节点找不到组件时**显式报错拒绝加载**             |
 | 两个面板推导出同一个资源 key                           | `UIPanelRegistry.Validate()` 全量扫描并报出冲突    |
@@ -377,20 +377,27 @@ WanXiang_Framework/
 
 | 阶段             | 内容                                      | 状态                |
 | -------------- | --------------------------------------- | ----------------- |
-| **P0 工程地基**    | asmdef 分层、目录规范、Git 配置                   | ⬜ 待做（需在真实工程内进行）   |
+| **P0 工程地基**    | asmdef 分层、目录规范、Git 与 .gitignore           | ✅ 已完成             |
 | **P1 数据层**     | 配置表工具链 + 存档系统                           | ✅ 已交付             |
-| **P2 UI 框架**   | 分层 Canvas、面板基类、栈管理、遮罩、LRU 缓存、异步加载        | ✅ **本次交付**（对象池待补） |
-| **P3 输入系统**    | Action Map、上下文切换、改键、持久化                 | ⬜ 下一步（含 InputAction 与 UI 的联动） |
-| **P4 资源与热更**   | YooAsset 分组、环境 Profile、HybridCLR 接入     | ⬜ 待做              |
-| **P5 战斗原型**    | 3×3 棋盘、自动战斗、五行结算                        | ⬜ 待做              |
+| **P2 UI 框架**   | 分层 Canvas、面板基类、栈管理、遮罩、LRU 缓存、异步加载、面板动效  | ✅ 已交付（列表对象池待补） |
+| **P3 输入系统**    | Action Map、上下文切换、改键、持久化、EventSystem 改造   | ✅ **本次交付**        |
+| **P4 资源与热更**   | YooAsset 分组、环境 Profile、HybridCLR 接入     | ⬜ 下一步             |
+| **P5 战斗原型**    | 3×3 棋盘、自动战斗、五行结算                        | ⬜ 待做（可与框架穿插）      |
 | **P6 业务模块**    | 图鉴、融合、肉鸽地图、设置                           | ⬜ 待做              |
 
-**P2 已交付的内容：** 8 层独立 Canvas、面板基类与完整生命周期、栈状态重算、遮罩与射线拦截、加载去重（防连点）、延迟加载指示、LRU 缓存淘汰、返回键分层策略、面板复用刷新、QFramework 接入层、冒烟测试。
+**P3 本次交付的内容：** 输入资产（UI / Gameplay / Global / Debug 四张 Map、17 个 Action、键鼠 + 手柄双套绑定）、上下文切换（框架统管 Map 启停，业务不许自己 Enable）、改键（含冲突检测、10 秒超时、单项 / 全部重置）、改键持久化（只导出 JSON 字符串，落盘交给存档层）、QFramework 强类型事件桥接、EventSystem 自动改造、资产生成工具。
 
-**P2 待补的部分：**
+真机验证：编译 0 error；Play 模式实测 `InputService` 启动正常、上下文切换结果与设计一致、EventSystem 被正确换装为 `InputSystemUIInputModule`。
+
+> **P3 的一个前置坑（重要）：** 输入后端必须设为 **`Both`**，不能设 `New`。
+> QFramework 的 `UIRectTransform.cs` 与 `ConsoleWindow.cs` 里有**真代码**在用旧
+> `Input.mousePosition` / `Input.GetKeyUp`，设成 `New` 会让它们在**运行期**抛异常 ——
+> 编译期完全正常，极难定位。详见 ARCHITECTURE.md §6.1。
+
+**待补的部分：**
 - **列表对象池**（背包 200 格 / 图鉴网格的复用容器）—— 建议随 P6 图鉴一起做，那时才有真实的复用需求与数据形态
 - **YooAsset 版本加载器** —— 随 P4 一起，替换 `ResourcesPanelLoader`
-- **UI 动效封装**（DoTween / UniTask 入场出场）—— 有美术需求后再定
+- **改键 UI 面板** —— 输入框架的 API（`RebindAsync` / `GetDisplayString` / `ResetBinding`）已就绪，界面可随 P6 设置面板一起做
 
 ---
 

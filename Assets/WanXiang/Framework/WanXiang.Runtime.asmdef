@@ -5,7 +5,8 @@
         "WanXiang.Core",
         "UniTask",
         "DOTween",
-        "DOTween.Modules"
+        "DOTween.Modules",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

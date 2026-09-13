@@ -6,7 +6,8 @@
         "WanXiang.Runtime",
         "UniTask",
         "QFramework",
-        "QFramework.CoreKit"
+        "QFramework.CoreKit",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -65,6 +65,13 @@ desktop.ini
 
 # ---------- 本工程特有 ----------
 
+# QFramework 的包列表网络请求缓存。
+# 内容是从 liangxiegame.com 拉回来的插件市场列表，随时可重建，
+# 且里面带有本机的绝对路径，不该进版本库。
+# ⚠ 注意区分：Assets/QFrameworkData/ 是**要提交**的（含 CodeGenKit 与
+#   ProjectConfig，那是工程配置），只有下面这个 .qframework 目录是缓存。
+/Assets/.qframework/
+
 # 本地导入的 .unitypackage 压缩包（DOTween 等）。
 # 包内容本身已解压进 Assets/Plugins，压缩包不必入库。
 *.unitypackage

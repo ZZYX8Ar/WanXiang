@@ -178,12 +178,13 @@ Assets/
 ├── WanXiang/
 │   ├── Core/                    WanXiang.Core.asmdef              ✅ 零依赖基座
 │   ├── Framework/               WanXiang.Runtime.asmdef           ✅ 框架运行时
-│   │   ├── UI/                    └ 分层 Canvas / 面板基类 / 栈管理 / 动效
+│   │   ├── UI/                    └ 分层 Canvas / 面板基类 / 栈管理 / 动效  ✅
+│   │   ├── Inputs/                └ 输入系统  ✅ 见 §6
+│   │   ├── Boot/                  └ 场景启动引导（UIBootstrap / InputBootstrap）✅
 │   │   ├── Res/                   └ 资源加载接口（P4 接 YooAsset）
-│   │   ├── Input/                 └ 输入系统（P3）
 │   │   ├── Audio/                 └ 音频（P6）
-│   │   ├── Save/                  └ 存档
-│   │   ├── Config/                └ 配置表读取
+│   │   ├── Save/                  └ 存档  ✅
+│   │   ├── Config/                └ 配置表读取  ✅
 │   │   └── Integration/         WanXiang.Integration.QFramework.asmdef ✅
 │   ├── Modules/                 WanXiang.Modules.asmdef           ⬜ 业务模块（P5/P6）
 │   │   ├── Battle/
@@ -997,6 +998,20 @@ Label_Preload_Battle    进入战斗前预载
 
 ## 6. 输入系统（Input System + 改键）
 
+> **实现状态（2026-09-13）**：P3 已交付，并在真机（Play 模式）验证通过。
+>
+> | 交付物 | 位置 | 状态 |
+> |---|---|---|
+> | 输入资产（4 张 Map、17 个 Action） | `Assets/ArtRes/Input/WanXiang.inputactions` | ✅ |
+> | 运行时框架 | `Assets/WanXiang/Framework/Inputs/`（4 个文件） | ✅ 编译 0 error |
+> | 场景入口 + EventSystem 改造 | `Framework/Boot/InputBootstrap.cs` | ✅ Play 模式实测 |
+> | QFramework 接入 | `Framework/Integration/`（2 个文件） | ✅ 类型落位已核对 |
+> | 资产生成工具 | `Editor/InputTool/InputAssetGenerator.cs` | ✅ |
+> | 包依赖 | `com.unity.inputsystem@1.19.0` + `activeInputHandler = Both` | ✅ |
+>
+> **本章的两处重点**：§6.1 的「后端必须选 Both」（不选会打死 QFramework），
+> 与 §6.3 的「初稿伪代码三处错误」（其中两处不报错、只静默失效）。
+
 ### 6.1 为什么必须用新 Input System
 
 | 能力 | 旧 Input Manager | 新 Input System |
@@ -1062,73 +1077,204 @@ WanXiang.inputactions
 
 ### 6.3 改键实现
 
+> **实现状态（2026-09-13）**：已交付，代码在 `Assets/WanXiang/Framework/Inputs/InputService.cs` 的 `RebindAsync`。
+>
+> ⚠ **本节初稿的伪代码有三处是错的**，下面已按真实实现改正。之所以把错误也记下来，
+> 是因为每一个都会「真的出错」，而且其中两个不报错 —— 详见后面的错误表。
+
 ```csharp
-public async UniTask<RebindResult> RebindAsync(
-    InputAction action, int bindingIndex, CancellationToken ct)
+public async UniTask<InputRebindResult> RebindAsync(
+    InputMapType map, string actionName, int bindingIndex, CancellationToken ct)
 {
-    // 1. 进入监听状态，同时屏蔽其它输入
-    _inputSystem.DisableAllMapsExcept(RebindMap);
+    var action = FindAction(map, actionName);
+    string previousPath = action.bindings[bindingIndex].effectivePath;
+
+    // 1. 进入监听状态：先禁用所有 Map，并记下原上下文待恢复
+    var contextBefore = _context;
+    _isRebinding = true;
+    DisableAllMaps();
 
     var rebind = action.PerformInteractiveRebinding(bindingIndex)
-        .WithControlsExcluding("Mouse")           // 排除鼠标移动等噪声
+        .WithControlsExcluding("<Mouse>/position")   // 排除指针移动这类噪声
+        .WithControlsExcluding("<Mouse>/delta")
         .WithCancelingThrough("<Keyboard>/escape")
-        .OnMatchWaitForAnother(0.1f)              // 防抖
-        .OnComplete(op => { /* 记录新绑定 */ })
-        .OnCancel(op => { /* 恢复原绑定 */ });
+        .OnMatchWaitForAnother(0.1f);                // 防抖
 
-    rebind.Start();
-    await UniTask.WaitUntil(() => !rebind.action.actionMap.enabled || rebind.cancelled || rebind.completed);
-    rebind.Dispose();
+    try
+    {
+        rebind.Start();
 
-    // 2. 冲突检测
-    var conflict = FindConflict(action, bindingIndex);
-    // 3. 持久化
-    SaveOverrides();
-    // 4. 重建 Map
-    _inputSystem.RestoreMaps();
+        double deadline = Time.realtimeSinceStartupAsDouble + 10f;
+        while (!rebind.completed && !rebind.canceled      // ← canceled，一个 L
+               && !ct.IsCancellationRequested
+               && Time.realtimeSinceStartupAsDouble < deadline)
+        {
+            await UniTask.NextFrame(CancellationToken.None);
+        }
+
+        // 超时或外部取消：主动 Cancel，让 RebindingOperation 走完自己的收尾流程，
+        // 避免留下悬挂的设备监听
+        if (!rebind.completed && !rebind.canceled) rebind.Cancel();
+    }
+    finally
+    {
+        rebind.Dispose();
+        _isRebinding = false;
+        ApplyContext(contextBefore, force: true);   // 必须 force，期间 _context 被搅过
+    }
+
+    // 2. 冲突检测（见细节 ①）
+    // 3. 返回结果 —— 是否落盘由调用方决定，框架不碰文件系统
 }
 ```
 
-**四个必须处理的细节：**
+#### 初稿的三个错误
 
-**① 冲突检测。** 玩家把"确认"和"取消"绑到同一个键，一定要提示。检查范围内要包含所有 Map，不只当前 Map。
+| # | 初稿写的 | 为什么错 | 正确做法 |
+|---|---------|---------|---------|
+| ① | `rebind.cancelled` | Input System 全库用**美式拼写** `canceled`（一个 L）。C# 生态里英式拼写也常见，这是高频拼错点 | `rebind.canceled` |
+| ② | `_inputSystem.DisableAllMapsExcept(RebindMap)` | 这个方法不存在。而且「保留一张 RebindMap」的思路也不对 —— 改键要监听的是**任意设备上的任意输入**，不需要任何 Map 处于启用状态 | `DisableAllMaps()`；`RebindingOperation` 自己直接监听设备 |
+| ③ | `await UniTask.WaitUntil(() => !rebind.action.actionMap.enabled \|\| rebind.cancelled \|\| rebind.completed)` | **逻辑反了**。我们自己刚把所有 Map 禁用，所以 `!actionMap.enabled` 一开始就为真，`WaitUntil` 会立刻返回 —— 改键根本不会等待 | 只等 `completed` / `canceled` / 超时 / ct 这四种结束条件 |
 
-**② 持久化。** 用 `InputActionAsset.SaveBindingOverridesAsJson()` 得到字符串，存进**存档系统**（不是 PlayerPrefs，不方便做多账号与云同步）。
+> **③ 是最危险的一个**：它不会报编译错误，也不会抛异常，只会让改键**静默失效** ——
+> 玩家点了「改键」，界面一闪就退回来了，看起来像"点了没反应"。
+> 这类 bug 靠测试很难发现，因为功能"没崩"，只是不工作。
 
-**③ UI 显示同步。** 改键后，所有显示按键提示的地方（如"按 [空格] 释放绝技"）都要更新。正确做法是**不存死字符串，运行时从 Action 取显示名**：
+另外，初稿没提**超时**。没有超时的话，玩家点了改键又反悔、直接去点别的地方，
+监听会一直挂着 —— 此后所有按键都被吃掉。框架默认 10 秒超时
+（`InputService.DefaultRebindTimeoutSeconds`）。
+
+#### 四个必须处理的细节
+
+**① 冲突检测。** 玩家把「确认」和「取消」绑到同一个键，一定要提示。
+
+检查范围要**跨 Map** —— 「绝技」在 Gameplay、「返回」在 Global，只查当前 Map 必然漏。
+
+但本工程**刻意不把 UI Map 纳入扫描**（见 `InputService.ConflictScanMaps`），两个原因：
+
+- UI Map 的按键由 EventSystem 消费，而上下文切换已经保证「UI 开时 Gameplay 关」，
+  两者不会同时吃同一次按键
+- UI 里有一处**故意**的重复：`UI/Cancel` 与 `Global/Back` 都绑 Escape（语义不同、接收方不同）。
+  把它纳入扫描，会让这处设计被反复误报成冲突
+
+**② 持久化。** 用 `InputActionAsset.SaveBindingOverridesAsJson()` 拿到字符串，
+存进**存档系统**（不是 PlayerPrefs —— 那样不方便做多账号与云同步）。
+
+框架只负责导出/导入字符串（`SaveOverrides()` / `LoadOverrides(json)`），**不碰文件系统**。
+这样「多账号」「云同步」「存档回滚」都不会跟输入系统耦合。
+
+**③ UI 显示同步。** 改键后，所有显示按键提示的地方（如「按 [空格] 释放绝技」）都要更新。
+正确做法是**不存死字符串，运行时取值**：
 
 ```csharp
-// 错误
+// 错误 —— 只要有一个地方硬编码，改键之后它就永远停在旧键上
 promptText.text = "按 [空格] 释放绝技";
+
 // 正确
-promptText.text = $"按 [{action.GetBindingDisplayString(bindingIndex)}] 释放绝技";
+promptText.text = "按 [" + input.GetDisplayString(
+    InputMapType.Gameplay, InputActionNames.Ultimate) + "] 释放绝技";
 ```
 
-**④ 恢复默认。** 提供"单项重置"与"全部重置"。玩家把键位改乱了会想一键还原。
+> `GetDisplayString` 内部走 `InputAction.GetBindingDisplayString`，
+> **它会把 overridePath 考虑进去** —— 所以改键之后这里拿到的自动就是新键，
+> UI 不需要自己记任何东西。
+>
+> 实测输出（未改键状态）：
+> `Ultimate → Space`（手柄那条是 `A`）、`OverrideCelestial → Q`、
+> `ToggleSpeed → Left Shift`、`Back → Escape`、`Menu → Tab`、`Screenshot → F12`。
+
+**④ 恢复默认。** 提供「单项重置」（`ResetBinding`）与「全部重置」（`ResetAllBindings`）——
+玩家把键位改乱了会想一键还原。另提供 `HasOverrides`，UI 据此决定
+「恢复默认」按钮是否可点（没改过就该是灰的）。
 
 ### 6.4 与 QFramework 集成
 
-```csharp
-public interface IInputUtility : IUtility
-{
-    void SwitchMap(InputMapType map, bool enable);
-    void SwitchToContext(InputContext ctx);     // 按场景上下文批量切换
-    UniTask<RebindResult> RebindAsync(InputAction action, int bindingIndex);
-    void ResetBinding(InputAction action, int bindingIndex);
-    void ResetAllBindings();
-    string GetDisplayString(InputAction action, int bindingIndex);
-    void LoadOverrides(string json);
-    string SaveOverrides();
-}
+> **实现状态（2026-09-13）**：已交付。接口名与文件划分和初稿不同，见下方修正说明。
+
+| 文件 | 位置 | 职责 |
+|---|---|---|
+| `InputDefines.cs` | `Framework/Inputs/` | 枚举、名字常量、上下文 → Map 映射表 |
+| `IInputService.cs` | `Framework/Inputs/` | 纯 C# 接口，**不继承 `IUtility`** |
+| `InputService.cs` | `Framework/Inputs/` | 默认实现，不依赖 QFramework |
+| `InputRebindResult.cs` | `Framework/Inputs/` | 改键结果与冲突信息 |
+| `InputBootstrap.cs` | `Framework/Boot/` | 场景入口 + EventSystem 改造 |
+| `InputEvents.cs` | `Framework/Integration/` | QFramework 强类型事件定义 |
+| `QFrameworkInputService.cs` | `Framework/Integration/` | Utility 包装 + 事件翻译 |
+| `InputAssetGenerator.cs` | `Editor/InputTool/` | 生成 `.inputactions` 的编辑器工具 |
+
+#### 与初稿的三处修正
+
+**① 接口不继承 `IUtility`。** 初稿写的是 `IInputUtility : IUtility`。
+但 `IUtility` 来自 QFramework —— 让它出现在 `WanXiang.Runtime` 上，等于把整个框架
+和 QFramework 焊死，以后想换架构框架就得改运行时核心。改成两层：
+
 ```
+WanXiang.Runtime                    IInputService（纯 C#）  ← InputService
+        ↑
+WanXiang.Integration.QFramework     InputServiceUtility : IUtility  ← 约 30 行的包装
+```
+
+代价是一个薄包装类，收益是核心层干净。实测确认类型落位：
+`InputService` → `WanXiang.Runtime`，`InputServiceUtility` → `WanXiang.Integration.QFramework`。
+
+**② 方法签名不带 `InputAction`。** 初稿的 `RebindAsync(InputAction action, int bindingIndex)`
+会把资产内部对象交给业务层，然后就会有人开始直接改它
+（改 `enabled`、加 binding），上下文切换的纪律当场瓦解 —— 而那正是本系统存在的理由。
+改成 `RebindAsync(InputMapType map, string actionName, int bindingIndex)`，
+业务层永远拿不到内部对象。需要按键名？用 `GetDisplayString`。需要改键？用 `RebindAsync`。
+
+**③ 事件翻译放在集成层。** `InputService` 只能发 `ActionPerformed("Ultimate")` 这种
+带字符串的事件 —— 字符串是它在无 QFramework 环境下唯一能保证的表示。
+翻译成强类型事件的工作由 `InputServiceUtility` 完成。
 
 业务代码**不直接引用 `InputActionAsset`**，只通过事件接收：
 
 ```csharp
-this.RegisterEvent<UltimateTriggeredEvent>(e => { /* ... */ });
+this.RegisterEvent<UltimateTriggeredEvent>(e => { /* 释放绝技 */ });
 ```
 
-这样做的收益：改键、多设备、输入重映射全部被封在 Utility 内，业务层完全无感。将来要加手柄或触屏虚拟摇杆，业务代码一行不用改。
+而不是：
+
+```csharp
+this.RegisterEvent<InputActionPerformedEvent>(e =>
+{
+    if (e.ActionName == "Ultimate") { }   // ← 字符串比较，写错了不报错、只是静默失效
+});
+```
+
+这样做的收益：改键、多设备、输入重映射全部被封在 Utility 内，业务层完全无感。
+将来要加手柄或触屏虚拟摇杆，业务代码一行不用改。
+
+#### EventSystem 也必须跟着改（初稿漏掉的一环）
+
+新输入后端下，uGUI 默认给的事件模块 `StandaloneInputModule`（走旧 `Input`）
+要换成 **`InputSystemUIInputModule`**。
+
+本工程的 UI 框架原本不创建 EventSystem，场景里也没有 —— 也就是说**换后端之后 UI 会点不动**。
+这是个隐蔽的坑：UI 画得好好的，就是不响应点击，控制台也未必有报错。
+
+`InputBootstrap` 负责这一环：找到或创建 EventSystem → 停用并移除旧模块 →
+挂上新模块 → 把输入资产交给它（模块会按 Action 名字自动认领
+`Point` / `Click` / `Navigate` / `Submit` / `Cancel`）。
+
+> 这也是生成器里 UI Map 必须用**标准名字**的原因 —— 名字对不上，模块对应字段就留空，
+> 那一项交互静默失效，且不会有任何提示。
+
+实测验证结果（Play 模式，`SampleScene`）：
+
+```
+[UI]   UISystem 已启动。层级数 8，缓存上限 8。
+[输入] InputService 已启动。资产「WanXiang」，共 4 张 Map，初始上下文 None（Debug Map 已启用）。
+
+EventSystem.current          = [EventSystem]      ✓ 自动创建（场景原本没有）
+  StandaloneInputModule(旧)   = 已移除             ✓
+  InputSystemUIInputModule(新) = 已装上            ✓
+  actionsAsset               = WanXiang           ✓
+
+运行时切上下文（真实服务，非模拟）：
+  SwitchToContext(Gameplay) → UI=·  Gameplay=✓  Global=✓    期望 ·✓✓
+  SwitchToContext(Modal)    → UI=✓  Gameplay=·  Global=✓    期望 ✓·✓
+```
 
 ---
 
@@ -1234,8 +1380,8 @@ hotfix/*     ← 紧急修复，从 main 拉，修完合回 main 与 develop
 | **P0 工程地基** | ✅ 已完成 | 建工程、锁版本、asmdef 分层、目录规范、Git 与 .gitignore | UniTask 2.5.11 / DOTween 1.3.030 / QFramework | 三层 asmdef 依赖违规能被编译器拦住 |
 | **P1 数据层** | ✅ 已交付 | 配置表工具链（Excel→二进制）+ 存档系统（版本迁移 + 原子写入） | — | ① 改字段顺序后加载**立刻报错**而非静默读错 ② 存档 v1 能被当前版本正确迁移 ③ 杀进程不会损坏存档 |
 | **P2 UI 框架** | ✅ 已交付 | 分层 Canvas、面板基类、栈管理、异步加载、返回键、面板动效 | DOTween（已验证引用链打通） | ① 打开/关闭 100 次无内存泄漏 ② 快速连点不重复加载 ③ 弹窗与 HUD 层级正确 |
-| **P3 输入系统** | ⬜ **下一步** | Action Map、上下文切换、改键、持久化 | **Input System 1.19.0 ✅ 已装** | 改键后重启游戏配置仍在；战斗中开弹窗不会误触技能 |
-| **P4 资源与热更** | ⬜ | YooAsset 分组、Profile 环境、启动流程、HybridCLR 接入 | HybridCLR 8.14.1 + YooAsset 2.3.19 | ① 改一张配置表能热更生效 ② 改一行战斗逻辑能热更生效 ③ 能一键回滚 |
+| **P3 输入系统** | ✅ 已完成 | Action Map、上下文切换、改键、持久化 | Input System 1.19.0 ✅ | 改键后重启游戏配置仍在；战斗中开弹窗不会误触技能 |
+| **P4 资源与热更** | ⬜ **下一步** | YooAsset 分组、Profile 环境、启动流程、HybridCLR 接入 | HybridCLR 8.14.1 + YooAsset 2.3.19 | ① 改一张配置表能热更生效 ② 改一行战斗逻辑能热更生效 ③ 能一键回滚 |
 | **P5 战斗原型** | ⬜ 可与 P0–P3 穿插 | 3×3 棋盘、自动战斗、五行结算（对应 GDD 的 STEP 1） | Luban（独立命令行工具，非 UPM 包） | 灰盒下连看 10 场不无聊 |
 | **P6 业务模块** | ⬜ | 图鉴、融合、肉鸽地图、设置等 | — | 一局完整通关 35-50 分钟 |
 

@@ -3,7 +3,8 @@
     "rootNamespace": "",
     "references": [
         "WanXiang.Core",
-        "WanXiang.Runtime"
+        "WanXiang.Runtime",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [
         "Editor"
