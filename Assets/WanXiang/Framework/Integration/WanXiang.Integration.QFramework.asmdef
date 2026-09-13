@@ -1,0 +1,20 @@
+{
+    "name": "WanXiang.Integration.QFramework",
+    "rootNamespace": "",
+    "references": [
+        "WanXiang.Core",
+        "WanXiang.Runtime",
+        "UniTask",
+        "QFramework",
+        "QFramework.CoreKit"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

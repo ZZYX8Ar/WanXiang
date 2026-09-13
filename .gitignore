@@ -1,0 +1,110 @@
+# ============================================================
+# 万相 MYRIAD · Unity 工程 .gitignore
+# Unity 2022.3.62f3c1 / Universal 2D
+#
+# 原则：只提交「人写的」与「工程配置」，不提交「机器生成的」。
+# 判据：删掉这个文件，Unity 重新打开工程后能否自动重建？
+#   能重建（Library/、*.csproj、Temp/）→ 忽略
+#   不能重建（ProjectSettings/、Assets/、Packages/manifest.json）→ 提交
+# ============================================================
+
+# ---------- Unity 自动生成的目录（体积大，可完全重建）----------
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Unity 崩溃日志
+sysinfo.txt
+crashlytics-build.properties
+
+# ---------- 编译产物 ----------
+# *.csproj / *.sln 是 Unity 每次刷新时重新生成的，
+# 提交它们会让 diff 被噪音淹没（Guid 与文件列表每次都变）。
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# ---------- 构建输出 ----------
+# 注意：Assets/Plugins 下的 DLL（DOTween.dll 等）属于第三方源码分发，
+# 必须提交，所以这里只忽略根目录与常见构建输出目录。
+/[Bb]uild/
+/[Bb]uilds/
+/[Bb]in/
+/[Oo]bj/
+*.apk
+*.aab
+*.app
+*.ipa
+
+# ---------- 系统文件 ----------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ---------- 本工程特有 ----------
+
+# 本地导入的 .unitypackage 压缩包（DOTween 等）。
+# 包内容本身已解压进 Assets/Plugins，压缩包不必入库。
+*.unitypackage
+
+# 导表工具链的中间产物与本地输出
+/LocalTools/Luban/*/obj/
+/LocalTools/Luban/*/bin/
+/LocalTools/Luban/.cache/
+/ConfigExport/
+
+# YooAsset 本地构建产物（P4 接入后生效）
+/[Bb]undles/
+/BuildReport/
+/AssetBundleReport/
+
+# 热更 DLL 的本地拷贝（P4 接入后生效，正式产物走 CDN 不进库）
+/HotfixDlls/
+*.hotfix.dll
+
+# MCP for Unity 的运行期状态（端口、日志、临时握手文件）
+# 注意：Packages/manifest.json 里的 MCP 依赖要提交，但运行期状态不提交。
+/MCPForUnity/
+*.mcp-state.json
+mcp-for-unity*.log
+
+# 编辑器布局与窗口位置（每人屏幕不同，提交只会互相覆盖）
+*.dwlt
+*.layout
+
+# ---------- 显式保留（防止被上面的通配符误伤）----------
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!/Docs/
+!/Tools/
+
+# ============================================================
+# 维护提示
+# ------------------------------------------------------------
+# 新增忽略规则时，用 git check-ignore -v <文件> 确认命中了哪一条。
+# 若发现本该提交的文件被忽略（例如某个 DLL），
+# 用 git add -f <文件> 强制加入，并在此处补一条 ! 例外。
+# ============================================================

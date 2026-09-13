@@ -1,0 +1,19 @@
+{
+    "name": "WanXiang.Runtime",
+    "rootNamespace": "",
+    "references": [
+        "WanXiang.Core",
+        "UniTask",
+        "DOTween",
+        "DOTween.Modules"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
