@@ -86,7 +86,7 @@ namespace WanXiang.Editor.WeatherTool
                 SolarIndex = 2,
                 Weather = new WeatherDef
                 {
-                    Id = "solar_yushui", NodeName = "雨水", BuffName = "润物无声",
+                    Id = "solar_yushui", NodeName = "雨水", BuffName = "獭祭鱼",
                     Element = Element.Wood,
                     TurnEnd = new[]
                     {
@@ -105,7 +105,7 @@ namespace WanXiang.Editor.WeatherTool
                 SolarIndex = 4,
                 Weather = new WeatherDef
                 {
-                    Id = "solar_chunfen", NodeName = "春分", BuffName = "昼夜均分",
+                    Id = "solar_chunfen", NodeName = "春分", BuffName = "玄鸟至",
                     Element = Element.Wood,
                     TurnEnd = new[]
                     {
@@ -124,7 +124,7 @@ namespace WanXiang.Editor.WeatherTool
                 SolarIndex = 6,
                 Weather = new WeatherDef
                 {
-                    Id = "solar_guyu", NodeName = "谷雨", BuffName = "雨生百谷",
+                    Id = "solar_guyu", NodeName = "谷雨", BuffName = "萍始生",
                     Element = Element.Earth,
                     TurnEnd = new[]
                     {
@@ -141,7 +141,7 @@ namespace WanXiang.Editor.WeatherTool
                 SolarIndex = 8,
                 Weather = new WeatherDef
                 {
-                    Id = "solar_xiaoman", NodeName = "小满", BuffName = "麦气充盈",
+                    Id = "solar_xiaoman", NodeName = "小满", BuffName = "麦气至",
                     Element = Element.Fire,
                     CdAdvanceMulPlayer = 1.3f,
                 },
@@ -167,7 +167,7 @@ namespace WanXiang.Editor.WeatherTool
                 SolarIndex = 11,
                 Weather = new WeatherDef
                 {
-                    Id = "solar_xiaoshu", NodeName = "小暑", BuffName = "温风熏灼",
+                    Id = "solar_xiaoshu", NodeName = "小暑", BuffName = "温风至",
                     Element = Element.Fire,
                     TurnStart = new[]
                     {
@@ -236,7 +236,7 @@ namespace WanXiang.Editor.WeatherTool
                 SolarIndex = 18,
                 Weather = new WeatherDef
                 {
-                    Id = "solar_shuangjiang", NodeName = "霜降", BuffName = "霜华满地",
+                    Id = "solar_shuangjiang", NodeName = "霜降", BuffName = "草木黄落",
                     Element = Element.Earth,
                     TurnEnd = new[]
                     {
@@ -272,6 +272,9 @@ namespace WanXiang.Editor.WeatherTool
                 {
                     Id = "solar_daxue", NodeName = "大雪", BuffName = "闭塞成冬",
                     Element = Element.Water,
+                    // v1.1 §3.6：大雪把「先手连击」门槛从 1.50 降到 1.20 ——
+                    // 冬季三节点（大雪/冬至/小寒）都落在同一条速度轴上。
+                    InitiativeRatioOverride = 1.20f,
                     SpeedMulPlayer = 0.8f,
                     SpeedMulEnemy = 0.8f,
                 },
@@ -334,7 +337,7 @@ namespace WanXiang.Editor.WeatherTool
                 SolarIndex = 5,
                 Weather = new WeatherDef
                 {
-                    Id = "solar_qingming", NodeName = "清明", BuffName = "气清景明",
+                    Id = "solar_qingming", NodeName = "清明", BuffName = "桐始华",
                     Element = Element.Wood,
                     DebuffDurationMinusOne = true,
                     ImmuneConfuseSilence = true,
@@ -348,7 +351,7 @@ namespace WanXiang.Editor.WeatherTool
                 SolarIndex = 7,
                 Weather = new WeatherDef
                 {
-                    Id = "solar_lixia", NodeName = "立夏", BuffName = "炎气初升",
+                    Id = "solar_lixia", NodeName = "立夏", BuffName = "蝼蝈鸣",
                     Element = Element.Fire,
                     AttackBurnOn = true,
                     AttackBurnPower = 0.20f,
@@ -363,7 +366,7 @@ namespace WanXiang.Editor.WeatherTool
                 SolarIndex = 9,
                 Weather = new WeatherDef
                 {
-                    Id = "solar_mangzhong", NodeName = "芒种", BuffName = "锋芒毕露",
+                    Id = "solar_mangzhong", NodeName = "芒种", BuffName = "螳螂生",
                     Element = Element.Fire,
                     PursuitOnCrit = true,
                     PursuitPower = 0.50f,
@@ -377,7 +380,7 @@ namespace WanXiang.Editor.WeatherTool
                 SolarIndex = 14,
                 Weather = new WeatherDef
                 {
-                    Id = "solar_chushu", NodeName = "处暑", BuffName = "鹰击长空",
+                    Id = "solar_chushu", NodeName = "处暑", BuffName = "鹰祭而后猎",
                     Element = Element.Metal,
                     KillOverflowShield = true,
                     KillOverflowShieldRatio = 1.00f,

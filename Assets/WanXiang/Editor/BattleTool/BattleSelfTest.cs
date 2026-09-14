@@ -399,6 +399,8 @@ namespace WanXiang.Editor.BattleTool
                 var src = new BattleUnit(TeamSide.Enemy, enemy, "X0");
 
                 st.Turn = 1;
+                // 受控比值断言 ⇒ 必须关抖动（v1.1 的 ±5% Rand 会让 0.92 变成 0.88~0.96 里的任意值）
+                st.Config.DamageJitter = 0f;
                 int dmgCenter = BattleSimulator.ComputeDamage(st, src, center, Element.Fire, 1f, false, false);
                 int dmgOff = BattleSimulator.ComputeDamage(st, src, off, Element.Fire, 1f, false, false);
                 float ratio = dmgOff <= 0 ? 0f : (float)dmgCenter / dmgOff;
@@ -621,7 +623,9 @@ namespace WanXiang.Editor.BattleTool
         /// <summary>四种关系的伤害探针局面。</summary>
         private static BattleState BuildProbe(out BattleUnit wood, out BattleUnit earth, out BattleUnit water)
         {
-            var cfg = BattleConfig.Default;
+            // 受控探针：一律关抖动 —— 这一组断言测的是"五行系数改了伤害就变"，
+            // 开着 ±5% 抖动的话，即使系数改成一样也会"变"（假绿），断言就废了。
+            var cfg = BattleConfig.Default.WithoutJitter();
             var dw = BattleSampleContent.Make("w", "木", Element.Wood, RoleType.Guard);
             var de = BattleSampleContent.Make("e", "土", Element.Earth, RoleType.Guard);
             var dt = BattleSampleContent.Make("t", "水", Element.Water, RoleType.Guard);

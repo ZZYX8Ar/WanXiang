@@ -156,6 +156,10 @@ namespace WanXiang.Battle.Core
         // 23 小寒「寒鸦北去」：每回合结束，我方速度最高的单位获得一次额外普攻
         public bool ExtraBasicAttackOnTurnEnd;
 
+        // 21 大雪「闭塞成冬」：全场速度 -20%（已有 SpeedMul），并把「先手连击」门槛
+        // 从 1.50 降到 1.20 —— 0 = 用 BattleConfig 的默认门槛。
+        public float InitiativeRatioOverride;
+
         /// <summary>
         /// 余气版：原子数值减半（GDD 3.2 规则一：强度减半，残留 2 个节点）。
         /// 规则修正型里**离散的**（禁疗）不继承 —— 全有全无的规则没有"半禁"；
@@ -211,6 +215,9 @@ namespace WanXiang.Battle.Core
                 DebuffDurationMinusOne = DebuffDurationMinusOne,
                 ImmuneConfuseSilence = ImmuneConfuseSilence,
                 ExtraBasicAttackOnTurnEnd = ExtraBasicAttackOnTurnEnd,
+                // 门槛类的余气：向默认值回收一半（1.20 → 1.35），不照搬也不取消
+                InitiativeRatioOverride = InitiativeRatioOverride <= 0f
+                    ? 0f : (InitiativeRatioOverride + 1.50f) * 0.5f,
             };
         }
 

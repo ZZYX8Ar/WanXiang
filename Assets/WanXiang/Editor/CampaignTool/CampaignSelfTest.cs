@@ -116,7 +116,7 @@ namespace WanXiang.Editor.CampaignTool
             ok = run2.EnterNode(1);
             var w1 = run2.ComposeCurrentWeather();
             ok &= w1 != null && w1.Element == Element.Fire                // 元素/名字全取节点
-               && w1.BuffName == "麦气充盈"
+               && w1.BuffName == "麦气至"
                && System.Math.Abs(w1.CdAdvanceMulPlayer - 1.3f) < 0.0001f  // 节点修正保留
                && w1.TurnStart.Length == 1                                 // 余气原子拼进来
                && w1.TurnStart[0].Atom.Kind == EffectAtomKind.ApplyStatus;

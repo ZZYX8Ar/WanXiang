@@ -119,6 +119,37 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public float DefenseConstant = 100f;
 
+        /// <summary>
+        /// 先手连击门槛（GDD v1.1 §3.6，INITIATIVE_RATIO=1.50）：
+        /// 每回合生成出手序列前判定，某单位速度 ≥ 敌方最高速度 × 本值 ⇒ 本回合常规行动后
+        /// 额外获得一次行动；**每方每回合最多 1 次**（防高速队无限连）。
+        /// 「大雪 · 闭塞成冬」把它降到 1.20（见 WeatherDef.InitiativeRatioOverride）。
+        /// </summary>
+        public float InitiativeRatio = 1.50f;
+
+        /// <summary>大雪节点的连击门槛（INITIATIVE_RATIO_SNOW）。</summary>
+        public float InitiativeRatioSnow = 1.20f;
+
+        /// <summary>
+        /// 伤害抖动幅度（GDD v1.1 §3.1 的 Rand ∈ [0.95, 1.05]，即 ±5%）。
+        /// 用途不是"随机性"，而是让同种子回放的日志不像复读机 —— 全程走
+        /// DeterministicRandom，同种子逐位可复现。设为 0 = 关掉抖动（对照实验用）。
+        /// </summary>
+        public float DamageJitter = 0.05f;
+
+        /// <summary>
+        /// 复制一份但关掉伤害抖动 —— **专供受控对照实验**。
+        /// 为什么必须有它：自检里"×0.7 就是 ×0.7"这类乘区断言，
+        /// 会被 ±5% 抖动直接带偏（实测三处对照全红）。抖动的存在意义是
+        /// 让回放日志不像复读机，而不是给断言的对照添噪声。
+        /// </summary>
+        public BattleConfig WithoutJitter()
+        {
+            var c = (BattleConfig)MemberwiseClone();
+            c.DamageJitter = 0f;
+            return c;
+        }
+
         /// <summary>闪避/命中：STEP 1 先不做命中率随机，避免在验证节奏时引入额外噪声。</summary>
         public bool EnableHitChance = false;
 
@@ -162,7 +193,10 @@ namespace WanXiang.Battle.Core
         public RoleBaseline Striker = new RoleBaseline { Hp = 1000, Atk = 160, Def = 25, Speed = 110 };
         public RoleBaseline Caster  = new RoleBaseline { Hp = 1150, Atk = 145, Def = 30, Speed = 100 };
         public RoleBaseline Support = new RoleBaseline { Hp = 1300, Atk = 110, Def = 35, Speed = 95 };
-        public RoleBaseline Swift   = new RoleBaseline { Hp = 1100, Atk = 130, Def = 28, Speed = 130 };
+        // v1.1 定版：速度 130 → 150。3.6 节「先手连击」的门槛是 1.50×，
+        // 疾对术（基准 100）= 150/100 = 1.50 刚好跨过门槛；130 时只有 1.30，
+        // 速度这个属性在回合制里几乎不产生价值（早 0.1 秒行动还是一回合）。
+        public RoleBaseline Swift   = new RoleBaseline { Hp = 1100, Atk = 130, Def = 28, Speed = 150 };
 
         /// <summary>稀有度对面板的乘数。灵品 1.00 / 玄品 1.15 / 神品 1.30。</summary>
         public float RarityMultiplier(Rarity r)

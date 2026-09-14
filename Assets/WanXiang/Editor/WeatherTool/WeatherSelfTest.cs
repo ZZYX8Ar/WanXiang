@@ -21,7 +21,17 @@ namespace WanXiang.Editor.WeatherTool
     public static class WeatherSelfTest
     {
         private const string ReportPath = "Temp/WanXiangDiag/weather_selftest.txt";
-        private const uint BaselineFingerprint = 0x265422D8u;
+        // ⚠ 指纹纪元（v1.1 定版数值）：
+        //   0x265422D8 = v1.0 基线（无伤害抖动、无先手连击）
+        //   0xA91139D0 = v1.1 基线（Rand ±5% 开启 + 先手连击开启 + 疾速度 130→150）
+        //   实测三档对照：关抖动+关连击 = 0x265422D8（旧值，可复现）；
+        //                关抖动+开连击 = 0xFDCBFAB4（17 回合我方胜）；
+        //                全默认       = 0xA91139D0（**30 回合平局**）。
+        //   ⚠ 最后那档是给策划的信号：定版数值下这一局磨成了僵局（与 PvP 5/5 平局同源）。
+        private const uint BaselineFingerprint = 0xA91139D0u;
+
+        /// <summary>v1.0 时代的旧基线 —— 保留它做"抖动/连击各自贡献"的对照。</summary>
+        private const uint LegacyBaselineFingerprint = 0x265422D8u;
 
         private static int _pass, _fail;
         private static readonly List<string> Failures = new List<string>();
@@ -52,8 +62,17 @@ namespace WanXiang.Editor.WeatherTool
             // ---- R1 基准局指纹回归（最重要的保护项） ----
             var baseline = BattleSimulator.Run(
                 BattleSampleContent.BuildScenario(2, 20260914UL, BattleConfig.Default));
+            var legacyCfg = BattleConfig.Default.WithoutJitter();
+            legacyCfg.InitiativeRatio = 99f;      // 关连击
+            var legacy = BattleSimulator.Run(
+                BattleSampleContent.BuildScenario(2, 20260914UL, legacyCfg));
+            Check(lines, legacy.Fingerprint == LegacyBaselineFingerprint,
+                  $"R1b 旧基线可复现：关抖动 + 关连击 ⇒ 0x{legacy.Fingerprint:X8}"
+                  + $"（= v1.0 基线，证明差异只来自这两条新规则）");
+
             Check(lines, baseline.Fingerprint == BaselineFingerprint,
-                  $"R1 基准局指纹回归：0x{baseline.Fingerprint:X8}（期望 0x{BaselineFingerprint:X8}）" +
+                  $"R1 基准局指纹回归：0x{baseline.Fingerprint:X8}（期望 0x{BaselineFingerprint:X8}）"
+                  + $"｜局况 {baseline.Outcome}／{baseline.Turns} 回合" +
                   "—— 天时层没有污染无天时战斗");
 
             // ---- R2 空天时指纹零影响（1v1 对照） ----
@@ -92,7 +111,8 @@ namespace WanXiang.Editor.WeatherTool
             //     伤害变高会提前打死人，战斗动态整个变掉，总比值无意义。对 ComputeDamage
             //     （public static）做受控单笔对照，断言精确 ×1.25（取整误差 ≤1）。
             var xiazhi = WeatherCatalog.GetSolarTerm(10);
-            var sPlain = BattleFactory.Create(BattleConfig.Default, 20260914UL,
+            // ⚠ 所有"×0.7 就是 ×0.7"式对照都以它为基线 ⇒ 必须关抖动
+            var sPlain = BattleFactory.Create(BattleConfig.Default.WithoutJitter(), 20260914UL,
                 new[] { DeployEntry.Player(BattleSampleContent.Make("wP", "平", Element.Metal, RoleType.Striker), 0) },
                 new[] { DeployEntry.Enemy(BattleSampleContent.Make("wQ", "和", Element.Wood, RoleType.Guard), 8) }, null);
             var sXiazhi = BattleFactory.Create(BattleConfig.Default, 20260914UL,
@@ -260,7 +280,7 @@ namespace WanXiang.Editor.WeatherTool
             foreach (var e in sRain.Log.Events)
             {
                 if (e.TargetId != pR.RuntimeId) continue;
-                if (e.Kind == BattleEventKind.Heal && e.Note != null && e.Note.Contains("天时·润物无声")) gotHeal = e.Amount;
+                if (e.Kind == BattleEventKind.Heal && e.Note != null && e.Note.Contains("天时·獭祭鱼")) gotHeal = e.Amount;
                 if (e.Kind == BattleEventKind.Shield && e.Note != null && e.Note.Contains("溢出转化")) gotShield = e.Amount;
             }
             Check(lines, gotHeal == chip && gotShield == shieldExp,
@@ -294,12 +314,12 @@ namespace WanXiang.Editor.WeatherTool
             uA.TakeTrueDamage(uA.MaxHp / 5);
             uB.TakeTrueDamage(uB.MaxHp / 5);
             WeatherResolver.ResolveTurnEnd(sChun);
-            int healEarly = CountNoteTurn(sChun.Log, "天时·昼夜均分", 5);
+            int healEarly = CountNoteTurn(sChun.Log, "天时·玄鸟至", 5);
             sChun.Turn = 13;
             uA.TakeTrueDamage(uA.MaxHp / 5);
             uB.TakeTrueDamage(uB.MaxHp / 5);
             WeatherResolver.ResolveTurnEnd(sChun);
-            int healLate = CountNoteTurn(sChun.Log, "天时·昼夜均分", 13);
+            int healLate = CountNoteTurn(sChun.Log, "天时·玄鸟至", 13);
             Check(lines, healEarly == 2 && healLate == 4,
                   $"⑭ 春分 MinTurn：第 5 回合回复 {healEarly} 笔（2 单位 ×1），第 13 回合 {healLate} 笔（×2）");
 
@@ -340,7 +360,7 @@ namespace WanXiang.Editor.WeatherTool
                 var b = Make1v1Seed("mb", "攻", Element.Metal, RoleType.Striker,
                                     "md", "御", Element.Wood, RoleType.Guard, t9, s);
                 BattleSimulator.Run(b);
-                pursuits += CountNoteKind(b.Log, BattleEventKind.Damage, "锋芒毕露：追击");
+                pursuits += CountNoteKind(b.Log, BattleEventKind.Damage, "螳螂生：追击");
             }
             Check(lines, pursuits > 0, $"⑰ 芒种追击：6 局共触发 {pursuits} 次（暴击才追）");
 
@@ -351,7 +371,7 @@ namespace WanXiang.Editor.WeatherTool
                 var b = Make1v1Seed("cb2", "攻", Element.Metal, RoleType.Striker,
                                     "cd2", "御", Element.Wood, RoleType.Guard, t14, s);
                 BattleSimulator.Run(b);
-                overflowShields += CountNoteKind(b.Log, BattleEventKind.Shield, "鹰击长空");
+                overflowShields += CountNoteKind(b.Log, BattleEventKind.Shield, "鹰祭而后猎");
             }
             Check(lines, overflowShields > 0, $"⑱ 处暑溢出盾：6 局共 {overflowShields} 次击杀溢出转盾");
 
@@ -422,6 +442,49 @@ namespace WanXiang.Editor.WeatherTool
             Check(lines, eggs > 0 && revives > 0,
                   $"㉓ 惊蛰虫卵：8 局留卵 {eggs} 次、复活 {revives} 次（阵亡 {deaths} 次）");
 
+            // ---- ㉔ v1.1 §3.1：伤害抖动（Rand ∈ [0.95,1.05]） ----
+            var jitterSt = Make1v1("jA", "攻", Element.Metal, RoleType.Striker,
+                                   "jB", "御", Element.Wood, RoleType.Guard, null);
+            jitterSt.Config.DamageJitter = 0.05f;
+            int j1 = BattleSimulator.ComputeDamage(jitterSt, jitterSt.UnitsOf(TeamSide.Player)[0],
+                                                   jitterSt.UnitsOf(TeamSide.Enemy)[0], Element.Metal,
+                                                   1.0f, false, false, false);
+            int j2 = BattleSimulator.ComputeDamage(jitterSt, jitterSt.UnitsOf(TeamSide.Player)[0],
+                                                   jitterSt.UnitsOf(TeamSide.Enemy)[0], Element.Metal,
+                                                   1.0f, false, false, false);
+            var plainSt = Make1v1("jA", "攻", Element.Metal, RoleType.Striker,
+                                  "jB", "御", Element.Wood, RoleType.Guard, null);
+            int jBase = BattleSimulator.ComputeDamage(plainSt, plainSt.UnitsOf(TeamSide.Player)[0],
+                                                      plainSt.UnitsOf(TeamSide.Enemy)[0], Element.Metal,
+                                                      1.0f, false, false, false);
+            Check(lines, j1 != j2 && jBase > 0,
+                  $"㉔ 伤害抖动（v1.1 §3.1 Rand ±5%）：连掷两次 {j1} / {j2} 不同；关抖动基准 {jBase}");
+
+            // ---- ㉕ v1.1 §3.6：先手连击（速度 ≥ 对方最高速 × 1.50 ⇒ 本回合额外行动一次） ----
+            var initHit = Make1v1("iA", "疾", Element.Metal, RoleType.Swift,
+                                  "iB", "术", Element.Wood, RoleType.Caster, null);
+            BattleSimulator.Run(initHit);
+            int initCount = CountNoteKind(initHit.Log, BattleEventKind.RoundResolve, "先手连击");
+            var initMiss = Make1v1("m1", "御", Element.Metal, RoleType.Guard,
+                                   "m2", "术", Element.Wood, RoleType.Caster, null);
+            BattleSimulator.Run(initMiss);
+            int initMissCount = CountNoteKind(initMiss.Log, BattleEventKind.RoundResolve, "先手连击");
+            Check(lines, initCount > 0 && initMissCount == 0,
+                  $"㉕ 先手连击（门槛 1.50×）：疾 vs 术 触发 {initCount} 次；御 vs 术 触发 {initMissCount} 次");
+
+            // ---- ㉖ 大雪把连击门槛降到 1.20 ⇒ 攻（110）对御（90）= 1.22× 也该触发 ----
+            var t21 = WeatherCatalog.GetSolarTerm(21);   // 大雪 · 闭塞成冬（门槛覆写 1.20）
+            var initSnow = Make1v1("s1", "攻", Element.Metal, RoleType.Striker,
+                                   "s2", "御", Element.Wood, RoleType.Guard, t21);
+            BattleSimulator.Run(initSnow);
+            int snowInit = CountNoteKind(initSnow.Log, BattleEventKind.RoundResolve, "先手连击");
+            var initPlain2 = Make1v1("s3", "攻", Element.Metal, RoleType.Striker,
+                                     "s4", "御", Element.Wood, RoleType.Guard, null);
+            BattleSimulator.Run(initPlain2);
+            int plainInit2 = CountNoteKind(initPlain2.Log, BattleEventKind.RoundResolve, "先手连击");
+            Check(lines, snowInit > 0 && plainInit2 == 0,
+                  $"㉖ 大雪门槛 1.20×：同一对阵无天时 {plainInit2} 次、大雪下 {snowInit} 次");
+
             return Finish(lines);
         }
 
@@ -440,7 +503,7 @@ namespace WanXiang.Editor.WeatherTool
                                            string idB, string nameB, Element elB, RoleType roleB,
                                            WeatherDef weather)
         {
-            return BattleFactory.Create(BattleConfig.Default, 20260914UL,
+            return BattleFactory.Create(BattleConfig.Default.WithoutJitter(), 20260914UL,
                 new[] { DeployEntry.Player(BattleSampleContent.Make(idA, nameA, elA, roleA), 0) },
                 new[] { DeployEntry.Enemy(BattleSampleContent.Make(idB, nameB, elB, roleB), 8) }, weather);
         }
@@ -462,7 +525,7 @@ namespace WanXiang.Editor.WeatherTool
                                                WeatherDef weather, ulong seed,
                                                Rarity rarityA = Rarity.Rare, Rarity rarityB = Rarity.Rare)
         {
-            return BattleFactory.Create(BattleConfig.Default, seed,
+            return BattleFactory.Create(BattleConfig.Default.WithoutJitter(), seed,
                 new[] { DeployEntry.Player(BattleSampleContent.Make(idA, nameA, elA, roleA, rarityA), 0) },
                 new[] { DeployEntry.Enemy(BattleSampleContent.Make(idB, nameB, elB, roleB, rarityB), 8) },
                 weather);

@@ -80,7 +80,8 @@ namespace WanXiang.Battle.Core
                 TickStatuses(st);
                 if (st.CheckOutcome()) break;
 
-                // ---- 2) 出手序列 ----
+                // ---- 2) 出手序列 ----（先手连击在生成序列**之前**判定，GDD v1.1 §3.6）
+                ResolveInitiativeChain(st, buf);
                 st.BuildActionOrderInto(buf.Order);
                 st.Log.Add(turn, BattleEventKind.RoundResolve, note: "出手序列 " + DescribeOrder(buf.Order));
 
@@ -92,6 +93,10 @@ namespace WanXiang.Battle.Core
                     ExecuteAction(st, u, buf);
                     if (st.CheckOutcome()) break;
                 }
+                if (st.IsOver) break;
+
+                // ---- 3b) 先手连击：本回合常规行动之后，额外获得一次行动 ----
+                ResolveInitiativeExtraAction(st, buf);
                 if (st.IsOver) break;
 
                 // ---- 4) 回合末（天时·回合末在 EndOfTurn 之后、TurnEnd 事件之前） ----
@@ -528,6 +533,90 @@ namespace WanXiang.Battle.Core
         }
 
         // ================================================================
+        //  先手连击（GDD v1.1 §3.6，v1.1 新增规则）
+        //  ----------------------------------------------------------------
+        //  为什么要有这条：回合制里"先出手"本身价值有限（早 0.1 秒行动还是一回合），
+        //  导致「疾」这个职业拿 1100 生命 / 130 攻击换来一个几乎没价值的属性。
+        //  这条规则给速度确权 —— 跨过门槛直接**多打一次**。
+        //
+        //  判定：每回合生成出手序列前，若某单位速度 ≥ 敌方当前最高速度 × 门槛，
+        //        该单位本回合常规行动后额外行动一次；**每方每回合最多 1 次**。
+        //  门槛：BattleConfig.InitiativeRatio（1.50）；大雪节点降到 1.20。
+        //
+        //  ⚠ 「敌方当前最高速度」取**本回合开始时**的快照（含天时/状态修正），
+        //    不取行动过程中的动态值 —— 否则先手方打掉对方最快的单位时，
+        //    连击资格会凭空出现，规则变得不可预测、也无法在回合开始时预告给玩家。
+        // ================================================================
+
+        private static BattleUnit _initiativePlayer;
+        private static BattleUnit _initiativeEnemy;
+        private static bool _initiativePlayerUsed;
+        private static bool _initiativeEnemyUsed;
+
+        private static void ResolveInitiativeChain(BattleState st, Buffers buf)
+        {
+            float ratio = st.Weather != null
+                ? st.Weather.InitiativeRatioOrDefault(st.Config.InitiativeRatio)
+                : st.Config.InitiativeRatio;
+
+            _initiativePlayer = PickInitiativeUnit(st, TeamSide.Player, ratio);
+            _initiativeEnemy = PickInitiativeUnit(st, TeamSide.Enemy, ratio);
+            _initiativePlayerUsed = false;
+            _initiativeEnemyUsed = false;
+
+            if (_initiativePlayer != null)
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: _initiativePlayer.RuntimeId,
+                           note: $"先手连击：{_initiativePlayer.DisplayName} 本回合额外行动（门槛 {ratio:F2}×）");
+            if (_initiativeEnemy != null)
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: _initiativeEnemy.RuntimeId,
+                           note: $"先手连击（敌）：{_initiativeEnemy.DisplayName} 本回合额外行动（门槛 {ratio:F2}×）");
+        }
+
+        /// <summary>挑出本回合获得额外行动的单位：速度达标者里最快的那个（每方最多 1 个）。</summary>
+        private static BattleUnit PickInitiativeUnit(BattleState st, TeamSide side, float ratio)
+        {
+            float oppMax = 0f;
+            var opp = st.UnitsOf(side == TeamSide.Player ? TeamSide.Enemy : TeamSide.Player);
+            for (int i = 0; i < opp.Count; i++)
+            {
+                var u = opp[i];
+                if (!u.IsAlive) continue;
+                float sp = st.EffectiveSpeed(u);
+                if (sp > oppMax) oppMax = sp;
+            }
+            if (oppMax <= 0f) return null;
+
+            BattleUnit best = null;
+            float bestSpeed = 0f;
+            var mine = st.UnitsOf(side);
+            for (int i = 0; i < mine.Count; i++)
+            {
+                var u = mine[i];
+                if (!u.IsAlive) continue;
+                float sp = st.EffectiveSpeed(u);
+                if (sp < oppMax * ratio) continue;
+                if (best == null || sp > bestSpeed) { best = u; bestSpeed = sp; }
+            }
+            return best;
+        }
+
+        /// <summary>常规行动结束后补上那次额外行动（同一回合内只补一次）。</summary>
+        private static void ResolveInitiativeExtraAction(BattleState st, Buffers buf)
+        {
+            ExtraActionFor(st, buf, _initiativePlayer, TeamSide.Player, ref _initiativePlayerUsed);
+            ExtraActionFor(st, buf, _initiativeEnemy, TeamSide.Enemy, ref _initiativeEnemyUsed);
+        }
+
+        private static void ExtraActionFor(BattleState st, Buffers buf, BattleUnit u,
+                                           TeamSide side, ref bool used)
+        {
+            if (used || u == null) return;
+            used = true;
+            if (!u.IsAlive || !u.CanAct) return;      // 这回合被打死/被控就不补了
+            ExecuteAction(st, u, buf);
+        }
+
+        // ================================================================
         //  天时事件钩子（GDD 3.3 剩余 8 条）
         //  ----------------------------------------------------------------
         //  这些规则的共同点是"必须挂在战斗过程的某个点上"，没法用回合开始/结束的
@@ -556,7 +645,7 @@ namespace WanXiang.Battle.Core
                            note: $"{burnDef.Name} ×{dst.GetStacks(StatusCatalog.Burn)}（天时附魔）");
             }
 
-            // 14 处暑「鹰击长空」：我方**击杀**时，溢出伤害按比例转成全队护盾
+            // 14 处暑「鹰祭而后猎」：我方**击杀**时，溢出伤害按比例转成全队护盾
             if (!dst.IsAlive && src.Side == TeamSide.Player && w.KillOverflowShieldOn)
             {
                 int overkill = dmg - dealt;                       // dealt = 实际掉的血（含被护盾吃掉的部分）
@@ -567,7 +656,7 @@ namespace WanXiang.Battle.Core
                 }
             }
 
-            // 09 芒种「锋芒毕露」：我方暴击时追加一次追击（每次行动限 1 次）
+            // 09 芒种「螳螂生」：我方暴击时追加一次追击（每次行动限 1 次）
             // 取舍：追击**不再判暴击**（暴击的追击再暴击会链式触发，GDD 没规定这种递归）。
             if (crit && dst.IsAlive && !src.PursuitUsedThisAction)
             {
@@ -579,7 +668,7 @@ namespace WanXiang.Battle.Core
                     int pdl = dst.TakeDamage(pd);
                     st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId,
                                targetId: dst.RuntimeId, amount: pd, element: el,
-                               note: "天时·锋芒毕露：追击");
+                               note: "天时·螳螂生：追击");
                     if (pdl > 0 && !dst.IsAlive)
                         st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
                                    note: $"{dst.DisplayName} 阵亡（追击）");
@@ -626,7 +715,7 @@ namespace WanXiang.Battle.Core
                 if (added <= 0) continue;
                 st.Log.Add(st.Turn, BattleEventKind.Shield, actorId: killer.RuntimeId,
                            targetId: u.RuntimeId, amount: added, element: u.Element,
-                           note: "天时·鹰击长空：击杀溢出转护盾");
+                           note: "天时·鹰祭而后猎：击杀溢出转护盾");
             }
         }
 
@@ -707,7 +796,7 @@ namespace WanXiang.Battle.Core
         }
 
         /// <summary>
-        /// 05 清明「气清景明」对"施加状态"的过滤：返回 false = 被免疫。
+        /// 05 清明「桐始华」对"施加状态"的过滤：返回 false = 被免疫。
         /// **技能与天时两条施加路径共用它** —— 分成两份口径迟早会分叉
         /// （出现过"技能被免疫、天时上状态却能上"这类不一致）。
         /// </summary>
@@ -789,6 +878,13 @@ namespace WanXiang.Battle.Core
                 if (w.BacklashActive && dst.Side == TeamSide.Player && dst.Element == w.BacklashElement)
                     v *= (1f + WeatherRuntime.BacklashExtraDamage);
             }
+
+            // 抖动（GDD v1.1 §3.1：Rand ∈ [0.95, 1.05]）。
+            // 只在这里消费一次随机数 ⇒ 同种子逐位可复现；DamageJitter=0 时完全不掷骰
+            //（对照实验用：证明其他结算路径没有被抖动污染）。
+            float jitter = st.Config.DamageJitter;
+            if (jitter > 0f)
+                v *= 1f + (st.Random.NextFloat() - 0.5f) * 2f * jitter;
 
             return CoreMath.RoundDamage(v);
         }
