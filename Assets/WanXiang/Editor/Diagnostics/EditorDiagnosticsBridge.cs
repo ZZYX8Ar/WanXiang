@@ -66,6 +66,7 @@
 //    hot.status         打印热更产物现状：HybridCLR 侧 / 资源侧 / 收集器（只读）
 //    hot.smoke          触发热更链路体检：写请求文件并进入 Play 模式（★ 会切 Play）
 //    fusion.selftest    融合管线自检（GDD STEP 2 验收①②③机器判据；Edit 模式，不切 Play）
+//    share.selftest     分享码自检（GDD STEP 3 验收③：≤90 字符 + 对局 1:1 复现；Edit 模式）
 //    resource.smoke     触发资源链路体检：写请求文件并进入 Play 模式（★ 会切 Play）
 //    play.enter         只进 Play 模式、不跑体检（对照实验：验证播放器循环在不在跑）
 //    play.exit          退出 Play 模式（体检卡住时捞一把；会先解除暂停）
@@ -3013,6 +3014,17 @@ namespace WanXiang.EditorTools.Diagnostics
         private static void RunFusionSelfTest(Report report)
         {
             RunEditorTool(report, "fusion.selftest", FusionToolTypeName,
+                "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里缺 WanXiang.Modules.Fusion(.Core) 引用。");
+        }
+
+        private const string ShareToolTypeName =
+            "WanXiang.Editor.FusionTool.ShareSelfTest, WanXiang.Editor";
+
+        /// <summary>分享码自检（GDD STEP 3 验收③：≤90 字符 + 1:1 复现对局）。Edit 模式同步跑。</summary>
+        private static void RunShareSelfTest(Report report)
+        {
+            RunEditorTool(report, "share.selftest", ShareToolTypeName,
                 "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
                 + "② 它的 asmdef 里缺 WanXiang.Modules.Fusion(.Core) 引用。");
         }
