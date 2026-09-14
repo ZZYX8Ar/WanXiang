@@ -200,13 +200,138 @@ namespace WanXiang.Editor.CampaignTool
             Check(lines, fpNode != fpComposed,
                   $"⑨ 余气可观察：小满单独 0x{fpNode:X8} ≠ 小满+立春余气 0x{fpComposed:X8}");
 
+            // ================================================================
+            //  一局编排（RunDriver）：节点 → 天时 → 敌队 → 战斗 → 推进
+            // ================================================================
+
+            // 内容：每幕一套"该幕五行 × 五职业"的灰盒池 + 该幕守关。
+            var pools = new BeastDef[5][];
+            for (int a = 1; a <= 5; a++)
+            {
+                var el = acts[a - 1].SeasonElement;
+                pools[a - 1] = new[]
+                {
+                    BattleSampleContent.Make($"a{a}g", "御", el, RoleType.Guard),
+                    BattleSampleContent.Make($"a{a}s", "攻", el, RoleType.Striker),
+                    BattleSampleContent.Make($"a{a}c", "术", el, RoleType.Caster),
+                    BattleSampleContent.Make($"a{a}p", "辅", el, RoleType.Support),
+                    BattleSampleContent.Make($"a{a}f", "疾", el, RoleType.Swift),
+                };
+            }
+            var bosses = new BeastDef[5];
+            for (int a = 1; a <= 5; a++)
+                // ⚠ 守关取灵品（与池子同级）：本自检验的是**编排链路**能否跑通 21 战，
+                //   不是平衡。神品守关 + 5 神品玩家 = 胜负五五开，自检会随机变红
+                //   （实测：第一版用神品守关，第 1 幕守关就败北）。平衡是策划给数值表之后的事。
+                bosses[a - 1] = BattleSampleContent.Make($"boss{a}", acts[a - 1].BossName,
+                                                          acts[a - 1].SeasonElement, RoleType.Guard);
+            var content = new SeededEnemyProvider(a => pools[a - 1], a => bosses[a - 1]);
+
+            // 我方：一套神品**进攻型**满编。
+            // ⚠ 刻意不带 Support 位：灰盒内容里治疗 + 护盾能互相拖住（实测：5 神品带辅助
+            //   对上 5 灵品，第 1 幕守关打成 30 回合平局 ⇒ 按"平局=没打过"这局就结束了）。
+            //   本自检验的是编排链路能不能跑通 21 战，阵容取能分出胜负的那种。
+            //   ⚠ 同一条实测也给策划一个信号：**回合上限 30 + 治疗护盾体系容易产生僵局**，
+            //   正式数值表出来时要专门看这件事。
+            var strong = new DeployEntry[]
+            {
+                DeployEntry.Player(BattleSampleContent.Make("p0", "甲", Element.Wood,  RoleType.Guard,  Rarity.Legend), 0),
+                DeployEntry.Player(BattleSampleContent.Make("p1", "乙", Element.Fire,  RoleType.Striker, Rarity.Legend), 1),
+                DeployEntry.Player(BattleSampleContent.Make("p2", "丙", Element.Water, RoleType.Striker, Rarity.Legend), 4),
+                DeployEntry.Player(BattleSampleContent.Make("p3", "丁", Element.Metal, RoleType.Caster, Rarity.Legend), 7),
+                DeployEntry.Player(BattleSampleContent.Make("p4", "戊", Element.Earth, RoleType.Swift,  Rarity.Legend), 8),
+            };
+
+            // ---- ⑩ 敌队供给：5 人、站位合法唯一、同种子同阵容、换种子换人 ----
+            var squad1 = content.EnemiesFor(2, 10, false, 12345UL);
+            var squad2 = content.EnemiesFor(2, 10, false, 12345UL);
+            var seen = new bool[9];
+            bool squadOk = squad1.Length == 5;
+            for (int i = 0; i < squad1.Length; i++)
+            {
+                squadOk &= squad1[i].PosIndex == SeededEnemyProvider.DefaultFormation[i]
+                        && squad1[i].Side == TeamSide.Enemy && !seen[squad1[i].PosIndex];
+                seen[squad1[i].PosIndex] = true;
+                squadOk &= ReferenceEquals(squad1[i].Def, squad2[i].Def);
+            }
+            bool squadVaries = false;
+            for (ulong alt = 701UL; alt < 720UL && !squadVaries; alt++)
+            {
+                var s = content.EnemiesFor(2, 10, false, alt);
+                for (int i = 0; i < s.Length && i < squad1.Length; i++)
+                    if (!ReferenceEquals(s[i].Def, squad1[i].Def)) { squadVaries = true; break; }
+            }
+            Check(lines, squadOk && squadVaries,
+                  "⑩ 敌队供给：5 人 / 站位 0·1·4·7·8 唯一合法 / 同种子同阵容 / 换种子换人");
+
+            // ---- ⑪ 整局跑完：21 战（16 常规 + 5 守关），终局=通关 ----
+            var runA = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
+                                     content, 20260914UL, RunChoosers.Seeded(20260914UL));
+            var outcomeA = runA.Play(strong);
+            Check(lines, outcomeA == RunOutcome.Completed && runA.Records.Count == 21
+                       && runA.State.Path.Count == 16,
+                  $"⑪ 整局跑完：{outcomeA}，{runA.Records.Count} 战"
+                  + $"（常规 {runA.State.Path.Count} + 守关 {runA.Records.Count - runA.State.Path.Count}）");
+
+            // ---- ⑫ 一局确定性：同种子逐场指纹/回合/结局一致 ----
+            var runB = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
+                                     content, 20260914UL, RunChoosers.Seeded(20260914UL));
+            runB.Play(strong);
+            bool sameRun = runA.Records.Count == runB.Records.Count;
+            for (int i = 0; i < runA.Records.Count && sameRun; i++)
+                sameRun &= runA.Records[i].Fingerprint == runB.Records[i].Fingerprint
+                        && runA.Records[i].Turns == runB.Records[i].Turns
+                        && runA.Records[i].TermIndex == runB.Records[i].TermIndex;
+            Check(lines, sameRun, "⑫ 一局确定性：同种子两局逐场指纹/回合/路径一致");
+
+            // ---- ⑬ 天时贯通（真实目录）：幕 2 前两场带立春余气，第 3 场起散尽 ----
+            var runD = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
+                                     content, 20260914UL, RunChoosers.First);
+            var outcomeD = runD.Play(strong);
+            var act2 = new List<BattleRecord>();
+            foreach (var r in runD.Records) if (r.Act == 2 && !r.IsBoss) act2.Add(r);
+            string act2Desc = act2.Count == 0 ? "（无）" : "";
+            for (int i = 0; i < act2.Count; i++)
+                act2Desc += (i > 0 ? "｜" : "") + $"第{i + 1}场 {act2[i].WeatherId ?? "null"}";
+            bool weatherOk = act2.Count == 4
+                          && (act2[0].WeatherId ?? "").Contains("linger_solar_lichun")
+                          && (act2[1].WeatherId ?? "").Contains("linger_solar_lichun")
+                          && !(act2[2].WeatherId ?? "").Contains("linger");
+            Check(lines, weatherOk,
+                  $"⑬ 天时贯通（{outcomeD}／共 {runD.Records.Count} 战）：{act2Desc}");
+
+            bool bossOk = false;
+            foreach (var r in runD.Records)
+                if (r.IsBoss) { bossOk = r.TermIndex == -1 && r.WeatherId == null; break; }
+            Check(lines, bossOk, "⑬ 守关战：不挂节点天时（WeatherId=null），也不占节气节点");
+
+            // ---- ⑭ 败北终止：单只灵品后卫对上满编 ⇒ 早于 21 战结束 ----
+            var weak = new DeployEntry[]
+            {
+                DeployEntry.Player(BattleSampleContent.Make("solo", "独", Element.Wood, RoleType.Guard), 4),
+            };
+            var runE = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
+                                     content, 20260914UL, RunChoosers.First);
+            var outcomeE = runE.Play(weak);
+            Check(lines, outcomeE == RunOutcome.Defeated && runE.Records.Count < 21,
+                  $"⑭ 败北终止：{outcomeE}，只打了 {runE.Records.Count} 战就结束");
+
+            // ---- ⑮ 整局摘要可读（节点图窗口与报告共用同一份文本） ----
+            var summary = runA.Summary();
+            Check(lines, summary.Contains("通关") && summary.Split('\n').Length >= 21,
+                  "⑮ 整局摘要：含结论与逐场记录（21 行以上）");
+            lines.Add("  · 整局摘要（⑪ 那一局，逐场）：");
+            foreach (var l in summary.Split('\n'))
+                if (l.Trim().Length > 0) lines.Add("      " + l);
+
             lines.Add("========================================================================");
             lines.Add($"结论：{_pass} 项通过，{_fail} 项失败");
             if (_fail > 0)
                 foreach (var f in Failures) lines.Add("  ❌ " + f);
             else
                 lines.Add("说明：分叉拓扑是 v1 占位（相邻层全连通），试玩调手感时改 ActGraph.Layers 即可，"
-                          + "枚举/推进/余气三套判据不随拓扑变化。余气来源取上一幕首节点（GDD 歧义，待策划确认）。");
+                          + "枚举/推进/余气/编排四套判据不随拓扑变化。余气来源取上一幕首节点（GDD 歧义，待策划确认）；"
+                          + "每场战斗独立（血量不跨场继承）、平局按败北处理（均为 GDD 未规定处的取舍）。");
 
             try
             {
@@ -236,5 +361,3 @@ namespace WanXiang.Editor.CampaignTool
         }
     }
 }
-
-// build marker 639250152576349506

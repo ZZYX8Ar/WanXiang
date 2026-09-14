@@ -37,7 +37,7 @@ namespace WanXiang.Campaign
 
             var result = new WanXiang.Battle.Core.WeatherDef
             {
-                Id = node?.Id ?? "linger_only",
+                Id = BuildId(node, lingers),
                 NodeName = node?.NodeName ?? "余气",
                 BuffName = node?.BuffName ?? "余气",
                 Element = node?.Element ?? WanXiang.Battle.Core.Element.None,
@@ -98,6 +98,21 @@ namespace WanXiang.Campaign
             result.HealOverflowShieldRatio = overflow;
             result.BanHeal = banHeal;
             return result;
+        }
+
+        /// <summary>
+        /// 合成 id：`<节点 id>` 或 `<节点 id>+<余气 id>+…`。
+        /// 记账/窗口/自检都靠它一眼看出"这场天时里混了谁的余气"——
+        /// 只用节点 id 的话，余气在场与不在场的记录长得一模一样。
+        /// </summary>
+        private static string BuildId(WanXiang.Battle.Core.WeatherDef node,
+                                      IReadOnlyList<WanXiang.Battle.Core.WeatherDef> lingers)
+        {
+            var sb = new System.Text.StringBuilder(node?.Id ?? "linger_only");
+            if (lingers != null)
+                for (int i = 0; i < lingers.Count; i++)
+                    if (lingers[i] != null) sb.Append('+').Append(lingers[i].Id);
+            return sb.ToString();
         }
 
         private static void Apply(WanXiang.Battle.Core.WeatherDef w,
