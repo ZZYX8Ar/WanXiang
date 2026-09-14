@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_zhurong
+  m_EditorClassIdentifier: 
+  SoulId: zhurong_soul
+  DisplayName: "\u795D\u878D\u4E4B\u9B42"
+  Epithet: "\u71CE\u539F"
+  SourceBeastId: zhurong
+  Rarity: 3
+  ElementOverride: 2
+  HueShiftDegrees: 30
+  GlowHex: '#FF7A2F'
+  EyeHex: '#FFD84D'
+  TraitName: "\u9B42\xB7\u71DA"
+  TraitDescription: "\u6211\u65B9\u6240\u6709\u706B\u5C5E\u6027\u4F24\u5BB3\u65E0\u89C6\u654C\u65B9
+    25% \u7684\u6297\u6027\uFF1B\u573A\u4E0A\u6BCF\u5B58\u5728 1 \u5C42\u707C\u70E7\uFF0C\u6211\u65B9\u706B\u5C5E\u6027\u5355\u4F4D\u653B\u51FB\u529B
+    +1%\uFF08\u65E0\u4E0A\u9650\uFF09\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: e8c4252c86e2e2c448f260d901ee9c5d, type: 2}

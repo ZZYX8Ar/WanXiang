@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_feiyi_b
+  m_EditorClassIdentifier: 
+  SkillId: feiyi_b
+  SkillName: "\u566C\u556E"
+  Type: 0
+  Cd: 0
+  Element: 2
+  PrimaryTarget: 1
+  Description: "\u5BF9\u5355\u4F53\u9020\u6210 100% \u653B\u51FB\u7684\u4F24\u5BB3\uFF1B\u82E5\u76EE\u6807\u4E3A\u6C34\u5C5E\u6027\uFF0C\u6539\u4E3A\u9020\u6210
+    150% \u653B\u51FB\u7684\u4F24\u5BB3\u5E76\u9A71\u6563\u5176 1 \u4E2A\u62A4\u76FE\u3002"

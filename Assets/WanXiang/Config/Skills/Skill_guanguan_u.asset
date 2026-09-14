@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_guanguan_u
+  m_EditorClassIdentifier: 
+  SkillId: guanguan_u
+  SkillName: "\u9752\u4E18\u4E00\u9E23"
+  Type: 2
+  Cd: 6
+  Element: 1
+  PrimaryTarget: 1
+  Description: "\u5BF9\u5168\u573A\u654C\u65B9\u65BD\u52A0\u300C\u60D1\u89E3\u300D\uFF1A3
+    \u56DE\u5408\u5185\uFF0C\u654C\u65B9\u6240\u6709\u5E7B\u672F\u3001\u6DF7\u4E71\u3001\u9690\u8EAB\u7C7B\u6548\u679C\u5B8C\u5168\u5931\u6548\uFF1B\u6211\u65B9\u5168\u4F53\u83B7\u5F97
+    25% \u51CF\u4F24\u3002\u82E5\u573A\u4E0A\u6709\u654C\u65B9\u5904\u4E8E\u6DF7\u4E71\u72B6\u6001\uFF0C\u6539\u4E3A\u5BF9\u5176\u9020\u6210
+    200% \u653B\u51FB\u7684\u771F\u5B9E\u4F24\u5BB3\u3002"

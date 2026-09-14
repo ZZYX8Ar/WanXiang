@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_xiangliu
+  m_EditorClassIdentifier: 
+  BeastId: xiangliu
+  DisplayName: "\u76F8\u67F3"
+  Element: 5
+  Role: 2
+  Rarity: 2
+  Source: "\u300A\u5C71\u6D77\u7ECF\xB7\u6D77\u5916\u5317\u7ECF\u300B"
+  Quote: "\u5171\u5DE5\u4E4B\u81E3\u66F0\u76F8\u67F3\u6C0F\uFF0C\u4E5D\u9996\uFF0C\u4EE5\u98DF\u4E8E\u4E5D\u5C71\u3002\u76F8\u67F3\u4E4B\u6240\u62B5\uFF0C\u53A5\u4E3A\u6CFD\u6EAA\u3002"
+  Lore: "\u5171\u5DE5\u7684\u81E3\u5C5E\uFF0C\u4E5D\u4E2A\u8111\u888B\uFF0C\u540C\u65F6\u5403\u4E5D\u5EA7\u5C71\u4E0A\u7684\u4E1C\u897F\u3002\u5B83\u722C\u8FC7\u7684\u5730\u65B9\uFF0C\u90FD\u4F1A\u53D8\u6210\u6CBC\u6CFD\u548C\u6EAA\u6D41\u2014\u2014\u4E0D\u662F\u5B83\u9020\u6C34\uFF0C\u662F\u6C34\u6015\u5B83\uFF0C\u5F80\u5B83\u540E\u9762\u8EB2\u3002"
+  Codex: "\u4E5D\u4E2A\u8111\u888B\uFF0C\u6CA1\u6709\u4E00\u4E2A\u5728\u60F3\u597D\u4E8B\u3002"
+  TraitName: "\u4E5D\u9996"
+  TraitDescription: "\u81EA\u8EAB\u666E\u653B\u5BF9\u6700\u591A 9 \u4E2A\u4E0D\u540C\u76EE\u6807\u5404\u53D1\u52A8
+    1 \u6BB5 40% \u653B\u51FB\u7684\u4F24\u5BB3\uFF08\u76EE\u6807\u4E0D\u8DB3 9 \u4E2A\u65F6\uFF0C\u591A\u51FA\u7684\u6BB5\u6570\u968F\u673A\u91CD\u590D\u547D\u4E2D\uFF09\uFF1B\u6BCF\u547D\u4E2D\u4E00\u4E2A\u65B0\u76EE\u6807\uFF0C\u672C\u6B21\u6280\u80FD\u4F24\u5BB3
+    +8%\u3002"
+  Basic: {fileID: 11400000, guid: 8bec37ff32364734493ed7683845cb09, type: 2}
+  Active: {fileID: 11400000, guid: f8fb5a933e668384c9d783533408a2a3, type: 2}
+  Ultimate: {fileID: 11400000, guid: c764805ca341edc4086e3a1954fbecde, type: 2}
+  BodyMainHex: '#4A5A45'
+  BodyAccentHex: '#2A2118'
+  EnergyGlowHex: '#7BC47F'
+  EyeCoreHex: '#C8352C'
+  OutlineHex: '#2A2118'

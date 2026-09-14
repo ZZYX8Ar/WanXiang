@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_lushu
+  m_EditorClassIdentifier: 
+  SoulId: lushu_soul
+  DisplayName: "\u9E7F\u8700\u4E4B\u9B42"
+  Epithet: "\u6276\u82CF"
+  SourceBeastId: lushu
+  Rarity: 1
+  ElementOverride: 1
+  HueShiftDegrees: 12
+  GlowHex: '#A8D96B'
+  EyeHex: '#3A3A3A'
+  TraitName: "\u9B42\xB7\u5B9C\u5B50\u5B59"
+  TraitDescription: "\u6211\u65B9\u7684\u6CBB\u7597\u4E0E\u62A4\u76FE\u6548\u679C\u6EA2\u51FA\u65F6\uFF0C\u6EA2\u51FA\u91CF\u7684
+    40% \u4F1A\u8F6C\u79FB\u7ED9\u751F\u547D\u6700\u4F4E\u7684\u53E6\u4E00\u540D\u961F\u53CB\uFF08\u53EF\u8FDE\u9501
+    1 \u6B21\uFF09\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: d3c24ca15b2648442a4dc2966f32f717, type: 2}

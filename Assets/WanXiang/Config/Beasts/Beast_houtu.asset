@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_houtu
+  m_EditorClassIdentifier: 
+  BeastId: houtu
+  DisplayName: "\u540E\u571F"
+  Element: 3
+  Role: 1
+  Rarity: 3
+  Source: "\u300A\u5C71\u6D77\u7ECF\xB7\u6D77\u5185\u7ECF\u300B\u300A\u5DE6\u4F20\xB7\u662D\u516C\u4E8C\u5341\u4E5D\u5E74\u300B"
+  Quote: "\u5171\u5DE5\u751F\u540E\u571F\u3002\u2026\u2026\u5171\u5DE5\u6C0F\u6709\u5B50\u66F0\u53E5\u9F99\uFF0C\u4E3A\u540E\u571F\u3002"
+  Lore: "\u5171\u5DE5\u4E4B\u5B50\u53E5\u9F99\uFF0C\u4E3A\u540E\u571F\uFF0C\u4E3B\u571F\u5730\u4E0E\u793E\u7A37\u3002\u4E94\u884C\u4E4B\u4E2D\u571F\u5C45\u4E2D\u592E\uFF0C\u5BC4\u65FA\u4E8E\u56DB\u5B63\u2014\u2014\u6240\u4EE5\u540E\u571F\u4E0D\u5C5E\u4E8E\u4EFB\u4F55\u4E00\u4E2A\u5B63\u8282\uFF0C\u5374\u53C8\u5728\u6BCF\u4E00\u5B63\u7684\u672B\u5C3E\u73B0\u8EAB\u3002"
+  Codex: "\u571F\u4E0D\u4E0E\u8C01\u4E89\uFF0C\u4F46\u8C01\u90FD\u7AD9\u5728\u571F\u4E0A\u3002"
+  TraitName: "\u571F\u65FA\u56DB\u5B63"
+  TraitDescription: "\u6218\u6597\u5F00\u59CB\u65F6\uFF0C\u81EA\u8EAB\u6839\u636E\u5F53\u524D\u5B63\u8282\u83B7\u5F97\u5BF9\u5E94\u5F3A\u5316\uFF1A\u6625\uFF08\u6728\uFF09\u989D\u5916\u6CBB\u7597
+    +30%\uFF1B\u590F\uFF08\u706B\uFF09\u53CD\u4F24 +30%\uFF1B\u79CB\uFF08\u91D1\uFF09\u62A4\u76FE
+    +30%\uFF1B\u51AC\uFF08\u6C34\uFF09\u51CF\u4F24 +15%\u3002\u81EA\u8EAB\u7AD9\u5728\u4E2D\u5BAB\u65F6\uFF0C\u5168\u90E8\u56DB\u9879\u540C\u65F6\u751F\u6548\u3002"
+  Basic: {fileID: 11400000, guid: 31dd97445b774454bb50b44d2fe55077, type: 2}
+  Active: {fileID: 11400000, guid: d66f03993b1f58b45a764211f7467819, type: 2}
+  Ultimate: {fileID: 11400000, guid: 45205aaf425c2db40b6eaf2eef4de133, type: 2}
+  BodyMainHex: '#B8862B'
+  BodyAccentHex: '#E8C25B'
+  EnergyGlowHex: '#F0C239'
+  EyeCoreHex: '#2A2118'
+  OutlineHex: '#2A2118'

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_dijiang_u
+  m_EditorClassIdentifier: 
+  SkillId: dijiang_u
+  SkillName: "\u5E1D\u6C5F\u4E4B\u821E"
+  Type: 2
+  Cd: 6
+  Element: 3
+  PrimaryTarget: 1
+  Description: "\u5168\u573A\u8FDB\u5165\u300C\u6B4C\u821E\u300D\u72B6\u6001\u6301\u7EED
+    3 \u56DE\u5408\uFF1A\u6211\u65B9\u6BCF\u6B21\u884C\u52A8\u7ED3\u675F\u90FD\u4F1A\u8FDB\u884C\u5224\u5B9A\u2014\u201440%
+    \u6982\u7387\u4F7F\u654C\u65B9\u5168\u4F53 CD +1\uFF0C40% \u6982\u7387\u4F7F\u6211\u65B9\u5168\u4F53
+    CD -1\uFF0C20% \u6982\u7387\u540C\u65F6\u53D1\u751F\u3002\u671F\u95F4\u6211\u65B9\u5168\u4F53\u514D\u75AB\u63A7\u5236\uFF0C\u654C\u65B9\u5168\u4F53\u6BCF\u56DE\u5408\u635F\u5931
+    8% \u6700\u5927\u751F\u547D\u3002"

@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_qiuyu
+  m_EditorClassIdentifier: 
+  BeastId: qiuyu
+  DisplayName: "\u72B0\u72F3"
+  Element: 4
+  Role: 1
+  Rarity: 1
+  Source: "\u300A\u5C71\u6D77\u7ECF\xB7\u4E1C\u5C71\u7ECF\u300B"
+  Quote: "\u4F59\u5CE8\u4E4B\u5C71\uFF0C\u6709\u517D\u7109\uFF0C\u5176\u72B6\u5982\u83DF\u800C\u9E1F\u5599\uFF0C\u9E31\u76EE\u86C7\u5C3E\uFF0C\u89C1\u4EBA\u5219\u7720\uFF0C\u540D\u66F0\u72B0\u72F3\uFF0C\u5176\u9E23\u81EA\u8A06\uFF0C\u89C1\u5219\u87BD\u8757\u4E3A\u8D25\u3002"
+  Lore: "\u50CF\u5154\u5B50\u5374\u6709\u9E1F\u5634\uFF0C\u732B\u5934\u9E70\u7684\u773C\uFF0C\u86C7\u7684\u5C3E\u5DF4\u3002\u89C1\u5230\u4EBA\u5C31\u88C5\u7761\u3002\u5B83\u51FA\u73B0\u65F6\uFF0C\u7530\u91CC\u7684\u8757\u866B\u4F1A\u6B7B\u5149\u2014\u2014\u4E00\u4E2A\u770B\u8D77\u6765\u6700\u6CA1\u7528\u7684\u5BB6\u4F19\uFF0C\u6070\u597D\u662F\u552F\u4E00\u80FD\u6CBB\u8757\u707E\u7684\u3002"
+  Codex: "\u5B83\u4E0D\u662F\u61D2\uFF0C\u5B83\u53EA\u662F\u628A\u529B\u6C14\u7528\u5728\u4E86\u6CA1\u4EBA\u5728\u770B\u7684\u65F6\u5019\u3002"
+  TraitName: "\u89C1\u4EBA\u5219\u7720"
+  TraitDescription: "\u81EA\u8EAB\u751F\u547D\u4F4E\u4E8E 30% \u65F6\u8FDB\u5165\u300C\u7720\u300D\u72B6\u6001\uFF1A\u65E0\u6CD5\u884C\u52A8\uFF0C\u4F46\u514D\u75AB\u6240\u6709\u4F24\u5BB3\u4E0E\u63A7\u5236\uFF0C\u5E76\u5728
+    1 \u56DE\u5408\u540E\u82CF\u9192\u5E76\u56DE\u590D 40% \u6700\u5927\u751F\u547D\uFF08\u6BCF\u573A\u9650
+    1 \u6B21\uFF09\u3002"
+  Basic: {fileID: 11400000, guid: 53e72ef9f9e6d204e8930b8926f77a8b, type: 2}
+  Active: {fileID: 11400000, guid: c0835967cf1dacc419709f7baab06a7f, type: 2}
+  Ultimate: {fileID: 11400000, guid: b50fecae1b4931f4596d009422b4d8aa, type: 2}
+  BodyMainHex: '#A89678'
+  BodyAccentHex: '#C8CFD3'
+  EnergyGlowHex: '#E9F1F6'
+  EyeCoreHex: '#2A2118'
+  OutlineHex: '#2A2118'

@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_hundun
+  m_EditorClassIdentifier: 
+  SoulId: hundun_soul
+  DisplayName: "\u6DF7\u6C8C\u4E4B\u9B42"
+  Epithet: "\u4E2D\u5CB3"
+  SourceBeastId: hundun
+  Rarity: 2
+  ElementOverride: 3
+  HueShiftDegrees: -20
+  GlowHex: '#C9A063'
+  EyeHex: '#2A2118'
+  TraitName: "\u9B42\xB7\u65E0\u522B"
+  TraitDescription: "\u81EA\u8EAB\u9020\u6210\u7684\u4F24\u5BB3\u65E0\u89C6\u654C\u6211\u5173\u7CFB\u2014\u2014\u6240\u6709\u4F24\u5BB3\u6027\u6280\u80FD\u4F1A\u4EE5\u81EA\u8EAB\u4E3A\u4E2D\u5FC3\u6CE2\u53CA\u5168\u573A\u3002\u81EA\u8EAB\u53D7\u5230\u7684\u4F24\u5BB3\u964D\u4F4E
+    25%\uFF08\u56E0\u4E3A\u5B83\u6839\u672C\u4E0D\u77E5\u9053\u81EA\u5DF1\u88AB\u6253\uFF09\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: f8f131498b0913848a4261256d23a24b, type: 2}

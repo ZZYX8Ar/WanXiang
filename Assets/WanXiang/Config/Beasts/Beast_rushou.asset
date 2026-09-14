@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_rushou
+  m_EditorClassIdentifier: 
+  BeastId: rushou
+  DisplayName: "\u84D0\u6536"
+  Element: 4
+  Role: 2
+  Rarity: 3
+  Source: "\u300A\u5C71\u6D77\u7ECF\xB7\u6D77\u5916\u897F\u7ECF\u300B"
+  Quote: "\u897F\u65B9\u84D0\u6536\uFF0C\u5DE6\u8033\u6709\u86C7\uFF0C\u4E58\u4E24\u9F99\u3002"
+  Lore: "\u897F\u65B9\u4E4B\u795E\uFF0C\u53F8\u79CB\u4E0E\u5211\u6740\u3002\u5DE6\u8033\u6302\u7740\u4E00\u6761\u86C7\uFF0C\u4E58\u4E24\u9F99\u3002\u79CB\u662F\u6536\u83B7\u7684\u5B63\u8282\uFF0C\u4E5F\u662F\u884C\u5211\u7684\u5B63\u8282\u2014\u2014\u5272\u4E0B\u9EA6\u7A57\u4E0E\u5272\u4E0B\u5934\u9885\uFF0C\u5728\u4ED6\u624B\u91CC\u662F\u540C\u4E00\u4EF6\u4E8B\u3002"
+  Codex: "\u4ED6\u5272\u4E0B\u9EA6\u7A57\u7684\u65F6\u5019\uFF0C\u9EA6\u7530\u5F88\u5B89\u9759\u3002"
+  TraitName: "\u5211\u6740"
+  TraitDescription: "\u6211\u65B9\u6240\u6709\u5355\u4F4D\u5BF9\u751F\u547D\u503C\u4F4E\u4E8E
+    40% \u7684\u654C\u4EBA\u9020\u6210\u7684\u4F24\u5BB3 +45%\uFF1B\u6211\u65B9\u6BCF\u6B21\u51FB\u6740\uFF0C\u5168\u961F\u83B7\u5F97
+    1 \u5C42\u300C\u79CB\u51B3\u300D\uFF08\u66B4\u51FB\u4F24\u5BB3 +8%\uFF0C\u4E0A\u9650
+    8 \u5C42\uFF0C\u672C\u5C40\u5185\u4FDD\u7559\uFF09\u3002"
+  Basic: {fileID: 11400000, guid: 51ad9cce6331b9e4d921c048cdae110c, type: 2}
+  Active: {fileID: 11400000, guid: abd7386c2680e3945a3ce2709635c26e, type: 2}
+  Ultimate: {fileID: 11400000, guid: ca4c4a1268c8f2c4296b5adf4f1ac776, type: 2}
+  BodyMainHex: '#C8CFD3'
+  BodyAccentHex: '#C9A063'
+  EnergyGlowHex: '#E9F1F6'
+  EyeCoreHex: '#6B7B8C'
+  OutlineHex: '#2A2118'

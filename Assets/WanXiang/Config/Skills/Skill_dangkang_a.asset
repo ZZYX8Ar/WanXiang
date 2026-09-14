@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_dangkang_a
+  m_EditorClassIdentifier: 
+  SkillId: dangkang_a
+  SkillName: "\u8C5A\u7259"
+  Type: 1
+  Cd: 3
+  Element: 3
+  PrimaryTarget: 1
+  Description: "\u6211\u65B9\u5168\u4F53\u83B7\u5F97\u300C\u4E30\u7A70\u300D\u6301\u7EED
+    3 \u56DE\u5408\uFF1A\u6BCF\u56DE\u5408\u56DE\u590D 9% \u6700\u5927\u751F\u547D\uFF0C\u5E76\u5C06\u300C\u7A70\u300D\u5C42\u6570\u7FFB\u500D\uFF08\u4E0A\u9650\u4ECD\u4E3A
+    6 \u5C42\uFF09\u3002"

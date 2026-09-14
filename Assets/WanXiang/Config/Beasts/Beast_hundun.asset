@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_hundun
+  m_EditorClassIdentifier: 
+  BeastId: hundun
+  DisplayName: "\u6DF7\u6C8C"
+  Element: 3
+  Role: 3
+  Rarity: 2
+  Source: "\u300A\u795E\u5F02\u7ECF\xB7\u897F\u8352\u7ECF\u300B"
+  Quote: "\u6606\u4ED1\u897F\u6709\u517D\u7109\uFF0C\u5176\u72B6\u5982\u72AC\uFF0C\u957F\u6BDB\u56DB\u8DB3\uFF0C\u4F3C\u7F74\u800C\u65E0\u722A\uFF0C\u6709\u76EE\u800C\u4E0D\u89C1\uFF0C\u884C\u4E0D\u5F00\uFF0C\u6709\u4E24\u8033\u800C\u4E0D\u95FB\u2026\u2026\u6709\u80A0\u76F4\u800C\u4E0D\u65CB\uFF0C\u98DF\u7269\u5F84\u8FC7\u3002"
+  Lore: "\u50CF\u72AC\u800C\u957F\u6BDB\uFF0C\u6709\u773C\u5374\u770B\u4E0D\u89C1\uFF0C\u6709\u8033\u5374\u542C\u4E0D\u89C1\u3002\u5B83\u6CA1\u6709\u4E94\u810F\uFF0C\u80A0\u5B50\u7B14\u76F4\uFF0C\u5403\u4E0B\u53BB\u7684\u4E1C\u897F\u5F84\u76F4\u7A7F\u8FC7\u3002\u9047\u5230\u6709\u5FB7\u4E4B\u4EBA\u5C31\u53BB\u9876\u649E\u4ED6\uFF0C\u9047\u5230\u51F6\u6076\u4E4B\u5F92\u5C31\u4F9D\u9644\u4ED6\u3002\u5929\u751F\u5982\u6B64\uFF0C\u4E0D\u53EB\u6076\uFF0C\u53EB\u65E0\u522B\u3002"
+  Codex: "\u5B83\u4E0D\u5206\u5584\u6076\uFF0C\u53EA\u662F\u4E00\u4E2A\u8FD8\u6CA1\u88AB\u547D\u540D\u4E4B\u524D\u7684\u7B54\u6848\u3002"
+  TraitName: "\u65E0\u522B"
+  TraitDescription: "\u81EA\u8EAB\u9020\u6210\u7684\u4F24\u5BB3\u65E0\u89C6\u654C\u6211\u5173\u7CFB\u2014\u2014\u6240\u6709\u4F24\u5BB3\u6027\u6280\u80FD\u4F1A\u4EE5\u81EA\u8EAB\u4E3A\u4E2D\u5FC3\u6CE2\u53CA\u5168\u573A\u3002\u81EA\u8EAB\u53D7\u5230\u7684\u4F24\u5BB3\u964D\u4F4E
+    25%\uFF08\u56E0\u4E3A\u5B83\u6839\u672C\u4E0D\u77E5\u9053\u81EA\u5DF1\u88AB\u6253\uFF09\u3002"
+  Basic: {fileID: 11400000, guid: 7228838f7736b644db3515c95e7c0a3e, type: 2}
+  Active: {fileID: 11400000, guid: f8f131498b0913848a4261256d23a24b, type: 2}
+  Ultimate: {fileID: 11400000, guid: d0b0dad36b42bcf48a1aedde133f4c3c, type: 2}
+  BodyMainHex: '#A89678'
+  BodyAccentHex: '#6B6157'
+  EnergyGlowHex: '#C9A063'
+  EyeCoreHex: '#2A2118'
+  OutlineHex: '#2A2118'

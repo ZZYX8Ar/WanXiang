@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_dangkang
+  m_EditorClassIdentifier: 
+  BeastId: dangkang
+  DisplayName: "\u5F53\u5EB7"
+  Element: 3
+  Role: 4
+  Rarity: 1
+  Source: "\u300A\u5C71\u6D77\u7ECF\xB7\u4E1C\u5C71\u7ECF\u300B"
+  Quote: "\u94A6\u5C71\uFF0C\u6709\u517D\u7109\uFF0C\u5176\u72B6\u5982\u8C5A\u800C\u6709\u7259\uFF0C\u5176\u540D\u66F0\u5F53\u5EB7\uFF0C\u5176\u9E23\u81EA\u53EB\uFF0C\u89C1\u5219\u5929\u4E0B\u5927\u7A70\u3002"
+  Lore: "\u50CF\u91CE\u732A\u800C\u6709\u7360\u7259\uFF0C\u53EB\u58F0\u662F\u81EA\u5DF1\u7684\u540D\u5B57\u3002\u5B83\u51FA\u73B0\u7684\u5E74\u4EFD\u5929\u4E0B\u4E30\u6536\u3002\u5728\u707E\u5E74\u7684\u4F20\u8BF4\u91CC\uFF0C\u5B83\u662F\u552F\u4E00\u4E00\u4E2A\u53EA\u5E26\u6765\u597D\u6D88\u606F\u7684\u5F02\u517D\u3002"
+  Codex: "\u5B83\u4E00\u53EB\uFF0C\u7530\u91CC\u7684\u8C37\u7A57\u5C31\u81EA\u5DF1\u4F4E\u5934\u4E86\u3002"
+  TraitName: "\u5927\u7A70"
+  TraitDescription: "\u6BCF\u56DE\u5408\u7ED3\u675F\u65F6\uFF0C\u6211\u65B9\u5168\u4F53\u83B7\u5F97
+    1 \u5C42\u300C\u7A70\u300D\uFF08\u4E0A\u9650 6 \u5C42\uFF09\uFF1B\u6BCF\u5C42\u4F7F\u6211\u65B9\u5168\u961F\u7684\u6CBB\u7597\u4E0E\u62A4\u76FE\u6548\u679C
+    +5%\u3002\u6BCF\u573A\u6218\u6597\u4E2D\u300C\u7A70\u300D\u8FBE\u5230 6 \u5C42\u65F6\uFF0C\u5168\u961F\u7ACB\u523B\u56DE\u590D
+    25% \u6700\u5927\u751F\u547D\u3002"
+  Basic: {fileID: 11400000, guid: 027b4cc3056370f43b0fdf88a0f69ab9, type: 2}
+  Active: {fileID: 11400000, guid: 0f59b76840911ac4998f3deb1d2873c9, type: 2}
+  Ultimate: {fileID: 11400000, guid: 9e5a41be7171587438e1c62df3569ee5, type: 2}
+  BodyMainHex: '#C9A88A'
+  BodyAccentHex: '#E8C25B'
+  EnergyGlowHex: '#F0C239'
+  EyeCoreHex: '#2A2118'
+  OutlineHex: '#2A2118'

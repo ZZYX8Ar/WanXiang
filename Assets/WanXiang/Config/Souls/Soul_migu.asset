@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_migu
+  m_EditorClassIdentifier: 
+  SoulId: migu_soul
+  DisplayName: "\u8FF7\u6996\u4E4B\u9B42"
+  Epithet: "\u78A7\u6D9B"
+  SourceBeastId: migu
+  Rarity: 2
+  ElementOverride: 1
+  HueShiftDegrees: -20
+  GlowHex: '#F4F8D3'
+  EyeHex: '#C9A063'
+  TraitName: "\u9B42\xB7\u4E0D\u8FF7"
+  TraitDescription: "\u81EA\u8EAB\u514D\u75AB\u300C\u653E\u9010\u300D\u300C\u4F20\u9001\u6539\u4F4D\u300D\u7C7B\u6548\u679C\uFF1B\u6211\u65B9\u5355\u4F4D\u4E0D\u4F1A\u88AB\u5F3A\u5236\u6539\u53D8\u7AD9\u4F4D\u3002\u53D7\u5230\u653B\u51FB\u65F6\uFF0C\u4E3A\u653B\u51FB\u8005\u9644\u52A0
+    1 \u5C42\u300C\u8FF7\u300D\uFF08\u547D\u4E2D -10%\uFF0C\u53EF\u53E0 3 \u5C42\uFF09\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: ab7e60e15f36cf74ab7264f8d8f2a0c0, type: 2}

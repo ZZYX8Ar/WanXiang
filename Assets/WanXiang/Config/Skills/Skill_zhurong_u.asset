@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_zhurong_u
+  m_EditorClassIdentifier: 
+  SkillId: zhurong_u
+  SkillName: "\u6731\u660E\xB7\u5929\u706B"
+  Type: 2
+  Cd: 7
+  Element: 2
+  PrimaryTarget: 1
+  Description: "\u5F15\u7206\u5168\u573A\u6240\u6709\u707C\u70E7\u5C42\u6570\uFF1A\u6BCF\u5C42\u9020\u6210
+    15% \u653B\u51FB\u7684\u771F\u5B9E\u4F24\u5BB3\uFF0C\u5E76\u91CD\u65B0\u65BD\u52A0\u7B49\u91CF\u5C42\u6570\u3002\u968F\u540E\u53EC\u5524\u5929\u706B\u6301\u7EED
+    3 \u56DE\u5408\u2014\u2014\u6BCF\u56DE\u5408\u7ED3\u675F\u5BF9\u654C\u65B9\u5168\u4F53\u9020\u6210
+    100% \u653B\u51FB\u7684\u4F24\u5BB3\uFF0C\u6B64\u4F24\u5BB3\u4E0D\u53EF\u88AB\u95EA\u907F\u4E0E\u514D\u75AB\u3002"

@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_jiuweihu_a
+  m_EditorClassIdentifier: 
+  SkillId: jiuweihu_a
+  SkillName: "\u4E5D\u5C3E\u4E71"
+  Type: 1
+  Cd: 4
+  Element: 1
+  PrimaryTarget: 1
+  Description: "\u5BF9\u968F\u673A\u654C\u4EBA\u53D1\u52A8 3 \u6B21 80% \u653B\u51FB\u7684\u4F24\u5BB3\uFF0C\u6BCF\u6B21\u547D\u4E2D\u4F7F\u5176\u300C\u6613\u4F24\u300D\uFF08\u53D7\u4F24\u5BB3
+    +8%\uFF0C\u53EF\u53E0 5 \u5C42\uFF09\u3002\u82E5\u81EA\u8EAB\u300C\u5C3E\u300D\u8FBE\u5230
+    6 \u5C42\u4EE5\u4E0A\uFF0C\u653B\u51FB\u6B21\u6570\u7FFB\u500D\u3002"

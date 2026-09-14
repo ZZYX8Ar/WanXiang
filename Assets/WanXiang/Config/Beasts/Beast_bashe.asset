@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_bashe
+  m_EditorClassIdentifier: 
+  BeastId: bashe
+  DisplayName: "\u5DF4\u86C7"
+  Element: 5
+  Role: 5
+  Rarity: 2
+  Source: "\u300A\u5C71\u6D77\u7ECF\xB7\u6D77\u5185\u5357\u7ECF\u300B"
+  Quote: "\u5DF4\u86C7\u98DF\u8C61\uFF0C\u4E09\u5C81\u800C\u51FA\u5176\u9AA8\u3002\u541B\u5B50\u670D\u4E4B\uFF0C\u65E0\u5FC3\u8179\u4E4B\u75BE\u3002"
+  Lore: "\u80FD\u541E\u4E0B\u4E00\u5934\u8C61\uFF0C\u4E09\u5E74\u540E\u624D\u628A\u9AA8\u5934\u5410\u51FA\u6765\u3002\u5B83\u7684\u80C3\u53E3\u4E0D\u662F\u9760\u8EAB\u4F53\u5927\u5C0F\u51B3\u5B9A\u7684\uFF0C\u800C\u662F\u9760\u65F6\u95F4\u2014\u2014\u5B83\u6709\u8DB3\u591F\u7684\u65F6\u95F4\u53BB\u6D88\u5316\u4EFB\u4F55\u4E1C\u897F\u3002"
+  Codex: "\u5B83\u4E0D\u7740\u6025\uFF0C\u4E09\u5E74\u5BF9\u4E00\u6761\u86C7\u6765\u8BF4\u4E0D\u7B97\u957F\u3002"
+  TraitName: "\u4E09\u5C81"
+  TraitDescription: "\u81EA\u8EAB\u653B\u51FB\u5BF9\u300C\u4F53\u5F62\u5927\u4E8E\u81EA\u8EAB\u300D\u6216\u300C\u751F\u547D\u4E0A\u9650\u9AD8\u4E8E\u81EA\u8EAB\u300D\u7684\u76EE\u6807\u4F24\u5BB3
+    +40%\uFF1B\u6BCF\u6B21\u51FB\u6740\u76EE\u6807\uFF0C\u5C06\u76EE\u6807\u6700\u5927\u751F\u547D\u7684
+    15% \u8F6C\u5316\u4E3A\u81EA\u8EAB\u6C38\u4E45\u751F\u547D\u4E0A\u9650\uFF08\u672C\u5C40\u5185\u7D2F\u79EF\uFF09\u3002"
+  Basic: {fileID: 11400000, guid: f367b052c7ca8e548a29c0f19e432fdf, type: 2}
+  Active: {fileID: 11400000, guid: 09df6c4f159be814590edb2b4cd6fe48, type: 2}
+  Ultimate: {fileID: 11400000, guid: 24d960eb57e8d9b4ca7b8e21f09770eb, type: 2}
+  BodyMainHex: '#424C56'
+  BodyAccentHex: '#C9A063'
+  EnergyGlowHex: '#6B9FD4'
+  EyeCoreHex: '#FFB03A'
+  OutlineHex: '#2A2118'

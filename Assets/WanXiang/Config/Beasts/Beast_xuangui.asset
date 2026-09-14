@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_xuangui
+  m_EditorClassIdentifier: 
+  BeastId: xuangui
+  DisplayName: "\u65CB\u9F9F"
+  Element: 5
+  Role: 4
+  Rarity: 1
+  Source: "\u300A\u5C71\u6D77\u7ECF\xB7\u5357\u5C71\u7ECF\u300B"
+  Quote: "\u677B\u9633\u4E4B\u5C71\uFF0C\u602A\u6C34\u51FA\u7109\uFF0C\u800C\u4E1C\u6D41\u6CE8\u4E8E\u5BAA\u7FFC\u4E4B\u6C34\u3002\u5176\u4E2D\u591A\u7384\u9F9F\uFF0C\u5176\u72B6\u5982\u9F9F\u800C\u9E1F\u9996\u867A\u5C3E\uFF0C\u5176\u540D\u66F0\u65CB\u9F9F\uFF0C\u5176\u97F3\u5982\u5224\u6728\uFF0C\u4F69\u4E4B\u4E0D\u804B\u3002"
+  Lore: "\u9ED1\u8272\u7684\u9F9F\uFF0C\u9E1F\u7684\u5934\uFF0C\u86C7\u7684\u5C3E\u3002\u53EB\u58F0\u50CF\u5288\u6728\u5934\u3002\u628A\u5B83\u7684\u7532\u4F69\u5728\u8EAB\u4E0A\uFF0C\u8033\u6735\u5C31\u4E0D\u4F1A\u804B\u2014\u2014\u5B83\u5E26\u6765\u7684\u4E0D\u662F\u6D2A\u4EAE\u7684\u58F0\u97F3\uFF0C\u800C\u662F\u300C\u4E0D\u4F1A\u9519\u8FC7\u4EFB\u4F55\u58F0\u97F3\u300D\u7684\u80FD\u529B\u3002"
+  Codex: "\u5B83\u4E0D\u53EB\u7684\u65F6\u5019\uFF0C\u4F60\u624D\u77E5\u9053\u4EC0\u4E48\u662F\u5B89\u9759\u3002"
+  TraitName: "\u4F69\u4E4B\u4E0D\u804B"
+  TraitDescription: "\u6211\u65B9\u5168\u4F53\u514D\u75AB\u300C\u6C89\u9ED8\u300D\uFF0C\u4E14\u6211\u65B9\u6240\u6709\u589E\u76CA\u7684\u6301\u7EED\u65F6\u95F4
+    +1 \u56DE\u5408\uFF1B\u654C\u65B9\u65BD\u52A0\u7684\u4EFB\u4F55\u51CF\u76CA\uFF0C\u5176\u6301\u7EED\u65F6\u95F4
+    -1 \u56DE\u5408\uFF08\u6700\u4F4E 1 \u56DE\u5408\uFF09\u3002"
+  Basic: {fileID: 11400000, guid: 7c2714f65312bf84ea14dfea3e9a67e2, type: 2}
+  Active: {fileID: 11400000, guid: e3b597922cdd85146aa1b9cf6e678c25, type: 2}
+  Ultimate: {fileID: 11400000, guid: ee3a575e8b1cbfb4495b05957c6645a6, type: 2}
+  BodyMainHex: '#424C56'
+  BodyAccentHex: '#C9A063'
+  EnergyGlowHex: '#7BC47F'
+  EyeCoreHex: '#C8352C'
+  OutlineHex: '#2A2118'

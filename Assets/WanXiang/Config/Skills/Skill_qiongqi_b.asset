@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_qiongqi_b
+  m_EditorClassIdentifier: 
+  SkillId: qiongqi_b
+  SkillName: "\u732C\u523A"
+  Type: 0
+  Cd: 0
+  Element: 4
+  PrimaryTarget: 1
+  Description: "\u5BF9\u5355\u4F53\u9020\u6210 100% \u653B\u51FB\u7684\u4F24\u5BB3\uFF1B\u81EA\u8EAB\u6BCF\u635F\u5931
+    10% \u751F\u547D\uFF0C\u6B64\u4F24\u5BB3 +8%\uFF08\u6B8B\u8840\u65F6\u7206\u53D1\uFF09\u3002"

@@ -37,6 +37,16 @@ namespace WanXiang.Editor.FusionTool
         private static int _pass, _fail;
         private static readonly List<string> Failures = new List<string>();
 
+        [MenuItem("万相/融合/② 融合自检（fusion.selftest）")]
+        public static void RunFromMenu()
+        {
+            var lines = Run("fusion.selftest");
+            foreach (var l in lines) Debug.Log("[融合自检] " + l);
+            EditorUtility.DisplayDialog("融合自检",
+                _fail == 0 ? $"✅ {_pass} 项全部通过。\n详情见 Console（搜 [融合自检]）。"
+                           : $"❌ {_pass} 过 / {_fail} 败，失败项见 Console。", "好");
+        }
+
         public static string[] Run(string command)
         {
             var lines = new List<string>();

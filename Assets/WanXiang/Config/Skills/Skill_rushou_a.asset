@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_rushou_a
+  m_EditorClassIdentifier: 
+  SkillId: rushou_a
+  SkillName: "\u5211\u5929"
+  Type: 1
+  Cd: 3
+  Element: 4
+  PrimaryTarget: 1
+  Description: "\u5BF9\u5355\u4F53\u9020\u6210 180% \u653B\u51FB\u7684\u4F24\u5BB3\u5E76\u65BD\u52A0\u300C\u65A9\u6807\u300D\u6301\u7EED
+    3 \u56DE\u5408\uFF1A\u76EE\u6807\u53D7\u5230\u7684\u6240\u6709\u4F24\u5BB3 +20%\uFF0C\u4E14\u65A9\u6807\u7ED3\u675F\u65F6\u82E5\u5176\u751F\u547D\u4F4E\u4E8E
+    25% \u5219\u76F4\u63A5\u5904\u51B3\u3002"

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_hanba
+  m_EditorClassIdentifier: 
+  SoulId: hanba_soul
+  DisplayName: "\u65F1\u9B43\u4E4B\u9B42"
+  Epithet: "\u8D64\u9704"
+  SourceBeastId: hanba
+  Rarity: 1
+  ElementOverride: 2
+  HueShiftDegrees: -12
+  GlowHex: '#FFB03A'
+  EyeHex: '#FF7A2F'
+  TraitName: "\u9B42\xB7\u6240\u5C45\u4E0D\u96E8"
+  TraitDescription: "\u81EA\u8EAB\u5728\u573A\u65F6\uFF0C\u5168\u573A\u6240\u6709\u6CBB\u7597\u4E0E\u56DE\u590D\u6548\u679C\u964D\u4F4E
+    35%\uFF1B\u654C\u65B9\u5355\u4F4D\u6BCF\u88AB\u6CBB\u7597\u4E00\u6B21\uFF0C\u5BF9\u5176\u65BD\u52A0
+    2 \u5C42\u707C\u70E7\uFF08\u6CBB\u7597\u53CD\u566C\uFF09\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: e4b33bd2d900ca04d9b5b117e40acc7b, type: 2}

@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_rushou
+  m_EditorClassIdentifier: 
+  SoulId: rushou_soul
+  DisplayName: "\u84D0\u6536\u4E4B\u9B42"
+  Epithet: "\u971C\u5203"
+  SourceBeastId: rushou
+  Rarity: 3
+  ElementOverride: 4
+  HueShiftDegrees: -30
+  GlowHex: '#E9F1F6'
+  EyeHex: '#6B7B8C'
+  TraitName: "\u9B42\xB7\u5211\u6740"
+  TraitDescription: "\u6211\u65B9\u6240\u6709\u5355\u4F4D\u5BF9\u751F\u547D\u503C\u4F4E\u4E8E
+    40% \u7684\u654C\u4EBA\u9020\u6210\u7684\u4F24\u5BB3 +45%\uFF1B\u6211\u65B9\u6BCF\u6B21\u51FB\u6740\uFF0C\u5168\u961F\u83B7\u5F97
+    1 \u5C42\u300C\u79CB\u51B3\u300D\uFF08\u66B4\u51FB\u4F24\u5BB3 +8%\uFF0C\u4E0A\u9650
+    8 \u5C42\uFF0C\u672C\u5C40\u5185\u4FDD\u7559\uFF09\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: abd7386c2680e3945a3ce2709635c26e, type: 2}

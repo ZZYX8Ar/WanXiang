@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_qiongqi
+  m_EditorClassIdentifier: 
+  SoulId: qiongqi_soul
+  DisplayName: "\u7A77\u5947\u4E4B\u9B42"
+  Epithet: "\u8083\u91D1"
+  SourceBeastId: qiongqi
+  Rarity: 3
+  ElementOverride: 4
+  HueShiftDegrees: -30
+  GlowHex: '#E9F1F6'
+  EyeHex: '#C8352C'
+  TraitName: "\u9B42\xB7\u52A9\u6076"
+  TraitDescription: "\u6218\u6597\u4E2D\uFF0C\u654C\u65B9\u589E\u76CA\u8D8A\u591A\uFF0C\u81EA\u8EAB\u653B\u51FB\u529B\u8D8A\u9AD8\uFF08\u6BCF
+    1 \u4E2A\u654C\u65B9\u589E\u76CA +8% \u653B\u51FB\uFF09\uFF1B\u81EA\u8EAB\u6BCF\u6B21\u653B\u51FB\u90FD\u4F1A\u5265\u79BB\u76EE\u6807
+    1 \u4E2A\u589E\u76CA\uFF0C\u6BCF\u5265\u79BB 1 \u4E2A\uFF0C\u8BE5\u6B21\u4F24\u5BB3
+    +20%\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: 64509e93b6ee6f243b9f77ebfd37c6cd, type: 2}

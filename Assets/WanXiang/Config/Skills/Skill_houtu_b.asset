@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_houtu_b
+  m_EditorClassIdentifier: 
+  SkillId: houtu_b
+  SkillName: "\u793E\u77F3"
+  Type: 0
+  Cd: 0
+  Element: 3
+  PrimaryTarget: 1
+  Description: "\u5BF9\u5355\u4F53\u9020\u6210 75% \u653B\u51FB\u7684\u4F24\u5BB3\uFF1B\u540C\u65F6\u4E3A\u81EA\u8EAB\u9644\u52A0\u76F8\u5F53\u4E8E
+    8% \u6700\u5927\u751F\u547D\u7684\u62A4\u76FE\uFF08\u53EF\u53E0\u52A0\u81F3 40%\uFF09\u3002"

@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_qiongqi
+  m_EditorClassIdentifier: 
+  BeastId: qiongqi
+  DisplayName: "\u7A77\u5947"
+  Element: 4
+  Role: 2
+  Rarity: 3
+  Source: "\u300A\u5C71\u6D77\u7ECF\xB7\u897F\u5C71\u7ECF\u300B"
+  Quote: "\u90BD\u5C71\uFF0C\u5176\u4E0A\u6709\u517D\u7109\uFF0C\u5176\u72B6\u5982\u725B\uFF0C\u732C\u6BDB\uFF0C\u540D\u66F0\u7A77\u5947\uFF0C\u97F3\u5982\u7346\u72D7\uFF0C\u662F\u98DF\u4EBA\u3002"
+  Lore: "\u725B\u8EAB\u732C\u6BDB\uFF0C\u58F0\u5982\u72D7\u5420\u3002\u5B83\u662F\u56DB\u51F6\u4E4B\u4E00\uFF0C\u4E13\u95E8\u52A9\u957F\u6076\u884C\uFF1A\u542C\u8BF4\u8C01\u5FE0\u8BDA\u5C31\u54AC\u8C01\u7684\u9F3B\u5B50\uFF0C\u542C\u8BF4\u8C01\u51F6\u6076\u5C31\u9001\u4ED6\u730E\u7269\u3002\u5B83\u4E0D\u5BB3\u597D\u4EBA\uFF0C\u5B83\u662F\u300C\u597D\u4EBA\u300D\u7684\u654C\u4EBA\u3002"
+  Codex: "\u5B83\u4E0D\u6492\u8C0E\uFF0C\u5B83\u53EA\u662F\u6C38\u8FDC\u7AD9\u5728\u9519\u7684\u90A3\u4E00\u8FB9\u3002"
+  TraitName: "\u52A9\u6076"
+  TraitDescription: "\u6218\u6597\u4E2D\uFF0C\u654C\u65B9\u589E\u76CA\u8D8A\u591A\uFF0C\u81EA\u8EAB\u653B\u51FB\u529B\u8D8A\u9AD8\uFF08\u6BCF
+    1 \u4E2A\u654C\u65B9\u589E\u76CA +8% \u653B\u51FB\uFF09\uFF1B\u81EA\u8EAB\u6BCF\u6B21\u653B\u51FB\u90FD\u4F1A\u5265\u79BB\u76EE\u6807
+    1 \u4E2A\u589E\u76CA\uFF0C\u6BCF\u5265\u79BB 1 \u4E2A\uFF0C\u8BE5\u6B21\u4F24\u5BB3
+    +20%\u3002"
+  Basic: {fileID: 11400000, guid: c78c6ffc24bffef45a0b260141f8a0ed, type: 2}
+  Active: {fileID: 11400000, guid: 64509e93b6ee6f243b9f77ebfd37c6cd, type: 2}
+  Ultimate: {fileID: 11400000, guid: ea3fe4b5ad20f3740a99d7dd3bc31dc4, type: 2}
+  BodyMainHex: '#8A7B63'
+  BodyAccentHex: '#C8CFD3'
+  EnergyGlowHex: '#E9F1F6'
+  EyeCoreHex: '#C8352C'
+  OutlineHex: '#2A2118'

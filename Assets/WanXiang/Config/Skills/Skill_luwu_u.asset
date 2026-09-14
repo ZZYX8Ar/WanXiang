@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_luwu_u
+  m_EditorClassIdentifier: 
+  SkillId: luwu_u
+  SkillName: "\u6606\u4ED1\u4E0D\u5F00"
+  Type: 2
+  Cd: 6
+  Element: 3
+  PrimaryTarget: 1
+  Description: "\u5C01\u9501\u5168\u573A\u4F4D\u79FB\u4E0E\u6362\u4F4D 3 \u56DE\u5408\uFF1B\u671F\u95F4\u81EA\u8EAB\u83B7\u5F97\u300C\u5E1D\u56FF\u300D\u2014\u2014\u6BCF\u627F\u53D7\u4E00\u6B21\u653B\u51FB\uFF0C\u6C38\u4E45\u83B7\u5F97
+    +5% \u51CF\u4F24\uFF08\u5355\u573A\u4E0A\u9650 +50%\uFF09\uFF0C\u5E76\u5C06\u53CD\u51FB\u4F24\u5BB3\u6309
+    150% \u653B\u51FB\u7ED3\u7B97\u7ED9\u653B\u51FB\u8005\u3002"

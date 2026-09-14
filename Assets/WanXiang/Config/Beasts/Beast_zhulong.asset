@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_zhulong
+  m_EditorClassIdentifier: 
+  BeastId: zhulong
+  DisplayName: "\u70DB\u9F99"
+  Element: 2
+  Role: 2
+  Rarity: 3
+  Source: "\u300A\u5C71\u6D77\u7ECF\xB7\u5927\u8352\u5317\u7ECF\u300B"
+  Quote: "\u7AE0\u5C3E\u5C71\uFF0C\u6709\u795E\uFF0C\u4EBA\u9762\u86C7\u8EAB\u800C\u8D64\uFF0C\u76F4\u76EE\u6B63\u4E58\uFF0C\u5176\u7791\u4E43\u6666\uFF0C\u5176\u89C6\u4E43\u660E\uFF0C\u4E0D\u98DF\u4E0D\u5BDD\u4E0D\u606F\uFF0C\u98CE\u96E8\u662F\u8C12\u3002\u662F\u70DB\u4E5D\u9634\uFF0C\u662F\u8C13\u70DB\u9F99\u3002"
+  Lore: "\u4EBA\u9762\u86C7\u8EAB\uFF0C\u901A\u4F53\u8D64\u7EA2\uFF0C\u8EAB\u957F\u5343\u91CC\u3002\u5B83\u95ED\u4E0A\u773C\u775B\u5C31\u662F\u9ED1\u591C\uFF0C\u7741\u5F00\u773C\u775B\u5C31\u662F\u767D\u5929\u3002\u4E0D\u5403\u4E0D\u7761\u4E0D\u547C\u5438\uFF0C\u4E00\u547C\u4E00\u5438\u4E4B\u95F4\u4FBF\u662F\u98CE\u4E0E\u96E8\u3002\u5B83\u4E0D\u662F\u795E\uFF0C\u5B83\u662F\u663C\u591C\u672C\u8EAB\u3002"
+  Codex: "\u5B83\u7741\u773C\u7684\u65F6\u5019\uFF0C\u8BF7\u4E0D\u8981\u76F4\u89C6\u3002"
+  TraitName: "\u53F8\u663C\u591C"
+  TraitDescription: "\u6218\u6597\u5728\u7B2C 1 \u56DE\u5408\u5F00\u59CB\u65F6\u8FDB\u5165\u300C\u663C\u300D\u72B6\u6001\uFF0C\u7B2C
+    2 \u56DE\u5408\u8F6C\u6362\u4E3A\u300C\u591C\u300D\uFF0C\u5982\u6B64\u4EA4\u66FF\u3002\u300C\u663C\u300D\uFF1A\u6211\u65B9\u5168\u4F53\u653B\u51FB
+    +25%\uFF0C\u66B4\u51FB\u7387 +15%\uFF1B\u300C\u591C\u300D\uFF1A\u6211\u65B9\u5168\u4F53\u51CF\u4F24
+    +25%\uFF0C\u56DE\u590D +30%\u3002"
+  Basic: {fileID: 11400000, guid: 4b974c83a11fe9144bf447df0898c290, type: 2}
+  Active: {fileID: 11400000, guid: 04d351f8ce635ba4e8caff22af0af77a, type: 2}
+  Ultimate: {fileID: 11400000, guid: 1c9f4de3681802f4e92f4f60db13834a, type: 2}
+  BodyMainHex: '#8C2B22'
+  BodyAccentHex: '#2A2118'
+  EnergyGlowHex: '#FF4E20'
+  EyeCoreHex: '#FFD84D'
+  OutlineHex: '#2A2118'

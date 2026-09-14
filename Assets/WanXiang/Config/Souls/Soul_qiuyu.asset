@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_qiuyu
+  m_EditorClassIdentifier: 
+  SoulId: qiuyu_soul
+  DisplayName: "\u72B0\u72F3\u4E4B\u9B42"
+  Epithet: "\u768E\u971C"
+  SourceBeastId: qiuyu
+  Rarity: 1
+  ElementOverride: 4
+  HueShiftDegrees: 12
+  GlowHex: '#E9F1F6'
+  EyeHex: '#2A2118'
+  TraitName: "\u9B42\xB7\u89C1\u4EBA\u5219\u7720"
+  TraitDescription: "\u81EA\u8EAB\u751F\u547D\u4F4E\u4E8E 30% \u65F6\u8FDB\u5165\u300C\u7720\u300D\u72B6\u6001\uFF1A\u65E0\u6CD5\u884C\u52A8\uFF0C\u4F46\u514D\u75AB\u6240\u6709\u4F24\u5BB3\u4E0E\u63A7\u5236\uFF0C\u5E76\u5728
+    1 \u56DE\u5408\u540E\u82CF\u9192\u5E76\u56DE\u590D 40% \u6700\u5927\u751F\u547D\uFF08\u6BCF\u573A\u9650
+    1 \u6B21\uFF09\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: c0835967cf1dacc419709f7baab06a7f, type: 2}

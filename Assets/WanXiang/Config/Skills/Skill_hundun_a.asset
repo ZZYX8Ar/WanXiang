@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_hundun_a
+  m_EditorClassIdentifier: 
+  SkillId: hundun_a
+  SkillName: "\u4E0D\u95FB\u4E0D\u89C1"
+  Type: 1
+  Cd: 3
+  Element: 3
+  PrimaryTarget: 1
+  Description: "\u5BF9\u654C\u65B9\u5168\u4F53\u9020\u6210 90% \u653B\u51FB\u7684\u4F24\u5BB3\uFF0C\u5E76\u968F\u673A\u65BD\u52A0
+    2 \u79CD\u51CF\u76CA\uFF1A\u6C89\u9ED8 / \u6DF7\u4E71 / \u547D\u4E2D\u4E0B\u964D
+    / \u51CF\u901F\uFF0C\u6301\u7EED 2 \u56DE\u5408\u3002"

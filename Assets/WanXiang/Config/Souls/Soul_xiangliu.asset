@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_xiangliu
+  m_EditorClassIdentifier: 
+  SoulId: xiangliu_soul
+  DisplayName: "\u76F8\u67F3\u4E4B\u9B42"
+  Epithet: "\u51DD\u6E0A"
+  SourceBeastId: xiangliu
+  Rarity: 2
+  ElementOverride: 5
+  HueShiftDegrees: 20
+  GlowHex: '#7BC47F'
+  EyeHex: '#C8352C'
+  TraitName: "\u9B42\xB7\u4E5D\u9996"
+  TraitDescription: "\u81EA\u8EAB\u666E\u653B\u5BF9\u6700\u591A 9 \u4E2A\u4E0D\u540C\u76EE\u6807\u5404\u53D1\u52A8
+    1 \u6BB5 40% \u653B\u51FB\u7684\u4F24\u5BB3\uFF08\u76EE\u6807\u4E0D\u8DB3 9 \u4E2A\u65F6\uFF0C\u591A\u51FA\u7684\u6BB5\u6570\u968F\u673A\u91CD\u590D\u547D\u4E2D\uFF09\uFF1B\u6BCF\u547D\u4E2D\u4E00\u4E2A\u65B0\u76EE\u6807\uFF0C\u672C\u6B21\u6280\u80FD\u4F24\u5BB3
+    +8%\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: f8fb5a933e668384c9d783533408a2a3, type: 2}

@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_hanba
+  m_EditorClassIdentifier: 
+  BeastId: hanba
+  DisplayName: "\u65F1\u9B43"
+  Element: 2
+  Role: 3
+  Rarity: 1
+  Source: "\u300A\u5C71\u6D77\u7ECF\xB7\u5927\u8352\u5317\u7ECF\u300B"
+  Quote: "\u6709\u4EBA\u8863\u9752\u8863\uFF0C\u540D\u66F0\u9EC4\u5E1D\u5973\u9B43\u3002"
+  Lore: "\u9EC4\u5E1D\u4E4B\u5973\uFF0C\u7A7F\u9752\u8863\u3002\u5979\u672C\u662F\u7528\u6765\u6B62\u96E8\u7684\u5175\u5668\uFF0C\u6218\u4E89\u7ED3\u675F\u540E\u5374\u518D\u4E5F\u56DE\u4E0D\u53BB\u5929\u4E0A\u2014\u2014\u5979\u6240\u5C45\u4E4B\u5904\uFF0C\u7EC8\u5E74\u4E0D\u96E8\u3002\u6C11\u95F4\u79F0\u5979\u4E3A\u65F1\u9B43\u3002"
+  Codex: "\u5979\u4E0D\u662F\u707E\u7978\uFF0C\u5979\u53EA\u662F\u56DE\u4E0D\u53BB\u4E86\u3002"
+  TraitName: "\u6240\u5C45\u4E0D\u96E8"
+  TraitDescription: "\u81EA\u8EAB\u5728\u573A\u65F6\uFF0C\u5168\u573A\u6240\u6709\u6CBB\u7597\u4E0E\u56DE\u590D\u6548\u679C\u964D\u4F4E
+    35%\uFF1B\u654C\u65B9\u5355\u4F4D\u6BCF\u88AB\u6CBB\u7597\u4E00\u6B21\uFF0C\u5BF9\u5176\u65BD\u52A0
+    2 \u5C42\u707C\u70E7\uFF08\u6CBB\u7597\u53CD\u566C\uFF09\u3002"
+  Basic: {fileID: 11400000, guid: 80a0264e17528954d9776ef1872ad70b, type: 2}
+  Active: {fileID: 11400000, guid: e4b33bd2d900ca04d9b5b117e40acc7b, type: 2}
+  Ultimate: {fileID: 11400000, guid: 622068b0c74a6b347be61e3a05f42c9f, type: 2}
+  BodyMainHex: '#C0A86B'
+  BodyAccentHex: '#7A6A45'
+  EnergyGlowHex: '#FFB03A'
+  EyeCoreHex: '#FF7A2F'
+  OutlineHex: '#2A2118'
