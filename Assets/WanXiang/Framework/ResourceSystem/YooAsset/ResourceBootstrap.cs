@@ -89,35 +89,29 @@ namespace WanXiang.Framework.Boot
         /// <summary>
         /// 全局资源服务入口。业务代码通过它加载资源。
         /// </summary>
-        public static IResourceService Resource { get; private set; }
-
-        /// <summary>初始化是否已经结束（无论成败）。</summary>
-        public static bool IsFinished { get; private set; }
-
-        /// <summary>初始化是否成功。</summary>
-        public static bool IsReady => Resource != null && Resource.IsReady;
-
-        private static UniTaskCompletionSource<bool> _readySource;
-
-        /// <summary>
-        /// 复位静态状态。
-        /// </summary>
         /// <remarks>
-        /// ⚠ 关掉「域重载」的编辑器下静态字段会跨 Play 会话残留，
-        ///   残留的 Resource 会让第二次进 Play 时拿到一个已 Dispose 的服务。
-        ///   详见 UIBootstrap.ResetStatics 的说明。
+        /// ⚠ 这是个**转发属性**，真正的状态在 <see cref="ResourceHub"/>。
+        ///
+        ///   为什么改成转发：本类在**后端程序集**（WanXiang.ResourceSystem.YooAsset）里，
+        ///   而框架层（WanXiang.Runtime）刻意不引用后端 ——
+        ///   于是框架代码（例如 HotUpdateBootstrap）根本看不见本类型，
+        ///   想"等资源就绪"就会撞 CS0103。
+        ///   状态搬到抽象层的 ResourceHub 之后，两边都读同一份，
+        ///   不会出现"后端的 IsFinished 是 true、框架看到的是 false"这种鬼故事。
+        ///
+        ///   保留这个属性是为了不破坏既有调用点（体检脚本、面板加载器注释里都提到它）。
         /// </remarks>
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStatics()
-        {
-            Resource = null;
-            IsFinished = false;
-            _readySource = null;
-        }
+        public static IResourceService Resource => ResourceHub.Current;
+
+        /// <summary>初始化是否已经结束（无论成败）。转发自 <see cref="ResourceHub"/>。</summary>
+        public static bool IsFinished => ResourceHub.IsFinished;
+
+        /// <summary>初始化是否成功。转发自 <see cref="ResourceHub"/>。</summary>
+        public static bool IsReady => ResourceHub.IsReady;
 
         private void Awake()
         {
-            if (Resource != null)
+            if (ResourceHub.Current != null)
             {
                 Debug.LogWarning(
                     "[资源] 检测到第二个 ResourceBootstrap，已销毁重复实例。请确认场景里只放了一个。");
@@ -130,21 +124,20 @@ namespace WanXiang.Framework.Boot
                 DontDestroyOnLoad(gameObject);
             }
 
-            // 先建好实例，让 WaitReadyAsync 的调用方即使还没开始初始化
-            // 也能拿到一个非空的服务对象（否则它们要处理 null 分支，
-            // 而"还没初始化"和"初始化失败"在调用点几乎无法区分）。
-            Resource = new YooAssetResourceService();
-            _readySource = new UniTaskCompletionSource<bool>();
-            IsFinished = false;
+            // 注册到抽象层。此后框架侧用 ResourceHub.WaitReadyAsync 等它。
+            // ⚠ 顺序：Register 必须在 InitializeAsync **之前** ——
+            //   否则"已注册但还没开始初始化"这段空窗会被跳过，
+            //   期间来的等待者会看到 _readySource 为 null 而误报"没有后端注册"。
+            ResourceHub.Register(new YooAssetResourceService());
 
             // ⚠ 注册工厂要放在**初始化之前**，而且必须在 UIBootstrap(-1000) 的
             //   Awake 之前完成 —— 本组件执行顺序 -1010，天然满足。
-            //   工厂里包的是 Resource 这个静态属性（不是实例），
+            //   工厂里包的是 ResourceHub.Current（不是实例），
             //   所以即使此刻资源还没就绪，UIBootstrap 也能先拿到加载器；
             //   真正加载资源时加载器会检查 IsReady 并给出明确报错。
             if (_wireUIPanelLoader)
             {
-                UIBootstrap.RegisterPanelLoaderFactory(() => new YooAssetPanelLoader(Resource));
+                UIBootstrap.RegisterPanelLoaderFactory(() => new YooAssetPanelLoader(ResourceHub.Current));
             }
 
             if (_initializeOnAwake)
@@ -204,41 +197,30 @@ namespace WanXiang.Framework.Boot
 
         private void Finish(bool ok)
         {
-            IsFinished = true;
-            _readySource?.TrySetResult(ok);
+            ResourceHub.ReportFinished(ok);
         }
 
         /// <summary>
         /// 等资源系统就绪。依赖资源的启动步骤**必须** await 它。
         /// </summary>
         /// <returns>是否就绪。返回 false 时不要继续往下走。</returns>
-        public static async UniTask<bool> WaitReadyAsync(CancellationToken ct = default)
+        /// <remarks>
+        /// 转发到 <see cref="ResourceHub.WaitReadyAsync"/>。
+        /// 保留本方法是为了不破坏既有调用点，且"从 ResourceBootstrap 等资源"
+        /// 读起来比"从 Hub 等"更直白。两者是同一个门，不会出现两套状态。
+        /// </remarks>
+        public static UniTask<bool> WaitReadyAsync(CancellationToken ct = default)
         {
-            if (IsFinished)
-            {
-                return IsReady;
-            }
-
-            if (_readySource == null)
-            {
-                // 场景里没有 ResourceBootstrap。
-                Debug.LogError(
-                    "[资源] 调用了 ResourceBootstrap.WaitReadyAsync，但场景里没有 ResourceBootstrap。\n" +
-                    "请在启动场景加一个空物体并挂上本组件。");
-                return false;
-            }
-
-            return await _readySource.Task.AttachExternalCancellation(ct);
+            return ResourceHub.WaitReadyAsync(ct);
         }
 
         private void OnDestroy()
         {
-            if (Resource == null) return;
+            IResourceService service = ResourceHub.Current;
+            if (service == null) return;
 
-            Resource.Dispose();
-            Resource = null;
-            IsFinished = false;
-            _readySource = null;
+            service.Dispose();
+            ResourceHub.Clear();
         }
     }
 }

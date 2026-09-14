@@ -10,6 +10,8 @@
     <type fullname="UnityEngine.Debug" preserve="all" />
   </assembly>
   <assembly fullname="WanXiang.Runtime">
+    <type fullname="WanXiang.Framework.HotUpdate.AOTMetadataProbe" preserve="all" />
+    <type fullname="WanXiang.Framework.HotUpdate.AOTMetadataProbe/ProbeBox`1" preserve="all" />
     <type fullname="WanXiang.Framework.HotUpdate.IHotUpdateEntry" preserve="all" />
   </assembly>
   <assembly fullname="mscorlib">

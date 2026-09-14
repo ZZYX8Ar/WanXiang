@@ -100,6 +100,23 @@ desktop.ini
 /AssembliesPostIl2CppStrip/
 /StrippedAOTDlls/
 
+# 热更产物（生成的二进制）。
+# 「万相/热更/发布热更产物」会把 HybridCLR 编译出的热更 dll、以及裁剪后的
+# AOT 元数据 dll 复制到这里，并给它们加 .bytes 后缀
+#（因为 Assets 下裸的 .dll 会被 Unity 当托管插件导入，导致同一程序集编译两次）。
+# 它们可由一条命令完全重建：
+#     万相/热更/发布热更产物
+# 为什么不能入库：
+#   1. 是**构建产物**，与当前源码、Unity 版本强绑定，入库后会悄悄过期，
+#      而"过期"在这里的表现是运行期加载到旧代码 —— 极难排查；
+#   2. 热更 dll 的"版本"应该由**发布时间**决定，不该由 git 提交时间决定；
+#   3. AOT 元数据一份近百 KB、每次发布都变，进库只会产生无意义的二进制 diff。
+# 与之配套的约定：YooAsset 收集器里的「HotUpdate」组**只在目录有内容时存在**
+#      （见 YooAssetSetupTool.EnsureHotUpdateGroup），
+#      所以 clone 下来不会出现"配置里有组、磁盘上没目录"的不一致状态。
+/Assets/WanXiangRes/HotUpdate/
+/Assets/WanXiangRes/HotUpdate.meta
+
 # 临时诊断补丁：编辑器诊断通道写出的 csc 响应文件。
 # 只有一个内容：UnityEngine 门面引用 + 额外编译宏，用来绕开
 #   Error building Player: Currently selected scripting backend (IL2CPP) is not installed.

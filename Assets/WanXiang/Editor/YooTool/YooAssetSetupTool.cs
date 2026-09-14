@@ -61,6 +61,31 @@ namespace WanXiang.Editor.YooTool
         /// <summary>配置表 / 文本 / 二进制目录（走原生文件打包规则）。</summary>
         public const string ConfigFolder = ResourceRoot + "/Config";
 
+        /// <summary>
+        /// 热更产物目录：热更 DLL + AOT 元数据 DLL + 清单。
+        /// </summary>
+        /// <remarks>
+        /// ⚠ 里面的文件一律带 `.bytes` 后缀。原因见
+        ///   <see cref="WanXiang.Framework.HotUpdate.HotUpdateLocations"/> 的说明：
+        ///   `Assets/` 下裸的 `.dll` 会被 Unity 当托管插件导入，
+        ///   于是同一个程序集被编译两次，报 `CS0433 ... exists in both`。
+        /// </remarks>
+        public const string HotUpdateFolder = ResourceRoot + "/HotUpdate";
+
+        /// <summary>热更产物的 AOT 元数据子目录。</summary>
+        public const string HotUpdateAotFolder = HotUpdateFolder + "/AOT";
+
+        /// <summary>
+        /// 热更产物的组名。
+        /// </summary>
+        /// <remarks>
+        /// ⚠ 刻意**单独一个组**，不并进 <see cref="GroupName"/>。
+        ///   组 → 打包粒度的映射意味着独立组会产出独立 bundle，
+        ///   于是热更时客户端**只需要下载那一个 bundle**，
+        ///   而不是连美术资源一起重下。这是热更方案能不能用的分水岭。
+        /// </remarks>
+        public const string HotUpdateGroupName = "HotUpdate";
+
         // ==================================================================
         //  菜单入口
         // ==================================================================
@@ -232,9 +257,31 @@ namespace WanXiang.Editor.YooTool
             EnsureFolder(UiFolder, report);
             EnsureFolder(ArtFolder, report);
             EnsureFolder(ConfigFolder, report);
+
+            // 热更产物目录。由「万相/热更/发布热更产物」往里填 DLL，
+            // 这里只保证目录结构存在，没内容时**不建收集器**（见 EnsureHotUpdateGroup）。
+            EnsureFolder(HotUpdateFolder, report);
+            EnsureFolder(HotUpdateAotFolder, report);
         }
 
-        private static void EnsureFolder(string folder, List<string> report)
+        /// <summary>
+        /// 建一个 Unity 认识的目录（必要时递归建父级）。
+        /// </summary>
+        /// <remarks>
+        /// ⚠⚠ 必须用 <c>AssetDatabase.CreateFolder</c>，**不要**用
+        ///    <c>Directory.CreateDirectory</c> 在 Assets 下直接建目录。
+        ///
+        ///    实测踩过：热更发布工具原本自己写了一句 Directory.CreateDirectory 建
+        ///    `Assets/WanXiangRes/HotUpdate`（绕过 Unity 的资产数据库），随后本类又用
+        ///    AssetDatabase.CreateFolder 建同名目录 —— Unity 认为"资产库里还没有那个名字"，
+        ///    于是把第二次建的目录**改名**成 `HotUpdate 1`。
+        ///    结果是磁盘上凭空多了一个空目录 + 一个孤立 .meta，
+        ///    而且它不在任何收集器里，沉默地留在版本库里。
+        ///
+        ///    所以建目录这件事只留这一个实现，别人要建目录就走这里 ——
+        ///    两份实现正是这个 bug 的成因。
+        /// </remarks>
+        public static void EnsureFolder(string folder, List<string> report)
         {
             if (AssetDatabase.IsValidFolder(folder))
             {
@@ -248,6 +295,9 @@ namespace WanXiang.Editor.YooTool
                 report.Add($"❌ 目录路径非法：{folder}");
                 return;
             }
+
+            // 父级可能也不存在（例如 AOT 子目录的父级是刚建的 HotUpdate）。
+            EnsureFolder(parent, report);
 
             AssetDatabase.CreateFolder(parent, leaf);
             report.Add($"＋ 建立目录 {folder}");
@@ -407,7 +457,145 @@ namespace WanXiang.Editor.YooTool
             EnsureCollector(group, UiFolder, nameof(PackDirectory), report);
             EnsureCollector(group, ConfigFolder, nameof(PackRawFile), report);
 
+            EnsureHotUpdateGroup(package, report);
+
             AssetBundleCollectorSettingData.ModifyPackage(package);
+        }
+
+        /// <summary>
+        /// 配好热更产物的组与收集器。
+        /// </summary>
+        /// <remarks>
+        /// ⚠ 只在目录里**确实有文件**时才建。
+        ///
+        ///   原因是空目录 + <c>CollectAll</c> 过滤器会让 YooAsset 收集到 0 个资源，
+        ///   然后模拟构建时那个组是空的 —— 报出来的东西很像配置错误，
+        ///   但真实原因只是"还没发布过热更产物"。
+        ///   与其让使用者去猜这条空组是什么意思，不如干脆不建：
+        ///   没发布 ⇒ 没有这个组 ⇒ 报告里说"热更产物目录是空的，先跑发布"。
+        ///
+        ///   发布工具复制完文件后会再调一次本方法把组补上，所以顺序不会错。
+        /// </remarks>
+        private static void EnsureHotUpdateGroup(AssetBundleCollectorPackage package, List<string> report)
+        {
+            AssetBundleCollectorGroup existing = FindGroup(package, HotUpdateGroupName);
+
+            bool hasContent = HasAnyFile(HotUpdateFolder);
+            if (!hasContent)
+            {
+                // 没有产物 ⇒ 不该有这个组。
+                // ⚠ 不只是"不新建"，还要**删掉已有的** —— 因为收集器配置是持久化数据，
+                //   而热更产物目录**不入库**（生成的二进制，见 .gitignore）。
+                //   于是别人 clone 下来时：配置里有这个组、磁盘上没有那个目录。
+                //   一个指向不存在目录的收集器，会让 YooAsset 的收集阶段行为不可预期
+                //   （最坏情况又变成"资源初始化失败 ⇒ 看起来像热更坏了"）。
+                //   让它俩**始终一致**：有产物才有组，没产物就没组。
+                if (existing != null)
+                {
+                    AssetBundleCollectorSettingData.RemoveGroup(package, existing);
+                    report.Add($"✂ 热更产物目录是空的，删除组「{HotUpdateGroupName}」"
+                               + "（避免配置里有组、磁盘上没目录的不一致状态）");
+                }
+                else
+                {
+                    report.Add($"○ 热更产物目录还是空的（{HotUpdateFolder}），本次不建热更组。"
+                               + "跑「万相/热更/发布热更产物」之后会自带建组。");
+                }
+
+                return;
+            }
+
+            AssetBundleCollectorGroup group = existing;
+            if (group == null)
+            {
+                group = AssetBundleCollectorSettingData.CreateGroup(package, HotUpdateGroupName);
+                report.Add($"＋ 新建组「{HotUpdateGroupName}」");
+            }
+            else
+            {
+                report.Add($"＝ 组「{HotUpdateGroupName}」已存在");
+            }
+
+            // ⚠⚠ 只建**一个**收集器，指向 HotUpdate 根目录。
+            //    绝不要给 AOT 子目录再建一个 —— 收集器的 CollectAll 是**递归**的，
+            //    子目录已经被父收集器收进去了；再加一个子收集器会让同一批文件被收两遍，
+            //    YooAsset 直接抛：
+            //        The collecting asset file is existed : <路径> in group : HotUpdate
+            //    而这个异常会把**整条资源初始化**打死（模拟构建失败 ⇒ 资源不就绪 ⇒
+            //    热更链路连第一段都过不去），表现成"热更坏了"。
+            //    第一版就是这么写的，被 hot_smoke 的 ① 报错抓出来的。
+            // 热更 DLL 必须按**原生文件**打包：
+            // 它们不是 Unity 资源，只是需要原样送到运行期的一段字节。
+            // PackRawFile 是唯一能让 LoadBytesAsync / LoadTextAsync 读到原文的规则。
+            EnsureCollector(group, HotUpdateFolder, nameof(PackRawFile), report);
+
+            // 清理历史遗留：如果磁盘上的配置里已经有一条 AOT 子收集器（第一版留下的），
+            // 这里主动删掉。否则光改代码不生效 —— 配置是**数据**，不会跟着代码回滚。
+            RemoveNestedCollectors(group, HotUpdateFolder, report);
+        }
+
+        /// <summary>
+        /// 删掉某个目录**之下**的多余收集器。
+        /// </summary>
+        /// <remarks>
+        /// ⚠ 必须主动清理，理由：收集器配置是**持久化数据**（AssetBundleCollectorSetting.asset），
+        ///   它不会因为代码改了而自动回滚。上一版代码写坏的那条配置会一直留在磁盘上，
+        ///   继续让模拟构建失败 —— 而代码看起来已经完全正确了，非常难理解。
+        ///   凡是"曾经写坏过配置"的坑，修代码的同时都要带一段清理逻辑。
+        /// </remarks>
+        private static void RemoveNestedCollectors(AssetBundleCollectorGroup group,
+            string parentFolder, List<string> report)
+        {
+            string prefix = parentFolder.TrimEnd('/') + "/";
+
+            // 先快照再删：边遍历边改集合会漏项。
+            var doomed = new List<AssetBundleCollector>();
+            foreach (AssetBundleCollector collector in group.Collectors)
+            {
+                string path = collector.CollectPath?.Replace('\\', '/');
+                if (string.IsNullOrEmpty(path)) continue;
+
+                // 只删子目录，不删父目录自己。
+                if (path.StartsWith(prefix, System.StringComparison.Ordinal))
+                {
+                    doomed.Add(collector);
+                }
+            }
+
+            foreach (AssetBundleCollector collector in doomed)
+            {
+                AssetBundleCollectorSettingData.RemoveCollector(group, collector);
+                report.Add($"✂ 删除嵌套收集器：{collector.CollectPath}"
+                           + "（父收集器已递归覆盖它，留着会让同一批文件被收两遍）");
+            }
+        }
+
+        /// <summary>
+        /// 目录里有没有至少一个文件（递归，忽略 .meta 与空目录）。
+        /// </summary>
+        /// <remarks>
+        /// ⚠ 必须忽略 <c>.meta</c>：Unity 会给每个目录生成 `.meta`，
+        ///   如果把它们算作"有内容"，那么"空目录判断"永远为真，本方法就白写了。
+        ///   这是个很容易漏的点 —— 空目录里也躺着一个 `.meta`。
+        /// </remarks>
+        public static bool HasAnyFile(string folder)
+        {
+            if (!AssetDatabase.IsValidFolder(folder))
+            {
+                return false;
+            }
+
+            string[] guids = AssetDatabase.FindAssets(string.Empty, new[] { folder });
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (string.IsNullOrEmpty(path)) continue;
+                if (path.EndsWith(".meta", System.StringComparison.OrdinalIgnoreCase)) continue;
+                if (AssetDatabase.IsValidFolder(path)) continue;
+                return true;
+            }
+
+            return false;
         }
 
         private static AssetBundleCollectorPackage FindPackage(AssetBundleCollectorSetting setting, string name)
@@ -536,10 +724,61 @@ namespace WanXiang.Editor.YooTool
                                    $"GUID={(string.IsNullOrEmpty(collector.CollectorGUID) ? "❌空" : "有")}，" +
                                    $"目录{(folderExists ? "存在" : "❌不存在")}]");
                     }
+
+                    report.AddRange(ReportNestedCollectors(group));
                 }
             }
 
             return report.ToArray();
+        }
+
+        /// <summary>
+        /// 找出同一组里「一个收集器的目录在另一个收集器目录之下」的情况。
+        /// </summary>
+        /// <remarks>
+        /// ⚠ 这是个**会打死整条资源链**的配置错误，而且报错信息与病因相距很远：
+        ///     YooAsset 抛的是
+        ///       The collecting asset file is existed : &lt;路径&gt; in group : &lt;组名&gt;
+        ///     而你在资源初始化里看到的只是
+        ///       EditorSimulateBuildPipeline build failed !
+        ///   病因则是：收集器的 CollectAll 过滤器是**递归**的 ——
+        ///   父目录的收集器已经把子目录里的文件收走了，再加一个子目录收集器，
+        ///   同一批文件就被收两遍，YooAsset 直接拒绝。
+        ///
+        ///   本方法只**报告**不修改（Status 是只读命令），
+        ///   修复交给 EnsureHotUpdateGroup 里的 RemoveNestedCollectors。
+        /// </remarks>
+        private static IEnumerable<string> ReportNestedCollectors(AssetBundleCollectorGroup group)
+        {
+            var lines = new List<string>();
+
+            var paths = new List<string>();
+            foreach (AssetBundleCollector c in group.Collectors)
+            {
+                string p = c.CollectPath?.Replace('\\', '/').TrimEnd('/');
+                if (!string.IsNullOrEmpty(p))
+                {
+                    paths.Add(p);
+                }
+            }
+
+            for (int i = 0; i < paths.Count; i++)
+            {
+                for (int j = 0; j < paths.Count; j++)
+                {
+                    if (i == j) continue;
+
+                    // paths[i] 落在 paths[j] 之下 ⇒ 会重复收集
+                    if (paths[i].StartsWith(paths[j] + "/", System.StringComparison.Ordinal))
+                    {
+                        lines.Add($"    ⚠⚠ 嵌套收集器：{paths[i]} 在 {paths[j]} 之下 —— "
+                                  + "父收集器递归收集已覆盖它，会让同一批文件被收两遍，"
+                                  + "资源初始化会以 EditorSimulateBuildPipeline build failed 失败。");
+                    }
+                }
+            }
+
+            return lines;
         }
 
         /// <summary>

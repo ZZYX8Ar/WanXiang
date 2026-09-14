@@ -61,6 +61,10 @@
 //    yoo.setup          建资源目录/样本资源 + 配好 YooAsset 收集器并保存（★ 会改配置，非只读）
 //    yoo.status         打印当前收集器配置（只读）
 //    yoo.testassets     只补建测试样本资源，不动收集器（★ 会新增文件）
+//    hot.publish        发布热更产物：编译热更 DLL + 重算 AOT 泛型引用 + 复制进资源目录
+//                       + 写 AOT 清单 + 配收集器（★ 会改文件与配置，非只读）
+//    hot.status         打印热更产物现状：HybridCLR 侧 / 资源侧 / 收集器（只读）
+//    hot.smoke          触发热更链路体检：写请求文件并进入 Play 模式（★ 会切 Play）
 //    resource.smoke     触发资源链路体检：写请求文件并进入 Play 模式（★ 会切 Play）
 //    play.enter         只进 Play 模式、不跑体检（对照实验：验证播放器循环在不在跑）
 //    play.exit          退出 Play 模式（体检卡住时捞一把；会先解除暂停）
@@ -505,7 +509,9 @@ namespace WanXiang.EditorTools.Diagnostics
             //   会表现成"进了 Play 但没跑体检"或者干脆没反应。
             //   正确用法：先发一个只含 refresh 的请求把代码编过，
             //             再发一个只含 resource.smoke 的请求。
-            bool wantEnter = report.commands.Any(c => c == "resource.smoke" || c == "play.enter");
+            bool wantEnter = report.commands.Any(c => c == "resource.smoke"
+                                                   || c == "hot.smoke"
+                                                   || c == "play.enter");
             bool wantExit = report.commands.Any(c => c == "play.exit");
 
             if (wantExit)
@@ -826,6 +832,9 @@ namespace WanXiang.EditorTools.Diagnostics
                 case "yoo.setup": RunYooTool(report, "yoo.setup"); break;
                 case "yoo.status": RunYooTool(report, "yoo.status"); break;
                 case "yoo.testassets": RunYooTool(report, "yoo.testassets"); break;
+                case "hot.publish": RunHotTool(report, "hot.publish"); break;
+                case "hot.status": RunHotTool(report, "hot.status"); break;
+                case "hot.smoke": RequestHotUpdateSmoke(report); break;
                 case "resource.smoke": RequestResourceSmoke(report); break;
                 case "play.enter": RequestPlayEnter(report); break;
                 case "play.exit": RequestPlayExit(report); break;
@@ -2944,6 +2953,12 @@ namespace WanXiang.EditorTools.Diagnostics
         private const string YooToolTypeName =
             "WanXiang.Editor.YooTool.YooAssetSetupTool, WanXiang.Editor.YooAsset";
 
+        /// <summary>
+        /// 热更发布工具的类型名。
+        /// </summary>
+        private const string HotToolTypeName =
+            "WanXiang.Editor.HotUpdateTool.HotUpdatePublishTool, WanXiang.Editor.HotUpdate";
+
         /// <remarks>
         /// 反射调用的代价是"类型名写错了只会在运行时报错"，而且报的是
         /// "找不到类型"这种没头没尾的信息。所以这里对三种失败分别给出
@@ -2951,13 +2966,33 @@ namespace WanXiang.EditorTools.Diagnostics
         /// </remarks>
         private static void RunYooTool(Report report, string command)
         {
-            Type type = Type.GetType(YooToolTypeName);
+            RunEditorTool(report, command, YooToolTypeName,
+                "① WanXiang.Editor.YooAsset 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里 YooAsset / YooAsset.Editor 引用不成立。");
+        }
+
+        private static void RunHotTool(Report report, string command)
+        {
+            RunEditorTool(report, command, HotToolTypeName,
+                "① WanXiang.Editor.HotUpdate 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里 HybridCLR.Editor / WanXiang.Editor.YooAsset 引用不成立。");
+        }
+
+        /// <summary>
+        /// 反射调用「有 <c>public static string[] Run(string)</c>」的编辑器工具。
+        /// </summary>
+        /// <remarks>
+        /// 走反射而不是直接引用：诊断通道所在程序集（WanXiang.Editor）刻意
+        /// **不依赖**任何具体工具程序集。这样某个工具编不过时，
+        /// 通道本身还能活着把错误报出来 —— 否则会变成
+        /// "工具坏了 ⇒ 通道也编不过 ⇒ 连报告都看不到"，查不了。
+        /// </remarks>
+        private static void RunEditorTool(Report report, string command, string typeName, string missingHint)
+        {
+            Type type = Type.GetType(typeName);
             if (type == null)
             {
-                report.results.Add(
-                    $"{command} -> ❌ 找不到类型 {YooToolTypeName}\n"
-                    + "        常见原因：① WanXiang.Editor.YooAsset 还没编译过"
-                    + "（改完代码先跑 refresh）；② 它的 asmdef 里 YooAsset / YooAsset.Editor 引用不成立。");
+                report.results.Add($"{command} -> ❌ 找不到类型 {typeName}\n        常见原因：{missingHint}");
                 return;
             }
 
@@ -3008,6 +3043,10 @@ namespace WanXiang.EditorTools.Diagnostics
         private const string SmokeRequestPath = DiagDir + "/resource_smoke.request";
         private const string SmokeResultPath = DiagDir + "/resource_smoke.txt";
 
+        /// <summary>热更体检的请求 / 结果文件。与 HotUpdateSmokeTest 里的常量必须一致。</summary>
+        private const string HotSmokeRequestPath = DiagDir + "/hot_smoke.request";
+        private const string HotSmokeResultPath = DiagDir + "/hot_smoke.txt";
+
         /// <remarks>
         /// 为什么必须进 Play 模式，而不是在编辑器里直接测：
         ///   本工程的资源服务是 **UniTask 驱动**的，而 UniTask 的
@@ -3025,15 +3064,46 @@ namespace WanXiang.EditorTools.Diagnostics
         /// </remarks>
         private static void RequestResourceSmoke(Report report)
         {
+            RequestSmoke(report, "resource.smoke", SmokeRequestPath, SmokeResultPath, null);
+        }
+
+        /// <summary>
+        /// 热更链路体检的点火。
+        /// </summary>
+        /// <remarks>
+        /// 与 <c>resource.smoke</c> 唯一的实质差别是**请求文件不同**，
+        /// 于是运行时装上的是 HotUpdateSmokeTest 而不是 ResourceSmokeTest。
+        ///
+        /// ⚠ 顺序建议：**先跑过 resource.smoke（或至少确认资源链路通），再跑本命令**。
+        ///   热更的第一段就是"等资源就绪"（热更 DLL 与 AOT DLL 都是当资源下发的）。
+        ///   资源不通时热更必然不通，报告会停在 ① —— 那是**正确结论**，
+        ///   但如果你没先单独验过资源，就很容易误判成"热更坏了"。
+        /// </remarks>
+        private static void RequestHotUpdateSmoke(Report report)
+        {
+            RequestSmoke(report, "hot.smoke", HotSmokeRequestPath, HotSmokeResultPath,
+                "热更体检会自建 ResourceBootstrap + HotUpdateBootstrap，走完五段流程后自动退 Play。");
+        }
+
+        /// <summary>
+        /// 体检点火（资源 / 热更共用）。
+        /// </summary>
+        /// <param name="command">命令名，只用于报告前缀与请求文件内容。</param>
+        /// <param name="requestPath">请求文件路径（相对工程根）。</param>
+        /// <param name="resultPath">结果文件路径，用于先删旧的。</param>
+        /// <param name="note">额外提示，可为 null。</param>
+        private static void RequestSmoke(Report report, string command,
+            string requestPath, string resultPath, string note)
+        {
             if (EditorApplication.isPlaying)
             {
-                report.results.Add("resource.smoke -> ⚠ 当前已经在 Play 模式里，先跑 play.exit");
+                report.results.Add($"{command} -> ⚠ 当前已经在 Play 模式里，先跑 play.exit");
                 return;
             }
 
             if (EditorApplication.isPlayingOrWillChangePlaymode)
             {
-                report.results.Add("resource.smoke -> ⚠ 正在切 Play 模式，稍后再试");
+                report.results.Add($"{command} -> ⚠ 正在切 Play 模式，稍后再试");
                 return;
             }
 
@@ -3044,7 +3114,7 @@ namespace WanXiang.EditorTools.Diagnostics
             if (scene.isDirty)
             {
                 report.results.Add(
-                    $"resource.smoke -> ❌ 当前场景「{scene.name}」有未保存改动，"
+                    $"{command} -> ❌ 当前场景「{scene.name}」有未保存改动，"
                     + "进 Play 模式会弹模态框，自动化流程会卡住。\n"
                     + "        解决：在 Unity 里 Ctrl+S 保存场景，或先关掉不想保存的改动，再重跑本命令。");
                 return;
@@ -3053,14 +3123,14 @@ namespace WanXiang.EditorTools.Diagnostics
             try
             {
                 Directory.CreateDirectory(DiagDir);
-                File.WriteAllText(SmokeRequestPath,
-                    "resource smoke test requested at "
+                File.WriteAllText(requestPath,
+                    command + " requested at "
                     + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\n",
                     Utf8NoBom);
             }
             catch (Exception e)
             {
-                report.results.Add($"resource.smoke -> ❌ 写请求文件失败：{e.Message}");
+                report.results.Add($"{command} -> ❌ 写请求文件失败：{e.Message}");
                 return;
             }
 
@@ -3068,23 +3138,28 @@ namespace WanXiang.EditorTools.Diagnostics
             // 会拿着上一轮的成功结果当成这一轮的。
             try
             {
-                if (File.Exists(SmokeResultPath)) File.Delete(SmokeResultPath);
+                if (File.Exists(resultPath)) File.Delete(resultPath);
             }
             catch (Exception e)
             {
-                report.results.Add($"resource.smoke -> ⚠ 删旧结果失败（不致命）：{e.Message}");
+                report.results.Add($"{command} -> ⚠ 删旧结果失败（不致命）：{e.Message}");
             }
 
-            report.results.Add($"resource.smoke -> 已写请求文件 {SmokeRequestPath}；"
+            if (!string.IsNullOrEmpty(note))
+            {
+                report.results.Add($"{command} -> ℹ {note}");
+            }
+
+            report.results.Add($"{command} -> 已写请求文件 {requestPath}；"
                                + "报告落盘后会进入 Play 模式");
-            report.results.Add($"resource.smoke -> 结果写到 {SmokeResultPath}，跑完自动退出 Play");
+            report.results.Add($"{command} -> 结果写到 {resultPath}，跑完自动退出 Play");
 
             // ⚠ 残留的暂停态必须清掉，否则这一轮体检会"安安静静什么都不做"。
             //   暂停时游戏侧的 Update 与异步推进全部停摆，看门狗也不会响，
             //   表现成"进了 Play 但一个日志都没有" —— 极难判读。
             if (EditorApplication.isPaused)
             {
-                report.results.Add("resource.smoke -> ⚠ 检测到编辑器处于暂停态，已解除"
+                report.results.Add($"{command} -> ⚠ 检测到编辑器处于暂停态，已解除"
                                    + "（残留的暂停会让游戏循环整段停摆）");
             }
         }

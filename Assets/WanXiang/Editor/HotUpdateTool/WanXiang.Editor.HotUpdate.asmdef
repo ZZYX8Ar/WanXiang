@@ -1,15 +1,15 @@
 {
-    "name": "WanXiang.Runtime",
+    "name": "WanXiang.Editor.HotUpdate",
     "rootNamespace": "",
     "references": [
-        "WanXiang.Core",
-        "UniTask",
-        "DOTween",
-        "DOTween.Modules",
-        "Unity.InputSystem",
+        "WanXiang.Runtime",
+        "WanXiang.Editor.YooAsset",
+        "HybridCLR.Editor",
         "HybridCLR.Runtime"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
