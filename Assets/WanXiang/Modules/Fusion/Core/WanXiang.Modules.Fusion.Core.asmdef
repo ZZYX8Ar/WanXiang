@@ -1,0 +1,16 @@
+{
+    "name": "WanXiang.Modules.Fusion.Core",
+    "rootNamespace": "",
+    "references": [
+        "WanXiang.Battle.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

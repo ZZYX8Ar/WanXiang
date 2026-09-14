@@ -65,6 +65,7 @@
 //                       + 写 AOT 清单 + 配收集器（★ 会改文件与配置，非只读）
 //    hot.status         打印热更产物现状：HybridCLR 侧 / 资源侧 / 收集器（只读）
 //    hot.smoke          触发热更链路体检：写请求文件并进入 Play 模式（★ 会切 Play）
+//    fusion.selftest    融合管线自检（GDD STEP 2 验收①②③机器判据；Edit 模式，不切 Play）
 //    resource.smoke     触发资源链路体检：写请求文件并进入 Play 模式（★ 会切 Play）
 //    play.enter         只进 Play 模式、不跑体检（对照实验：验证播放器循环在不在跑）
 //    play.exit          退出 Play 模式（体检卡住时捞一把；会先解除暂停）
@@ -837,6 +838,7 @@ namespace WanXiang.EditorTools.Diagnostics
                 case "hot.smoke": RequestHotUpdateSmoke(report); break;
                 case "battle.selftest": RunBattleSelfTest(report); break;
                 case "battle.graybox": RunBattleTool(report, "battle.graybox"); break;
+                case "fusion.selftest": RunFusionSelfTest(report); break;
                 case "resource.smoke": RequestResourceSmoke(report); break;
                 case "play.enter": RequestPlayEnter(report); break;
                 case "play.exit": RequestPlayExit(report); break;
@@ -2999,6 +3001,21 @@ namespace WanXiang.EditorTools.Diagnostics
 
         private const string GrayBoxTypeName =
             "WanXiang.Editor.BattleTool.BattleGrayBoxWindow, WanXiang.Editor";
+
+        /// <summary>融合管线自检工具的类型名（与诊断通道同程序集）。</summary>
+        private const string FusionToolTypeName =
+            "WanXiang.Editor.FusionTool.FusionSelfTest, WanXiang.Editor";
+
+        /// <summary>
+        /// 融合管线自检（GDD STEP 2 验收①②③的机器判据）。Edit 模式同步跑，不进 Play ——
+        /// 理由同战斗自检：融合规则与战斗核心一样是纯计算，靠 Play 反而不可靠。
+        /// </summary>
+        private static void RunFusionSelfTest(Report report)
+        {
+            RunEditorTool(report, "fusion.selftest", FusionToolTypeName,
+                "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里缺 WanXiang.Modules.Fusion(.Core) 引用。");
+        }
 
         /// <summary>打开灰盒预览窗口（并把预跑数据与自检结果回报一行）。</summary>
         private static void RunBattleTool(Report report, string command)

@@ -404,8 +404,8 @@ WanXiang/
 | **P2 UI 框架**   | 分层 Canvas、面板基类、栈管理、遮罩、LRU 缓存、异步加载、面板动效  | ✅ 已交付（列表对象池待补） |
 | **P3 输入系统**    | Action Map、上下文切换、改键、持久化、EventSystem 改造   | ✅ 已交付             |
 | **P4 资源与热更**   | 资源服务抽象层 → YooAsset → 热更启动流程 + AOT 元数据补充 | ✅ **核心链路已通**（真机验证待补） |
-| **P5 战斗原型**    | 3×3 棋盘、自动战斗、五行结算                        | ⬜ 待做（可与 P4 剩余项穿插）      |
-| **P6 业务模块**    | 图鉴、融合、肉鸽地图、设置                           | ⬜ 待做              |
+| **P5 战斗原型**    | 3×3 棋盘、自动战斗、五行结算 + 宿主×灵魂融合管线      | 🔄 STEP 1/2 已落成（`battle.selftest` 14 项 / `fusion.selftest` 20 项全绿） |
+| **P6 业务模块**    | 图鉴、肉鸽地图、设置（融合已在 P5 STEP 2 落地）        | ⬜ 待做              |
 
 **P3 交付的内容：** 输入资产（UI / Gameplay / Global / Debug 四张 Map、17 个 Action、键鼠 + 手柄双套绑定）、上下文切换（框架统管 Map 启停，业务不许自己 Enable）、改键（含冲突检测、10 秒超时、单项 / 全部重置）、改键持久化（只导出 JSON 字符串，落盘交给存档层）、QFramework 强类型事件桥接、EventSystem 自动改造、资产生成工具。Play 模式实测 `InputService` 启动正常、上下文切换结果与设计一致、EventSystem 被正确换装为 `InputSystemUIInputModule`。
 

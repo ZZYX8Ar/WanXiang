@@ -1,18 +1,11 @@
 {
-    "name": "WanXiang.Editor",
+    "name": "WanXiang.Modules.Fusion",
     "rootNamespace": "",
     "references": [
-        "WanXiang.Core",
-        "WanXiang.Runtime",
         "WanXiang.Battle.Core",
-        "WanXiang.Modules.Battle",
-        "WanXiang.Modules.Fusion.Core",
-        "WanXiang.Modules.Fusion",
-        "Unity.InputSystem"
+        "WanXiang.Modules.Fusion.Core"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
