@@ -1,0 +1,1531 @@
+{
+  "$schema": "wanxiang/beasts@1",
+  "source": "《万相 · 游戏设计文档 v1.0》第四章",
+  "count": 30,
+  "elements": [
+    "Wood",
+    "Fire",
+    "Earth",
+    "Metal",
+    "Water"
+  ],
+  "rarities": [
+    "Rare",
+    "Epic",
+    "Legend"
+  ],
+  "roles": [
+    "Guard",
+    "Striker",
+    "Caster",
+    "Support",
+    "Swift"
+  ],
+  "skillTypes": [
+    "Basic",
+    "Active",
+    "Ultimate"
+  ],
+  "beasts": [
+    {
+      "id": "jumang",
+      "displayName": "句芒",
+      "element": "Wood",
+      "elementCn": "木",
+      "rarityCn": "神品",
+      "rarity": "Legend",
+      "roleCn": "辅",
+      "role": "Support",
+      "defaultRowCn": "中排",
+      "defaultRow": 1,
+      "source": "《山海经·海外东经》",
+      "quote": "东方句芒，鸟身人面，乘两龙。",
+      "lore": "东方之神，司春与草木。鸟身人面，两足踏龙，所过之处冻土生芽。传说他能把断裂的枝条接回原处，也能把将熄的命火重新吹旺——但这需要他付出自己的元气。",
+      "trait": {
+        "name": "春生不息",
+        "description": "我方任意单位首次阵亡时，不进入死亡状态，而是以 40% 生命复活并驱散其全部减益，同时该单位获得 2 回合「无我」（免疫所有控制）。每场战斗限触发 1 次。"
+      },
+      "skills": [
+        {
+          "name": "句芒·拂枝",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 100% 攻击的伤害；同时为生命最低的队友附加相当于 60% 攻击的护盾。"
+        },
+        {
+          "name": "青阳律",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "为全队施加「青阳」持续 3 回合：每回合回复 8% 最大生命，受木属性伤害降低 20%，并使相邻格中与自身五行相生的队友额外获得 1 层「同气」。"
+        },
+        {
+          "name": "东风解冻",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "复活全部阵亡队友（各 50% 生命）并使他们立刻获得一次行动机会；本回合内我方木、火属性单位伤害 +30%（木火通明），并清除全场冰蚀层数。"
+        }
+      ],
+      "codex": "立春之日，东风解冻。冻土之下最先醒来的不是草芽，是句芒踩过的脚印。",
+      "palette": {
+        "bodyMain": "#789262",
+        "bodyAccent": "#BCE672",
+        "energyGlow": "#A8D96B",
+        "eyeCore": "#F0C239",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "jiuweihu",
+      "displayName": "九尾狐",
+      "element": "Wood",
+      "elementCn": "木",
+      "rarityCn": "神品",
+      "rarity": "Legend",
+      "roleCn": "攻",
+      "role": "Striker",
+      "defaultRowCn": "后排",
+      "defaultRow": 2,
+      "source": "《山海经·南山经》",
+      "quote": "青丘之山，有兽焉，其状如狐而九尾，其音如婴儿，能食人，食者不蛊。",
+      "lore": "青丘之山的主人。九条尾并非装饰——每一条尾都是一世修行，尾巴越多，能调动的「惑」就越浓。它的声音像婴儿啼哭，听见的人会不由自主地往前走。",
+      "trait": {
+        "name": "九尾递进",
+        "description": "每回合开始时，自身获得 1 层「尾」（上限 9 层）。每层使普攻额外附加一段 12% 攻击的伤害。受到致命伤害时，消耗全部层数，每层回复 8% 最大生命。"
+      },
+      "skills": [
+        {
+          "name": "狐媚",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 90% 攻击的伤害，并按「尾」层数额外附加若干段 12% 攻击的伤害。"
+        },
+        {
+          "name": "九尾乱",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 4,
+          "description": "对随机敌人发动 3 次 80% 攻击的伤害，每次命中使其「易伤」（受伤害 +8%，可叠 5 层）。若自身「尾」达到 6 层以上，攻击次数翻倍。"
+        },
+        {
+          "name": "青丘幻界",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 7,
+          "description": "将全场敌方拖入幻境持续 2 回合：敌方每回合有 50% 概率攻击自己的队友（视为混乱）；同时自身获得 3 层「尾」，并在幻境期间免疫一切单体伤害。"
+        }
+      ],
+      "codex": "九尾不是战力，是九世的耐心。它从不着急，急的是走进青丘的人。",
+      "palette": {
+        "bodyMain": "#E9E4D8",
+        "bodyAccent": "#C9A063",
+        "energyGlow": "#F0C239",
+        "eyeCore": "#C8352C",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "guanguan",
+      "displayName": "灌灌",
+      "element": "Wood",
+      "elementCn": "木",
+      "rarityCn": "玄品",
+      "rarity": "Epic",
+      "roleCn": "辅",
+      "role": "Support",
+      "defaultRowCn": "中排",
+      "defaultRow": 1,
+      "source": "《山海经·南山经》",
+      "quote": "青丘之山，有鸟焉，其状如鸠，其音若呵，名曰灌灌，佩之不惑。",
+      "lore": "鸠形的小鸟，鸣声像人在呵斥。青丘多幻术，唯灌灌的叫声能让人从幻境中清醒——古人把它的羽毛佩在身上，说可以「不惑」。",
+      "trait": {
+        "name": "不惑",
+        "description": "我方全体免疫「混乱」与「魅惑」；我方单位每成功抵抗一次控制，为其回复 10% 最大生命。"
+      },
+      "skills": [
+        {
+          "name": "呵声",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 80% 攻击的伤害，并驱散其身上的 1 个增益。"
+        },
+        {
+          "name": "醒神啼",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "清除我方全体所有控制类减益（混乱、沉默、冻结、眩晕），并为每个被清除的单位附加 1 层「清明」（免疫下次控制）。"
+        },
+        {
+          "name": "青丘一鸣",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "对全场敌方施加「惑解」：3 回合内，敌方所有幻术、混乱、隐身类效果完全失效；我方全体获得 25% 减伤。若场上有敌方处于混乱状态，改为对其造成 200% 攻击的真实伤害。"
+        }
+      ],
+      "codex": "青丘的雾散不开，但灌灌一叫，人就知道自己刚刚站在哪里。",
+      "palette": {
+        "bodyMain": "#A8B87A",
+        "bodyAccent": "#5D8A66",
+        "energyGlow": "#BCE672",
+        "eyeCore": "#2A2118",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "migu",
+      "displayName": "迷榖",
+      "element": "Wood",
+      "elementCn": "木",
+      "rarityCn": "玄品",
+      "rarity": "Epic",
+      "roleCn": "御",
+      "role": "Guard",
+      "defaultRowCn": "前排",
+      "defaultRow": 0,
+      "source": "《山海经·南山经》",
+      "quote": "招摇之山，有木焉，其状如榖而黑理，其华四照，其名曰迷榖，佩之不迷。",
+      "lore": "并非兽，而是招摇山上的一株神木。树皮有黑色纹理，开花时光照四方。折一枝带在身上，就永远不会在山里迷路。此处的迷榖，是它化形而出的木灵。",
+      "trait": {
+        "name": "不迷",
+        "description": "自身免疫「放逐」「传送改位」类效果；我方单位不会被强制改变站位。受到攻击时，为攻击者附加 1 层「迷」（命中 -10%，可叠 3 层）。"
+      },
+      "skills": [
+        {
+          "name": "枝击",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 70% 攻击的伤害，并为自身附加相当于 5% 最大生命的护盾（可叠加）。"
+        },
+        {
+          "name": "四照华",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "展开光域持续 3 回合：我方全体受到的伤害降低 15%，且攻击方每次命中都要额外承受 1 层「迷」。"
+        },
+        {
+          "name": "黑理不迷",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "为全队施加「不迷」持续 3 回合：免疫所有位移与控制，并且每次受到伤害时反弹 20% 给攻击者（真实伤害，无视护盾），自身获得 30% 最大生命的护盾。"
+        }
+      ],
+      "codex": "招摇山上没有路，只有迷榖。找到它的人，从此再没丢过方向。",
+      "palette": {
+        "bodyMain": "#5D8A66",
+        "bodyAccent": "#BCE672",
+        "energyGlow": "#F4F8D3",
+        "eyeCore": "#C9A063",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "lushu",
+      "displayName": "鹿蜀",
+      "element": "Wood",
+      "elementCn": "木",
+      "rarityCn": "灵品",
+      "rarity": "Rare",
+      "roleCn": "辅",
+      "role": "Support",
+      "defaultRowCn": "中排",
+      "defaultRow": 1,
+      "source": "《山海经·南山经》",
+      "quote": "杻阳之山，有兽焉，其状如马而白首，其文如虎而赤尾，其音如谣，其名曰鹿蜀，佩之宜子孙。",
+      "lore": "马身白首，身有虎纹，拖着一条赤红的尾。它不伤人，只是站着唱歌，歌声像民谣一样好听。古人佩它的毛发，说能保佑子嗣繁衍——在本作里，它保佑的是队伍的延续。",
+      "trait": {
+        "name": "宜子孙",
+        "description": "我方的治疗与护盾效果溢出时，溢出量的 40% 会转移给生命最低的另一名队友（可连锁 1 次）。"
+      },
+      "skills": [
+        {
+          "name": "谣歌",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 60% 攻击的伤害，并为生命最低的队友回复 60% 攻击的生命。"
+        },
+        {
+          "name": "纹虎之敷",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "为全队施加「虎纹」持续 3 回合：受到的伤害降低 12%，且每回合结束时回复 6% 最大生命。"
+        },
+        {
+          "name": "宜子孙",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "将自身当前 50% 生命转化为一个护盾，平均分给全队（每人不低于 15% 最大生命）；护盾存在期间，我方全体免疫「禁疗」。"
+        }
+      ],
+      "codex": "它唱歌的时候，整座杻阳山都在照料后代。",
+      "palette": {
+        "bodyMain": "#E9E4D8",
+        "bodyAccent": "#C8352C",
+        "energyGlow": "#A8D96B",
+        "eyeCore": "#3A3A3A",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "xingxing",
+      "displayName": "狌狌",
+      "element": "Wood",
+      "elementCn": "木",
+      "rarityCn": "灵品",
+      "rarity": "Rare",
+      "roleCn": "疾",
+      "role": "Swift",
+      "defaultRowCn": "任意",
+      "defaultRow": -1,
+      "source": "《山海经·南山经》",
+      "quote": "招摇之山，有兽焉，其状如禺而白耳，伏行人走，其名曰狌狌，食之善走。",
+      "lore": "长得像猿，白色耳朵，能伏地爬行也能直立奔跑。传说吃了它的肉会变得极善奔走。它跑得快，是因为它总在躲避自己知道的事情——狌狌知往而不知来。",
+      "trait": {
+        "name": "知往",
+        "description": "战斗开始时，自身速度额外 +20%；每次我方有单位阵亡，自身速度再 +10%（无上限）。自身行动时不消耗怒气。"
+      },
+      "skills": [
+        {
+          "name": "疾行",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 85% 攻击的伤害；若自身速度高于目标，伤害提升 50%。"
+        },
+        {
+          "name": "白耳",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 2,
+          "description": "立刻获得一次额外行动机会，并在本回合内速度 +40%。若本次行动击杀了目标，则该技能 CD 立即重置。"
+        },
+        {
+          "name": "善走",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 5,
+          "description": "对速度低于自身的所有敌方单位依次造成 120% 攻击的伤害（最多 5 次）；每次击杀使自己获得一次额外行动，单场最多连锁 3 次。"
+        }
+      ],
+      "codex": "它知道所有走过的路，所以从不敢回头看。",
+      "palette": {
+        "bodyMain": "#B08A5E",
+        "bodyAccent": "#E9E4D8",
+        "energyGlow": "#BCE672",
+        "eyeCore": "#8B5A2B",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "zhurong",
+      "displayName": "祝融",
+      "element": "Fire",
+      "elementCn": "火",
+      "rarityCn": "神品",
+      "rarity": "Legend",
+      "roleCn": "术",
+      "role": "Caster",
+      "defaultRowCn": "中后排",
+      "defaultRow": 1,
+      "source": "《山海经·海外南经》",
+      "quote": "南方祝融，兽身人面，乘两龙。",
+      "lore": "南方之神，司夏与火。兽身人面，乘两龙而行。他掌管的不是「燃烧」而是「热」本身——在他面前，连空气都会自己着火。",
+      "trait": {
+        "name": "燚",
+        "description": "我方所有火属性伤害无视敌方 25% 的抗性；场上每存在 1 层灼烧，我方火属性单位攻击力 +1%（无上限）。"
+      },
+      "skills": [
+        {
+          "name": "燎原",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 110% 攻击的伤害，并施加 2 层灼烧（每层每回合造成 4% 施加者攻击的伤害）。"
+        },
+        {
+          "name": "炎上",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "对敌方全体造成 130% 攻击的伤害，并各施加 2 层灼烧；若目标已处于灼烧状态，改为额外施加 2 层并使其「易燃」（受火伤 +15%）。"
+        },
+        {
+          "name": "朱明·天火",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 7,
+          "description": "引爆全场所有灼烧层数：每层造成 15% 攻击的真实伤害，并重新施加等量层数。随后召唤天火持续 3 回合——每回合结束对敌方全体造成 100% 攻击的伤害，此伤害不可被闪避与免疫。"
+        }
+      ],
+      "codex": "祝融走过的地方，不需要点火。",
+      "palette": {
+        "bodyMain": "#C8352C",
+        "bodyAccent": "#F0A03C",
+        "energyGlow": "#FF7A2F",
+        "eyeCore": "#FFD84D",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "zhulong",
+      "displayName": "烛龙",
+      "element": "Fire",
+      "elementCn": "火",
+      "rarityCn": "神品",
+      "rarity": "Legend",
+      "roleCn": "攻",
+      "role": "Striker",
+      "defaultRowCn": "后排",
+      "defaultRow": 2,
+      "source": "《山海经·大荒北经》",
+      "quote": "章尾山，有神，人面蛇身而赤，直目正乘，其瞑乃晦，其视乃明，不食不寝不息，风雨是谒。是烛九阴，是谓烛龙。",
+      "lore": "人面蛇身，通体赤红，身长千里。它闭上眼睛就是黑夜，睁开眼睛就是白天。不吃不睡不呼吸，一呼一吸之间便是风与雨。它不是神，它是昼夜本身。",
+      "trait": {
+        "name": "司昼夜",
+        "description": "战斗在第 1 回合开始时进入「昼」状态，第 2 回合转换为「夜」，如此交替。「昼」：我方全体攻击 +25%，暴击率 +15%；「夜」：我方全体减伤 +25%，回复 +30%。"
+      },
+      "skills": [
+        {
+          "name": "赤目",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 120% 攻击的伤害；昼状态下附加 3 层灼烧，夜状态下回复自身 8% 最大生命。"
+        },
+        {
+          "name": "开阖",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "主动切换昼夜状态（不消耗回合），并对敌方全体造成 100% 攻击的伤害；切换后，我方全体立刻获得新状态的全部增益，持续到下次切换。"
+        },
+        {
+          "name": "烛九阴",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 7,
+          "description": "强制锁定状态为「昼」持续 3 回合：期间我方全体攻击 +50%、暴击伤害 +60%，且每次暴击延长本效果 1 回合（最多延长至 5 回合）。技能结束时全场敌方受到一次 300% 攻击的结算。"
+        }
+      ],
+      "codex": "它睁眼的时候，请不要直视。",
+      "palette": {
+        "bodyMain": "#8C2B22",
+        "bodyAccent": "#2A2118",
+        "energyGlow": "#FF4E20",
+        "eyeCore": "#FFD84D",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "bifang",
+      "displayName": "毕方",
+      "element": "Fire",
+      "elementCn": "火",
+      "rarityCn": "玄品",
+      "rarity": "Epic",
+      "roleCn": "术",
+      "role": "Caster",
+      "defaultRowCn": "中后排",
+      "defaultRow": 1,
+      "source": "《山海经·西山经》",
+      "quote": "章莪之山，有鸟焉，其状如鹤，一足，赤文青质而白喙，名曰毕方，其鸣自叫也，见则其邑有讹火。",
+      "lore": "鹤形独足之鸟，青底红花，白喙。它出现的地方会莫名其妙地起火——不是它纵火，而是它本身就是一座行走的引信。古人讨厌它，因为它总能提前知道哪里要着火。",
+      "trait": {
+        "name": "讹火",
+        "description": "我方火属性单位造成伤害时，有 35% 概率为该目标附加 1 层灼烧并蔓延给其一个相邻格单位（相冲格不蔓延）。"
+      },
+      "skills": [
+        {
+          "name": "单足立",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 95% 攻击的伤害，并施加 1 层灼烧。"
+        },
+        {
+          "name": "赤文青质",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "为敌方全体施加 2 层灼烧；我方全体获得「引信」持续 2 回合——受到攻击时，对攻击者施加 2 层灼烧。"
+        },
+        {
+          "name": "讹火漫天",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "引爆场上所有灼烧层数（每层 12% 攻击的真实伤害），随后重置全场灼烧层数为 3 层，并使敌方每回合开始时自动增加 1 层灼烧，持续 3 回合。"
+        }
+      ],
+      "codex": "它叫的时候，屋子已经在冒烟了。",
+      "palette": {
+        "bodyMain": "#5D8A66",
+        "bodyAccent": "#E04B3A",
+        "energyGlow": "#FF7A2F",
+        "eyeCore": "#FFFFFF",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "feiyi",
+      "displayName": "肥遗",
+      "element": "Fire",
+      "elementCn": "火",
+      "rarityCn": "玄品",
+      "rarity": "Epic",
+      "roleCn": "攻",
+      "role": "Striker",
+      "defaultRowCn": "后排",
+      "defaultRow": 2,
+      "source": "《山海经·西山经》",
+      "quote": "太华之山，有蛇焉，名曰肥遗，六足四翼，见则天下大旱。",
+      "lore": "蛇身而有六足四翼，飞不起来但爬得极快。它出现的年份必有大旱。在本作里，它是「旱」的化形——它所在之处，水会自己离开。",
+      "trait": {
+        "name": "大旱",
+        "description": "自身获取怒气速度 +40%；敌方每有一个水属性单位，自身攻击力 +20%。自身攻击水属性单位时，伤害系数额外 +30%。"
+      },
+      "skills": [
+        {
+          "name": "噬啮",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 100% 攻击的伤害；若目标为水属性，改为造成 150% 攻击的伤害并驱散其 1 个护盾。"
+        },
+        {
+          "name": "六足四翼",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "对敌方全体各造成 90% 攻击的伤害，每次命中使其「干燥」（受火属性伤害 +12%，可叠 3 层）；若场上存在水属性敌人，该技能伤害提升 50%。"
+        },
+        {
+          "name": "赤地千里",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 7,
+          "description": "开启「大旱」持续 3 回合：全场禁止治疗与回复，所有护盾效果减半；每回合结束对所有敌人造成其已损失生命 20% 的真实伤害（斩杀性质，对残血目标收益极高）。"
+        }
+      ],
+      "codex": "它爬过的地方，土比石头还干。",
+      "palette": {
+        "bodyMain": "#D65A32",
+        "bodyAccent": "#F0C239",
+        "energyGlow": "#FFB03A",
+        "eyeCore": "#2A2118",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "hanba",
+      "displayName": "旱魃",
+      "element": "Fire",
+      "elementCn": "火",
+      "rarityCn": "灵品",
+      "rarity": "Rare",
+      "roleCn": "术",
+      "role": "Caster",
+      "defaultRowCn": "中后排",
+      "defaultRow": 1,
+      "source": "《山海经·大荒北经》",
+      "quote": "有人衣青衣，名曰黄帝女魃。",
+      "lore": "黄帝之女，穿青衣。她本是用来止雨的兵器，战争结束后却再也回不去天上——她所居之处，终年不雨。民间称她为旱魃。",
+      "trait": {
+        "name": "所居不雨",
+        "description": "自身在场时，全场所有治疗与回复效果降低 35%；敌方单位每被治疗一次，对其施加 2 层灼烧（治疗反噬）。"
+      },
+      "skills": [
+        {
+          "name": "青衣",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 85% 攻击的伤害，并为其施加「断水」（下次受到的治疗效果减半）。"
+        },
+        {
+          "name": "不雨",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "对敌方全体施加「旱」持续 3 回合：期间受到的所有治疗量降低 60%，并在每回合结束造成 60% 攻击的灼烧伤害。"
+        },
+        {
+          "name": "魃之祝",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "对敌方全体施加「绝水」持续 2 回合（完全无法被治疗与获得护盾），同时我方全体获得等量于敌方治疗量 100% 的护盾。"
+        }
+      ],
+      "codex": "她不是灾祸，她只是回不去了。",
+      "palette": {
+        "bodyMain": "#C0A86B",
+        "bodyAccent": "#7A6A45",
+        "energyGlow": "#FFB03A",
+        "eyeCore": "#FF7A2F",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "chongming",
+      "displayName": "重明鸟",
+      "element": "Fire",
+      "elementCn": "火",
+      "rarityCn": "灵品",
+      "rarity": "Rare",
+      "roleCn": "辅",
+      "role": "Support",
+      "defaultRowCn": "中排",
+      "defaultRow": 1,
+      "source": "《拾遗记》卷一",
+      "quote": "尧在位七十年……有祗支之国献重明之鸟，一名双睛，言双睛在目。状如鸡，鸣似凤。",
+      "lore": "鸡形凤声，双眼里各有一个眼珠，故名「重明」。它能驱鬼避邪，古人把它的形象贴在门上，代替老虎和雄鸡——这是最早的门神之一。",
+      "trait": {
+        "name": "双睛",
+        "description": "我方全体免疫「致盲」「致盲类」与「命中降低」效果；我方每次暴击，为全队回复 2% 最大生命（无 CD）。"
+      },
+      "skills": [
+        {
+          "name": "凤鸣",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 80% 攻击的伤害；若该目标为「暗」状态，伤害翻倍并驱散其全部增益。"
+        },
+        {
+          "name": "重明",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "清除我方全体身上的所有减益（含灼烧、冰蚀、诅咒），并为每个被清除的减益使该单位获得 1 层「明目」（暴击率 +5%，可叠 5 层）。"
+        },
+        {
+          "name": "照门",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "在阵前展开「重明之照」持续 3 回合：我方全员攻击 +20%、暴击率 +20%、免疫所有减益；期间每次我方暴击都会对敌方全体造成 30% 攻击的额外伤害。"
+        }
+      ],
+      "codex": "贴它一次，一年不出门也安心。",
+      "palette": {
+        "bodyMain": "#E9E4D8",
+        "bodyAccent": "#E04B3A",
+        "energyGlow": "#FFD84D",
+        "eyeCore": "#FF7A2F",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "houtu",
+      "displayName": "后土",
+      "element": "Earth",
+      "elementCn": "土",
+      "rarityCn": "神品",
+      "rarity": "Legend",
+      "roleCn": "御",
+      "role": "Guard",
+      "defaultRowCn": "前排",
+      "defaultRow": 0,
+      "source": "《山海经·海内经》《左传·昭公二十九年》",
+      "quote": "共工生后土。……共工氏有子曰句龙，为后土。",
+      "lore": "共工之子句龙，为后土，主土地与社稷。五行之中土居中央，寄旺于四季——所以后土不属于任何一个季节，却又在每一季的末尾现身。",
+      "trait": {
+        "name": "土旺四季",
+        "description": "战斗开始时，自身根据当前季节获得对应强化：春（木）额外治疗 +30%；夏（火）反伤 +30%；秋（金）护盾 +30%；冬（水）减伤 +15%。自身站在中宫时，全部四项同时生效。"
+      },
+      "skills": [
+        {
+          "name": "社石",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 75% 攻击的伤害；同时为自身附加相当于 8% 最大生命的护盾（可叠加至 40%）。"
+        },
+        {
+          "name": "厚德载物",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "嘲讽敌方全体持续 2 回合；期间自身受到的伤害降低 40%，并将减免量的 100% 转化为对相邻队友的护盾。"
+        },
+        {
+          "name": "句龙·社稷",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 7,
+          "description": "召唤社稷之柱持续 3 回合：我方全体免疫位移与「放逐」；每回合结束时，全员按自身最大生命的 12% 回复，并将本回合承受伤害的 30% 反弹给敌方全体。若我方有单位在此效果期间阵亡，则立刻以 60% 生命复活并永久获得 20% 减伤。"
+        }
+      ],
+      "codex": "土不与谁争，但谁都站在土上。",
+      "palette": {
+        "bodyMain": "#B8862B",
+        "bodyAccent": "#E8C25B",
+        "energyGlow": "#F0C239",
+        "eyeCore": "#2A2118",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "dijiang",
+      "displayName": "帝江",
+      "element": "Earth",
+      "elementCn": "土",
+      "rarityCn": "神品",
+      "rarity": "Legend",
+      "roleCn": "辅",
+      "role": "Support",
+      "defaultRowCn": "中排",
+      "defaultRow": 1,
+      "source": "《山海经·西山经》",
+      "quote": "天山，有神焉，其状如黄囊，赤如丹火，六足四翼，浑敦无面目，是识歌舞，实惟帝江也。",
+      "lore": "像一只黄色的口袋，红得像丹火，六足四翼，没有五官——没有眼睛，没有耳朵，没有嘴。可它懂得歌舞。它不知道什么叫「看」，所以它知道什么叫「感」。",
+      "trait": {
+        "name": "无面目",
+        "description": "自身免疫「致盲」「嘲讽」与「标记」；我方全体受到的混乱类效果有 50% 概率被反弹给施法者。"
+      },
+      "skills": [
+        {
+          "name": "舞",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 70% 攻击的伤害；随机为我方一名单位附加「识歌」（下次技能 CD -1）。"
+        },
+        {
+          "name": "浑敦",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "对敌方全体施加「无相」持续 2 回合：期间敌方命中率 -25%，且每次行动有 30% 概率改为攻击自己的队友。"
+        },
+        {
+          "name": "帝江之舞",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "全场进入「歌舞」状态持续 3 回合：我方每次行动结束都会进行判定——40% 概率使敌方全体 CD +1，40% 概率使我方全体 CD -1，20% 概率同时发生。期间我方全体免疫控制，敌方全体每回合损失 8% 最大生命。"
+        }
+      ],
+      "codex": "没有脸的神，看的是心。",
+      "palette": {
+        "bodyMain": "#E7A33E",
+        "bodyAccent": "#E04B3A",
+        "energyGlow": "#FFB03A",
+        "eyeCore": "#C8352C",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "taotie",
+      "displayName": "饕餮",
+      "element": "Earth",
+      "elementCn": "土",
+      "rarityCn": "玄品",
+      "rarity": "Epic",
+      "roleCn": "攻",
+      "role": "Striker",
+      "defaultRowCn": "后排",
+      "defaultRow": 2,
+      "source": "《山海经·北山经》（狍鸮）、《神异经》",
+      "quote": "（狍鸮）其状如羊身人面，其目在腋下，虎齿人爪，其音如婴儿，名曰狍鸮，是食人。",
+      "lore": "羊身人面，眼睛长在腋下，虎齿人爪。它最大的问题不是贪吃，是永远吃不饱。最早它只是「狍鸮」，后来人们给它改名「饕餮」，从此它的名字本身就成了一种罪。",
+      "trait": {
+        "name": "无餍",
+        "description": "每次击杀敌方单位，永久获得 +8% 攻击力与 +8% 最大生命（可无限叠加，跨战斗保留本局内层数）；自身每吞噬一个增益，回复 12% 最大生命。"
+      },
+      "skills": [
+        {
+          "name": "吞噬",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 105% 攻击的伤害，并吞噬其身上的 1 个增益，转化为自身 1 层「食」（攻击 +6%，上限 10 层）。"
+        },
+        {
+          "name": "贪食",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "吞噬敌方全体各 1 个增益，每吞噬 1 个，对全体造成 70% 攻击的伤害；若目标无增益可吞，改为对其造成 120% 攻击的伤害。"
+        },
+        {
+          "name": "饕餮之口",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 7,
+          "description": "对敌方生命值最低的单位造成 400% 攻击的伤害；若造成击杀，则本次技能 CD 立即重置，并额外吞噬全场所有增益，每吞 1 个恢复 15% 最大生命。可在一回合内连续触发。"
+        }
+      ],
+      "codex": "它连自己的影子都想吃。",
+      "palette": {
+        "bodyMain": "#8B6B3E",
+        "bodyAccent": "#C9A063",
+        "energyGlow": "#E8C25B",
+        "eyeCore": "#C8352C",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "hundun",
+      "displayName": "混沌",
+      "element": "Earth",
+      "elementCn": "土",
+      "rarityCn": "玄品",
+      "rarity": "Epic",
+      "roleCn": "术",
+      "role": "Caster",
+      "defaultRowCn": "中后排",
+      "defaultRow": 1,
+      "source": "《神异经·西荒经》",
+      "quote": "昆仑西有兽焉，其状如犬，长毛四足，似罴而无爪，有目而不见，行不开，有两耳而不闻……有肠直而不旋，食物径过。",
+      "lore": "像犬而长毛，有眼却看不见，有耳却听不见。它没有五脏，肠子笔直，吃下去的东西径直穿过。遇到有德之人就去顶撞他，遇到凶恶之徒就依附他。天生如此，不叫恶，叫无别。",
+      "trait": {
+        "name": "无别",
+        "description": "自身造成的伤害无视敌我关系——所有伤害性技能会以自身为中心波及全场。自身受到的伤害降低 25%（因为它根本不知道自己被打）。"
+      },
+      "skills": [
+        {
+          "name": "径过",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对全场随机 3 个单位（含我方）各造成 70% 攻击的伤害；对敌方单位伤害翻倍。"
+        },
+        {
+          "name": "不闻不见",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "对敌方全体造成 90% 攻击的伤害，并随机施加 2 种减益：沉默 / 混乱 / 命中下降 / 减速，持续 2 回合。"
+        },
+        {
+          "name": "混元无别",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "清除场上所有的属性克制关系持续 3 回合——期间所有五行加成、相克系数一律按 1.0 计算；同时每回合对全场敌方造成 110% 攻击的伤害，无视一切护盾与减伤。"
+        }
+      ],
+      "codex": "它不分善恶，只是一个还没被命名之前的答案。",
+      "palette": {
+        "bodyMain": "#A89678",
+        "bodyAccent": "#6B6157",
+        "energyGlow": "#C9A063",
+        "eyeCore": "#2A2118",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "dangkang",
+      "displayName": "当康",
+      "element": "Earth",
+      "elementCn": "土",
+      "rarityCn": "灵品",
+      "rarity": "Rare",
+      "roleCn": "辅",
+      "role": "Support",
+      "defaultRowCn": "中排",
+      "defaultRow": 1,
+      "source": "《山海经·东山经》",
+      "quote": "钦山，有兽焉，其状如豚而有牙，其名曰当康，其鸣自叫，见则天下大穰。",
+      "lore": "像野猪而有獠牙，叫声是自己的名字。它出现的年份天下丰收。在灾年的传说里，它是唯一一个只带来好消息的异兽。",
+      "trait": {
+        "name": "大穰",
+        "description": "每回合结束时，我方全体获得 1 层「穰」（上限 6 层）；每层使我方全队的治疗与护盾效果 +5%。每场战斗中「穰」达到 6 层时，全队立刻回复 25% 最大生命。"
+      },
+      "skills": [
+        {
+          "name": "呼名",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 65% 攻击的伤害，并为生命最低的队友回复 70% 攻击的生命。"
+        },
+        {
+          "name": "豚牙",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "我方全体获得「丰穰」持续 3 回合：每回合回复 9% 最大生命，并将「穰」层数翻倍（上限仍为 6 层）。"
+        },
+        {
+          "name": "天下大穰",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "将本场战斗我方累计承受伤害的 40% 一次性转化为全员回复；随后进入「丰年」状态 3 回合：我方全体每回合回复 15% 最大生命，并将所有溢出治疗转化为护盾（不设上限）。"
+        }
+      ],
+      "codex": "它一叫，田里的谷穗就自己低头了。",
+      "palette": {
+        "bodyMain": "#C9A88A",
+        "bodyAccent": "#E8C25B",
+        "energyGlow": "#F0C239",
+        "eyeCore": "#2A2118",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "luwu",
+      "displayName": "陆吾",
+      "element": "Earth",
+      "elementCn": "土",
+      "rarityCn": "灵品",
+      "rarity": "Rare",
+      "roleCn": "御",
+      "role": "Guard",
+      "defaultRowCn": "前排",
+      "defaultRow": 0,
+      "source": "《山海经·西山经》",
+      "quote": "昆仑之丘，是实惟帝之下都，神陆吾司之。其神状虎身而九尾，人面而虎爪，是神也，司天之九部及帝之囿时。",
+      "lore": "虎身九尾，人面虎爪。昆仑是天帝在人间的都城，而陆吾是它的守门人——他掌管的不是战斗，是「界限」。他不允许不该进来的东西进来。",
+      "trait": {
+        "name": "司界",
+        "description": "我方站位在前排（第 1 行）的单位受到的伤害降低 20%；敌方单位无法穿过我方前排攻击后排（无位移类技能时）。"
+      },
+      "skills": [
+        {
+          "name": "虎爪",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 80% 攻击的伤害，并使其「退却」（下一回合速度 -20%）。"
+        },
+        {
+          "name": "九部之守",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "为前排单位附加「界」持续 3 回合：减免 30% 伤害；同时将后排单位受到伤害的 40% 转移到前排（转移后仍计算前排减伤）。"
+        },
+        {
+          "name": "昆仑不开",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "封锁全场位移与换位 3 回合；期间自身获得「帝囿」——每承受一次攻击，永久获得 +5% 减伤（单场上限 +50%），并将反击伤害按 150% 攻击结算给攻击者。"
+        }
+      ],
+      "codex": "昆仑不是不让人进，是陆吾觉得你还没准备好。",
+      "palette": {
+        "bodyMain": "#D9B26A",
+        "bodyAccent": "#2A2118",
+        "energyGlow": "#E8C25B",
+        "eyeCore": "#C9A063",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "rushou",
+      "displayName": "蓐收",
+      "element": "Metal",
+      "elementCn": "金",
+      "rarityCn": "神品",
+      "rarity": "Legend",
+      "roleCn": "攻",
+      "role": "Striker",
+      "defaultRowCn": "后排",
+      "defaultRow": 2,
+      "source": "《山海经·海外西经》",
+      "quote": "西方蓐收，左耳有蛇，乘两龙。",
+      "lore": "西方之神，司秋与刑杀。左耳挂着一条蛇，乘两龙。秋是收获的季节，也是行刑的季节——割下麦穗与割下头颅，在他手里是同一件事。",
+      "trait": {
+        "name": "刑杀",
+        "description": "我方所有单位对生命值低于 40% 的敌人造成的伤害 +45%；我方每次击杀，全队获得 1 层「秋决」（暴击伤害 +8%，上限 8 层，本局内保留）。"
+      },
+      "skills": [
+        {
+          "name": "收割",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 115% 攻击的伤害；若目标生命低于 40%，此伤害必定暴击。"
+        },
+        {
+          "name": "刑天",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "对单体造成 180% 攻击的伤害并施加「斩标」持续 3 回合：目标受到的所有伤害 +20%，且斩标结束时若其生命低于 25% 则直接处决。"
+        },
+        {
+          "name": "白藏·秋决",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 7,
+          "description": "对敌方全体造成 200% 攻击的伤害，并对生命最低的三个单位追加一次必定暴击的 250% 攻击。若本次技能造成任何击杀，全队获得「秋决」满层，且本技能 CD 立刻减半。"
+        }
+      ],
+      "codex": "他割下麦穗的时候，麦田很安静。",
+      "palette": {
+        "bodyMain": "#C8CFD3",
+        "bodyAccent": "#C9A063",
+        "energyGlow": "#E9F1F6",
+        "eyeCore": "#6B7B8C",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "qiongqi",
+      "displayName": "穷奇",
+      "element": "Metal",
+      "elementCn": "金",
+      "rarityCn": "神品",
+      "rarity": "Legend",
+      "roleCn": "攻",
+      "role": "Striker",
+      "defaultRowCn": "后排",
+      "defaultRow": 2,
+      "source": "《山海经·西山经》",
+      "quote": "邽山，其上有兽焉，其状如牛，猬毛，名曰穷奇，音如獆狗，是食人。",
+      "lore": "牛身猬毛，声如狗吠。它是四凶之一，专门助长恶行：听说谁忠诚就咬谁的鼻子，听说谁凶恶就送他猎物。它不害好人，它是「好人」的敌人。",
+      "trait": {
+        "name": "助恶",
+        "description": "战斗中，敌方增益越多，自身攻击力越高（每 1 个敌方增益 +8% 攻击）；自身每次攻击都会剥离目标 1 个增益，每剥离 1 个，该次伤害 +20%。"
+      },
+      "skills": [
+        {
+          "name": "猬刺",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 100% 攻击的伤害；自身每损失 10% 生命，此伤害 +8%（残血时爆发）。"
+        },
+        {
+          "name": "獆吠",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "对敌方全体造成 110% 攻击的伤害，并剥离每个目标 1 个增益；每成功剥离 1 个，为其附加「穷」（减益效果无效化，持续 2 回合）。"
+        },
+        {
+          "name": "四凶·穷奇",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 7,
+          "description": "剥离敌方全体所有增益并转化为自身攻击力（每个增益 +15% 攻击，持续 3 回合）；随后对生命值最高的敌人造成 500% 攻击的伤害——目标生命越高，伤害越高（每 10% 生命差 +30%）。"
+        }
+      ],
+      "codex": "它不撒谎，它只是永远站在错的那一边。",
+      "palette": {
+        "bodyMain": "#8A7B63",
+        "bodyAccent": "#C8CFD3",
+        "energyGlow": "#E9F1F6",
+        "eyeCore": "#C8352C",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "zheng",
+      "displayName": "狰",
+      "element": "Metal",
+      "elementCn": "金",
+      "rarityCn": "玄品",
+      "rarity": "Epic",
+      "roleCn": "疾",
+      "role": "Swift",
+      "defaultRowCn": "任意",
+      "defaultRow": -1,
+      "source": "《山海经·西山经》",
+      "quote": "章莪之山，有兽焉，其状如赤豹，五尾一角，其音如击石，其名曰狰。",
+      "lore": "赤色豹身，五条尾巴，头上一只角，叫声像敲石头。它跑起来的时候，五条尾巴会在身后扫出一道光。",
+      "trait": {
+        "name": "五尾",
+        "description": "自身普攻改为对随机敌人发动 5 段攻击（每段 35% 攻击）；每段命中独立判定暴击，任意一段暴击则下一段伤害 +25%（可累乘）。"
+      },
+      "skills": [
+        {
+          "name": "击石",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对随机敌人发动 5 段 35% 攻击的伤害，每段独立判定暴击。"
+        },
+        {
+          "name": "赤豹突",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "突进至敌方后排，对其最高攻击力单位发动 8 段 45% 攻击的伤害；每段暴击使其「裂甲」（护甲与减伤 -8%，可叠 8 层）。"
+        },
+        {
+          "name": "一角破军",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "对单体发动 12 段 60% 攻击的伤害，每段若暴击则本次技能剩余段数伤害 +15%；技能结束后，目标身上的「裂甲」层数转化为额外真实伤害（每层 20% 攻击）。"
+        }
+      ],
+      "codex": "五条尾巴扫过去，石头就真的是石头声了。",
+      "palette": {
+        "bodyMain": "#D65A32",
+        "bodyAccent": "#E9E4D8",
+        "energyGlow": "#FFD84D",
+        "eyeCore": "#C8352C",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "tiangou",
+      "displayName": "天狗",
+      "element": "Metal",
+      "elementCn": "金",
+      "rarityCn": "玄品",
+      "rarity": "Epic",
+      "roleCn": "御",
+      "role": "Guard",
+      "defaultRowCn": "前排",
+      "defaultRow": 0,
+      "source": "《山海经·西山经》",
+      "quote": "阴山，有兽焉，其状如狸而白首，名曰天狗，其音如榴榴，可以御凶。",
+      "lore": "像狸而白首，叫声「榴榴」。古书说它可以「御凶」——它不是猎犬，它是挡在灾祸前面的那一道。（注：此天狗与后世的「天狗食月」无关，前者是守护兽，后者是灾兆，本作取守护兽义。）",
+      "trait": {
+        "name": "御凶",
+        "description": "我方单位受到伤害时，有 30% 概率将该次伤害的 50% 转移到自身（转移后按自身减伤重新计算）；自身每转移一次伤害，获得 1 层「凶」（反击伤害 +10%，上限 10 层）。"
+      },
+      "skills": [
+        {
+          "name": "榴榴",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 85% 攻击的伤害，并按其「凶」层数额外进行一次反击（每层 8% 攻击的真实伤害）。"
+        },
+        {
+          "name": "挡灾",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "标记一名队友持续 3 回合：期间该队友受到的所有伤害由自身代为承受 60%，且自身获得 25% 减伤与 15% 反伤。"
+        },
+        {
+          "name": "可以御凶",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "展开「御凶」光环持续 3 回合：我方全体受到的伤害降低 25%，并将减免总量的 100% 转化为对敌方全体的真实伤害（每回合结算一次）。"
+        }
+      ],
+      "codex": "灾祸来的时候，它已经站在那里了。",
+      "palette": {
+        "bodyMain": "#6B6157",
+        "bodyAccent": "#E9F1F6",
+        "energyGlow": "#C8CFD3",
+        "eyeCore": "#F0C239",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "qiuyu",
+      "displayName": "犰狳",
+      "element": "Metal",
+      "elementCn": "金",
+      "rarityCn": "灵品",
+      "rarity": "Rare",
+      "roleCn": "御",
+      "role": "Guard",
+      "defaultRowCn": "前排",
+      "defaultRow": 0,
+      "source": "《山海经·东山经》",
+      "quote": "余峨之山，有兽焉，其状如菟而鸟喙，鸱目蛇尾，见人则眠，名曰犰狳，其鸣自訆，见则螽蝗为败。",
+      "lore": "像兔子却有鸟嘴，猫头鹰的眼，蛇的尾巴。见到人就装睡。它出现时，田里的蝗虫会死光——一个看起来最没用的家伙，恰好是唯一能治蝗灾的。",
+      "trait": {
+        "name": "见人则眠",
+        "description": "自身生命低于 30% 时进入「眠」状态：无法行动，但免疫所有伤害与控制，并在 1 回合后苏醒并回复 40% 最大生命（每场限 1 次）。"
+      },
+      "skills": [
+        {
+          "name": "鸟喙",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 75% 攻击的伤害，并使其「蚀」（每回合损失 3% 最大生命，持续 2 回合）。"
+        },
+        {
+          "name": "蜷缩",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "进入防御姿态持续 2 回合：免疫 50% 伤害并反弹 25%；期间被攻击 3 次以上时，自动对攻击者施加「蚀」。"
+        },
+        {
+          "name": "螽蝗为败",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "对敌方全体施加「蚀」并使其「蝗败」（无法获得增益，且已有效果延长 -1 回合）；同时自身获得 40% 最大生命的护盾，并将护盾期间承受伤害的 50% 返还给敌方全体。"
+        }
+      ],
+      "codex": "它不是懒，它只是把力气用在了没人在看的时候。",
+      "palette": {
+        "bodyMain": "#A89678",
+        "bodyAccent": "#C8CFD3",
+        "energyGlow": "#E9F1F6",
+        "eyeCore": "#2A2118",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "baize",
+      "displayName": "白泽",
+      "element": "Metal",
+      "elementCn": "金",
+      "rarityCn": "灵品",
+      "rarity": "Rare",
+      "roleCn": "辅",
+      "role": "Support",
+      "defaultRowCn": "中排",
+      "defaultRow": 1,
+      "source": "《云笈七签·轩辕本纪》",
+      "quote": "黄帝东巡至海，登桓山，于海滨得白泽神兽，能言，达于万物之情。……凡一千五百二十种。",
+      "lore": "能说话，通晓万物之情。黄帝东巡时在海边遇到它，问天下鬼神之事，它答了一万一千五百二十种。传说《白泽图》便是由此而来——一本记录所有怪物弱点的手册。",
+      "trait": {
+        "name": "达万物之情",
+        "description": "战斗开始时，揭露敌方全体的五行属性、携带技能与弱点（玩家可见）；我方全体对「已揭露」的敌人造成的伤害 +12%。我方单位每次暴击，全队获得 1 层「知」（暴击率 +3%，上限 8 层）。"
+      },
+      "skills": [
+        {
+          "name": "直言",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 70% 攻击的伤害，并揭露其 1 个未揭示的技能（若已全揭示，改为造成 130% 攻击的伤害）。"
+        },
+        {
+          "name": "白泽图",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "为敌方全体附加「弱点」持续 3 回合：受到的暴击伤害 +25%，且我方对其造成的伤害无视 20% 抗性。"
+        },
+        {
+          "name": "万鬼录",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "将敌方全体的一个增益转化为减益（例如攻击 +20% 变为 -20%），持续 3 回合；同时我方全体获得「尽知」——暴击率 +25%、暴击伤害 +40%，持续 3 回合。"
+        }
+      ],
+      "codex": "它知道一万一千五百二十种鬼，所以它从不害怕任何一个。",
+      "palette": {
+        "bodyMain": "#F0EFEA",
+        "bodyAccent": "#C9A063",
+        "energyGlow": "#D6ECF0",
+        "eyeCore": "#6B7B8C",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "yuqiang",
+      "displayName": "禺强",
+      "element": "Water",
+      "elementCn": "水",
+      "rarityCn": "神品",
+      "rarity": "Legend",
+      "roleCn": "术",
+      "role": "Caster",
+      "defaultRowCn": "中后排",
+      "defaultRow": 1,
+      "source": "《山海经·海外北经》",
+      "quote": "北方禺强，人面鸟身，珥两青蛇，践两赤蛇。",
+      "lore": "北方之神，亦称玄冥，人面鸟身，两耳挂青蛇，两脚踏赤蛇。他掌管冬与寒，也掌管北方的风——在他脚下，水会自己结成冰。",
+      "trait": {
+        "name": "玄冥",
+        "description": "战斗开始时，敌方全体的速度按当前节气降序排列并标记为行动序列（玩家可见）；敌方每有一个单位被冻结，我方全体攻击 +6%（可叠加）。"
+      },
+      "skills": [
+        {
+          "name": "珥蛇",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 95% 攻击的伤害，并施加 1 层「霜」（每层速度 -8%，可叠 5 层）。"
+        },
+        {
+          "name": "玄水",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "对敌方全体造成 110% 攻击的伤害并各施加 2 层「霜」；若目标「霜」达到 5 层，则转化为「冰封」1 回合（无法行动、无法被治疗、受到伤害 +20%）。"
+        },
+        {
+          "name": "玄冥·北冥",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 7,
+          "description": "将全场冻结 1 回合（我方免疫），随后进入「北冥」状态 3 回合：敌方全体速度降低 50%、无法获得任何增益；我方全体速度 +30%、且每次攻击有 40% 概率对目标施加「冰封」；技能结束时对全场敌方按「霜」层数结算真实伤害（每层 25% 攻击）。"
+        }
+      ],
+      "codex": "他不需要动手，北风会替他做完剩下的事。",
+      "palette": {
+        "bodyMain": "#42506B",
+        "bodyAccent": "#2C3A55",
+        "energyGlow": "#6B9FD4",
+        "eyeCore": "#A8D8E8",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "yinglong",
+      "displayName": "应龙",
+      "element": "Water",
+      "elementCn": "水",
+      "rarityCn": "神品",
+      "rarity": "Legend",
+      "roleCn": "攻",
+      "role": "Striker",
+      "defaultRowCn": "后排",
+      "defaultRow": 2,
+      "source": "《山海经·大荒东经》《大荒北经》",
+      "quote": "应龙处南极，杀蚩尤与夸父，不得复上，故下数旱。……应龙畜水。",
+      "lore": "有翼之龙。它杀了蚩尤与夸父，立下大功，却因为耗尽了力气再也回不了天上，只能留在人间蓄水。它落下去的地方，天就不再下雨。",
+      "trait": {
+        "name": "畜水",
+        "description": "战斗开始时，自身累积「水势」（每回合 +2 层，上限 20 层）；每层使自身下一次伤害性技能 +6%。使用绝技后清空水势。击杀敌方单位时，水势 +5 层。"
+      },
+      "skills": [
+        {
+          "name": "龙翼",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 105% 攻击的伤害；若自身「水势」≥10 层，额外对相邻格单位造成 60% 攻击的伤害。"
+        },
+        {
+          "name": "翻云",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "对敌方全体造成 100% 攻击的伤害并施加「湿」（受水属性伤害 +15%，可叠 3 层）；为我方全体附加「蓄水」2 回合（每回合回复 5% 最大生命）。"
+        },
+        {
+          "name": "应龙·决水",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 7,
+          "description": "清空全部水势，对敌方全体造成（150% + 水势层数 ×15%）攻击的伤害；若水势 ≥15 层，技能结束后对全场施加「洪」持续 2 回合——敌方每回合受到 120% 攻击的伤害并被击退一格（换位），我方免疫。"
+        }
+      ],
+      "codex": "它曾飞过最高的天，所以最懂低处的水。",
+      "palette": {
+        "bodyMain": "#3E5A7A",
+        "bodyAccent": "#C8CFD3",
+        "energyGlow": "#6B9FD4",
+        "eyeCore": "#FFD84D",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "xiangliu",
+      "displayName": "相柳",
+      "element": "Water",
+      "elementCn": "水",
+      "rarityCn": "玄品",
+      "rarity": "Epic",
+      "roleCn": "攻",
+      "role": "Striker",
+      "defaultRowCn": "后排",
+      "defaultRow": 2,
+      "source": "《山海经·海外北经》",
+      "quote": "共工之臣曰相柳氏，九首，以食于九山。相柳之所抵，厥为泽溪。",
+      "lore": "共工的臣属，九个脑袋，同时吃九座山上的东西。它爬过的地方，都会变成沼泽和溪流——不是它造水，是水怕它，往它后面躲。",
+      "trait": {
+        "name": "九首",
+        "description": "自身普攻对最多 9 个不同目标各发动 1 段 40% 攻击的伤害（目标不足 9 个时，多出的段数随机重复命中）；每命中一个新目标，本次技能伤害 +8%。"
+      },
+      "skills": [
+        {
+          "name": "九首噬",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对最多 9 个目标各造成 40% 攻击的伤害，每命中一个新目标伤害 +8%（累乘）。"
+        },
+        {
+          "name": "泽溪",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "将战场化为沼泽持续 3 回合：敌方全体速度 -25%、命中 -10%；每回合结束对敌方全体造成 70% 攻击的伤害，并施加 1 层「湿」。"
+        },
+        {
+          "name": "相柳·九山",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "对敌方全体发动 9 轮 60% 攻击的伤害（每轮随机目标），每轮命中都会使下一轮伤害 +10%；技能结束后，按目标身上「湿」的层数结算真实伤害（每层 30% 攻击）。"
+        }
+      ],
+      "codex": "九个脑袋，没有一个在想好事。",
+      "palette": {
+        "bodyMain": "#4A5A45",
+        "bodyAccent": "#2A2118",
+        "energyGlow": "#7BC47F",
+        "eyeCore": "#C8352C",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "bashe",
+      "displayName": "巴蛇",
+      "element": "Water",
+      "elementCn": "水",
+      "rarityCn": "玄品",
+      "rarity": "Epic",
+      "roleCn": "疾",
+      "role": "Swift",
+      "defaultRowCn": "任意",
+      "defaultRow": -1,
+      "source": "《山海经·海内南经》",
+      "quote": "巴蛇食象，三岁而出其骨。君子服之，无心腹之疾。",
+      "lore": "能吞下一头象，三年后才把骨头吐出来。它的胃口不是靠身体大小决定的，而是靠时间——它有足够的时间去消化任何东西。",
+      "trait": {
+        "name": "三岁",
+        "description": "自身攻击对「体形大于自身」或「生命上限高于自身」的目标伤害 +40%；每次击杀目标，将目标最大生命的 15% 转化为自身永久生命上限（本局内累积）。"
+      },
+      "skills": [
+        {
+          "name": "缠",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 90% 攻击的伤害，并使其「缚」（速度 -15%，持续 2 回合）；若目标已被减速，则改为造成 140% 攻击的伤害。"
+        },
+        {
+          "name": "吞象",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "对单体造成 130% 攻击的伤害；若此技能造成击杀，则永久吞下目标的一个技能特性（随机获得该目标 1 个被动效果的 50% 强度，本局内保留）。"
+        },
+        {
+          "name": "出其骨",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "对单体造成 350% 攻击的伤害并免疫目标 30% 的减伤；若击杀，回复自身 40% 最大生命并获得一次额外行动机会。"
+        }
+      ],
+      "codex": "它不着急，三年对一条蛇来说不算长。",
+      "palette": {
+        "bodyMain": "#424C56",
+        "bodyAccent": "#C9A063",
+        "energyGlow": "#6B9FD4",
+        "eyeCore": "#FFB03A",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "fuzhu",
+      "displayName": "夫诸",
+      "element": "Water",
+      "elementCn": "水",
+      "rarityCn": "灵品",
+      "rarity": "Rare",
+      "roleCn": "术",
+      "role": "Caster",
+      "defaultRowCn": "中后排",
+      "defaultRow": 1,
+      "source": "《山海经·中山经》",
+      "quote": "敖岸之山，……有兽焉，其状如白鹿而四角，名曰夫诸，见则其邑大水。",
+      "lore": "白鹿而有四角。它是温柔的神兽，出现的地方却总要发大水。古人把它归入「凶兆」，其实它只是水的信使——它来了，说明水已经在路上了。",
+      "trait": {
+        "name": "见则大水",
+        "description": "战斗开始时，为全场添加 3 层「湿」；我方每次造成水属性伤害，会使敌方全体的「湿」层数 +1（上限 5 层，每层使其受水伤 +8%）。"
+      },
+      "skills": [
+        {
+          "name": "四角",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 85% 攻击的伤害并施加 1 层「湿」；若目标「湿」已达上限，改为使其「溺」（每回合受 60% 攻击的真实伤害，持续 2 回合）。"
+        },
+        {
+          "name": "信使",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "对敌方全体造成 100% 攻击的伤害并各施加 2 层「湿」；同时为我方全体附加「涉水」2 回合：免疫减速与冻结，且受到的水属性伤害转为回复。"
+        },
+        {
+          "name": "大水漫灌",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "在战场铺开洪水持续 3 回合：敌方全体速度 -30%、无法获得护盾；每回合结束对敌方全体造成（80% + 湿层数 ×20%）攻击的伤害；\n我方在此期间每回合回复 10% 最大生命。"
+        }
+      ],
+      "codex": "它没有恶意。水也没有。",
+      "palette": {
+        "bodyMain": "#F0EFEA",
+        "bodyAccent": "#C8CFD3",
+        "energyGlow": "#A8D8E8",
+        "eyeCore": "#6B7B8C",
+        "outline": "#2A2118"
+      }
+    },
+    {
+      "id": "xuangui",
+      "displayName": "旋龟",
+      "element": "Water",
+      "elementCn": "水",
+      "rarityCn": "灵品",
+      "rarity": "Rare",
+      "roleCn": "辅",
+      "role": "Support",
+      "defaultRowCn": "中排",
+      "defaultRow": 1,
+      "source": "《山海经·南山经》",
+      "quote": "杻阳之山，怪水出焉，而东流注于宪翼之水。其中多玄龟，其状如龟而鸟首虺尾，其名曰旋龟，其音如判木，佩之不聋。",
+      "lore": "黑色的龟，鸟的头，蛇的尾。叫声像劈木头。把它的甲佩在身上，耳朵就不会聋——它带来的不是洪亮的声音，而是「不会错过任何声音」的能力。",
+      "trait": {
+        "name": "佩之不聋",
+        "description": "我方全体免疫「沉默」，且我方所有增益的持续时间 +1 回合；敌方施加的任何减益，其持续时间 -1 回合（最低 1 回合）。"
+      },
+      "skills": [
+        {
+          "name": "判木",
+          "typeCn": "普攻",
+          "type": "Basic",
+          "cd": 0,
+          "description": "对单体造成 75% 攻击的伤害，并延长我方全体 1 个增益的持续时间 1 回合。"
+        },
+        {
+          "name": "龟甲",
+          "typeCn": "战技",
+          "type": "Active",
+          "cd": 3,
+          "description": "为我方全体附加「玄甲」持续 3 回合：减免 20% 伤害，并使自身每次受到攻击时，为该单位回复 5% 最大生命。"
+        },
+        {
+          "name": "旋龟之守",
+          "typeCn": "绝技",
+          "type": "Ultimate",
+          "cd": 6,
+          "description": "延长我方全体所有增益的持续时间至战斗结束（上限 5 回合），并为全队附加「不聋」持续 3 回合：免疫所有减益，且每次敌方施加减益失败时，我方全体获得 1 层「甲」（减伤 +3%，上限 10 层）。"
+        }
+      ],
+      "codex": "它不叫的时候，你才知道什么是安静。",
+      "palette": {
+        "bodyMain": "#424C56",
+        "bodyAccent": "#C9A063",
+        "energyGlow": "#7BC47F",
+        "eyeCore": "#C8352C",
+        "outline": "#2A2118"
+      }
+    }
+  ]
+}

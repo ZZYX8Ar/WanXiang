@@ -1,0 +1,348 @@
+{
+  "$schema": "wanxiang/five-elements@1",
+  "source": "《万相 · 游戏设计文档 v1.0》第二章",
+  "elements": [
+    "Wood",
+    "Fire",
+    "Earth",
+    "Metal",
+    "Water"
+  ],
+  "elementCn": {
+    "Wood": "木",
+    "Fire": "火",
+    "Earth": "土",
+    "Metal": "金",
+    "Water": "水"
+  },
+  "baseTable": [
+    {
+      "element": "Wood",
+      "cn": "木",
+      "season": "Spring",
+      "seasonCn": "春",
+      "god": "句芒",
+      "godTitle": "青阳",
+      "direction": "东",
+      "color": "青",
+      "theme": "生长 · 续航",
+      "means": "回复、护盾、复活、叠层成长"
+    },
+    {
+      "element": "Fire",
+      "cn": "火",
+      "season": "Summer",
+      "seasonCn": "夏",
+      "god": "祝融",
+      "godTitle": "朱明",
+      "direction": "南",
+      "color": "赤",
+      "theme": "爆发 · 灼烧",
+      "means": "灼烧、暴击、连击、能量加速"
+    },
+    {
+      "element": "Earth",
+      "cn": "土",
+      "season": "LongSummer",
+      "seasonCn": "长夏",
+      "god": "后土",
+      "godTitle": "黄中",
+      "direction": "中",
+      "color": "黄",
+      "theme": "守御 · 控制",
+      "means": "嘲讽、减伤、地形、驱散"
+    },
+    {
+      "element": "Metal",
+      "cn": "金",
+      "season": "Autumn",
+      "seasonCn": "秋",
+      "god": "蓐收",
+      "godTitle": "白藏",
+      "direction": "西",
+      "color": "白",
+      "theme": "破防 · 暴击",
+      "means": "破甲、斩杀、标记、单体高伤"
+    },
+    {
+      "element": "Water",
+      "cn": "水",
+      "season": "Winter",
+      "seasonCn": "冬",
+      "god": "禺强",
+      "godTitle": "玄英",
+      "direction": "北",
+      "color": "黑",
+      "theme": "控制 · 先手",
+      "means": "冻结、减速、穿透、先手改序"
+    }
+  ],
+  "counterRing": [
+    "Wood",
+    "Earth",
+    "Water",
+    "Fire",
+    "Metal"
+  ],
+  "generateRing": [
+    "Wood",
+    "Fire",
+    "Earth",
+    "Metal",
+    "Water"
+  ],
+  "counterPairs": [
+    {
+      "attacker": "Wood",
+      "defender": "Earth"
+    },
+    {
+      "attacker": "Earth",
+      "defender": "Water"
+    },
+    {
+      "attacker": "Water",
+      "defender": "Fire"
+    },
+    {
+      "attacker": "Fire",
+      "defender": "Metal"
+    },
+    {
+      "attacker": "Metal",
+      "defender": "Wood"
+    }
+  ],
+  "generatePairs": [
+    {
+      "from": "Wood",
+      "to": "Fire"
+    },
+    {
+      "from": "Fire",
+      "to": "Earth"
+    },
+    {
+      "from": "Earth",
+      "to": "Metal"
+    },
+    {
+      "from": "Metal",
+      "to": "Water"
+    },
+    {
+      "from": "Water",
+      "to": "Wood"
+    }
+  ],
+  "damageMatrix": {
+    "Wood": {
+      "Wood": 0.9,
+      "Fire": 1.0,
+      "Earth": 1.5,
+      "Metal": 0.75,
+      "Water": 1.0
+    },
+    "Fire": {
+      "Wood": 1.0,
+      "Fire": 0.9,
+      "Earth": 1.0,
+      "Metal": 1.5,
+      "Water": 0.75
+    },
+    "Earth": {
+      "Wood": 0.75,
+      "Fire": 1.0,
+      "Earth": 0.9,
+      "Metal": 1.0,
+      "Water": 1.5
+    },
+    "Metal": {
+      "Wood": 1.5,
+      "Fire": 0.75,
+      "Earth": 1.0,
+      "Metal": 0.9,
+      "Water": 1.0
+    },
+    "Water": {
+      "Wood": 1.0,
+      "Fire": 1.5,
+      "Earth": 0.75,
+      "Metal": 1.0,
+      "Water": 0.9
+    }
+  },
+  "damageMatrixCoefficients": {
+    "counter": 1.5,
+    "countered": 0.75,
+    "same": 0.9,
+    "neutral": 1.0
+  },
+  "bonds": [
+    {
+      "from": "Wood",
+      "to": "Fire",
+      "name": "木火通明",
+      "effect": "火属性单位暴击率 +12%，木属性单位技能 CD 推进 +1 每回合",
+      "quote": "木生火，薪尽而火传。"
+    },
+    {
+      "from": "Fire",
+      "to": "Earth",
+      "name": "火土相成",
+      "effect": "土属性单位减伤 +15%，火属性单位造成的灼烧持续 +1 回合",
+      "quote": "火焚而成灰，灰积而为土。"
+    },
+    {
+      "from": "Earth",
+      "to": "Metal",
+      "name": "土金相生",
+      "effect": "金属性单位破防穿透 +15%，土属性单位嘲讽时获得等量护盾",
+      "quote": "金藏于矿，非土不生子。"
+    },
+    {
+      "from": "Metal",
+      "to": "Water",
+      "name": "金水相涵",
+      "effect": "水属性单位无视 15% 敌方抗性，金属性单位暴击伤害 +15%",
+      "quote": "金气清凉，凝露为水。"
+    },
+    {
+      "from": "Water",
+      "to": "Wood",
+      "name": "水木清华",
+      "effect": "木属性单位治疗与护盾效果 +20%，水属性单位每回合回复 3% 生命",
+      "quote": "水润其根，木乃向荣。"
+    }
+  ],
+  "boardRules": [
+    {
+      "id": "adjacencyGenerate",
+      "name": "相生相邻",
+      "trigger": "任意两个相邻格（上下左右，不含对角）的单位五行相生",
+      "effect": "双方每回合开始时回复 3% 最大生命，且各自获得 1 层「同气」（每层 +2% 技能效果，上限 5 层）",
+      "regenPercentPerTurn": 0.03,
+      "qiPerTurn": 1,
+      "qiMax": 5,
+      "qiEffectPerStack": 0.02,
+      "intent": "把「站位」从单纯的前后排，升级为属性层面的空间策略。"
+    },
+    {
+      "id": "adjacencyCounter",
+      "name": "相克相冲",
+      "trigger": "任意两个相邻格的单位五行相克",
+      "effect": "双方每回合开始时各受 2% 最大生命的真实伤害（无视护盾），并使双方怒气获取 -10%",
+      "trueDamagePercentPerTurn": 0.02,
+      "rageGainDelta": -0.1,
+      "intent": "这是「内耗」。它不强到毁掉阵容，但足以让一个随手摆的棋盘付出代价。"
+    },
+    {
+      "id": "centerEarth",
+      "name": "中宫土位",
+      "trigger": "棋盘正中央格（第 2 行第 2 列，即「中宫」）",
+      "effect": "站在中宫的单位额外获得「土德」：受到的所有伤害 -8%，且相邻四格的单位（无论什么属性）都不会触发相冲",
+      "damageReduction": 0.08,
+      "suppressAdjacentCounter": true,
+      "intent": "中宫是调停位。把矛盾的属性放在中宫旁边，冲突被平息；把肉盾放中宫，收益最大。"
+    },
+    {
+      "id": "sameElementResonance",
+      "name": "同属共鸣",
+      "trigger": "同属性单位达到 2 / 4 / 5 只",
+      "effect": "2 只：该属性单位 +8% 攻击；4 只：+16% 攻击并解锁该属性专属「共鸣技」；5 只：+25% 攻击，共鸣技 CD -2",
+      "tiers": [
+        {
+          "count": 2,
+          "attackBonus": 0.08,
+          "unlockResonanceSkill": false,
+          "resonanceCdDelta": 0
+        },
+        {
+          "count": 4,
+          "attackBonus": 0.16,
+          "unlockResonanceSkill": true,
+          "resonanceCdDelta": 0
+        },
+        {
+          "count": 5,
+          "attackBonus": 0.25,
+          "unlockResonanceSkill": true,
+          "resonanceCdDelta": -2
+        }
+      ],
+      "intent": "保留《闪烁之光》式羁绊的爽感，但把羁绊的骨架换成五行。"
+    }
+  ],
+  "board": {
+    "columns": 3,
+    "rows": 3,
+    "maxDeployed": 5,
+    "centerIndex": 4,
+    "indexToPos": [
+      {
+        "index": 0,
+        "row": 0,
+        "col": 0
+      },
+      {
+        "index": 1,
+        "row": 0,
+        "col": 1
+      },
+      {
+        "index": 2,
+        "row": 0,
+        "col": 2
+      },
+      {
+        "index": 3,
+        "row": 1,
+        "col": 0
+      },
+      {
+        "index": 4,
+        "row": 1,
+        "col": 1
+      },
+      {
+        "index": 5,
+        "row": 1,
+        "col": 2
+      },
+      {
+        "index": 6,
+        "row": 2,
+        "col": 0
+      },
+      {
+        "index": 7,
+        "row": 2,
+        "col": 1
+      },
+      {
+        "index": 8,
+        "row": 2,
+        "col": 2
+      }
+    ],
+    "adjacencyIsOrthogonalOnly": true,
+    "roleDefaultRow": {
+      "Guard": 0,
+      "Caster": 1,
+      "Support": 1,
+      "Striker": 2,
+      "Swift": -1
+    },
+    "rowNames": [
+      "前排",
+      "中排",
+      "后排"
+    ]
+  },
+  "designNotes": [
+    "相生不参与伤害计算，只产出羁绊增益——避免同一体系既给伤害又给生存导致数值失控。",
+    "同属性对轰给 0.90 而不是 1.00，避免「镜像阵容互相打不动」的拖沓局面。",
+    "被克给 0.75 而不是 0.50，让属性克制成为「优势」而非「胜负手」。",
+    "羁绊只认相生不认相克：刻意把相克属性凑一队不受惩罚，也不拿增益——配队是纯收益抉择。"
+  ]
+}

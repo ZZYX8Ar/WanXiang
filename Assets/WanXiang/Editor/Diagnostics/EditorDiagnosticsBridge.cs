@@ -835,6 +835,7 @@ namespace WanXiang.EditorTools.Diagnostics
                 case "hot.publish": RunHotTool(report, "hot.publish"); break;
                 case "hot.status": RunHotTool(report, "hot.status"); break;
                 case "hot.smoke": RequestHotUpdateSmoke(report); break;
+                case "battle.selftest": RunBattleSelfTest(report); break;
                 case "resource.smoke": RequestResourceSmoke(report); break;
                 case "play.enter": RequestPlayEnter(report); break;
                 case "play.exit": RequestPlayExit(report); break;
@@ -2976,6 +2977,23 @@ namespace WanXiang.EditorTools.Diagnostics
             RunEditorTool(report, command, HotToolTypeName,
                 "① WanXiang.Editor.HotUpdate 还没编译过（改完代码先跑 refresh）；"
                 + "② 它的 asmdef 里 HybridCLR.Editor / WanXiang.Editor.YooAsset 引用不成立。");
+        }
+
+        /// <summary>战斗核心自检工具的类型名（与诊断通道同程序集）。</summary>
+        private const string BattleToolTypeName =
+            "WanXiang.Editor.BattleTool.BattleSelfTest, WanXiang.Editor";
+
+        /// <remarks>
+        /// 这是 Edit 模式同步命令，**不会切 Play**。理由有两条：
+        /// ① 这台机器的编辑器不维持 Play 模式的播放器循环（见项目记忆），靠 Play 跑验收不可靠；
+        /// ② 战斗核心是零引擎依赖的纯逻辑（WanXiang.Battle.Core 的 noEngineReferences=true），
+        ///    本来就不需要 Play —— 需要的话反而说明有人把引擎依赖漏进了核心层。
+        /// </remarks>
+        private static void RunBattleSelfTest(Report report)
+        {
+            RunEditorTool(report, "battle.selftest", BattleToolTypeName,
+                "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里缺 WanXiang.Battle.Core 引用。");
         }
 
         /// <summary>

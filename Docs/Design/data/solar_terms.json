@@ -1,0 +1,403 @@
+{
+  "$schema": "wanxiang/solar-terms@1",
+  "source": "《万相 · 游戏设计文档 v1.0》第三章",
+  "acts": [
+    {
+      "act": 1,
+      "title": "第 1 幕 · 春 · 青阳",
+      "element": "Wood",
+      "theme": "续航 · 成长",
+      "difficulty": "教学与适应",
+      "boss": "句芒",
+      "bossSource": "《山海经·海外东经》",
+      "chapter": "玩家在春区学会两件事：五行相克的伤害关系，以及'存活本身是一种资源'。",
+      "declaredNodeCount": 6
+    },
+    {
+      "act": 2,
+      "title": "第 2 幕 · 夏 · 朱明",
+      "element": "Fire",
+      "theme": "爆发 · 灼烧",
+      "difficulty": "提速与抉择",
+      "boss": "祝融",
+      "bossSource": "《山海经·海外南经》",
+      "chapter": "节奏全面加速。玩家开始被迫回答一个肉鸽的核心问题：我这一局要走哪一个流派？",
+      "declaredNodeCount": 6
+    },
+    {
+      "act": 3,
+      "title": "第 3 幕 · 秋 · 白藏",
+      "element": "Metal",
+      "theme": "破防 · 精准",
+      "difficulty": "考验阵容完整度",
+      "boss": "蓐收",
+      "bossSource": "《山海经·海外西经》",
+      "chapter": "秋季开始用属性反转和技能形态限制筛选阵容，专治只会一套打法的玩家。",
+      "declaredNodeCount": 6
+    },
+    {
+      "act": 4,
+      "title": "第 4 幕 · 冬 · 玄英",
+      "element": "Water",
+      "theme": "控制 · 先手",
+      "difficulty": "终局压力测试",
+      "boss": "禺强",
+      "bossSource": "《山海经·海外北经》",
+      "chapter": "冬季剥夺玩家的既有优势（治疗、速度、控制权），检验阵容是否真正扎实。",
+      "declaredNodeCount": 6
+    },
+    {
+      "act": 5,
+      "title": "第 5 幕 · 长夏 · 土",
+      "element": "Earth",
+      "theme": "收束 · 调和",
+      "difficulty": "终极考核",
+      "boss": "后土",
+      "bossSource": "《山海经·海内经》",
+      "chapter": "土旺四季，居中不偏。后土作为唯一的终局守关者，会复制玩家前四幕使用过的核心怪，要求玩家在最后一场战斗里亲手击败自己的镜像阵容。",
+      "declaredNodeCount": 0
+    }
+  ],
+  "terms": [
+    {
+      "index": 1,
+      "name": "立春",
+      "act": 1,
+      "isEarthNode": false,
+      "element": "Wood",
+      "elementCn": "木",
+      "phenology": "东风解冻",
+      "weatherName": "东风解冻",
+      "fieldBuff": "战斗开始时，我方全体获得 2 层「生机」（每层每回合回复 2% 最大生命）",
+      "hook": ""
+    },
+    {
+      "index": 2,
+      "name": "雨水",
+      "act": 1,
+      "isEarthNode": false,
+      "element": "Wood",
+      "elementCn": "木",
+      "phenology": "獭祭鱼",
+      "weatherName": "润物无声",
+      "fieldBuff": "每回合结束全体回复 3% 最大生命；治疗溢出量的 50% 转化为护盾",
+      "hook": ""
+    },
+    {
+      "index": 3,
+      "name": "惊蛰",
+      "act": 1,
+      "isEarthNode": false,
+      "element": "Wood",
+      "elementCn": "木",
+      "phenology": "蛰虫始振",
+      "weatherName": "蛰虫始振",
+      "fieldBuff": "我方单位阵亡后留下「虫卵」，2 回合后以 30% 生命复活（每单位每场限 1 次）",
+      "hook": ""
+    },
+    {
+      "index": 4,
+      "name": "春分",
+      "act": 1,
+      "isEarthNode": false,
+      "element": "Wood",
+      "elementCn": "木",
+      "phenology": "玄鸟至",
+      "weatherName": "昼夜均分",
+      "fieldBuff": "敌我双方每回合各回复 2% 最大生命；本场战斗计时若超过 12 回合，双方回复量翻倍",
+      "hook": ""
+    },
+    {
+      "index": 5,
+      "name": "清明",
+      "act": 1,
+      "isEarthNode": false,
+      "element": "Wood",
+      "elementCn": "木",
+      "phenology": "桐始华",
+      "weatherName": "气清景明",
+      "fieldBuff": "我方所有减益状态的剩余回合数 -1；免疫「混乱」与「沉默」",
+      "hook": ""
+    },
+    {
+      "index": 6,
+      "name": "谷雨",
+      "act": 1,
+      "isEarthNode": true,
+      "element": "Earth",
+      "elementCn": "土",
+      "phenology": "萍始生",
+      "weatherName": "雨生百谷",
+      "fieldBuff": "每回合结束全队获得 1 层「谷」（每层 +1% 全属性，上限 10 层）；层数在战斗结束后清空",
+      "hook": ""
+    },
+    {
+      "index": 7,
+      "name": "立夏",
+      "act": 2,
+      "isEarthNode": false,
+      "element": "Fire",
+      "elementCn": "火",
+      "phenology": "蝼蝈鸣",
+      "weatherName": "炎气初升",
+      "fieldBuff": "我方所有攻击附带 20% 攻击力的火属性灼烧，持续 2 回合（可叠加层数，不可刷新时长）",
+      "hook": ""
+    },
+    {
+      "index": 8,
+      "name": "小满",
+      "act": 2,
+      "isEarthNode": false,
+      "element": "Fire",
+      "elementCn": "火",
+      "phenology": "麦气至",
+      "weatherName": "麦气充盈",
+      "fieldBuff": "我方技能 CD 推进速度 +30%",
+      "hook": ""
+    },
+    {
+      "index": 9,
+      "name": "芒种",
+      "act": 2,
+      "isEarthNode": false,
+      "element": "Fire",
+      "elementCn": "火",
+      "phenology": "螳螂生",
+      "weatherName": "锋芒毕露",
+      "fieldBuff": "我方暴击时，额外追加一次 50% 攻击力的追击（每次行动限触发 1 次）",
+      "hook": ""
+    },
+    {
+      "index": 10,
+      "name": "夏至",
+      "act": 2,
+      "isEarthNode": false,
+      "element": "Fire",
+      "elementCn": "火",
+      "phenology": "鹿角解",
+      "weatherName": "日长至 · 极阳",
+      "fieldBuff": "全场造成的伤害 +25%，受到的伤害 +25%",
+      "hook": ""
+    },
+    {
+      "index": 11,
+      "name": "小暑",
+      "act": 2,
+      "isEarthNode": false,
+      "element": "Fire",
+      "elementCn": "火",
+      "phenology": "温风至",
+      "weatherName": "温风熏灼",
+      "fieldBuff": "每回合开始，全场单位受 3% 最大生命的灼烧（无视护盾与减伤）",
+      "hook": ""
+    },
+    {
+      "index": 12,
+      "name": "大暑",
+      "act": 2,
+      "isEarthNode": true,
+      "element": "Earth",
+      "elementCn": "土",
+      "phenology": "腐草为萤",
+      "weatherName": "土润溽暑",
+      "fieldBuff": "火属性伤害 -30%，土属性伤害 +30%；火属性单位受到的灼烧伤害减半",
+      "hook": ""
+    },
+    {
+      "index": 13,
+      "name": "立秋",
+      "act": 3,
+      "isEarthNode": false,
+      "element": "Metal",
+      "elementCn": "金",
+      "phenology": "凉风至",
+      "weatherName": "金风肃杀",
+      "fieldBuff": "我方暴击伤害 +40%",
+      "hook": ""
+    },
+    {
+      "index": 14,
+      "name": "处暑",
+      "act": 3,
+      "isEarthNode": false,
+      "element": "Metal",
+      "elementCn": "金",
+      "phenology": "鹰乃祭鸟",
+      "weatherName": "鹰击长空",
+      "fieldBuff": "击杀单位时，溢出伤害的 100% 转化为全队护盾",
+      "hook": ""
+    },
+    {
+      "index": 15,
+      "name": "白露",
+      "act": 3,
+      "isEarthNode": false,
+      "element": "Metal",
+      "elementCn": "金",
+      "phenology": "鸿雁来",
+      "weatherName": "露凝为霜",
+      "fieldBuff": "我方命中率 -10%，暴击伤害 +30%",
+      "hook": ""
+    },
+    {
+      "index": 16,
+      "name": "秋分",
+      "act": 3,
+      "isEarthNode": false,
+      "element": "Metal",
+      "elementCn": "金",
+      "phenology": "雷始收声",
+      "weatherName": "收敛肃降",
+      "fieldBuff": "AOE 技能伤害 -40%，单体技能伤害 +25%",
+      "hook": ""
+    },
+    {
+      "index": 17,
+      "name": "寒露",
+      "act": 3,
+      "isEarthNode": false,
+      "element": "Metal",
+      "elementCn": "金",
+      "phenology": "菊有黄华",
+      "weatherName": "寒露凝华",
+      "fieldBuff": "每 3 回合，我方全体获得「凝神」：下一次技能 CD 立即减少 2 回合",
+      "hook": ""
+    },
+    {
+      "index": 18,
+      "name": "霜降",
+      "act": 3,
+      "isEarthNode": true,
+      "element": "Earth",
+      "elementCn": "土",
+      "phenology": "草木黄落",
+      "weatherName": "霜华满地",
+      "fieldBuff": "每回合结束，敌方生命值最低的单位受到 5% 最大生命的真实伤害",
+      "hook": ""
+    },
+    {
+      "index": 19,
+      "name": "立冬",
+      "act": 4,
+      "isEarthNode": false,
+      "element": "Water",
+      "elementCn": "水",
+      "phenology": "水始冰",
+      "weatherName": "水始成冰",
+      "fieldBuff": "受击时有 30% 概率被「冻结」1 回合（冻结期间无法行动、无法被治疗）",
+      "hook": ""
+    },
+    {
+      "index": 20,
+      "name": "小雪",
+      "act": 4,
+      "isEarthNode": false,
+      "element": "Water",
+      "elementCn": "水",
+      "phenology": "虹藏不见",
+      "weatherName": "虹藏不见",
+      "fieldBuff": "全场禁止治疗；所有护盾效果 +50%",
+      "hook": ""
+    },
+    {
+      "index": 21,
+      "name": "大雪",
+      "act": 4,
+      "isEarthNode": false,
+      "element": "Water",
+      "elementCn": "水",
+      "phenology": "闭塞成冬",
+      "weatherName": "闭塞成冬",
+      "fieldBuff": "全场速度 -20%；出手顺序的速度差按 1.5 倍计算",
+      "hook": ""
+    },
+    {
+      "index": 22,
+      "name": "冬至",
+      "act": 4,
+      "isEarthNode": false,
+      "element": "Water",
+      "elementCn": "水",
+      "phenology": "蚯蚓结",
+      "weatherName": "日短至 · 极阴",
+      "fieldBuff": "全场速度 +20%；首回合内，先手方造成的伤害 +50%",
+      "hook": ""
+    },
+    {
+      "index": 23,
+      "name": "小寒",
+      "act": 4,
+      "isEarthNode": false,
+      "element": "Water",
+      "elementCn": "水",
+      "phenology": "雁北乡",
+      "weatherName": "寒鸦北去",
+      "fieldBuff": "每回合结束，我方速度最高的单位获得一次额外普通攻击",
+      "hook": ""
+    },
+    {
+      "index": 24,
+      "name": "大寒",
+      "act": 4,
+      "isEarthNode": true,
+      "element": "Earth",
+      "elementCn": "土",
+      "phenology": "鸡始乳",
+      "weatherName": "寒气之逆极",
+      "fieldBuff": "每回合结束全场叠加 1 层「冰蚀」（每层每回合造成 1.5% 最大生命伤害）；火属性技能命中时，为该单位移除 2 层冰蚀，并对其造成 5% 最大生命的额外伤害",
+      "hook": ""
+    }
+  ],
+  "seasonRules": [
+    {
+      "id": "rotation",
+      "name": "季节是「轮转」的，不是「静态摆放」的",
+      "detail": "每一幕结束进入下一幕时，上一季的场地天时不会消失，而是以「余气」形式残留 2 个节点（强度减半），与新的季节天时叠加。",
+      "carryOverNodes": 2,
+      "carryOverStrength": 0.5
+    },
+    {
+      "id": "override",
+      "name": "天时可被玩家的天气技「逆天改势」",
+      "detail": "天气技覆盖当前场地天时，持续 3 回合后回归原天时。若覆盖引入的属性与当前节气本属性相克，则覆盖期间我方该属性单位受到额外 15% 伤害（「逆天时」）。",
+      "overrideTurns": 3,
+      "adverseCostPercent": 0.15
+    },
+    {
+      "id": "pathLength",
+      "name": "每一幕的路径长度固定为 4 个节点",
+      "detail": "每幕 6 个节气构成一张小型分叉图，玩家实际只经过 4 个节点即抵达守关。一局总战斗场次 16 场常规 + 5 场守关 = 21 场。",
+      "nodesPerAct": 6,
+      "nodesVisitedPerAct": 4,
+      "totalNormalBattles": 16,
+      "totalBossBattles": 5,
+      "totalBattles": 21
+    }
+  ],
+  "weatherSkills": [
+    {
+      "id": "prayRain",
+      "name": "祷雨",
+      "element": "Water",
+      "effect": "覆盖当前天时为「雨」：每回合全场回复 2% 生命，火属性伤害 -20%，冰蚀层数 +1/回合"
+    },
+    {
+      "id": "prayClear",
+      "name": "祈晴",
+      "element": "Fire",
+      "effect": "覆盖当前天时为「晴」：火属性伤害 +25%，全场每回合受 2% 灼烧，冰蚀层数 -2/回合"
+    },
+    {
+      "id": "summonWind",
+      "name": "召风",
+      "element": "Metal",
+      "effect": "覆盖当前天时为「风」：全场速度 +15%，命中率 -8%，远程单位伤害 +15%"
+    },
+    {
+      "id": "moveMountain",
+      "name": "移山",
+      "element": "Earth",
+      "effect": "覆盖当前天时为「尘」：减免所有 AOE 伤害 30%，我方受击时反弹 10% 伤害"
+    }
+  ]
+}

@@ -4,6 +4,7 @@
     "references": [
         "WanXiang.Core",
         "WanXiang.Runtime",
+        "WanXiang.Battle.Core",
         "Unity.InputSystem"
     ],
     "includePlatforms": [
