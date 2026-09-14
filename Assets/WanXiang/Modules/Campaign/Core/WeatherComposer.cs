@@ -68,15 +68,17 @@ namespace WanXiang.Campaign
             float overflow = 0f;
             bool banHeal = false;
 
+            var hooks = new Hooks();
+
             Apply(node, ref damageAll, ref spP, ref spE, ref cdP, ref cdE, ref aoe, ref single,
                   ref firstTurn, ref fireDot, ref shieldGain, ref wood, ref fire, ref earth,
-                  ref metal, ref water, ref critP, ref critE, ref overflow, ref banHeal);
+                  ref metal, ref water, ref critP, ref critE, ref overflow, ref banHeal, ref hooks);
             if (lingers != null)
                 for (int i = 0; i < lingers.Count; i++)
                     Apply(lingers[i], ref damageAll, ref spP, ref spE, ref cdP, ref cdE, ref aoe,
                           ref single, ref firstTurn, ref fireDot, ref shieldGain, ref wood,
                           ref fire, ref earth, ref metal, ref water, ref critP, ref critE,
-                          ref overflow, ref banHeal);
+                          ref overflow, ref banHeal, ref hooks);
 
             result.DamageAllMultiplier = damageAll;
             result.SpeedMulPlayer = spP;
@@ -97,6 +99,27 @@ namespace WanXiang.Campaign
             result.CritDamageBonusEnemy = critE;
             result.HealOverflowShieldRatio = overflow;
             result.BanHeal = banHeal;
+
+            // ---- 事件钩子型：开关取或、数值取更强的那份 ----
+            // 取或/取强而不是相加：这些是"有没有这条规则"，两份同样的规则叠加不该变成双倍
+            // （余气已经在 ScaledHalf 里折过强度了，这里再叠加会失真）。
+            result.AttackBurnOn = hooks.BurnOn;
+            result.AttackBurnPower = hooks.BurnPower;
+            result.AttackBurnTurns = hooks.BurnTurns;
+            result.PursuitOnCrit = hooks.PursuitOn;
+            result.PursuitPower = hooks.PursuitPower;
+            result.KillOverflowShield = hooks.KillOn;
+            result.KillOverflowShieldRatio = hooks.KillRatio;
+            result.ReviveEggOn = hooks.EggOn;
+            result.ReviveEggDelayTurns = hooks.EggDelay;
+            result.ReviveEggHpPercent = hooks.EggHp;
+            result.HasteEveryNTurns = hooks.HasteEvery;
+            result.HasteCdReduction = hooks.HasteCd;
+            result.FreezeOnHitChance = hooks.FreezeChance;
+            result.FreezeOnHitTurns = hooks.FreezeTurns;
+            result.DebuffDurationMinusOne = hooks.DebuffMinusOne;
+            result.ImmuneConfuseSilence = hooks.Immune;
+            result.ExtraBasicAttackOnTurnEnd = hooks.ExtraBasic;
             return result;
         }
 
@@ -115,12 +138,24 @@ namespace WanXiang.Campaign
             return sb.ToString();
         }
 
+        /// <summary>钩子字段的累加器（开关取或、数值取强、间隔取小=更频繁）。</summary>
+        private struct Hooks
+        {
+            public bool BurnOn; public float BurnPower; public int BurnTurns;
+            public bool PursuitOn; public float PursuitPower;
+            public bool KillOn; public float KillRatio;
+            public bool EggOn; public int EggDelay; public float EggHp;
+            public int HasteEvery; public int HasteCd;
+            public float FreezeChance; public int FreezeTurns;
+            public bool DebuffMinusOne; public bool Immune; public bool ExtraBasic;
+        }
+
         private static void Apply(WanXiang.Battle.Core.WeatherDef w,
             ref float damageAll, ref float spP, ref float spE, ref float cdP, ref float cdE,
             ref float aoe, ref float single, ref float firstTurn, ref float fireDot,
             ref float shieldGain, ref float wood, ref float fire, ref float earth,
             ref float metal, ref float water, ref float critP, ref float critE,
-            ref float overflow, ref bool banHeal)
+            ref float overflow, ref bool banHeal, ref Hooks h)
         {
             if (w == null) return;
             damageAll *= w.DamageAllMultiplier;
@@ -142,6 +177,44 @@ namespace WanXiang.Campaign
             critE += w.CritDamageBonusEnemy;
             overflow = System.Math.Max(overflow, w.HealOverflowShieldRatio);
             banHeal |= w.BanHeal;
+
+            // ---- 事件钩子型（开关取或、数值取强、触发间隔取小） ----
+            if (w.AttackBurnOn)
+            {
+                h.BurnOn = true;
+                h.BurnPower = System.Math.Max(h.BurnPower, w.AttackBurnPower);
+                h.BurnTurns = System.Math.Max(h.BurnTurns, w.AttackBurnTurns);
+            }
+            if (w.PursuitOnCrit)
+            {
+                h.PursuitOn = true;
+                h.PursuitPower = System.Math.Max(h.PursuitPower, w.PursuitPower);
+            }
+            if (w.KillOverflowShield)
+            {
+                h.KillOn = true;
+                h.KillRatio = System.Math.Max(h.KillRatio, w.KillOverflowShieldRatio);
+            }
+            if (w.ReviveEggOn)
+            {
+                h.EggOn = true;
+                // 延迟取**小**（更早孵化 = 更强），复活血量取大
+                h.EggDelay = h.EggDelay <= 0 ? w.ReviveEggDelayTurns
+                                             : System.Math.Min(h.EggDelay, w.ReviveEggDelayTurns);
+                h.EggHp = System.Math.Max(h.EggHp, w.ReviveEggHpPercent);
+            }
+            if (w.HasteEveryNTurns > 0)
+            {
+                // 间隔取小 = 触发更频繁 = 更强
+                h.HasteEvery = h.HasteEvery <= 0 ? w.HasteEveryNTurns
+                                                 : System.Math.Min(h.HasteEvery, w.HasteEveryNTurns);
+                h.HasteCd = System.Math.Max(h.HasteCd, w.HasteCdReduction);
+            }
+            h.FreezeChance = System.Math.Max(h.FreezeChance, w.FreezeOnHitChance);
+            h.FreezeTurns = System.Math.Max(h.FreezeTurns, w.FreezeOnHitTurns);
+            h.DebuffMinusOne |= w.DebuffDurationMinusOne;
+            h.Immune |= w.ImmuneConfuseSilence;
+            h.ExtraBasic |= w.ExtraBasicAttackOnTurnEnd;
         }
     }
 }

@@ -83,6 +83,20 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public float CdProgressExtra;
 
+        /// <summary>
+        /// 「芒种·锋芒毕露」用：本次行动是否已触发过暴击追击（"每次行动限 1 次"）。
+        /// 每次行动开始清零。无天时永远为 false，不参与任何结算。
+        /// </summary>
+        public bool PursuitUsedThisAction;
+
+        // ---- 惊蛰「蛰虫始振」：阵亡留卵、倒计时后复活（每单位每场限 1 次） ----
+        /// <summary>虫卵倒计时（回合数）。0 = 没有卵。</summary>
+        public int EggTurnsLeft;
+        /// <summary>本场是否已经用过卵（"每单位每场限 1 次"）。</summary>
+        public bool EggUsed;
+
+        public bool HasEgg => EggTurnsLeft > 0;
+
         // ---- 状态与修正 ----
         public readonly System.Collections.Generic.List<StatusInstance> Statuses
             = new System.Collections.Generic.List<StatusInstance>(8);
@@ -228,6 +242,31 @@ namespace WanXiang.Battle.Core
                     if (Statuses[i].Def.PreventsAction) return false;
                 return true;
             }
+        }
+
+        /// <summary>是否还能**放技能**（沉默封技能但普攻仍可）。</summary>
+        public bool CanCastSkills
+        {
+            get
+            {
+                if (!IsAlive) return false;
+                for (int i = 0; i < Statuses.Count; i++)
+                    if (Statuses[i].Def.PreventsSkill) return false;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// 复活（惊蛰虫卵）：把生命拉回指定值、清空状态与冷却上的"死亡残留"。
+        /// ⚠ 不改槽位：阵亡单位一直占着格子（棋盘语义不变），复活只是把生命还回来。
+        /// </summary>
+        public void ReviveAtHp(int hp)
+        {
+            if (IsAlive) return;
+            Statuses.Clear();                       // 死前挂的状态不该跟着回来
+            Modifiers.Clear();
+            EggTurnsLeft = 0;
+            Hp = CoreMath.Clamp(hp, 1, MaxHp);
         }
 
         public bool CanBeHealed

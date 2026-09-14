@@ -234,6 +234,36 @@ namespace WanXiang.Battle.Core
             return n;
         }
 
+        /// <summary>
+        /// 03 惊蛰：把"刚阵亡且本场还没用过卵"的我方单位转成虫卵。
+        /// ⚠ 放在 <see cref="CheckOutcome"/> 里是刻意的：判负的每一道关口都会先经过这里，
+        ///   所以"死亡 → 留卵 → 继续打"的顺序天然成立，不会出现"全灭先判负、卵来不及留"。
+        ///   天时为空时立即返回 ⇒ 无天时战斗零影响。
+        /// </summary>
+        private void SpawnEggsIfNeeded()
+        {
+            if (Weather == null) return;
+            var list = _units[(int)TeamSide.Player];
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (u.IsAlive || u.EggUsed || !Weather.ReviveEggFor(u.Side)) continue;
+                u.EggUsed = true;
+                u.EggTurnsLeft = Weather.ReviveEggDelayTurns;
+                Log.Add(Turn, BattleEventKind.Death, targetId: u.RuntimeId,
+                        note: $"天时·蛰虫始振：{u.DisplayName} 留下虫卵（{u.EggTurnsLeft} 回合后孵化）");
+            }
+        }
+
+        /// <summary>某方是否有"待孵化的虫卵"（惊蛰）。有卵 ⇒ 我方全灭也不判负。</summary>
+        public bool AnyPendingRevive(TeamSide side)
+        {
+            var list = _units[(int)side];
+            for (int i = 0; i < list.Count; i++)
+                if (!list[i].IsAlive && list[i].HasEgg) return true;
+            return false;
+        }
+
         /// <summary>把某方的存活单位填进调用方给的缓冲。<see cref="AllUnits"/> 的顺序。</summary>
         public void CollectAlive(TeamSide side, List<BattleUnit> into)
         {
@@ -351,7 +381,11 @@ namespace WanXiang.Battle.Core
         {
             if (IsOver) return true;
 
-            bool anyPlayer = AliveCountOf(TeamSide.Player) > 0;
+            SpawnEggsIfNeeded();   // 03 惊蛰：判负之前，先把新阵亡的我方转成虫卵
+
+            // 03 惊蛰：我方"全灭但留了虫卵"不算负 —— 卵还会把人带回来，
+            // 提前判负会让这条天时形同虚设（实测：不留这个口子，卵永远来不及孵）。
+            bool anyPlayer = AliveCountOf(TeamSide.Player) > 0 || AnyPendingRevive(TeamSide.Player);
             bool anyEnemy = AliveCountOf(TeamSide.Enemy) > 0;
             if (anyPlayer && anyEnemy) return false;
 

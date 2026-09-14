@@ -89,8 +89,18 @@ namespace WanXiang.Battle.Core
 
                         // 天时无施法者：持续伤害只按目标最大生命 % 折算（施加瞬间定格）。
                         float dot = atom.PercentOfMaxHp > 0f ? u.MaxHp * atom.PercentOfMaxHp : 0f;
-                        u.ApplyStatus(atom.StatusId, atom.StatusStacks, atom.StatusTurns, dot);
+
+                        // 05 清明：与技能路径共用同一套过滤（免疫/减益时长 -1）
+                        int turns = atom.StatusTurns;
                         var def = StatusCatalog.Get(atom.StatusId);
+                        if (!BattleSimulator.WeatherFilterStatus(st, u, atom.StatusId, ref turns))
+                        {
+                            st.Log.Add(st.Turn, BattleEventKind.StatusRemoved, targetId: u.RuntimeId,
+                                       note: $"天时免疫 {def.Name}");
+                            continue;
+                        }
+
+                        u.ApplyStatus(atom.StatusId, atom.StatusStacks, turns, dot);
                         st.Log.Add(st.Turn, BattleEventKind.StatusApplied, targetId: u.RuntimeId,
                                    amount: atom.StatusStacks,
                                    note: $"天时·{weather.BuffName}｜{def.Name} ×{u.GetStacks(atom.StatusId)}");

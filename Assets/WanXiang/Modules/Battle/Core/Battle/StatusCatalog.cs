@@ -37,6 +37,12 @@ namespace WanXiang.Battle.Core
         /// <summary>无法行动（冻结 / 眩晕 / 眠）。</summary>
         public bool PreventsAction;
 
+        /// <summary>
+        /// 无法**释放技能**（沉默）：普攻仍可打。与 <see cref="PreventsAction"/> 分开 ——
+        /// GDD 里「沉默」是封技能而不是封行动，混成一个标志会让沉默强得离谱。
+        /// </summary>
+        public bool PreventsSkill;
+
         /// <summary>无法被治疗（冻结 / 禁疗）。</summary>
         public bool PreventsHeal;
 
@@ -79,12 +85,15 @@ namespace WanXiang.Battle.Core
         public const string Freeze      = "freeze";       // 冻结（不能行动、不能被治疗）
         public const string ArmorBreak  = "armor_break";  // 裂甲 / 破防
         public const string Marked      = "marked";       // 斩标 / 易伤
+        public const string Confuse     = "confuse";      // 混乱（不能行动）—— 清明免疫它
+        public const string Silence     = "silence";      // 沉默（不能放技能）—— 清明免疫它
 
         // ---- 增益 ----
         public const string Qi          = "qi";           // 同气（相生相邻产出，每层 +2% 技能效果）
         public const string Vigor       = "vigor";        // 生机（立春）
         public const string Grain       = "grain";        // 谷（谷雨，每层 +1% 全属性）
         public const string Bounty      = "bounty";       // 穰（当康，治疗护盾 +）
+        public const string Haste       = "haste";        // 凝神（寒露：下一次技能 CD 立即 -2）
 
         private static readonly System.Collections.Generic.List<StatusDef> _all =
             new System.Collections.Generic.List<StatusDef>
@@ -114,6 +123,13 @@ namespace WanXiang.Battle.Core
             new StatusDef { Id = Marked, Name = "斩标", IsDebuff = true, MaxStacks = 1,
                 DamageTakenDeltaPerStack = 0.20f, Description = "受到的所有伤害 +20%" },
 
+            // 清明「气清景明」免疫的就是这两条（GDD 3.3 第 5 条）
+            new StatusDef { Id = Confuse, Name = "混乱", IsDebuff = true, MaxStacks = 1,
+                PreventsAction = true, Description = "无法行动（清明可免疫）" },
+
+            new StatusDef { Id = Silence, Name = "沉默", IsDebuff = true, MaxStacks = 1,
+                PreventsSkill = true, Description = "无法释放技能，普攻仍可（清明可免疫）" },
+
             new StatusDef { Id = Qi, Name = "同气", IsDebuff = false, MaxStacks = 5,
                 Description = "相生相邻产出。每层 +2% 技能效果" },
 
@@ -125,6 +141,11 @@ namespace WanXiang.Battle.Core
 
             new StatusDef { Id = Bounty, Name = "穰", IsDebuff = false, MaxStacks = 6,
                 HealShieldDeltaPerStack = 0.05f, Description = "每层使治疗与护盾效果 +5%" },
+
+            // 寒露「寒露凝华」：CD 即减在施加时一次性兑现（见 BattleSimulator 的寒露落点），
+            // 状态本身是**可读的凭据**（日志/UI 看得到"谁拿到了凝神"），不参与回合末减层以外的事。
+            new StatusDef { Id = Haste, Name = "凝神", IsDebuff = false, MaxStacks = 1,
+                Description = "下一次技能 CD 立即减少 2 回合（施加时已兑现）" },
         };
 
         /// <summary>查找。找不到返回一个"未知状态"定义（名字即 id、不可叠）而不是抛异常 ——

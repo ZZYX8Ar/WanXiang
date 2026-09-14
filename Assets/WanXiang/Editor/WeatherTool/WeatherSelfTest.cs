@@ -303,6 +303,125 @@ namespace WanXiang.Editor.WeatherTool
             Check(lines, healEarly == 2 && healLate == 4,
                   $"⑭ 春分 MinTurn：第 5 回合回复 {healEarly} 笔（2 单位 ×1），第 13 回合 {healLate} 笔（×2）");
 
+            // ==================================================================
+            //  事件钩子型（GDD 3.3 剩余 8 条）：目录数据 + 行为观察
+            // ==================================================================
+
+            // ---- ⑮ 目录：八条节气的钩子字段接对了 ----
+            var t3 = WeatherCatalog.GetSolarTerm(3);
+            var t5 = WeatherCatalog.GetSolarTerm(5);
+            var t7 = WeatherCatalog.GetSolarTerm(7);
+            var t9 = WeatherCatalog.GetSolarTerm(9);
+            var t14 = WeatherCatalog.GetSolarTerm(14);
+            var t17 = WeatherCatalog.GetSolarTerm(17);
+            var t19 = WeatherCatalog.GetSolarTerm(19);
+            var t23 = WeatherCatalog.GetSolarTerm(23);
+            Check(lines, t3 != null && t3.ReviveEggOn && t3.ReviveEggDelayTurns == 2
+                       && t5 != null && t5.ImmuneConfuseSilence && t5.DebuffDurationMinusOne
+                       && t7 != null && t7.AttackBurnOn && System.Math.Abs(t7.AttackBurnPower - 0.20f) < 0.0001f
+                       && t9 != null && t9.PursuitOnCrit && System.Math.Abs(t9.PursuitPower - 0.50f) < 0.0001f
+                       && t14 != null && t14.KillOverflowShield
+                       && t17 != null && t17.HasteEveryNTurns == 3 && t17.HasteCdReduction == 2
+                       && t19 != null && System.Math.Abs(t19.FreezeOnHitChance - 0.30f) < 0.0001f
+                       && t23 != null && t23.ExtraBasicAttackOnTurnEnd,
+                  "⑮ 目录：惊蛰/清明/立夏/芒种/处暑/寒露/立冬/小寒 八条钩子字段均接对（24 条节气全翻完）");
+
+            // ---- ⑯ 立夏：我方攻击附带灼烧 ----
+            var bBurn = Make1v1("xb", "攻", Element.Metal, RoleType.Striker,
+                                "xd", "御", Element.Wood, RoleType.Guard, t7);
+            BattleSimulator.Run(bBurn);
+            int burnApplied = CountNoteKind(bBurn.Log, BattleEventKind.StatusApplied, "天时附魔");
+            Check(lines, burnApplied > 0, $"⑯ 立夏附烧：附魔 {burnApplied} 次");
+
+            // ---- ⑰ 芒种：暴击追击（概率事件，走 6 个种子） ----
+            int pursuits = 0;
+            for (ulong s = 0; s < 6; s++)
+            {
+                var b = Make1v1Seed("mb", "攻", Element.Metal, RoleType.Striker,
+                                    "md", "御", Element.Wood, RoleType.Guard, t9, s);
+                BattleSimulator.Run(b);
+                pursuits += CountNoteKind(b.Log, BattleEventKind.Damage, "锋芒毕露：追击");
+            }
+            Check(lines, pursuits > 0, $"⑰ 芒种追击：6 局共触发 {pursuits} 次（暴击才追）");
+
+            // ---- ⑱ 处暑：击杀溢出转全队护盾 ----
+            int overflowShields = 0;
+            for (ulong s = 0; s < 6; s++)
+            {
+                var b = Make1v1Seed("cb2", "攻", Element.Metal, RoleType.Striker,
+                                    "cd2", "御", Element.Wood, RoleType.Guard, t14, s);
+                BattleSimulator.Run(b);
+                overflowShields += CountNoteKind(b.Log, BattleEventKind.Shield, "鹰击长空");
+            }
+            Check(lines, overflowShields > 0, $"⑱ 处暑溢出盾：6 局共 {overflowShields} 次击杀溢出转盾");
+
+            // ---- ⑲ 立冬：受击冻结（30% 概率，多局累计） ----
+            int frozen = 0;
+            for (ulong s = 0; s < 6; s++)
+            {
+                var b = Make1v1Seed("wb2", "攻", Element.Metal, RoleType.Striker,
+                                    "wd2", "御", Element.Wood, RoleType.Guard, t19, s);
+                BattleSimulator.Run(b);
+                frozen += CountNoteKind(b.Log, BattleEventKind.StatusApplied, "水始成冰");
+            }
+            Check(lines, frozen > 0, $"⑲ 立冬受击冻结：6 局共冻结 {frozen} 次（30% 概率）");
+
+            // ---- ⑳ 小寒：回合末额外普攻（走完的回合恰一次） ----
+            var bExtra = Make1v1("xb2", "疾", Element.Metal, RoleType.Swift,
+                                 "xd2", "御", Element.Wood, RoleType.Guard, t23);
+            BattleSimulator.Run(bExtra);
+            int extra = CountNoteKind(bExtra.Log, BattleEventKind.SkillCast, "寒鸦北去");
+            int completedTurns = CountKind(bExtra.Log, BattleEventKind.TurnEnd);
+            Check(lines, extra == completedTurns && extra > 0,
+                  $"⑳ 小寒额外普攻：{extra} 次 == 走完的回合数 {completedTurns}");
+
+            // ---- ㉑ 寒露：凝神只落在 3 的倍数回合 ----
+            var bHaste = Make1v1("hb2", "攻", Element.Metal, RoleType.Striker,
+                                 "hd2", "御", Element.Wood, RoleType.Guard, t17);
+            BattleSimulator.Run(bHaste);
+            bool hasteOk = true;
+            int hasteCount = 0;
+            foreach (var e in bHaste.Log.Events)
+            {
+                if (e.Note == null || !e.Note.Contains("寒露凝华")) continue;
+                hasteCount++;
+                if (e.Turn % 3 != 0) hasteOk = false;
+            }
+            Check(lines, hasteOk && hasteCount > 0,
+                  $"㉑ 寒露凝神：{hasteCount} 次全部落在 3 的倍数回合");
+
+            // ---- ㉒ 清明：免疫混乱 + 我方减益时长 -1（直接验共用过滤函数） ----
+            var sQm = Make1v1("qb2", "甲", Element.Wood, RoleType.Guard,
+                              "qd2", "乙", Element.Fire, RoleType.Striker, t5);
+            var pQm = sQm.UnitsOf(TeamSide.Player)[0];
+            var eQm = sQm.UnitsOf(TeamSide.Enemy)[0];
+            int turnsConfuse = 3, turnsFrost = 3, turnsEnemy = 3;
+            bool confuseBlocked = !BattleSimulator.WeatherFilterStatus(sQm, pQm, StatusCatalog.Confuse, ref turnsConfuse);
+            bool frostShortened = BattleSimulator.WeatherFilterStatus(sQm, pQm, StatusCatalog.Frost, ref turnsFrost)
+                               && turnsFrost == 2;
+            bool enemyUnaffected = BattleSimulator.WeatherFilterStatus(sQm, eQm, StatusCatalog.Frost, ref turnsEnemy)
+                                && turnsEnemy == 3;
+            Check(lines, confuseBlocked && frostShortened && enemyUnaffected,
+                  $"㉒ 清明：免疫混乱 ✓、我方减益 3→{turnsFrost} 回合 ✓、敌方不受影响（{turnsEnemy}）");
+
+            // ---- ㉓ 惊蛰：留卵 → 复活（灵品脆皮 vs 神品御，确保会死） ----
+            int revives = 0, eggs = 0, deaths = 0;
+            for (ulong s = 0; s < 8; s++)
+            {
+                // ⚠ 阵容要让**我方真的会死**：灵品辅（1300 血 / 110 攻）对上神品攻
+                //   （208 攻）⇒ 十回合内被打死。第一版用"灵品攻 vs 神品御"，
+                //   两个都打不动对方，30 回合磨到平局，卵根本没机会留（断言红得没信息量）。
+                var b = Make1v1Seed("jb2", "脆", Element.Metal, RoleType.Support,
+                                    "jd2", "狂", Element.Wood, RoleType.Striker, t3, s,
+                                    Rarity.Rare, Rarity.Legend);
+                BattleSimulator.Run(b);
+                eggs += CountNoteKind(b.Log, BattleEventKind.Death, "留下虫卵");
+                revives += CountNoteKind(b.Log, BattleEventKind.Revive, "破卵而生");
+                deaths += CountNoteKind(b.Log, BattleEventKind.Death, "阵亡");
+            }
+            Check(lines, eggs > 0 && revives > 0,
+                  $"㉓ 惊蛰虫卵：8 局留卵 {eggs} 次、复活 {revives} 次（阵亡 {deaths} 次）");
+
             return Finish(lines);
         }
 
@@ -335,6 +454,27 @@ namespace WanXiang.Editor.WeatherTool
             if (useSkill != null && st.Weather != null) st.Weather.ApplyOverride(useSkill);
             BattleSimulator.Run(st);
             return st;
+        }
+
+        /// <summary>1v1 装配（可指定种子与双方稀有度），钩子断言用。</summary>
+        private static BattleState Make1v1Seed(string idA, string nameA, Element elA, RoleType roleA,
+                                               string idB, string nameB, Element elB, RoleType roleB,
+                                               WeatherDef weather, ulong seed,
+                                               Rarity rarityA = Rarity.Rare, Rarity rarityB = Rarity.Rare)
+        {
+            return BattleFactory.Create(BattleConfig.Default, seed,
+                new[] { DeployEntry.Player(BattleSampleContent.Make(idA, nameA, elA, roleA, rarityA), 0) },
+                new[] { DeployEntry.Enemy(BattleSampleContent.Make(idB, nameB, elB, roleB, rarityB), 8) },
+                weather);
+        }
+
+        /// <summary>数"某类事件 + Note 含某片段"（钩子断言用）。</summary>
+        private static int CountNoteKind(BattleLog log, BattleEventKind kind, string part)
+        {
+            int n = 0;
+            foreach (var e in log.Events)
+                if (e.Kind == kind && e.Note != null && e.Note.Contains(part)) n++;
+            return n;
         }
 
         /// <summary>只装配不跑 —— 逆天时标记在覆盖生效窗口内读取（战局可能超过覆盖的 3 回合）。</summary>
@@ -417,8 +557,8 @@ namespace WanXiang.Editor.WeatherTool
             if (_fail > 0)
                 foreach (var f in Failures) lines.Add("  ❌ " + f);
             else
-                lines.Add("说明：天时内容已翻 16 条节气 + 4 条天气技（WeatherCatalog 文件头有清单）；"
-                          + "剩 8 条事件钩子型（复活卵/追击/反弹/额外普攻等）待逐条建钩子接入。"
+                lines.Add("说明：天时内容已翻 **24 条节气 + 4 条天气技（全部）**，"
+                          + "含最后 8 条事件钩子型（复活卵/附烧/追击/溢出盾/凝神/受击冻结/额外普攻/清明免疫）。"
                           + "速度/CD/暴伤/AOE/五行伤害/护盾/溢出转盾/首回合先手八条规则修正已通路，"
                           + "每条都有受控对照（⑦–⑭），指纹回归 R1/R2 在最前面。");
 

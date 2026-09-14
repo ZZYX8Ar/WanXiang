@@ -129,6 +129,50 @@ namespace WanXiang.Battle.Core
         /// <summary>治疗溢出转护盾比例（雨水 0.5）。</summary>
         public float HealOverflowShieldRatio => Active?.HealOverflowShieldRatio ?? 0f;
 
+        // ---- 事件钩子型查询（GDD 3.3 剩余 8 条） ----
+        //  统一口径：Active 为空时全部落到"关闭/中性"，调用方不必再判空。
+
+        /// <summary>立夏：我方攻击附带灼烧（返回 0 表示不触发）。</summary>
+        public float AttackBurnPowerFor(TeamSide attackerSide)
+            => attackerSide == TeamSide.Player && Active?.AttackBurnOn == true
+               ? (Active?.AttackBurnPower ?? 0f) : 0f;
+
+        public int AttackBurnTurns => Active?.AttackBurnTurns ?? 0;
+
+        /// <summary>芒种：我方暴击追击强度（0 = 不触发）。</summary>
+        public float PursuitPowerFor(TeamSide attackerSide)
+            => attackerSide == TeamSide.Player && Active?.PursuitOnCrit == true
+               ? (Active?.PursuitPower ?? 0f) : 0f;
+
+        /// <summary>处暑：击杀溢出转护盾比例（0 = 不触发）。</summary>
+        public float KillOverflowShieldRatio => KillOverflowShieldOn ? (Active?.KillOverflowShieldRatio ?? 0f) : 0f;
+        public bool KillOverflowShieldOn => Active?.KillOverflowShield == true;
+
+        /// <summary>惊蛰：阵亡是否留卵（只看我方 —— GDD 写"我方单位阵亡后"）。</summary>
+        public bool ReviveEggFor(TeamSide side)
+            => side == TeamSide.Player && Active?.ReviveEggOn == true;
+
+        public int ReviveEggDelayTurns => Active?.ReviveEggDelayTurns ?? 0;
+        public float ReviveEggHpPercent => Active?.ReviveEggHpPercent ?? 0f;
+
+        /// <summary>寒露：本回合是否触发凝神（0 = 关闭）。</summary>
+        public int HasteEveryNTurns => Active?.HasteEveryNTurns ?? 0;
+        public int HasteCdReduction => Active?.HasteCdReduction ?? 0;
+
+        /// <summary>立冬：受击冻结概率（全场；0 = 不触发）。</summary>
+        public float FreezeOnHitChance => Active?.FreezeOnHitChance ?? 0f;
+        public int FreezeOnHitTurns => Active?.FreezeOnHitTurns ?? 0;
+
+        /// <summary>清明：是否压制减益时长 / 免疫混乱沉默（只看我方）。</summary>
+        public bool DebuffDurationMinusOneFor(TeamSide side)
+            => side == TeamSide.Player && Active?.DebuffDurationMinusOne == true;
+
+        public bool ImmuneConfuseSilenceFor(TeamSide side)
+            => side == TeamSide.Player && Active?.ImmuneConfuseSilence == true;
+
+        /// <summary>小寒：回合末是否给速度最高者一次额外普攻。</summary>
+        public bool ExtraBasicAttackOnTurnEnd => Active?.ExtraBasicAttackOnTurnEnd == true;
+
         /// <summary>
         /// 冬至首回合先手方伤害乘数：攻击方是第 1 回合出手序列里的先手阵营才生效。
         /// "谁先动"由速度决定，而速度本身可能被本场天时改过，

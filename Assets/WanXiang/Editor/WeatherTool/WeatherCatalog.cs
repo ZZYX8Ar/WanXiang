@@ -1,10 +1,16 @@
 // ============================================================================
 //  万相 · 天时内容目录（编辑器侧，STEP 3）
 //  ---------------------------------------------------------------------------
-//  把 GDD 3.3 的 fieldBuff 自然语言逐条翻译成 WeatherDef。本批已翻
-//  **16 条节气 + 4 条天气技**；剩余 8 条是"事件钩子型"（复活卵/追击/反弹/
-//  额外普攻……），机制不在"场地修正 + 原子"的表达范围内，保留 GDD 原文
-//  （Untreated）待逐条建钩子接入。
+//  把 GDD 3.3 的 fieldBuff 自然语言逐条翻译成 WeatherDef。**24 条节气 + 4 条
+//  天气技已全部落地**，最后 8 条"事件钩子型"（复活卵/附烧/追击/溢出盾/凝神/
+//  受击冻结/额外普攻/清明免疫）挂在战斗过程的点上（命中/暴击/击杀/受击/行动末/
+//  死亡），实现在 BattleSimulator 的 PostDamageHooks 与 WeatherTurnStartHooks。
+//
+//  仍然**没有消费**的 GDD 细节（都在条款注释里注明，等对应机制出现再接）：
+//    · 大雪"出手顺序速度差 ×1.5"（对排序是恒等变换，等阈值类机制出现）
+//    · 白露/召风的"命中率"（战斗核心还没有命中/闪避判定）
+//    · 召风的"远程单位伤害 +15%"（没有"远程"兵种概念）、移山"受击反弹 10%"
+//    · 大寒"火技融冰"（需要"技能命中"再挂一条钩子）
 //
 //  ⚠ 节气序号以 solar_terms.json 为准：**夏至=10、冬至=22**（曾把夏至挂到
 //    22 上，已修正 —— 加新条目前先对照 JSON，别按"一年里第几个节气"的直觉猜）。
@@ -305,16 +311,121 @@ namespace WanXiang.Editor.WeatherTool
                 },
             },
 
-            // ---- 仍待接的 8 条：机制不在"场地修正/原子"的表达范围内（事件钩子型），
-            //      接入时按 GDD 原文补（solar_terms.json）。 ----
-            new TermEntry { SolarIndex = 3,  Untreated = "惊蛰：我方阵亡后留「虫卵」2 回合后 30% 生命复活（死亡钩子 + 复活原子，STEP 1 已留显式留痕）" },
-            new TermEntry { SolarIndex = 5,  Untreated = "清明：我方减益剩余回合 -1；免疫混乱与沉默（StatusCatalog 尚无这两个状态，免疫通路待建）" },
-            new TermEntry { SolarIndex = 7,  Untreated = "立夏：我方攻击附带 20% 攻击力的火属性灼烧（攻击命中钩子）" },
-            new TermEntry { SolarIndex = 9,  Untreated = "芒种：我方暴击追加 50% 攻击力追击，每次行动限 1 次（暴击钩子）" },
-            new TermEntry { SolarIndex = 14, Untreated = "处暑：击杀时溢出伤害 100% 转全队护盾（击杀钩子）" },
-            new TermEntry { SolarIndex = 17, Untreated = "寒露：每 3 回合我方全体获得「凝神」（下一次技能 CD 立即 -2；需要新状态 + CD 即减机制）" },
-            new TermEntry { SolarIndex = 19, Untreated = "立冬：受击时 30% 概率被冻结 1 回合（受击钩子 + 概率，冻结状态已有）" },
-            new TermEntry { SolarIndex = 23, Untreated = "小寒：每回合结束我方速度最高者获得一次额外普攻（回合末行动钩子）" },
+            // ---- 03 惊蛰：我方阵亡后留「虫卵」，2 回合后以 30% 生命复活（每单位每场限 1 次）
+            //      ⚠ 配套改动：CheckOutcome 认可"待孵化虫卵" ⇒ 我方全灭但有卵不判负，
+            //        否则卵永远来不及孵（判定在死亡结算之后、孵化之前）。
+            new TermEntry
+            {
+                SolarIndex = 3,
+                Weather = new WeatherDef
+                {
+                    Id = "solar_jingzhe", NodeName = "惊蛰", BuffName = "蛰虫始振",
+                    Element = Element.Wood,
+                    ReviveEggOn = true,
+                    ReviveEggDelayTurns = 2,
+                    ReviveEggHpPercent = 0.30f,
+                },
+            },
+
+            // ---- 05 清明：我方所有减益剩余回合 -1；免疫「混乱」与「沉默」
+            //      两条都是"施加状态时"的通路（技能与天时共用同一套过滤）。
+            new TermEntry
+            {
+                SolarIndex = 5,
+                Weather = new WeatherDef
+                {
+                    Id = "solar_qingming", NodeName = "清明", BuffName = "气清景明",
+                    Element = Element.Wood,
+                    DebuffDurationMinusOne = true,
+                    ImmuneConfuseSilence = true,
+                },
+            },
+
+            // ---- 07 立夏：我方所有攻击附带 20% 攻击力的火属性灼烧，持续 2 回合
+            //      （可叠层、不可刷新时长 —— 与 ApplyStatus 的既有语义一致）
+            new TermEntry
+            {
+                SolarIndex = 7,
+                Weather = new WeatherDef
+                {
+                    Id = "solar_lixia", NodeName = "立夏", BuffName = "炎气初升",
+                    Element = Element.Fire,
+                    AttackBurnOn = true,
+                    AttackBurnPower = 0.20f,
+                    AttackBurnTurns = 2,
+                },
+            },
+
+            // ---- 09 芒种：我方暴击时追加一次 50% 攻击力的追击（每次行动限 1 次）
+            //      取舍：追击本身不再判暴击（链式触发 GDD 没规定）
+            new TermEntry
+            {
+                SolarIndex = 9,
+                Weather = new WeatherDef
+                {
+                    Id = "solar_mangzhong", NodeName = "芒种", BuffName = "锋芒毕露",
+                    Element = Element.Fire,
+                    PursuitOnCrit = true,
+                    PursuitPower = 0.50f,
+                },
+            },
+
+            // ---- 14 处暑：击杀时溢出伤害的 100% 转化为全队护盾
+            //      取舍：总量按存活人数**均分**（每人一份会凭空 5 倍护盾），待策划确认
+            new TermEntry
+            {
+                SolarIndex = 14,
+                Weather = new WeatherDef
+                {
+                    Id = "solar_chushu", NodeName = "处暑", BuffName = "鹰击长空",
+                    Element = Element.Metal,
+                    KillOverflowShield = true,
+                    KillOverflowShieldRatio = 1.00f,
+                },
+            },
+
+            // ---- 17 寒露：每 3 回合，我方全体获得「凝神」（下一次技能 CD 立即 -2）
+            //      取舍：在**获得时立即扣减**当前在冷却的技能（对下一次可放的技能等价）；
+            //      凝神状态留作可读凭据，不额外参与结算。
+            new TermEntry
+            {
+                SolarIndex = 17,
+                Weather = new WeatherDef
+                {
+                    Id = "solar_hanlu", NodeName = "寒露", BuffName = "寒露凝华",
+                    Element = Element.Metal,
+                    HasteEveryNTurns = 3,
+                    HasteCdReduction = 2,
+                },
+            },
+
+            // ---- 19 立冬：受击时有 30% 概率被「冻结」1 回合（冻结期间无法行动、无法被治疗）
+            //      ⚠ 全场生效（GDD 只写"受击时"，没限定我方）—— 唯一的双边钩子。
+            //      概率走战斗的确定性随机流（st.Random），同种子完全可复现。
+            new TermEntry
+            {
+                SolarIndex = 19,
+                Weather = new WeatherDef
+                {
+                    Id = "solar_lidong", NodeName = "立冬", BuffName = "水始成冰",
+                    Element = Element.Water,
+                    FreezeOnHitChance = 0.30f,
+                    FreezeOnHitTurns = 1,
+                },
+            },
+
+            // ---- 23 小寒：每回合结束，我方速度最高的单位获得一次额外普通攻击
+            //      取舍：这次普攻不加怒气、不进冷却（天时白送的一击，不属技能循环）
+            new TermEntry
+            {
+                SolarIndex = 23,
+                Weather = new WeatherDef
+                {
+                    Id = "solar_xiaohan", NodeName = "小寒", BuffName = "寒鸦北去",
+                    Element = Element.Water,
+                    ExtraBasicAttackOnTurnEnd = true,
+                },
+            },
         };
 
         // ====================================================================

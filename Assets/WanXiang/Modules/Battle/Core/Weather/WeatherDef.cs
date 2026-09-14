@@ -111,6 +111,51 @@ namespace WanXiang.Battle.Core
         // 只作用在天时自己的回复原子上（WeatherResolver 结算处），技能治疗不受影响。
         public float HealOverflowShieldRatio = 0f;
 
+        // ====================================================================
+        //  事件钩子型（GDD 3.3 里剩下那 8 条）—— 规则不在"回合开始/结束的原子"
+        //  与"乘数修正"的表达范围内，必须挂在战斗过程的点上：命中 / 暴击 / 击杀 /
+        //  受击 / 行动末 / 死亡。**默认全部关闭**，且每个落点先看字段为假就立即
+        //  返回 ⇒ 无天时与空天时战斗逐位不变（指纹红线）。
+        //
+        //  ⚠ "我方"口径：GDD 原文写"我方"的一律只对 Player 侧生效；
+        //    只有立冬「受击时」是全场（见 FreezeOnHitChance 的注释）。
+        // ====================================================================
+
+        // 07 立夏「炎气初升」：我方所有攻击附带 =攻击力×Power 的火属性灼烧，持续 Turns
+        public bool AttackBurnOn;
+        public float AttackBurnPower;
+        public int AttackBurnTurns = 2;
+
+        // 09 芒种「锋芒毕露」：我方暴击时追加一次 =攻击力×Power 的追击（每次行动限 1 次）
+        public bool PursuitOnCrit;
+        public float PursuitPower = 0.5f;
+
+        // 14 处暑「鹰击长空」：击杀时溢出伤害的 Ratio 转化为全队护盾（GDD 100% ⇒ 1.0）
+        public bool KillOverflowShield;
+        public float KillOverflowShieldRatio;
+
+        // 03 惊蛰「蛰虫始振」：我方阵亡后留「虫卵」，DelayTurns 回合后以 HpPercent 生命复活
+        //     （每单位每场限 1 次；有卵在场时"我方全灭"不判负 —— 见 BattleState.CheckOutcome）
+        public bool ReviveEggOn;
+        public int ReviveEggDelayTurns = 2;
+        public float ReviveEggHpPercent = 0.3f;
+
+        // 17 寒露「寒露凝华」：每 HasteEveryNTurns 回合，我方全体获得「凝神」（CD 立即 -Cd）
+        public int HasteEveryNTurns;
+        public int HasteCdReduction = 2;
+
+        // 19 立冬「水始成冰」：受击时 FreezeOnHitChance 概率被冻结 FreezeOnHitTurns 回合
+        //     ⚠ 全场生效（GDD 原文只写"受击时"，没限定我方）—— 唯一的双边钩子。
+        public float FreezeOnHitChance;
+        public int FreezeOnHitTurns = 1;
+
+        // 05 清明「气清景明」：我方减益剩余回合 -1；免疫「混乱」与「沉默」
+        public bool DebuffDurationMinusOne;
+        public bool ImmuneConfuseSilence;
+
+        // 23 小寒「寒鸦北去」：每回合结束，我方速度最高的单位获得一次额外普攻
+        public bool ExtraBasicAttackOnTurnEnd;
+
         /// <summary>
         /// 余气版：原子数值减半（GDD 3.2 规则一：强度减半，残留 2 个节点）。
         /// 规则修正型里**离散的**（禁疗）不继承 —— 全有全无的规则没有"半禁"；
@@ -145,6 +190,27 @@ namespace WanXiang.Battle.Core
                 FireUnitDotTakenMul = HalfToward1(FireUnitDotTakenMul),
                 ShieldGainMul = HalfToward1(ShieldGainMul),
                 HealOverflowShieldRatio = HealOverflowShieldRatio * 0.5f,
+
+                // ---- 事件钩子型：**开关继承、数值强度减半** ----
+                // 与乘数类不同：这些开关是"有无"的规则（免疫/复活/额外普攻），
+                // 没有"半免疫"这种东西 —— 残留的是同一条规则，只是强度弱一半。
+                AttackBurnOn = AttackBurnOn,
+                AttackBurnPower = AttackBurnPower * 0.5f,
+                AttackBurnTurns = System.Math.Max(1, AttackBurnTurns / 2),
+                PursuitOnCrit = PursuitOnCrit,
+                PursuitPower = PursuitPower * 0.5f,
+                KillOverflowShield = KillOverflowShield,
+                KillOverflowShieldRatio = KillOverflowShieldRatio * 0.5f,
+                ReviveEggOn = ReviveEggOn,
+                ReviveEggDelayTurns = ReviveEggDelayTurns + 1,      // 孵化更慢 = 强度减半
+                ReviveEggHpPercent = ReviveEggHpPercent * 0.5f,
+                HasteEveryNTurns = HasteEveryNTurns == 0 ? 0 : HasteEveryNTurns * 2,  // 触发频率减半
+                HasteCdReduction = System.Math.Max(1, HasteCdReduction / 2),
+                FreezeOnHitChance = FreezeOnHitChance * 0.5f,
+                FreezeOnHitTurns = FreezeOnHitTurns,
+                DebuffDurationMinusOne = DebuffDurationMinusOne,
+                ImmuneConfuseSilence = ImmuneConfuseSilence,
+                ExtraBasicAttackOnTurnEnd = ExtraBasicAttackOnTurnEnd,
             };
         }
 

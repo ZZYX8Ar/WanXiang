@@ -70,6 +70,7 @@ namespace WanXiang.Battle.Core
 
                 // ---- 0) 天时·回合开始（GDD 3.1；无天时立即返回，指纹零影响） ----
                 WeatherResolver.ResolveTurnStart(st);
+                WeatherTurnStartHooks(st);   // 17 寒露：每 N 回合凝神（判空短路）
 
                 // ---- 1) 回合开始的场地结算（棋盘四条规则） ----
                 Accumulate(ref total, BoardRules.ResolveAdjacency(st));
@@ -95,6 +96,7 @@ namespace WanXiang.Battle.Core
 
                 // ---- 4) 回合末（天时·回合末在 EndOfTurn 之后、TurnEnd 事件之前） ----
                 EndOfTurn(st);
+                WeatherEndExtraActions(st, buf);   // 23 小寒：速度最高者额外普攻（判空短路）
                 WeatherResolver.ResolveTurnEnd(st);
                 st.Log.Add(turn, BattleEventKind.TurnEnd);
             }
@@ -213,6 +215,7 @@ namespace WanXiang.Battle.Core
                 if (cdAccel) TickCooldownExtra(st, u);
                 u.TickStatusDurations();
                 u.TickModifiers();
+                if (cdAccel) TickEggHatch(st, u);   // 03 惊蛰：虫卵倒计时 / 孵化
             }
         }
 
@@ -271,6 +274,7 @@ namespace WanXiang.Battle.Core
         private static void ExecuteAction(BattleState st, BattleUnit actor, Buffers buf)
         {
             var cfg = st.Config;
+            actor.PursuitUsedThisAction = false;   // 09 芒种：追击"每次行动限 1 次"的计数
             st.Log.Add(st.Turn, BattleEventKind.ActionBegin, actorId: actor.RuntimeId,
                        note: actor.DisplayName);
 
@@ -309,6 +313,7 @@ namespace WanXiang.Battle.Core
         private static SkillDef ChooseSkill(BattleState st, BattleUnit u)
         {
             var cfg = st.Config;
+            if (!u.CanCastSkills) return u.GetSkill(SkillType.Basic);   // 05 清明的对立面：沉默只封技能
 
             var ult = u.GetSkill(SkillType.Ultimate);
             if (ult != null && cfg.AutoCastUltimate && u.CanCast(SkillType.Ultimate, cfg)) return ult;
@@ -427,8 +432,18 @@ namespace WanXiang.Battle.Core
                         if (atom.Power > 0f) dot += src.Attack * atom.Power;
                         if (atom.PercentOfMaxHp > 0f) dot += dst.MaxHp * atom.PercentOfMaxHp;
 
-                        dst.ApplyStatus(atom.StatusId, atom.StatusStacks, atom.StatusTurns, dot);
+                        // 05 清明：免疫混乱/沉默、我方减益时长 -1（与天时自身的施加路径共用）
+                        int turns = atom.StatusTurns;
                         var def = StatusCatalog.Get(atom.StatusId);
+                        if (!WeatherFilterStatus(st, dst, atom.StatusId, ref turns))
+                        {
+                            st.Log.Add(st.Turn, BattleEventKind.StatusRemoved, actorId: src.RuntimeId,
+                                       targetId: dst.RuntimeId, skillName: skill?.Name,
+                                       note: $"天时免疫 {def.Name}");
+                            continue;
+                        }
+
+                        dst.ApplyStatus(atom.StatusId, atom.StatusStacks, turns, dot);
                         st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: src.RuntimeId,
                                    targetId: dst.RuntimeId, skillName: skill?.Name,
                                    amount: atom.StatusStacks,
@@ -506,6 +521,209 @@ namespace WanXiang.Battle.Core
                 st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
                            note: $"{dst.DisplayName} 阵亡");
             }
+
+            // ---- 天时钩子（GDD 3.3 剩余 8 条）：命中/暴击/击杀/受击四条通路 ----
+            // 判空短路：无天时这一行不进函数体，战斗逐位不变（指纹红线）。
+            if (st.Weather != null) PostDamageHooks(st, src, dst, el, dmg, dealt, crit, atom.TrueDamage);
+        }
+
+        // ================================================================
+        //  天时事件钩子（GDD 3.3 剩余 8 条）
+        //  ----------------------------------------------------------------
+        //  这些规则的共同点是"必须挂在战斗过程的某个点上"，没法用回合开始/结束的
+        //  原子与乘数表达。全部**先判字段为假就返回** —— 无天时/空天时零影响。
+        // ================================================================
+
+        /// <summary>
+        /// 一段伤害结算之后的钩子：立夏附烧（命中）→ 处暑溢出转盾（击杀）→ 芒种追击（暴击）
+        /// → 立冬受击冻结（受击）。
+        /// 顺序即语义：先结算这一击自身的效果，再判击杀溢出，最后才追加追击 ——
+        /// 追击打出去时"目标是否已死"的答案才是最终的。
+        /// </summary>
+        private static void PostDamageHooks(BattleState st, BattleUnit src, BattleUnit dst,
+                                            Element el, int dmg, int dealt, bool crit, bool trueDamage)
+        {
+            var w = st.Weather;
+
+            // 07 立夏「炎气初升」：我方所有攻击附带燃烧（按施法者攻击力折算，与技能 DoT 同一套）
+            float burnPower = w.AttackBurnPowerFor(src.Side);
+            if (burnPower > 0f && dst.IsAlive)
+            {
+                dst.ApplyStatus(StatusCatalog.Burn, 1, w.AttackBurnTurns, src.Attack * burnPower);
+                var burnDef = StatusCatalog.Get(StatusCatalog.Burn);
+                st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: src.RuntimeId,
+                           targetId: dst.RuntimeId, amount: 1,
+                           note: $"{burnDef.Name} ×{dst.GetStacks(StatusCatalog.Burn)}（天时附魔）");
+            }
+
+            // 14 处暑「鹰击长空」：我方**击杀**时，溢出伤害按比例转成全队护盾
+            if (!dst.IsAlive && src.Side == TeamSide.Player && w.KillOverflowShieldOn)
+            {
+                int overkill = dmg - dealt;                       // dealt = 实际掉的血（含被护盾吃掉的部分）
+                if (overkill > 0)
+                {
+                    int total = CoreMath.RoundDamage(overkill * w.KillOverflowShieldRatio);
+                    GrantTeamShieldFromKill(st, w, src, total);
+                }
+            }
+
+            // 09 芒种「锋芒毕露」：我方暴击时追加一次追击（每次行动限 1 次）
+            // 取舍：追击**不再判暴击**（暴击的追击再暴击会链式触发，GDD 没规定这种递归）。
+            if (crit && dst.IsAlive && !src.PursuitUsedThisAction)
+            {
+                float pursuitPower = w.PursuitPowerFor(src.Side);
+                if (pursuitPower > 0f)
+                {
+                    src.PursuitUsedThisAction = true;
+                    int pd = ComputeDamage(st, src, dst, el, pursuitPower, false, false);
+                    int pdl = dst.TakeDamage(pd);
+                    st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId,
+                               targetId: dst.RuntimeId, amount: pd, element: el,
+                               note: "天时·锋芒毕露：追击");
+                    if (pdl > 0 && !dst.IsAlive)
+                        st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
+                                   note: $"{dst.DisplayName} 阵亡（追击）");
+                }
+            }
+
+            // 19 立冬「水始成冰」：受击时按概率被冻结（**全场** —— GDD 只说"受击时"）
+            float freezeChance = w.FreezeOnHitChance;
+            if (freezeChance > 0f && dst.IsAlive && !dst.HasStatus(StatusCatalog.Freeze))
+            {
+                if (st.Random.Chance(freezeChance))
+                {
+                    dst.ApplyStatus(StatusCatalog.Freeze, 1, w.FreezeOnHitTurns);
+                    st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: src.RuntimeId,
+                               targetId: dst.RuntimeId, amount: 1,
+                               note: $"天时·水始成冰：{dst.DisplayName} 被冻结");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 击杀溢出转全队护盾：总量按**存活人数均分**，除不尽的余数给站得最前的那位。
+        /// ⚠ GDD 只写"转化为全队护盾"，没说"每人一份"还是"大家分一份" —— 取分一份
+        ///   （每人一份会让 5 人队凭空拿到 5 倍护盾，显然过强）。待策划确认。
+        /// </summary>
+        private static void GrantTeamShieldFromKill(BattleState st, WeatherRuntime w,
+                                                    BattleUnit killer, int total)
+        {
+            int alive = st.AliveCountOf(TeamSide.Player);
+            if (alive <= 0 || total <= 0) return;
+
+            int share = total / alive;
+            int remainder = total - share * alive;
+            var list = st.UnitsOf(TeamSide.Player);
+            bool first = true;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (!u.IsAlive) continue;
+                int amount = share + (first ? remainder : 0);
+                first = false;
+                if (amount <= 0) continue;
+                int added = u.AddShield(amount);
+                if (added <= 0) continue;
+                st.Log.Add(st.Turn, BattleEventKind.Shield, actorId: killer.RuntimeId,
+                           targetId: u.RuntimeId, amount: added, element: u.Element,
+                           note: "天时·鹰击长空：击杀溢出转护盾");
+            }
+        }
+
+        /// <summary>
+        /// 17 寒露「寒露凝华」：每 N 回合，我方全体获得「凝神」。
+        /// 语义取舍：GDD 写"下一次技能 CD 立即减少 2 回合"，这里在**获得时立即扣减**
+        /// 当前所有在冷却的技能（对下一次可放的技能等价，且不需要"技能槽级"的钩子）。
+        /// 凝神状态本身留作可读凭据（日志/UI 看得到谁拿到了）。
+        /// </summary>
+        private static void WeatherTurnStartHooks(BattleState st)
+        {
+            if (st.Weather == null) return;
+            int every = st.Weather.HasteEveryNTurns;
+            if (every <= 0 || st.Turn % every != 0) return;
+
+            int cdCut = st.Weather.HasteCdReduction;
+            var list = st.UnitsOf(TeamSide.Player);
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (!u.IsAlive) continue;
+                for (int k = 0; k < u.Cooldowns.Length; k++)
+                    if (u.Cooldowns[k] > 0) u.Cooldowns[k] = CoreMath.Max(0, u.Cooldowns[k] - cdCut);
+                u.ApplyStatus(StatusCatalog.Haste, 1, 2);
+                st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: u.RuntimeId,
+                           targetId: u.RuntimeId, amount: 1,
+                           note: $"天时·寒露凝华：凝神（技能 CD -{cdCut}）");
+            }
+        }
+
+        /// <summary>
+        /// 23 小寒「寒鸦北去」：每回合结束，我方速度最高的单位获得一次额外普攻。
+        /// 取舍：这次普攻**不加怒气、不进冷却**（它是天时给的"白送一击"，不是技能循环的一环）。
+        /// 冻结/混乱（不能行动）的单位不给 —— 控制流不该被天时绕过。
+        /// </summary>
+        private static void WeatherEndExtraActions(BattleState st, Buffers buf)
+        {
+            if (st.Weather == null || !st.Weather.ExtraBasicAttackOnTurnEnd) return;
+            if (st.IsOver) return;
+
+            BattleUnit fastest = null;
+            float bestSpeed = 0f;
+            var list = st.UnitsOf(TeamSide.Player);
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (!u.IsAlive || !u.CanAct) continue;
+                float sp = st.EffectiveSpeed(u);
+                if (fastest == null || sp > bestSpeed) { fastest = u; bestSpeed = sp; }
+            }
+            if (fastest == null) return;
+
+            var basic = fastest.GetSkill(SkillType.Basic);
+            if (basic == null || basic.Effects == null || basic.Effects.Length == 0) return;
+
+            st.Log.Add(st.Turn, BattleEventKind.SkillCast, actorId: fastest.RuntimeId,
+                       skillName: basic.Name, element: ResolveElement(Element.None, basic, fastest),
+                       note: $"天时·寒鸦北去：{fastest.DisplayName} 额外普攻",
+                       skill: SkillType.Basic);
+            for (int i = 0; i < basic.Effects.Length; i++)
+            {
+                ResolveAtom(st, fastest, basic, basic.Effects[i], buf);
+                if (st.IsOver) break;
+            }
+        }
+
+        /// <summary>03 惊蛰「蛰虫始振」：虫卵倒计时，到点破卵复活。</summary>
+        private static void TickEggHatch(BattleState st, BattleUnit u)
+        {
+            if (!u.HasEgg) return;
+            u.EggTurnsLeft--;
+            if (u.EggTurnsLeft > 0) return;
+
+            int hp = CoreMath.RoundDamage(u.MaxHp * st.Weather.ReviveEggHpPercent);
+            u.ReviveAtHp(hp);
+            st.Log.Add(st.Turn, BattleEventKind.Revive, actorId: u.RuntimeId, targetId: u.RuntimeId,
+                       amount: u.Hp, note: $"天时·蛰虫始振：{u.DisplayName} 破卵而生");
+        }
+
+        /// <summary>
+        /// 05 清明「气清景明」对"施加状态"的过滤：返回 false = 被免疫。
+        /// **技能与天时两条施加路径共用它** —— 分成两份口径迟早会分叉
+        /// （出现过"技能被免疫、天时上状态却能上"这类不一致）。
+        /// </summary>
+        public static bool WeatherFilterStatus(BattleState st, BattleUnit dst, string statusId, ref int turns)
+        {
+            if (st.Weather == null) return true;
+            var def = StatusCatalog.Get(statusId);
+            if (!def.IsDebuff) return true;
+
+            if (st.Weather.ImmuneConfuseSilenceFor(dst.Side)
+                && (statusId == StatusCatalog.Confuse || statusId == StatusCatalog.Silence))
+                return false;
+
+            if (st.Weather.DebuffDurationMinusOneFor(dst.Side))
+                turns = CoreMath.Max(1, turns - 1);
+            return true;
         }
 
         /// <summary>
