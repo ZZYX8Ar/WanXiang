@@ -324,6 +324,46 @@ namespace WanXiang.Editor.CampaignTool
             foreach (var l in summary.Split('\n'))
                 if (l.Trim().Length > 0) lines.Add("      " + l);
 
+            // ---- ⑯ 节点图视图数据（灰盒窗口的数据层；窗口本身是人工判据，但这一层能自动断言） ----
+            var viewRun = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
+                                        content, 20260914UL, RunChoosers.First);
+            var actLines0 = NodeMapView.ActLines(viewRun.State.CurrentGraph, viewRun.State,
+                                                 WeatherCatalog.GetSolarTerm);
+            bool viewOk = actLines0.Count == 4                                   // 4 层 → 4 行
+                       && actLines0[0].Contains("○")                             // 第一层全部可选
+                       && actLines0[0].Contains("立春") && actLines0[0].Contains("东风解冻");
+            Check(lines, viewOk, $"⑯ 视图数据·开局：4 层行、第一层可选中带节气名与天时名（{actLines0[0]}）");
+
+            viewRun.PlayOneBattle(strong);                                        // 走一个节点
+            int visitedOffsets = NodeMapView.VisitedOffsets(viewRun.State.CurrentGraph, viewRun.State).Count;
+            int legalNext = NodeMapView.LegalNextOffsets(viewRun.State.CurrentGraph, viewRun.State).Count;
+            var lines1 = NodeMapView.ActLines(viewRun.State.CurrentGraph, viewRun.State,
+                                              WeatherCatalog.GetSolarTerm);
+            // 刚走过的节点同时是"已过"与"当前"，标记优先显示 ◀（当前）——
+            // ✔ 要到再走一个节点之后才会出现在它身上。
+            Check(lines, visitedOffsets == 1 && legalNext == 2 && lines1[0].Contains("◀"),
+                  $"⑯ 视图数据·走过一个节点：已过 {visitedOffsets} 个（当前 ◀）、下一步 {legalNext} 个合法分支");
+
+            viewRun.PlayOneBattle(strong);                                        // 再走一个（跨层）
+            var lines2 = NodeMapView.ActLines(viewRun.State.CurrentGraph, viewRun.State,
+                                              WeatherCatalog.GetSolarTerm);
+            Check(lines, lines2[0].Contains("✔") && lines2[1].Contains("◀")
+                       && NodeMapView.VisitedOffsets(viewRun.State.CurrentGraph, viewRun.State).Count == 2,
+                  $"⑯ 视图数据·跨层：上一层节点转 ✔、下一层当前 ◀（{lines2[0]}）");
+
+            var lingersView = NodeMapView.LingerLines(viewRun.State);
+            var recordLines = NodeMapView.RecordLines(viewRun.Records);
+            Check(lines, lingersView.Count == 1 && recordLines.Count == viewRun.Records.Count
+                       && recordLines[0].Contains("幕1")
+                       && NodeMapView.StatusLine(viewRun.State, viewRun.Outcome).Contains("第 1 幕"),
+                  $"⑯ 视图数据·余气/记录/状态（{recordLines.Count} 场）：{lingersView[0]}｜{recordLines[0]}");
+
+            // ---- ⑰ 灰盒窗口类型可用（不做弹窗副作用：自检不该改编辑器 UI 状态；
+            //      真正打开由人工/MCP 走菜单「万相/节气/节点图（灰盒）」） ----
+            var windowType = System.Type.GetType("WanXiang.Editor.CampaignTool.NodeMapWindow, WanXiang.Editor");
+            Check(lines, windowType != null && typeof(EditorWindow).IsAssignableFrom(windowType),
+                  "⑰ 节点图窗口类型可用（人工判据入口：万相/节气/节点图（灰盒））");
+
             lines.Add("========================================================================");
             lines.Add($"结论：{_pass} 项通过，{_fail} 项失败");
             if (_fail > 0)
