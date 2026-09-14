@@ -160,6 +160,14 @@ namespace WanXiang.Battle.Core
                     if (s.DotFlatPerStack <= 0f) continue;
 
                     int amount = CoreMath.RoundDamage(s.DotFlatPerStack * s.Stacks);
+
+                    // 大暑「土润溽暑」：火属性单位受到的持续伤害减半（天时修正，判空在前）
+                    if (st.Weather != null && u.Element == Element.Fire)
+                    {
+                        float dotMul = st.Weather.FireUnitDotTakenMul;
+                        if (dotMul != 1f) amount = CoreMath.RoundDamage(amount * dotMul);
+                    }
+
                     if (amount <= 0) continue;
 
                     int dealt = u.TakeTrueDamage(amount);
@@ -196,14 +204,64 @@ namespace WanXiang.Battle.Core
 
         private static void EndOfTurn(BattleState st)
         {
+            bool cdAccel = st.Weather != null;   // 天时在场才做 CD 推进修正（指纹红线）
             var all = st.AllUnits;
             for (int i = 0; i < all.Count; i++)
             {
                 var u = all[i];
                 u.TickCooldowns();
+                if (cdAccel) TickCooldownExtra(st, u);
                 u.TickStatusDurations();
                 u.TickModifiers();
             }
+        }
+
+        /// <summary>
+        /// 天时的 CD 推进乘数（小满 ×1.3 等）。CD 是整数格子，非整数倍速用累积器兑现：
+        /// 有技能正在冷却时，每回合末把 (乘数 - 1) 攒进 u.CdProgressExtra，攒满 ±1
+        /// 就多推 / 少推一格。期望推进速率趋于乘数，全程不掷骰。
+        /// ⚠ 闲置时不攒点（没有冷却可推进，攒了也是凭空透支未来的 CD）；
+        ///   已攒的点保留到下一次进入冷却再用 —— 否则点数会在"冷却恰好归零"的
+        ///   回合被白白消耗，+30% 在短冷却技能上实测推不快，等于没接。
+        /// </summary>
+        private static void TickCooldownExtra(BattleState st, BattleUnit u)
+        {
+            float mul = st.Weather.CdAdvanceMulFor(u.Side);
+            if (mul == 1f) return;
+
+            if (!AnyCooling(u)) return;   // 闲置不攒点
+
+            u.CdProgressExtra += mul - 1f;
+            while (u.CdProgressExtra >= 1f && AnyCooling(u))
+            {
+                u.CdProgressExtra -= 1f;
+                TickOneCooldown(u);
+            }
+            while (u.CdProgressExtra <= -1f && AnyCooling(u))
+            {
+                u.CdProgressExtra += 1f;
+                UntickOneCooldown(u);
+            }
+        }
+
+        private static bool AnyCooling(BattleUnit u)
+        {
+            for (int i = 0; i < u.Cooldowns.Length; i++)
+                if (u.Cooldowns[i] > 0) return true;
+            return false;
+        }
+
+        private static void TickOneCooldown(BattleUnit u)
+        {
+            for (int i = 0; i < u.Cooldowns.Length; i++)
+                if (u.Cooldowns[i] > 0) u.Cooldowns[i]--;
+        }
+
+        /// <summary>减速方向：把本回合已经推进过的一格补回去（只补还大于 0 的，不会把 CD 推成负数）。</summary>
+        private static void UntickOneCooldown(BattleUnit u)
+        {
+            for (int i = 0; i < u.Cooldowns.Length; i++)
+                if (u.Cooldowns[i] > 0) { u.Cooldowns[i]++; return; }
         }
 
         /// <summary>
@@ -338,6 +396,14 @@ namespace WanXiang.Battle.Core
                         if (!dst.IsAlive) continue;
                         float raw = src.Attack * atom.Power + dst.MaxHp * atom.PercentOfMaxHp;
                         int amount = CoreMath.RoundDamage(raw * src.HealShieldMultiplier);
+
+                        // 小雪「虹藏不见」：所有护盾效果 +50%（天时修正，判空在前）
+                        if (st.Weather != null)
+                        {
+                            float shieldMul = st.Weather.ShieldGainMul;
+                            if (shieldMul != 1f) amount = CoreMath.RoundDamage(amount * shieldMul);
+                        }
+
                         int added = dst.AddShield(amount);
                         if (added <= 0) continue;
                         st.Log.Add(st.Turn, BattleEventKind.Shield, actorId: src.RuntimeId,
@@ -420,7 +486,8 @@ namespace WanXiang.Battle.Core
             if (!dst.IsAlive) return;
 
             bool crit = st.Random.Chance(src.Def.CritRate);
-            int dmg = ComputeDamage(st, src, dst, el, atom.Power, atom.TrueDamage, crit);
+            int dmg = ComputeDamage(st, src, dst, el, atom.Power, atom.TrueDamage, crit,
+                                    IsAoeTarget(atom.Target));
 
             int dealt;
             if (atom.TrueDamage) dealt = dst.TakeTrueDamage(dmg);
@@ -449,9 +516,12 @@ namespace WanXiang.Battle.Core
         ///     真实伤害 = 攻击 × 技能倍率 × (1 + 同气)      ← 连减伤与受伤乘数一起跳过
         ///
         /// ⚠ 五行系数**只盖章在伤害上**，相生不参与（GDD 2.3 设计说明）。
+        /// ⚠ 无天时路径的浮点运算顺序必须与引入天时前完全一致（指纹红线）；
+        ///   天时分支全部包在判空里，乘数默认值恰为 1（IEEE 恒等，不引入舍入）。
         /// </summary>
         public static int ComputeDamage(BattleState st, BattleUnit src, BattleUnit dst,
-                                        Element el, float power, bool trueDamage, bool crit)
+                                        Element el, float power, bool trueDamage, bool crit,
+                                        bool aoeSkill = false)
         {
             var cfg = st.Config;
             float raw = src.Attack * power * (1f + src.QiSkillBonus(cfg.QiEffectPerStack));
@@ -471,6 +541,31 @@ namespace WanXiang.Battle.Core
                 // 全场伤害乘数（夏至「极阳」：造成的与受到的同时 +25%）
                 v *= st.Weather.DamageAllMultiplier;
 
+                // 五行伤害乘数（大暑火 -30% 土 +30%、祷雨火 -20%、祈晴火 +25%）
+                v *= st.Weather.ElementDamageMul(el);
+
+                // 技能形态乘数（秋分：AOE -40%、单体 +25%）
+                if (st.Weather.AoeDamageMul != 1f || st.Weather.SingleDamageMul != 1f)
+                    v *= st.Weather.FormDamageMul(aoeSkill);
+
+                // 暴伤加成（立秋/白露）：GDD"暴击伤害 +40%"＝ 最终暴伤倍率相加
+                //（150% + 40% = 190%），不是 (1+暴伤)×(1+加成) 的连乘。
+                // 上面的暴击已按 (1+暴伤) 乘过一次，这里先把除回来再加到位。
+                // ⚠ bonus == 0 时不动 v —— 保证夏至这类无暴伤修正的天时路径逐位不变。
+                if (crit)
+                {
+                    float bonus = st.Weather.CritDamageBonusFor(src.Side);
+                    if (bonus != 0f)
+                    {
+                        v /= (1f + src.Def.CritDamage);
+                        v *= (1f + src.Def.CritDamage + bonus);
+                    }
+                }
+
+                // 首回合先手方伤害乘数（冬至 +50%）
+                float firstTurn = st.Weather.FirstTurnDamageMulFor(st, src.Side);
+                if (firstTurn != 1f) v *= firstTurn;
+
                 // 逆天时反噬：覆盖天时的属性被节气相克时，我方该属性单位 +15% 承伤
                 var w = st.Weather;
                 if (w.BacklashActive && dst.Side == TeamSide.Player && dst.Element == w.BacklashElement)
@@ -487,6 +582,15 @@ namespace WanXiang.Battle.Core
             if (skill != null && skill.Element != Element.None) return skill.Element;
             return src.Element;
         }
+
+        /// <summary>
+        /// 原子的目标形状是不是 AOE（秋分/移山这类"按形态修正"的判定口径）：
+        /// 一口气打多个的算 AOE；单体（含多段随机——每段重新抽一个目标，手感是连打而非一锅端）算单体。
+        /// </summary>
+        public static bool IsAoeTarget(TargetSelector target)
+            => target == TargetSelector.AllEnemies
+            || target == TargetSelector.AllAllies
+            || target == TargetSelector.AllOthers;
 
         private static string BuildDamageNote(BattleState st, BattleUnit src, BattleUnit dst,
                                               Element el, bool crit, bool trueDamage, int dealtToHp)

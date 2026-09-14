@@ -66,6 +66,23 @@ namespace WanXiang.Battle.Core
         /// <summary>禁疗生效中（小雪「虹藏不见」/ 覆盖天时）。</summary>
         public bool HealBanned => Weather != null && Weather.HealBanned;
 
+        /// <summary>
+        /// 第 1 回合的先手阵营（出手序列第一个单位所在方）。冬至"首回合先手方伤害 +50%"
+        /// 用它判定 —— 必须在序列生成后才有意义，默认 Player 只是无天时场景的兜底。
+        /// </summary>
+        public TeamSide FirstMoverSide = TeamSide.Player;
+
+        /// <summary>
+        /// 某单位参与出手排序的**有效速度**：面板速度 × 天时速度乘数（大雪/冬至/召风）。
+        /// 天时为空时就是面板速度本身 —— 与旧版逐位一致（指纹红线）。
+        /// </summary>
+        public float EffectiveSpeed(BattleUnit u)
+        {
+            float v = u.Speed;
+            if (Weather != null) v *= Weather.SpeedMulFor(u.Side);
+            return v;
+        }
+
         public BattleState(BattleConfig config, ulong seed)
         {
             Config = config ?? BattleConfig.Default;
@@ -274,21 +291,52 @@ namespace WanXiang.Battle.Core
             order.Clear();
             for (int i = 0; i < _all.Count; i++)
                 if (_all[i].IsAlive) order.Add(_all[i]);
-            order.Sort(CompareActionOrder);
+
+            // 排序键 = 有效速度（面板 × 天时乘数）。天时为空时 EffectiveSpeed 恒等于
+            // u.Speed，比较结果与旧版 CompareActionOrder 完全一致（指纹红线）。
+            // 插入排序 + 显式键数组：速度乘数是按单位算的，没法塞进静态比较器；
+            // 而插入排序的次序完全由输入与比较结果决定，不给算法留自由度。
+            int n = order.Count;
+            if (_speedBuf == null || _speedBuf.Length < n) _speedBuf = new float[BoardLayout.MaxDeployed * 2];
+            for (int i = 0; i < n; i++) _speedBuf[i] = EffectiveSpeed(order[i]);
+
+            for (int i = 1; i < n; i++)
+            {
+                var cu = order[i];
+                float cs = _speedBuf[i];
+                int j = i - 1;
+                // 标准插入排序：只要"当前待插单位 cu 应排在 order[j] 之前"就继续右移 order[j]。
+                // ⚠ 方向千万别写反 —— 反了就变成速度升序（最慢的先手），
+                //   而且冒烟的 R1 是"自己跟自己比"，拦不住这种错；只有基准指纹回归能拦住。
+                while (j >= 0 && RanksBefore(cu, cs, order[j], _speedBuf[j]))
+                {
+                    order[j + 1] = order[j];
+                    _speedBuf[j + 1] = _speedBuf[j];
+                    j--;
+                }
+                order[j + 1] = cu;
+                _speedBuf[j + 1] = cs;
+            }
+
+            // 冬至"首回合先手方伤害 +50%"的判定锚点：只在第 1 回合序列生成时落笔。
+            if (Turn == 1 && n > 0) FirstMoverSide = order[0].Side;
         }
 
-        private static int CompareActionOrder(BattleUnit a, BattleUnit b)
+        private float[] _speedBuf;
+
+        /// <summary>a 是否排在 b 前：有效速度高者先；同速按站位 → 阵营 → 实例 id（全序）。</summary>
+        private static bool RanksBefore(BattleUnit a, float sa, BattleUnit b, float sb)
         {
-            if (a.Speed > b.Speed) return -1;
-            if (a.Speed < b.Speed) return 1;
+            if (sa > sb) return true;
+            if (sa < sb) return false;
 
             int pa = a.Pos.IsValid ? a.Pos.Index : BoardLayout.CellCount;
             int pb = b.Pos.IsValid ? b.Pos.Index : BoardLayout.CellCount;
-            if (pa != pb) return pa < pb ? -1 : 1;
+            if (pa != pb) return pa < pb;
 
-            if (a.Side != b.Side) return a.Side < b.Side ? -1 : 1;
+            if (a.Side != b.Side) return a.Side < b.Side;
 
-            return string.CompareOrdinal(a.RuntimeId, b.RuntimeId);
+            return string.CompareOrdinal(a.RuntimeId, b.RuntimeId) < 0;
         }
 
         // ================================================================

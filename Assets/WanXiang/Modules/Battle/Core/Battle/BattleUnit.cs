@@ -76,6 +76,13 @@ namespace WanXiang.Battle.Core
         /// 不让 BattleUnit 自己写死 100，否则改配置会出现"上限 120 但永远到不了"这种哑亏。</summary>
         public float RageCap = 100f;
 
+        /// <summary>
+        /// 天时 CD 推进的确定性累积器（小满"CD 推进 +30%"这类非整数倍速）。
+        /// 每回合末 += (乘数 - 1)，攒够 ±1 就多推/少推一格 —— 整场期望推进速率
+        /// 精确等于乘数，且**全程不掷骰**。无天时永远为 0，不参与任何结算。
+        /// </summary>
+        public float CdProgressExtra;
+
         // ---- 状态与修正 ----
         public readonly System.Collections.Generic.List<StatusInstance> Statuses
             = new System.Collections.Generic.List<StatusInstance>(8);

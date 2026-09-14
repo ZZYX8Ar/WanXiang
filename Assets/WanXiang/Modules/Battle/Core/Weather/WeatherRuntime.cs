@@ -71,11 +71,75 @@ namespace WanXiang.Battle.Core
         }
 
         // ---- 战斗结算点用的查询（全部要求 Weather 非空才会走到这里） ----
+        //  统一口径：覆盖期用覆盖天的值，平时用节气天时的值（Active 已封装）。
 
         /// <summary>全场伤害乘数（夏至 ×1.25；覆盖时用覆盖天的值）。</summary>
         public float DamageAllMultiplier => Active?.DamageAllMultiplier ?? 1f;
 
         /// <summary>禁疗是否生效（覆盖期的天时同样可以禁疗）。</summary>
         public bool HealBanned => Active?.BanHeal == true;
+
+        /// <summary>某方的有效速度乘数（大雪 ×0.8、冬至 ×1.2、召风 ×1.15）。</summary>
+        public float SpeedMulFor(TeamSide side)
+            => side == TeamSide.Player ? (Active?.SpeedMulPlayer ?? 1f) : (Active?.SpeedMulEnemy ?? 1f);
+
+        /// <summary>某方的技能 CD 推进乘数（小满我方 ×1.3）。</summary>
+        public float CdAdvanceMulFor(TeamSide side)
+            => side == TeamSide.Player ? (Active?.CdAdvanceMulPlayer ?? 1f) : (Active?.CdAdvanceMulEnemy ?? 1f);
+
+        /// <summary>某方的暴击伤害加成（与单位自身 CritDamage 相加，非相乘）。</summary>
+        public float CritDamageBonusFor(TeamSide side)
+            => side == TeamSide.Player ? (Active?.CritDamageBonusPlayer ?? 0f) : (Active?.CritDamageBonusEnemy ?? 0f);
+
+        /// <summary>
+        /// 五行伤害乘数（大暑/祷雨/祈晴）。入参按 ResolveElement 的归属五行；
+        /// None / 越界一律 ×1 —— 天气不该改变"无属性伤害"的行为。
+        /// </summary>
+        public float ElementDamageMul(Element el)
+        {
+            switch (el)
+            {
+                case Element.Wood: return Active?.WoodDamageMul ?? 1f;
+                case Element.Fire: return Active?.FireDamageMul ?? 1f;
+                case Element.Earth: return Active?.EarthDamageMul ?? 1f;
+                case Element.Metal: return Active?.MetalDamageMul ?? 1f;
+                case Element.Water: return Active?.WaterDamageMul ?? 1f;
+                default: return 1f;
+            }
+        }
+
+        /// <summary>技能形态伤害乘数（秋分）。直接暴露原值，供结算点判"是否有人改过"。</summary>
+        public float AoeDamageMul => Active?.AoeDamageMul ?? 1f;
+        public float SingleDamageMul => Active?.SingleDamageMul ?? 1f;
+
+        /// <summary>
+        /// 按技能形态取伤害乘数（秋分：AOE -40%、单体 +25%）。
+        /// 多段随机（RandomEnemyMultiHit）按**单体**算：每段重新抽一个目标，
+        /// 手感上是"连打一人一路"，与"一锅端"的 AOE 不是一类。
+        /// </summary>
+        public float FormDamageMul(bool aoe)
+            => aoe ? AoeDamageMul : SingleDamageMul;
+
+        /// <summary>火属性单位受到的持续伤害乘数（大暑灼烧减半）。</summary>
+        public float FireUnitDotTakenMul => Active?.FireUnitDotTakenMul ?? 1f;
+
+        /// <summary>护盾获取乘数（小雪 ×1.5）。</summary>
+        public float ShieldGainMul => Active?.ShieldGainMul ?? 1f;
+
+        /// <summary>治疗溢出转护盾比例（雨水 0.5）。</summary>
+        public float HealOverflowShieldRatio => Active?.HealOverflowShieldRatio ?? 0f;
+
+        /// <summary>
+        /// 冬至首回合先手方伤害乘数：攻击方是第 1 回合出手序列里的先手阵营才生效。
+        /// "谁先动"由速度决定，而速度本身可能被本场天时改过，
+        /// 所以必须等序列真正生成后再判定（BattleState.FirstMoverSide），不能装配期拍脑袋。
+        /// </summary>
+        public float FirstTurnDamageMulFor(BattleState st, TeamSide attackerSide)
+        {
+            if (st.Turn != 1) return 1f;
+            var a = Active;
+            if (a == null || a.FirstTurnDamageMul == 1f) return 1f;
+            return st.FirstMoverSide == attackerSide ? a.FirstTurnDamageMul : 1f;
+        }
     }
 }

@@ -40,6 +40,7 @@ namespace WanXiang.Battle.Core
             for (int i = 0; i < list.Length; i++)
             {
                 if (list[i].Once && st.Turn != 1) continue;   // "战斗开始时"只在第 1 回合
+                if (list[i].MinTurn > 0 && st.Turn < list[i].MinTurn) continue;   // 春分"超 12 回合翻倍"的第二笔
                 ResolveEffect(st, weather, list[i]);
             }
         }
@@ -56,16 +57,25 @@ namespace WanXiang.Battle.Core
                 case EffectAtomKind.Heal:
                 {
                     if (st.HealBanned) break;   // 小雪：禁疗期跳过回复（含天时自己的回复）
+                    float overflowRatio = st.Weather.HealOverflowShieldRatio;   // 雨水：溢出转护盾
                     for (int t = 0; t < targets.Count; t++)
                     {
                         var u = targets[t];
                         if (!u.CanBeHealed) continue;
                         int amount = CoreMath.RoundDamage(u.MaxHp * atom.PercentOfMaxHp);
                         int healed = u.Heal(amount);
-                        if (healed <= 0) continue;
+                        if (healed <= 0)
+                        {
+                            // 满血时溢出最多：healed=0 不代表没有溢出 —— 全额都转护盾。
+                            if (overflowRatio > 0f && amount > 0) GrantOverflowShield(st, weather, u, amount, overflowRatio);
+                            continue;
+                        }
                         st.Log.Add(st.Turn, BattleEventKind.Heal, actorId: u.RuntimeId,
                                    targetId: u.RuntimeId, amount: healed, element: u.Element,
                                    note: $"天时·{weather.BuffName}");
+                        // 溢出部分 = 给出的量 - 实际回上的量
+                        if (overflowRatio > 0f && amount > healed)
+                            GrantOverflowShield(st, weather, u, amount - healed, overflowRatio);
                     }
                     break;
                 }
@@ -125,6 +135,22 @@ namespace WanXiang.Battle.Core
                     break;
                 }
             }
+        }
+
+        /// <summary>
+        /// 雨水「治疗溢出转化为护盾」。溢出量按比例折算（默认 0.5），再过一遍
+        /// 全场护盾获取乘数（小雪类规则，若同场激活）—— 转化出来的也是"护盾效果"。
+        /// </summary>
+        private static void GrantOverflowShield(BattleState st, WeatherDef weather,
+                                                BattleUnit u, int overflow, float ratio)
+        {
+            int amount = CoreMath.RoundDamage(overflow * ratio);
+            if (st.Weather.ShieldGainMul != 1f) amount = CoreMath.RoundDamage(amount * st.Weather.ShieldGainMul);
+            int added = u.AddShield(amount);
+            if (added <= 0) return;
+            st.Log.Add(st.Turn, BattleEventKind.Shield, actorId: u.RuntimeId,
+                       targetId: u.RuntimeId, amount: added, element: u.Element,
+                       note: $"天时·{weather.BuffName}｜溢出转化");
         }
 
         private static List<BattleUnit> CollectTargets(BattleState st, WeatherScope scope, TargetSelector pick)
