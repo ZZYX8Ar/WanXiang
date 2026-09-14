@@ -15,18 +15,23 @@
 | `Assets/WanXiang/Framework/Config/`   | 配置表运行时框架                                 |
 | `Assets/WanXiang/Framework/Save/`     | 存档系统（版本迁移 + 原子写入）                        |
 | `Assets/WanXiang/Framework/UI/`       | **分层 UI 框架**（栈管理、遮罩、LRU 缓存、异步加载）         |
-| `Assets/WanXiang/Framework/Boot/`     | UI 启动引导                                  |
+| `Assets/WanXiang/Framework/Boot/`     | 启动引导（UI / 输入 / **热更**）                    |
+| `Assets/WanXiang/Framework/ResourceSystem/` | **资源服务抽象层**（不依赖任何具体资源库）                  |
+| `Assets/WanXiang/Framework/HotUpdate/` | 热更公共设施（位置约定 / AOT 元数据加载 / 泛型探针）           |
+| `Assets/WanXiang/HotUpdate/`          | **热更程序集**（唯一可热更的一层）                      |
 | `Assets/WanXiang/Framework/Integration/` | QFramework 接入层（条件编译，可摘除）                |
-| `Assets/WanXiang/Samples/UI/`         | 零配置冒烟测试（验证整套 UI 框架）                      |
-| `Assets/WanXiang/Editor/`             | Excel 导表工具链 + UI 配置校验菜单                  |
+| `Assets/WanXiang/Samples/`            | 零配置冒烟测试（UI 框架 / 资源系统 / 热更链路）             |
+| `Assets/WanXiang/Editor/`             | Excel 导表工具链 + UI 配置校验 + 资源收集器 + **热更发布工具** |
+| `Assets/WanXiangRes/`                 | **资源根**（YooAsset 收集器指向此处）                |
 
 **已有工程可直接把 `Assets/WanXiang/` 整体拷入。** 除以下依赖外，代码只依赖 Unity 自带标准库：
 
 - **NPOI** —— 仅编辑器导表工具需要
-- **UniTask**（Cysharp）—— 仅 UI 框架需要
+- **UniTask**（Cysharp）—— UI 框架与资源系统需要
   ```
   https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask
   ```
+- **YooAsset** 与 **HybridCLR** —— 仅 P4 资源与热更模块需要（见 §五）
 
 ---
 
@@ -105,7 +110,7 @@
 
 ```csharp
 var table = new BeastTable();
-table.Load(bytes);                       // bytes 从 Addressables 加载
+table.Load(bytes);                       // bytes 从资源系统加载（YooAsset 的 LoadRawFileAsync）
 
 var jumang = table.Get(1);               // 按主键查，找不到会抛异常（配置错误应在开发期暴露）
 foreach (var row in table.Rows) { ... }  // 遍历
@@ -343,32 +348,49 @@ public sealed class BackpackPanel : UIPanelBase
 ## 四、目录结构
 
 ```
-WanXiang_Framework/
-├── docs/
-│   └── ARCHITECTURE.md                          技术架构设计（必读）
+WanXiang/
+├── Docs/
+│   ├── ARCHITECTURE.md                          技术架构设计（必读）
+│   └── README.md                                本文件
 ├── Assets/WanXiang/
 │   ├── Core/Serialization/
 │   │   ├── WXBinary.cs                          二进制读写器（零依赖）
 │   │   ├── WXSchemaHash.cs                      表结构签名
 │   │   └── WXChecksum.cs                        CRC32 校验和
-│   ├── Framework/
+│   ├── Framework/                               程序集 WanXiang.Runtime
 │   │   ├── Config/ConfigTable.cs                配置表基类
 │   │   ├── Save/SaveSystem.cs                   存档系统（含迁移示例）
-│   │   ├── UI/
-│   │   │   ├── UIDefines.cs                     层级/缓存策略/接口定义
-│   │   │   ├── UIPanelBase.cs                   面板基类（生命周期 + 订阅回收）
-│   │   │   ├── UISystem.cs                      UI 系统核心（栈管理 + 遮罩 + LRU）
-│   │   │   ├── UIPanelMask.cs                   遮罩组件
-│   │   │   ├── UIPanelRegistry.cs               元数据注册表 + 配置校验
-│   │   │   └── ResourcesPanelLoader.cs          Resources 加载器（原型期）
-│   │   ├── Boot/UIBootstrap.cs                  启动引导
+│   │   ├── UI/                                  分层 UI 框架
+│   │   ├── Inputs/                              输入系统（P3）
+│   │   ├── Boot/
+│   │   │   ├── UIBootstrap.cs                    UI 启动引导
+│   │   │   ├── InputBootstrap.cs                 输入启动引导
+│   │   │   └── HotUpdateBootstrap.cs             ★ 热更启动五段流程
+│   │   ├── HotUpdate/                           热更公共设施（AOT 侧）
+│   │   │   ├── HotUpdateLocations.cs             位置约定单一真相源
+│   │   │   ├── AOTMetadataLoader.cs              补元数据（含错误码人话翻译）
+│   │   │   └── AOTMetadataProbe.cs               泛型探针（见架构文档 §5.6）
+│   │   ├── ResourceSystem/                      资源抽象层（不出现 YooAsset 类型）
+│   │   │   ├── IResourceService.cs
+│   │   │   ├── ResourceHub.cs                   ★ 后端 → 抽象层的注册点
+│   │   │   └── YooAsset/                        程序集 WanXiang.ResourceSystem.YooAsset
 │   │   └── Integration/QFrameworkUIService.cs   QFramework 接入层（条件编译）
-│   ├── Samples/UI/
-│   │   └── UIFrameworkSmokeTest.cs              零配置冒烟测试
-│   └── Editor/
+│   ├── HotUpdate/                               程序集 WanXiang.HotUpdate（唯一可热更）
+│   │   └── HotUpdateEntry.cs                    热更入口，实现 AOT 侧 IHotUpdateEntry
+│   ├── Samples/
+│   │   ├── UI/UIFrameworkSmokeTest.cs           零配置 UI 冒烟测试
+│   │   ├── ResourceSystem/ResourceSmokeTest.cs  资源链路体检（八项）
+│   │   └── HotUpdate/HotUpdateSmokeTest.cs      热更链路体检（九项）
+│   └── Editor/                                  程序集 WanXiang.Editor
 │       ├── ConfigTool/ExcelConfigExporter.cs    Excel 导表工具
-│       └── UITool/UIPanelValidationMenu.cs      UI 配置校验菜单
-└── README.md
+│       ├── UITool/UIPanelValidationMenu.cs      UI 配置校验菜单
+│       ├── YooTool/                             程序集 WanXiang.Editor.YooAsset
+│       ├── HotUpdateTool/                       程序集 WanXiang.Editor.HotUpdate
+│       ├── Diagnostics/EditorDiagnosticsBridge.cs  自建编辑器诊断通道
+│       └── ...
+└── Assets/WanXiangRes/                          ★ 资源根（YooAsset 收集器指向此处）
+    ├── Art/  UI/  Config/                       进资源系统
+    └── HotUpdate/                               热更产物（构建产物，不入版本库）
 ```
 
 ---
@@ -380,24 +402,49 @@ WanXiang_Framework/
 | **P0 工程地基**    | asmdef 分层、目录规范、Git 与 .gitignore           | ✅ 已完成             |
 | **P1 数据层**     | 配置表工具链 + 存档系统                           | ✅ 已交付             |
 | **P2 UI 框架**   | 分层 Canvas、面板基类、栈管理、遮罩、LRU 缓存、异步加载、面板动效  | ✅ 已交付（列表对象池待补） |
-| **P3 输入系统**    | Action Map、上下文切换、改键、持久化、EventSystem 改造   | ✅ **本次交付**        |
-| **P4 资源与热更**   | YooAsset 分组、环境 Profile、HybridCLR 接入     | ⬜ 下一步             |
-| **P5 战斗原型**    | 3×3 棋盘、自动战斗、五行结算                        | ⬜ 待做（可与框架穿插）      |
+| **P3 输入系统**    | Action Map、上下文切换、改键、持久化、EventSystem 改造   | ✅ 已交付             |
+| **P4 资源与热更**   | 资源服务抽象层 → YooAsset → 热更启动流程 + AOT 元数据补充 | ✅ **核心链路已通**（真机验证待补） |
+| **P5 战斗原型**    | 3×3 棋盘、自动战斗、五行结算                        | ⬜ 待做（可与 P4 剩余项穿插）      |
 | **P6 业务模块**    | 图鉴、融合、肉鸽地图、设置                           | ⬜ 待做              |
 
-**P3 本次交付的内容：** 输入资产（UI / Gameplay / Global / Debug 四张 Map、17 个 Action、键鼠 + 手柄双套绑定）、上下文切换（框架统管 Map 启停，业务不许自己 Enable）、改键（含冲突检测、10 秒超时、单项 / 全部重置）、改键持久化（只导出 JSON 字符串，落盘交给存档层）、QFramework 强类型事件桥接、EventSystem 自动改造、资产生成工具。
+**P3 交付的内容：** 输入资产（UI / Gameplay / Global / Debug 四张 Map、17 个 Action、键鼠 + 手柄双套绑定）、上下文切换（框架统管 Map 启停，业务不许自己 Enable）、改键（含冲突检测、10 秒超时、单项 / 全部重置）、改键持久化（只导出 JSON 字符串，落盘交给存档层）、QFramework 强类型事件桥接、EventSystem 自动改造、资产生成工具。Play 模式实测 `InputService` 启动正常、上下文切换结果与设计一致、EventSystem 被正确换装为 `InputSystemUIInputModule`。
 
-真机验证：编译 0 error；Play 模式实测 `InputService` 启动正常、上下文切换结果与设计一致、EventSystem 被正确换装为 `InputSystemUIInputModule`。
-
-> **P3 的一个前置坑（重要）：** 输入后端必须设为 **`Both`**，不能设 `New`。
+> ⚠ **P3 的前置坑（重要，别推翻）：** 输入后端必须设为 **`Both`**，不能设 `New`。
 > QFramework 的 `UIRectTransform.cs` 与 `ConsoleWindow.cs` 里有**真代码**在用旧
 > `Input.mousePosition` / `Input.GetKeyUp`，设成 `New` 会让它们在**运行期**抛异常 ——
 > 编译期完全正常，极难定位。详见 ARCHITECTURE.md §6.1。
 
+**P4 交付的内容：**
+
+- **资源服务抽象层** —— `IResourceService` 不继承 `IUtility`、**不出现任何 YooAsset 类型**；
+  YooAsset 后端在独立程序集 `WanXiang.ResourceSystem.YooAsset`，可整包替换。
+  框架层通过抽象层注册点 `ResourceHub` 拿服务（单向：后端 → 抽象层）。
+- **热更启动五段流程**（`HotUpdateBootstrap`）——
+  等资源就绪 → 补 AOT 泛型元数据 → 取热更 DLL → `Assembly.Load` → 反射入口。
+  失败只打明确的中文报错，**不抛异常、不退出**。
+- **AOT 元数据补充** —— 泛型探针由热更代码**直接**调用（中间包一层会失效，见
+  ARCHITECTURE.md §5.6），发布工具带 strip 产物新鲜度检查。
+- **热更发布工具** —— 编辑器命令 `hot.publish` / `hot.status` / `hot.smoke`，
+  一条命令走完"编译热更 DLL → 重算泛型引用 → 复制产物 → 写清单 → 配收集器"。
+- **验收** —— 编辑器侧体检 **九项全绿**；验收判据「改一行热更代码不重新出包即生效」已用
+  对照实验证明（源码标记 `HOT-0001`、下发 DLL 里 `HOT-0003`，运行报 `HOT-0003`）。
+
+> ⚠ **P4 还没做完的部分**（不阻塞 P5）：
+> **① 真机（IL2CPP 包）验证** —— 编辑器下 `LoadMetadataForAOTAssembly` 是空实现，
+> 编辑器里的"补元数据成功"不能当证据，真机结论必须出一次包才能拿到；
+> **② 远端 CDN 分发 + 三套环境 Profile**；**③ 配置表走热更生效**（等 Luban）；
+> **④ 一键回滚**。
+>
+> ⚠ **P4 的前置坑：** 脚本后端必须是 **IL2CPP**（HybridCLR 硬约束），且 Unity Hub 要装
+> `Windows Build Support (IL2CPP)` 模块。**缺模块时的报错会被伪装** —— 表现成
+> `Unity.Collections` 的 `CS7036`，真话要到出包时才吐
+> （`Currently selected scripting backend (IL2CPP) is not installed.`）。
+> 不要被这条伪装报错带进 Unity 包源码里排查。
+
 **待补的部分：**
 - **列表对象池**（背包 200 格 / 图鉴网格的复用容器）—— 建议随 P6 图鉴一起做，那时才有真实的复用需求与数据形态
-- **YooAsset 版本加载器** —— 随 P4 一起，替换 `ResourcesPanelLoader`
 - **改键 UI 面板** —— 输入框架的 API（`RebindAsync` / `GetDisplayString` / `ResetBinding`）已就绪，界面可随 P6 设置面板一起做
+- **`.gitattributes`** —— Unity 二进制资源标记 + `* text=auto`，需单独一轮做（首次会触发全量 renormalize diff）
 
 ---
 
@@ -409,12 +456,14 @@ WanXiang_Framework/
 | 2 | 资源热更   | **YooAsset**                    | 与 HybridCLR 有完整可运行的开源参考工程 `qframework-hotfix` |
 | 3 | 架构框架   | **QFramework v1.x**             | 1–5 人团队最佳解；低侵入，可与上述两者共存                |
 | 4 | 目标平台   | **PC / Steam 优先**，预留 Android | UI 已按"独立 Canvas + 屏幕适配"设计，无需返工            |
-| 5 | Unity 版本 | 建议锁定 **2022.3.62f1c1**        | 你机器上已有；HybridCLR 官方推荐 2022.3.x          |
+| 5 | Unity 版本 | 锁定 **2022.3.62f3c1**（中国版）        | 本工程实际使用版本；HybridCLR 官方推荐 2022.3.x          |
 | 6 | 输入系统   | **新版 Input System**             | 改键功能需要 `InputAction` 的 Binding 重绑定能力    |
 | 7 | 渲染管线   | **Universal 2D (URP)**          | GDD 第五章定调「扁平矢量绘本风」：深色等宽描边、硬投影、无写实光影 —— 全是 Sprite 的原生工作方式 |
 | 8 | 配置表工具  | **Luban**                       | 融合表需 `ref` 引用校验、技能需嵌套结构；GitHub 4,500+ Star，与 HybridCLR 同属 Code Philosophy |
 
-> 注意：**Addressables 与 HybridCLR 是两条独立的技术线** —— Addressables 管资源热更，不做代码热更。我们的方案是 YooAsset 管资源、HybridCLR 管代码，且热更 DLL 本身也作为资源包分发。
+> 注意：**资源热更与代码热更是两条独立的技术线** —— 资源热更管美术/Prefab/音频/配置表，
+> 不做代码热更。我们的方案是 **YooAsset 管资源、HybridCLR 管代码**，
+> 且热更 DLL 本身也作为普通资源分发，走同一条下载链路。
 
 ---
 

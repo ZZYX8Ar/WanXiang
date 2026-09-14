@@ -1,8 +1,12 @@
 # 万相 · Unity 技术架构设计
 
-> 版本 v1.0 · 2026-09-12
-> 目标引擎：Unity 2022.3.62f1c1 (LTS 中国版)
-> 架构基线：QFramework v1.x · Addressables · Input System · HybridCLR
+> 版本 v1.1 · 2026-09-14
+> 目标引擎：Unity 2022.3.62f3c1 (LTS 中国版)
+> 架构基线：QFramework v1.x · **YooAsset** · Input System · HybridCLR
+>
+> **v1.1 修订（2026-09-14）**：资源热更方案由初稿的 Addressables 改为 **YooAsset**
+> （§9 决策已确认多时，本次把 §2/§3/§5/§7/§8 里遗留的 Addressables 表述统一改掉，
+> 并补上 P4 的实现现状：§5.7「实现现状」、§8 路线表）。
 
 ---
 
@@ -16,7 +20,13 @@
 | 2 | `streamingAssetsPath` 不能用 `File` 读 | `BinaryDataMgr.LoadTable` | 编辑器里永远测不出来，**打包 Android 即崩** |
 | 3 | 配置表放 StreamingAssets | `BinaryDataMgr.Data_Binary_Path` | 包内只读，**无法热更**。而配置表恰恰是最需要热更的东西 |
 
-除此之外的方案方向（Excel→二进制 + SO 分工、Addressables 热更、新输入系统、UI 框架优先）**都是对的**，下面给出完整设计。
+除此之外的方案方向（Excel→二进制 + SO 分工、资源热更、新输入系统、UI 框架优先）**都是对的**，下面给出完整设计。
+
+> **关于资源热更方案的最终落点（2026-09-14 回填）**：初稿按"最新的 Addressables"
+> 写，实际落地选的是 **YooAsset 2.3.19**。两者都是"资源热更"这条线，定位相同，
+> 差别在 YooAsset 与 HybridCLR 有完整可运行的开源参考工程 `qframework-hotfix`，
+> 且不依赖 Unity 官方的 Hosting / CCD 服务。**本文件里凡出现 Addressables 的地方，
+> 技术选型一律以 §9 决策表的 YooAsset 为准**，§5 已按 YooAsset 重写。
 
 ---
 
@@ -79,11 +89,11 @@ Android 上这是 **APK（压缩包）内部的虚拟路径**，`File.Open` 会�
 
 ### 1.3 致命问题三：配置表放 StreamingAssets 无法热更
 
-你要 Addressables 热更，但 `StreamingAssets` 的内容在 AAB/APK 内部，属于**包内只读资源**，无法通过任何热更机制更新。
+你要资源热更，但 `StreamingAssets` 的内容在 AAB/APK 内部，属于**包内只读资源**，无法通过任何热更机制更新。
 
 而配置表（数值平衡、技能数据）**恰恰是整个游戏里最需要热更的东西**：开服后修一个数值 bug，你不可能让所有玩家重新下载安装包。
 
-**解决：配置表二进制放进 Addressables 的 Remote Group，走 CDN。** 这一步同时解决了问题二——Addressables 自带平台路径处理，不用你自己操心 `jar://`。
+**解决：配置表二进制放进资源系统的远端资源组（YooAsset 的 `Remote` 包裹），走 CDN/CDN 类分发。** 这一步同时解决了问题二——资源系统自带平台路径处理，不用你自己操心 `jar://`。
 
 ### 1.4 其它需要修正的点
 
@@ -120,8 +130,8 @@ Android 上这是 **APK（压缩包）内部的虚拟路径**，`File.Open` 会�
 
 | 版本 | 评价 |
 |------|------|
-| 2021.3.45 | ⚠️ 可用但偏旧，Addressables 版本落后，部分 Input System API 缺失 |
-| **2022.3.62** | ✅ **推荐**。LTS 生命周期长、Addressables/Input System 支持成熟、HybridCLR 完整支持、插件生态稳定 |
+| 2021.3.45 | ⚠️ 可用但偏旧，YooAsset / Addressables 等资源包版本落后，部分 Input System API 缺失 |
+| **2022.3.62** | ✅ **推荐**。LTS 生命周期长、YooAsset / Input System 支持成熟、HybridCLR 完整支持、插件生态稳定 |
 | 2023.x / Unity 6 | ❌ 不建议。BinaryFormatter 已移除、插件适配滞后、热更方案需重新验证 |
 
 > **锁定版本是商业项目的第一条纪律。** 中途升级引擎会带来不可控的返工，尤其是涉及热更（HybridCLR 对引擎版本敏感）。
@@ -165,39 +175,58 @@ Android 上这是 **APK（压缩包）内部的虚拟路径**，`File.Open` 会�
 
 ### 2.2 程序集划分
 
-> **实现状态（2026-09-13）**：下表 ✅ 的 5 个 asmdef 已建成并通过编译验证，
+> **实现状态（2026-09-14）**：下表 ✅ 的 asmdef 已建成并通过编译验证，
 > 类型落位已用反射逐个核对。标 ⬜ 的留待对应阶段创建。
 >
 > **命名变更说明**：本节初稿写的是 `WanXiang.Framework.asmdef`，实际落地时改名为
 > **`WanXiang.Runtime`**。原因：目录名 `Framework/` 与程序集名 `WanXiang.Framework`
 > 同名会让「程序集」和「目录」两个概念难以区分（说「Framework 没引用 Core」时
 > 分不清指哪个）。程序集名用 `Runtime` 与 `Editor` 形成对照，语义更清晰。
+>
+> **热更程序集改名**：初稿定的 `WanXiang.Hotfix` 实际落地为
+> **`WanXiang.HotUpdate`**（目录 `Assets/WanXiang/HotUpdate/`）。
+> "Hotfix" 在社区里常特指"只改函数体的小补丁"，而我们要做的是完整热更程序集，
+> 用 `HotUpdate` 更准确。
 
 ```
 Assets/
 ├── WanXiang/
-│   ├── Core/                    WanXiang.Core.asmdef              ✅ 零依赖基座
-│   ├── Framework/               WanXiang.Runtime.asmdef           ✅ 框架运行时
+│   ├── Core/                    WanXiang.Core.asmdef                 ✅ 零依赖基座
+│   ├── Framework/               WanXiang.Runtime.asmdef              ✅ 框架运行时
 │   │   ├── UI/                    └ 分层 Canvas / 面板基类 / 栈管理 / 动效  ✅
 │   │   ├── Inputs/                └ 输入系统  ✅ 见 §6
-│   │   ├── Boot/                  └ 场景启动引导（UIBootstrap / InputBootstrap）✅
-│   │   ├── Res/                   └ 资源加载接口（P4 接 YooAsset）
+│   │   ├── Boot/                  └ 启动引导（UIBootstrap / InputBootstrap /
+│   │   │                            HotUpdateBootstrap）                ✅
+│   │   ├── HotUpdate/             └ 热更公共设施（位置约定 / AOT 元数据加载 /
+│   │   │                            泛型探针）—— 全是 AOT 侧代码           ✅
+│   │   ├── ResourceSystem/        └ 资源抽象层（IResourceService / ResourceHub）✅
+│   │   │   └── YooAsset/            WanXiang.ResourceSystem.YooAsset.asmdef ✅ 后端，可整包替换
 │   │   ├── Audio/                 └ 音频（P6）
 │   │   ├── Save/                  └ 存档  ✅
 │   │   ├── Config/                └ 配置表读取  ✅
 │   │   └── Integration/         WanXiang.Integration.QFramework.asmdef ✅
-│   ├── Modules/                 WanXiang.Modules.asmdef           ⬜ 业务模块（P5/P6）
+│   ├── HotUpdate/               WanXiang.HotUpdate.asmdef            ✅ 热更程序集（唯一可热更）
+│   ├── Modules/                 WanXiang.Modules.asmdef              ⬜ 业务模块（P5/P6）
 │   │   ├── Battle/
 │   │   ├── Bestiary/
 │   │   └── Roguelike/
-│   ├── Game/                    WanXiang.Game.asmdef              ⬜ 主程序集（启动）
-│   ├── Editor/                  WanXiang.Editor.asmdef            ✅ 编辑器扩展，不进包
-│   └── Samples/                 WanXiang.Samples.asmdef           ✅ 示例与冒烟测试
+│   ├── Game/                    WanXiang.Game.asmdef                 ⬜ 主程序集（启动）
+│   ├── Editor/                  WanXiang.Editor.asmdef               ✅ 编辑器扩展，不进包
+│   │   ├── YooTool/               WanXiang.Editor.YooAsset.asmdef    ✅ 收集器配置工具
+│   │   └── HotUpdateTool/         WanXiang.Editor.HotUpdate.asmdef   ✅ 热更发布工具
+│   └── Samples/                 WanXiang.Samples.asmdef              ✅ 示例与冒烟测试
 ├── Plugins/Demigiant/DOTween/
-│   └── Modules/                 DOTween.Modules.asmdef            ✅ 见下方说明
-├── Hotfix/                      WanXiang.Hotfix.asmdef            ⬜ HybridCLR 热更程序集
-└── AOT/                         WanXiang.AOT.asmdef               ⬜ AOT 补充元数据
+│   └── Modules/                 DOTween.Modules.asmdef                ✅ 见下方说明
+├── WanXiangRes/                                                      资源根（YooAsset 收集器指向此处）
+└── HybridCLRGenerate/          AOTGenericReferences.cs / link.xml    生成产物，入版本库
 ```
+
+> **关于初稿里的 `WanXiang.AOT` 独立程序集**：实际落地时**没有**单独建它。
+> 原因：AOT 侧要被热更代码调用的东西（目前只有泛型探针 `AOTMetadataProbe`）
+> 放在 `WanXiang.Runtime` 里就够了 —— 多一个程序集就多一层 asmdef 引用要维护，
+> 而 HybridCLR 的 `patchAOTAssemblies` 是按**程序集**整体处理的，
+> 拆得越碎，"这个类型到底在哪个程序集、有没有进名单"越难查。
+> 若将来 AOT 侧补充类型真的多起来（比如成批的战斗类型需要预实例化泛型），再拆不迟。
 
 #### 依赖方向（铁律）
 
@@ -207,14 +236,35 @@ Assets/
       Runtime ───────────┘              │           │
           ↑                             │           │
    Integration.QFramework               │           │
+   ResourceSystem.YooAsset              │           │
           ↑                             │           │
       Editor / Samples ─────────────────┘           │
                                                     │
-      Modules / Game / Hotfix ──────────────────────┘
+      HotUpdate / Modules / Game ───────────────────┘
 ```
 
 **箭头只能朝上（依赖 Core，不能反向）。** Unity 的 asmdef 会在编译期强制这一点，
 不需要靠自律。
+
+#### ⭐ 分层注册点：后端能力不能反向依赖，只能"发布"
+
+**框架层（`WanXiang.Runtime`）看不见后端程序集（`WanXiang.ResourceSystem.YooAsset`），
+也不该看见** —— 否则"换掉 YooAsset"这件事就变成了"改遍框架层"。
+
+但框架层确实需要拿到资源服务。解法是**抽象层放一个注册点**，后端启动时把自己**发布**进去：
+
+```csharp
+// 框架层（WanXiang.Runtime）：只知道自己定义的接口
+ResourceHub.Register(new YooAssetResourceService());   // 由后端的 ResourceBootstrap 在 Awake 里调用
+var resource = await ResourceHub.WaitReadyAsync(ct);   // 框架层/热更层只认这一行
+```
+
+方向永远是**后端 → 抽象层**，单向。这与既有的
+`UIBootstrap.RegisterPanelLoaderFactory()`（面板加载器也是"后端塞实现给抽象层"）同构，
+**不是为 P4 新造的轮子，而是把工程里已有的做法推广到资源系统**。
+
+⚠ **`Register` 必须在自己开始异步初始化之前调用**，否则"已注册但还没开始初始化"
+这段空窗期会被跳过，期间来的 `WaitReadyAsync` 会看到"还没有后端"而误报。
 
 #### 三条容易踩的实现细节
 
@@ -250,10 +300,14 @@ DOTween 的分发形态很特殊：
 `-firstpass` 里「挖」出来变成独立程序集，再让 `WanXiang.Runtime` 引用它。
 **这是必须做的一步，不是可选优化。**
 
-**热更相关的程序集规则（重要，后面 §5.3 展开）：**
+**热更相关的程序集规则（重要，后面 §5.4 / §5.7 展开）：**
 
-- `WanXiang.Hotfix` 是唯一可热更的程序集，业务逻辑尽量往这里放
-- `WanXiang.AOT` 存放热更代码**会被 AOT 泛型实例化引用到的类型**，需要生成补充元数据
+- `WanXiang.HotUpdate` 是**唯一可热更**的程序集，业务逻辑尽量往这里放
+- **热更层只能引用 AOT 程序集，AOT 侧不能反向引用热更层。** 跨层通信必须走
+  AOT 侧定义的接口（如 `IHotUpdateEntry`），由热更层实现它。
+  这层边界 HybridCLR 不会替你把关，靠 asmdef 的 `references` + code review 守住
+- AOT 侧补充元数据的范围目前落在 `WanXiang.Runtime`（见上方说明），
+  由 `HybridCLRGenerate/AOTGenericReferences.cs` 的 `PatchedAOTAssemblyList` 记录
 - 主程序集 `WanXiang.Game` 只保留启动器与极少量不可热更的逻辑
 - ⚠ **DOTween 不能进热更层**：它以 DLL 分发，属于 AOT 侧。热更层调用时
   只用非泛型快捷方法（`DOMove` / `DOScale` / `DOFade` / `DOAnchorPos`），
@@ -276,20 +330,39 @@ Assets/WanXiang/Modules/Battle/
 
 **资源目录**：
 
-> **命名变更说明**：本节初稿写的是 `Assets/GameRes`，但工程里已经先有了
-> `Assets/ArtRes`。**沿用 `ArtRes`** —— 一个工程里出现两个平行的资源根
-> 是最容易让项目变乱的做法，改了名字也不能解决问题。以现状为准，改文档。
+> **命名变更说明**：本节初稿写的是 `Assets/GameRes`，工程里后来又先有了 `Assets/ArtRes`，
+> 一度打算"沿用 ArtRes"。**实际落地（2026-09-14）用的是 `Assets/WanXiangRes/`** ——
+> 见下方说明。
 
 ```
-Assets/ArtRes/                                    ← 所有资源，与代码分离
-├── UI/Panels/      面板 Prefab
-├── UI/Sprites/     图集
-├── Prefabs/
-├── Audio/
-└── Config/         ScriptableObject 资产
+Assets/WanXiangRes/                               ← 资源根，YooAsset 收集器指向此处
+├── Art/           贴图、Sprite（收集器：PackDirectory）
+├── UI/            面板 Prefab（收集器：PackDirectory）
+├── Config/        配置表二进制（收集器：PackRawFile）
+└── HotUpdate/     热更产物（收集器：PackRawFile，整目录一个收集器）
+    ├── WanXiang.HotUpdate.dll.bytes
+    └── AOT/
+        ├── aot_manifest.txt
+        └── WanXiang.Runtime.dll.bytes
+
+Assets/ArtRes/                                    ← 只放"源资产"，不进资源系统
+└── Input/WanXiang.inputactions                  输入资产（P3 产物）
 ```
 
-**代码与资源物理分离**（`Assets/WanXiang` vs `Assets/ArtRes`）。商业项目里美术和程序是两条线，混在一起会让版本管理变成灾难（美术提交时误改代码、代码提交时误删资源）。
+**为什么叫 `WanXiangRes` 而不是 `ArtRes`**：`ArtRes` 这个名字把"美术资源"写进了路径，
+但资源系统要装的**不只是美术**（配置表、热更 DLL 都在里面）。名字与内容对不上，
+下一次有人往里放配置表时就会犹豫"这该不该在 ArtRes 里"。
+`WanXiangRes` 表达的是"万相的资源"，边界清楚。
+
+同时把**源资产**（输入资产 `.inputactions` 这类需要人手工编辑、但运行时通过别的途径
+加载的东西）留在 `Assets/ArtRes/` —— 它**不进**任何收集器，也就不会被误打进包体。
+
+**代码与资源物理分离**（`Assets/WanXiang` vs `Assets/WanXiangRes`）。商业项目里美术和程序是两条线，混在一起会让版本管理变成灾难（美术提交时误改代码、代码提交时误删资源）。
+
+> ⚠ **收集器的过滤规则 `CollectAll` 是递归的。** 父收集器指向 `WanXiangRes/HotUpdate`
+> 时，它已经把 `AOT/` 子目录里的文件全收了。再给 `AOT/` 单独建一个收集器，
+> YooAsset 会抛 `The collecting asset file is existed`，并且**把整条资源初始化打死**
+> （表现成"热更坏了"，实际是资源配置坏了）。详见 §5.7。
 
 #### 空目录不要预先创建
 
@@ -349,7 +422,7 @@ Git 不跟踪空目录，Unity 也会给每个目录生成 `.meta`。提前建�
 | 关卡节点拓扑、怪物编队 | **Excel → 二进制** | 同上 |
 | UI 面板配置（UIPanelConfig） | **ScriptableObject** | 需引用面板 Prefab 与遮罩材质 |
 | 特效 / 音效配置 | **ScriptableObject** | 需引用 Particle / AudioClip |
-| Addressables 分组 | **SO**（工具自带） | 工具链要求 |
+| 资源系统的分组配置（YooAsset Collector） | **SO**（工具自带） | `AssetBundleCollectorSetting.asset`，路径硬编码不可挪 |
 | 玩家存档 | **自定义二进制** | 运行时生成、需版本迁移 |
 | 战斗运行时状态（棋盘、血量） | **仅内存** | 临时数据，不落盘；存档时快照 |
 
@@ -357,7 +430,7 @@ Git 不跟踪空目录，Unity 也会给每个目录生成 `.meta`。提前建�
 
 > **二进制表里只存资源 ID（string / int），绝不存资源引用。**
 
-Excel 表里写 `spriteKey = "beast_jumang"`，运行时通过 Addressables 按 key 异步加载，由 `ResourceCache` 缓存。这样二进制表与 Unity 资源彻底解耦，配置表才能独立热更。
+Excel 表里写 `spriteKey = "beast_jumang"`，运行时通过资源系统按 key 异步加载，由 `ResourceCache` 缓存。这样二进制表与 Unity 资源彻底解耦，配置表才能独立热更。
 
 如果需要在 SO 里维护 `key → AssetReference` 的映射，做一个 `AssetKeyMapConfig` 的 SO 即可。
 
@@ -368,7 +441,7 @@ Excel 表里写 `spriteKey = "beast_jumang"`，运行时通过 Addressables 按 
 ```
 Excel (.xlsx)  →  [Editor 工具解析]  →  .cs 数据类 + .bytes 二进制
                                               ↓
-                                     进 Addressables Remote Group
+                                     进 YooAsset 收集器的远端组（PackRawFile）
                                               ↓
                               运行时 ConfigManager 异步加载
                                               ↓
@@ -446,7 +519,7 @@ public class ConfigModel : AbstractModel
 | `BinaryDataMgr.Instance` 单例 | `IConfigUtility` 接入 IOC | 可注入、可 Mock、可测试 |
 | 反射猜字段类型 | Excel 显式声明类型 + 生成代码 | 类型改动会被发现 |
 | 无 schema 校验 | `SchemaHash` 校验 | 字段顺序问题从"线上排查 3 天"变成"启动即报错" |
-| `Application.streamingAssetsPath` | Addressables Remote | 跨平台 + 可热更 |
+| `Application.streamingAssetsPath` | 资源系统远端包裹 | 跨平台 + 可热更 |
 | 同步 `File.Open` | 异步 `LoadAssetAsync` | 不卡首帧 |
 | 全表常驻内存 | 分表加载 + 按需卸载 | 大表可控内存 |
 
@@ -859,70 +932,99 @@ Assets/GameRes/UI/
 
 ## 5. 资源与热更
 
-### 5.1 先澄清一个关键概念：Addressables 是「资源热更」，不是「代码热更」
+### 5.1 先澄清一个关键概念：「资源热更」不是「代码热更」
 
-你说"要有热更新框架，要用最新的 Addressables"——这里需要拆成**两条独立的技术线**，它们是不同的问题：
+你说"要有热更新框架，要用最新的资源热更方案"——这里需要拆成**两条独立的技术线**，它们是不同的问题：
 
 | | 资源热更 | 代码热更 |
 |---|---------|---------|
 | **更新什么** | 美术图、UI Prefab、音频、配置表 | C# 逻辑（bug 修复、新功能） |
-| **技术方案** | **Addressables** | **HybridCLR**（C# 原生）或 XLua（Lua） |
+| **技术方案** | **YooAsset 2.3.19** | **HybridCLR**（C# 原生）或 XLua（Lua） |
 | **能修什么** | 换个图标、改个数值、调个布局 | 改战斗公式、修逻辑 bug、加新玩法 |
 | **做不到什么** | ❌ 修不了任何逻辑 bug | ❌ 改不了引擎代码与 AOT 部分 |
 
-**这两个必须都有。** 只做 Addressables，你上线后发现"技能伤害算错了"，只能发新包等审核——而修数值和修逻辑是两件事，很多 bug 是后者。
+**这两个必须都有。** 只做资源热更，你上线后发现"技能伤害算错了"，只能发新包等审核——而修数值和修逻辑是两件事，很多 bug 是后者。
 
-**它们是配合关系：** 热更的程序集（DLL）本身也作为 Addressable 资源分发，走同一条 CDN 下载链路。所以架构上是：**Addressables 提供分发通道，HybridCLR 提供代码执行能力。**
+**它们是配合关系：** 热更的程序集（DLL）本身也作为**普通资源**分发，走同一条下载链路。所以架构上是：**YooAsset 提供分发通道，HybridCLR 提供代码执行能力。**
 
-### 5.2 Addressables 组织方案
+> **为什么最终是 YooAsset 而不是 Addressables**：两者定位相同（都是资源热更），
+> YooAsset 胜出的实际理由是 **① 与 HybridCLR 有完整可运行的开源参考工程**
+> （`qframework-hotfix`，Unity 2022.3 实测可跑）；**② 不依赖 Unity 官方的
+> Hosting / CCD 服务**，CDN 就是一个普通 URL，自建/OSS 都能用；
+> **③ 收集器配置是一个纯 C# 可写的 SO**，可以把"配置收集器"做成一条编辑器命令
+> （我们确实这么做了，见 §5.7），Addressables 的 Group 配置要别扭得多。
 
-**分组策略（Addressable Groups）：**
+### 5.2 资源组织方案（YooAsset 包裹 / 组 / 收集器）
+
+YooAsset 的层级是 **包裹（Package）→ 组（Group）→ 收集器（Collector）**，
+对应 Addressables 的 **Profile → Group → Entry**：
 
 ```
-Groups/
-├── BuiltIn_Static/          （Pack Together / 本地）
-│   └── 启动必需的资源，跟随包体
-├── Config/                  （Remote / 独立分组）
-│   └── 所有配置表 .bytes        ← 最常热更，必须独立
-├── Code_Hotfix/             （Remote / 独立分组）
-│   └── Hotfix.dll.bytes       ← 热更程序集，必须独立
-├── UI_Common/               （Remote）
-├── UI_Battle/               （Remote / 按需下载）
-├── Beast_Art/               （Remote / 按需下载）
-│   ├── Group_Beast_Mu        ← 按五行分组，玩家只下自己遇到的
-│   ├── Group_Beast_Huo
-│   └── ...
-└── Audio/
+包裹 WanXiang
+├── 组 Base
+│   ├── 收集器 Assets/WanXiangRes/Art      地址=AddressByFileName  打包=PackDirectory
+│   ├── 收集器 Assets/WanXiangRes/UI       地址=AddressByFileName  打包=PackDirectory
+│   └── 收集器 Assets/WanXiangRes/Config   地址=AddressByFileName  打包=PackRawFile
+└── 组 HotUpdate
+    └── 收集器 Assets/WanXiangRes/HotUpdate  地址=AddressByFileName 打包=PackRawFile
 ```
 
-**分组的三条原则：**
+**分组的四条原则：**
 
 1. **配置表与热更 DLL 单独成组。** 它们体积小（几十 KB ~ 几 MB）、更新最频繁，必须能独立下载，不能和几百 MB 的美术资源绑在一起。
 2. **按"使用场景"而不是"资源类型"分组。** 玩家在战斗里才会用到的资源放一起，图鉴里的放一起。这样玩家只需要下载即将用到的部分。
-3. **依赖关系要显式检查。** Addressables 的隐式依赖经常导致"只引用了 A，却下载了整个 B 图集"。用 `Analyze` 工具定期检查 Bundle 依赖。
+3. **"原生文件"靠打包规则，不是靠收集器类型。** 能 `LoadRawFileAsync` / `LoadTextAsync` 读的东西
+   （配置表 `.bytes`、热更 DLL `.dll.bytes`）用的是**打包规则 `PackRawFile`**。
+   ⚠ **YooAsset 2.x 里没有 `RawFileCollector`**，那是 1.x 的说法。
+4. **一个目录只挂一个收集器。** `CollectAll` 过滤**是递归的** —— 父收集器已经覆盖了子目录，
+   再给子目录建收集器会让同一批文件被收两遍，YooAsset 直接抛异常并把整条资源初始化打死。
+   这条是踩过的坑，详见 §5.7。
 
-**标签（Labels）用于替代运行时查表：**
+**收集器配置是持久化数据，写它必须显式 `SaveFile()`：**
+
+```csharp
+// ✗ 错：这三个 API 内部只把 IsDirty 置 true，从不碰 ScriptableObject 的脏标记
+AssetBundleCollectorSettingData.CreateCollector(group, collector);
+AssetDatabase.SaveAssets();          // 只保存"已被标脏"的对象 ⇒ 配置写不下去
+
+// ✓ 对：内部做 EditorUtility.SetDirty(Setting) + SaveAssets()
+AssetBundleCollectorSettingData.SaveFile();
+```
+
+> ⚠ **危险点**：`AssetBundleCollectorSettingData.Setting` 返回的是刚改的那个**内存对象**，
+> 所以任何自检都会说"配置没问题"。只有 YooAsset 真去磁盘取配置时才炸
+> （`Not found package : xxx`，还被反射包成 `TargetInvocationException`，
+> `Message` 零信息量，真因在 `InnerException`）。
+> ⇒ 自检**必须直读磁盘 YAML 复核**，不复用内存对象。
+
+**资源目录与命名约定：**
 
 ```
-Label_Season_Spring     春季相关资源
-Label_Rarity_Legend     神品
-Label_Preload_Battle    进入战斗前预载
+Assets/WanXiangRes/Art/         贴图、Sprite       （进资源系统）
+Assets/WanXiangRes/UI/          面板 Prefab        （进资源系统）
+Assets/WanXiangRes/Config/      配置表二进制        （进资源系统）
+Assets/WanXiangRes/HotUpdate/   热更产物            （进资源系统，整目录一个收集器）
+Assets/ArtRes/                  源资产（.inputactions 等），不进任何收集器
 ```
 
-### 5.3 环境隔离与 Profile
+### 5.3 环境隔离与运行模式
 
-**必须有至少三套环境，且互相不可混用：**
+**必须有至少三套环境，且互相不可混用。** YooAsset 侧靠"运行模式 + 资源服务地址"两个参数隔离：
 
-| 环境 | Profile | CDN 路径 | 用途 |
-|------|---------|---------|------|
-| **Dev** | `Dev_Remote` | 内网 / 本地 file:// | 日常开发，可随时改随时生效 |
-| **QA** | `QA_Remote` | 测试 CDN | 打包给测试，模拟真实下载 |
-| **Prod** | `Prod_Remote` | 正式 CDN + 多节点 | 线上玩家 |
+| 环境 | 运行模式 | 资源服务地址 | 用途 |
+|------|---------|------------|------|
+| **Dev** | `EditorSimulateMode`（编辑器直读资产，不打 AB） | 无 | 日常开发，改完即生效，**不经过任何打包** |
+| **QA** | `HostPlayMode` | 测试 CDN | 打包给测试，模拟真实下载 |
+| **Prod** | `HostPlayMode` | 正式 CDN + 多节点 | 线上玩家 |
+| （离线兜底） | `OfflinePlayMode` | 无（只读包内） | 完全无网场景 / 排查"是不是 CDN 的问题" |
+
+> `EditorSimulateMode` 的价值常被低估：**它把"资源管道坏了"和"代码坏了"彻底分开。**
+> 编辑器里出问题时不经过 AB 打包，如果这时正常、出包不正常，问题就在构建/分发侧。
 
 **踩坑警告：** 我见过不止一个项目因为**开发期误连正式 CDN**，把测试包推送的配置表覆盖了线上环境，导致线上玩家数值全乱。**这种事故的排查成本极高，且影响所有玩家。**
 
 防护措施：
-- 每个环境的 CDN 路径写在独立的 Profile 里，通过脚本切换，不允许手填
+- 每套环境的地址写在独立的配置来源里，通过脚本切换，**不允许手填**
 - 打包脚本强制校验：QA 包不可能带上 Prod 的 CDN 地址（写一个 Build 前置检查）
 - 正式 CDN 的写入权限只给发布流程，开发机只有读权限
 
@@ -947,45 +1049,181 @@ Label_Preload_Battle    进入战斗前预载
 | 约束 | 说明 | 影响 |
 |------|------|------|
 | **必须 IL2CPP** | Mono 后端不支持 | 打包时间变长，需接受 |
-| **AOT 泛型限制** | 热更代码里用到 `List<自定义泛型>` 这类 AOT 未实例化的泛型，需要**补充元数据** | 这是最大的坑，初期就要建立 AOT 补充流程 |
+| **AOT 泛型限制** | 热更代码里用到 `List<自定义泛型>` 这类 AOT 未实例化的泛型，需要**补充元数据** | 这是最大的坑，初期就要建立 AOT 补充流程。详见 §5.6 |
 | **引擎代码不可热更** | Unity 自身的类、`MonoBehaviour` 的序列化字段结构不可改 | 加字段到 MonoBehaviour 需谨慎（走 `[SerializeField]` 兼容方案） |
 
 > **关于 AOT 补充元数据：** 这是 HybridCLR 项目初期最容易翻车的地方。表现是"编辑器里跑得好好的，打包后报 `ExecutionEngineException`"。规避方式是在开发早期就建立"热更程序集 → AOT 泛型扫描 → 生成补充元数据 DLL"的自动化流程，不要等到上线前才发现。
 
 ### 5.5 启动流程
 
+**实际落地的五段流程**（`HotUpdateBootstrap`，`[DefaultExecutionOrder(-1005)]`）：
+
 ```
 [App 启动]
     ↓
-1. 加载内置 catalog（本地）
+① 等资源系统就绪
+   ResourceHub.WaitReadyAsync()          ← 框架层只认抽象层注册点，不认识 YooAsset
+   （对应 §5.2 的三段式：InitializeAsync → RequestPackageVersionAsync → UpdatePackageManifestAsync）
     ↓
-2. 请求远端 version.json，对比资源版本号
+② 补 AOT 泛型元数据（必须在加载热更 DLL 之前）
+   读清单 HotUpdate/AOT/aot_manifest.txt
+   → 逐个定位 AOT DLL 资源 → LoadMetadataForAOTAssembly(bytes, SuperSet)
     ↓
-3. 有更新？
-   ├─ 是 → 加载远端 catalog → 计算差异 → 显示下载进度条 → 下载
-   └─ 否 → 跳过
+③ 取热更 DLL
+   按候选 location 列表依次试，命中即停
+   （HotUpdate/WanXiang.HotUpdate.dll.bytes → …dll → 资源路径形式）
     ↓
-4. 加载 Hotfix.dll.bytes（从 Addressables）
+④ Assembly.Load(bytes) → 找 IHotUpdateEntry 实现 → 实例化 → Initialize()
     ↓
-5. 补充 AOT 元数据（加载 AOT 修补 DLL）
+⑤ 报告结果；失败只打明确的中文报错，**不抛异常、不退出**
     ↓
-6. Assembly.Load(hotfixBytes)
-    ↓
-7. 反射调用热更入口 GameEntry.Start()
-    ↓
-8. 初始化：配置表 → 存档 → UI 框架 → 输入
-    ↓
-9. 进入主界面
+（之后才是）配置表 → 存档 → UI 框架 → 输入 → 主界面
 ```
 
 **关键设计点：**
 
-- **第 2~3 步要在"检查更新"界面完成**，不能让玩家看黑屏
+- **② 必须在 ④ 之前。** 补元数据的目的是让"热更代码里引用到的 AOT 泛型实例化"
+  在运行时能被解析；晚于 `Assembly.Load` 就来不及了。
+- **③ 的 location 要按候选列表试，并把"试过哪些"记进报告。**
+  资源系统"没找到"与"名字写错"是两回事，报告里必须能一眼分开。
+- **第 ① 步要在"检查更新"界面完成**，不能让玩家看黑屏
 - **下载失败要能重试**，且要区分"网络异常"与"磁盘空间不足"（移动端常见）
-- **热更失败必须有兜底**：如果新版本热更代码崩溃率异常，要能一键回滚到上个资源版本（服务端改 version.json 即可）
+- **热更失败必须有兜底**：如果新版本热更代码崩溃率异常，要能一键回滚到上个资源版本（服务端改版本号即可）
 - **强更 vs 热更**：引擎升级、原生插件变更 → 必须发新包（强更）；逻辑与资源 → 走热更
+- **失败不抛异常的理由**：启动链路上抛异常在真机上就是黑屏，日志还未必拿得到。
+  打明确的中文报错 + 把状态挂在静态字段上（`Stage` / `LastError`），
+  让体检脚本和线上日志都能读到"卡在哪一段"。
 
-### 5.6 灰度与回滚
+### 5.6 AOT 泛型元数据补充（HybridCLR 最容易翻车的一环）
+
+> 表现是"编辑器里跑得好好的，打包后报 `ExecutionEngineException`"。
+> 必须在开发早期就建立自动化流程，不要等到上线前才发现。
+
+**流程（已做成一条编辑器命令 `hot.publish`，见 §5.7）：**
+
+```
+① HybridCLR/Generate/All
+   → 编译热更 DLL + 生成裁剪后的 AOT 产物 AssembliesPostIl2CppStrip/<平台>/
+② 重算 AOT 泛型引用（AOTReferenceGeneratorCommand）
+   → 写成 Assets/HybridCLRGenerate/AOTGenericReferences.cs
+③ 读它的 PatchedAOTAssemblyList（泛型分析器认为"热更代码会用到"的 AOT 程序集）
+④ 复制热更 DLL + 复制被点名的 AOT DLL + 写清单 aot_manifest.txt
+⑤ 配置 YooAsset 收集器（走 §5.2 的 SaveFile 路径）
+```
+
+#### ⭐⭐⭐ 铁律一：泛型探针必须由**热更代码直接调用**，中间不许再包一层 AOT 侧辅助方法
+
+HybridCLR 的泛型分析器（`Editor/AOT/Analyzer.cs`）对**根程序集**（= 热更程序集）
+**直接遍历元数据表**（`TypeSpecTable` / `MethodSpecTable`），
+所以**泛型实例化只要出现在热更程序集自己的元数据里，就一定被记录**。
+
+而"walk 方法体"那条路有一道门（`Analyzer.NeedWalk`）：
+
+```csharp
+return _hotUpdateAssemblyFiles.Contains(type.Module.Name)   // 在热更程序集里
+    || callFrom == null                                     // 根
+    || callFrom.HasGenericParameters;                       // 调用方是泛型方法
+```
+
+`callFrom` 是**调用方**。于是：
+
+```
+热更代码 → AOT 侧非泛型辅助方法 → 泛型方法
+```
+
+**这条链注定失效** —— 辅助方法既不在热更程序集，又不是根，也没有泛型参数，
+三门全不满足，泛型实例化不会被记录。
+
+**踩过的坑**：第一版把探针调用集中进 AOT 侧的 `AOTMetadataProbe.RunAll()`，
+结果 `PatchedAOTAssemblyList` **恒为空（0 项）**。
+⇒ 改成热更入口**直接**逐条调用探针后立刻正常。
+`RunAll()` 已删除（留着只会诱导下一个人再犯），探针方法标 `[Obsolete]` 强制约束。
+
+#### ⭐⭐⭐ 铁律二：AOT strip 产物会过期，过期时**静默**让名单变空
+
+分析器解析"被引用的 AOT 类型"时，从
+`HybridCLRData/AssembliesPostIl2CppStrip/<平台>/` 读 AOT 程序集
+—— 那是**上一次出包时**生成的产物。新增 AOT 类型后不重新生成，
+解析失败 ⇒ 整个泛型实例化被**静默丢弃** ⇒ 名单为空。
+
+HybridCLR 只打一条极易被淹没的警告：
+
+```
+type:...AOTMetadataProbe/ProbeBox`1<System.Int32> ResolveTypeDef() == null
+PostPrepare genericTypes:0 genericMethods:0 newMethods:0
+```
+
+**「名单为空」有两种含义，外观完全一样**：① 热更代码真的不需要补（正常）；
+② 工具链产物过期、分析根本没跑成（坏）。
+⇒ 发布工具必须做**新鲜度检查**（比较 strip 产物时间 vs AOT 侧源码时间），
+**过期时跳过第 ② 步**，否则会把上一份可能正确的名单**覆盖成空**。
+
+#### 其它两个必知点
+
+- **编辑器下 `LoadMetadataForAOTAssembly` 是空实现**（`Runtime/RuntimeApi.cs`
+  在 `UNITY_EDITOR` 下直接 `return OK`）。所以编辑器里的"补元数据成功"
+  **不能**作为链路正确的证据，**真机结论必须出一次 IL2CPP 包** ——
+  我们的体检报告里显式打 `EditorNoOp=True` 就是为了防这个误读。
+- **`HomologousImageMode` 选 `SuperSet`，不是 `Consistent`。**
+  热更 DLL 是"改源码后重新编译"的产物，与 AOT 侧不可能逐字节同源；
+  `Consistent` 会直接报同源校验失败。
+
+### 5.7 实现现状（P4，2026-09-14）
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| YooAsset 资源抽象层 | ✅ | `IResourceService`（不继承 `IUtility`、不出现 YooAsset 类型） |
+| YooAsset 后端 | ✅ | 独立程序集 `WanXiang.ResourceSystem.YooAsset`，可整包替换 |
+| 分层注册点 | ✅ | `ResourceHub`（后端 → 抽象层的单向发布） |
+| 三段式初始化 | ✅ | 编辑器模拟模式加载测试资源八项体检全绿 |
+| 热更启动五段流程 | ✅ | `HotUpdateBootstrap`，见 §5.5 |
+| AOT 元数据补充 | ✅ | `AOTMetadataLoader` + `aot_manifest.txt`，见 §5.6 |
+| 热更发布工具 | ✅ | 编辑器命令 `hot.publish` / `hot.status` / `hot.smoke` |
+| 验收标准 | ✅ | **改一行热更代码不重新出包即生效**（判据见下） |
+| **真机（IL2CPP 包）验证** | ⬜ | **尚未做**。编辑器侧结论不可外推到真机（见 §5.6 的 `EditorNoOp`） |
+| 远端 CDN 分发 | ⬜ | 仍在编辑器模拟模式，Host 模式未配 |
+| 灰度 / 回滚 | ⬜ | 见 §5.8 |
+
+**验收判据怎么设计（这一步最容易做假）：**
+
+验收标准是"改一行热更代码不重新出包即生效"。但**"标记变了"本身不能作为证据**
+—— 编辑器顺手编译的那份也会变。所以判据必须**人为制造「源码 ≠ 已发布 DLL」**：
+
+```
+1) 热更源码里的标记改成 B
+2) 只跑 hot.publish（不重编译整个工程）    → 下发的 DLL 里是 B
+3) 把源码标记改回 A                        → 磁盘源码是 A
+4) 跑体检
+   → 期望：运行标记 = B，源码标记 = A      ✅ 决定性证据
+```
+
+实测输出正是如此：运行标记 `HOT-0003`（来自资源管道下发的字节），
+而磁盘源码是 `HOT-0001`。
+辅证是程序集身份：`Assembly.Location` 为空串（⇒ 从字节流载入）
+且当前域里同名程序集有 **2 份**（编辑器编译那份 + 字节流载入那份，是不同实例）。
+
+#### 工具链踩过的四个坑（都不是"代码写错"，是"工具约定"）
+
+1. **`AOTGenericReferences.cs` 里的名字带 `.dll` 后缀。**
+   `GenericReferenceWriter` 写的是 `module.Name` ⇒ `"WanXiang.Runtime.dll"`。
+   不剥掉就拼出 `WanXiang.Runtime.dll.dll`。反射路径与文本解析路径都要归一化。
+2. **嵌套收集器打死资源初始化。**
+   父收集器 `WanXiangRes/HotUpdate` 已递归覆盖 `AOT/` 子目录，
+   再建一个 `AOT/` 收集器 ⇒ YooAsset 抛 `The collecting asset file is existed`
+   ⇒ `EditorSimulateBuildPipeline build failed !` ⇒ 资源不就绪 ⇒ 症状表现成"热更坏了"。
+   **真因不在控制台**（会被清），在持久的
+   `%LOCALAPPDATA%\Unity\Editor\Editor.log` 里。
+   ⇒ 只建一个收集器 + 工具里带一段"清理历史遗留嵌套收集器"的逻辑
+   （收集器配置是持久化数据，改代码不回滚）。
+3. **两套建目录实现打架。**
+   工具用 `Directory.CreateDirectory("Assets/…")` 绕过资产数据库建目录，
+   随后 `AssetDatabase.CreateFolder` 建同名目录 ⇒ Unity 认为"资产库里还没这个名字"，
+   把第二次建的**改名成 `Xxx 1`**，留下孤立空目录 + 孤立 `.meta`。
+   ⇒ 建目录**只保留一个实现**（统一走 `AssetDatabase`，并递归建父级）。
+4. **判断"目录里有没有东西"必须忽略 `.meta`。**
+   空目录也有 `Xxx.meta`，不忽略就永远判为"非空"，该删的组删不掉。
+
+### 5.8 灰度与回滚
 
 | 机制 | 做法 |
 |------|------|
@@ -1326,7 +1564,7 @@ hotfix/*     ← 紧急修复，从 main 拉，修完合回 main 与 develop
 **工具：** Unity 官方 `unity-builder`（GitHub Actions）或在 Windows 机器上自建 Jenkins。对独立开发者，**GitHub Actions + unity-builder 性价比最高**（免费额度对独立项目够用）。
 
 **CI 必须做的事：**
-- 自动跑 `Addressables Analyze`，报告重复依赖与冗余资源
+- 自动跑资源系统的分析器（YooAsset 的 `AssetBundleBuilder` 冗余依赖报告），报告重复依赖与冗余资源
 - 记录包体大小与资源体积趋势（**体积膨胀要早发现**）
 - 热更前自动备份上一版资源（回滚的底气）
 
@@ -1381,14 +1619,31 @@ hotfix/*     ← 紧急修复，从 main 拉，修完合回 main 与 develop
 | **P1 数据层** | ✅ 已交付 | 配置表工具链（Excel→二进制）+ 存档系统（版本迁移 + 原子写入） | — | ① 改字段顺序后加载**立刻报错**而非静默读错 ② 存档 v1 能被当前版本正确迁移 ③ 杀进程不会损坏存档 |
 | **P2 UI 框架** | ✅ 已交付 | 分层 Canvas、面板基类、栈管理、异步加载、返回键、面板动效 | DOTween（已验证引用链打通） | ① 打开/关闭 100 次无内存泄漏 ② 快速连点不重复加载 ③ 弹窗与 HUD 层级正确 |
 | **P3 输入系统** | ✅ 已完成 | Action Map、上下文切换、改键、持久化 | Input System 1.19.0 ✅ | 改键后重启游戏配置仍在；战斗中开弹窗不会误触技能 |
-| **P4 资源与热更** | ⬜ **下一步** | YooAsset 分组、Profile 环境、启动流程、HybridCLR 接入 | HybridCLR 8.14.1 + YooAsset 2.3.19 | ① 改一张配置表能热更生效 ② 改一行战斗逻辑能热更生效 ③ 能一键回滚 |
-| **P5 战斗原型** | ⬜ 可与 P0–P3 穿插 | 3×3 棋盘、自动战斗、五行结算（对应 GDD 的 STEP 1） | Luban（独立命令行工具，非 UPM 包） | 灰盒下连看 10 场不无聊 |
+| **P4 资源与热更** | ✅ **核心链路已通**（真机验证待补） | 抽资源服务抽象层 → 接 YooAsset → 热更启动流程 + AOT 元数据补充 | HybridCLR 8.14.1 ✅ / YooAsset 2.3.19 ✅ | ① 改一张配置表能热更生效 ⬜ ② 改一行战斗逻辑能热更生效 ✅（见 §5.7）③ 能一键回滚 ⬜ |
+| **P5 战斗原型** | ⬜ 可与 P4 剩余项穿插 | 3×3 棋盘、自动战斗、五行结算（对应 GDD 的 STEP 1） | Luban（独立命令行工具，非 UPM 包） | 灰盒下连看 10 场不无聊 |
 | **P6 业务模块** | ⬜ | 图鉴、融合、肉鸽地图、设置等 | — | 一局完整通关 35-50 分钟 |
 
-> **P4 行的修正**：本节初稿写的是「Addressables 分组」，与 §9 决策表的
-> **YooAsset（非 Addressables）** 矛盾，已改正。以 §9 为准。
+**P4 的三次落地（细分，便于对照 git 历史）：**
 
-### 依赖包总览（截至 2026-09-13）
+| # | 内容 | 状态 | 提交 |
+|---|------|------|------|
+| #10 | 环境准备：IL2CPP 模块、HybridCLR 环境安装、热更程序集边界、`Generate/All` 六步全通 | ✅ | `fafcbd8` |
+| #11 | 资源服务抽象层 + YooAsset 接入（编辑器模拟模式八项体检全绿） | ✅ | `bb1c32b` |
+| #12 | 热更启动流程 + AOT 元数据补充（九项体检全绿，验收标准达成） | ✅ | 见 git log |
+
+**P4 剩余项（不阻塞 P5 即可并行）：**
+
+- ⬜ **真机（IL2CPP 包）验证**：编辑器下 `LoadMetadataForAOTAssembly` 是空实现，
+  编辑器结论**不可外推**（§5.6）。这是 P4 唯一还没做的"定性"验证。
+- ⬜ **远端 CDN 分发 + 三套环境 Profile**（§5.3）：目前只在编辑器模拟模式跑通。
+- ⬜ **配置表走热更生效**：等 Luban 定下来一起做，表结构与加载器都得先有。
+- ⬜ **一键回滚**（§5.8）：依赖远端分发就位。
+
+> **P4 行的修正（两轮）**：本节初稿写的是「Addressables 分组」，与 §9 决策表的
+> **YooAsset（非 Addressables）** 矛盾，已改正。2026-09-14 又补了完成状态与细分表 ——
+> 原文写「⬜ 下一步」时，P4 的 #10/#11/#12 其实都已落地。
+
+### 依赖包总览（截至 2026-09-14）
 
 | 包 | 版本 | 状态 | 装法 | 备注 |
 |----|------|------|------|------|
@@ -1397,13 +1652,19 @@ hotfix/*     ← 紧急修复，从 main 拉，修完合回 main 与 develop
 | QFramework | 用户导入版 | ✅ 已装 | 用户导入 | 8 个 asmdef |
 | MCP for Unity | `10.2.0` | ✅ 已装 | git URL | 见工作区 MCP 自检脚本 |
 | Input System | `1.19.0` | ✅ 已装 | Unity 官方源 | **2022.3 上的上限版本，见下方警告** |
-| HybridCLR | `8.14.1` | ⬜ P4 再装 | OpenUPM | |
-| YooAsset | `2.3.19` | ⬜ P4 再装 | OpenUPM | 3.x 是重写版，先用成熟的 2.x |
+| HybridCLR | `8.14.1` | ✅ 已装 | OpenUPM | `HybridCLR/Generate/All` 六步全通 |
+| YooAsset | `2.3.19` | ✅ 已装 | OpenUPM | 3.x 是重写版，先用成熟的 2.x |
 | Luban | 最新 | ⬜ P5 前后 | 独立 CLI，非 UPM 包 | 需 .NET SDK 8.0+ |
 
 > ⚠ **Input System 的版本天花板**：`1.20.0` 起要求 Unity 6（`minUnity: 6000.0`）。
 > 在本工程的 2022.3 上，**`1.19.0` 是能装的最高版本**，不要写成 `1.x` 让包管理器
 > 自己解析——它可能会挑到一个装不上的版本然后报一堆解析错误。
+
+> ⚠ **脚本后端必须 IL2CPP**（HybridCLR 的硬约束），本工程 Standalone / Android 均已切换。
+> 切换过程要装 Unity Hub 的 **`Windows Build Support (IL2CPP)`** 模块；
+> 缺模块时**报错会被伪装**（表现成 `Unity.Collections` 的 `CS7036`），
+> 真话要到出包时才吐：`Currently selected scripting backend (IL2CPP) is not installed.`
+> 不要被这条伪装报错带进 Unity 包源码里排查。
 
 **关键顺序说明：**
 
@@ -1434,10 +1695,13 @@ hotfix/*     ← 紧急修复，从 main 拉，修完合回 main 与 develop
 
 **随之而来的必做项：** AOT 泛型补充元数据的自动化流程（这是 HybridCLR 最大的坑，必须早建，见 §5）。
 
-### ② 开发顺序 → **P1 数据层 → P2 UI 框架**（已执行完毕）
+### ② 开发顺序 → **P1 数据层 → P2 UI 框架 → P3 输入 → P4 资源与热更**（P0–P4 已执行完毕）
 
 - P1 已交付：二进制序列化核心 + 配置表框架 + 存档系统 + Excel 导表工具链
 - P2 已交付：分层 UI 框架（详见 §4 顶部的实现状态说明）
+- P3 已交付：输入系统（Action Map / 上下文切换 / 改键 / 持久化，详见 §6）
+- P4 核心链路已通：资源服务抽象层 → YooAsset → 热更启动流程 + AOT 元数据补充
+  （详见 §5.7；**真机 IL2CPP 包验证与远端分发仍未做**）
 
 ### ③ 目标平台 → **PC / Steam 优先，预留 Android**（已确认）
 
@@ -1455,7 +1719,7 @@ hotfix/*     ← 紧急修复，从 main 拉，修完合回 main 与 develop
 |--------|------|------|
 | 渲染管线 | **Universal 2D（URP）** | 依据 GDD 第五章美术定调「扁平矢量绘本风 + 中国传统色，深色等宽描边、硬投影、无写实光影」—— 这是 Sprite 的原生工作方式。3D 要做等宽描边必须上后处理 Outline 且难以对准，硬投影需假投影，得不偿失。2D Renderer 对图集合批也更友好 |
 | 资源热更 | **YooAsset**（非 Addressables） | 与 HybridCLR 有完整可运行的开源参考工程 `qframework-hotfix`（Unity 2022.3.62f2） |
-| Unity 版本 | 建议锁定 **2022.3.62f1c1** | HybridCLR 官方推荐 2022.3.x |
+| Unity 版本 | 锁定 **2022.3.62f3c1**（中国版） | 本工程实际使用版本；HybridCLR 官方推荐 2022.3.x |
 | 配置表工具 | **Luban** | 详见 §3 顶部的实现变更说明。关键理由：融合表需 `ref` 引用校验、技能需嵌套结构、与 HybridCLR 原生配合。GitHub **4,500+ Star**，Unity 中国资源商店上架（与 HybridCLR、Obfuz 同属 Code Philosophy）。⚠ **待验证**：生成的 C# 基于较新 .NET API，需确认在 Unity 2022.3 可编译 |
 
 
@@ -1467,8 +1731,8 @@ hotfix/*     ← 紧急修复，从 main 拉，修完合回 main 与 develop
 |---------|------|---------------|
 | `Lesson2/DataMgr.cs` 的 `BinaryFormatter` | Unity 2023+ 已移除，存档格式锁定风险 | §3.3 自定义二进制 + 版本迁移链 |
 | `Lesson2/DataMgr.cs` 的 XOR 加密 | 单字节 XOR 等于无加密 | §1.5 换目的而非换算法 |
-| `ExcelData/BinaryDataMgr.cs` 的 `File.Open(streamingAssetsPath)` | Android 上必然失败 | §3.2 走 Addressables 加载 |
-| `ExcelData/BinaryDataMgr.cs` 配置表放 StreamingAssets | 无法热更 | §3.2 §5.2 放 Remote Group |
+| `ExcelData/BinaryDataMgr.cs` 的 `File.Open(streamingAssetsPath)` | Android 上必然失败 | §3.2 走资源系统加载 |
+| `ExcelData/BinaryDataMgr.cs` 配置表放 StreamingAssets | 无法热更 | §3.2 §5.2 放资源系统的远端组 |
 | 反射按字段顺序读表 | 静默错位 | §3.2 表头 + `SchemaHash` 校验 |
 | 反射猜字段类型 | 类型变更不被发现 | §3.2 Excel 显式声明类型 + 生成代码 |
 | `LoadTable` 的 `File.Exists` 无 return | 文件缺失时继续执行并崩溃 | §3.2 抛异常 |
@@ -1479,4 +1743,4 @@ hotfix/*     ← 紧急修复，从 main 拉，修完合回 main 与 develop
 
 ---
 
-*文档结束 · v1.0 · 2026-09-12*
+*文档结束 · v1.1 · 2026-09-14*
