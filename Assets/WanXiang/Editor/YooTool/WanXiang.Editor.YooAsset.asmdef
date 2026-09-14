@@ -1,13 +1,15 @@
 {
-    "name": "WanXiang.Samples",
+    "name": "WanXiang.Editor.YooAsset",
     "rootNamespace": "",
     "references": [
-        "WanXiang.Core",
         "WanXiang.Runtime",
         "WanXiang.ResourceSystem.YooAsset",
-        "UniTask"
+        "YooAsset",
+        "YooAsset.Editor"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

@@ -1,11 +1,11 @@
 {
-    "name": "WanXiang.Samples",
+    "name": "WanXiang.ResourceSystem.YooAsset",
     "rootNamespace": "",
     "references": [
         "WanXiang.Core",
         "WanXiang.Runtime",
-        "WanXiang.ResourceSystem.YooAsset",
-        "UniTask"
+        "UniTask",
+        "YooAsset"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

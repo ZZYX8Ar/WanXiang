@@ -58,7 +58,28 @@
 //    csc.defines.on     在 csc.rsp 里补 -define:ENABLE_UNITY_COLLECTIONS_CHECKS（★ 会改文件）
 //    csc.defines.off    移除上面那个宏（★ 会改文件）
 //    csc.dump           打印 Assets/csc.rsp 的当前内容
+//    yoo.setup          建资源目录/样本资源 + 配好 YooAsset 收集器并保存（★ 会改配置，非只读）
+//    yoo.status         打印当前收集器配置（只读）
+//    yoo.testassets     只补建测试样本资源，不动收集器（★ 会新增文件）
+//    resource.smoke     触发资源链路体检：写请求文件并进入 Play 模式（★ 会切 Play）
+//    play.enter         只进 Play 模式、不跑体检（对照实验：验证播放器循环在不在跑）
+//    play.exit          退出 Play 模式（体检卡住时捞一把；会先解除暂停）
+//    play.state         报告 isPlaying / isPaused / isFocused / frameCount（只读）
 //    all                跑一遍全部只读诊断
+//
+//  ℹ play.state 是排查"Play 开着但游戏侧什么都不动"的第一手段：
+//    **暂停态（EditorApplication.isPaused）下，Play 看起来是开着的，
+//    但所有 Update / 异步操作都不推进** —— 而 EditorApplication.update 照跑，
+//    所以通道还活着。光看 isPlaying 分辨不出来，必须看 isPaused；
+//    隔几秒连读两次 frameCount 没变化，就是铁证。
+//
+//  ℹ play.enter 存在的意义：把"环境能不能跑播放器"与"我们的资源代码对不对"
+//    这两件事分开。空场景都不推进帧，就不是资源代码的问题。
+//
+//  ℹ resource.smoke 与 refresh **不要写在同一个请求里**：refresh 可能触发域重载，
+//    会让后续动作被掐掉。分两次发。
+//  ℹ resource.smoke 要求场景**没有未保存改动**，否则进 Play 时 Unity 会弹模态框
+//    把自动化流程卡死。有改动时命令会直接拒绝并说明原因。
 //
 //  ℹ refresh 是一道**分水岭**，不是普通命令：
 //      写在 refresh 之前的命令，由当前已编译的版本执行；
@@ -248,6 +269,94 @@ namespace WanXiang.EditorTools.Diagnostics
             }
 
             EditorApplication.update += Poll;
+
+            // ⚠ 播放期间必须接管"推进"，否则自动化会得到"安静地什么都没有"的结果。
+            //   详见 KeepPlayModeAlive 里的说明。
+            EditorApplication.update += KeepPlayModeAlive;
+        }
+
+        /// <summary>YooAssets 的类型全名（走反射，见文件头的设计约束）。</summary>
+        private const string YooAssetsTypeName = "YooAsset.YooAssets, YooAsset";
+
+        private static MethodInfo _yooAssetsUpdate;
+        private static bool _yooAssetsUpdateResolved;
+
+        /// <summary>
+        /// 播放期间维持"推进"：催编辑器循环 + 代推 YooAsset 的异步操作系统。
+        /// </summary>
+        /// <remarks>
+        /// ⚠⚠ 这是本会话里最难判读的一个环境坑，值得单独记一笔。
+        ///
+        ///   现象：`EditorApplication.isPlaying = true` 之后，Play 模式**看着是开着的**
+        ///     · isPlaying=True
+        ///     · isPaused=False              ← 不是暂停
+        ///     · Application.isFocused=True   ← 也不是失焦
+        ///   但游戏侧**什么都不动**：
+        ///     · 脚本的 Update() 不执行（心跳日志一条都没有）
+        ///     · YooAsset 的 OperationSystem.Update() 不推进（异步操作永远 Pending）
+        ///     · 超时看门狗也不响
+        ///   实测：进 Play 二十秒后 Time.frameCount 仍是 2，一百秒后是 3。
+        ///   而 EditorApplication.update **照常在 tick** —— 所以诊断通道还活着，
+        ///   这一点最容易把人带偏（会误以为主线程没卡，于是往业务代码里找问题）。
+        ///
+        ///   对照实验（关键）：**空场景进 Play、不跑任何我们的代码，帧数同样不涨**。
+        ///   所以这不是资源代码的问题，是这台机器上编辑器不维持播放器循环。
+        ///
+        ///   做法：编辑器侧的 update 是活的，那就让它替停摆的循环干活。
+        ///     ① QueuePlayerLoopUpdate()：Unity 给"编辑器没在刷新"的官方入口，
+        ///        对播放器循环只能推动零星帧，但聊胜于无。
+        ///     ② 代推 YooAsset：它的 OperationSystem 是纯 C#、靠 YooAssets.Update()
+        ///        每帧泵一次。这本来由 [YooAssets] 那个驱动 GameObject 的 Update 负责，
+        ///        播放器循环停摆时它就不跑了。既然在这里反射也能调，就替它调。
+        ///
+        ///     ⭐ 为什么代推就够：我们的 await 桥接是**事件驱动 + 同步唤醒**的
+        ///       （Settle → TrySetResult → UniTask 的 continuation 被同步调用），
+        ///       不依赖 UniTask 自己的 PlayerLoop runner。
+        ///       所以只要有人推 YooAsset，整条异步链就能一路跑到底。
+        ///       这一点在堆栈里被反复证实过，不是推测。
+        /// </remarks>
+        private static void KeepPlayModeAlive()
+        {
+            if (EditorApplication.isPlaying == false) return;
+            if (EditorApplication.isPaused) return;
+
+            EditorApplication.QueuePlayerLoopUpdate();
+
+            // ---- 代推 YooAsset ----
+            if (_yooAssetsUpdateResolved == false)
+            {
+                _yooAssetsUpdateResolved = true;
+
+                Type type = Type.GetType(YooAssetsTypeName);
+                if (type != null)
+                {
+                    _yooAssetsUpdate = type.GetMethod(
+                        "Update", BindingFlags.NonPublic | BindingFlags.Static);
+                }
+
+                if (_yooAssetsUpdate == null)
+                {
+                    Debug.LogWarning("[万相通道] 取不到 YooAsset.YooAssets.Update，"
+                                     + "播放器循环停摆时代推将不可用。");
+                }
+            }
+
+            if (_yooAssetsUpdate == null) return;
+
+            try
+            {
+                _yooAssetsUpdate.Invoke(null, null);
+            }
+            catch (TargetInvocationException ex)
+            {
+                // 目标方法自己抛的：说清楚，别让它伪装成通道的问题。
+                Debug.LogError($"[万相通道] 代推 YooAssets.Update 时目标抛异常："
+                               + $"{ex.InnerException?.GetType().Name}: {ex.InnerException?.Message}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[万相通道] 代推 YooAssets.Update 失败：{ex.Message}");
+            }
         }
 
         private static void Poll()
@@ -390,6 +499,49 @@ namespace WanXiang.EditorTools.Diagnostics
         /// </remarks>
         private static void ApplyDeferredEffects(Report report)
         {
+            // ⚠ 顺序：refresh 放在最后，因为它可能触发域重载 ——
+            //   域重载会把本方法剩下的代码直接掐掉。
+            //   所以「refresh + resource.smoke」**不要写在同一个请求文件里**，
+            //   会表现成"进了 Play 但没跑体检"或者干脆没反应。
+            //   正确用法：先发一个只含 refresh 的请求把代码编过，
+            //             再发一个只含 resource.smoke 的请求。
+            bool wantEnter = report.commands.Any(c => c == "resource.smoke" || c == "play.enter");
+            bool wantExit = report.commands.Any(c => c == "play.exit");
+
+            if (wantExit)
+            {
+                if (EditorApplication.isPlaying)
+                {
+                    // ⚠ 必须先解暂停：暂停状态下 isPlaying = false 可能不生效
+                    //   （游戏循环停摆，退出流程也走不动）。
+                    if (EditorApplication.isPaused)
+                    {
+                        Debug.Log("[万相通道] 退出前先解除编辑器暂停。");
+                        EditorApplication.isPaused = false;
+                    }
+
+                    Debug.Log("[万相通道] 退出 Play 模式。");
+                    EditorApplication.isPlaying = false;
+                }
+                // 退出 Play 同样会触发域重载，后面的动作不用再考虑了。
+                return;
+            }
+
+            if (wantEnter)
+            {
+                // ⚠ 进 Play 之前一定先解暂停。残留的暂停态会让游戏循环整段停摆：
+                //   进了 Play、控制台却一条日志都没有，看门狗也不响 —— 非常难判读。
+                if (EditorApplication.isPaused)
+                {
+                    Debug.Log("[万相通道] 进入 Play 前先解除编辑器暂停。");
+                    EditorApplication.isPaused = false;
+                }
+
+                Debug.Log("[万相通道] 进入 Play 模式，开始资源链路体检。");
+                EditorApplication.isPlaying = true;
+                return;
+            }
+
             if (!report.commands.Any(c => c == "refresh")) return;
             _refreshAttempts = 0;
             DoRefresh(report, "请求内的 refresh");
@@ -671,6 +823,13 @@ namespace WanXiang.EditorTools.Diagnostics
                 case "csc.defines.on": SetCollectionChecks(report, true); break;
                 case "csc.defines.off": SetCollectionChecks(report, false); break;
                 case "csc.dump": DumpCscRsp(report); break;
+                case "yoo.setup": RunYooTool(report, "yoo.setup"); break;
+                case "yoo.status": RunYooTool(report, "yoo.status"); break;
+                case "yoo.testassets": RunYooTool(report, "yoo.testassets"); break;
+                case "resource.smoke": RequestResourceSmoke(report); break;
+                case "play.enter": RequestPlayEnter(report); break;
+                case "play.exit": RequestPlayExit(report); break;
+                case "play.state": ReportPlayState(report); break;
 
                 case "refresh":
                     // 说明写在这里而不是 DoRefresh 里：报告文件在本方法返回后、
@@ -2771,6 +2930,267 @@ namespace WanXiang.EditorTools.Diagnostics
             var defines = ReadExtraDefines();
             report.results.Add($"{tag} -> 额外宏清单 [{string.Join(", ", defines)}]"
                                + $"（共 {defines.Count} 个）");
+        }
+
+        // ====================================================================
+        //  yoo.* —— YooAsset 收集器配置
+        // ====================================================================
+
+        /// <summary>
+        /// 配置工具所在类型。见文件头设计约束：本通道不引用 YooAsset，
+        /// 所以调它只能靠反射。类型名写全（含程序集名），
+        /// 因为 Type.GetType 对跨程序集的名必须带程序集限定。
+        /// </summary>
+        private const string YooToolTypeName =
+            "WanXiang.Editor.YooTool.YooAssetSetupTool, WanXiang.Editor.YooAsset";
+
+        /// <remarks>
+        /// 反射调用的代价是"类型名写错了只会在运行时报错"，而且报的是
+        /// "找不到类型"这种没头没尾的信息。所以这里对三种失败分别给出
+        /// 能直接行动的提示，而不是统一一句 ❌。
+        /// </remarks>
+        private static void RunYooTool(Report report, string command)
+        {
+            Type type = Type.GetType(YooToolTypeName);
+            if (type == null)
+            {
+                report.results.Add(
+                    $"{command} -> ❌ 找不到类型 {YooToolTypeName}\n"
+                    + "        常见原因：① WanXiang.Editor.YooAsset 还没编译过"
+                    + "（改完代码先跑 refresh）；② 它的 asmdef 里 YooAsset / YooAsset.Editor 引用不成立。");
+                return;
+            }
+
+            MethodInfo method = type.GetMethod("Run", BindingFlags.Public | BindingFlags.Static);
+            if (method == null)
+            {
+                report.results.Add($"{command} -> ❌ {type.FullName} 上没有 public static Run(string)。");
+                return;
+            }
+
+            try
+            {
+                var lines = method.Invoke(null, new object[] { command }) as string[];
+                if (lines == null || lines.Length == 0)
+                {
+                    report.results.Add($"{command} -> （工具没有输出）");
+                    return;
+                }
+
+                foreach (string line in lines)
+                {
+                    // 缩进一下，报告里能看出这些行属于同一个命令。
+                    report.results.Add($"{command} -> {line}");
+                }
+            }
+            catch (TargetInvocationException tie)
+            {
+                // 反射调用抛异常时会包一层 TargetInvocationException，
+                // 真正有用的信息在 InnerException 里。不拆开的话只能看到
+                // "Exception has been thrown by the target of an invocation"。
+                Exception inner = tie.InnerException ?? tie;
+                report.results.Add($"{command} -> ❌ {inner.GetType().Name}: {inner.Message}");
+                if (!string.IsNullOrEmpty(inner.StackTrace))
+                {
+                    report.results.Add($"{command} ->     {inner.StackTrace}");
+                }
+            }
+            catch (Exception e)
+            {
+                report.results.Add($"{command} -> ❌ {e.GetType().Name}: {e.Message}");
+            }
+        }
+
+        // ====================================================================
+        //  resource.smoke —— 资源链路体检（需要进 Play 模式）
+        // ====================================================================
+
+        private const string SmokeRequestPath = DiagDir + "/resource_smoke.request";
+        private const string SmokeResultPath = DiagDir + "/resource_smoke.txt";
+
+        /// <remarks>
+        /// 为什么必须进 Play 模式，而不是在编辑器里直接测：
+        ///   本工程的资源服务是 **UniTask 驱动**的，而 UniTask 的
+        ///   PlayerLoop 只在 Play 模式下才起来。编辑器非播放态下
+        ///   await 一个 UniTask 永远不会恢复，测出来的会是"卡死"，
+        ///   而不是真的结果 —— 那种"假失败"比不测更误导人。
+        ///
+        ///   （YooAsset 自己倒是提供了 WaitForAsyncComplete 这种同步驱动，
+        ///     但那只覆盖得到 YooAsset，覆盖不到我们自己写的桥接层和
+        ///     引用计数逻辑，而那才是真正需要体检的部分。）
+        ///
+        /// 机制：写请求文件 → 运行时的 ResourceSmokeTest 靠它自我安装 →
+        ///       跑完把结果写到 SmokeResultPath 并自动退出 Play。
+        ///       所以本命令只是"点火"，结果要另外读文件。
+        /// </remarks>
+        private static void RequestResourceSmoke(Report report)
+        {
+            if (EditorApplication.isPlaying)
+            {
+                report.results.Add("resource.smoke -> ⚠ 当前已经在 Play 模式里，先跑 play.exit");
+                return;
+            }
+
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                report.results.Add("resource.smoke -> ⚠ 正在切 Play 模式，稍后再试");
+                return;
+            }
+
+            // ⚠ 场景有未保存改动时进入 Play 模式，Unity 会弹"是否保存场景"的模态框。
+            //   那条框在自动化环境里没人点，于是整个流程就卡在那里，
+            //   表现为"命令发出去了但什么都没发生"。所以这里直接拦住并说清原因。
+            var scene = EditorSceneManager.GetActiveScene();
+            if (scene.isDirty)
+            {
+                report.results.Add(
+                    $"resource.smoke -> ❌ 当前场景「{scene.name}」有未保存改动，"
+                    + "进 Play 模式会弹模态框，自动化流程会卡住。\n"
+                    + "        解决：在 Unity 里 Ctrl+S 保存场景，或先关掉不想保存的改动，再重跑本命令。");
+                return;
+            }
+
+            try
+            {
+                Directory.CreateDirectory(DiagDir);
+                File.WriteAllText(SmokeRequestPath,
+                    "resource smoke test requested at "
+                    + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\n",
+                    Utf8NoBom);
+            }
+            catch (Exception e)
+            {
+                report.results.Add($"resource.smoke -> ❌ 写请求文件失败：{e.Message}");
+                return;
+            }
+
+            // 上一次的结果先删掉：否则"跑完了"和"还没跑"分不出来，
+            // 会拿着上一轮的成功结果当成这一轮的。
+            try
+            {
+                if (File.Exists(SmokeResultPath)) File.Delete(SmokeResultPath);
+            }
+            catch (Exception e)
+            {
+                report.results.Add($"resource.smoke -> ⚠ 删旧结果失败（不致命）：{e.Message}");
+            }
+
+            report.results.Add($"resource.smoke -> 已写请求文件 {SmokeRequestPath}；"
+                               + "报告落盘后会进入 Play 模式");
+            report.results.Add($"resource.smoke -> 结果写到 {SmokeResultPath}，跑完自动退出 Play");
+
+            // ⚠ 残留的暂停态必须清掉，否则这一轮体检会"安安静静什么都不做"。
+            //   暂停时游戏侧的 Update 与异步推进全部停摆，看门狗也不会响，
+            //   表现成"进了 Play 但一个日志都没有" —— 极难判读。
+            if (EditorApplication.isPaused)
+            {
+                report.results.Add("resource.smoke -> ⚠ 检测到编辑器处于暂停态，已解除"
+                                   + "（残留的暂停会让游戏循环整段停摆）");
+            }
+        }
+
+        /// <summary>
+        /// 只进 Play 模式，不写体检请求文件。
+        /// </summary>
+        /// <remarks>
+        /// ⚠ 这是给「Play 模式到底有没有在跑」做的对照实验。
+        ///   resource.smoke 会顺带装上体检脚本，于是"循环是不是真的在跑"
+        ///   和"体检代码有没有问题"两件事混在一起，读不出来。
+        ///   play.enter 什么都不装，进 Play 后用 play.state 隔几秒连读两次：
+        ///   连空场景都不推进帧，那就是环境问题（编辑器没在跑播放器循环），
+        ///   跟我们自己的代码无关 —— 这一刀必须切干净，否则会一直往错的方向修。
+        /// </remarks>
+        private static void RequestPlayEnter(Report report)
+        {
+            if (EditorApplication.isPlaying)
+            {
+                report.results.Add("play.enter -> ⚠ 已经在 Play 模式里了");
+                return;
+            }
+
+            var scene = EditorSceneManager.GetActiveScene();
+            if (scene.isDirty)
+            {
+                report.results.Add(
+                    $"play.enter -> ❌ 场景「{scene.name}」有未保存改动，"
+                    + "进 Play 会弹模态框把流程卡住。先保存场景再试。");
+                return;
+            }
+
+            report.results.Add("play.enter -> 报告落盘后会进入 Play 模式（不跑体检）");
+        }
+
+        /// <remarks>
+        /// 体检理论上会自己退出 Play，本命令是"卡住了捞一把"用的。
+        /// </remarks>
+        private static void RequestPlayExit(Report report)        {
+            if (!EditorApplication.isPlaying && !EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                report.results.Add("play.exit -> 当前不在 Play 模式，无需退出");
+                return;
+            }
+
+            // ⚠ 先解暂停，再退 Play。
+            //   被暂停时 EditorApplication.isPlaying = false 不一定立刻生效 ——
+            //   表现成"发了 play.exit 但还停在 Play 里"。顺带一提，暂停期间
+            //   游戏侧的 Update 是不跑的（见 play.state 的说明），所以退出前
+            //   一定要把暂停也清掉，否则会陷在"退不出、又没人推进"的状态。
+            if (EditorApplication.isPaused)
+            {
+                EditorApplication.isPaused = false;
+                report.results.Add("play.exit -> 检测到编辑器处于暂停，已先解除暂停");
+            }
+
+            report.results.Add("play.exit -> 报告落盘后会退出 Play 模式");
+        }
+
+        /// <summary>
+        /// 只读：报告编辑器/播放器的运行状态。
+        /// </summary>
+        /// <remarks>
+        /// ⚠ 这条命令是被一个"看起来自相矛盾"的故障逼出来的：
+        ///   资源体检跑一半没了下文，可编辑器本身还活着、还能响应命令。
+        ///   当时的观测是——
+        ///     · 游戏侧的 Update（看门狗）一次都没跑
+        ///     · YooAsset 的 OperationSystem.Update() 也没推进
+        ///     · 但 channel 的 console 命令照常返回
+        ///   这三条同时成立，唯一说得通的解释就是**编辑器被暂停了**
+        ///   （EditorApplication.isPaused，Console 的 Error Pause 开关会触发）：
+        ///   暂停时游戏循环整段停摆，而 EditorApplication.update 照跑。
+        ///
+        ///   光看"Play 模式开着"是分辨不出这个状态的，所以这里把
+        ///   isPaused / frameCount 一起报出来 —— frameCount 隔几秒连读两次
+        ///   就能直接判定游戏循环有没有在走，比任何推断都硬。
+        /// </remarks>
+        private static void ReportPlayState(Report report)
+        {
+            report.results.Add($"play.state -> isPlaying={EditorApplication.isPlaying}，" +
+                               $"isPlayingOrWillChangePlaymode={EditorApplication.isPlayingOrWillChangePlaymode}，" +
+                               $"isPaused={EditorApplication.isPaused}，" +
+                               $"isCompiling={EditorApplication.isCompiling}，" +
+                               $"isUpdating={EditorApplication.isUpdating}");
+
+            // 这三个只在游戏侧才有意义；不在 Play 时读到的是编辑器自己的时间。
+            report.results.Add($"play.state -> Time.frameCount={Time.frameCount}，" +
+                               $"realtimeSinceStartup={Time.realtimeSinceStartup:0.000}，" +
+                               $"timeScale={Time.timeScale}，" +
+                               $"Application.isPlaying={Application.isPlaying}");
+
+            // ⚠ 焦点与后台运行：这两个是"帧不推进"最常见的元凶。
+            //   编辑器窗口失焦 + runInBackground 关掉时，播放器循环可能整段停摆 ——
+            //   而 isPlaying 仍然是 true、isPaused 仍然是 false，
+            //   只看前两个字段完全分辨不出来。
+            report.results.Add($"play.state -> Application.isFocused={Application.isFocused}，" +
+                               $"runInBackground={Application.runInBackground}，" +
+                               $"targetFrameRate={Application.targetFrameRate}，" +
+                               $"qualityVsync={QualitySettings.vSyncCount}");
+
+            if (EditorApplication.isPaused)
+            {
+                report.results.Add("play.state -> ⚠ 编辑器处于暂停：游戏侧 Update 不会执行，" +
+                                   "操作系统的异步任务也不会推进。" +
+                                   "用 play.exit 退出，或关掉 Console 的 Error Pause 开关。");
+            }
         }
 
         /// <summary>
