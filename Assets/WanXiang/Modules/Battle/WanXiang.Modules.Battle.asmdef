@@ -1,16 +1,10 @@
 {
-    "name": "WanXiang.Editor",
+    "name": "WanXiang.Modules.Battle",
     "rootNamespace": "",
     "references": [
-        "WanXiang.Core",
-        "WanXiang.Runtime",
-        "WanXiang.Battle.Core",
-        "WanXiang.Modules.Battle",
-        "Unity.InputSystem"
+        "WanXiang.Battle.Core"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

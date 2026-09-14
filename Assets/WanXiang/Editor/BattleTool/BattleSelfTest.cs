@@ -22,8 +22,10 @@
 // ============================================================================
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 using WanXiang.Battle.Core;
+using WanXiang.Battle.Presentation;
 
 namespace WanXiang.Editor.BattleTool
 {
@@ -48,6 +50,7 @@ namespace WanXiang.Editor.BattleTool
                 CheckCoefficients(c);
                 CheckBoardRules(c);
                 CheckGrayBox(c);
+                CheckPresentation(c);
             }
             catch (Exception ex)
             {
@@ -91,7 +94,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckMatrix(Ctx c)
         {
-            c.Title("[1/5] 五行矩阵与相生/相克环");
+            c.Title("[1/6] 五行矩阵与相生/相克环");
 
             var coeff = ElementCoefficients.Default;
             string err = ElementMatrix.SelfCheck(coeff);
@@ -127,7 +130,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckDeterminism(Ctx c)
         {
-            c.Title("[2/5] 可复现性（GDD 验收①）");
+            c.Title("[2/6] 可复现性（GDD 验收①）");
 
             const ulong seed = 20260914UL;
             var r1 = BattleSimulator.Run(BuildStandard(seed, null));
@@ -223,7 +226,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckCoefficients(Ctx c)
         {
-            c.Title("[3/5] 四个系数可调且立刻可观察（GDD 验收③）");
+            c.Title("[3/6] 四个系数可调且立刻可观察（GDD 验收③）");
 
             // ---- 3a：直接对四种关系各算一次伤害，逐一改系数验证 ----
             var probe = BuildProbe(out var wood, out var earth, out var water);
@@ -318,7 +321,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckBoardRules(Ctx c)
         {
-            c.Title("[4/5] 棋盘四条规则（GDD 2.5）");
+            c.Title("[4/6] 棋盘四条规则（GDD 2.5）");
 
             // ---- 4a 相生相邻 ----
             {
@@ -457,7 +460,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckGrayBox(Ctx c)
         {
-            c.Title("[5/5] 灰盒看板（验收②是人的判断，这里只备料）");
+            c.Title("[5/6] 灰盒看板（验收②是人的判断，这里只备料）");
 
             // ---- 5a 木 vs 火：GDD 7.1 验证顺序的第 0 步 ----
             var one = BattleSampleContent.BuildScenario(0, 7UL, null);
@@ -649,6 +652,92 @@ namespace WanXiang.Editor.BattleTool
                 sum += e.Amount;
             }
             return sum;
+        }
+
+        // ================================================================
+        //  6) 表现层素材与文档对账
+        //  ----------------------------------------------------------------
+        //  这一节回答的是"灰盒画出来的东西可不可信"，而不是"战斗对不对"。
+        //  表现层最容易出的问题不是崩溃，而是**画的和算的不一样**：
+        //  画了一条相冲线、那一对却什么都没结算 —— 我们看到之后会把"规则坏了"
+        //  当成结论，然后去改本来没错的逻辑。
+        //
+        //  所以这里做两件事：
+        //    ① 色板必须仍然来自 palette.json（改了颜色、忘了改文档 ⇒ 立刻报）
+        //    ② 棋盘连线的判据（BoardPairScan）与结算（BoardRules）数出来的格对数必须相等
+        // ================================================================
+
+        private const string PaletteJsonPath = "Docs/Design/data/palette.json";
+
+        private static void CheckPresentation(Ctx c)
+        {
+            c.Title("[6/6] 表现层素材与文档对账");
+
+            // ---- ① 色板 vs palette.json ----
+            string json = null;
+            string full = null;
+            try
+            {
+                string root = System.IO.Directory.GetParent(UnityEngine.Application.dataPath).FullName;
+                full = System.IO.Path.Combine(root, PaletteJsonPath);
+                if (System.IO.File.Exists(full)) json = System.IO.File.ReadAllText(full);
+            }
+            catch (Exception ex)
+            {
+                c.Note("读 palette.json 时出错：" + ex.Message);
+            }
+
+            string err = BattlePalette.VerifyAgainstDoc(json);
+            if (err == null)
+            {
+                c.Ok($"色板与 palette.json 对得上：BattlePalette 引用的 {BattlePalette.DocHexes.Length} 个色值" +
+                     $"全部能在文档里找到（另有 {BattlePalette.GrayboxOnly.Length} 个明确标为「灰盒自定」的色值，不参与对账）");
+            }
+            else
+            {
+                c.Bad("色板与 palette.json 对不上：" + err);
+            }
+            c.Note("色板单一来源 = BattlePalette（WanXiang.Modules.Battle）。编辑器灰盒窗口与运行时棋盘视图读的**是同一份**：" +
+                   "之前窗口自己抄了一份颜色常量，那是最容易分叉的写法（改了运行时的绿、忘了改窗口的绿），" +
+                   "而灰盒的全部意义就是「眼睛看到的算数」。");
+            if (full != null) c.Note($"对账文件：{PaletteJsonPath}");
+
+            // ---- ② 连线判据 vs 结算判据 ----
+            var st = BattleSampleContent.BuildScenario(2, 20260914UL, BattleConfig.Default);
+            var playerPairs = new List<AdjacentPair>();
+            var enemyPairs = new List<AdjacentPair>();
+            BoardPairScan.ScanBoth(st, playerPairs, enemyPairs);
+
+            int scanGen = Count(playerPairs, AdjacentPairKind.Generate) + Count(enemyPairs, AdjacentPairKind.Generate);
+            int scanCnt = Count(playerPairs, AdjacentPairKind.Counter) + Count(enemyPairs, AdjacentPairKind.Counter);
+            int scanPac = Count(playerPairs, AdjacentPairKind.Pacified) + Count(enemyPairs, AdjacentPairKind.Pacified);
+
+            // 开局盘面：全员存活 ⇒ 结算里"跳过尸体"那条分支不生效，两份数应当严格相等
+            var rep = BoardRules.ResolveAdjacency(st);
+
+            if (scanGen == rep.GeneratePairs && scanCnt == rep.CounterPairs && scanPac == rep.PacifiedPairs)
+            {
+                c.Ok($"棋盘连线与结算同源：开局盘面上 BoardPairScan 数出 相生 {scanGen} / 相冲 {scanCnt} / " +
+                     $"中宫平息 {scanPac} 对，BoardRules 结算出的格对数逐项相同");
+            }
+            else
+            {
+                c.Bad($"棋盘连线与结算对不上：扫描 相生 {scanGen}/相冲 {scanCnt}/平息 {scanPac}，" +
+                      $"结算 相生 {rep.GeneratePairs}/相冲 {rep.CounterPairs}/平息 {rep.PacifiedPairs}" +
+                      " —— 画面会画出规则没做的事");
+            }
+            c.Note($"我方：{BoardPairScan.Describe(playerPairs)}");
+            c.Note($"敌方：{BoardPairScan.Describe(enemyPairs)}");
+            c.Note("判据单一来源 = BoardPairScan（WanXiang.Battle.Core）。它刻意**不筛存活**：" +
+                   "结算要跳过尸体（尸体不该再给同气），而画线要连到刚倒下的单位上，" +
+                   "否则画面会在承伤那一帧提前断线，看起来像「规则漏了」。存活过滤由表现层按当前帧快照决定。");
+        }
+
+        private static int Count(List<AdjacentPair> pairs, AdjacentPairKind kind)
+        {
+            int n = 0;
+            for (int i = 0; i < pairs.Count; i++) if (pairs[i].Kind == kind) n++;
+            return n;
         }
 
         // ---- 文本小工具 ----

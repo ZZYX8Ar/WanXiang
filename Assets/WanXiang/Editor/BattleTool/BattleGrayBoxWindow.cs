@@ -33,43 +33,40 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using WanXiang.Battle.Core;
+using WanXiang.Battle.Presentation;
 
 namespace WanXiang.Editor.BattleTool
 {
     public class BattleGrayBoxWindow : EditorWindow
     {
         // ================================================================
-        //  色板（palette.json）
+        //  色板与绘制原语
+        //  ----------------------------------------------------------------
+        //  它们现在住在 WanXiang.Modules.Battle 里，**运行时棋盘视图读的是同一份**。
+        //  这里原先自己抄了一份颜色常量，那是典型的分叉写法：
+        //  改了运行时视图的绿、忘了改窗口的绿，就会出现"编辑器里看着对、游戏里不对"，
+        //  而灰盒的全部意义就是"眼睛看到的算数"。
+        //
+        //  短别名仅为了让下面的绘制代码可读；不要再往这里加颜色。
         // ================================================================
 
-        private static Color Hex(string h)
-        {
-            if (string.IsNullOrEmpty(h) || h.Length < 7) return Color.magenta;
-            return new Color(
-                System.Convert.ToInt32(h.Substring(1, 2), 16) / 255f,
-                System.Convert.ToInt32(h.Substring(3, 2), 16) / 255f,
-                System.Convert.ToInt32(h.Substring(5, 2), 16) / 255f);
-        }
+        private static readonly Color Ink = BattlePalette.Ink;
+        private static readonly Color InkSoft = BattlePalette.InkSoft;
+        private static readonly Color Paper = BattlePalette.Paper;
+        private static readonly Color Silk = BattlePalette.Silk;
+        private static readonly Color Gold = BattlePalette.Gold;
+        private static readonly Color Crimson = BattlePalette.Crimson;
+        private static readonly Color Shield = BattlePalette.Vital;
+        private static readonly Color Dead = BattlePalette.Dead;
+        private static Color[] ElementColor => BattlePalette.Element;
 
-        private static readonly Color Ink     = Hex("#2A2118");   // 墨色 · 主描边
-        private static readonly Color InkSoft = Hex("#6B6157");   // 淡墨 · 次级文字
-        private static readonly Color Paper   = Hex("#F5F0E6");   // 宣纸 · 底
-        private static readonly Color Silk    = Hex("#E9E2D2");   // 素绢 · 面板
-        private static readonly Color Gold    = Hex("#C9A063");   // 鎏金 · 相生
-        private static readonly Color Crimson = Hex("#C8352C");   // 朱砂 · 暴击
-        private static readonly Color Shield  = Hex("#BCE672");   // 松花 · 护盾
-        private static readonly Color Dead    = Hex("#9A948A");   // 阵亡灰
-
-        /// <summary>五行主体色。下标 = (int)Element，0（None）用淡墨。</summary>
-        private static readonly Color[] ElementColor =
-        {
-            Hex("#6B6157"),   // None
-            Hex("#789262"),   // 木 · 竹青
-            Hex("#C8352C"),   // 火 · 朱砂
-            Hex("#A26C43"),   // 土 · 赭石
-            Hex("#C8CFD3"),   // 金 · 银鼠
-            Hex("#42506B"),   // 水 · 黛蓝
-        };
+        private static Color Mix(Color a, Color b, float t) => BattlePalette.Mix(a, b, t);
+        private static void DrawSeg(Vector2 a, Vector2 b, Color c, float t, bool dashed)
+            => BattleHud.Segment(a, b, c, t, dashed);
+        private static Vector2 CellCenter(Rect area, int index, float cellW, float cellH, float gap)
+            => BattleHud.CellCentre(area, index, cellW, cellH, gap);
+        private static void DrawBorder(Rect r, Color c, float t) => BattleHud.Border(r, c, t);
+        private static void RectFill(Rect r, Color c) => BattleHud.Fill(r, c);
 
         // ================================================================
         //  状态
@@ -102,22 +99,18 @@ namespace WanXiang.Editor.BattleTool
         /// </summary>
         private bool _pendingRegenerate;
 
-        private GUIStyle _stName, _stSmall, _stTitle;
+        // 字体样式由 BattleHud.Begin() 统一构建（见 OnGUI 开头），不再各自 new ——
+        // 编辑器与运行时用同一套字号基准，灰盒才"看到什么就是什么"。
 
         // 累积回放状态
         private readonly Dictionary<string, UnitSnapshot> _viewState = new Dictionary<string, UnitSnapshot>();
         private int _viewStateFrame = -1;
 
         // 相邻格对（位置在 STEP 1 不变化，所以只在生成时算一次）
-        private enum PairKind { Generate, Counter, Pacified }
-
-        private struct PairInfo
-        {
-            public int A, B;
-            public PairKind Kind;
-        }
-
-        private readonly List<PairInfo>[] _pairs = { new List<PairInfo>(), new List<PairInfo>() };
+        // ⚠ 类型来自核心层的 BoardPairScan —— 与运行时棋盘视图共用同一套判据。
+        //   画线和结算必须由同一个函数推导，否则会出现"画了相冲线但什么都没结算"。
+        private readonly List<AdjacentPair>[] _pairs =
+            { new List<AdjacentPair>(), new List<AdjacentPair>() };
 
         [MenuItem("万相/战斗/灰盒预览", priority = 100)]
         public static void Open()
@@ -206,44 +199,11 @@ namespace WanXiang.Editor.BattleTool
         }
 
         /// <summary>预先算出相邻格对的关系。位置在 STEP 1 不变（没有换位/融合），
-        /// 所以只算一次 —— 每帧重算会让"连线"这种东西变得比战斗本身还贵。</summary>
+        /// 所以只算一次 —— 每帧重算会让"连线"这种东西变得比战斗本身还贵。
+        /// ⚠ 判据来自 BoardPairScan，和战斗结算用的是同一份逻辑。</summary>
         private void BuildPairs()
         {
-            for (int s = 0; s < 2; s++)
-            {
-                _pairs[s].Clear();
-                var side = (TeamSide)s;
-                var slots = _state.SlotsOf(side);
-                var ap = BoardLayout.AdjacentPairs;
-
-                for (int k = 0; k < ap.Length; k++)
-                {
-                    int i = ap[k][0], j = ap[k][1];
-                    var a = slots[i];
-                    var b = slots[j];
-                    if (a == null || b == null) continue;
-
-                    bool gen = ElementMatrix.Generates(a.Element, b.Element)
-                            || ElementMatrix.Generates(b.Element, a.Element);
-                    if (gen)
-                    {
-                        _pairs[s].Add(new PairInfo { A = i, B = j, Kind = PairKind.Generate });
-                        continue;
-                    }
-
-                    bool cnt = ElementMatrix.Counters(a.Element, b.Element)
-                            || ElementMatrix.Counters(b.Element, a.Element);
-                    if (!cnt) continue;
-
-                    bool pacified = _state.Config.CenterSuppressesAdjacentCounter
-                                 && (a.Pos.IsCenter || b.Pos.IsCenter);
-                    _pairs[s].Add(new PairInfo
-                    {
-                        A = i, B = j,
-                        Kind = pacified ? PairKind.Pacified : PairKind.Counter,
-                    });
-                }
-            }
+            BoardPairScan.ScanBoth(_state, _pairs[0], _pairs[1]);
         }
 
         private void Tick()
@@ -343,16 +303,15 @@ namespace WanXiang.Editor.BattleTool
 
         private void EnsureStyles()
         {
-            if (_stName != null) return;
-            _stTitle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 12, normal = { textColor = Ink } };
-            _stName = new GUIStyle(EditorStyles.label) { fontSize = 11, normal = { textColor = Ink } };
-            _stSmall = new GUIStyle(EditorStyles.miniLabel) { fontSize = 10, normal = { textColor = Ink } };
+            // 编辑器里字号基准取 1（窗口本来就按 1090×730 设计）。
+            // 运行时棋盘视图会传自己的缩放 —— 从此两边只在"缩放"这一个参数上不同。
+            BattleHud.Begin(1f);
         }
 
         private void OnGUI()
         {
             EnsureStyles();
-            EditorGUI.DrawRect(new Rect(0, 0, position.width, position.height), Paper);
+            RectFill(new Rect(0, 0, position.width, position.height), Paper);
 
             DrawToolbar();
             if (_state == null) return;
@@ -369,8 +328,8 @@ namespace WanXiang.Editor.BattleTool
             float rightX = midX + midW + 16f;
             float topY = 62f;
 
-            GUI.Label(new Rect(leftX, topY, boardW, 18f), "我方", _stTitle);
-            GUI.Label(new Rect(rightX, topY, boardW, 18f), "敌方", _stTitle);
+            GUI.Label(new Rect(leftX, topY, boardW, 18f), "我方", BattleHud.Title);
+            GUI.Label(new Rect(rightX, topY, boardW, 18f), "敌方", BattleHud.Title);
 
             float boardY = topY + 20f;
             DrawBoard(new Rect(leftX, boardY, boardW, boardH), TeamSide.Player, cellW, cellH, gap);
@@ -393,13 +352,13 @@ namespace WanXiang.Editor.BattleTool
             float x = 12f;
             const float y = 6f;
 
-            GUI.Label(new Rect(x, y + 4f, 30f, 18f), "场景", _stSmall); x += 32f;
+            GUI.Label(new Rect(x, y + 4f, 30f, 18f), "场景", BattleHud.Small); x += 32f;
             var names = new string[BattleSampleContent.ScenarioCount];
             for (int i = 0; i < names.Length; i++) names[i] = BattleSampleContent.ScenarioName(i);
             int newScenario = EditorGUI.Popup(new Rect(x, y + 1f, 300f, 18f), _scenario, names);
             x += 308f;
 
-            GUI.Label(new Rect(x, y + 4f, 30f, 18f), "种子", _stSmall); x += 32f;
+            GUI.Label(new Rect(x, y + 4f, 30f, 18f), "种子", BattleHud.Small); x += 32f;
             _seedText = EditorGUI.TextField(new Rect(x, y + 1f, 92f, 18f), _seedText); x += 98f;
 
             if (GUI.Button(new Rect(x, y + 1f, 68f, 18f), "重新生成"))
@@ -440,19 +399,19 @@ namespace WanXiang.Editor.BattleTool
             }
             x += 34f;
 
-            GUI.Label(new Rect(x, y + 4f, 30f, 18f), "速度", _stSmall); x += 32f;
+            GUI.Label(new Rect(x, y + 4f, 30f, 18f), "速度", BattleHud.Small); x += 32f;
             _framesPerSecond = GUI.HorizontalSlider(new Rect(x, y + 6f, 84f, 16f), _framesPerSecond, 1f, 30f);
             x += 90f;
-            GUI.Label(new Rect(x, y + 4f, 66f, 18f), $"{_framesPerSecond:F0} 帧/秒", _stSmall); x += 70f;
+            GUI.Label(new Rect(x, y + 4f, 66f, 18f), $"{_framesPerSecond:F0} 帧/秒", BattleHud.Small); x += 70f;
 
             _autoNext = GUI.Toggle(new Rect(x, y + 2f, 56f, 18f), _autoNext, "连播");
             x += 62f;
-            GUI.Label(new Rect(x, y + 4f, 120f, 18f), $"第 {_battleIndex + 1} 场", _stSmall);
+            GUI.Label(new Rect(x, y + 4f, 120f, 18f), $"第 {_battleIndex + 1} 场", BattleHud.Small);
 
             // ---- 参数行（验收③：改了立刻看得见） ----
             float px = 12f;
             const float py = 30f;
-            GUI.Label(new Rect(px, py + 3f, 58f, 16f), "五行系数", _stSmall); px += 60f;
+            GUI.Label(new Rect(px, py + 3f, 58f, 16f), "五行系数", BattleHud.Small); px += 60f;
 
             px = CoefField(px, py, "克", ref _cfg.Elements.Counter);
             px = CoefField(px, py, "被克", ref _cfg.Elements.Countered);
@@ -479,13 +438,13 @@ namespace WanXiang.Editor.BattleTool
             {
                 GUI.Label(new Rect(px, py + 3f, 300f, 16f),
                     $"本场：{OutcomeText(_result.Outcome)}／{_result.Turns} 回合／" +
-                    $"帧 {_state.Frames.Count}／指纹 0x{_result.Fingerprint:X8}", _stSmall);
+                    $"帧 {_state.Frames.Count}／指纹 0x{_result.Fingerprint:X8}", BattleHud.Small);
             }
         }
 
         private float CoefField(float x, float y, string label, ref float value)
         {
-            GUI.Label(new Rect(x, y + 3f, 30f, 16f), label, _stSmall); x += 30f;
+            GUI.Label(new Rect(x, y + 3f, 30f, 16f), label, BattleHud.Small); x += 30f;
             value = EditorGUI.FloatField(new Rect(x, y + 1f, 50f, 18f), value);
             return x + 54f;
         }
@@ -494,7 +453,7 @@ namespace WanXiang.Editor.BattleTool
 
         private void DrawBoard(Rect area, TeamSide side, float cellW, float cellH, float gap)
         {
-            EditorGUI.DrawRect(area, Silk);
+            RectFill(area, Silk);
 
             var slots = _state.SlotsOf(side);
             CurrentEventEndpoints(out int evActor, out int evTarget);
@@ -512,8 +471,8 @@ namespace WanXiang.Editor.BattleTool
 
                 switch (infos[k].Kind)
                 {
-                    case PairKind.Generate: DrawSeg(pa, pb, Gold, 2f, false); break;
-                    case PairKind.Pacified: DrawSeg(pa, pb, InkSoft, 1f, true); break;
+                    case AdjacentPairKind.Generate: DrawSeg(pa, pb, Gold, 2f, false); break;
+                    case AdjacentPairKind.Pacified: DrawSeg(pa, pb, InkSoft, 1f, true); break;
                     default: DrawSeg(pa, pb, Ink, 2f, true); break;
                 }
             }
@@ -526,9 +485,9 @@ namespace WanXiang.Editor.BattleTool
                 var u = slots[idx];
                 if (u == null)
                 {
-                    EditorGUI.DrawRect(cell, new Color(0.90f, 0.88f, 0.84f));
+                    RectFill(cell, new Color(0.90f, 0.88f, 0.84f));
                     DrawBorder(cell, new Color(Ink.r, Ink.g, Ink.b, 0.22f), 1f);
-                    if (idx == BoardLayout.CenterIndex) GUI.Label(cell, " 中宫", _stSmall);
+                    if (idx == BoardLayout.CenterIndex) GUI.Label(cell, " 中宫", BattleHud.Small);
                     continue;
                 }
 
@@ -541,7 +500,7 @@ namespace WanXiang.Editor.BattleTool
         private void DrawUnit(Rect cell, UnitSnapshot s, int idx, string runtimeId, int evActor, int evTarget)
         {
             var elem = ElementColor[Mathf.Clamp((int)s.Element, 0, 5)];
-            EditorGUI.DrawRect(cell, s.Alive ? Mix(Silk, elem, 0.34f) : Mix(Silk, Dead, 0.5f));
+            RectFill(cell, s.Alive ? Mix(Silk, elem, 0.34f) : Mix(Silk, Dead, 0.5f));
 
             DrawBorder(cell, Ink, 2f);
             if (idx == BoardLayout.CenterIndex) DrawBorder(cell, Gold, 2f);
@@ -551,12 +510,12 @@ namespace WanXiang.Editor.BattleTool
 
             // 名字 + 共鸣
             GUI.Label(new Rect(cell.x + 4f, cell.y + 2f, cell.width - 8f, 15f),
-                $"{ElementText(s.Element)}·{s.Name}", _stName);
+                $"{ElementText(s.Element)}·{s.Name}", BattleHud.Name);
             if (s.ResonanceBonus > 0.001f)
             {
                 var badge = new Rect(cell.xMax - 46f, cell.y + 3f, 42f, 14f);
-                EditorGUI.DrawRect(badge, Gold);
-                GUI.Label(badge, $"共鸣+{s.ResonanceBonus * 100f:F0}%", _stSmall);
+                RectFill(badge, Gold);
+                GUI.Label(badge, $"共鸣+{s.ResonanceBonus * 100f:F0}%", BattleHud.Small);
             }
 
             // CD 三个小格
@@ -565,85 +524,85 @@ namespace WanXiang.Editor.BattleTool
             {
                 int cd = s.Cd(i);
                 var cdRect = new Rect(cdX, cell.y + 19f, 17f, 13f);
-                EditorGUI.DrawRect(cdRect, cd > 0 ? InkSoft : Gold);
-                GUI.Label(cdRect, cd > 0 ? cd.ToString() : "●", _stSmall);
+                RectFill(cdRect, cd > 0 ? InkSoft : Gold);
+                GUI.Label(cdRect, cd > 0 ? cd.ToString() : "●", BattleHud.Small);
                 cdX += 19f;
             }
 
             // 状态
             if (!string.IsNullOrEmpty(s.Statuses))
-                GUI.Label(new Rect(cell.x + 62f, cell.y + 18f, cell.width - 66f, 26f), s.Statuses, _stSmall);
+                GUI.Label(new Rect(cell.x + 62f, cell.y + 18f, cell.width - 66f, 26f), s.Statuses, BattleHud.Small);
 
             // 血条 + 护盾
             var hpBg = new Rect(cell.x + 4f, cell.y + cell.height - 30f, cell.width - 8f, 11f);
-            EditorGUI.DrawRect(hpBg, new Color(0.16f, 0.13f, 0.11f));
+            RectFill(hpBg, new Color(0.16f, 0.13f, 0.11f));
             if (s.Alive)
             {
                 float hpW = hpBg.width * Mathf.Clamp01(s.HpRatio);
-                EditorGUI.DrawRect(new Rect(hpBg.x, hpBg.y, hpW, hpBg.height), elem);
+                RectFill(new Rect(hpBg.x, hpBg.y, hpW, hpBg.height), elem);
                 if (s.Shield > 0)
                 {
                     float shW = Mathf.Min(hpBg.width * (s.Shield / Mathf.Max(1f, s.MaxHp)), hpBg.width - hpW);
-                    if (shW > 0f) EditorGUI.DrawRect(new Rect(hpBg.x + hpW, hpBg.y, shW, hpBg.height), Shield);
+                    if (shW > 0f) RectFill(new Rect(hpBg.x + hpW, hpBg.y, shW, hpBg.height), Shield);
                 }
             }
             GUI.Label(new Rect(hpBg.x, hpBg.y - 12f, hpBg.width, 12f),
-                s.Alive ? $"{s.Hp}/{s.MaxHp}{(s.Shield > 0 ? $" +{s.Shield}盾" : "")}" : "已阵亡", _stSmall);
+                s.Alive ? $"{s.Hp}/{s.MaxHp}{(s.Shield > 0 ? $" +{s.Shield}盾" : "")}" : "已阵亡", BattleHud.Small);
 
             // 怒气条
             var rgBg = new Rect(cell.x + 4f, hpBg.y + 13f, cell.width - 8f, 5f);
-            EditorGUI.DrawRect(rgBg, new Color(0.16f, 0.13f, 0.11f));
-            EditorGUI.DrawRect(new Rect(rgBg.x, rgBg.y, rgBg.width * Mathf.Clamp01(s.Rage / 100f), rgBg.height), Gold);
+            RectFill(rgBg, new Color(0.16f, 0.13f, 0.11f));
+            RectFill(new Rect(rgBg.x, rgBg.y, rgBg.width * Mathf.Clamp01(s.Rage / 100f), rgBg.height), Gold);
         }
 
         private void DrawCenterColumn(Rect area)
         {
-            EditorGUI.DrawRect(area, Silk);
+            RectFill(area, Silk);
 
             var frame = CurrentFrame();
             float y = area.y + 4f;
 
             GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 16f),
-                $"第 {frame.Turn} 回合　帧 {_frameCursor + 1}/{_state.Frames.Count}", _stTitle);
+                $"第 {frame.Turn} 回合　帧 {_frameCursor + 1}/{_state.Frames.Count}", BattleHud.Title);
             y += 18f;
 
             var ev = EventAt(frame.EventIndex);
-            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 15f), "当前事件", _stSmall);
+            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 15f), "当前事件", BattleHud.Small);
             y += 15f;
             GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 32f),
-                ev.HasValue ? ev.Value.ToString().Trim() : "（战斗开始前）", _stSmall);
+                ev.HasValue ? ev.Value.ToString().Trim() : "（战斗开始前）", BattleHud.Small);
             y += 34f;
 
-            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 15f), "本回合出手序列（速度降序）", _stSmall);
+            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 15f), "本回合出手序列（速度降序）", BattleHud.Small);
             y += 15f;
-            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 46f), LatestOrderNote(frame.EventIndex), _stSmall);
+            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 46f), LatestOrderNote(frame.EventIndex), BattleHud.Small);
             y += 50f;
 
-            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 15f), "相邻格关系", _stSmall);
+            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 15f), "相邻格关系", BattleHud.Small);
             y += 15f;
-            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 80f), AdjacencyText(), _stSmall);
+            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 80f), AdjacencyText(), BattleHud.Small);
             y += 84f;
 
-            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 15f), "图例", _stSmall);
+            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 15f), "图例", BattleHud.Small);
             y += 15f;
             GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 62f),
                 "鎏金实线 = 相生相邻（回复 + 同气）\n" +
                 "墨色虚线 = 相克相冲（真伤 + 怒气 -10%）\n" +
                 "淡墨虚线 = 被中宫平息\n" +
-                "金框 = 最近一次出手者　朱砂框 = 最近一次受击者", _stSmall);
+                "金框 = 最近一次出手者　朱砂框 = 最近一次受击者", BattleHud.Small);
             y += 66f;
 
             GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 40f),
                 "我方/敌方各自一块 3×3 棋盘。\n" +
-                "上阵 5 人 ⇒ 必有空位 —— 空位是布局，不是浪费。", _stSmall);
+                "上阵 5 人 ⇒ 必有空位 —— 空位是布局，不是浪费。", BattleHud.Small);
         }
 
         private void DrawBottom(Rect area)
         {
-            EditorGUI.DrawRect(area, Silk);
+            RectFill(area, Silk);
             float y = area.y + 4f;
 
-            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 16f), "事件流（截至当前帧）", _stTitle);
+            GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 16f), "事件流（截至当前帧）", BattleHud.Title);
             y += 18f;
 
             int eventIndex = CurrentFrame().EventIndex;
@@ -652,7 +611,7 @@ namespace WanXiang.Editor.BattleTool
             var evs = _state.Log.Events;
             for (int i = from; i <= eventIndex && i < evs.Count; i++)
                 sb.AppendLine("  " + evs[i]);
-            GUI.Label(new Rect(area.x + 6f, y, area.width * 0.62f, area.height - 26f), sb.ToString(), _stSmall);
+            GUI.Label(new Rect(area.x + 6f, y, area.width * 0.62f, area.height - 26f), sb.ToString(), BattleHud.Small);
 
             GUI.Label(new Rect(area.x + area.width * 0.64f, y, area.width * 0.35f, area.height - 26f),
                 _result.Summary() + "\n\n" +
@@ -660,7 +619,7 @@ namespace WanXiang.Editor.BattleTool
                 "让它自己跑 10 场。每场结束后问自己三个问题：\n" +
                 "  ① 这一场我看到了什么新东西？（没有 ⇒ 内容同质）\n" +
                 "  ② 伤害数字与出手序列能不能一眼读懂？（不能 ⇒ 表现层缺失）\n" +
-                "  ③ 打完想不想知道为什么输？（不想 ⇒ 策略不可见）", _stSmall);
+                "  ③ 打完想不想知道为什么输？（不想 ⇒ 策略不可见）", BattleHud.Small);
         }
 
         // ---- 帧与事件 ----
@@ -737,17 +696,7 @@ namespace WanXiang.Editor.BattleTool
             for (int s = 0; s < 2; s++)
             {
                 sb.Append(s == 0 ? "我方　" : "\n敌方　");
-                bool any = false;
-                var infos = _pairs[s];
-                for (int k = 0; k < infos.Count; k++)
-                {
-                    if (any) sb.Append("，");
-                    any = true;
-                    string kind = infos[k].Kind == PairKind.Generate ? "相生"
-                                : (infos[k].Kind == PairKind.Pacified ? "相冲·平息" : "相冲");
-                    sb.Append($"{infos[k].A}-{infos[k].B} {kind}");
-                }
-                if (!any) sb.Append("无");
+                sb.Append(BoardPairScan.Describe(_pairs[s]));
             }
             return sb.ToString();
         }
@@ -769,77 +718,12 @@ namespace WanXiang.Editor.BattleTool
         }
 
         // ---- 画图小工具 ----
+        // 绘制实现已全部搬到 BattleHud，本文件顶部只留短别名。
+        // 这里刻意**不留**任何"看起来等价"的私有实现 —— 保留一份私有实现
+        // 就是下一次分叉的起点（编辑器里改一处、运行时没跟着改）。
 
-        private static Color Mix(Color a, Color b, float t)
-            => new Color(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, 1f);
-
-        private static void DrawBorder(Rect r, Color c, float t)
-        {
-            EditorGUI.DrawRect(new Rect(r.x, r.y, r.width, t), c);
-            EditorGUI.DrawRect(new Rect(r.x, r.yMax - t, r.width, t), c);
-            EditorGUI.DrawRect(new Rect(r.x, r.y, t, r.height), c);
-            EditorGUI.DrawRect(new Rect(r.xMax - t, r.y, t, r.height), c);
-        }
-
-        private static Vector2 CellCenter(Rect area, int index, float cellW, float cellH, float gap)
-        {
-            int r = index / BoardLayout.Columns, c = index % BoardLayout.Columns;
-            return new Vector2(area.x + c * (cellW + gap) + cellW * 0.5f,
-                               area.y + r * (cellH + gap) + cellH * 0.5f);
-        }
-
-        /// <summary>
-        /// 画一段格对连线。九宫格的正交相邻只可能是水平或竖直的，所以不需要
-        /// Handles/GL —— 几段矩形就够，还避开了 Handles 在非重绘时机调用会报错的坑。
-        /// dashed 用短段拼出来（相克要"锯齿感"）。
-        /// </summary>
-        private static void DrawSeg(Vector2 a, Vector2 b, Color color, float thickness, bool dashed)
-        {
-            const float dash = 7f, gap = 5f;
-            float dx = b.x - a.x, dy = b.y - a.y;
-            float len = Mathf.Sqrt(dx * dx + dy * dy);
-            if (len <= 0.01f) return;
-
-            float ux = dx / len, uy = dy / len;
-            float t = 0f;
-            int guard = 0;
-            while (t < len && guard++ < 64)
-            {
-                float seg = dashed ? Mathf.Min(dash, len - t) : len - t;
-                float x0 = a.x + ux * t, y0 = a.y + uy * t;
-                float x1 = a.x + ux * (t + seg), y1 = a.y + uy * (t + seg);
-
-                EditorGUI.DrawRect(new Rect(Mathf.Min(x0, x1) - thickness * 0.5f,
-                                            Mathf.Min(y0, y1) - thickness * 0.5f,
-                                            Mathf.Abs(x1 - x0) + thickness,
-                                            Mathf.Abs(y1 - y0) + thickness), color);
-                if (!dashed) break;
-                t += dash + gap;
-            }
-        }
-
-        private static string ElementText(Element e)
-        {
-            switch (e)
-            {
-                case Element.Wood: return "木";
-                case Element.Fire: return "火";
-                case Element.Earth: return "土";
-                case Element.Metal: return "金";
-                case Element.Water: return "水";
-                default: return "无";
-            }
-        }
-
-        private static string OutcomeText(BattleOutcome o)
-        {
-            switch (o)
-            {
-                case BattleOutcome.PlayerWin: return "我方胜";
-                case BattleOutcome.EnemyWin: return "敌方胜";
-                case BattleOutcome.Draw: return "平局";
-                default: return "进行中";
-            }
-        }
+        /// <summary>枚举 → 中文名。走核心层的 Cn，不在表现层再抄一份五行表。</summary>
+        private static string ElementText(Element e) => Cn.Of(e);
+        private static string OutcomeText(BattleOutcome o) => Cn.Of(o);
     }
 }

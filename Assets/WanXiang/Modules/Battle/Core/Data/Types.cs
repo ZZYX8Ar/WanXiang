@@ -105,7 +105,15 @@ namespace WanXiang.Battle.Core
         AllOthers = 9,        // 除自己以外的全场（混沌的「径过」用这个）
     }
 
-    internal static class Cn
+    /// <summary>
+    /// 枚举 → 中文名的唯一入口。
+    /// <para>
+    /// ⚠ 它是 <c>public</c> 的，因为**表现层（编辑器工具与运行时视图）也要用它**。
+    /// 曾经它是 internal，结果编辑器工具各自写了一份 <c>ElementText</c> / <c>OutcomeText</c> ——
+    /// 这种"两行的小重复"是最容易分叉的一类：改了一处就出现"日志里写木、棋盘上画火"。
+    /// </para>
+    /// </summary>
+    public static class Cn
     {
         public static string Of(Element e)
         {
