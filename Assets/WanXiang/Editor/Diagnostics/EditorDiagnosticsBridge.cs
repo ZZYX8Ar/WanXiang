@@ -149,23 +149,37 @@ namespace WanXiang.EditorTools.Diagnostics
         /// 通过 Assets/csc.rsp 往玩家编译里补的宏。用途见 <see cref="SetCollectionChecks"/>。
         ///
         /// ⭐ 这不是"随手加个宏"，而是**让分支与引用程序集对上**的必需手段：
-        ///   实测（metaprobe 只读元数据）两份 UnityEngine.CoreModule.dll
-        ///   —— 编辑器版与玩家变体 —— 里 NativeArray&lt;T&gt;.ReadOnly 的形状是不同的：
+        ///   ⭐⭐ 判定规则：**宏必须与「玩家编译实际引用的那份 CoreModule」对上**,
+        ///   而不是「有宏就对、没宏就错」。方向会随环境翻转，两种情形正好相反：
         ///
-        ///     · 编辑器版（1,538,560 B）：只有 ctor(void* buffer, int length, ref AtomicSafetyHandle safety)
-        ///                               字段 m_Buffer / m_Length / **m_Safety**
-        ///     · 玩家变体（1,395,024 B）：只有 ctor(void* buffer, int length)
-        ///                               字段 m_Buffer / m_Length
+        ///     ┌ 玩家编译引用 **编辑器版**（3 参 ctor）→ 宏必须 **开**
+        ///     │   这是「平台 IL2CPP 模块没装」时的退路：安装里没有 il2cpp 变体目录，
+        ///     │   Unity 只能退回 Data/Managed/UnityEngine/。此时若不补宏，
+        ///     │   集合包走 #else 去要 2 参构造，编辑器版里没有 ⇒ CS7036。
+        ///     └ 玩家编译引用 **Variations/&lt;后端&gt;**（2 参 ctor）→ 宏必须 **关**
+        ///         装上 Windows Build Support (IL2CPP) 后走这条（实测已确认引用路径
+        ///         变成 Variations/il2cpp/Managed/，玩家 rsp 里有 67 处 Variations）。
+        ///         此时若还留着宏，集合包走 #if 去要 3 参构造，变体版里没有
+        ///         ⇒ CS7036 原样复发。
         ///
-        ///   而 Unity 2021.2+ 的 **Windows IL2CPP 玩家编译引用的就是编辑器版**
-        ///   （Editor/Data/Managed/UnityEngine/*Module.dll，已从玩家 rsp 核对），
-        ///   因为安装里**根本没有 IL2CPP 变体目录**（Variations/ 下只有 mono 系列，
-        ///   2021.3 与 2022.3 两个安装结构完全一致）。
+        ///   实测（metaprobe 只读元数据）三份 UnityEngine.CoreModule.dll，
+        ///   里 NativeArray&lt;T&gt;.ReadOnly 的形状不同：
+        ///
+        ///     · 编辑器版     1,538,560 B：只有 ctor(void* buffer, int length, ref AtomicSafetyHandle safety)
+        ///                                 字段 m_Buffer / m_Length / **m_Safety**
+        ///     · mono 变体    1,395,024 B：只有 ctor(void* buffer, int length)
+        ///                                 字段 m_Buffer / m_Length
+        ///     · il2cpp 变体  1,395,536 B：只有 ctor(void* buffer, int length)
+        ///                                 字段 m_Buffer / m_Length
+        ///
+        ///   ⇒ **两个平台变体都只有 2 参构造**，3 参构造只存在于编辑器版。
+        ///     所以「缺宏」本身不是错误信号 —— 要看引用的是哪一份。
+        ///     判定实现见 <see cref="ProbePlayerReferences"/> 里的 CoreModule 引用探测。
         ///
         ///   于是 com.unity.collections@1.2.4 的 NativeList&lt;T&gt;.AsParallelReader()：
-        ///     · 宏有 → 走 #if  分支，3 参构造 → 编辑器 CoreModule 里有 → 通过
-        ///     · 宏无 → 走 #else 分支，2 参构造 → 编辑器 CoreModule 里**没有** → CS7036
-        ///   报错原文（Editor.log，player 图 638 evaluated）：
+        ///     · 宏有 → 走 #if  分支，3 参构造 → 编辑器版里有、变体版里没有
+        ///     · 宏无 → 走 #else 分支，2 参构造 → 变体版里有、编辑器版里没有
+        ///   报错原文（Editor.log，player 图 638 evaluated，即上面第一种情形）：
         ///     NativeList.cs(839,24): error CS7036: There is no argument given that
         ///     corresponds to the required formal parameter 'safety' of
         ///     'NativeArray&lt;T&gt;.ReadOnly.ReadOnly(void*, int, ref AtomicSafetyHandle)'
@@ -2403,11 +2417,48 @@ namespace WanXiang.EditorTools.Diagnostics
                                        + $"{CollectionChecksDefine} = {(checks ? "✅ 有" : "❌ 无")}，"
                                        + $"DEVELOPMENT_BUILD = {(dev ? "有" : "无（非开发版构建）")}");
 
-                    if (!checks)
+                    // ⭐ 别再无条件报警了。「缺宏」本身不是结论 —— 要先看玩家编译
+                    //   引用的是哪一份 CoreModule，再决定宏该开还是该关：
+                    //     · 编辑器版（3 参 ctor）→ 宏必须 **有**
+                    //     · Variations 变体（2 参 ctor）→ 宏必须 **无**
+                    //   完整两情形说明见 CollectionChecksDefine 的长注释。
+                    //   （早期版本这里硬编码「修复：csc.defines.on」，在装好 IL2CPP
+                    //     之后变成**反向诱导** —— 照做会把编译重新弄坏。）
+                    string coreRef = ExtractCoreModuleReference(mt);
+                    if (coreRef == null)
                     {
-                        report.results.Add($"{tag} -> ⚠ 玩家编译缺 {CollectionChecksDefine}："
-                                           + "Unity.Collections 会走 #else 分支而 CS7036。"
-                                           + "修复：csc.defines.on");
+                        report.results.Add($"{tag} -> ⚠ rsp 里没找到 UnityEngine.CoreModule 引用，"
+                                           + "无法判断宏该开该关（本项跳过）");
+                    }
+                    else
+                    {
+                        bool fromVariation =
+                            coreRef.IndexOf("Variations", StringComparison.OrdinalIgnoreCase) >= 0;
+                        bool wantChecks = !fromVariation;
+
+                        report.results.Add($"{tag} -> 玩家编译引用的 CoreModule："
+                                           + (fromVariation
+                                               ? "Variations 变体（2 参 ctor）"
+                                               : "编辑器版 Data/Managed/UnityEngine（3 参 ctor）"));
+                        report.results.Add($"        {coreRef}");
+
+                        if (checks == wantChecks)
+                        {
+                            report.results.Add($"{tag} -> ✅ 宏与引用对得上"
+                                               + $"（应为 {(wantChecks ? "有" : "无")}，"
+                                               + $"实际 {(checks ? "有" : "无")}）");
+                        }
+                        else
+                        {
+                            report.results.Add($"{tag} -> ❌ 宏与引用**不匹配**："
+                                               + $"应为 {(wantChecks ? "有" : "无")}，"
+                                               + $"实际 {(checks ? "有" : "无")}。"
+                                               + "两侧不一致时 Unity.Collections 会走与 ctor "
+                                               + $"元数不匹配的分支 ⇒ CS7036。修复："
+                                               + (wantChecks ? "csc.defines.on" : "csc.defines.off"));
+                            report.results.Add($"{tag} -> ⚠ 注意：改 .rsp 后**必须重新编译玩家脚本**"
+                                               + "才生效（请求文件里在本命令前写一行 refresh）");
+                        }
                     }
 
                     if (eDag != null)
@@ -2423,6 +2474,43 @@ namespace WanXiang.EditorTools.Diagnostics
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// 从 Bee 的 rsp 文本里取出 UnityEngine.CoreModule 的引用路径。
+        /// </summary>
+        /// <remarks>
+        /// 用途：判断玩家编译引用的是**编辑器版**还是 **Variations 变体**，
+        /// 从而决定 <see cref="CollectionChecksDefine"/> 该开还是该关
+        /// （两情形说明见 <see cref="CollectionChecksDefine"/> 的长注释）。
+        ///
+        /// 手写扫描而不用正则：本文件刻意**不引** System.Text.RegularExpressions ——
+        /// 诊断通道得保证在最坏情况下也能编译得过，依赖越少越好。
+        ///
+        /// ⚠ 只搜 "UnityEngine.CoreModule.dll"：它**不会**误命中
+        ///   "UnityEditor.CoreModule.dll"（后者的前缀是 "UnityEditor." 而非 "UnityEngine."）。
+        /// </remarks>
+        private static string ExtractCoreModuleReference(string rspText)
+        {
+            if (string.IsNullOrEmpty(rspText)) return null;
+
+            const string needle = "UnityEngine.CoreModule.dll";
+            int idx = rspText.IndexOf(needle, StringComparison.OrdinalIgnoreCase);
+            if (idx < 0) return null;
+
+            // 往前回溯到行首或引号（引用形如 -r:"C:/.../UnityEngine.CoreModule.dll"）
+            int start = idx;
+            while (start > 0
+                   && rspText[start - 1] != '"'
+                   && rspText[start - 1] != '\n'
+                   && rspText[start - 1] != '\r')
+            {
+                start--;
+            }
+
+            string raw = rspText.Substring(start, idx + needle.Length - start).Trim();
+            if (raw.StartsWith("-r:")) raw = raw.Substring(3).Trim();
+            return raw.Trim('"').Replace('\\', '/');
         }
 
         /// <remarks>
