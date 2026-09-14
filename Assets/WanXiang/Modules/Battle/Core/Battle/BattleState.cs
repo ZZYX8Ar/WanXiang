@@ -43,6 +43,20 @@ namespace WanXiang.Battle.Core
         private readonly List<BattleUnit> _all = new List<BattleUnit>(BoardLayout.MaxDeployed * 2);
         private bool _setupDone;
 
+        // ---- 视图帧流（见 ViewFrames.cs 的说明） ----
+        private readonly List<ViewFrame> _frames = new List<ViewFrame>(2048);
+        private readonly List<UnitSnapshot> _frameBuf = new List<UnitSnapshot>(10);
+        private UnitSnapshot[] _lastSnapshot = new UnitSnapshot[0];
+
+        /// <summary>
+        /// 是否记录视图帧。默认开 —— 灰盒阶段它便宜到不值得关，而"表现层不用自己算规则"
+        /// 这个好处太大。真要跑批量数值模拟（几万场）时置 false 省掉这部分开销。
+        /// </summary>
+        public bool CaptureFrames = true;
+
+        /// <summary>视图帧流。表现层按 EventIndex 与事件流对齐。</summary>
+        public IReadOnlyList<ViewFrame> Frames => _frames;
+
         public BattleState(BattleConfig config, ulong seed)
         {
             Config = config ?? BattleConfig.Default;
@@ -52,6 +66,10 @@ namespace WanXiang.Battle.Core
                 _slots[s] = new BattleUnit[BoardLayout.CellCount];
                 _units[s] = new List<BattleUnit>(BoardLayout.MaxDeployed);
             }
+            // 每条事件入队后自动抓一帧：事件流是唯一的时序权威，
+            // 把抓帧挂在它上面，就不会出现"打了伤害却没抓帧"这种漏。
+            // 用 lambda 而不是方法组：CaptureFrame 有个可选参数，签名不匹配 Action。
+            Log.OnEventAdded = () => CaptureFrame();
         }
 
         public static BattleState Create(BattleConfig config, ulong seed)
@@ -112,6 +130,51 @@ namespace WanXiang.Battle.Core
             for (int s = 0; s < 2; s++) _all.AddRange(_units[s]);
 
             _setupDone = true;
+
+            _lastSnapshot = new UnitSnapshot[_all.Count];
+            CaptureFrame(true);   // 第 0 帧 = 战斗开始前的**全量**初始画面
+        }
+
+        // ================================================================
+        //  视图帧流
+        // ================================================================
+
+        /// <summary>
+        /// 抓一帧。默认**只记变化过的单位**（例：Crit 事件不改状态，它就不该占一帧）。
+        /// <paramref name="forceAll"/> 用于抓初始帧 —— 累积式回放必须有一个全量起点，
+        /// 否则表现层没法知道"第一帧之前各人是什么样"。
+        /// 多次调用是安全的：它对状态没有任何副作用，只是看一眼、比一比。
+        /// </summary>
+        public void CaptureFrame(bool forceAll = false)
+        {
+            if (!CaptureFrames) return;
+            if (_lastSnapshot.Length != _all.Count)
+                _lastSnapshot = new UnitSnapshot[_all.Count];
+
+            _frameBuf.Clear();
+            for (int i = 0; i < _all.Count; i++)
+            {
+                var snap = ViewSnapshot.Of(_all[i]);
+                if (!forceAll && _lastSnapshot[i].Equals(snap)) continue;
+                _lastSnapshot[i] = snap;
+                _frameBuf.Add(snap);
+            }
+            if (_frameBuf.Count == 0) return;
+
+            _frames.Add(new ViewFrame
+            {
+                Turn = Turn,
+                EventIndex = Log.Count - 1,      // -1 = 还没有任何事件
+                Changed = _frameBuf.ToArray(),
+            });
+        }
+
+        /// <summary>丢掉帧流并重抓初始帧（在同一个 State 上重跑战斗时用）。</summary>
+        public void ResetFrames()
+        {
+            _frames.Clear();
+            for (int i = 0; i < _lastSnapshot.Length; i++) _lastSnapshot[i] = default;
+            CaptureFrame(true);
         }
 
         // ================================================================

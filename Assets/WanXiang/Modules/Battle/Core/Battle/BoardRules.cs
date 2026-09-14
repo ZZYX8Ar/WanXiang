@@ -122,6 +122,10 @@ namespace WanXiang.Battle.Core
             {
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve, note: report.ToString());
             }
+
+            // 共鸣加成可能在这一步变化（有人阵亡 ⇒ 掉档），而"没人阵亡但格对结算全空"
+            // 时不会有事件、也就不会触发自动抓帧。补一次，保证画面不会显示过期的共鸣标记。
+            st.CaptureFrame();
             return report;
         }
 

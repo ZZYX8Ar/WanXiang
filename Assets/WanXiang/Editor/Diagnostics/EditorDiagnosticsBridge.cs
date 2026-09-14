@@ -836,6 +836,7 @@ namespace WanXiang.EditorTools.Diagnostics
                 case "hot.status": RunHotTool(report, "hot.status"); break;
                 case "hot.smoke": RequestHotUpdateSmoke(report); break;
                 case "battle.selftest": RunBattleSelfTest(report); break;
+                case "battle.graybox": RunBattleTool(report, "battle.graybox"); break;
                 case "resource.smoke": RequestResourceSmoke(report); break;
                 case "play.enter": RequestPlayEnter(report); break;
                 case "play.exit": RequestPlayExit(report); break;
@@ -2992,6 +2993,17 @@ namespace WanXiang.EditorTools.Diagnostics
         private static void RunBattleSelfTest(Report report)
         {
             RunEditorTool(report, "battle.selftest", BattleToolTypeName,
+                "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里缺 WanXiang.Battle.Core 引用。");
+        }
+
+        private const string GrayBoxTypeName =
+            "WanXiang.Editor.BattleTool.BattleGrayBoxWindow, WanXiang.Editor";
+
+        /// <summary>打开灰盒预览窗口（并把预跑数据与自检结果回报一行）。</summary>
+        private static void RunBattleTool(Report report, string command)
+        {
+            RunEditorTool(report, command, GrayBoxTypeName,
                 "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
                 + "② 它的 asmdef 里缺 WanXiang.Battle.Core 引用。");
         }

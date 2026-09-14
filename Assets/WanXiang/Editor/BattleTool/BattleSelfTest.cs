@@ -169,6 +169,52 @@ namespace WanXiang.Editor.BattleTool
             c.Note(DescribeTotals(r1));
             c.Note("摆位说明：我方 1-4/4-7/7-8 三对相生（无相冲）；" +
                    "敌方 0-1/4-7 相生、7-8 相冲、1-4 相冲但落在中宫上被平息。");
+
+            // ---- 视图帧流：表现层的唯一数据来源，必须和逻辑状态严丝合缝 ----
+            {
+                var st = BuildStandard(seed, null);
+                BattleSimulator.Run(st);
+
+                // 按帧累积血量，最后应当等于各自的真实血量（阵亡单位两边都要是 0）
+                var hpByUnit = new System.Collections.Generic.Dictionary<string, int>();
+                bool monotonic = true;
+                int lastEventIndex = -1;
+                for (int i = 0; i < st.Frames.Count; i++)
+                {
+                    var f = st.Frames[i];
+                    if (f.EventIndex < lastEventIndex) { monotonic = false; break; }
+                    lastEventIndex = f.EventIndex;
+                    for (int k = 0; k < f.Changed.Length; k++)
+                        hpByUnit[f.Changed[k].UnitId] = f.Changed[k].Hp;
+                }
+
+                int mismatched = 0;
+                var units = st.AllUnits;
+                for (int i = 0; i < units.Count; i++)
+                {
+                    int seen;
+                    if (!hpByUnit.TryGetValue(units[i].RuntimeId, out seen)) seen = units[i].MaxHp;
+                    if (seen != units[i].Hp) mismatched++;
+                }
+
+                if (st.Frames.Count > 0 && monotonic && mismatched == 0
+                    && st.Frames[0].Changed.Length == units.Count)
+                {
+                    c.Ok($"视图帧流与逻辑状态一致：{st.Frames.Count} 帧（第 0 帧为 {units.Count} 个单位的全量帧），" +
+                         "帧内累积出的血量与各单位终局血量逐一对上");
+                }
+                else
+                {
+                    c.Bad($"视图帧流有问题：帧数 {st.Frames.Count}、时序单调={monotonic}、" +
+                          $"血量对不上的单位 {mismatched} 个、" +
+                          $"第 0 帧单位数 {(st.Frames.Count > 0 ? st.Frames[0].Changed.Length : 0)}（应为 {units.Count}）" +
+                          " —— 表现层会画出和逻辑不一样的画面");
+                }
+                c.Note("帧流是表现层的**唯一**数据来源（灰盒窗口 / 未来的 BoardView 都只读它），" +
+                       "所以它必须与逻辑严丝合缝：表现层自己算规则就等于把战斗逻辑复制第二份。");
+                c.Note("第 0 帧必须是**全量**帧 —— 回放是累积式的（画第 k 帧 = 叠 0..k 的差量），" +
+                       "没有全量起点就不知道「第一帧之前各人是什么样」。");
+            }
         }
 
         // ================================================================
@@ -414,9 +460,7 @@ namespace WanXiang.Editor.BattleTool
             c.Title("[5/5] 灰盒看板（验收②是人的判断，这里只备料）");
 
             // ---- 5a 木 vs 火：GDD 7.1 验证顺序的第 0 步 ----
-            var one = BattleFactory.Create(BattleConfig.Default, 7UL,
-                new[] { DeployEntry.Player(BattleSampleContent.Make("w", "木七", Element.Wood, RoleType.Striker), 4) },
-                new[] { DeployEntry.Enemy(BattleSampleContent.Make("f", "火七", Element.Fire, RoleType.Striker), 4) });
+            var one = BattleSampleContent.BuildScenario(0, 7UL, null);
             var r = BattleSimulator.Run(one);
 
             c.Info("GDD 7.1 第 0 步「1 木 vs 1 火，看 20 遍」—— 单局数据：");
@@ -537,31 +581,13 @@ namespace WanXiang.Editor.BattleTool
         //  装配辅助
         // ================================================================
 
-        /// <summary>基准局面：5v5，两边的摆位刻意做成"我方三对相生、敌方相生相克掺杂"，
-        /// 这样一次运行能同时走过四条棋盘规则。</summary>
+        /// <summary>
+        /// 基准局面：5v5。阵容定义在 <see cref="BattleSampleContent.BuildScenario"/>，
+        /// 灰盒窗口读的是同一份 —— 两处各写一份必然分叉，然后会出现
+        /// "自检跑的局面和眼睛看的不一样"。
+        /// </summary>
         private static BattleState BuildStandard(ulong seed, BattleConfig cfg)
-        {
-            cfg = cfg ?? BattleConfig.Default;
-
-            var p = new[]
-            {
-                DeployEntry.Player(BattleSampleContent.Make("pw", "木甲", Element.Wood,  RoleType.Guard),   0),
-                DeployEntry.Player(BattleSampleContent.Make("ps", "木乙", Element.Wood,  RoleType.Striker), 1),
-                DeployEntry.Player(BattleSampleContent.Make("pc", "火丙", Element.Fire,  RoleType.Caster),  4),
-                DeployEntry.Player(BattleSampleContent.Make("pp", "土丁", Element.Earth, RoleType.Support), 7),
-                DeployEntry.Player(BattleSampleContent.Make("pf", "金戊", Element.Metal, RoleType.Swift),   8),
-            };
-            var e = new[]
-            {
-                DeployEntry.Enemy(BattleSampleContent.Make("eg", "敵金", Element.Metal, RoleType.Guard),    0),
-                DeployEntry.Enemy(BattleSampleContent.Make("es", "敵水", Element.Water, RoleType.Striker),  1),
-                DeployEntry.Enemy(BattleSampleContent.Make("ec", "敵火", Element.Fire,  RoleType.Caster),   4),
-                DeployEntry.Enemy(BattleSampleContent.Make("ep", "敵土", Element.Earth, RoleType.Support),  7),
-                DeployEntry.Enemy(BattleSampleContent.Make("ef", "敵水", Element.Water, RoleType.Swift),    8),
-            };
-
-            return BattleFactory.Create(cfg, seed, p, e);
-        }
+            => BattleSampleContent.BuildScenario(2, seed, cfg);
 
         /// <summary>两个我方单位的极简局面，用来单独验棋盘规则。</summary>
         private static BattleState BuildPair(Element a, Element b, int posA, int posB,

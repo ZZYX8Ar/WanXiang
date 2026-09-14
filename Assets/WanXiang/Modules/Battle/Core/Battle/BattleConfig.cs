@@ -209,5 +209,16 @@ namespace WanXiang.Battle.Core
         }
 
         public static BattleConfig Default => new BattleConfig();
+
+        /// <summary>
+        /// 复制一份。用途：一场战斗必须**独占**自己的配置 ——
+        /// 否则"改完系数先看这一局、再重跑"时，玩家拖动的滑块会直接把
+        /// 正在播放的这一局的系数改掉，画面与已算好的帧不一致。
+        ///
+        /// 所有字段都是值类型（含 <see cref="RoleBaseline"/> 与 <see cref="ElementCoefficients"/>
+        /// 两个 struct），所以逐位复制就够，不需要手写字段列表。
+        /// 将来若加入引用类型字段（比如技能表），这里必须改成深拷贝。
+        /// </summary>
+        public BattleConfig Clone() => (BattleConfig)MemberwiseClone();
     }
 }

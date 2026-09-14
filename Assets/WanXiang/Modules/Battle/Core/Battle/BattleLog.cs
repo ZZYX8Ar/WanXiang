@@ -107,11 +107,19 @@ namespace WanXiang.Battle.Core
         /// <summary>滚动指纹。两次战斗跑完比对这个值即可判定过程是否一致。</summary>
         public uint Fingerprint => _fingerprint;
 
+        /// <summary>
+        /// 每入队一条事件就回调一次。<see cref="BattleState"/> 用它来抓视图帧 ——
+        /// 挂在事件流上而不是散在各处结算代码里，就不会出现"改了状态却忘了抓帧"。
+        /// ⚠ 它**不影响指纹**，只是旁路通知。
+        /// </summary>
+        public System.Action OnEventAdded;
+
         public void Add(BattleEvent e)
         {
             _fingerprint = CoreMath.Combine(_fingerprint, e.Fingerprint());
             if (_events.Count >= Capacity) { Truncated = true; return; }
             _events.Add(e);
+            OnEventAdded?.Invoke();
         }
 
         public void Add(int turn, BattleEventKind kind, string actorId = null, string targetId = null,
