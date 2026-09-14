@@ -844,6 +844,7 @@ namespace WanXiang.EditorTools.Diagnostics
                 case "share.selftest": RunShareSelfTest(report); break;
                 case "weather.selftest": RunWeatherSelfTest(report); break;
                 case "campaign.selftest": RunCampaignSelfTest(report); break;
+                case "meta.selftest": RunMetaSelfTest(report); break;
                 case "resource.smoke": RequestResourceSmoke(report); break;
                 case "play.enter": RequestPlayEnter(report); break;
                 case "play.exit": RequestPlayExit(report); break;
@@ -3042,6 +3043,17 @@ namespace WanXiang.EditorTools.Diagnostics
             RunEditorTool(report, "weather.selftest", WeatherToolTypeName,
                 "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
                 + "② 它的 asmdef 里缺 WanXiang.Battle.Core 引用。");
+        }
+
+        private const string MetaToolTypeName =
+            "WanXiang.Editor.MetaTool.MetaSelfTest, WanXiang.Editor";
+
+        /// <summary>局外孵蛋自检（GDD STEP 3：灵卵经济 / 确定性孵蛋 / 存档码 / 端到端）。Edit 模式同步跑。</summary>
+        private static void RunMetaSelfTest(Report report)
+        {
+            RunEditorTool(report, "meta.selftest", MetaToolTypeName,
+                "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里缺 WanXiang.Meta.Core 引用。");
         }
 
         private const string CampaignToolTypeName =
