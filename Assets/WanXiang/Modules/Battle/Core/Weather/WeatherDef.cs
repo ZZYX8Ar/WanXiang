@@ -1,0 +1,104 @@
+// ============================================================================
+//  万相 · 天时（GDD 第三章 3.1/3.4，STEP 3）
+//  ---------------------------------------------------------------------------
+//  「二十四节气是战场规则库」：每个节点自带一条场地天时。本文件只定义
+//  天时的**数据形状**，来源是内容链（solar_terms.json 的 fieldBuff 逐条翻译，
+//  当前先在编辑器侧 WeatherCatalog 落了代表性子集，见该文件头说明）。
+//
+//  两类效果，通路分开：
+//    ① 原子型 —— 复用 EffectAtom（回复/上状态/真伤），每回合开始/结束
+//       由 WeatherResolver 结算。天时**没有施法者**，所以只用
+//       PercentOfMaxHp / StatusId 这类不依赖攻击力的字段。
+//    ② 规则修正型 —— 禁疗、全场伤害乘数这类"改规则"的，直接做成
+//       WeatherRuntime 的查询属性，战斗结算点按需取用。
+//       本次只接了这两条代表性修正做通路，速度/CD/AOE 修正待后续
+//       （每接一条都要过 battle.selftest 指纹回归）。
+//
+//  ⭐ 可复现性红线：Weather 为 null 时战斗行为必须与旧版**逐位一致**
+//    （weather.selftest 有"空天时指纹零影响"回归项）。
+// ============================================================================
+
+namespace WanXiang.Battle.Core
+{
+    /// <summary>天时作用的对象域。天时是"场地"，用**绝对阵营**（技能原子用的是相对阵营）。</summary>
+    public enum WeatherScope
+    {
+        Both = 0,        // 全场（敌我双方）
+        PlayerSide = 1,  // 仅我方
+        EnemySide = 2,   // 仅敌方
+    }
+
+    /// <summary>一条天时效果：作用域 + 原子。</summary>
+    public struct WeatherEffect
+    {
+        public WeatherScope Scope;
+        public EffectAtom Atom;
+
+        /// <summary>只在第 1 回合结算（如立春"战斗开始时"）。默认每回合结算。</summary>
+        public bool Once;
+
+        /// <summary>池内目标筛选：AllAllies/AllEnemies = 全池；SingleLowestHp = 池内生命最低（霜降处决）。</summary>
+        public TargetSelector Pick;
+
+        public WeatherEffect(WeatherScope scope, EffectAtom atom, bool once = false,
+                             TargetSelector pick = TargetSelector.AllAllies)
+        {
+            Scope = scope; Atom = atom; Once = once; Pick = pick;
+        }
+    }
+
+    /// <summary>一条场地天时（一个节点的战场规则）。</summary>
+    public sealed class WeatherDef
+    {
+        public string Id;          // 如 solar_lichun / wskill_qingyu
+        public string NodeName;    // 节点名（"立春"）或天气技覆盖名（"雨"）
+        public string BuffName;    // 天时名（"东风解冻"）
+        public Element Element;    // 天气属性（逆天时判定用）
+
+        public WeatherEffect[] TurnStart;   // 每回合开始结算（随 TurnStart 事件）
+        public WeatherEffect[] TurnEnd;     // 每回合结束结算（随 TurnEnd 事件）
+
+        // ---- 规则修正型（默认中性；只接了代表性两条，见文件头） ----
+        public bool BanHeal;                // 小雪：全场禁止治疗（护盾不禁）
+        public float DamageAllMultiplier = 1f;   // 夏至：全场伤害 ×1.25（造成与受伤同乘 = 门票双方）
+
+        /// <summary>余气版：原子数值减半（GDD 3.2 规则一：强度减半，残留 2 个节点）。
+        /// 规则修正型（禁疗）余气不生效 —— 全有全无的规则没有"半禁"，这是记录在案的取舍。</summary>
+        public WeatherDef ScaledHalf(string newId)
+        {
+            return new WeatherDef
+            {
+                Id = newId,
+                NodeName = NodeName,
+                BuffName = BuffName + "·余气",
+                Element = Element,
+                TurnStart = ScaleAtoms(TurnStart),
+                TurnEnd = ScaleAtoms(TurnEnd),
+                BanHeal = false,                    // 余气不继承禁疗（取舍见上）
+                DamageAllMultiplier = 1f + (DamageAllMultiplier - 1f) * 0.5f,
+            };
+        }
+
+        private static WeatherEffect[] ScaleAtoms(WeatherEffect[] list)
+        {
+            if (list == null) return null;
+            var copy = new WeatherEffect[list.Length];
+            for (int i = 0; i < list.Length; i++)
+            {
+                var a = list[i].Atom;
+                a.PercentOfMaxHp *= 0.5f;           // 按 %maxHp 的原子减半
+                a.StatusStacks = CoreMath.Max(1, a.StatusStacks / 2);   // 叠层数减半（至少 1）
+                copy[i] = new WeatherEffect(list[i].Scope, a);
+            }
+            return copy;
+        }
+    }
+
+    /// <summary>天气技（GDD 3.4 逆天改势）：祷雨/祈晴/召风/移山，覆盖当前天时 3 回合。</summary>
+    public sealed class WeatherSkillDef
+    {
+        public string Id;          // wskill_qiyu
+        public string Name;        // 祈晴
+        public WeatherDef Brings;  // 覆盖后的天时
+    }
+}

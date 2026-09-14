@@ -47,10 +47,13 @@ namespace WanXiang.Battle.Core
     public static class BattleFactory
     {
         /// <summary>开一场 5v5（或任何阵容）。返回的 BattleState 已经 FinishSetup，可以直接 Run。</summary>
+        /// <param name="weather">场地天时（GDD 3.1，STEP 3）。null = 无天时，行为与旧版逐位一致。</param>
         public static BattleState Create(BattleConfig cfg, ulong seed,
-                                         DeployEntry[] player, DeployEntry[] enemy)
+                                         DeployEntry[] player, DeployEntry[] enemy,
+                                         WeatherDef weather = null)
         {
             var st = new BattleState(cfg, seed);
+            if (weather != null) st.Weather = new WeatherRuntime(weather);
             Deploy(st, player, "P");
             Deploy(st, enemy, "E");
             st.FinishSetup();

@@ -57,6 +57,15 @@ namespace WanXiang.Battle.Core
         /// <summary>视图帧流。表现层按 EventIndex 与事件流对齐。</summary>
         public IReadOnlyList<ViewFrame> Frames => _frames;
 
+        /// <summary>
+        /// 场地天时（GDD 3.1，STEP 3）。**null = 本场无天时** —— 所有结算点先判空，
+        /// 保证无天时的战斗与引入天时系统之前逐位一致（可复现性红线）。
+        /// </summary>
+        public WeatherRuntime Weather;
+
+        /// <summary>禁疗生效中（小雪「虹藏不见」/ 覆盖天时）。</summary>
+        public bool HealBanned => Weather != null && Weather.HealBanned;
+
         public BattleState(BattleConfig config, ulong seed)
         {
             Config = config ?? BattleConfig.Default;

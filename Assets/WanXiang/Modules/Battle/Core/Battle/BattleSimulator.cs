@@ -68,6 +68,9 @@ namespace WanXiang.Battle.Core
                 st.Turn = turn;
                 st.Log.Add(turn, BattleEventKind.TurnStart);
 
+                // ---- 0) 天时·回合开始（GDD 3.1；无天时立即返回，指纹零影响） ----
+                WeatherResolver.ResolveTurnStart(st);
+
                 // ---- 1) 回合开始的场地结算（棋盘四条规则） ----
                 Accumulate(ref total, BoardRules.ResolveAdjacency(st));
                 if (st.CheckOutcome()) break;
@@ -90,8 +93,9 @@ namespace WanXiang.Battle.Core
                 }
                 if (st.IsOver) break;
 
-                // ---- 4) 回合末 ----
+                // ---- 4) 回合末（天时·回合末在 EndOfTurn 之后、TurnEnd 事件之前） ----
                 EndOfTurn(st);
+                WeatherResolver.ResolveTurnEnd(st);
                 st.Log.Add(turn, BattleEventKind.TurnEnd);
             }
 
@@ -174,9 +178,9 @@ namespace WanXiang.Battle.Core
                 }
                 if (!u.IsAlive) continue;
 
-                // 「生机」每层每回合回复 2% 最大生命。
+                // 「生机」每层每回合回复 2% 最大生命。禁疗期（小雪）跳过。
                 int vigor = u.GetStacks(StatusCatalog.Vigor);
-                if (vigor > 0 && u.CanBeHealed)
+                if (vigor > 0 && u.CanBeHealed && !st.HealBanned)
                 {
                     int amount = CoreMath.RoundDamage(u.MaxHp * st.Config.VigorRegenPerStack * vigor);
                     int healed = u.Heal(amount);
@@ -314,7 +318,7 @@ namespace WanXiang.Battle.Core
                     for (int t = 0; t < buf.Targets.Count; t++)
                     {
                         var dst = buf.Targets[t];
-                        if (!dst.CanBeHealed) continue;
+                        if (!dst.CanBeHealed || st.HealBanned) continue;   // 禁疗（小雪）
                         float raw = src.Attack * atom.Power + dst.MaxHp * atom.PercentOfMaxHp;
                         int amount = CoreMath.RoundDamage(raw * src.HealShieldMultiplier);
                         int healed = dst.Heal(amount);
@@ -460,6 +464,18 @@ namespace WanXiang.Battle.Core
             float mitigation = defense / (defense + cfg.DefenseConstant);
             v *= (1f - mitigation);
             v *= dst.DamageTakenMultiplier;
+
+            // ---- 天时修正（GDD 3.1/3.4）。st.Weather 为 null 时零改动 ⇒ 指纹不变 ----
+            if (st.Weather != null)
+            {
+                // 全场伤害乘数（夏至「极阳」：造成的与受到的同时 +25%）
+                v *= st.Weather.DamageAllMultiplier;
+
+                // 逆天时反噬：覆盖天时的属性被节气相克时，我方该属性单位 +15% 承伤
+                var w = st.Weather;
+                if (w.BacklashActive && dst.Side == TeamSide.Player && dst.Element == w.BacklashElement)
+                    v *= (1f + WeatherRuntime.BacklashExtraDamage);
+            }
 
             return CoreMath.RoundDamage(v);
         }
