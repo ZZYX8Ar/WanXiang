@@ -31,9 +31,11 @@ namespace WanXiang.Editor.WeatherTool
         {
             var lines = Run("weather.selftest");
             foreach (var l in lines) Debug.Log("[天时自检] " + l);
-            EditorUtility.DisplayDialog("天时自检",
-                _fail == 0 ? $"✅ {_pass} 项全部通过。\n详情见 Console（搜 [天时自检]）。"
-                           : $"❌ {_pass} 过 / {_fail} 败，失败项见 Console。", "好");
+            // ⚠ 只在失败时弹模态框：全绿也弹会把编辑器主线程卡在对话框上，
+            // 自动化（诊断桥/MCP）跑这条命令时后续命令会全部超时。
+            if (_fail > 0)
+                EditorUtility.DisplayDialog("天时自检",
+                    $"❌ {_pass} 过 / {_fail} 败，失败项见 Console 与 {ReportPath}。", "好");
         }
 
         public static string[] Run(string command)
@@ -86,17 +88,24 @@ namespace WanXiang.Editor.WeatherTool
             Check(lines, healsNormal > 0 && healsBanned == 0,
                   $"② 小雪禁疗：对照局 {healsNormal} 次治疗，禁疗局 {healsBanned} 次");
 
-            // ---- ③ 夏至：全场伤害 ×1.25（含随机性/死亡时序漂移，用区间断言） ----
+            // ---- ③ 夏至：全场伤害 ×1.25。⚠ 不能拿整场总伤害比 —— 伤害变高会
+            //     提前打死人，战斗动态整个变掉，总比值无意义。对 ComputeDamage
+            //     （public static）做受控单笔对照，断言精确 ×1.25（取整误差 ≤1）。
             var xiazhi = WeatherCatalog.GetSolarTerm(22);
-            long dmgNormal = TotalDamage(Run1v1Full(
-                BattleSampleContent.Make("wP", "平", Element.Metal, RoleType.Striker),
-                BattleSampleContent.Make("wQ", "和", Element.Wood, RoleType.Guard), 11, null).Log);
-            long dmgXiazhi = TotalDamage(Run1v1Full(
-                BattleSampleContent.Make("wP", "平", Element.Metal, RoleType.Striker),
-                BattleSampleContent.Make("wQ", "和", Element.Wood, RoleType.Guard), 11, xiazhi).Log);
-            float ratio = dmgNormal > 0 ? (float)dmgXiazhi / dmgNormal : 0f;
-            Check(lines, ratio > 1.10f && ratio < 1.40f,
-                  $"③ 夏至全场伤害：{dmgNormal} ⇒ {dmgXiazhi}（比值 {ratio:0.00}，期望 ≈1.25）");
+            var sPlain = BattleFactory.Create(BattleConfig.Default, 20260914UL,
+                new[] { DeployEntry.Player(BattleSampleContent.Make("wP", "平", Element.Metal, RoleType.Striker), 0) },
+                new[] { DeployEntry.Enemy(BattleSampleContent.Make("wQ", "和", Element.Wood, RoleType.Guard), 8) }, null);
+            var sXiazhi = BattleFactory.Create(BattleConfig.Default, 20260914UL,
+                new[] { DeployEntry.Player(BattleSampleContent.Make("wP", "平", Element.Metal, RoleType.Striker), 0) },
+                new[] { DeployEntry.Enemy(BattleSampleContent.Make("wQ", "和", Element.Wood, RoleType.Guard), 8) }, xiazhi);
+            int dPlain = BattleSimulator.ComputeDamage(sPlain,
+                sPlain.UnitsOf(TeamSide.Player)[0], sPlain.UnitsOf(TeamSide.Enemy)[0],
+                Element.Fire, 1.0f, false, false);
+            int dHot = BattleSimulator.ComputeDamage(sXiazhi,
+                sXiazhi.UnitsOf(TeamSide.Player)[0], sXiazhi.UnitsOf(TeamSide.Enemy)[0],
+                Element.Fire, 1.0f, false, false);
+            Check(lines, System.Math.Abs(dHot - dPlain * 1.25) <= 1,
+                  $"③ 夏至单笔伤害对照：{dPlain} ⇒ {dHot}（精确 ×1.25，取整误差 ≤1）");
 
             // ---- ④ 天气技覆盖：大寒（水）用祈晴（火），3 回合后回归原天时 ----
             //     Guard 对 Guard：高防低攻拖满回合，保证能观察到"回归"发生在第 4 回合。
@@ -203,14 +212,6 @@ namespace WanXiang.Editor.WeatherTool
                 if (e.Turn >= fromTurn && e.Note != null && e.Note.Contains(notePart))
                     n++;
             return n;
-        }
-
-        private static long TotalDamage(BattleLog log)
-        {
-            long sum = 0;
-            foreach (var e in log.Events)
-                if (e.Kind == BattleEventKind.Damage) sum += e.Amount;
-            return sum;
         }
 
         private static string[] Finish(List<string> lines)

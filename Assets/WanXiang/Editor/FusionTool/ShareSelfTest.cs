@@ -31,9 +31,11 @@ namespace WanXiang.Editor.FusionTool
         {
             var lines = Run("share.selftest");
             foreach (var l in lines) Debug.Log("[分享码自检] " + l);
-            EditorUtility.DisplayDialog("分享码自检",
-                _fail == 0 ? $"✅ {_pass} 项全部通过。\n详情见 Console（搜 [分享码自检]）。"
-                           : $"❌ {_pass} 过 / {_fail} 败，失败项见 Console。", "好");
+            // ⚠ 只在失败时弹模态框：全绿也弹会把编辑器主线程卡在对话框上，
+            // 自动化（诊断桥/MCP）跑这条命令时后续命令会全部超时。
+            if (_fail > 0)
+                EditorUtility.DisplayDialog("分享码自检",
+                    $"❌ {_pass} 过 / {_fail} 败，失败项见 Console 与 Temp/WanXiangDiag/share_selftest.txt。", "好");
         }
 
         public static string[] Run(string command)
