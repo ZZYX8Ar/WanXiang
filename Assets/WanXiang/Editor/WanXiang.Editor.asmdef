@@ -5,6 +5,7 @@
         "WanXiang.Core",
         "WanXiang.Runtime",
         "WanXiang.Battle.Core",
+        "WanXiang.Campaign.Core",
         "WanXiang.Modules.Battle",
         "WanXiang.Modules.Fusion.Core",
         "WanXiang.Modules.Fusion",

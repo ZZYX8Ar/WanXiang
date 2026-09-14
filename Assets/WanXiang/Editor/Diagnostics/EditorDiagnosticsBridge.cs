@@ -843,6 +843,7 @@ namespace WanXiang.EditorTools.Diagnostics
                 case "fusion.selftest": RunFusionSelfTest(report); break;
                 case "share.selftest": RunShareSelfTest(report); break;
                 case "weather.selftest": RunWeatherSelfTest(report); break;
+                case "campaign.selftest": RunCampaignSelfTest(report); break;
                 case "resource.smoke": RequestResourceSmoke(report); break;
                 case "play.enter": RequestPlayEnter(report); break;
                 case "play.exit": RequestPlayExit(report); break;
@@ -3041,6 +3042,17 @@ namespace WanXiang.EditorTools.Diagnostics
             RunEditorTool(report, "weather.selftest", WeatherToolTypeName,
                 "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
                 + "② 它的 asmdef 里缺 WanXiang.Battle.Core 引用。");
+        }
+
+        private const string CampaignToolTypeName =
+            "WanXiang.Editor.CampaignTool.CampaignSelfTest, WanXiang.Editor";
+
+        /// <summary>节气节点图自检（GDD STEP 3：分叉路径 / 一局 21 战 / 跨幕余气）。Edit 模式同步跑。</summary>
+        private static void RunCampaignSelfTest(Report report)
+        {
+            RunEditorTool(report, "campaign.selftest", CampaignToolTypeName,
+                "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里缺 WanXiang.Campaign.Core 引用。");
         }
 
         /// <summary>打开灰盒预览窗口（并把预跑数据与自检结果回报一行）。</summary>
