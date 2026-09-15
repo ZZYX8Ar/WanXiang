@@ -207,7 +207,7 @@ namespace WanXiang.Editor.CampaignTool
                 if (GUILayout.Button("本幕跑完（到守关前）", GUILayout.Width(150f)))
                 {
                     while (_driver.Outcome == RunOutcome.InProgress && !_driver.State.AtBoss)
-                        if (_driver.PlayOneBattle(_playerSquad) == null) break;
+                        if (_driver.PlayNextStep(_playerSquad) == null) break;
                 }
                 GUILayout.FlexibleSpace();
                 GUILayout.Label(_loadNote ?? "", Label(FadeText));
@@ -225,7 +225,7 @@ namespace WanXiang.Editor.CampaignTool
             var st = _driver.State;
             var g = st.CurrentGraph;
             GUILayout.Label($"── 第 {st.CurrentAct} 幕 · {g.SeasonCn}（守关 {g.BossName}）"
-                          + " ──   ✔ 已过　◀ 当前　○ 可选　· 未开放", Label(FadeText));
+                          + " ──   ✔ 已过　◀ 当前　○ 可选　· 未开放　｜节点类型：遭遇/精英=战斗，其余非战斗", Label(FadeText));
             foreach (var line in NodeMapView.ActLines(g, st, WeatherCatalog.GetSolarTerm))
                 GUILayout.Label(line, Label(InkText));
         }
@@ -241,26 +241,31 @@ namespace WanXiang.Editor.CampaignTool
                 if (!st.Finished && GUILayout.Button($"⚔ 迎战守关：{bossName}（本场无节点天时）"))
                 {
                     MarkDecision($"幕{st.CurrentAct} 守关·{bossName}");
-                    _driver.PlayOneBattle(_playerSquad);
+                    _driver.PlayNextStep(_playerSquad);
                 }
                 return;
             }
 
             GUILayout.Space(4f);
             GUILayout.Label("── 选择下一步（肉鸽的核心资源是「放弃权」：本幕有 2 个节点永远走不到）──", Label(FadeText));
-            var nextIndex = _driver.Records.Count + 1;
+            var nextIndex = _driver.Steps.Count + 1;
             foreach (var offset in NodeMapView.LegalNextOffsets(st.CurrentGraph, st))
             {
                 int term = st.CurrentGraph.Terms[offset];
-                var squad = _content?.EnemiesFor(st.CurrentAct, term, false,
-                                                 _driver.SeedFor(st.CurrentAct, term, nextIndex));
+                var kind = st.CurrentGraph.KindOf(offset);
                 string label = $"○ 进入 {NodeMapView.NodeLabel(st.CurrentGraph, offset, WeatherCatalog.GetSolarTerm)}"
-                             + $"　敌方：{NodeMapView.EnemyPreview(squad)}";
+                             + $"　【{NodeKinds.Cn(kind)}】";
+                if (NodeKinds.IsBattle(kind))
+                {
+                    var squad = _content?.EnemiesFor(st.CurrentAct, term, false,
+                                                     _driver.SeedFor(st.CurrentAct, term, nextIndex));
+                    label += $"　敌方：{NodeMapView.EnemyPreview(squad)}";
+                }
                 if (GUILayout.Button(label))
                 {
                     MarkDecision($"幕{st.CurrentAct} {NodeMapView.SolarTermName(term)}");   // 计时：本场决策耗时
                     _forced = offset;                       // 让选路器选它
-                    _driver.PlayOneBattle(_playerSquad);
+                    _driver.PlayNextStep(_playerSquad);     // 遭遇/精英会打一场；灵市/孵穴等当场结算
                 }
             }
         }
@@ -276,9 +281,11 @@ namespace WanXiang.Editor.CampaignTool
         private void DrawRecords()
         {
             GUILayout.Space(4f);
-            GUILayout.Label($"── 战斗记录（{_driver.Records.Count} 场） ──", Label(FadeText));
-            foreach (var line in NodeMapView.RecordLines(_driver.Records))
-                GUILayout.Label(line, Label(InkText));
+            int battles = 0;
+            foreach (var s in _driver.Steps) if (s.IsBattle) battles++;
+            GUILayout.Label($"── 行程记录（{_driver.Steps.Count} 步，其中战斗 {battles}） ──", Label(FadeText));
+            foreach (var s in _driver.Steps)
+                GUILayout.Label(s.Describe(), Label(s.IsBattle ? InkText : FadeText));
         }
 
         // ================================================================
@@ -296,7 +303,7 @@ namespace WanXiang.Editor.CampaignTool
             _lastMark = EditorApplication.timeSinceStartup;
             _decisions.Clear();
             _timingLog.Clear();
-            _timingLog.Add($"局种子 {_seed}｜开始计时（已有 {_driver.Records.Count} 场记录）");
+            _timingLog.Add($"局种子 {_seed}｜开始计时（已有 {_driver.Steps.Count} 步）");
         }
 
         private void MarkDecision(string what)
@@ -306,7 +313,7 @@ namespace WanXiang.Editor.CampaignTool
             float dt = (float)(now - _lastMark);
             _lastMark = now;
             _decisions.Add(dt);
-            _timingLog.Add($"{dt,6:F1} 秒　{what}（第 {_driver.Records.Count + 1} 场）");
+            _timingLog.Add($"{dt,6:F1} 秒　{what}（第 {_driver.Steps.Count + 1} 步）");
         }
 
         private void DrawTiming()
@@ -322,7 +329,8 @@ namespace WanXiang.Editor.CampaignTool
 
             float total = 0f;
             for (int i = 0; i < _decisions.Count; i++) total += _decisions[i];
-            int battles = _driver.Records.Count;
+            int battles = 0;
+            foreach (var s in _driver.Steps) if (s.IsBattle) battles++;
             float battleBudgetMin = RunBattles * BudgetBattleSeconds / 60f;      // 10.5 分钟
             float nodeBudgetMin = 16 * BudgetNodeMinutes;                        // 32 分钟
             float projectedMin = total / 60f + battleBudgetMin;
@@ -353,7 +361,7 @@ namespace WanXiang.Editor.CampaignTool
             sb.AppendLine("万相 · 验收① 试玩计时记录（人工）");
             sb.AppendLine(new string('=', 72));
             sb.AppendLine($"时间　　{System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            sb.AppendLine($"局种子　{_seed}｜局况　{_driver.Outcome}｜已打 {_driver.Records.Count} 场");
+            sb.AppendLine($"局种子　{_seed}｜局况　{_driver.Outcome}｜已完成 {_driver.Steps.Count} 步（战斗 {_driver.BattleCount}）");
             sb.AppendLine($"实测决策　{_decisions.Count} 次 / 合计 {total / 60f:F1} 分钟"
                         + $"（平均 {( _decisions.Count > 0 ? total / _decisions.Count : 0f):F0} 秒/次）");
             sb.AppendLine($"推算总时长　{(total / 60f + battleBudgetMin):F1} 分钟"

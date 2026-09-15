@@ -4,10 +4,18 @@
 //  「二十四节气是地图结构」：每幕 6 个节气构成一张小型分叉图（类《杀戮尖塔》），
 //  玩家只经过 4 个节点即抵达守关 —— 每幕 2 个节点被永久放弃。
 //
-//  ⚠ 拓扑是**占位设计**：GDD 只定了"6 选 4 + 分叉"和"收尾节点必属土"，
-//    没给边表。v1 取最直白的形状：4 层 [2,2,1,1]，相邻层全连通 ——
-//    每幕恰好 4 条完整路径，任何一条都以下标 5（土节点：谷雨/大暑/霜降/大寒）收尾。
-//    试玩要调手感时改 Layers / 加边表即可，遍历与验收不动。
+//  ⚠ 拓扑：4 层 [2,2,1,1]，相邻层全连通 —— 每幕恰好 4 条完整路径，
+//    任何一条都以下标 5（土节点：谷雨/大暑/霜降/大寒）收尾。
+//    这与 GDD v1.1 §4.2 的 `SolarTermGraph.Layers = [{0,1},{2,3},{4},{5}]` 完全一致。
+//
+//  ⭐ v1.1 给这张图加了一条**硬约束**（决定单局场次 13~17 的关键）：
+//    ① 第一层与第二层**各自恰好含 1 场战斗**（另一个选项是非战斗节点）
+//       —— 玩家永远有"打法"与"绕法"两条路，且两条路拿到的战斗只差 1 场；
+//    ② 第三层**固定为精英战** —— 每一幕都有一场不可回避的强度检定；
+//    ③ 第四层**固定为非战斗节点**，且必是土属性季末节点（传统历法每季末十八天土旺）。
+//    ⇒ 每幕战斗 2~3 场，四幕 8~12 场；加 4 场守关与 1 场天阙 = **单局 13~17 场**。
+//    （v1.0 写的"16 常�� + 5 守关 = 21"是把 16 个节点全当战斗节点算的，GDD v1.1
+//      明确纠正了这一点。）
 //
 //  幕 5（长夏 · 后土）没有节点 —— 它只是终局守关，这在 solar_terms.json 里
 //  就是 declaredNodeCount = 0。
@@ -17,6 +25,54 @@ using System.Collections.Generic;
 
 namespace WanXiang.Campaign
 {
+    /// <summary>
+    /// 七种节点类型（GDD v1.1 §4.3）。v1.0 只有"节点"一个概念，
+    /// v1.1 拆成七种 —— 它说得很直白：「节点类型的分布，比节点的天时更能决定一局的体验」。
+    /// </summary>
+    public enum NodeKind
+    {
+        /// <summary>遭遇：常规战斗。敌方按幕数与节点类型的规模表定（3~5 只）。</summary>
+        Encounter = 0,
+
+        /// <summary>精英：战斗。规模 +1，其中 1 只带「劫象」额外特性，属性 ×1.18。</summary>
+        Elite = 1,
+
+        /// <summary>灵市：非战斗。用灵卵买异兽/灵魂/技能重铸，可刷新 1 次。</summary>
+        Shop = 2,
+
+        /// <summary>孵穴：非战斗。二选一：回复全队 40% 生命 ／ 取 2 枚灵卵。</summary>
+        Nest = 3,
+
+        /// <summary>异闻：非战斗。典籍轶事 + 三选一（选项有代价，可拒绝换 1 灵卵）。</summary>
+        Tale = 4,
+
+        /// <summary>铸魂台：非战斗。免费融合一次（宿主 + 灵魂）+ 赠 1 个随机灵魂。</summary>
+        Forge = 5,
+
+        /// <summary>天象：非战斗。三选一，每个增益都配一条明确的负面。</summary>
+        Omen = 6,
+    }
+
+    public static class NodeKinds
+    {
+        /// <summary>这个节点要不要打仗 —— 单局场次就是数它。</summary>
+        public static bool IsBattle(NodeKind k) => k == NodeKind.Encounter || k == NodeKind.Elite;
+
+        public static string Cn(NodeKind k)
+        {
+            switch (k)
+            {
+                case NodeKind.Encounter: return "遭遇";
+                case NodeKind.Elite: return "精英";
+                case NodeKind.Shop: return "灵市";
+                case NodeKind.Nest: return "孵穴";
+                case NodeKind.Tale: return "异闻";
+                case NodeKind.Forge: return "铸魂台";
+                case NodeKind.Omen: return "天象";
+                default: return "？";
+            }
+        }
+    }
     /// <summary>一幕的节点图。数据全部来自 GDD 3.3 / solar_terms.json。</summary>
     public sealed class ActGraph
     {
@@ -25,6 +81,9 @@ namespace WanXiang.Campaign
         public WanXiang.Battle.Core.Element SeasonElement;
         public string BossName;
         public int[] Terms;              // 节气序号（GDD 3.3 的 01..24）；空幕为空数组
+
+        /// <summary>逐节点的类型（与 <see cref="Terms"/> 等长，来自 v1.1 §4.2 的落位表）。</summary>
+        public NodeKind[] Kinds;
 
         /// <summary>分层拓扑：每层含哪些节点（下标指 <see cref="Terms"/>）。
         /// 相邻层之间全连通（v1 占位，见文件头）。</summary>
@@ -51,6 +110,36 @@ namespace WanXiang.Campaign
         {
             int lf = LayerOf(fromOffset);
             return lf >= 0 && LayerOf(toOffset) == lf + 1;
+        }
+
+        /// <summary>某节点的类型（越界返回 Encounter，调用方自己保证下标合法）。</summary>
+        public NodeKind KindOf(int offset)
+            => Kinds != null && offset >= 0 && offset < Kinds.Length ? Kinds[offset] : NodeKind.Encounter;
+
+        /// <summary>这个节点要不要打仗。</summary>
+        public bool IsBattleOffset(int offset) => NodeKinds.IsBattle(KindOf(offset));
+
+        /// <summary>
+        /// v1.1 §4.2 三条硬约束的自检判据（campaign.selftest 用它）：
+        /// 一/二层各恰 1 场战斗、三层只有精英、四层只有非战斗节点。
+        /// </summary>
+        public bool MeetsV11Constraints(out string why)
+        {
+            why = null;
+            if (IsEmpty) return true;   // 空幕（天阙）没有节点布局，约束只作用于四季幕
+            if (Layers.Length != 4) { why = "层数不是 4"; return false; }
+            for (int layer = 0; layer < 2; layer++)
+            {
+                int battles = 0;
+                foreach (var off in Layers[layer]) if (IsBattleOffset(off)) battles++;
+                if (battles != 1) { why = $"第 {layer + 1} 层战斗数 {battles} ≠ 1"; return false; }
+            }
+            if (Layers[2].Length != 1 || KindOf(Layers[2][0]) != NodeKind.Elite)
+            { why = "第三层不是单个精英"; return false; }
+            foreach (var off in Layers[3])
+                if (IsBattleOffset(off)) { why = "第四层出现了战斗节点"; return false; }
+            if (!EndsAtEarthTerm) { why = "第四层不是季末土节点"; return false; }
+            return true;
         }
 
         /// <summary>起始层（第一层）的节点下标。</summary>
@@ -94,6 +183,13 @@ namespace WanXiang.Campaign
     {
         public static ActGraph[] BuildDefault()
         {
+            // 每幕的 Kinds 逐位对应 Terms（下标 0..5 = 该幕六个节气按序）：
+            //   春 立春·遭遇 / 雨水·孵穴 ｜ 惊蛰·遭遇 / 春分·灵市 ｜ 清明·精英 ｜ 谷雨·铸魂台
+            //   夏 立夏·遭遇 / 小满·异闻 ｜ 芒种·遭遇 / 夏至·天象 ｜ 小暑·精英 ｜ 大暑·灵市
+            //   秋 立秋·遭遇 / 处暑·灵市 ｜ 白露·遭遇 / 秋分·异闻 ｜ 寒露·精英 ｜ 霜降·孵穴
+            //   冬 立冬·遭遇 / 小雪·天象 ｜ 大雪·遭遇 / 冬至·异闻 ｜ 小寒·精英 ｜ 大寒·铸魂台
+            // ⚠ 一/二层各恰 1 场战斗、三层固定精英、四层固定非战斗 —— 三条硬约束缺一不可，
+            //   MeetsV11Constraints 会逐幕检查（campaign.selftest 的第 ② 项）。
             return new[]
             {
                 new ActGraph
@@ -101,6 +197,11 @@ namespace WanXiang.Campaign
                     Act = 1, SeasonCn = "春", SeasonElement = WanXiang.Battle.Core.Element.Wood,
                     BossName = "句芒",
                     Terms = new[] { 1, 2, 3, 4, 5, 6 },
+                    Kinds = new[]
+                    {
+                        NodeKind.Encounter, NodeKind.Nest, NodeKind.Encounter,
+                        NodeKind.Shop, NodeKind.Elite, NodeKind.Forge,
+                    },
                     Layers = new[] { new[] { 0, 1 }, new[] { 2, 3 }, new[] { 4 }, new[] { 5 } },
                 },
                 new ActGraph
@@ -108,6 +209,11 @@ namespace WanXiang.Campaign
                     Act = 2, SeasonCn = "夏", SeasonElement = WanXiang.Battle.Core.Element.Fire,
                     BossName = "祝融",
                     Terms = new[] { 7, 8, 9, 10, 11, 12 },
+                    Kinds = new[]
+                    {
+                        NodeKind.Encounter, NodeKind.Tale, NodeKind.Encounter,
+                        NodeKind.Omen, NodeKind.Elite, NodeKind.Shop,
+                    },
                     Layers = new[] { new[] { 0, 1 }, new[] { 2, 3 }, new[] { 4 }, new[] { 5 } },
                 },
                 new ActGraph
@@ -115,6 +221,11 @@ namespace WanXiang.Campaign
                     Act = 3, SeasonCn = "秋", SeasonElement = WanXiang.Battle.Core.Element.Metal,
                     BossName = "蓐收",
                     Terms = new[] { 13, 14, 15, 16, 17, 18 },
+                    Kinds = new[]
+                    {
+                        NodeKind.Encounter, NodeKind.Shop, NodeKind.Encounter,
+                        NodeKind.Tale, NodeKind.Elite, NodeKind.Nest,
+                    },
                     Layers = new[] { new[] { 0, 1 }, new[] { 2, 3 }, new[] { 4 }, new[] { 5 } },
                 },
                 new ActGraph
@@ -122,6 +233,11 @@ namespace WanXiang.Campaign
                     Act = 4, SeasonCn = "冬", SeasonElement = WanXiang.Battle.Core.Element.Water,
                     BossName = "禺强",
                     Terms = new[] { 19, 20, 21, 22, 23, 24 },
+                    Kinds = new[]
+                    {
+                        NodeKind.Encounter, NodeKind.Omen, NodeKind.Encounter,
+                        NodeKind.Tale, NodeKind.Elite, NodeKind.Forge,
+                    },
                     Layers = new[] { new[] { 0, 1 }, new[] { 2, 3 }, new[] { 4 }, new[] { 5 } },
                 },
                 new ActGraph
@@ -129,7 +245,8 @@ namespace WanXiang.Campaign
                     Act = 5, SeasonCn = "长夏", SeasonElement = WanXiang.Battle.Core.Element.Earth,
                     BossName = "后土",
                     Terms = new int[] { },                       // declaredNodeCount = 0
-                    Layers = new[] { new int[] { } },            // 只有守关，没有节点
+                    Layers = new[] { new int[] { } },            // 天阙没有节点，只有一场终局战
+                    Kinds = new NodeKind[] { },                  // 后土 + 玩家队伍前 3 只的镜像
                 },
             };
         }

@@ -85,6 +85,9 @@ namespace WanXiang.Campaign
         /// <summary>一局是否通关（后土已败）。</summary>
         public bool Finished => CurrentAct > _acts.Length;
 
+        /// <summary>幕总数（1~4 幕 + 天阙）。RunDriver 用它判定"现在是天阙"。</summary>
+        public int ActCount => _acts.Length;
+
         public IReadOnlyList<LingerEntry> Lingers => _lingers;
 
         // ================================================================

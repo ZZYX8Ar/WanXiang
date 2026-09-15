@@ -1,20 +1,28 @@
 // ============================================================================
-//  万相 · 一局编排（GDD 第 7 章 STEP 3「把战斗单元组装成一局游戏」）
+//  万相 · 一局编排（GDD v1.1 §4.2 / §4.3 / §7.2：「把战斗单元组装成一局游戏」）
 //  ---------------------------------------------------------------------------
 //  节点图（SolarTermGraph）+ 推进状态（RunState）到这里还只是"地图"，本文件是
-//  把它们和战斗接起来的那根轴：
+//  把它们和战斗/事件接起来的那根轴：
 //
-//      选一个节点 → 合成该节点的天时（含余气）→ 组敌方阵容 → 跑一场战斗
-//      → 赢了推进、输了这局结束 → 本幕节点走满就打守关 → 守关赢了下幕
+//      选一个节点 → 看类型：
+//        · 遭遇/精英 → 合成天时（含余气）→ 组敌方阵容 → 跑一场战斗
+//        · 灵市/孵穴/异闻/铸魂台/天象 → 立即结算产出（灵卵/回血/免费融合…）
+//      → 赢了推进、输了这局结束 → 本幕节点走满就打守关 → 四幕走完打天阙
 //
-//  设计取舍（都记录在案）：
-//  ① **每场战斗独立**：血量/状态不跨场继承（每场新建 BattleState）。GDD 没规定
-//     跨场继承，取"每场一场硬仗"，与 battle.selftest 的判据口径一致。待策划确认。
-//  ② **平局按失败处理**：达到回合上限仍没打完不能算通关（肉鸽里"没打过"就是没打过）。
-//  ③ 敌方阵容由 <see cref="ICampaignContent"/> 注入：核心层不认识任何具体内容表，
-//     编辑器侧给样本/配置表，离线冒烟给手工单位 —— 同一份编排逻辑两侧都能跑。
-//  ④ 每场战斗的随机种子 = 局种子 ^ hash(幕:节点:序号) ⇒ **同一局种子逐场可复现**，
-//     且不同节点的随机流互不干扰（改一个节点的内容不会串了整个随机序列）。
+//  v1.1 的结构纠正（本文件是它的落地处）：
+//  ① **单局 13~17 场**：每幕一/二层各恰 1 场战斗（另一个选项非战斗）、三层固定精英、
+//     四层固定非战斗 ⇒ 每幕 2~3 战；加 4 守关 + 1 天阙。
+//     v1.0 的"16 常规 + 5 守关 = 21"是把 16 个节点全当战斗节点算的，GDD 明确纠正。
+//  ② **七种节点类型**：战斗只出自遭遇/精英；灵市/孵穴/异闻/铸魂台/天象是非战斗节点。
+//  ③ **天阙**：四幕守关打完后打后土（×1.50）+ **玩家队伍前 3 只的镜像**
+//     —— 这就是"打你自己的队伍"的终局战（劫律 19 起 5 只镜像）。
+//
+//  设计取舍（沿袭并新增，均记录在案）：
+//  ① 每场战斗独立（血量不跨场继承）；② 平局按失败处理；
+//  ③ 敌方阵容由 ICampaignContent 注入（核心层不认识内容表）；
+//  ④ 每场种子 = 局种子 ^ hash(幕:节点:序号) ⇒ 同局种子逐场可复现；
+//  ⑤ **非战斗节点的"三选一/二选一"当前取确定性默认**（孵穴取灵卵、异闻取拒绝）——
+//     选项 UI 与天象/异闻表是 P5 的事；产出先记账（局内灵卵），保证结构先跑通。
 // ============================================================================
 
 using System;
@@ -27,31 +35,68 @@ namespace WanXiang.Campaign
     public enum RunOutcome
     {
         InProgress = 0,
-        Completed = 1,   // 后土已败
+        Completed = 1,   // 天阙·后土已败
         Defeated = 2,    // 中途败北（含平局）
     }
 
-    /// <summary>一场战斗的记账（窗口展示、复盘、自检都用它）。</summary>
-    public struct BattleRecord
+    /// <summary>一步的类型：战斗出自遭遇/精英/守关/天阙，其余是非战斗节点。</summary>
+    public enum RunStepKind
     {
-        public int Index;          // 第几战（从 1 起）
+        Encounter = 0,   // 遭遇战
+        Elite = 1,       // 精英战
+        Boss = 2,        // 守关战（幕 1~4）
+        Finale = 3,      // 天阙（后土 + 玩家镜像）
+        NonBattle = 4,   // 灵市 / 孵穴 / 异闻 / 铸魂台 / 天象
+    }
+
+    /// <summary>
+    /// 一步的记账（战斗与非战斗统一在这里 —— 复盘时要看的是"这一局经历了什么"，
+    /// 不只是"打了几架"）。
+    /// </summary>
+    public struct RunStep
+    {
+        public int Index;          // 第几步（含非战斗，从 1 起）
         public int Act;
-        public int TermIndex;      // 节气序号（GDD 01..24）；守关战 = -1
-        public bool IsBoss;
-        public string WeatherId;   // 本场合成天时 id（null = 无天时）
+        public int TermIndex;      // 节气序号（01..24）；守关/天阙 = -1
+        public NodeKind Kind;      // 节点类型（守关/天阙无节点类型，值无意义）
+        public RunStepKind StepKind;
+        public string WeatherId;   // 合成天时 id（null = 无天时）
         public string WeatherName;
+
+        // ---- 战斗步 ----
         public BattleOutcome Outcome;
         public int Turns;
         public int EventCount;
         public uint Fingerprint;
 
+        // ---- 非战斗步 ----
+        public string Output;      // 产出/事件文本（灵卵、回血、免费融合…）
+
+        public bool IsBattle => StepKind != RunStepKind.NonBattle;
+
+        public string StepCn()
+        {
+            switch (StepKind)
+            {
+                case RunStepKind.Encounter: return "遭遇";
+                case RunStepKind.Elite: return "精英";
+                case RunStepKind.Boss: return "守关";
+                case RunStepKind.Finale: return "天阙";
+                default: return NodeKinds.Cn(Kind);
+            }
+        }
+
         public string Describe()
         {
-            string node = IsBoss ? $"守关·{ActNameCn(Act)}" : $"{TermIndex:00} {WeatherName}";
+            string node = TermIndex > 0
+                ? $"{TermIndex:00} {WeatherName}"
+                : (StepKind == RunStepKind.Finale ? "天阙·后土" : $"守关·{ActBossCn(Act)}");
+            if (!IsBattle)
+                return $"#{Index,2} 幕{Act} {node}（{StepCn()}）｜{Output}";
             return $"#{Index,2} 幕{Act} {node}｜{Cn.Of(Outcome)}｜{Turns} 回合｜指纹 0x{Fingerprint:X8}";
         }
 
-        private static string ActNameCn(int act)
+        private static string ActBossCn(int act)
         {
             switch (act)
             {
@@ -66,12 +111,17 @@ namespace WanXiang.Campaign
 
     /// <summary>
     /// 敌方阵容来源。核心层不认识内容表 —— 编辑器侧给样本/配置，离线冒烟给手工单位。
-    /// ⚠ 必须**确定性**：同 (act, termIndex, isBoss, seed) 必须给同一套阵容，
-    ///   否则"一局可复现"这条判据在编排层就断了。
+    /// ⚠ 必须**确定性**：同入参必须给同一套阵容，否则"一局可复现"在编排层就断了。
     /// </summary>
     public interface ICampaignContent
     {
         DeployEntry[] EnemiesFor(int act, int termIndex, bool isBoss, ulong seed);
+
+        /// <summary>
+        /// 天阙阵容：后土 + **玩家队伍前 3 只的镜像**（v1.1 §5.5；劫律 19 起 5 只）。
+        /// 镜像 = 同一份 BeastDef 摆到敌方侧（BattleFactory 会克隆，不会串改我方）。
+        /// </summary>
+        DeployEntry[] FinaleFor(DeployEntry[] playerSquad, ulong seed);
     }
 
     /// <summary>选路策略：给定幕与层，选一个节点下标。玩家交互未接时用确定性替身。</summary>
@@ -91,7 +141,7 @@ namespace WanXiang.Campaign
         };
     }
 
-    /// <summary>一局的推进器。逐场调用 <see cref="PlayOneBattle"/>，或一次 <see cref="Play"/> 跑完。</summary>
+    /// <summary>一局的推进器。逐步调用 <see cref="PlayNextStep"/>，或一次 <see cref="Play"/> 跑完。</summary>
     public sealed class RunDriver
     {
         private readonly BattleConfig _cfg;
@@ -114,102 +164,175 @@ namespace WanXiang.Campaign
 
         public RunOutcome Outcome { get; private set; } = RunOutcome.InProgress;
 
-        public List<BattleRecord> Records { get; } = new List<BattleRecord>(24);
+        /// <summary>全部步骤（战斗 + 非战斗节点，按经历顺序）。</summary>
+        public List<RunStep> Steps { get; } = new List<RunStep>(20);
 
-        /// <summary>本场的随机种子：局种子 ^ hash(幕:节点:序号)。</summary>
+        /// <summary>战斗步（守关/天阙/遭遇/精英）—— 老的"逐场"口径，摘要与自检仍用它。</summary>
+        public IEnumerable<RunStep> Battles
+        {
+            get
+            {
+                foreach (var s in Steps) if (s.IsBattle) yield return s;
+            }
+        }
+
+        /// <summary>战斗场数（含守关与天阙）。v1.1 的合法区间是 13~17。</summary>
+        public int BattleCount
+        {
+            get
+            {
+                int n = 0;
+                foreach (var s in Steps) if (s.IsBattle) n++;
+                return n;
+            }
+        }
+
+        /// <summary>局内灵卵（遭遇 +1 / 精英 +2 / 孵穴 +2 / 异闻拒绝 +1；灵市消费待 P4）。</summary>
+        public int RunEggs { get; private set; }
+
+        /// <summary>本步的随机种子：局种子 ^ hash(幕:节点:序号)。</summary>
         public ulong SeedFor(int act, int termIndex, int index)
-            => _seed ^ CoreMath.Fnv1a($"battle:{act}:{termIndex}:{index}");
+            => _seed ^ CoreMath.Fnv1a($"step:{act}:{termIndex}:{index}");
 
         /// <summary>
-        /// 打下一场。返回 null = 已无可打（通关或已败北）。
-        /// 节点战：先 EnterNode（消耗余气计数）再打；守关战：不打节点、无天时。
+        /// 推进一步（打一场或结算一个非战斗节点）。返回 null = 本局已结束。
         /// </summary>
-        public BattleRecord? PlayOneBattle(DeployEntry[] playerSquad)
+        public RunStep? PlayNextStep(DeployEntry[] playerSquad)
         {
             if (Outcome != RunOutcome.InProgress) return null;
             if (State.Finished) { Outcome = RunOutcome.Completed; return null; }
 
-            bool isBoss = State.AtBoss;
+            bool atBoss = State.AtBoss;
+            bool isFinale = atBoss && State.CurrentAct == State.ActCount;
             int act = State.CurrentAct;
             int termIndex = -1;
             WeatherDef weather = null;
+            NodeKind kind = NodeKind.Encounter;
+            RunStepKind stepKind;
 
-            if (!isBoss)
+            if (atBoss)
+            {
+                stepKind = isFinale ? RunStepKind.Finale : RunStepKind.Boss;
+            }
+            else
             {
                 int layer = State.CurrentLayer + 1;
                 int offset = _chooser(State.CurrentGraph, layer);
                 if (!State.EnterNode(offset)) return null;      // 选路非法 = 编排 bug，别静默转圈
+                kind = State.CurrentGraph.KindOf(offset);
                 termIndex = State.CurrentGraph.Terms[offset];
                 weather = State.ComposeCurrentWeather();
+                stepKind = NodeKinds.IsBattle(kind)
+                    ? (kind == NodeKind.Elite ? RunStepKind.Elite : RunStepKind.Encounter)
+                    : RunStepKind.NonBattle;
             }
 
-            int index = Records.Count + 1;
-            var enemies = _content?.EnemiesFor(act, termIndex, isBoss, SeedFor(act, termIndex, index))
-                          ?? new DeployEntry[0];
+            int index = Steps.Count + 1;
+            var step = new RunStep
+            {
+                Index = index,
+                Act = act,
+                TermIndex = termIndex,
+                Kind = kind,
+                StepKind = stepKind,
+                WeatherId = weather?.Id,
+                WeatherName = weather?.BuffName ?? "（无天时）",
+            };
+
+            if (stepKind == RunStepKind.NonBattle)
+            {
+                step.Output = ResolveNonBattle(kind, SeedFor(act, termIndex, index));
+                Steps.Add(step);
+                return step;
+            }
+
+            // ---- 战斗步 ----
+            var enemies = isFinale
+                ? _content?.FinaleFor(playerSquad, SeedFor(act, termIndex, index)) ?? new DeployEntry[0]
+                : _content?.EnemiesFor(act, termIndex, atBoss, SeedFor(act, termIndex, index))
+                  ?? new DeployEntry[0];
 
             var st = BattleFactory.Create(_cfg, SeedFor(act, termIndex, index),
                                           playerSquad, enemies, weather);
             var result = BattleSimulator.Run(st);
 
-            var rec = new BattleRecord
-            {
-                Index = index,
-                Act = act,
-                TermIndex = termIndex,
-                IsBoss = isBoss,
-                WeatherId = weather?.Id,
-                WeatherName = weather?.BuffName ?? "（无天时）",
-                Outcome = result.Outcome,
-                Turns = result.Turns,
-                EventCount = result.EventCount,
-                Fingerprint = result.Fingerprint,
-            };
-            Records.Add(rec);
+            step.Outcome = result.Outcome;
+            step.Turns = result.Turns;
+            step.EventCount = result.EventCount;
+            step.Fingerprint = result.Fingerprint;
+            Steps.Add(step);
 
             if (result.Outcome != BattleOutcome.PlayerWin)
             {
                 Outcome = RunOutcome.Defeated;                  // 平局也算没打过（取舍②）
-                return rec;
+                return step;
             }
 
-            if (isBoss)
+            if (atBoss)
             {
                 State.DefeatBoss();
                 if (State.Finished) Outcome = RunOutcome.Completed;
             }
-            return rec;
+            else
+            {
+                // v1.1 §4.3：遭遇 +1 灵卵、精英 +2（守关/天阙的奖励走结算，不进局内钱包）
+                RunEggs += stepKind == RunStepKind.Elite ? 2 : 1;
+            }
+            return step;
+        }
+
+        /// <summary>
+        /// 非战斗节点的确定性结算。⚠ **三选一/二选一的选项 UI 是 P5**（天象/异闻表也在那时接），
+        /// 现在取"不引入数值副作用"的默认并把全部可选项写进 Output —— 结构先跑通，别假装商店能逛。
+        /// </summary>
+        private string ResolveNonBattle(NodeKind kind, ulong seed)
+        {
+            switch (kind)
+            {
+                case NodeKind.Nest:
+                    RunEggs += 2;      // 默认取灵卵（另一项"回血 40%"对"每场独立血量"的模型没意义）
+                    return "孵穴：取 2 枚灵卵（另一选项：回复全队 40% 生命 —— 与每场独立血量冲突，待策划定）";
+
+                case NodeKind.Tale:
+                    RunEggs += 1;      // 默认拒绝（异闻表 §4.7 待 P5 接入）
+                    return "异闻：拒绝，拿 1 枚灵卵（三选一待接 §4.7）";
+
+                case NodeKind.Shop:
+                    return "灵市：货架 3 异兽 + 2 灵魂 + 1 次重铸（局内消费待 P4）";
+
+                case NodeKind.Forge:
+                    return "铸魂台：免费融合 ×1 + 赠 1 随机灵魂（融合管线就绪，入口待 UI）";
+
+                case NodeKind.Omen:
+                    return "天象：三选一（增益 + 副作用，待接 §4.6 表）";
+
+                default:
+                    return $"（未支持的节点类型 {kind}）";
+            }
         }
 
         /// <summary>一次跑到底。返回终局形态。</summary>
         public RunOutcome Play(DeployEntry[] playerSquad)
         {
             while (Outcome == RunOutcome.InProgress)
-                if (PlayOneBattle(playerSquad) == null) break;
+                if (PlayNextStep(playerSquad) == null) break;
             return Outcome;
         }
 
         /// <summary>整局摘要（窗口与自检报告共用一份文本）。</summary>
         public string Summary()
         {
+            int battles = 0, nonBattle = 0;
+            foreach (var s in Steps)
+            {
+                if (s.IsBattle) battles++;
+                else nonBattle++;
+            }
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"局种子 {_seed}｜结果 {OutcomeCn(Outcome)}｜共 {Records.Count} 战"
-                        + $"（常规 {CountNormal()} + 守关 {CountBoss()}）");
-            for (int i = 0; i < Records.Count; i++) sb.AppendLine("  " + Records[i].Describe());
+            sb.AppendLine($"局种子 {_seed}｜结果 {OutcomeCn(Outcome)}｜共 {Steps.Count} 步"
+                        + $"（战斗 {battles} + 非战斗 {nonBattle}，局内灵卵 {RunEggs}）");
+            for (int i = 0; i < Steps.Count; i++) sb.AppendLine("  " + Steps[i].Describe());
             return sb.ToString();
-        }
-
-        private int CountNormal()
-        {
-            int n = 0;
-            for (int i = 0; i < Records.Count; i++) if (!Records[i].IsBoss) n++;
-            return n;
-        }
-
-        private int CountBoss()
-        {
-            int n = 0;
-            for (int i = 0; i < Records.Count; i++) if (Records[i].IsBoss) n++;
-            return n;
         }
 
         private static string OutcomeCn(RunOutcome o)

@@ -111,12 +111,12 @@ namespace WanXiang.Editor.CampaignTool
             return lines;
         }
 
-        /// <summary>战斗记录行（窗口列表与自检报告共用）。</summary>
-        public static List<string> RecordLines(IReadOnlyList<BattleRecord> records)
+        /// <summary>行程记录行（窗口列表与自检报告共用；战斗与非战斗都是一步）。</summary>
+        public static List<string> RecordLines(IReadOnlyList<RunStep> steps)
         {
             var lines = new List<string>();
-            if (records == null) return lines;
-            for (int i = 0; i < records.Count; i++) lines.Add(records[i].Describe());
+            if (steps == null) return lines;
+            for (int i = 0; i < steps.Count; i++) lines.Add(steps[i].Describe());
             return lines;
         }
 

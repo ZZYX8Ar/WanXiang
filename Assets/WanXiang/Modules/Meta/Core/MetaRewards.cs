@@ -60,15 +60,15 @@ namespace WanXiang.Meta
             return income;
         }
 
-        /// <summary>从一局的推进器读计数（RunDriver 的 Outcome 只读 ⇒ 计数从 Records 里数）。</summary>
+        /// <summary>从一局的推进器读计数（v1.1：Steps 里数，守关/天阙都算 Boss 产量）。</summary>
         public static RunIncome IncomeOf(RunDriver driver, MetaState state)
         {
             int nodes = 0, bosses = 0, actReached = 1;
-            for (int i = 0; i < driver.Records.Count; i++)
+            foreach (var s in driver.Steps)
             {
-                var r = driver.Records[i];
-                if (r.Act > actReached) actReached = r.Act;
-                if (r.IsBoss) bosses++; else nodes++;
+                if (s.Act > actReached) actReached = s.Act;
+                if (s.StepKind == RunStepKind.Boss || s.StepKind == RunStepKind.Finale) bosses++;
+                else if (s.IsBattle) nodes++;
             }
             bool cleared = driver.Outcome == RunOutcome.Completed;
             return IncomeOf(state, nodes, bosses, cleared, actReached);
@@ -90,11 +90,11 @@ namespace WanXiang.Meta
         public static RunIncome Settle(RunDriver driver, MetaState state)
         {
             int nodes = 0, bosses = 0, actReached = 1;
-            for (int i = 0; i < driver.Records.Count; i++)
+            foreach (var s in driver.Steps)
             {
-                var r = driver.Records[i];
-                if (r.Act > actReached) actReached = r.Act;
-                if (r.IsBoss) bosses++; else nodes++;
+                if (s.Act > actReached) actReached = s.Act;
+                if (s.StepKind == RunStepKind.Boss || s.StepKind == RunStepKind.Finale) bosses++;
+                else if (s.IsBattle) nodes++;
             }
             return Settle(state, nodes, bosses, driver.Outcome == RunOutcome.Completed, actReached);
         }

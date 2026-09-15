@@ -138,6 +138,9 @@ namespace WanXiang.Editor.MetaTool
                   $"③ 结算口径：节点/守关可重算一致，首达新幕只给一次（第二次 +{again.NewActBonus}）");
 
             // ---- ④ 孵蛋：孵出未解锁的一只，且扣价/记次/解锁三件事同时发生 ----
+            // ⚠ v1.1 之后一局只有 13~17 战，端到端那局的灵卵收入未必够孵两次 ——
+            //   这里补足余额：④ 验的是"扣价/记次/解锁"机制，不是经济产出（③ 已验过）。
+            st.Eggs += EggForge.EggPrice * 2;
             int eggsBefore = st.Eggs;
             int hostsBefore = st.UnlockedHosts.Count;
             var hatch = EggForge.Hatch(st, content, EggKind.Host);

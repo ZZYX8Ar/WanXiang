@@ -69,5 +69,32 @@ namespace WanXiang.Campaign
                 result[i] = DeployEntry.Enemy(picked[i], _formation[i]);
             return result;
         }
+
+        /// <summary>
+        /// 天阙（v1.1 §5.5/§5.6 #17）：**后土站中宫**（御·中宫）+
+        /// 玩家队伍前 3 只的镜像（劫律 19 起 5 只，这里先做默认 3 只）。
+        /// 镜像 = 同一份 BeastDef 摆到敌方侧 —— BattleFactory 会为每个上阵指令克隆，
+        /// 所以我方/敌方的同名单位不会互相串改。
+        /// </summary>
+        public DeployEntry[] FinaleFor(DeployEntry[] playerSquad, ulong seed)
+        {
+            var boss = _bossForAct?.Invoke(5);                    // 幕 5 = 后土
+            var list = new List<DeployEntry>(4);
+            int[] mirrorSlots = { 0, 1, 7, 8, 2 };                // 中宫留给后土，镜像依次落位
+            int mirrorIndex = 0;
+
+            if (boss != null) list.Add(DeployEntry.Enemy(boss, 4));
+            if (playerSquad != null)
+            {
+                for (int i = 0; i < playerSquad.Length && mirrorIndex < 3; i++)
+                {
+                    var def = playerSquad[i].Def;
+                    if (def == null) continue;
+                    list.Add(DeployEntry.Enemy(def, mirrorSlots[mirrorIndex]));
+                    mirrorIndex++;
+                }
+            }
+            return list.ToArray();
+        }
     }
 }

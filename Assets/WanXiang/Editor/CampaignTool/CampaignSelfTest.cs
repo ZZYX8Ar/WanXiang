@@ -83,6 +83,18 @@ namespace WanXiang.Editor.CampaignTool
             Check(lines, pathsOk && totalPaths == 16,
                   $"② 路径枚举：4 幕 × 4 条 = {totalPaths} 条，每条 4 节点、末节点=土、不重复");
 
+            // ---- ②b v1.1 §4.2 三条硬约束（决定单局场次 13~17 的关键） ----
+            bool constraintsOk = true;
+            string constraintWhy = "全部通过";
+            foreach (var g in acts)
+                if (!g.MeetsV11Constraints(out var why)) { constraintsOk = false; constraintWhy = $"幕{g.Act}：{why}"; break; }
+            int battleNodes = 0;
+            foreach (var g in acts)
+                foreach (var k in g.Kinds) if (NodeKinds.IsBattle(k)) battleNodes++;
+            Check(lines, constraintsOk && battleNodes == 12,
+                  $"②b v1.1 硬约束：一/二层各恰 1 战、三层固定精英、四层固定非战斗土节"
+                  + $"（{constraintWhy}）；战斗节点 12 个（24 节点里正好一半）");
+
             // ---- ③ 非法移动被拒：跳层 / 同层 / 回退 ----
             var g1 = acts[0];
             Check(lines, !g1.CanMove(0, 4) && !g1.CanMove(0, 1) && !g1.CanMove(2, 0) && g1.CanMove(0, 2) && g1.CanMove(0, 3),
@@ -100,7 +112,8 @@ namespace WanXiang.Editor.CampaignTool
             ok &= run.EnterNode(0) == false;                            // 空幕无节点
             ok &= run.AtBoss && run.DefeatBoss() && run.Finished;
             Check(lines, ok && run.BossesDefeated == 5 && run.Path.Count == 16,
-                  $"④ 一局全程：常规 {run.Path.Count} 场 + 守关 {run.BossesDefeated} 场 = 21，通关判定成立");
+                  $"④ 一局全程：每幕走 4 节点（含非战斗）×4 幕 = {run.Path.Count} 节点"
+                  + $" + 4 守关 + 1 天阙；通关判定成立");
 
             // ---- ⑤ 余气：跨幕残留 2 节点、强度减半、过期消失（真实天时目录） ----
             var run2 = new RunState(acts, WeatherCatalog.GetSolarTerm);
@@ -268,41 +281,60 @@ namespace WanXiang.Editor.CampaignTool
             var runA = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
                                      content, 20260914UL, RunChoosers.Seeded(20260914UL));
             var outcomeA = runA.Play(strong);
-            Check(lines, outcomeA == RunOutcome.Completed && runA.Records.Count == 21
-                       && runA.State.Path.Count == 16,
-                  $"⑪ 整局跑完：{outcomeA}，{runA.Records.Count} 战"
-                  + $"（常规 {runA.State.Path.Count} + 守关 {runA.Records.Count - runA.State.Path.Count}）");
+            // v1.1：每幕 2~3 战（一/二层各 1 场 + 三层精英）+ 4 守关 + 1 天阙 = 13~17
+            int finaleSteps = 0, bossSteps = 0, nonBattleSteps = 0;
+            foreach (var s in runA.Steps)
+            {
+                if (s.StepKind == RunStepKind.Finale) finaleSteps++;
+                if (s.StepKind == RunStepKind.Boss) bossSteps++;
+                if (!s.IsBattle) nonBattleSteps++;
+            }
+            Check(lines, outcomeA == RunOutcome.Completed
+                       && runA.BattleCount >= 13 && runA.BattleCount <= 17
+                       && runA.Steps.Count == 21                     // 16 节点 + 4 守关 + 1 天阙
+                       && runA.State.Path.Count == 16
+                       && finaleSteps == 1 && bossSteps == 4 && nonBattleSteps >= 4,
+                  $"⑪ 整局跑完：{outcomeA}，{runA.BattleCount} 战（合法区间 13~17）"
+                  + $"／{runA.Steps.Count} 步（16 节点 + 4 守关 + 1 天阙）"
+                  + $"／非战斗节点 {nonBattleSteps} 个（每幕至少 1 个）");
 
             // ---- ⑫ 一局确定性：同种子逐场指纹/回合/结局一致 ----
             var runB = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
                                      content, 20260914UL, RunChoosers.Seeded(20260914UL));
             runB.Play(strong);
-            bool sameRun = runA.Records.Count == runB.Records.Count;
-            for (int i = 0; i < runA.Records.Count && sameRun; i++)
-                sameRun &= runA.Records[i].Fingerprint == runB.Records[i].Fingerprint
-                        && runA.Records[i].Turns == runB.Records[i].Turns
-                        && runA.Records[i].TermIndex == runB.Records[i].TermIndex;
+            var battlesA = new List<RunStep>(runA.Battles);
+            var battlesB = new List<RunStep>(runB.Battles);
+            bool sameRun = battlesA.Count == battlesB.Count;
+            for (int i = 0; i < battlesA.Count && sameRun; i++)
+                sameRun &= battlesA[i].Fingerprint == battlesB[i].Fingerprint
+                        && battlesA[i].Turns == battlesB[i].Turns
+                        && battlesA[i].TermIndex == battlesB[i].TermIndex;
             Check(lines, sameRun, "⑫ 一局确定性：同种子两局逐场指纹/回合/路径一致");
 
             // ---- ⑬ 天时贯通（真实目录）：幕 2 前两场带立春余气，第 3 场起散尽 ----
             var runD = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
                                      content, 20260914UL, RunChoosers.First);
             var outcomeD = runD.Play(strong);
-            var act2 = new List<BattleRecord>();
-            foreach (var r in runD.Records) if (r.Act == 2 && !r.IsBoss) act2.Add(r);
+            var act2 = new List<RunStep>();
+            foreach (var s in runD.Battles)
+                if (s.Act == 2 && s.StepKind != RunStepKind.Boss && s.StepKind != RunStepKind.Finale)
+                    act2.Add(s);
             string act2Desc = act2.Count == 0 ? "（无）" : "";
             for (int i = 0; i < act2.Count; i++)
                 act2Desc += (i > 0 ? "｜" : "") + $"第{i + 1}场 {act2[i].WeatherId ?? "null"}";
-            bool weatherOk = act2.Count == 4
+            // ⚠ 幕 2 的战斗只有 3 场（First 选路：立夏/芒种/小暑；大暑是灵市）——
+            //   "第四层必非战斗"正是 v1.1 的硬约束之一
+            bool weatherOk = act2.Count == 3
                           && (act2[0].WeatherId ?? "").Contains("linger_solar_lichun")
                           && (act2[1].WeatherId ?? "").Contains("linger_solar_lichun")
                           && !(act2[2].WeatherId ?? "").Contains("linger");
             Check(lines, weatherOk,
-                  $"⑬ 天时贯通（{outcomeD}／共 {runD.Records.Count} 战）：{act2Desc}");
+                  $"⑬ 天时贯通（{outcomeD}／共 {runD.BattleCount} 战）：{act2Desc}");
 
             bool bossOk = false;
-            foreach (var r in runD.Records)
-                if (r.IsBoss) { bossOk = r.TermIndex == -1 && r.WeatherId == null; break; }
+            foreach (var s in runD.Battles)
+                if (s.StepKind == RunStepKind.Boss)
+                { bossOk = s.TermIndex == -1 && s.WeatherId == null; break; }
             Check(lines, bossOk, "⑬ 守关战：不挂节点天时（WeatherId=null），也不占节气节点");
 
             // ---- ⑭ 败北终止：单只灵品后卫对上满编 ⇒ 早于 21 战结束 ----
@@ -313,13 +345,13 @@ namespace WanXiang.Editor.CampaignTool
             var runE = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
                                      content, 20260914UL, RunChoosers.First);
             var outcomeE = runE.Play(weak);
-            Check(lines, outcomeE == RunOutcome.Defeated && runE.Records.Count < 21,
-                  $"⑭ 败北终止：{outcomeE}，只打了 {runE.Records.Count} 战就结束");
+            Check(lines, outcomeE == RunOutcome.Defeated && runE.BattleCount < 13,
+                  $"⑭ 败北终止：{outcomeE}，只打了 {runE.BattleCount} 战就结束");
 
             // ---- ⑮ 整局摘要可读（节点图窗口与报告共用同一份文本） ----
             var summary = runA.Summary();
             Check(lines, summary.Contains("通关") && summary.Split('\n').Length >= 21,
-                  "⑮ 整局摘要：含结论与逐场记录（21 行以上）");
+                  "⑮ 整局摘要：含结论与全部行程（21 步以上）");
             lines.Add("  · 整局摘要（⑪ 那一局，逐场）：");
             foreach (var l in summary.Split('\n'))
                 if (l.Trim().Length > 0) lines.Add("      " + l);
@@ -334,7 +366,7 @@ namespace WanXiang.Editor.CampaignTool
                        && actLines0[0].Contains("立春") && actLines0[0].Contains("东风解冻");
             Check(lines, viewOk, $"⑯ 视图数据·开局：4 层行、第一层可选中带节气名与天时名（{actLines0[0]}）");
 
-            viewRun.PlayOneBattle(strong);                                        // 走一个节点
+            viewRun.PlayNextStep(strong);                                        // 走一个节点
             int visitedOffsets = NodeMapView.VisitedOffsets(viewRun.State.CurrentGraph, viewRun.State).Count;
             int legalNext = NodeMapView.LegalNextOffsets(viewRun.State.CurrentGraph, viewRun.State).Count;
             var lines1 = NodeMapView.ActLines(viewRun.State.CurrentGraph, viewRun.State,
@@ -344,7 +376,7 @@ namespace WanXiang.Editor.CampaignTool
             Check(lines, visitedOffsets == 1 && legalNext == 2 && lines1[0].Contains("◀"),
                   $"⑯ 视图数据·走过一个节点：已过 {visitedOffsets} 个（当前 ◀）、下一步 {legalNext} 个合法分支");
 
-            viewRun.PlayOneBattle(strong);                                        // 再走一个（跨层）
+            viewRun.PlayNextStep(strong);                                        // 再走一个（跨层）
             var lines2 = NodeMapView.ActLines(viewRun.State.CurrentGraph, viewRun.State,
                                               WeatherCatalog.GetSolarTerm);
             Check(lines, lines2[0].Contains("✔") && lines2[1].Contains("◀")
@@ -352,17 +384,38 @@ namespace WanXiang.Editor.CampaignTool
                   $"⑯ 视图数据·跨层：上一层节点转 ✔、下一层当前 ◀（{lines2[0]}）");
 
             var lingersView = NodeMapView.LingerLines(viewRun.State);
-            var recordLines = NodeMapView.RecordLines(viewRun.Records);
-            Check(lines, lingersView.Count == 1 && recordLines.Count == viewRun.Records.Count
+            var recordLines = NodeMapView.RecordLines(viewRun.Steps);
+            Check(lines, lingersView.Count == 1 && recordLines.Count == viewRun.Steps.Count
                        && recordLines[0].Contains("幕1")
                        && NodeMapView.StatusLine(viewRun.State, viewRun.Outcome).Contains("第 1 幕"),
-                  $"⑯ 视图数据·余气/记录/状态（{recordLines.Count} 场）：{lingersView[0]}｜{recordLines[0]}");
+                  $"⑯ 视图数据·余气/记录/状态（{recordLines.Count} 步）：{lingersView[0]}｜{recordLines[0]}");
 
             // ---- ⑰ 灰盒窗口类型可用（不做弹窗副作用：自检不该改编辑器 UI 状态；
             //      真正打开由人工/MCP 走菜单「万相/节气/节点图（灰盒）」） ----
             var windowType = System.Type.GetType("WanXiang.Editor.CampaignTool.NodeMapWindow, WanXiang.Editor");
             Check(lines, windowType != null && typeof(EditorWindow).IsAssignableFrom(windowType),
                   "⑰ 节点图窗口类型可用（人工判据入口：万相/节气/节点图（灰盒））");
+
+            // ---- ⑱ 天阙（v1.1 §5.6 #17）：后土 + 玩家队伍前 3 只的镜像 ----
+            var finaleSquad = content.FinaleFor(strong, 20260914UL);
+            bool hasBoss = false;
+            int mirrors = 0;
+            foreach (var e in finaleSquad)
+            {
+                if (e.Def == null) continue;
+                if (e.Def.DisplayName == acts[4].BossName && e.PosIndex == 4) hasBoss = true;   // 后土站中宫
+                else
+                {
+                    for (int i = 0; i < 3; i++)
+                        if (ReferenceEquals(e.Def, strong[i].Def)) { mirrors++; break; }
+                }
+            }
+            Check(lines, finaleSquad.Length == 4 && hasBoss && mirrors == 3,
+                  $"⑱ 天阙阵容：后土（中宫）+ 玩家前 3 只的镜像（实得 {finaleSquad.Length} 只，镜像 {mirrors}）");
+
+            // ---- ⑲ 局内灵卵（v1.1 §4.3：遭遇 +1 / 精英 +2 / 孵穴 +2 / 异闻拒绝 +1） ----
+            Check(lines, runA.RunEggs > 0,
+                  $"⑲ 局内灵卵：这一局攒了 {runA.RunEggs} 枚（遭遇/精英/孵穴/异闻的产出口径）");
 
             lines.Add("========================================================================");
             lines.Add($"结论：{_pass} 项通过，{_fail} 项失败");
