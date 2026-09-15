@@ -157,6 +157,9 @@ namespace WanXiang.Editor.WeatherTool
                     Id = "solar_xiazhi", NodeName = "夏至", BuffName = "日长至·极阳",
                     Element = Element.Fire,
                     DamageAllMultiplier = 1.25f,
+                    // v1.1 §4.4 #10：日长至·极阳是**双向**的 —— 全场受到的伤害也 +25%
+                    // （"双方都在刀尖上"）。v1.0 只做了造成的一半。
+                    DamageTakenMul = 1.25f,
                 },
             },
 
@@ -304,6 +307,9 @@ namespace WanXiang.Editor.WeatherTool
                 {
                     Id = "solar_dahan", NodeName = "大寒", BuffName = "寒气之逆极",
                     Element = Element.Water,
+                    // v1.1 §4.4 #24：火属性技能命中时移除该单位 2 层冰蚀并造成
+                    // 5% 最大生命的额外伤害 —— 「火能融冰」。
+                    IceMeltOnFireSkill = true,
                     TurnEnd = new[]
                     {
                         new WeatherEffect(WeatherScope.Both,

@@ -156,6 +156,14 @@ namespace WanXiang.Battle.Core
         // 23 小寒「寒鸦北去」：每回合结束，我方速度最高的单位获得一次额外普攻
         public bool ExtraBasicAttackOnTurnEnd;
 
+        // 10 夏至「日长至·极阳」的另一半：全场**受到**的伤害 +25%（与造成的 +25% 成对
+        // —— "双方都在刀尖上"）。1 = 中性，走判空短路。
+        public float DamageTakenMul = 1f;
+
+        // 24 大寒「寒气之逆极」的另一半：火属性技能命中时移除 2 层冰蚀并造成
+        // 5% 最大生命的额外伤害 —— 「火能融冰」（固定数值，GDD 给死了）。
+        public bool IceMeltOnFireSkill;
+
         // 21 大雪「闭塞成冬」：全场速度 -20%（已有 SpeedMul），并把「先手连击」门槛
         // 从 1.50 降到 1.20 —— 0 = 用 BattleConfig 的默认门槛。
         public float InitiativeRatioOverride;
@@ -215,6 +223,8 @@ namespace WanXiang.Battle.Core
                 DebuffDurationMinusOne = DebuffDurationMinusOne,
                 ImmuneConfuseSilence = ImmuneConfuseSilence,
                 ExtraBasicAttackOnTurnEnd = ExtraBasicAttackOnTurnEnd,
+                DamageTakenMul = HalfToward1(DamageTakenMul),
+                IceMeltOnFireSkill = IceMeltOnFireSkill,   // 开关类余气照常继承
                 // 门槛类的余气：向默认值回收一半（1.20 → 1.35），不照搬也不取消
                 InitiativeRatioOverride = InitiativeRatioOverride <= 0f
                     ? 0f : (InitiativeRatioOverride + 1.50f) * 0.5f,

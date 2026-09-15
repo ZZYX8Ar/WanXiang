@@ -141,12 +141,15 @@ namespace WanXiang.Battle.Core
 
                 var unit = new BattleUnit(entries[i].Side, copy, $"{idPrefix}{counter}");
                 // 「复苏」劫象：阵亡时以 30% 生命复活 1 次（复用惊蛰虫卵的孵化机制）
+                if (entries[i].TraitId == BattleTraits.Thickwall)
+                    unit.NoHeal = true;                          // 厚壁：无法被治疗
                 if (entries[i].TraitId == BattleTraits.Revive)
                 {
                     unit.EggUsed = false;
                     unit.EggTurnsLeft = 1;
                     unit.EggReviveHpPercent = 0.30f;
                     unit.EggFromTrait = true;
+                    unit.HealTakenMul = 0.7f;                    // 复苏：治疗效果 -30%
                 }
                 var pos = new GridPos(entries[i].PosIndex);
 

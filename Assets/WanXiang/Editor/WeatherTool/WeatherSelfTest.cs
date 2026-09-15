@@ -485,6 +485,28 @@ namespace WanXiang.Editor.WeatherTool
             Check(lines, snowInit > 0 && plainInit2 == 0,
                   $"㉖ 大雪门槛 1.20×：同一对阵无天时 {plainInit2} 次、大雪下 {snowInit} 次");
 
+            // ---- ㉗ 目录：P2 补齐的三条字段（夏至双向 / 小雪护盾 / 大寒融冰） ----
+            var t10 = WeatherCatalog.GetSolarTerm(10);
+            var t20 = WeatherCatalog.GetSolarTerm(20);
+            var t24 = WeatherCatalog.GetSolarTerm(24);
+            Check(lines, t10 != null && System.Math.Abs(t10.DamageTakenMul - 1.25f) < 0.0001f
+                       && t20 != null && System.Math.Abs(t20.ShieldGainMul - 1.5f) < 0.0001f && t20.BanHeal
+                       && t24 != null && t24.IceMeltOnFireSkill,
+                  "㉗ 目录：夏至受创 +25%（双向）/ 小雪护盾 +50% / 大寒火能融冰");
+
+            // ---- ㉘ 单位钩子：厚壁禁疗 / 复苏治疗 -30%（BattleFactory 落地） ----
+            var sT = Make1v1("tw1", "壁", Element.Metal, RoleType.Guard,
+                             "tw2", "苏", Element.Metal, RoleType.Guard, null);
+            BattleUnit uWall2 = null, uRev2 = null;
+            foreach (var u in sT.UnitsOf(TeamSide.Enemy))
+            {
+                if (u.NoHeal) uWall2 = u;
+                if (System.Math.Abs(u.HealTakenMul - 0.7f) < 0.001f) uRev2 = u;
+            }
+            Check(lines, uWall2 == null && uRev2 == null,
+                  "㉘ 探针：默认阵容不带劫象单位（钩子只在带 TraitId 时生效）——"
+                  + "厚壁/复苏的端到端对照在离线冒烟（劫象治疗钩子）");
+
             return Finish(lines);
         }
 

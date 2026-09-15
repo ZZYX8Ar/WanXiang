@@ -170,6 +170,12 @@ namespace WanXiang.Battle.Core
         public bool ImmuneConfuseSilenceFor(TeamSide side)
             => side == TeamSide.Player && Active?.ImmuneConfuseSilence == true;
 
+        /// <summary>夏至「日长至·极阳」：全场受到的伤害乘数（1 = 中性）。</summary>
+        public float DamageTakenMul => Active?.DamageTakenMul ?? 1f;
+
+        /// <summary>大寒「寒气之逆极」：火属性技能命中触发融冰。</summary>
+        public bool IceMeltOnFireSkill => Active?.IceMeltOnFireSkill == true;
+
         /// <summary>
         /// 先手连击门槛（大雪把它降到 1.20；其余天时用 BattleConfig 默认 1.50）。
         /// 无天时时返回默认值 —— 调用方不必判空。

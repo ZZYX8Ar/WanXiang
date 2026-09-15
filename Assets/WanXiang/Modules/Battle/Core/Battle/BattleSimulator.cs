@@ -656,6 +656,10 @@ namespace WanXiang.Battle.Core
                 }
             }
 
+            // 24 大寒「寒气之逆极」下半：火属性技能命中 → 融冰（公开成 WeatherIceMelt 供测试）
+            if (w.IceMeltOnFireSkill && el == Element.Fire)
+                WeatherIceMelt(st, src, dst);
+
             // 09 芒种「螳螂生」：我方暴击时追加一次追击（每次行动限 1 次）
             // 取舍：追击**不再判暴击**（暴击的追击再暴击会链式触发，GDD 没规定这种递归）。
             if (crit && dst.IsAlive && !src.PursuitUsedThisAction)
@@ -687,6 +691,28 @@ namespace WanXiang.Battle.Core
                                note: $"天时·水始成冰：{dst.DisplayName} 被冻结");
                 }
             }
+        }
+
+        /// <summary>
+        /// 24 大寒「寒气之逆极」下半：火属性技能命中时，移除该单位 2 层冰蚀
+        /// 并造成 5% 最大生命的额外伤害 —— 「火能融冰」把五行相克变成看得见的画面。
+        /// 取舍：普攻也是技能槽 0，算"火属性技能"（GDD 没区分）；持续伤害不走这里。
+        /// public：自检直接调它（DealDamage 是私有的，测试不该为它开洞）。
+        /// </summary>
+        public static void WeatherIceMelt(BattleState st, BattleUnit src, BattleUnit dst)
+        {
+            if (st.Weather == null || !st.Weather.IceMeltOnFireSkill) return;
+            if (!dst.HasStatus(StatusCatalog.IceErosion)) return;
+
+            dst.RemoveStatusStacks(StatusCatalog.IceErosion, 2);
+            int melt = CoreMath.RoundDamage(dst.MaxHp * 0.05f);
+            int meltDealt = dst.IsAlive ? dst.TakeTrueDamage(melt) : 0;
+            st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId,
+                       targetId: dst.RuntimeId, amount: meltDealt, element: Element.Fire,
+                       note: "天时·火能融冰");
+            if (meltDealt > 0 && !dst.IsAlive)
+                st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
+                           note: $"{dst.DisplayName} 阵亡（融冰）");
         }
 
         /// <summary>

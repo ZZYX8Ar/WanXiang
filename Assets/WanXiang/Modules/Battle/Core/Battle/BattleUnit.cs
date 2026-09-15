@@ -328,6 +328,24 @@ namespace WanXiang.Battle.Core
         }
 
         /// <summary>移除状态。statusId 传 null 表示清除全部减益（驱散）。返回移除的层数总和。</summary>
+        /// <summary>移除某状态至多 max 层（大寒「火能融冰」：火技命中移除 2 层冰蚀）。</summary>
+        public int RemoveStatusStacks(string statusId, int max)
+        {
+            int removed = 0;
+            for (int i = Statuses.Count - 1; i >= 0 && removed < max; i--)
+            {
+                if (Statuses[i].Id != statusId) continue;
+                int take = System.Math.Min(max - removed, Statuses[i].Stacks);
+                // ⚠ StatusInstance 是 struct：List 的索引器返回副本，必须改完再写回
+                var inst = Statuses[i];
+                inst.Stacks -= take;
+                removed += take;
+                if (inst.Stacks <= 0) Statuses.RemoveAt(i);
+                else Statuses[i] = inst;
+            }
+            return removed;
+        }
+
         public int RemoveStatus(string statusId)
         {
             int removed = 0;
@@ -421,9 +439,24 @@ namespace WanXiang.Battle.Core
             return toHp;
         }
 
+        /// <summary>
+        /// 「厚壁」劫象：无法被治疗（GDD §5.5）。挂在单位上而不是状态上 ——
+        /// 它不是持续效果，是这只怪的"体质"，不能被驱散也不随回合消退。
+        /// </summary>
+        public bool NoHeal;
+
+        /// <summary>
+        /// 治疗接收乘数（「复苏」劫象：0.7）。1 = 中性，无劫象路径逐位不变。
+        /// </summary>
+        public float HealTakenMul = 1f;
+
         public int Heal(int amount)
         {
             if (amount <= 0 || !IsAlive) return 0;
+            if (NoHeal) return 0;                                   // 厚壁：一口都回不上
+            if (System.Math.Abs(HealTakenMul - 1f) > 0.0001f)
+                amount = CoreMath.RoundDamage(amount * HealTakenMul);   // 复苏：治疗 -30%
+            if (amount <= 0) return 0;
             int before = Hp;
             Hp = CoreMath.Min(MaxHp, Hp + amount);
             return Hp - before;

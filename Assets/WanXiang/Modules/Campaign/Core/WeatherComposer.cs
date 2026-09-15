@@ -67,18 +67,21 @@ namespace WanXiang.Campaign
             float critP = 0f, critE = 0f;
             float overflow = 0f;
             bool banHeal = false;
+            float damageTaken = 1f;
+            bool iceMelt = false;
 
             var hooks = new Hooks();
 
             Apply(node, ref damageAll, ref spP, ref spE, ref cdP, ref cdE, ref aoe, ref single,
                   ref firstTurn, ref fireDot, ref shieldGain, ref wood, ref fire, ref earth,
-                  ref metal, ref water, ref critP, ref critE, ref overflow, ref banHeal, ref hooks);
+                  ref metal, ref water, ref critP, ref critE, ref overflow, ref banHeal,
+                  ref damageTaken, ref iceMelt, ref hooks);
             if (lingers != null)
                 for (int i = 0; i < lingers.Count; i++)
                     Apply(lingers[i], ref damageAll, ref spP, ref spE, ref cdP, ref cdE, ref aoe,
                           ref single, ref firstTurn, ref fireDot, ref shieldGain, ref wood,
                           ref fire, ref earth, ref metal, ref water, ref critP, ref critE,
-                          ref overflow, ref banHeal, ref hooks);
+                          ref overflow, ref banHeal, ref damageTaken, ref iceMelt, ref hooks);
 
             result.DamageAllMultiplier = damageAll;
             result.SpeedMulPlayer = spP;
@@ -99,6 +102,8 @@ namespace WanXiang.Campaign
             result.CritDamageBonusEnemy = critE;
             result.HealOverflowShieldRatio = overflow;
             result.BanHeal = banHeal;
+            result.DamageTakenMul = damageTaken;       // 乘数连乘（与 damageAll 同口径）
+            result.IceMeltOnFireSkill = iceMelt;
 
             // ---- 事件钩子型：开关取或、数值取更强的那份 ----
             // 取或/取强而不是相加：这些是"有没有这条规则"，两份同样的规则叠加不该变成双倍
@@ -155,7 +160,8 @@ namespace WanXiang.Campaign
             ref float aoe, ref float single, ref float firstTurn, ref float fireDot,
             ref float shieldGain, ref float wood, ref float fire, ref float earth,
             ref float metal, ref float water, ref float critP, ref float critE,
-            ref float overflow, ref bool banHeal, ref Hooks h)
+            ref float overflow, ref bool banHeal, ref float damageTaken, ref bool iceMelt,
+            ref Hooks h)
         {
             if (w == null) return;
             damageAll *= w.DamageAllMultiplier;
@@ -177,6 +183,8 @@ namespace WanXiang.Campaign
             critE += w.CritDamageBonusEnemy;
             overflow = System.Math.Max(overflow, w.HealOverflowShieldRatio);
             banHeal |= w.BanHeal;
+            damageTaken *= w.DamageTakenMul != 1f ? w.DamageTakenMul : 1f;   // 乘数连乘（1 恒等）
+            iceMelt |= w.IceMeltOnFireSkill;
 
             // ---- 事件钩子型（开关取或、数值取强、触发间隔取小） ----
             if (w.AttackBurnOn)
