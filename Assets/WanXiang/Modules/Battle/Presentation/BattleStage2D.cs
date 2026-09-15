@@ -66,8 +66,9 @@ namespace WanXiang.Battle.Presentation
         //  搭建
         // ================================================================
 
-        public void Build(BattleState st, Sprite springBg)
+        public void Build(BattleState st, Sprite springBg, SpriteCatalog catalog = null)
         {
+            _catalog = catalog;
             Clear();
             _state = st;
 
@@ -127,6 +128,7 @@ namespace WanXiang.Battle.Presentation
         {
             var catalog = FindCatalog();
             var units = _state.AllUnits;
+            int unitIndex = 0;
             for (int i = 0; i < units.Count; i++)
             {
                 var u = units[i];
@@ -143,22 +145,31 @@ namespace WanXiang.Battle.Presentation
                 root.transform.SetParent(transform, false);
                 bool player = u.Side == TeamSide.Player;
                 view.HomePos = CellPos(player, u.Pos.Index);
-                root.transform.localPosition = new Vector3(view.HomePos.x, view.HomePos.y, 0f);
+                // Pivot=底部中 + Y 上偏 = 立绘脚踩格子中心（遮挡关系由 sortingOrder 管）
+                root.transform.localPosition = new Vector3(view.HomePos.x, view.HomePos.y + 0.4f, 0f);
                 view.Root = root;
 
                 // 立绘：SpriteCatalog 按 BeastDef.Id 查；查不到回退五行色块
                 var bodySr = root.AddComponent<SpriteRenderer>();
                 var sprite = catalog != null ? catalog.Get(u.Def.Id) : null;
                 // ⚠ 测试阵容 Id（pw/eg 等）对不上 catalog 里的真实异兽 id ——
-                //   立绘查不到就走色块 fallback。等真实内容接入后 Id 会对上。
+                //   查不到就**按 catalog 序号分配**：Player 取前半、Enemy 取后半，
+                //   这样立绘立刻出现在棋盘上（后续真实内容接入后 Id 会对上）。
+                if (sprite == null && catalog != null && catalog.Entries.Count > 0)
+                {
+                    int idx = catalog.Entries.Count > 5 && !player
+                        ? 5 + (unitIndex % (catalog.Entries.Count - 5))
+                        : unitIndex % System.Math.Min(5, catalog.Entries.Count);
+                    sprite = catalog.Entries[idx].Body;
+                }
                 if (sprite != null)
                 {
                     bodySr.sprite = sprite;
-                    // 显示高 ~1.7 世界单位：按 sprite 尺寸等比缩放
+                    // 显示高 ~1.2 世界单位（棋盘格 1.15，刚好填满不出格）
                     float h = sprite.bounds.size.y;
                     if (h > 0.001f)
                     {
-                        float k = 1.7f / h;
+                        float k = 1.2f / h;
                         root.transform.localScale = new Vector3(k, k, 1f);
                     }
                 }
@@ -168,21 +179,21 @@ namespace WanXiang.Battle.Presentation
                     bodySr.sprite = SolidSprite(BattlePalette.OfElement(u.Element), 96, 128, 3,
                                                 new Color(0.16f, 0.13f, 0.09f));
                 }
-                bodySr.sortingOrder = 0;
+                bodySr.sortingOrder = u.Pos.Index / 3;   // row 0=后 1=中 2=前
                 // 敌方压暗一档（§4.4 敌我同源 + 浊化的轻量版）
                 if (!player) bodySr.color = new Color(0.72f, 0.72f, 0.80f);
                 view.Body = bodySr;
                 view.BaseColor = bodySr.color;
 
                 view.HpBg = MakeChildSprite(root, "HpBg", new Color(0.10f, 0.08f, 0.06f),
-                                            new Vector2(0.95f, 0.11f), new Vector2(0f, 0.95f), 2);
+                                            new Vector2(0.85f, 0.10f), new Vector2(0f, 1.18f), 2);
                 view.HpFill = MakeChildSprite(root, "HpFill", BattlePalette.Vital,
-                                              new Vector2(0.90f, 0.075f), new Vector2(0f, 0.95f), 3);
+                                              new Vector2(0.80f, 0.07f), new Vector2(0f, 1.18f), 3);
                 SetHpBar2D(view, u.Hp, u.MaxHp);
 
                 var nameGo = new GameObject("Name");
                 nameGo.transform.SetParent(root.transform, false);
-                nameGo.transform.localPosition = new Vector3(0f, 1.12f, 0f);
+                nameGo.transform.localPosition = new Vector3(0f, 1.35f, 0f);
                 var f = LegacyFont();
                 view.NameText = nameGo.AddComponent<TextMesh>();
                 if (f != null)
@@ -201,6 +212,7 @@ namespace WanXiang.Battle.Presentation
                 view.Phase = (Mathf.Abs(h2) % 1000) / 1000f * Mathf.PI * 2f;
 
                 _views[u.RuntimeId] = view;
+                unitIndex++;
             }
         }
 
@@ -285,8 +297,8 @@ namespace WanXiang.Battle.Presentation
                 v.Root.transform.localPosition = new Vector3(v.HomePos.x, v.HomePos.y + bob + sink, 0f);
 
                 // 血条跟随立绘（相机 2D 朝 -Z，直接摆即可）
-                if (v.HpBg != null) v.HpBg.transform.localPosition = new Vector3(0f, 0.95f, -0.01f);
-                if (v.HpFill != null) v.HpFill.transform.localPosition = new Vector3(0f, 0.95f, -0.02f);
+                if (v.HpBg != null) v.HpBg.transform.localPosition = new Vector3(0f, 1.18f, -0.01f);
+                if (v.HpFill != null) v.HpFill.transform.localPosition = new Vector3(0f, 1.18f, -0.02f);
             }
 
             // 伤害数字上浮 + 回收
@@ -364,7 +376,7 @@ namespace WanXiang.Battle.Presentation
             // 我方在后（row 0 靠外），敌方镜像；行距压一点制造纵深
             float dy = (1 - row) * Cell * 0.66f;
             float y = (player ? -0.55f : 0.55f) + dy * (player ? 1f : -1f);
-            return new Vector2(cx + (col - 1) * Cell * 0.86f, y);
+            return new Vector2(cx + (col - 1) * Cell * 0.82f, y);
         }
 
         private SpriteRenderer MakeChildSprite(GameObject parent, string name, Color c,
