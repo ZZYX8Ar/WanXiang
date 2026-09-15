@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3ef4feb0bd287d040a7efc513651e6a6, type: 3}
+  m_Name: SpriteCatalog
+  m_EditorClassIdentifier: 
+  Entries:
+  - Id: dangkang
+    Body: {fileID: 21300000, guid: 0440d8a5c8a9e184882fc5b2b9b26bdc, type: 3}
+  - Id: hundun
+    Body: {fileID: 21300000, guid: 783c49a833e828f48b887304285c6ea2, type: 3}
+  - Id: luwu
+    Body: {fileID: 21300000, guid: 671aaef8ca0436d429a0f3eed379cfc8, type: 3}
+  - Id: taotie
+    Body: {fileID: 21300000, guid: bea5b501411d52044b0c2d58750fb32f, type: 3}
+  - Id: xuangui
+    Body: {fileID: 21300000, guid: 417f1982adb0f554d95f18fac462c5c3, type: 3}
+  - Id: guanguan
+    Body: {fileID: 21300000, guid: d2056d8d99f3b6e46b40b85f64620141, type: 3}
+  - Id: jumang
+    Body: {fileID: 21300000, guid: 273eeac9c20959e429de0146dfcb54f3, type: 3}
+  - Id: lushu
+    Body: {fileID: 21300000, guid: 80d8e6b8461e261428996c52e492d847, type: 3}
+  - Id: migu
+    Body: {fileID: 21300000, guid: 4a1b42329a74b9e47b92a28de505d8a1, type: 3}
+  - Id: xingxing
+    Body: {fileID: 21300000, guid: 6ea3f919317891c4e8c9fab62e64f0ef, type: 3}
