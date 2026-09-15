@@ -256,10 +256,10 @@ namespace WanXiang.Editor.CampaignTool
             };
 
             // ---- ⑩ 敌队供给：5 人、站位合法唯一、同种子同阵容、换种子换人 ----
-            var squad1 = content.EnemiesFor(2, 10, false, 12345UL);
-            var squad2 = content.EnemiesFor(2, 10, false, 12345UL);
+            var squad1 = content.EnemiesFor(2, 10, NodeKind.Encounter, 12345UL);
+            var squad2 = content.EnemiesFor(2, 10, NodeKind.Encounter, 12345UL);
             var seen = new bool[9];
-            bool squadOk = squad1.Length == 5;
+            bool squadOk = squad1.Length == EnemyBudget.SquadSize(2, NodeKind.Encounter);   // v1.1：幕 2 遭遇 = 4 只
             for (int i = 0; i < squad1.Length; i++)
             {
                 squadOk &= squad1[i].PosIndex == SeededEnemyProvider.DefaultFormation[i]
@@ -270,15 +270,20 @@ namespace WanXiang.Editor.CampaignTool
             bool squadVaries = false;
             for (ulong alt = 701UL; alt < 720UL && !squadVaries; alt++)
             {
-                var s = content.EnemiesFor(2, 10, false, alt);
+                var s = content.EnemiesFor(2, 10, NodeKind.Encounter, alt);
                 for (int i = 0; i < s.Length && i < squad1.Length; i++)
                     if (!ReferenceEquals(s[i].Def, squad1[i].Def)) { squadVaries = true; break; }
             }
             Check(lines, squadOk && squadVaries,
-                  "⑩ 敌队供给：5 人 / 站位 0·1·4·7·8 唯一合法 / 同种子同阵容 / 换种子换人");
+                  $"⑩ 敌队供给：{squad1.Length} 人（按规模表）/ 站位 0·1·4·7·8 唯一合法 / 同种子同阵容 / 换种子换人");
 
             // ---- ⑪ 整局跑完：21 战（16 常规 + 5 守关），终局=通关 ----
-            var runA = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
+            // ⚠ 用"成长后的"神品倍率（×1.9）跑通结构：BP 曲线到幕 3~4 会追平静态神品队
+            //   （敌方 Rare×1.551 vs 神品 ×1.30，见对齐清单 §5.7），占位内容没有灵市/融合
+            //   可成长，所以用倍率模拟"毕业队"——曲线本身是设计行为。
+            var growthCfg = BattleConfig.Default;
+            growthCfg.LegendMultiplier = 1.90f;
+            var runA = new RunDriver(growthCfg, acts, WeatherCatalog.GetSolarTerm,
                                      content, 20260914UL, RunChoosers.Seeded(20260914UL));
             var outcomeA = runA.Play(strong);
             // v1.1：每幕 2~3 战（一/二层各 1 场 + 三层精英）+ 4 守关 + 1 天阙 = 13~17
@@ -299,7 +304,7 @@ namespace WanXiang.Editor.CampaignTool
                   + $"／非战斗节点 {nonBattleSteps} 个（每幕至少 1 个）");
 
             // ---- ⑫ 一局确定性：同种子逐场指纹/回合/结局一致 ----
-            var runB = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
+            var runB = new RunDriver(growthCfg, acts, WeatherCatalog.GetSolarTerm,
                                      content, 20260914UL, RunChoosers.Seeded(20260914UL));
             runB.Play(strong);
             var battlesA = new List<RunStep>(runA.Battles);
@@ -312,7 +317,7 @@ namespace WanXiang.Editor.CampaignTool
             Check(lines, sameRun, "⑫ 一局确定性：同种子两局逐场指纹/回合/路径一致");
 
             // ---- ⑬ 天时贯通（真实目录）：幕 2 前两场带立春余气，第 3 场起散尽 ----
-            var runD = new RunDriver(BattleConfig.Default, acts, WeatherCatalog.GetSolarTerm,
+            var runD = new RunDriver(growthCfg, acts, WeatherCatalog.GetSolarTerm,
                                      content, 20260914UL, RunChoosers.First);
             var outcomeD = runD.Play(strong);
             var act2 = new List<RunStep>();

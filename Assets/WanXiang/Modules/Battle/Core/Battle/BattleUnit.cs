@@ -95,6 +95,15 @@ namespace WanXiang.Battle.Core
         /// <summary>本场是否已经用过卵（"每单位每场限 1 次"）。</summary>
         public bool EggUsed;
 
+        /// <summary>
+        /// 破卵时的生命百分比。天时卵由 <see cref="BattleState.SpawnEggsIfNeeded"/> 写入
+        /// （惊蛰 30%）；「复苏」劫象由 BattleFactory 写入（30%）—— 同一套孵化机制两个来源。
+        /// </summary>
+        public float EggReviveHpPercent = 0.30f;
+
+        /// <summary>卵的来源：true = 「复苏」劫象（BattleFactory 写入），false = 惊蛰天时。</summary>
+        public bool EggFromTrait;
+
         public bool HasEgg => EggTurnsLeft > 0;
 
         // ---- 状态与修正 ----

@@ -9,6 +9,13 @@
 //
 //  阵型固定为 { 0, 1, 4, 7, 8 }（前排两格 + 中宫 + 后排两角），与基准局一致：
 //  中宫有人 ⇒ 中宫平息/中宫减伤这些棋盘规则每场都真的在跑。
+//
+//  v1.1 §5 升级：**规模表 + 属性倍率 + 劫象 + 预算自检**（GDD 明说算法"与工程逐位对齐，
+//  唯一改动是把固定 5 格换成规模表"）：
+//    · 规模 EnemyBudget.SquadSize：遭遇 3/4/4/5、精英 4/5/5/5、守关 4/5/5/5（Boss+随从）
+//    · 属性倍率 m_unit = A×T×K 只缩放生命/攻/防（速度与暴击不缩放 —— §5.1 铁律）
+//    · 精英战恰好 1 只带「劫象」（BattleTraits.Pool 按种子抽 1 条）
+//    · 预算自检：Σ(RARITY×ROLE 计价) ≤ BP_cap（护栏不是硬失败，Ratio 供自检断言）
 // ============================================================================
 
 using System;
@@ -37,27 +44,28 @@ namespace WanXiang.Campaign
             _formation = formation ?? DefaultFormation;
         }
 
-        public DeployEntry[] EnemiesFor(int act, int termIndex, bool isBoss, ulong seed)
+        /// <summary>最近一次供给的预算占用率（自检断言用；1.0 = 占满上界）。</summary>
+        public float LastBudgetRatio { get; private set; }
+
+        /// <summary>遭遇 / 精英（GDD §5.3 的 EnemiesFor；isBoss 拆成独立入口后按类型给规模与倍率）。</summary>
+        public DeployEntry[] EnemiesFor(int act, int termIndex, NodeKind kind, ulong seed)
         {
             var pool = _poolForAct(act);
             if (pool == null || pool.Length == 0) return Array.Empty<DeployEntry>();
 
             var rng = new DeterministicRandom(seed ^ CoreMath.Fnv1a($"enemy:{act}:{termIndex}"));
-            var boss = isBoss ? _bossForAct?.Invoke(act) : null;
+            int slots = CoreMath.Min(_formation.Length,
+                                     System.Math.Min(EnemyBudget.SquadSize(act, kind), pool.Length));
+            float mul = EnemyBudget.UnitMul(act, kind);
 
-            int slots = CoreMath.Min(_formation.Length, pool.Length + (boss != null ? 1 : 0));
             var picked = new List<BeastDef>(slots);
-            if (boss != null) picked.Add(boss);
-
-            // 数组内交换收缩：抽到的与末尾交换、可用区收缩一 —— 顺序完全由输入决定
             var idx = new int[pool.Length];
             for (int i = 0; i < idx.Length; i++) idx[i] = i;
             int remaining = pool.Length;
             while (picked.Count < slots && remaining > 0)
             {
                 int k = rng.NextInt(0, remaining);
-                var pick = pool[idx[k]];
-                if (pick != boss) picked.Add(pick);        // 主将已在队里就不重复抽它
+                picked.Add(pool[idx[k]]);
                 int tmp = idx[k];
                 idx[k] = idx[remaining - 1];
                 idx[remaining - 1] = tmp;
@@ -66,7 +74,56 @@ namespace WanXiang.Campaign
 
             var result = new DeployEntry[picked.Count];
             for (int i = 0; i < picked.Count; i++)
-                result[i] = DeployEntry.Enemy(picked[i], _formation[i]);
+                result[i] = DeployEntry.Enemy(picked[i], _formation[i]).WithMul(mul);
+
+            // 精英战：恰好 1 只带「劫象」（按种子从池里抽 1 条；§5.5 —— 同一场战斗
+            // 在不同种子里有不同的解法，而不是单纯加数值）
+            if (kind == NodeKind.Elite && result.Length > 0)
+            {
+                int who = rng.NextInt(0, result.Length);
+                int what = rng.NextInt(0, BattleTraits.Pool.Length);
+                result[who] = result[who].WithTrait(BattleTraits.Pool[what]);
+            }
+
+            LastBudgetRatio = EnemyBudget.Ratio(result, EnemyBudget.Cap(act, kind));
+            return result;
+        }
+
+        /// <summary>守关：Boss（幕主将）+ 随从，规模 4（幕 1）/ 5（幕 2~4），倍率 ×1.35。</summary>
+        public DeployEntry[] BossSquadFor(int act, ulong seed)
+        {
+            var pool = _poolForAct(act);
+            var boss = _bossForAct?.Invoke(act);
+            if (boss == null && (pool == null || pool.Length == 0)) return Array.Empty<DeployEntry>();
+
+            var rng = new DeterministicRandom(seed ^ CoreMath.Fnv1a($"boss:{act}"));
+            int slots = CoreMath.Min(_formation.Length, EnemyBudget.BossSquadSize(act));
+            float mul = EnemyBudget.BossUnitMul(act);
+
+            var picked = new List<BeastDef>(slots);
+            if (boss != null) picked.Add(boss);
+            if (pool != null)
+            {
+                var idx = new int[pool.Length];
+                for (int i = 0; i < idx.Length; i++) idx[i] = i;
+                int remaining = pool.Length;
+                while (picked.Count < slots && remaining > 0)
+                {
+                    int k = rng.NextInt(0, remaining);
+                    var pick = pool[idx[k]];
+                    if (pick != boss) picked.Add(pick);
+                    int tmp = idx[k];
+                    idx[k] = idx[remaining - 1];
+                    idx[remaining - 1] = tmp;
+                    remaining--;
+                }
+            }
+
+            var result = new DeployEntry[picked.Count];
+            for (int i = 0; i < picked.Count; i++)
+                result[i] = DeployEntry.Enemy(picked[i], _formation[i]).WithMul(mul);
+
+            LastBudgetRatio = EnemyBudget.Ratio(result, EnemyBudget.BossCap(act));
             return result;
         }
 

@@ -257,7 +257,7 @@ namespace WanXiang.Editor.CampaignTool
                              + $"　【{NodeKinds.Cn(kind)}】";
                 if (NodeKinds.IsBattle(kind))
                 {
-                    var squad = _content?.EnemiesFor(st.CurrentAct, term, false,
+                    var squad = _content?.EnemiesFor(st.CurrentAct, term, kind,
                                                      _driver.SeedFor(st.CurrentAct, term, nextIndex));
                     label += $"　敌方：{NodeMapView.EnemyPreview(squad)}";
                 }

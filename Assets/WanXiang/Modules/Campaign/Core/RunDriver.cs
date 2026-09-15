@@ -115,7 +115,11 @@ namespace WanXiang.Campaign
     /// </summary>
     public interface ICampaignContent
     {
-        DeployEntry[] EnemiesFor(int act, int termIndex, bool isBoss, ulong seed);
+        /// <summary>遭遇/精英战（规模与倍率按 §5.1/§5.5 的表来）。</summary>
+        DeployEntry[] EnemiesFor(int act, int termIndex, NodeKind kind, ulong seed);
+
+        /// <summary>守关战（Boss + 随从，倍率 ×1.35）。</summary>
+        DeployEntry[] BossSquadFor(int act, ulong seed);
 
         /// <summary>
         /// 天阙阵容：后土 + **玩家队伍前 3 只的镜像**（v1.1 §5.5；劫律 19 起 5 只）。
@@ -247,10 +251,14 @@ namespace WanXiang.Campaign
             }
 
             // ---- 战斗步 ----
-            var enemies = isFinale
-                ? _content?.FinaleFor(playerSquad, SeedFor(act, termIndex, index)) ?? new DeployEntry[0]
-                : _content?.EnemiesFor(act, termIndex, atBoss, SeedFor(act, termIndex, index))
-                  ?? new DeployEntry[0];
+            DeployEntry[] enemies;
+            if (isFinale)
+                enemies = _content?.FinaleFor(playerSquad, SeedFor(act, termIndex, index)) ?? new DeployEntry[0];
+            else if (atBoss)
+                enemies = _content?.BossSquadFor(act, SeedFor(act, -1, index)) ?? new DeployEntry[0];
+            else
+                enemies = _content?.EnemiesFor(act, termIndex, kind, SeedFor(act, termIndex, index))
+                          ?? new DeployEntry[0];
 
             var st = BattleFactory.Create(_cfg, SeedFor(act, termIndex, index),
                                           playerSquad, enemies, weather);

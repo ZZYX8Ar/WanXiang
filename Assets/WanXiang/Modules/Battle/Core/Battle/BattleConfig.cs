@@ -199,13 +199,20 @@ namespace WanXiang.Battle.Core
         public RoleBaseline Swift   = new RoleBaseline { Hp = 1100, Atk = 130, Def = 28, Speed = 150 };
 
         /// <summary>稀有度对面板的乘数。灵品 1.00 / 玄品 1.15 / 神品 1.30。</summary>
+        // ---- 稀有度倍率（§3.4：灵/玄/神 = 1.00 / 1.15 / 1.30）----
+        // v1.1 把它们从 switch 常量提成数据 —— §3.7 的立场是"调整平衡只改这几行"，
+        // 且测试里模拟"局内成长后的队伍"（神品 ×1.9）也要动它。
+        public float RareMultiplier = 1.00f;
+        public float EpicMultiplier = 1.15f;
+        public float LegendMultiplier = 1.30f;
+
         public float RarityMultiplier(Rarity r)
         {
             switch (r)
             {
-                case Rarity.Rare: return 1.00f;
-                case Rarity.Epic: return 1.15f;
-                case Rarity.Legend: return 1.30f;
+                case Rarity.Rare: return RareMultiplier;
+                case Rarity.Epic: return EpicMultiplier;
+                case Rarity.Legend: return LegendMultiplier;
                 default: return 1.00f;
             }
         }

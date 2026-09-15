@@ -29,9 +29,30 @@ namespace WanXiang.Battle.Core
         public TeamSide Side;
         public int PosIndex;
 
+        /// <summary>
+        /// 属性倍率（GDD v1.1 §5.1 的 m_unit = A×T×K）。
+        /// ⚠ 只作用于 **生命/攻击/防御** —— 速度与暴击率不参与缩放，
+        /// 否则高幕数会出现"敌人永远先手"的单点崩坏，玩家的速度构筑会被一次性抹平。
+        /// </summary>
+        public float StatMul;
+
+        /// <summary>劫象 / 额外特性 id（见 <see cref="BattleTraits"/>；null = 无）。</summary>
+        public string TraitId;
+
         public DeployEntry(BeastDef def, TeamSide side, int posIndex)
         {
             Def = def; Side = side; PosIndex = posIndex;
+            StatMul = 1f; TraitId = null;
+        }
+
+        public DeployEntry WithMul(float mul)
+        {
+            var e = this; e.StatMul = mul; return e;
+        }
+
+        public DeployEntry WithTrait(string traitId)
+        {
+            var e = this; e.TraitId = traitId; return e;
         }
 
         public static DeployEntry Of(BeastDef def, TeamSide side, int posIndex)
@@ -86,6 +107,16 @@ namespace WanXiang.Battle.Core
             return Deploy(st, entries, idPrefix, ref n);
         }
 
+        /// <summary>
+        /// 敌方属性倍率（§5.1）。只动 生命/攻击/防御；速度与暴击率**不缩放**（见 DeployEntry.StatMul）。
+        /// </summary>
+        private static void ApplyStatMul(BeastDef def, float mul)
+        {
+            def.BaseHp = CoreMath.Max(1, CoreMath.RoundDamage(def.BaseHp * mul));
+            def.BaseAtk = CoreMath.Max(1, CoreMath.RoundDamage(def.BaseAtk * mul));
+            def.BaseDef = CoreMath.RoundDamage(def.BaseDef * mul);
+        }
+
         private static int Deploy(BattleState st, DeployEntry[] entries, string idPrefix, ref int counter)
         {
             if (entries == null) return counter;
@@ -103,8 +134,20 @@ namespace WanXiang.Battle.Core
                 // 克隆 + 填占位面板。顺序不能反 —— 面板要填在副本上。
                 var copy = def.Clone();
                 st.Config.ApplyPlaceholderStats(copy);
+                if (System.Math.Abs(entries[i].StatMul - 1f) > 0.0001f)
+                    ApplyStatMul(copy, entries[i].StatMul);
+                if (!string.IsNullOrEmpty(entries[i].TraitId))
+                    BattleTraits.Apply(copy, entries[i].TraitId);
 
                 var unit = new BattleUnit(entries[i].Side, copy, $"{idPrefix}{counter}");
+                // 「复苏」劫象：阵亡时以 30% 生命复活 1 次（复用惊蛰虫卵的孵化机制）
+                if (entries[i].TraitId == BattleTraits.Revive)
+                {
+                    unit.EggUsed = false;
+                    unit.EggTurnsLeft = 1;
+                    unit.EggReviveHpPercent = 0.30f;
+                    unit.EggFromTrait = true;
+                }
                 var pos = new GridPos(entries[i].PosIndex);
 
                 if (!st.Place(unit, pos))

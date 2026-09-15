@@ -220,7 +220,7 @@ namespace WanXiang.Battle.Core
                 if (cdAccel) TickCooldownExtra(st, u);
                 u.TickStatusDurations();
                 u.TickModifiers();
-                if (cdAccel) TickEggHatch(st, u);   // 03 惊蛰：虫卵倒计时 / 孵化
+                if (cdAccel || u.HasEgg) TickEggHatch(st, u);   // 03 惊蛰 /「复苏」劫象：卵不依赖天时也能孵
             }
         }
 
@@ -782,17 +782,21 @@ namespace WanXiang.Battle.Core
             }
         }
 
-        /// <summary>03 惊蛰「蛰虫始振」：虫卵倒计时，到点破卵复活。</summary>
+        /// <summary>
+        /// 03 惊蛰「蛰虫始振」/「复苏」劫象共用：虫卵倒计时，到点破卵复活。
+        /// ⚠ 复苏劫象的卵**不依赖天时**也能孵（EndOfTurn 的调用条件是"有天时或有卵"）。
+        /// </summary>
         private static void TickEggHatch(BattleState st, BattleUnit u)
         {
             if (!u.HasEgg) return;
             u.EggTurnsLeft--;
             if (u.EggTurnsLeft > 0) return;
 
-            int hp = CoreMath.RoundDamage(u.MaxHp * st.Weather.ReviveEggHpPercent);
+            int hp = CoreMath.RoundDamage(u.MaxHp * u.EggReviveHpPercent);
             u.ReviveAtHp(hp);
             st.Log.Add(st.Turn, BattleEventKind.Revive, actorId: u.RuntimeId, targetId: u.RuntimeId,
-                       amount: u.Hp, note: $"天时·蛰虫始振：{u.DisplayName} 破卵而生");
+                       amount: u.Hp,
+                       note: $"{(u.EggFromTrait ? "劫象·复苏" : "天时·蛰虫始振")}：{u.DisplayName} 破卵而生");
         }
 
         /// <summary>

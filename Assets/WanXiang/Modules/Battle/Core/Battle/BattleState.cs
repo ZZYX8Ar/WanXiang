@@ -250,6 +250,8 @@ namespace WanXiang.Battle.Core
                 if (u.IsAlive || u.EggUsed || !Weather.ReviveEggFor(u.Side)) continue;
                 u.EggUsed = true;
                 u.EggTurnsLeft = Weather.ReviveEggDelayTurns;
+                u.EggReviveHpPercent = Weather.ReviveEggHpPercent;
+                u.EggFromTrait = false;
                 Log.Add(Turn, BattleEventKind.Death, targetId: u.RuntimeId,
                         note: $"天时·蛰虫始振：{u.DisplayName} 留下虫卵（{u.EggTurnsLeft} 回合后孵化）");
             }
