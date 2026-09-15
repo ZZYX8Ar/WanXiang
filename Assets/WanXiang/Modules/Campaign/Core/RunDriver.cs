@@ -138,6 +138,8 @@ namespace WanXiang.Campaign
         public float NestHealPercent = 0.40f; // 16 香火断绝 → 0.20
         public int FinaleMirrors = 3;         // 19 天阙低垂 → 5
         public float EliteExtraMul = 1f;      // 07 兽强 → 1.15
+        public bool NarrowPath;               // 09 路窄：每层候选 2 → 1
+        public bool ForceEliteFirst;          // 17 兽王当立：每幕首节点强制精英
     }
 
     /// <summary>选路策略：给定幕与层，选一个节点下标。玩家交互未接时用确定性替身。</summary>
@@ -238,9 +240,17 @@ namespace WanXiang.Campaign
             else
             {
                 int layer = State.CurrentLayer + 1;
-                int offset = _chooser(State.CurrentGraph, layer);
+                bool firstNodeOfAct = State.VisitedInAct == 0;   // ⚠ EnterNode 之前取，进去就变 1 了
+                // 劫律 09「路窄」：分叉层的候选从 2 降到 1（只走第一个）
+                int offset = _tuning.NarrowPath
+                    ? State.CurrentGraph.Layers[layer][0]
+                    : _chooser(State.CurrentGraph, layer);
                 if (!State.EnterNode(offset)) return null;      // 选路非法 = 编排 bug，别静默转圈
                 kind = State.CurrentGraph.KindOf(offset);
+                // 劫律 17「兽王当立」：每幕的第一个节点强制精英（RunDriver 层覆写，
+                // 图数据不动 —— 别的读图方（窗口预览）不受本局劫律影响）
+                if (_tuning.ForceEliteFirst && firstNodeOfAct)
+                    kind = NodeKind.Elite;
                 termIndex = State.CurrentGraph.Terms[offset];
                 weather = State.ComposeCurrentWeather();
                 stepKind = NodeKinds.IsBattle(kind)
@@ -331,7 +341,13 @@ namespace WanXiang.Campaign
                     return "铸魂台：免费融合 ×1 + 赠 1 随机灵魂（融合管线就绪，入口待 UI）";
 
                 case NodeKind.Omen:
-                    return "天象：三选一（增益 + 副作用，待接 §4.6 表）";
+                {
+                    // §4.6 表已落（4 条，含明确副作用）；数值增益的**应用**需要
+                    // 局内成长模型（跨场队伍继承 + 每回合损血钩子），接 UI 时落。
+                    var omen = FieldEvents.Omens[(int)(seed % (ulong)FieldEvents.Omens.Length)];
+                    return $"天象·{omen.Name}：{omen.Buff}｜副作用：{omen.Drawback}"
+                         + $"（适合 {omen.Archetype}；数值应用待接）";
+                }
 
                 default:
                     return $"（未支持的节点类型 {kind}）";

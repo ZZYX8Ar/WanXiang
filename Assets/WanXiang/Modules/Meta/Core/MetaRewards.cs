@@ -24,6 +24,7 @@ namespace WanXiang.Meta
             public int ClearBonus;    // 通关额外
             public int NewActBonus;   // 首次抵达新幕
             public int Total;
+            public int RunEggsCarried;   // 局内剩余灵卵结转（v1.1 灵卵双用途）
             public bool Cleared;
             public int ActReached;
             public int Battles;
@@ -96,7 +97,16 @@ namespace WanXiang.Meta
                 if (s.StepKind == RunStepKind.Boss || s.StepKind == RunStepKind.Finale) bosses++;
                 else if (s.IsBattle) nodes++;
             }
-            return Settle(state, nodes, bosses, driver.Outcome == RunOutcome.Completed, actReached);
+            var income = Settle(state, nodes, bosses, driver.Outcome == RunOutcome.Completed, actReached);
+            // v1.1 §7.7 灵卵双用途：**局内剩余**原样结转进钱包（"花在局内 = 这局更强但
+            // 永久成长变慢；留着 = 永久成长更快"—— 全灭时剩余 ×0.5 的代价在 Trial 结算）。
+            if (driver.RunEggs > 0)
+            {
+                state.Eggs += driver.RunEggs;
+                income.Total += driver.RunEggs;
+                income.RunEggsCarried = driver.RunEggs;
+            }
+            return income;
         }
     }
 }

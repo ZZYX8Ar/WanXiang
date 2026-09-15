@@ -201,11 +201,15 @@ namespace WanXiang.Battle.Core
                     int cdDelta = 0;
                     bool unlocked = false;
                     int bestCount = -1;
+                    // 劫律 15「五行失序」：门槛整体 +1（2/4/5 → 3/5/5，第三档 5 封顶失效）
+                    int shift = st.Config.ResonanceCountShift;
                     for (int t = 0; t < tiers.Length; t++)
                     {
-                        if (n < tiers[t].Count) continue;
-                        if (tiers[t].Count <= bestCount) continue;
-                        bestCount = tiers[t].Count;
+                        // 劫律 15「五行失序」：门槛 +shift（2/4/5 → 3/5/5；5 封顶即第三档失效）
+                        int needed = System.Math.Min(5, tiers[t].Count + shift);
+                        if (n < needed) continue;
+                        if (needed <= bestCount) continue;
+                        bestCount = needed;
                         atk = tiers[t].AttackBonus;
                         cdDelta = tiers[t].ResonanceCdDelta;
                         unlocked = tiers[t].UnlockResonanceSkill;

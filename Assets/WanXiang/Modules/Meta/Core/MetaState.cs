@@ -60,6 +60,11 @@ namespace WanXiang.Meta
         public const int EggsPerBoss = 3;
         public const int EggsPerClear = 5;
         public const int EggsPerNewAct = 2;
+
+        // ---- L4 祭坛（§8.3：数值类局外封顶 +8%）----
+        public const float AltarStep = 0.016f;   // 每条 +1.6%，5 条 = +8%
+        public const int AltarCost = 6;          // 升级单价（占位；GDD 没给，待策划）
+        public const float MetaGainCap = 0.08f;  // 数值类局外增益总上限（MetaGainCap）
     }
 
     /// <summary>
@@ -79,6 +84,51 @@ namespace WanXiang.Meta
 
         public readonly List<int> UnlockedHosts = new List<int>(32);
         public readonly List<int> UnlockedSouls = new List<int>(32);
+
+        // ---- L4 祭坛（GDD v1.1 §8.2/§8.3）：唯一"数字变大"的线，刻意封顶 +8% ----
+        // 五行各一条，每条 1 级 +1.6%，5 条全点 = 8.0%。
+        // 参照物：局内一次神品融合 ≈ +15%、5 同属共鸣 +25% —— 局外永远小于局内一项决策。
+        public readonly int[] AltarLevels = new int[5];
+
+        /// <summary>祭坛总加成（0 ~ 0.08）。</summary>
+        public float AltarBonusTotal
+        {
+            get
+            {
+                float sum = 0f;
+                for (int i = 0; i < AltarLevels.Length; i++) sum += AltarLevels[i] * MetaDefaults.AltarStep;
+                return sum;
+            }
+        }
+
+        /// <summary>某五行的祭坛加成（对应属性的攻击/治疗/减伤）。</summary>
+        public float AltarBonusFor(int elementIndex)
+            => (elementIndex >= 0 && elementIndex < AltarLevels.Length)
+               ? AltarLevels[elementIndex] * MetaDefaults.AltarStep : 0f;
+
+        /// <summary>祭坛升级：扣灵卵、逐级封顶（每条 1 级；总上限 +8% 由"每条 1 级"天然保证）。</summary>
+        public bool UpgradeAltar(int elementIndex, int eggs)
+        {
+            if (elementIndex < 0 || elementIndex >= AltarLevels.Length) return false;
+            if (AltarLevels[elementIndex] >= 1) return false;        // 已满级
+            if (eggs < MetaDefaults.AltarCost) return false;
+            Eggs -= MetaDefaults.AltarCost;
+            AltarLevels[elementIndex] = 1;
+            return true;
+        }
+
+        // ---- L3 图鉴（§8.2）：见闻度被动。效果是"信息类"（降低认知负担），骨架先落 ----
+        public readonly List<int> CodexEntries = new List<int>(40);
+        public void MarkCodex(int entryId)
+        {
+            if (!CodexEntries.Contains(entryId)) CodexEntries.Add(entryId);
+        }
+
+        /// <summary>每解锁 5 条图鉴 → 1 个被动，共 6 个（被动效果待接 UI/战斗）。</summary>
+        public int CodexPassivesUnlocked => System.Math.Min(6, CodexEntries.Count / 5);
+
+        // ---- L5 起手（§8.2）：更好的开局（初始池/灵卵/草稿/起始季节）。效果挂账 ----
+        public readonly List<int> RitesUnlocked = new List<int>(8);
 
         public MetaState(ulong seed)
         {

@@ -89,6 +89,9 @@ namespace WanXiang.Battle.Core
 
                         // 天时无施法者：持续伤害只按目标最大生命 % 折算（施加瞬间定格）。
                         float dot = atom.PercentOfMaxHp > 0f ? u.MaxHp * atom.PercentOfMaxHp : 0f;
+                        // 劫律 12「冰蚀不化」：冰蚀每层伤害 ×1.67（1.5% → 2.5%，定格时应用）
+                        if (atom.StatusId == StatusCatalog.IceErosion && st.Config.IceErosionDotMul != 1f)
+                            dot = CoreMath.RoundDamage(dot * st.Config.IceErosionDotMul);
 
                         // 05 清明：与技能路径共用同一套过滤（免疫/减益时长 -1）
                         int turns = atom.StatusTurns;

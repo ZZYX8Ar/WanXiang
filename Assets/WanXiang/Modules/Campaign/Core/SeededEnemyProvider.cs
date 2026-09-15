@@ -34,6 +34,7 @@ namespace WanXiang.Campaign
         private readonly int[] _formation;
         private readonly int _finaleMirrors;
         private readonly float _eliteExtraMul;
+        private readonly int _bossTraitCount;
 
         /// <param name="poolForAct">某一幕的可选池（按 1..5 传入幕号）。返回 null/空 = 该幕无敌人（空阵容，自检里会看得见）。</param>
         /// <param name="bossForAct">守关战的主将（可空；为空则守关也只是普通阵容）。</param>
@@ -43,13 +44,15 @@ namespace WanXiang.Campaign
                                    Func<int, BeastDef> bossForAct = null,
                                    int[] formation = null,
                                    int finaleMirrors = 3,
-                                   float eliteExtraMul = 1f)
+                                   float eliteExtraMul = 1f,
+                                   int bossTraitCount = 0)
         {
             _poolForAct = poolForAct ?? (_ => null);
             _bossForAct = bossForAct;
             _formation = formation ?? DefaultFormation;
             _finaleMirrors = finaleMirrors;
             _eliteExtraMul = eliteExtraMul;
+            _bossTraitCount = bossTraitCount;
         }
 
         /// <summary>最近一次供给的预算占用率（自检断言用；1.0 = 占满上界）。</summary>
@@ -130,6 +133,17 @@ namespace WanXiang.Campaign
             var result = new DeployEntry[picked.Count];
             for (int i = 0; i < picked.Count; i++)
                 result[i] = DeployEntry.Enemy(picked[i], _formation[i]).WithMul(mul);
+
+            // 劫律 14「守关加冠」：Boss 额外获得 1~2 条特性（从劫象池按种子抽，可重复）。
+            // GDD：守关的强度来自 Boss 的特性与 ×1.35 倍率，不来自人数堆满预算。
+            if (boss != null && _bossTraitCount > 0)
+            {
+                for (int k = 0; k < _bossTraitCount; k++)
+                {
+                    int what = rng.NextInt(0, BattleTraits.Pool.Length);
+                    result[0] = result[0].WithTrait(BattleTraits.Pool[what]);
+                }
+            }
 
             LastBudgetRatio = EnemyBudget.Ratio(result, EnemyBudget.BossCap(act));
             return result;

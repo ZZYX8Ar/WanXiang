@@ -106,8 +106,13 @@ namespace WanXiang.Trials
         public float BurnTakenMul = 1f;         // 11 灼烧入骨 → 1.30
         public float NestHealPercent = 0.40f;   // 16 香火断绝 → 0.20
         public int FinaleMirrors = 3;           // 19 天阙低垂 → 5
-        public bool SoulFade;                   // 10 回天无力（复活 60%，待接）
-        public bool AllIsOne;                   // 20 万相归一（敌方每回合 +1%，待接）
+        public bool SoulFade = false;           // 10 回天无力（复活只到 60%）
+        public bool AllIsOne = false;           // 20 万相归一（敌方每回合攻 +1%）
+        public float IceErosionDotMul = 1f;     // 12 冰蚀不化（1.5% → 2.5%）
+        public int ResonanceCountShift = 0;     // 15 五行失序（门槛 +1）
+        public int BossTraitCount = 0;          // 14 守关加冠（Boss 特性条数）
+        public bool NarrowPath;                 // 09 路窄
+        public bool ForceEliteFirst;            // 17 兽王当立
 
         /// <summary>把生效劫律折算成调参（战斗类劫律另见 <see cref="ApplyTo"/>）。</summary>
         public static TrialTuning From(IReadOnlyList<string> laws)
@@ -127,6 +132,11 @@ namespace WanXiang.Trials
                     case TrialLaws.LowSky: t.FinaleMirrors = 5; break;
                     case TrialLaws.NoRevive: t.SoulFade = true; break;
                     case TrialLaws.AllIsOne: t.AllIsOne = true; break;
+                    case TrialLaws.IceLast: t.IceErosionDotMul = 1.67f; break;   // 1.5% → 2.5%
+                    case TrialLaws.ChaosWuxing: t.ResonanceCountShift = 1; break;
+                    case TrialLaws.BossCrown: t.BossTraitCount = 1; break;
+                    case TrialLaws.NarrowPath: t.NarrowPath = true; break;
+                    case TrialLaws.BeastKing: t.ForceEliteFirst = true; break;
                         // 02/06/08/09/12/13/14/15/17/18：待对应系统接入（记录在清单 P3 备注）
                 }
             }
@@ -183,6 +193,10 @@ namespace WanXiang.Trials
             cfg.AdjacencyCounterTrueDamagePercent = tuning.CounterTrueDamage; // 04
             cfg.CenterDamageReduction = tuning.CenterReduction;              // 05
             cfg.BurnTakenMul = tuning.BurnTakenMul;                          // 11
+            cfg.IceErosionDotMul = tuning.IceErosionDotMul;                  // 12
+            cfg.ResonanceCountShift = tuning.ResonanceCountShift;            // 15
+            cfg.ReviveHpScale = tuning.SoulFade ? 0.6f : 1f;                 // 10
+            cfg.AllIsOne = tuning.AllIsOne;                                  // 20
             return cfg;
         }
 
@@ -199,6 +213,8 @@ namespace WanXiang.Trials
                 NestHealPercent = tuning.NestHealPercent,
                 FinaleMirrors = tuning.FinaleMirrors,
                 EliteExtraMul = tuning.EliteExtraMul,
+                NarrowPath = tuning.NarrowPath,
+                ForceEliteFirst = tuning.ForceEliteFirst,
             };
         }
 
@@ -264,6 +280,30 @@ namespace WanXiang.Trials
                     break;
             }
             return s;
+        }
+
+        // ================================================================
+        //  灵市价格（§8.4）：price = base × ActShopMul(幕) × (1 + 0.10 × 劫律数)
+        //  ActShopMul = [1.00, 1.20, 1.40, 1.60]；劫律 08「商贾贪婪」再 ×1.5、刷新翻倍。
+        //  基础价：灵兽 3 / 玄兽 6 / 神兽 12 / 灵·玄魂 2/4 / 神魂 8 / 重铸 2 / 刷新 1 或 2。
+        // ================================================================
+
+        public static float ShopActMul(int act)
+        {
+            switch (act)
+            {
+                case 1: return 1.00f;
+                case 2: return 1.20f;
+                case 3: return 1.40f;
+                default: return 1.60f;
+            }
+        }
+
+        public static int ShopPrice(int basePrice, int act, int activeLawCount, bool greedy = false)
+        {
+            float p = basePrice * ShopActMul(act) * (1f + 0.10f * activeLawCount);
+            if (greedy) p *= 1.5f;                       // 劫律 08
+            return CoreMath.Max(1, CoreMath.RoundDamage(p));
         }
 
         /// <summary>全灭结算（§7.7：剩余 ×0.5 + 幕数）。</summary>

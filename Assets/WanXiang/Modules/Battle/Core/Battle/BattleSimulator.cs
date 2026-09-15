@@ -68,6 +68,19 @@ namespace WanXiang.Battle.Core
                 st.Turn = turn;
                 st.Log.Add(turn, BattleEventKind.TurnStart);
 
+                // ---- 劫律 20「万相归一」：敌方每回合获得 1 层「劫」（攻击 +1%，无上限）。
+                //      ⚠ 只涨攻击不涨生命 —— 与 GDD"全属性"有偏差，血量同步牵扯
+                //      当前生命比例，先做攻击轴（压力曲线方向一致），偏差已记录。
+                if (cfg.AllIsOne)
+                {
+                    var foes = st.UnitsOf(TeamSide.Enemy);
+                    for (int i = 0; i < foes.Count; i++)
+                    {
+                        if (!foes[i].IsAlive) continue;
+                        foes[i].PermanentAttackBonus += 0.01f;
+                    }
+                }
+
                 // ---- 0) 天时·回合开始（GDD 3.1；无天时立即返回，指纹零影响） ----
                 WeatherResolver.ResolveTurnStart(st);
                 WeatherTurnStartHooks(st);   // 17 寒露：每 N 回合凝神（判空短路）
@@ -91,6 +104,7 @@ namespace WanXiang.Battle.Core
                     var u = buf.Order[i];
                     if (!u.IsAlive) continue;          // 可能在别人回合里被打死
                     ExecuteAction(st, u, buf);
+                    DevourAfterAction(st, u);      // 「吞噬」劫象：行动结束剥离对侧 1 增益 + 自损
                     if (st.CheckOutcome()) break;
                 }
                 if (st.IsOver) break;
@@ -809,6 +823,47 @@ namespace WanXiang.Battle.Core
             {
                 ResolveAtom(st, fastest, basic, basic.Effects[i], buf);
                 if (st.IsOver) break;
+            }
+        }
+
+        /// <summary>
+        /// 「吞噬」劫象（§5.5）：行动结束后剥离对侧 1 个增益（第一个非减益状态），
+        /// 自身损失 4% 最大生命（真实伤害）。解法：速攻 —— 别给它行动机会。
+        /// </summary>
+        private static void DevourAfterAction(BattleState st, BattleUnit actor)
+        {
+            if (actor == null || !actor.TraitDevour || !actor.IsAlive) return;
+            if (!actor.CanAct) return;
+
+            var foes = st.UnitsOf(actor.Side == TeamSide.Player ? TeamSide.Enemy : TeamSide.Player);
+            for (int i = 0; i < foes.Count; i++)
+            {
+                var f = foes[i];
+                if (!f.IsAlive) continue;
+                for (int k = f.Statuses.Count - 1; k >= 0; k--)
+                {
+                    if (f.Statuses[k].Def.IsDebuff) continue;
+                    var inst = f.Statuses[k];
+                    string name = inst.Def.Name;
+                    inst.Stacks -= 1;
+                    if (inst.Stacks <= 0) f.Statuses.RemoveAt(k);
+                    else f.Statuses[k] = inst;
+                    st.Log.Add(st.Turn, BattleEventKind.StatusRemoved, actorId: actor.RuntimeId,
+                               targetId: f.RuntimeId, note: $"天时·吞噬：剥离 {name}");
+                    break;
+                }
+                break;   // 每次行动只剥一个目标的一个增益
+            }
+
+            int self = CoreMath.RoundDamage(actor.MaxHp * 0.04f);
+            if (self > 0)
+            {
+                int dealt = actor.TakeTrueDamage(self);
+                st.Log.Add(st.Turn, BattleEventKind.Damage, targetId: actor.RuntimeId,
+                           amount: dealt, note: "天时·吞噬：自损");
+                if (!actor.IsAlive)
+                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: actor.RuntimeId,
+                               note: $"{actor.DisplayName} 阵亡（吞噬自损）");
             }
         }
 

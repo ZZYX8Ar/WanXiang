@@ -104,6 +104,14 @@ namespace WanXiang.Battle.Core
         /// <summary>卵的来源：true = 「复苏」劫象（BattleFactory 写入），false = 惊蛰天时。</summary>
         public bool EggFromTrait;
 
+        // ---- 劫象副效应的单位级标记（BattleFactory 按 TraitId 写入） ----
+        /// <summary>「锐锋」：受到的真实伤害 +20%（副效应；主效应攻 +25% 已在面板）。</summary>
+        public bool TraitSharpedge;
+        /// <summary>「疾影」：受到的控制时长 +1 回合（副效应；主效应速 +25% 已在面板）。</summary>
+        public bool TraitSwiftshadow;
+        /// <summary>「吞噬」：每次行动剥离对侧 1 个增益、自身每回合损失 4% 生命。</summary>
+        public bool TraitDevour;
+
         public bool HasEgg => EggTurnsLeft > 0;
 
         // ---- 状态与修正 ----
@@ -307,6 +315,13 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public void ApplyStatus(string statusId, int stacks, int turns, float dotFlatPerStack = 0f)
         {
+            // 「疾影」副效应：受到的控制（无法行动类）时长 +1 回合。
+            // 在被施加者身上判 —— 控制流的解法就是别让疾影活着站到被控那一刻。
+            if (TraitSwiftshadow)
+            {
+                if (StatusCatalog.Get(statusId).PreventsAction) turns += 1;
+            }
+
             var def = StatusCatalog.Get(statusId);
             for (int i = 0; i < Statuses.Count; i++)
             {
@@ -327,7 +342,6 @@ namespace WanXiang.Battle.Core
             });
         }
 
-        /// <summary>移除状态。statusId 传 null 表示清除全部减益（驱散）。返回移除的层数总和。</summary>
         /// <summary>移除某状态至多 max 层（大寒「火能融冰」：火技命中移除 2 层冰蚀）。</summary>
         public int RemoveStatusStacks(string statusId, int max)
         {
@@ -434,6 +448,8 @@ namespace WanXiang.Battle.Core
         public int TakeTrueDamage(int amount)
         {
             if (amount <= 0 || !IsAlive) return 0;
+            // 「锐锋」副效应：受到的真实伤害 +20%（在数值面上乘，伤害来源不用关心）
+            if (TraitSharpedge) amount = CoreMath.RoundDamage(amount * 1.20f);
             int toHp = amount > Hp ? Hp : amount;
             Hp -= toHp;
             return toHp;

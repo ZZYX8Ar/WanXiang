@@ -145,6 +145,18 @@ namespace WanXiang.Battle.Core
         /// 只作用于灼烧状态（<see cref="StatusCatalog.Burn"/>），冰蚀独立。</summary>
         public float BurnTakenMul = 1f;
 
+        /// <summary>劫律 12「冰蚀不化」：冰蚀的每层伤害乘数（默认 1；劫律 → 1.67 ≈ 1.5%→2.5%）。</summary>
+        public float IceErosionDotMul = 1f;
+
+        /// <summary>劫律 10「回天无力」：所有复活效果只恢复到标称血量的 60%（乘在百分比上）。</summary>
+        public float ReviveHpScale = 1f;
+
+        /// <summary>劫律 15「五行失序」：同属共鸣门槛整体 +1（2/4/5 → 3/5/5，第三档 5 封顶失效）。</summary>
+        public int ResonanceCountShift = 0;
+
+        /// <summary>劫律 20「万相归一」：敌方每回合攻击 +1%（血不涨 —— 偏差已记录）。</summary>
+        public bool AllIsOne;
+
         /// <summary>
         /// 复制一份但关掉伤害抖动 —— **专供受控对照实验**。
         /// 为什么必须有它：自检里"×0.7 就是 ×0.7"这类乘区断言，
