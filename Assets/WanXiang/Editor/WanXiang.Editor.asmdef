@@ -8,6 +8,7 @@
         "WanXiang.Campaign.Core",
         "WanXiang.Meta.Core",
         "WanXiang.Pvp.Core",
+        "WanXiang.Trials.Core",
         "WanXiang.Modules.Battle",
         "WanXiang.Modules.Fusion.Core",
         "WanXiang.Modules.Fusion",

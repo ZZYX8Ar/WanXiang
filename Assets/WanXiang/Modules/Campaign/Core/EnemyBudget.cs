@@ -65,9 +65,12 @@ namespace WanXiang.Campaign
         /// <summary>劫系数 K（P3 劫循环接入前恒为 1）。</summary>
         public static float JieMul(int jie) => 1f + JieStep * System.Math.Max(0, jie - 1);
 
-        /// <summary>单只敌人的属性倍率（作用于 生命/攻击/防御）。</summary>
-        public static float UnitMul(int act, NodeKind kind, int jie = 1)
-            => ActMul(act) * NodeMul(kind) * JieMul(jie);
+        /// <summary>
+        /// 单只敌人的属性倍率（作用于 生命/攻击/防御）。
+        /// <paramref name="eliteExtraMul"/>：劫律 07「兽强」的精英额外乘数（默认 1）。
+        /// </summary>
+        public static float UnitMul(int act, NodeKind kind, int jie = 1, float eliteExtraMul = 1f)
+            => ActMul(act) * NodeMul(kind) * (kind == NodeKind.Elite ? eliteExtraMul : 1f) * JieMul(jie);
 
         /// <summary>守关的单只属性倍率。</summary>
         public static float BossUnitMul(int act, int jie = 1)

@@ -168,6 +168,10 @@ namespace WanXiang.Battle.Core
 
                     int amount = CoreMath.RoundDamage(s.DotFlatPerStack * s.Stacks);
 
+                    // 劫律 11「灼烧入骨」：灼烧伤害 +30%（只作用于灼烧状态，冰蚀独立）
+                    if (s.Id == StatusCatalog.Burn && st.Config.BurnTakenMul != 1f)
+                        amount = CoreMath.RoundDamage(amount * st.Config.BurnTakenMul);
+
                     // 大暑「土润溽暑」：火属性单位受到的持续伤害减半（天时修正，判空在前）
                     if (st.Weather != null && u.Element == Element.Fire)
                     {
@@ -906,7 +910,7 @@ namespace WanXiang.Battle.Core
                 // 逆天时反噬：覆盖天时的属性被节气相克时，我方该属性单位 +15% 承伤
                 var w = st.Weather;
                 if (w.BacklashActive && dst.Side == TeamSide.Player && dst.Element == w.BacklashElement)
-                    v *= (1f + WeatherRuntime.BacklashExtraDamage);
+                    v *= (1f + st.Config.BacklashExtraDamage);   // 劫律 03「逆天之罚」可调
             }
 
             // 抖动（GDD v1.1 §3.1：Rand ∈ [0.95, 1.05]）。

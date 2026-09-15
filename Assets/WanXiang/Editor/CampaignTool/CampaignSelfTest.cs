@@ -402,7 +402,7 @@ namespace WanXiang.Editor.CampaignTool
                   "⑰ 节点图窗口类型可用（人工判据入口：万相/节气/节点图（灰盒））");
 
             // ---- ⑱ 天阙（v1.1 §5.6 #17）：后土 + 玩家队伍前 3 只的镜像 ----
-            var finaleSquad = content.FinaleFor(strong, 20260914UL);
+            var finaleSquad = content.FinaleFor(strong, 3, 20260914UL);
             bool hasBoss = false;
             int mirrors = 0;
             foreach (var e in finaleSquad)

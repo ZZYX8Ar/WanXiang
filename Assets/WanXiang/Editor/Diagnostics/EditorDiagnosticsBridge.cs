@@ -846,6 +846,7 @@ namespace WanXiang.EditorTools.Diagnostics
                 case "campaign.selftest": RunCampaignSelfTest(report); break;
                 case "meta.selftest": RunMetaSelfTest(report); break;
                 case "pvp.selftest": RunPvpSelfTest(report); break;
+                case "trials.selftest": RunTrialsSelfTest(report); break;
                 case "resource.smoke": RequestResourceSmoke(report); break;
                 case "play.enter": RequestPlayEnter(report); break;
                 case "play.exit": RequestPlayExit(report); break;
@@ -3044,6 +3045,17 @@ namespace WanXiang.EditorTools.Diagnostics
             RunEditorTool(report, "weather.selftest", WeatherToolTypeName,
                 "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
                 + "② 它的 asmdef 里缺 WanXiang.Battle.Core 引用。");
+        }
+
+        private const string TrialsToolTypeName =
+            "WanXiang.Editor.TrialsTool.TrialsSelfTest, WanXiang.Editor";
+
+        /// <summary>劫·难度循环自检（GDD v1.1 §7）。Edit 模式同步跑。</summary>
+        private static void RunTrialsSelfTest(Report report)
+        {
+            RunEditorTool(report, "trials.selftest", TrialsToolTypeName,
+                "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里缺 WanXiang.Trials.Core 引用。");
         }
 
         private const string PvpToolTypeName =

@@ -35,12 +35,15 @@ namespace WanXiang.Campaign
 
         private readonly ActGraph[] _acts;
         private readonly Func<int, WanXiang.Battle.Core.WeatherDef> _termWeather;
+        private readonly int _lingerNodes;
         private readonly List<LingerEntry> _lingers = new List<LingerEntry>(2);
 
-        public RunState(ActGraph[] acts, Func<int, WanXiang.Battle.Core.WeatherDef> termWeather)
+        public RunState(ActGraph[] acts, Func<int, WanXiang.Battle.Core.WeatherDef> termWeather,
+                        int lingerNodes = 2)
         {
             _acts = acts ?? throw new ArgumentNullException(nameof(acts));
             _termWeather = termWeather;
+            _lingerNodes = System.Math.Max(1, lingerNodes);
             CurrentAct = 1;
         }
 
@@ -153,7 +156,7 @@ namespace WanXiang.Campaign
                 _lingers.Add(new LingerEntry
                 {
                     Weather = weather.ScaledHalf("linger_" + weather.Id),
-                    NodesLeft = 2,
+                    NodesLeft = _lingerNodes,
                     FromTerm = firstTermOfPrevAct,
                 });
             }

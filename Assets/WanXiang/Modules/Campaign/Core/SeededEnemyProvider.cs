@@ -32,16 +32,24 @@ namespace WanXiang.Campaign
         private readonly Func<int, BeastDef[]> _poolForAct;
         private readonly Func<int, BeastDef> _bossForAct;
         private readonly int[] _formation;
+        private readonly int _finaleMirrors;
+        private readonly float _eliteExtraMul;
 
         /// <param name="poolForAct">某一幕的可选池（按 1..5 传入幕号）。返回 null/空 = 该幕无敌人（空阵容，自检里会看得见）。</param>
         /// <param name="bossForAct">守关战的主将（可空；为空则守关也只是普通阵容）。</param>
+        /// <param name="finaleMirrors">天阙镜像数（劫律 19「天阙低垂」3 → 5）。</param>
+        /// <param name="eliteExtraMul">精英属性额外乘数（劫律 07「兽强」= 1.15）。</param>
         public SeededEnemyProvider(Func<int, BeastDef[]> poolForAct,
                                    Func<int, BeastDef> bossForAct = null,
-                                   int[] formation = null)
+                                   int[] formation = null,
+                                   int finaleMirrors = 3,
+                                   float eliteExtraMul = 1f)
         {
             _poolForAct = poolForAct ?? (_ => null);
             _bossForAct = bossForAct;
             _formation = formation ?? DefaultFormation;
+            _finaleMirrors = finaleMirrors;
+            _eliteExtraMul = eliteExtraMul;
         }
 
         /// <summary>最近一次供给的预算占用率（自检断言用；1.0 = 占满上界）。</summary>
@@ -56,7 +64,7 @@ namespace WanXiang.Campaign
             var rng = new DeterministicRandom(seed ^ CoreMath.Fnv1a($"enemy:{act}:{termIndex}"));
             int slots = CoreMath.Min(_formation.Length,
                                      System.Math.Min(EnemyBudget.SquadSize(act, kind), pool.Length));
-            float mul = EnemyBudget.UnitMul(act, kind);
+            float mul = EnemyBudget.UnitMul(act, kind, 1, _eliteExtraMul);
 
             var picked = new List<BeastDef>(slots);
             var idx = new int[pool.Length];
@@ -133,17 +141,17 @@ namespace WanXiang.Campaign
         /// 镜像 = 同一份 BeastDef 摆到敌方侧 —— BattleFactory 会为每个上阵指令克隆，
         /// 所以我方/敌方的同名单位不会互相串改。
         /// </summary>
-        public DeployEntry[] FinaleFor(DeployEntry[] playerSquad, ulong seed)
+        public DeployEntry[] FinaleFor(DeployEntry[] playerSquad, int mirrors = 3, ulong seed = 0UL)
         {
             var boss = _bossForAct?.Invoke(5);                    // 幕 5 = 后土
-            var list = new List<DeployEntry>(4);
+            var list = new List<DeployEntry>(5);
             int[] mirrorSlots = { 0, 1, 7, 8, 2 };                // 中宫留给后土，镜像依次落位
             int mirrorIndex = 0;
 
             if (boss != null) list.Add(DeployEntry.Enemy(boss, 4));
             if (playerSquad != null)
             {
-                for (int i = 0; i < playerSquad.Length && mirrorIndex < 3; i++)
+                for (int i = 0; i < playerSquad.Length && mirrorIndex < mirrors; i++)
                 {
                     var def = playerSquad[i].Def;
                     if (def == null) continue;

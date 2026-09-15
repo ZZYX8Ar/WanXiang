@@ -122,10 +122,22 @@ namespace WanXiang.Campaign
         DeployEntry[] BossSquadFor(int act, ulong seed);
 
         /// <summary>
-        /// 天阙阵容：后土 + **玩家队伍前 3 只的镜像**（v1.1 §5.5；劫律 19 起 5 只）。
+        /// 天阙阵容：后土 + **玩家队伍前 N 只的镜像**（N = 3，劫律 19「天阙低垂」起 5）。
         /// 镜像 = 同一份 BeastDef 摆到敌方侧（BattleFactory 会克隆，不会串改我方）。
         /// </summary>
-        DeployEntry[] FinaleFor(DeployEntry[] playerSquad, ulong seed);
+        DeployEntry[] FinaleFor(DeployEntry[] playerSquad, int mirrors, ulong seed);
+    }
+
+    /// <summary>
+    /// 一轮的图/经济侧调参（劫律折算产物；默认 = 无劫律的 v1.1 基准）。
+    /// 定义在 Campaign 层、由 Trials 层从 <c>TrialState</c> 转换 —— 依赖方向不能反。
+    /// </summary>
+    public sealed class RunTuning
+    {
+        public int LingerNodes = 2;           // 01 余气不散 → 3
+        public float NestHealPercent = 0.40f; // 16 香火断绝 → 0.20
+        public int FinaleMirrors = 3;         // 19 天阙低垂 → 5
+        public float EliteExtraMul = 1f;      // 07 兽强 → 1.15
     }
 
     /// <summary>选路策略：给定幕与层，选一个节点下标。玩家交互未接时用确定性替身。</summary>
@@ -152,17 +164,22 @@ namespace WanXiang.Campaign
         private readonly ICampaignContent _content;
         private readonly NodeChooser _chooser;
         private readonly ulong _seed;
+        private readonly RunTuning _tuning;
 
         public RunDriver(BattleConfig cfg, ActGraph[] acts,
                          Func<int, WeatherDef> termWeather, ICampaignContent content,
-                         ulong seed, NodeChooser chooser = null)
+                         ulong seed, NodeChooser chooser = null, RunTuning tuning = null)
         {
             _cfg = cfg ?? BattleConfig.Default;
             _seed = seed;
             _content = content;
             _chooser = chooser ?? RunChoosers.Seeded(seed);
-            State = new RunState(acts, termWeather);
+            _tuning = tuning ?? new RunTuning();
+            State = new RunState(acts, termWeather, _tuning.LingerNodes);
         }
+
+        /// <summary>天阙镜像数（劫律 19「天阙低垂」可到 5）。</summary>
+        public int FinaleMirrors => _tuning.FinaleMirrors;
 
         public RunState State { get; }
 
@@ -253,7 +270,8 @@ namespace WanXiang.Campaign
             // ---- 战斗步 ----
             DeployEntry[] enemies;
             if (isFinale)
-                enemies = _content?.FinaleFor(playerSquad, SeedFor(act, termIndex, index)) ?? new DeployEntry[0];
+                enemies = _content?.FinaleFor(playerSquad, _tuning.FinaleMirrors, SeedFor(act, termIndex, index))
+                          ?? new DeployEntry[0];
             else if (atBoss)
                 enemies = _content?.BossSquadFor(act, SeedFor(act, -1, index)) ?? new DeployEntry[0];
             else
@@ -299,7 +317,8 @@ namespace WanXiang.Campaign
             {
                 case NodeKind.Nest:
                     RunEggs += 2;      // 默认取灵卵（另一项"回血 40%"对"每场独立血量"的模型没意义）
-                    return "孵穴：取 2 枚灵卵（另一选项：回复全队 40% 生命 —— 与每场独立血量冲突，待策划定）";
+                    return $"孵穴：取 2 枚灵卵（另一选项：回复全队 {_tuning.NestHealPercent:P0} 生命"
+                         + " —— 与每场独立血量冲突，待策划定）";
 
                 case NodeKind.Tale:
                     RunEggs += 1;      // 默认拒绝（异闻表 §4.7 待 P5 接入）

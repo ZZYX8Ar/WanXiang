@@ -137,6 +137,14 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public float DamageJitter = 0.05f;
 
+        /// <summary>「逆天时」反噬：覆盖引入的属性被节气相克时我方该属性的额外承伤
+        /// （默认 0.15；劫律 03「逆天之罚」把它提到 0.25）。</summary>
+        public float BacklashExtraDamage = 0.15f;
+
+        /// <summary>灼烧类持续伤害的全局乘数（默认 1；劫律 11「灼烧入骨」= 1.30）。
+        /// 只作用于灼烧状态（<see cref="StatusCatalog.Burn"/>），冰蚀独立。</summary>
+        public float BurnTakenMul = 1f;
+
         /// <summary>
         /// 复制一份但关掉伤害抖动 —— **专供受控对照实验**。
         /// 为什么必须有它：自检里"×0.7 就是 ×0.7"这类乘区断言，
