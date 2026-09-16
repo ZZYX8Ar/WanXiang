@@ -63,6 +63,17 @@ namespace WanXiang.Framework.Boot
         /// <summary>全局输入服务入口。业务代码通过它切上下文、改键。</summary>
         public static IInputService Input { get; private set; }
 
+        /// <summary>
+        /// 本实例是不是服务的创建者。
+        ///
+        /// ⚠ 为什么必须有这个标记：重复实例在 Awake 里会自杀（Destroy）。
+        ///   而 OnDestroy 无条件 Dispose 共享的静态服务 —— 于是"自杀的那一个"
+        ///   把**正在用的**服务一起销毁了。症状是跨场景之后输入全哑：
+        ///   Boot 场景建好服务，切到 Main 时 Main 里那份重复实例被销毁，
+        ///   顺手 Dispose 掉服务，Input 变 null。
+        /// </summary>
+        private bool _ownsService;
+
         private void Awake()
         {
             if (Input != null)
@@ -92,6 +103,7 @@ namespace WanXiang.Framework.Boot
             var service = new InputService(asset, _initialContext);
             service.Initialize();
             Input = service;
+            _ownsService = true;
 
             if (_setupEventSystem)
             {
@@ -105,9 +117,12 @@ namespace WanXiang.Framework.Boot
 
         private void OnDestroy()
         {
+            // 只有创建者才有权销毁服务。重复实例自杀时绝不能碰它（见 _ownsService 注释）
+            if (!_ownsService) return;
             if (Input == null) return;
             Input.Dispose();
             Input = null;
+            _ownsService = false;
         }
 
         private InputActionAsset ResolveAsset()

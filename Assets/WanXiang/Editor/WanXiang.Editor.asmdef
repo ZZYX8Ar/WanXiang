@@ -12,7 +12,9 @@
         "WanXiang.Modules.Battle",
         "WanXiang.Modules.Fusion.Core",
         "WanXiang.Modules.Fusion",
-        "Unity.InputSystem"
+        "WanXiang.Modules.UI",
+        "Unity.InputSystem",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

@@ -17,7 +17,50 @@ MonoBehaviour:
   Type: 2
   Cd: 6
   Element: 1
-  PrimaryTarget: 1
+  PrimaryTarget: 5
+  Effects:
+  - Kind: 2
+    Target: 5
+    Power: 0.5
+    PercentOfMaxHp: 0
+    ElementOverride: 0
+    Hits: 0
+    StatusId: 
+    StatusStacks: 0
+    StatusTurns: 0
+    StatKey: 
+    StatDelta: 0
+    StatTurns: 0
+    TrueDamage: 0
+    IgnoreShield: 0
+  - Kind: 3
+    Target: 5
+    Power: 0.5
+    PercentOfMaxHp: 0
+    ElementOverride: 0
+    Hits: 0
+    StatusId: 
+    StatusStacks: 0
+    StatusTurns: 0
+    StatKey: 
+    StatDelta: 0
+    StatTurns: 0
+    TrueDamage: 0
+    IgnoreShield: 0
+  - Kind: 5
+    Target: 5
+    Power: 0
+    PercentOfMaxHp: 0
+    ElementOverride: 0
+    Hits: 0
+    StatusId: 
+    StatusStacks: 0
+    StatusTurns: 0
+    StatKey: 
+    StatDelta: 0
+    StatTurns: 0
+    TrueDamage: 0
+    IgnoreShield: 0
   Description: "\u590D\u6D3B\u5168\u90E8\u9635\u4EA1\u961F\u53CB\uFF08\u5404 50%
     \u751F\u547D\uFF09\u5E76\u4F7F\u4ED6\u4EEC\u7ACB\u523B\u83B7\u5F97\u4E00\u6B21\u884C\u52A8\u673A\u4F1A\uFF1B\u672C\u56DE\u5408\u5185\u6211\u65B9\u6728\u3001\u706B\u5C5E\u6027\u5355\u4F4D\u4F24\u5BB3
     +30%\uFF08\u6728\u706B\u901A\u660E\uFF09\uFF0C\u5E76\u6E05\u9664\u5168\u573A\u51B0\u8680\u5C42\u6570\u3002"

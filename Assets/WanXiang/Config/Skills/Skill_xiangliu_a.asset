@@ -17,7 +17,22 @@ MonoBehaviour:
   Type: 1
   Cd: 3
   Element: 5
-  PrimaryTarget: 1
+  PrimaryTarget: 3
+  Effects:
+  - Kind: 1
+    Target: 3
+    Power: 1.8
+    PercentOfMaxHp: 0
+    ElementOverride: 0
+    Hits: 1
+    StatusId: 
+    StatusStacks: 0
+    StatusTurns: 0
+    StatKey: 
+    StatDelta: 0
+    StatTurns: 0
+    TrueDamage: 0
+    IgnoreShield: 0
   Description: "\u5C06\u6218\u573A\u5316\u4E3A\u6CBC\u6CFD\u6301\u7EED 3 \u56DE\u5408\uFF1A\u654C\u65B9\u5168\u4F53\u901F\u5EA6
     -25%\u3001\u547D\u4E2D -10%\uFF1B\u6BCF\u56DE\u5408\u7ED3\u675F\u5BF9\u654C\u65B9\u5168\u4F53\u9020\u6210
     70% \u653B\u51FB\u7684\u4F24\u5BB3\uFF0C\u5E76\u65BD\u52A0 1 \u5C42\u300C\u6E7F\u300D\u3002"

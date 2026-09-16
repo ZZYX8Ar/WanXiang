@@ -1,0 +1,23 @@
+{
+    "name": "WanXiang.Modules.UI",
+    "rootNamespace": "",
+    "references": [
+        "WanXiang.Runtime",
+        "WanXiang.Battle.Core",
+        "WanXiang.Modules.Battle",
+        "WanXiang.Modules.Fusion.Core",
+        "WanXiang.Modules.Fusion",
+        "WanXiang.Campaign.Core",
+        "UniTask",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -17,7 +17,36 @@ MonoBehaviour:
   Type: 2
   Cd: 7
   Element: 3
-  PrimaryTarget: 1
+  PrimaryTarget: 4
+  Effects:
+  - Kind: 1
+    Target: 4
+    Power: 0.8
+    PercentOfMaxHp: 0
+    ElementOverride: 0
+    Hits: 1
+    StatusId: 
+    StatusStacks: 0
+    StatusTurns: 0
+    StatKey: 
+    StatDelta: 0
+    StatTurns: 0
+    TrueDamage: 0
+    IgnoreShield: 0
+  - Kind: 4
+    Target: 4
+    Power: 0
+    PercentOfMaxHp: 0
+    ElementOverride: 0
+    Hits: 0
+    StatusId: armor_break
+    StatusStacks: 2
+    StatusTurns: 2
+    StatKey: 
+    StatDelta: 0
+    StatTurns: 0
+    TrueDamage: 0
+    IgnoreShield: 0
   Description: "\u53EC\u5524\u793E\u7A37\u4E4B\u67F1\u6301\u7EED 3 \u56DE\u5408\uFF1A\u6211\u65B9\u5168\u4F53\u514D\u75AB\u4F4D\u79FB\u4E0E\u300C\u653E\u9010\u300D\uFF1B\u6BCF\u56DE\u5408\u7ED3\u675F\u65F6\uFF0C\u5168\u5458\u6309\u81EA\u8EAB\u6700\u5927\u751F\u547D\u7684
     12% \u56DE\u590D\uFF0C\u5E76\u5C06\u672C\u56DE\u5408\u627F\u53D7\u4F24\u5BB3\u7684
     30% \u53CD\u5F39\u7ED9\u654C\u65B9\u5168\u4F53\u3002\u82E5\u6211\u65B9\u6709\u5355\u4F4D\u5728\u6B64\u6548\u679C\u671F\u95F4\u9635\u4EA1\uFF0C\u5219\u7ACB\u523B\u4EE5

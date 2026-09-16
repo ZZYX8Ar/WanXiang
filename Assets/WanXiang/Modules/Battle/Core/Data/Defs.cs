@@ -67,7 +67,12 @@ namespace WanXiang.Battle.Core
     /// <summary>
     /// 一个原子效果。技能与场地天时共用这一套 —— 这是"不写 24 份独立逻辑"的前提。
     /// 字段看着多，但每个字段都有明确的唯一用途，组合起来能覆盖绝大多数描述。
+    ///
+    /// ⚠ [System.Serializable] 是必需的：SkillConfigSO.Effects 是 EffectAtom[]，
+    ///    没有这个特性 Unity 不会序列化数组内容 —— 资产里存下来永远是空的，
+    ///    表现为"技能配了但战斗零伤害"。这个坑踩过一次，别再删。
     /// </summary>
+    [System.Serializable]
     public struct EffectAtom
     {
         public EffectAtomKind Kind;
