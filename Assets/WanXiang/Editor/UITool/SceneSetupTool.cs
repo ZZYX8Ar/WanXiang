@@ -18,6 +18,9 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using WanXiang.Battle.Presentation;
 using WanXiang.Framework.Boot;
@@ -38,6 +41,78 @@ namespace WanXiang.EditorTools
         private const string ContentCatalogPath = "Assets/WanXiang/Config/ContentCatalog.asset";
         private const string SpriteCatalogPath = "Assets/WanXiang/Config/SpriteCatalog.asset";
         private const string BattleBgPath = "Assets/ArtRes/BattleBg/bg_spring_far.png";
+        private const string InputAssetPath = "Assets/ArtRes/Input/WanXiang.inputactions";
+
+        /// <summary>
+        /// 修复输入接线：把输入资产绑到 Boot 的 [InputBootstrap]，并在场景里放好 [EventSystem]。
+        ///
+        /// 为什么必须两件事都做：
+        ///   InputBootstrap 在**找不到输入资产时会提前 return** —— 连它的 SetupEventSystem 都不跑。
+        ///   于是场景里既没有输入服务、也没有 InputSystemUIInputModule，
+        ///   表现就是「按钮点了一点反应都没有」。所以：
+        ///     · 绑资产 → 输入服务能起来（业务输入、改键）
+        ///     · 场景里预置 EventSystem + 模块 + 资产 → 点击不再依赖运行期创建
+        /// </summary>
+        [MenuItem("WanXiang/场景/修复输入接线（绑定输入资产 + EventSystem）", priority = 402)]
+        public static void FixInputWiring()
+        {
+            EditorSceneManager.SaveOpenScenes();
+            var scene = EditorSceneManager.OpenScene(BootPath, OpenSceneMode.Single);
+
+            var asset = AssetDatabase.LoadAssetAtPath<InputActionAsset>(InputAssetPath);
+            if (asset == null)
+            {
+                Debug.LogError("[SceneSetup] 找不到输入资产：" + InputAssetPath +
+                               "，先跑菜单「万相/输入/生成输入资产」。");
+                return;
+            }
+
+            // 1) 绑到 [InputBootstrap]
+            var bootstrap = Object.FindObjectOfType<InputBootstrap>();
+            if (bootstrap == null)
+            {
+                var go = new GameObject("[InputBootstrap]");
+                bootstrap = go.AddComponent<InputBootstrap>();
+            }
+            var so = new SerializedObject(bootstrap);
+            var p = so.FindProperty("_asset");
+            if (p != null)
+            {
+                p.objectReferenceValue = asset;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
+            else Debug.LogWarning("[SceneSetup] InputBootstrap 上没有 _asset 字段？");
+
+            // 2) 场景里预置 EventSystem（模块 + 资产）
+            EnsureEventSystem(asset);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene, BootPath);
+            Debug.Log("[SceneSetup] ✓ 输入接线已修复：Boot 的 [InputBootstrap] 绑上输入资产，" +
+                      "并预置了 [EventSystem]（InputSystemUIInputModule + 资产）。");
+        }
+
+        private static void EnsureEventSystem(InputActionAsset asset)
+        {
+            var es = Object.FindObjectOfType<EventSystem>();
+            if (es == null)
+            {
+                var go = new GameObject("[EventSystem]");
+                es = go.AddComponent<EventSystem>();
+            }
+
+            var legacy = es.GetComponent<StandaloneInputModule>();
+            if (legacy != null)
+            {
+                legacy.enabled = false;
+                Object.DestroyImmediate(legacy);
+            }
+
+            var module = es.GetComponent<InputSystemUIInputModule>();
+            if (module == null) module = es.gameObject.AddComponent<InputSystemUIInputModule>();
+            module.actionsAsset = asset;
+            EditorUtility.SetDirty(module);
+        }
 
         [MenuItem("WanXiang/场景/重建场景结构（Boot / Main / Battle2D）", priority = 400)]
         public static void Rebuild()
@@ -91,7 +166,20 @@ namespace WanXiang.EditorTools
             go.AddComponent<UIBootstrap>();
 
             var input = new GameObject("[InputBootstrap]");
-            input.AddComponent<InputBootstrap>();
+            var bootstrap = input.AddComponent<InputBootstrap>();
+            var asset = AssetDatabase.LoadAssetAtPath<InputActionAsset>(InputAssetPath);
+            if (asset != null)
+            {
+                var so = new SerializedObject(bootstrap);
+                var p = so.FindProperty("_asset");
+                if (p != null) { p.objectReferenceValue = asset; so.ApplyModifiedPropertiesWithoutUndo(); }
+                EnsureEventSystem(asset);
+            }
+            else
+            {
+                Debug.LogWarning("[SceneSetup] 没找到输入资产 " + InputAssetPath +
+                                 "：先跑「万相/输入/生成输入资产」，再跑一次本菜单。");
+            }
 
             var entry = new GameObject("[GameEntry]");
             entry.AddComponent<GameEntry>();

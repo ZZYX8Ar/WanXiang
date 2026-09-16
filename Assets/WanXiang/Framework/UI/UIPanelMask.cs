@@ -46,8 +46,18 @@ namespace WanXiang.Framework.UI
         {
             EnsureInit();
 
-            // 遮罩自身不可被其它系统接管，raycastTarget 由框架通过 SetTargetAlpha 控制。
-            _image.raycastTarget = true;
+            // ⚠ 这里必须是 false，不能是 true。
+            //
+            // UISystem.CreateLayer 建遮罩时已经写过 `raycastTarget = false`，
+            // 但紧接着 AddComponent<UIPanelMask>() 会触发本 Awake，把它盖成 true。
+            // 而 UpdateLayerMask 只在"该层开/关面板之后"才被调用 ——
+            // 于是一个从没开过面板的覆盖层（Normal / Popup / Overlay）会长期挂着一张
+            // **隐形的全屏遮罩**，而它们的 Canvas 排序又在 Main 之上：
+            // 结果是主界面所有点击都被吃掉，症状是"按钮点了一点反应都没有"。
+            //
+            // 正确状态：默认不拦射线（该层没面板时让点击穿过去），
+            // 需要拦时由 SetTargetAlpha / SetAlphaImmediate 打开。
+            _image.raycastTarget = false;
         }
 
         /// <summary>

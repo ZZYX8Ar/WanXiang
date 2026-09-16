@@ -770,6 +770,10 @@ namespace WanXiang.Framework.UI
                 maskImage.color = new Color(MaskColor.r, MaskColor.g, MaskColor.b, 0f);
                 maskImage.raycastTarget = false;
                 mask = maskGo.AddComponent<UIPanelMask>();
+                // 显式再关一次：AddComponent 会触发 UIPanelMask.Awake，
+                // 而 Awake 里对 raycastTarget 的任何写入都排在上面这行之后。
+                // 空层必须不拦射线，否则会吃掉下层的点击（踩过一次）。
+                mask.SetAlphaImmediate(0f, false, null);
             }
 
             var contentGo = new GameObject("Content", typeof(RectTransform));
