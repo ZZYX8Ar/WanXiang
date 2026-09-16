@@ -37,6 +37,17 @@ namespace WanXiang.Modules.UI
         [SerializeField] private ContentCatalogSO _contentCatalog;
         [SerializeField] private SpriteCatalog _sprites;
 
+        // ---- 旅程状态（选档后有值；没选档给默认首程值）----
+        private int RunEggs
+        {
+            get { return WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Eggs : 12; }
+        }
+
+        private int RunInk
+        {
+            get { return WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Ink : 3; }
+        }
+
         protected override void OnCreate()
         {
             if (_btnDeploy != null) _btnDeploy.onClick.AddListener(OnDeployClicked);
@@ -53,8 +64,8 @@ namespace WanXiang.Modules.UI
         protected override UniTask OnOpenAsync(object payload)
         {
             // 结构验证版：灵卵/墨锭是占位数值，等 RunState / MetaState 接进来后替换
-            if (_tmpEggs != null) _tmpEggs.text = "灵卵 12";
-            if (_tmpInk != null) _tmpInk.text = "墨锭 3";
+            if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + RunEggs;
+            if (_tmpInk != null) _tmpInk.text = "墨锭 " + RunInk;
 
             // 主立绘取队伍第一只
             if (_imgHero != null && _sprites != null && _contentCatalog != null)

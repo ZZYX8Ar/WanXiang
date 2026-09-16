@@ -62,6 +62,7 @@ namespace WanXiang.EditorTools
             ImportTmpEssentials();
 
             BuildStart();
+            BuildSave();
             BuildHome();
             BuildCampaign();
             BuildFormation();
@@ -78,7 +79,7 @@ namespace WanXiang.EditorTools
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[PrefabBuilder] " + "14 个面板预制体生成完毕 → Assets/Resources/UI/");
+            Debug.Log("[PrefabBuilder] " + "15 个面板预制体生成完毕 → Assets/Resources/UI/");
         }
 
         // ==================================================================
@@ -171,7 +172,59 @@ namespace WanXiang.EditorTools
         }
 
         // ==================================================================
-        // 01 Panel_Home —— 主界面
+        // 02 Panel_Save —— 存档选择（开始游戏后进来）
+        //  ------------------------------------------------------------------
+        //  三个槽位一行一档：空档 = 开新程（从头开始）；有档 = 继承。
+        //  没有 Panel_Save 的专属概念稿 → 底图用天阙远景云台层（美术应用器兜底）。
+        // ==================================================================
+
+        private static void BuildSave()
+        {
+            var root = NewPanelRoot("Panel_Save", true, Vector2.zero);
+            var comp = root.AddComponent<SavePanel>();
+            var rt = (RectTransform)root.transform;
+
+            var title = UIBuild.Fixed(rt, "Tmp_Title", new Vector2(0.5f, 1f),
+                new Vector2(900, 110), new Vector2(0, -70));
+            UIBuild.Tmp(title, "万相 · 选择旅程", 60, UIBuild.Ink, TextAlignmentOptions.Center);
+            var sub = UIBuild.Fixed(rt, "Tmp_Sub", new Vector2(0.5f, 1f),
+                new Vector2(900, 44), new Vector2(0, -180));
+            UIBuild.Tmp(sub, "三段旅程，各自生长 —— 空档从头开始，有档接着走", 26, UIBuild.Ink2, TextAlignmentOptions.Center);
+
+            // 三个槽位（空档/有档由运行期文案区分）
+            var slots = new RectTransform[3];
+            var slotDetails = new TextMeshProUGUI[3];
+            var slotBtns = new Button[3];
+            for (int i = 0; i < 3; i++)
+            {
+                var slotRt = UIBuild.MakeBtn(rt, "Btn_Slot" + i, new Vector2(0.5f, 0.5f),
+                    new Vector2(1200, 176), new Vector2(0, 760 - i * 210), "", UIBuild.Card);
+                slots[i] = slotRt;
+                slotBtns[i] = slotRt.GetComponent<Button>();
+                var detail = UIBuild.Fixed(slotRt, "Tmp_Detail", new Vector2(0.5f, 0.5f),
+                    new Vector2(1120, 120), Vector2.zero);
+                slotDetails[i] = UIBuild.Tmp(detail, "存档 " + (i + 1) + " · 空档\n从这里开始一段新的旅程",
+                    26, UIBuild.Ink, TextAlignmentOptions.Left);
+            }
+
+            var bNew = UIBuild.MakeBtn(rt, "Btn_New", new Vector2(0.5f, 0f),
+                new Vector2(460, 130), new Vector2(0, 120), "新的旅程", UIBuild.Gold, 40f);
+            var bBack = UIBuild.MakeBtn(rt, "Btn_Back", new Vector2(0f, 1f),
+                new Vector2(220, 96), new Vector2(70, -60), "返回", UIBuild.Card, 28f);
+            var hint = UIBuild.Fixed(rt, "Tmp_Hint", new Vector2(0.5f, 0f),
+                new Vector2(1100, 40), new Vector2(0, 60));
+            UIBuild.Tmp(hint, "旅程保存在本机；同档覆盖前请确认", 20, UIBuild.Ink2, TextAlignmentOptions.Center);
+
+            UIBuild.Bind(comp, "_btnNew", bNew.GetComponent<Button>());
+            UIBuild.Bind(comp, "_btnBack", bBack.GetComponent<Button>());
+            UIBuild.BindArr(comp, "_btnSlots", slotBtns);
+            UIBuild.BindArr(comp, "_tmpSlots", slotDetails);
+            UIBuild.Bind(comp, "_tmpHint", hint.GetComponent<TMP_Text>());
+            UIBuild.SavePrefab(root, "Panel_Save");
+        }
+
+        // ==================================================================
+        // 03 Panel_Home —— 主界面
         //  ------------------------------------------------------------------
         //  ⚠ 主界面的按钮位置**不是随便定的**：底图 Panel_Home.png 上已经画好了
         //    金色圆形主按钮（右下）与底排 8 个功能图标。这里的功能节点一律用

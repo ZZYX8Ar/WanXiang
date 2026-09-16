@@ -42,9 +42,9 @@ namespace WanXiang.Modules.UI
 
         private void OnStartClicked()
         {
-            // 开始游戏：先关掉标题，再切到主城场景（Main 的入口会开主界面）
+            // 开始游戏：先到存档选择（选新档从头开始，选旧档继承）
             CloseSelf();
-            SceneFlow.EnterMain();
+            OpenPanelAsync<SavePanel>().Forget();
         }
 
         private void OnSettingsClicked()

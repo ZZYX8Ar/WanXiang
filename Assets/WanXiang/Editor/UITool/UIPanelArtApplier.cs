@@ -33,6 +33,7 @@ namespace WanXiang.EditorTools
         private static readonly Dictionary<string, string> ScreenFallback = new Dictionary<string, string>
         {
             { "Panel_Start", BattleBg + "bg_tianque_far.png" },
+            { "Panel_Save", BattleBg + "bg_tianque_far.png" },
         };
 
         /// <summary>精确节点名 → 美术 key。</summary>

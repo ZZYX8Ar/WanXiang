@@ -84,7 +84,8 @@ namespace WanXiang.Modules.UI
             FillEnemyIntel();
             BuildRoster();
             RefreshBonds();
-            OnAutoFillClicked();     // 默认先摆好一套，玩家再微调
+            if (!TryInheritTeam())
+                OnAutoFillClicked(); // 没有可继承的队伍 → 默认摆一套，玩家再微调
             return UniTask.CompletedTask;
         }
 
@@ -421,6 +422,58 @@ namespace WanXiang.Modules.UI
             CommitLayout();
         }
 
+        /// <summary>
+        /// 旧档继承：把存档里记录的队伍按 id 摆回九宫格。
+        /// id 对不上目录的（版本变动/阵容重排）跳过；一只都没摆上 → 返回 false 走自动布阵。
+        /// </summary>
+        private bool TryInheritTeam()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || run.Team == null || run.Team.Count == 0) return false;
+
+            for (int i = 0; i < _deployed.Length; i++) _deployed[i] = -1;
+            int placed = 0;
+            foreach (var id in run.Team)
+            {
+                int beastIndex = IndexOfBeast(id);
+                if (beastIndex < 0) continue;
+                int slot = NextEmptySlot();
+                if (slot < 0) break;
+                _deployed[slot] = beastIndex;
+                placed++;
+            }
+            if (placed == 0) return false;
+            CommitLayout();
+            Debug.Log("[FormationPanel] 已继承存档队伍：" + placed + " 只。");
+            return true;
+        }
+
+        /// <summary>出征前把当前队伍写回旅程（下次进来直接摆好）。</summary>
+        private void SaveTeamToRun()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || _all == null) return;
+            run.Team.Clear();
+            foreach (var idx in _deployed)
+                if (idx >= 0 && idx < _all.Length) run.Team.Add(_all[idx].Id);
+            WanXiang.Run.RunSave.SaveCurrent();
+        }
+
+        private int IndexOfBeast(string id)
+        {
+            if (_all == null || string.IsNullOrEmpty(id)) return -1;
+            for (int i = 0; i < _all.Length; i++)
+                if (_all[i] != null && _all[i].Id == id) return i;
+            return -1;
+        }
+
+        private int NextEmptySlot()
+        {
+            foreach (var slot in Slots)
+                if (_deployed[slot] < 0) return slot;
+            return -1;
+        }
+
         private void CommitLayout()
         {
             RefreshCells();
@@ -514,6 +567,7 @@ namespace WanXiang.Modules.UI
                 req.Player.Add(_all[idx]);
             }
 
+            SaveTeamToRun();
             // 出征 = 切到战斗场景。关掉布阵界面：布阵是 Normal 层，
             // 战斗 HUD 在 Main 层，留着会被布阵的遮罩压住。
             CloseSelf();

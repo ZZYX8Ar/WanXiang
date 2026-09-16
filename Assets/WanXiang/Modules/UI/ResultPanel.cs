@@ -44,6 +44,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Sprite _spriteLose;
 
         private int _selectedDraft = -1;
+        private bool _win;      // 本场胜负（结算奖励用）
 
         protected override void OnCreate()
         {
@@ -60,7 +61,9 @@ namespace WanXiang.Modules.UI
         {
             var req = payload as ResultRequest;
             bool win = req != null && req.Win;
+            _win = win;
             _selectedDraft = -1;
+            _win = false;
 
             if (_imgBanner != null)
             {
@@ -114,7 +117,39 @@ namespace WanXiang.Modules.UI
             // 结构验证版：三选一草稿还不是真实内容，没选也允许继续（选了就记一下）
             if (_selectedDraft >= 0)
                 Debug.Log("[ResultPanel] 已选择技能草稿 " + (_selectedDraft + 1));
+            ApplyOutcome();
             BackToCampaign();
+        }
+
+        /// <summary>
+        /// 把这一场的胜败写进旅程：赢了给灵卵/墨锭并推进劫数，输了也有少量保底。
+        /// 数值是占位节奏（每胜一场进一劫；三劫一境、三境一周目），正式数值等 GDD 定稿后改这里。
+        /// </summary>
+        private void ApplyOutcome()
+        {
+            var cur = WanXiang.Run.RunSave.Current;
+            if (cur == null)
+            {
+                Debug.LogWarning("[ResultPanel] 没有进行中的旅程（试炼直进战斗），本场不写入存档。");
+                return;
+            }
+
+            if (_win)
+            {
+                cur.Wins++;
+                cur.Eggs += 8 + cur.Jie * 2;
+                cur.Ink += 1;
+                cur.Jie++;
+                if (cur.Jie > 3) { cur.Jie = 1; cur.Realm++; }
+            }
+            else
+            {
+                cur.Losses++;
+                cur.Eggs += 2;      // 保底：败了也给一点，别把玩家卡死
+            }
+            WanXiang.Run.RunSave.Save(cur);
+            Debug.Log("[ResultPanel] 旅程已保存：槽位 " + cur.Slot + " " + cur.RealmText +
+                      " 灵卵 " + cur.Eggs);
         }
 
         private void BackToCampaign()

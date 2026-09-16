@@ -41,6 +41,7 @@ namespace WanXiang.Modules.Boot
 
             if (_preloadCommonPanels)
             {
+                await ui.PreloadAsync<SavePanel>();
                 await ui.PreloadAsync<HomePanel>();
                 await ui.PreloadAsync<CampaignPanel>();
                 await ui.PreloadAsync<FormationPanel>();
