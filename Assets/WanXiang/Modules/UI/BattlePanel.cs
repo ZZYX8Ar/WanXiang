@@ -409,7 +409,13 @@ namespace WanXiang.Modules.UI
         /// <summary>真正交接：场景模式回主城（弹结算），否则就地开结算面板。</summary>
         private void HandOff(ResultRequest result)
         {
-            if (_sceneMode) SceneFlow.ExitBattle(result);
+            if (_sceneMode)
+            {
+                // 先关自己再切场景：UI 根节点是 DontDestroyOnLoad 的，
+                // 不关的话战斗 HUD 会跟着到主城、压在结算面板后面。
+                CloseSelf();
+                SceneFlow.ExitBattle(result);
+            }
             else
             {
                 OpenPanelAsync<ResultPanel>(result).Forget();

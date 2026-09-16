@@ -66,8 +66,17 @@ namespace WanXiang.Modules.UI
             if (_stage == null) _stage = FindObjectOfType<BattleStage2D>();
             if (_stage != null)
             {
-                _stage.Build(play.State, _background, _sprites);
-                Debug.Log("[BattleSceneDriver] 舞台已搭建：" + req.Title);
+                // 舞台搭建失败不该把整条流程卡死在战斗场景里：HUD 与结算仍然要走完
+                try
+                {
+                    _stage.Build(play.State, _background, _sprites);
+                    Debug.Log("[BattleSceneDriver] 舞台已搭建：" + req.Title);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError("[BattleSceneDriver] 舞台搭建失败，本场只有 HUD：" + ex);
+                    _stage = null;
+                }
             }
             else
             {
