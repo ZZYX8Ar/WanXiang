@@ -130,6 +130,19 @@ namespace WanXiang.Framework.UI
         private readonly Dictionary<string, UniTaskCompletionSource<UIPanelBase>> _pendingOpens =
             new Dictionary<string, UniTaskCompletionSource<UIPanelBase>>(StringComparer.Ordinal);
 
+        /// <summary>
+        /// 同一面板类型"正在实例化"的任务表。
+        ///
+        /// 为什么 _pendingOpens 不够：它按 **面板 key** 去重，只覆盖 OpenAsync 这一条路。
+        /// 而实例化的竞态窗口在 GetOrCreateInstanceAsync 内部 ——
+        /// 「查 _instancesByType」与「Instantiate」之间隔着一次 await 加载，
+        /// 两条路（预加载并发、框架内外直接调、快速连点绕过 key 去重）都可能同时穿过窗口，
+        /// 结果是同一个面板被实例化两次：一个正常打开，另一个挂在 None 状态变成幽灵实例。
+        /// 这里按 **Type** 再上一把锁，让"同一类型同一时刻只有一个实例在被创建"。
+        /// </summary>
+        private readonly Dictionary<Type, UniTaskCompletionSource<UIPanelBase>> _pendingInstances =
+            new Dictionary<Type, UniTaskCompletionSource<UIPanelBase>>(32);
+
         /// <summary>面板 → 最后关闭次序。用于 LRU 淘汰排序。</summary>
         private readonly Dictionary<UIPanelBase, int> _lastCloseTick =
             new Dictionary<UIPanelBase, int>();
@@ -322,7 +335,9 @@ namespace WanXiang.Framework.UI
 
                     case UIPanelState.Created:
                     case UIPanelState.Closed:
-                        // 落到下面走正常打开流程（会重新入栈、重算暂停关系）
+                    case UIPanelState.None:
+                        // None = 实例建好但从没打开过（实例化中途被打断的残留）。
+                        // 不能像 Loading/Closing 那样"忽略这一次"，否则这个面板永远打不开。
                         break;
 
                     default:
@@ -391,6 +406,15 @@ namespace WanXiang.Framework.UI
 
             if (panel == null) return null;
 
+            // 竞态：两个调用都走到这里（其中一个在我们加载期间已经把它打开了）。
+            // 已经在开 / 已开的面板不再重放 OnOpenAsync，只刷新内容 ——
+            // 重放会让面板做两次入场动画、OnOpenAsync 里的初始化跑两遍。
+            if (panel.State == UIPanelState.Opening || panel.State == UIPanelState.Opened)
+            {
+                panel.InternalRefresh(payload);
+                return panel;
+            }
+
             // 关闭时解绑过订阅的面板，重开前需要恢复可订阅状态
             panel.PrepareReopen();
 
@@ -427,6 +451,35 @@ namespace WanXiang.Framework.UI
                 return exist;
             }
 
+            // 同一类型已有一次实例化在飞 → 等它，不要再发一次
+            if (_pendingInstances.TryGetValue(type, out var inflight))
+            {
+                return await inflight.Task;
+            }
+
+            var ticket = new UniTaskCompletionSource<UIPanelBase>();
+            _pendingInstances[type] = ticket;
+            try
+            {
+                var panel = await CreateInstanceAsync(type, meta, layer);
+                ticket.TrySetResult(panel);
+                return panel;
+            }
+            catch (System.Exception ex)
+            {
+                ticket.TrySetException(ex);
+                throw;
+            }
+            finally
+            {
+                _pendingInstances.Remove(type);
+            }
+        }
+
+        /// <summary>真正的实例化。只允许被 GetOrCreateInstanceAsync 调用（它负责去重）。</summary>
+        private async UniTask<UIPanelBase> CreateInstanceAsync(
+            Type type, UIPanelMeta meta, LayerRuntime layer)
+        {
             GameObject prefab;
             try
             {
@@ -450,6 +503,12 @@ namespace WanXiang.Framework.UI
                     $"② 文件命名与推导规则不符（默认推导为 Panel_类名去 Panel 后缀）；" +
                     $"③ 需要在面板类上用 [UIPanel(\"你的Key\")] 显式指定。");
                 return null;
+            }
+
+            // await 回来再确认一次：这期间可能已有别的调用把实例建好了（就是上面那个竞态窗口）
+            if (_instancesByType.TryGetValue(type, out var raced) && raced != null)
+            {
+                return raced;
             }
 
             var go = UnityEngine.Object.Instantiate(prefab, layer.Content);
@@ -478,6 +537,16 @@ namespace WanXiang.Framework.UI
             }
 
             panel.InternalInit(meta, this);
+
+            // 最后一道兜底：真出现了第二个实例就销毁它，保留先注册的那个。
+            // 走到这里说明去重被绕过了 —— 留一条带 key 的警告，别让它悄无声息地变幽灵实例。
+            if (_instancesByType.TryGetValue(type, out var prev) && prev != null && prev != panel)
+            {
+                Debug.LogWarning($"[UI] 检测到面板 \"{meta.Key}\" 被重复实例化，已销毁后到的那个。" +
+                                 $"请检查是否有绕过 OpenAsync 的直接调用。");
+                UnityEngine.Object.Destroy(go);
+                return prev;
+            }
 
             _instancesByType[type] = panel;
             _allInstances.Add(panel);
@@ -840,6 +909,12 @@ namespace WanXiang.Framework.UI
                 kv.Value.TrySetCanceled();
             }
             _pendingOpens.Clear();
+
+            foreach (var kv in _pendingInstances)
+            {
+                kv.Value.TrySetCanceled();
+            }
+            _pendingInstances.Clear();
 
             for (int i = _allInstances.Count - 1; i >= 0; i--)
             {

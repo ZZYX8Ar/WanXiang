@@ -12,6 +12,7 @@
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using WanXiang.Battle.Core;
 using WanXiang.Battle.Presentation;
@@ -57,6 +58,11 @@ namespace WanXiang.Modules.UI
         private BeastDef[] _all;
         private readonly int[] _deployed = new int[9];   // cell → beast index（-1 = 空）
 
+        // ---- 拖拽状态 ----
+        private GameObject _ghost;          // 拖拽幽灵（跟随指针的立绘）
+        private int _dragBeast = -1;        // 从卡池拖出来的异兽序号（-1 = 不是）
+        private int _dragFromCell = -1;     // 从哪个格子拖出来的（-1 = 不是）
+
         protected override void OnCreate()
         {
             if (_imgCellHi != null) _imgCellHi.gameObject.SetActive(false);
@@ -64,6 +70,7 @@ namespace WanXiang.Modules.UI
             if (_btnClear != null) _btnClear.onClick.AddListener(OnClearClicked);
             if (_btnDeploy != null) _btnDeploy.onClick.AddListener(OnDeployClicked);
             ClearSlots();
+            WireCells();
         }
 
         protected override UniTask OnOpenAsync(object payload)
@@ -129,6 +136,12 @@ namespace WanXiang.Modules.UI
                 var item = Instantiate(_rosterItemTemplate, content);
                 item.name = "Item_Roster_" + i;
                 item.gameObject.SetActive(true);
+
+                // 挂拖拽/点击代理（点击 = 推荐位上阵；拖拽 = 拖到格子上阵）
+                var drag = item.gameObject.GetComponent<RosterDragItem>();
+                if (drag == null) drag = item.gameObject.AddComponent<RosterDragItem>();
+                drag.Owner = this;
+                drag.BeastIndex = i;
 
                 var head = item.Find("Img_Head");
                 if (head != null)
@@ -295,6 +308,179 @@ namespace WanXiang.Modules.UI
             int idx = _deployed[cell];
             if (idx < 0 || _all == null || idx >= _all.Length) return false;
             return (int)_all[idx].Element == element;
+        }
+
+        // ================================================================
+        //  拖拽 / 点击布阵
+        //  ----------------------------------------------------------------
+        //  交互约定（与 GDD"布阵是最重要的决策界面"对齐）：
+        //    · 点卡池条目 → 上阵到第一个空推荐位；再点一次（或点已上阵的卡）→ 下阵
+        //    · 拖卡池条目到格子 → 上阵（原格的兽自动回卡池）
+        //    · 拖格子上的兽到另一格 → 移动 / 交换
+        //    · 点格子（空手）→ 下阵
+        //    · 每次变动都重算羁绊与战力（相生相邻、共鸣档位实时变）
+        // ================================================================
+
+        private Image _ghostImg;
+        private bool _dragActive;
+
+        /// <summary>给 9 个格子挂上点击/拖拽代理（幂等，面板常驻时只挂一次）。</summary>
+        private void WireCells()
+        {
+            if (_cells == null) return;
+            for (int i = 0; i < _cells.Length; i++)
+            {
+                if (_cells[i] == null) continue;
+                var item = _cells[i].gameObject.GetComponent<CellDragItem>();
+                if (item == null) item = _cells[i].gameObject.AddComponent<CellDragItem>();
+                item.Owner = this;
+                item.CellIndex = i;
+            }
+        }
+
+        /// <summary>点击卡池条目：已上阵 → 下阵；未上阵 → 放进第一个空推荐位。</summary>
+        public void OnRosterClicked(int beastIndex)
+        {
+            for (int cell = 0; cell < _deployed.Length; cell++)
+            {
+                if (_deployed[cell] == beastIndex) { _deployed[cell] = -1; CommitLayout(); return; }
+            }
+            foreach (var slot in Slots)
+            {
+                if (_deployed[slot] < 0) { _deployed[slot] = beastIndex; CommitLayout(); return; }
+            }
+            Debug.Log("[FormationPanel] 九宫格已满，先点击格子下阵一只。");
+        }
+
+        /// <summary>空手点击格子：有兽 → 下阵。</summary>
+        public void OnCellClicked(int cell)
+        {
+            if (cell < 0 || cell >= _deployed.Length || _deployed[cell] < 0) return;
+            _deployed[cell] = -1;
+            CommitLayout();
+        }
+
+        /// <summary>
+        /// 拖拽开始。beastIndex / fromCell 二选一有值：从卡池拖 or 从格子拖。
+        /// 从空格子拖起 = 什么都没有，直接取消。
+        /// </summary>
+        public void OnDragBegin(int beastIndex, int fromCell, PointerEventData e)
+        {
+            _dragActive = false;
+            _dragBeast = beastIndex;
+            _dragFromCell = fromCell;
+
+            int showIndex = beastIndex >= 0 ? beastIndex : (fromCell >= 0 ? _deployed[fromCell] : -1);
+            if (showIndex < 0) { _dragBeast = -1; _dragFromCell = -1; return; }
+
+            ShowGhost(showIndex, e.position);
+            _dragActive = true;
+        }
+
+        public void OnDragMove(PointerEventData e)
+        {
+            if (!_dragActive) return;
+            MoveGhost(e.position);
+
+            // 悬停高亮：拖到哪个格子，哪个格子亮起来
+            int hover = FindCellAt(e.position);
+            if (_imgCellHi != null)
+            {
+                bool on = hover >= 0;
+                _imgCellHi.gameObject.SetActive(on);
+                if (on) _imgCellHi.transform.position = _cells[hover].position;
+            }
+        }
+
+        public void OnDragEnd(int beastIndex, int fromCell, PointerEventData e)
+        {
+            if (_imgCellHi != null) _imgCellHi.gameObject.SetActive(false);
+            HideGhost();
+            if (!_dragActive) { _dragBeast = -1; _dragFromCell = -1; return; }
+            _dragActive = false;
+
+            int target = FindCellAt(e.position);
+            if (fromCell >= 0)
+            {
+                // 格子 → 格子：移动 / 交换
+                if (target >= 0 && target != fromCell)
+                {
+                    int moved = _deployed[fromCell];
+                    _deployed[fromCell] = _deployed[target];
+                    _deployed[target] = moved;
+                }
+            }
+            else if (beastIndex >= 0 && target >= 0)
+            {
+                // 卡池 → 格子：上阵（若格上已有兽，替换下来自动回卡池）
+                _deployed[target] = beastIndex;
+            }
+
+            _dragBeast = -1;
+            _dragFromCell = -1;
+            CommitLayout();
+        }
+
+        private void CommitLayout()
+        {
+            RefreshCells();
+            RefreshBonds();
+        }
+
+        /// <summary>屏幕坐标 → 九宫格格位（-1 = 不在任何格子上）。</summary>
+        private int FindCellAt(Vector2 screenPos)
+        {
+            if (_cells == null) return -1;
+            for (int i = 0; i < _cells.Length; i++)
+            {
+                if (_cells[i] == null) continue;
+                if (RectTransformUtility.RectangleContainsScreenPoint(_cells[i], screenPos, null))
+                    return i;
+            }
+            return -1;
+        }
+
+        private void ShowGhost(int beastIndex, Vector2 screenPos)
+        {
+            if (_ghost == null)
+            {
+                _ghost = new GameObject("DragGhost", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
+                var grt = (RectTransform)_ghost.transform;
+                grt.SetParent(transform, false);
+                grt.sizeDelta = new Vector2(150f, 150f);
+                var cg = _ghost.GetComponent<CanvasGroup>();
+                cg.blocksRaycasts = false;      // 幽灵不接事件，别挡住格子的判定
+                cg.alpha = 0.85f;
+                _ghostImg = _ghost.GetComponent<Image>();
+                _ghostImg.raycastTarget = false;
+                _ghostImg.preserveAspect = true;
+                _ghost.transform.SetAsLastSibling();
+            }
+            _ghost.SetActive(true);
+
+            var sprite = (_sprites != null && _all != null && beastIndex < _all.Length)
+                ? _sprites.Get(_all[beastIndex].Id) : null;
+            if (sprite != null)
+            {
+                _ghostImg.sprite = sprite;
+                _ghostImg.color = Color.white;
+            }
+            else
+            {
+                _ghostImg.sprite = null;
+                _ghostImg.color = new Color(0.78f, 0.83f, 0.72f, 0.9f);
+            }
+            MoveGhost(screenPos);
+        }
+
+        private void MoveGhost(Vector2 screenPos)
+        {
+            if (_ghost != null) ((RectTransform)_ghost.transform).position = screenPos;
+        }
+
+        private void HideGhost()
+        {
+            if (_ghost != null) _ghost.SetActive(false);
         }
 
         // ================================================================
