@@ -172,7 +172,22 @@ namespace WanXiang.EditorTools
 
         // ==================================================================
         // 01 Panel_Home —— 主界面
+        //  ------------------------------------------------------------------
+        //  ⚠ 主界面的按钮位置**不是随便定的**：底图 Panel_Home.png 上已经画好了
+        //    金色圆形主按钮（右下）与底排 8 个功能图标。这里的功能节点一律用
+        //    「透明 Image + raycastTarget」盖在画好的热区上，图看着还是美术画的，
+        //    点下去却真的响应 —— 改位置就是改下面这几个常量（单位：1920×1080，
+        //    y 从屏幕底往上算；数值由底图量出来，见 memory 2026-09-16 追加段）。
         // ==================================================================
+
+        private const float HomeCircleX = 1773f;    // 金色主按钮圆心
+        private const float HomeCircleY = 173f;
+        private const float HomeCircleSize = 340f;
+        private const float HomeIconY = 150f;       // 底排图标中心高度
+        private const float HomeIconSize = 104f;
+
+        /// <summary>底排 8 个图标的圆心 x（从左到右）。</summary>
+        private static readonly float[] HomeIconX = { 188f, 393f, 593f, 803f, 990f, 1118f, 1313f, 1515f };
 
         private static void BuildHome()
         {
@@ -183,9 +198,9 @@ namespace WanXiang.EditorTools
             var top = UIBuild.Top(rt, "Root_TopBar", 96);
             UIBuild.Img(top, UIBuild.Silk);
             var tmpEggs = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_Eggs", new Vector2(0f, 0.5f),
-                new Vector2(260, 48), new Vector2(150, 0)), "Eggs 0", 30, UIBuild.Ink, TextAlignmentOptions.Left);
+                new Vector2(260, 48), new Vector2(150, 0)), "灵卵 0", 30, UIBuild.Ink, TextAlignmentOptions.Left);
             var tmpInk = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_Ink", new Vector2(0f, 0.5f),
-                new Vector2(260, 48), new Vector2(440, 0)), "Ink 0", 30, UIBuild.Ink, TextAlignmentOptions.Left);
+                new Vector2(260, 48), new Vector2(440, 0)), "墨锭 0", 30, UIBuild.Ink, TextAlignmentOptions.Left);
             var badge = UIBuild.Fixed(top, "Img_RealmBadge", new Vector2(1f, 0.5f),
                 new Vector2(84, 84), new Vector2(-60, 0));
             UIBuild.Img(badge, UIBuild.Gold);
@@ -197,20 +212,25 @@ namespace WanXiang.EditorTools
             var sprite = UIBuild.Center(hero, "Img_HeroSprite", new Vector2(560, 560));
             var imgHero = UIBuild.Img(sprite, UIBuild.Card);
 
-            var menu = UIBuild.Left(rt, "Root_SideMenu", 320, 24, 140, 230);
-            UIBuild.Img(menu, UIBuild.Card);
-            var bCodex = UIBuild.MakeBtn(menu, "Btn_Codex", new Vector2(0.5f, 1f),
-                new Vector2(280, 96), new Vector2(0, -130), "Codex", UIBuild.Gold);
-            var bMeta = UIBuild.MakeBtn(menu, "Btn_Meta", new Vector2(0.5f, 1f),
-                new Vector2(280, 96), new Vector2(0, -240), "Meta", UIBuild.Card);
-            var bSettings = UIBuild.MakeBtn(menu, "Btn_Settings", new Vector2(0.5f, 1f),
-                new Vector2(280, 96), new Vector2(0, -350), "Settings", UIBuild.Card);
+            // ---- 底排功能图标（透明热区盖在底图画好的图标上）----
+            var bCodex = Hotspot(rt, "Hot_Codex", HomeIconX[1], HomeIconY, HomeIconSize, "图鉴");
+            var bMeta = Hotspot(rt, "Hot_Meta", HomeIconX[2], HomeIconY, HomeIconSize, "成长");
+            var bMarket = Hotspot(rt, "Hot_Market", HomeIconX[3], HomeIconY, HomeIconSize, "灵市");
+            var bSettings = Hotspot(rt, "Hot_Settings", HomeIconX[7], HomeIconY, HomeIconSize, "设置");
+            // 底排其余图标（亭子 / 刀剑 / 双人 / 卷轴）功能未定，先不挂 —— 定了再加 Hotspot
 
-            var bDeploy = UIBuild.MakeBtn(rt, "Btn_Deploy", new Vector2(1f, 0f),
-                new Vector2(460, 130), new Vector2(-110, 60), "Deploy", UIBuild.Gold, 38f);
+            // ---- 右下金色圆：出征（主按钮）----
+            var bDeploy = UIBuild.Fixed(rt, "Hot_Deploy", new Vector2(1f, 0f),
+                new Vector2(HomeCircleSize, HomeCircleSize), new Vector2(HomeCircleX - 1920f, HomeCircleY));
+            UIBuild.Img(bDeploy, new Color(1f, 1f, 1f, 0f), true);
+            UIBuild.Btn(bDeploy);
+            var deployLabel = UIBuild.Fixed(bDeploy, "Tmp_Label", new Vector2(0.5f, 0f),
+                new Vector2(220, 56), new Vector2(0f, 60f));
+            UIBuild.Tmp(deployLabel, "出征", 44, UIBuild.Ink, TextAlignmentOptions.Center);
+
             var ver = UIBuild.Fixed(rt, "Tmp_Version", new Vector2(0f, 0f),
-                new Vector2(420, 36), new Vector2(110, 20));
-            UIBuild.Tmp(ver, "v1.0  share: XXXX-XXXX", 20, UIBuild.Ink2, TextAlignmentOptions.Left);
+                new Vector2(420, 36), new Vector2(130, 24));
+            UIBuild.Tmp(ver, "v0.1  结构验证版", 20, UIBuild.Ink2, TextAlignmentOptions.Left);
 
             UIBuild.Bind(comp, "_tmpEggs", tmpEggs);
             UIBuild.Bind(comp, "_tmpInk", tmpInk);
@@ -218,10 +238,37 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_btnDeploy", bDeploy.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnCodex", bCodex.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnMeta", bMeta.GetComponent<Button>());
+            UIBuild.Bind(comp, "_btnMarket", bMarket.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnSettings", bSettings.GetComponent<Button>());
             UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
             UIBuild.Bind(comp, "_sprites", LoadAsset<SpriteCatalog>(SpriteCatalogPath));
             UIBuild.SavePrefab(root, "Panel_Home");
+        }
+
+        /// <summary>
+        /// 透明热区：盖在底图画好的图标/按钮上。
+        /// 图是美术画的（透明 Image 不遮画面），命中判定与标签由这里给。
+        ///
+        /// ⚠ 命名必须用 Hot_ 前缀，不能用 Btn_：
+        ///   美术应用器（UIPanelArtApplier）对 Btn_ 前缀的规则是"挂主/次按钮图"，
+        ///   热区一旦叫 Btn_xxx，重跑美术应用就会被贴上一张按钮图把底图盖住，
+        ///   而且 Inspector 里看不出是热区。Hot_ = 透明的命中判定区（节点名前缀见拼装规范）。
+        /// </summary>
+        private static RectTransform Hotspot(Transform parent, string name, float cx, float cy,
+                                             float size, string label)
+        {
+            var rt = UIBuild.Fixed(parent, name, new Vector2(0f, 0f),
+                new Vector2(size, size), new Vector2(cx, cy));
+            UIBuild.Img(rt, new Color(1f, 1f, 1f, 0f), true);
+            UIBuild.Btn(rt);
+
+            if (!string.IsNullOrEmpty(label))
+            {
+                var lbl = UIBuild.Fixed(rt, "Tmp_Label", new Vector2(0.5f, 0f),
+                    new Vector2(120, 30), new Vector2(0f, -12f));
+                UIBuild.Tmp(lbl, label, 20, UIBuild.Ink2, TextAlignmentOptions.Center);
+            }
+            return rt;
         }
 
         // ==================================================================
@@ -277,9 +324,9 @@ namespace WanXiang.EditorTools
             }
 
             var bNext = UIBuild.MakeBtn(rt, "Btn_Next", new Vector2(1f, 0f),
-                new Vector2(360, 110), new Vector2(-90, 60), "Next", UIBuild.Gold, 34f);
+                new Vector2(360, 110), new Vector2(-90, 60), "下一步", UIBuild.Gold, 34f);
             var bBack = UIBuild.MakeBtn(rt, "Btn_Back", new Vector2(1f, 1f),
-                new Vector2(96, 96), new Vector2(-50, -50), "X", UIBuild.Card, 30f);
+                new Vector2(96, 96), new Vector2(-50, -50), "返回", UIBuild.Card, 26f);
 
             UIBuild.Bind(comp, "_tmpActTitle", tmpAct);
             UIBuild.Bind(comp, "_tmpJie", tmpJie);
@@ -324,7 +371,7 @@ namespace WanXiang.EditorTools
                 enemies[i] = UIBuild.Img(slot, UIBuild.Night);
             }
             var tmpPower = UIBuild.Tmp(UIBuild.Fixed(intel, "Tmp_EnemyPower", new Vector2(1f, 0.5f),
-                new Vector2(320, 56), new Vector2(-190, 0)), "BP 5.35", 30, UIBuild.Ink, TextAlignmentOptions.Right);
+                new Vector2(320, 56), new Vector2(-190, 0)), "敌方强度 5.35", 30, UIBuild.Ink, TextAlignmentOptions.Right);
             var imgWeather = UIBuild.Img(UIBuild.Fixed(intel, "Img_WeatherIcon", new Vector2(1f, 0.5f),
                 new Vector2(96, 96), new Vector2(-70, 0)), UIBuild.Red);
 
@@ -384,13 +431,13 @@ namespace WanXiang.EditorTools
             var bottom = UIBuild.Bottom(rt, "Root_BottomBar", 150, 24, 24, 510);
             UIBuild.Img(bottom, UIBuild.Card);
             var tmpTotalPower = UIBuild.Tmp(UIBuild.Fixed(bottom, "Tmp_TotalPower", new Vector2(0f, 0.5f),
-                new Vector2(360, 56), new Vector2(130, 0)), "Power 0", 34, UIBuild.Ink, TextAlignmentOptions.Left);
+                new Vector2(360, 56), new Vector2(130, 0)), "总战力 0", 34, UIBuild.Ink, TextAlignmentOptions.Left);
             var bAutoFill = UIBuild.MakeBtn(bottom, "Btn_AutoFill", new Vector2(1f, 0.5f),
-                new Vector2(230, 100), new Vector2(-560, 0), "Auto", UIBuild.Card, 28f);
+                new Vector2(230, 100), new Vector2(-560, 0), "自动布阵", UIBuild.Card, 26f);
             var bClear = UIBuild.MakeBtn(bottom, "Btn_Clear", new Vector2(1f, 0.5f),
-                new Vector2(200, 100), new Vector2(-310, 0), "Clear", UIBuild.Card, 28f);
+                new Vector2(200, 100), new Vector2(-310, 0), "清空", UIBuild.Card, 26f);
             var bDeploy = UIBuild.MakeBtn(bottom, "Btn_Deploy", new Vector2(1f, 0.5f),
-                new Vector2(280, 110), new Vector2(-40, 0), "Deploy", UIBuild.Gold, 32f);
+                new Vector2(280, 110), new Vector2(-40, 0), "出征", UIBuild.Gold, 32f);
 
             UIBuild.Bind(comp, "_tmpNodeTitle", tmpTitle);
             UIBuild.Bind(comp, "_tmpWeatherWarn", tmpWarn);
@@ -424,7 +471,7 @@ namespace WanXiang.EditorTools
 
             var top = UIBuild.Top(rt, "Root_TopBar", 100);
             var tmpRound = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_Round", new Vector2(0.5f, 0.5f),
-                new Vector2(300, 52), Vector2.zero), "Round 1", 34, UIBuild.Ink, TextAlignmentOptions.Center);
+                new Vector2(300, 52), Vector2.zero), "第 1 回合", 34, UIBuild.Ink, TextAlignmentOptions.Center);
             var banner = UIBuild.Stretch(top, "Root_WeatherBanner", 480, 2, 480, 2);
             UIBuild.Img(banner, UIBuild.Night);
             var tmpWeatherName = UIBuild.Tmp(UIBuild.Stretch(banner, "Tmp_WeatherName", 20, 8, 20, 8),
@@ -457,22 +504,22 @@ namespace WanXiang.EditorTools
             rage.fillAmount = 0.4f;
             rage.raycastTarget = false;
             var bUlt = UIBuild.MakeBtn(ult, "Btn_Ultimate", new Vector2(0.5f, 0.5f),
-                new Vector2(180, 180), Vector2.zero, "ULT", UIBuild.Red, 34f);
+                new Vector2(180, 180), Vector2.zero, "绝技", UIBuild.Red, 34f);
             var tmpRage = UIBuild.Tmp(UIBuild.Fixed(ult, "Tmp_RageValue", new Vector2(0.5f, 0f),
-                new Vector2(220, 44), new Vector2(0, 30)), "Rage 40", 26, UIBuild.Ink, TextAlignmentOptions.Center);
+                new Vector2(220, 44), new Vector2(0, 30)), "怒气 0", 26, UIBuild.Ink, TextAlignmentOptions.Center);
 
             var ctl = UIBuild.Bottom(rt, "Root_BattleCtl", 120, 24, 24, 340);
             var bSpeed = UIBuild.MakeBtn(ctl, "Btn_Speed", new Vector2(0f, 0.5f),
                 new Vector2(180, 90), new Vector2(110, 0), "x1", UIBuild.Card, 28f);
             var bAuto = UIBuild.MakeBtn(ctl, "Btn_Auto", new Vector2(0f, 0.5f),
-                new Vector2(180, 90), new Vector2(310, 0), "Auto", UIBuild.Card, 28f);
+                new Vector2(180, 90), new Vector2(310, 0), "自动布阵", UIBuild.Card, 26f);
             var bLeave = UIBuild.MakeBtn(ctl, "Btn_Leave", new Vector2(0f, 0.5f),
-                new Vector2(180, 90), new Vector2(510, 0), "Leave", UIBuild.Card, 28f);
+                new Vector2(180, 90), new Vector2(510, 0), "撤退", UIBuild.Card, 28f);
 
             var log = UIBuild.Bottom(rt, "Root_Log", 110, 500, 24, 24);
             UIBuild.Img(log, UIBuild.Night);
             var tmpLog = UIBuild.Tmp(UIBuild.Stretch(log, "Tmp_LogLine", 16, 8, 16, 8),
-                "battle log", 22, UIBuild.Paper, TextAlignmentOptions.BottomLeft);
+                "战斗日志", 22, UIBuild.Paper, TextAlignmentOptions.BottomLeft);
 
             UIBuild.Bind(comp, "_tmpRound", tmpRound);
             UIBuild.Bind(comp, "_rootWeather", banner.gameObject);
@@ -505,7 +552,7 @@ namespace WanXiang.EditorTools
             var banner = UIBuild.Top(rt, "Img_Banner", 140, 40, 40, 20);
             var bannerImg = UIBuild.Img(banner, UIBuild.Gold);
             var bannerTmp = UIBuild.Stretch(banner, "Tmp_BannerText", 20, 10, 20, 10);
-            UIBuild.Tmp(bannerTmp, "VICTORY", 44, UIBuild.Ink, TextAlignmentOptions.Center);
+            UIBuild.Tmp(bannerTmp, "胜", 44, UIBuild.Ink, TextAlignmentOptions.Center);
 
             var detail = UIBuild.Left(rt, "Root_Detail", 660, 40, 180, 320);
             UIBuild.Img(detail, UIBuild.Card);
@@ -545,9 +592,9 @@ namespace WanXiang.EditorTools
             }
 
             var bSkip = UIBuild.MakeBtn(rt, "Btn_Skip", new Vector2(0f, 0f),
-                new Vector2(360, 110), new Vector2(320, 50), "Skip (+1)", UIBuild.Card, 28f);
+                new Vector2(360, 110), new Vector2(320, 50), "跳过（+1 灵卵）", UIBuild.Card, 26f);
             var bConfirm = UIBuild.MakeBtn(rt, "Btn_Confirm", new Vector2(1f, 0f),
-                new Vector2(460, 110), new Vector2(-320, 50), "Confirm", UIBuild.Gold, 32f);
+                new Vector2(460, 110), new Vector2(-320, 50), "确认", UIBuild.Gold, 32f);
 
             UIBuild.Bind(comp, "_imgBanner", bannerImg);
             UIBuild.BindArr(comp, "_tmpLines", lines);
@@ -577,9 +624,9 @@ namespace WanXiang.EditorTools
             var tmpEggs = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_Eggs", new Vector2(0f, 0.5f),
                 new Vector2(320, 48), new Vector2(150, 0)), "Eggs 0", 30, UIBuild.Ink, TextAlignmentOptions.Left);
             var tmpCost = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_RefreshCost", new Vector2(1f, 0.5f),
-                new Vector2(240, 48), new Vector2(-440, 0)), "cost 3", 26, UIBuild.Ink2, TextAlignmentOptions.Right);
+                new Vector2(240, 48), new Vector2(-440, 0)), "刷新 3", 26, UIBuild.Ink2, TextAlignmentOptions.Right);
             var bRefresh = UIBuild.MakeBtn(top, "Btn_Refresh", new Vector2(1f, 0.5f),
-                new Vector2(260, 72), new Vector2(-150, 0), "Refresh", UIBuild.Card, 26f);
+                new Vector2(260, 72), new Vector2(-150, 0), "刷新", UIBuild.Card, 26f);
 
             var goods = UIBuild.GridLayout(rt, "Root_Goods",
                 new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(24, -300), new Vector2(-24, 400),
@@ -609,7 +656,7 @@ namespace WanXiang.EditorTools
             }
 
             var tmpHint = UIBuild.Tmp(UIBuild.Bottom(rt, "Tmp_Hint", 70, 40, 40, 130),
-                "hint", 26, UIBuild.Ink2, TextAlignmentOptions.Center);
+                "点击商品即可入手", 26, UIBuild.Ink2, TextAlignmentOptions.Center);
 
             UIBuild.Bind(comp, "_tmpEggs", tmpEggs);
             UIBuild.Bind(comp, "_btnRefresh", bRefresh.GetComponent<Button>());
@@ -636,7 +683,7 @@ namespace WanXiang.EditorTools
             var titleScroll = UIBuild.Top(rt, "Img_TitleScroll", 120, 60, 60, 20);
             UIBuild.Img(titleScroll, UIBuild.Gold);
             var tmpTitle = UIBuild.Tmp(UIBuild.Stretch(titleScroll, "Tmp_Title", 20, 10, 20, 10),
-                "Tale", 36, UIBuild.Ink, TextAlignmentOptions.Center);
+                "异闻", 36, UIBuild.Ink, TextAlignmentOptions.Center);
             var tmpQuote = UIBuild.Tmp(UIBuild.Stretch(rt, "Tmp_ClassicQuote", 70, 150, 70, 620),
                 "classic quote", 24, UIBuild.Ink2, TextAlignmentOptions.TopLeft);
             var tmpStory = UIBuild.Tmp(UIBuild.Stretch(rt, "Tmp_StoryText", 70, 330, 70, 420),
@@ -659,7 +706,7 @@ namespace WanXiang.EditorTools
             }
 
             var bDecline = UIBuild.MakeBtn(rt, "Btn_Decline", new Vector2(0.5f, 0f),
-                new Vector2(420, 96), new Vector2(0, 50), "Decline (+1)", UIBuild.Card, 26f);
+                new Vector2(420, 96), new Vector2(0, 50), "拒绝（+1 灵卵）", UIBuild.Card, 26f);
 
             UIBuild.Bind(comp, "_tmpTitle", tmpTitle);
             UIBuild.Bind(comp, "_tmpQuote", tmpQuote);
@@ -683,7 +730,7 @@ namespace WanXiang.EditorTools
             UIBuild.Img(rt, UIBuild.Card, false);
 
             var tmpTitle = UIBuild.Tmp(UIBuild.Top(rt, "Tmp_Title", 100, 60, 60, 24),
-                "Omen", 36, UIBuild.Ink, TextAlignmentOptions.Center);
+                "天象", 36, UIBuild.Ink, TextAlignmentOptions.Center);
 
             var gain = UIBuild.Stretch(rt, "Root_Gain", 60, 140, 650, 200);
             var gainImg = UIBuild.Img(gain, UIBuild.Silk);
@@ -697,9 +744,9 @@ namespace WanXiang.EditorTools
                 "cost", 30, UIBuild.Ink, TextAlignmentOptions.Center);
 
             var bAccept = UIBuild.MakeBtn(rt, "Btn_Accept", new Vector2(0.5f, 0f),
-                new Vector2(400, 110), new Vector2(-240, 50), "Accept", UIBuild.Gold, 30f);
+                new Vector2(400, 110), new Vector2(-240, 50), "接受", UIBuild.Gold, 30f);
             var bDecline = UIBuild.MakeBtn(rt, "Btn_Decline", new Vector2(0.5f, 0f),
-                new Vector2(400, 110), new Vector2(240, 50), "Decline", UIBuild.Card, 30f);
+                new Vector2(400, 110), new Vector2(240, 50), "拒绝", UIBuild.Card, 30f);
 
             UIBuild.Bind(comp, "_tmpTitle", tmpTitle);
             UIBuild.Bind(comp, "_tmpGain", tmpGain);
@@ -722,9 +769,9 @@ namespace WanXiang.EditorTools
             var top = UIBuild.Top(rt, "Root_TopBar", 96);
             UIBuild.Img(top, UIBuild.Silk);
             var tmpTitle = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_Title", new Vector2(0f, 0.5f),
-                new Vector2(520, 48), new Vector2(140, 0)), "Forge", 32, UIBuild.Ink, TextAlignmentOptions.Left);
+                new Vector2(520, 48), new Vector2(140, 0)), "铸魂台", 32, UIBuild.Ink, TextAlignmentOptions.Left);
             var tmpEggs = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_Eggs", new Vector2(1f, 0.5f),
-                new Vector2(320, 48), new Vector2(-150, 0)), "Eggs 0", 30, UIBuild.Ink, TextAlignmentOptions.Right);
+                new Vector2(320, 48), new Vector2(-150, 0)), "灵卵 0", 30, UIBuild.Ink, TextAlignmentOptions.Right);
 
             var host = UIBuild.Left(rt, "Root_Host", 560, 24, 140, 240);
             UIBuild.Img(host, UIBuild.Card);
@@ -766,9 +813,9 @@ namespace WanXiang.EditorTools
             }
 
             var tmpResult = UIBuild.Tmp(UIBuild.Bottom(rt, "Tmp_ResultName", 90, 24, 700, 160),
-                "Host - Soul", 34, UIBuild.Ink, TextAlignmentOptions.Center);
+                "宿主 · 灵魂", 34, UIBuild.Ink, TextAlignmentOptions.Center);
             var bFuse = UIBuild.MakeBtn(rt, "Btn_Fuse", new Vector2(1f, 0f),
-                new Vector2(420, 110), new Vector2(-120, 60), "Fuse", UIBuild.Gold, 34f);
+                new Vector2(420, 110), new Vector2(-120, 60), "熔炼", UIBuild.Gold, 34f);
 
             UIBuild.Bind(comp, "_tmpTitle", tmpTitle);
             UIBuild.Bind(comp, "_tmpEggs", tmpEggs);
@@ -809,7 +856,7 @@ namespace WanXiang.EditorTools
                 tabBtns[i].targetGraphic = t.GetComponent<Graphic>();
             }
             var tmpRate = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_CollectRate", new Vector2(1f, 0.5f),
-                new Vector2(320, 48), new Vector2(-40, 0)), "0 / 30", 30, UIBuild.Ink, TextAlignmentOptions.Right);
+                new Vector2(320, 48), new Vector2(-40, 0)), "收集 0 / 30", 30, UIBuild.Ink, TextAlignmentOptions.Right);
 
             ScrollRect srGrid;
             var gridContent = UIBuild.ScrollGrid(rt, "Scroll_Grid",
@@ -841,7 +888,7 @@ namespace WanXiang.EditorTools
             var tmpSchool = UIBuild.Tmp(UIBuild.Stretch(detail, "Tmp_School", 500, 60, 60, 20),
                 "school", 22, UIBuild.Wood, TextAlignmentOptions.Left);
             var bClose = UIBuild.MakeBtn(detail, "Btn_CloseDetail", new Vector2(1f, 1f),
-                new Vector2(96, 96), new Vector2(-50, -50), "X", UIBuild.Card, 30f);
+                new Vector2(96, 96), new Vector2(-50, -50), "返回", UIBuild.Card, 26f);
 
             UIBuild.BindArr(comp, "_tabBtns", tabBtns);
             UIBuild.Bind(comp, "_tmpRate", tmpRate);
@@ -874,7 +921,7 @@ namespace WanXiang.EditorTools
                 new Vector2(84, 84), new Vector2(90, 0));
             UIBuild.Img(badge, UIBuild.Gold);
             var tmpRealm = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_RealmText", new Vector2(0f, 0.5f),
-                new Vector2(560, 56), new Vector2(400, 0)), "Realm 1 - Jie 1", 32, UIBuild.Ink,
+                new Vector2(560, 56), new Vector2(400, 0)), "第一境 · 第一劫", 32, UIBuild.Ink,
                 TextAlignmentOptions.Left);
 
             var tracks = UIBuild.Stretch(rt, "Root_Tracks", 24, 140, 24, 360);
@@ -912,7 +959,7 @@ namespace WanXiang.EditorTools
             bReward.targetGraphic = rewardTpl.GetComponent<Graphic>();
 
             var tmpCap = UIBuild.Tmp(UIBuild.Stretch(rt, "Tmp_MetaCap", 24, 1080 - 60 - 260, 24, 300),
-                "meta cap +8%", 24, UIBuild.Ink2, TextAlignmentOptions.Left);
+                "数值类增益封顶 +8%", 24, UIBuild.Ink2, TextAlignmentOptions.Left);
 
             UIBuild.Bind(comp, "_tmpRealm", tmpRealm);
             UIBuild.BindArr(comp, "_tmpTrackNames", trackNames);
@@ -956,7 +1003,7 @@ namespace WanXiang.EditorTools
             }
 
             var tmpStatus = UIBuild.Tmp(UIBuild.Bottom(rt, "Tmp_Status", 0, 0, 40),
-                "Realm 1 - Jie 1 - Eggs 12", 28, UIBuild.Paper, TextAlignmentOptions.Center);
+                "第一境 · 第一劫 · 灵卵 12", 28, UIBuild.Paper, TextAlignmentOptions.Center);
 
             UIBuild.BindArr(comp, "_choiceBtns", choiceBtns);
             UIBuild.BindArr(comp, "_tmpChoiceTitles", choiceTitles);
@@ -976,21 +1023,21 @@ namespace WanXiang.EditorTools
             var rt = (RectTransform)root.transform;
 
             var tmpTitle = UIBuild.Tmp(UIBuild.Top(rt, "Tmp_Title", 110, 40, 40, 24),
-                "Settings", 38, UIBuild.Ink, TextAlignmentOptions.Center);
+                "设置", 38, UIBuild.Ink, TextAlignmentOptions.Center);
 
             var audio = UIBuild.Stretch(rt, "Root_Audio", 40, 130, 40, 700);
             UIBuild.Img(audio, UIBuild.Card);
             var sldBgm = UIBuild.MakeSlider(audio, "Sld_Bgm",
-                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30, -130), new Vector2(-30, -50), "BGM");
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30, -130), new Vector2(-30, -50), "音乐");
             var sldSfx = UIBuild.MakeSlider(audio, "Sld_Sfx",
-                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30, -240), new Vector2(-30, -160), "SFX");
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30, -240), new Vector2(-30, -160), "音效");
 
             var video = UIBuild.Stretch(rt, "Root_Video", 40, 400, 40, 640);
             UIBuild.Img(video, UIBuild.Card);
             var tglFs = UIBuild.MakeToggle(video, "Tgl_Fullscreen",
-                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30, -100), new Vector2(-30, -30), "Fullscreen");
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30, -100), new Vector2(-30, -30), "全屏");
             var tglVs = UIBuild.MakeToggle(video, "Tgl_Vsync",
-                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30, -220), new Vector2(-30, -150), "VSync");
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30, -220), new Vector2(-30, -150), "垂直同步");
 
             var keys = UIBuild.Stretch(rt, "Root_Keybinds", 40, 660, 40, 240);
             UIBuild.Img(keys, UIBuild.Card);
@@ -1003,19 +1050,19 @@ namespace WanXiang.EditorTools
             var keyName = UIBuild.Tmp(UIBuild.Stretch(keyTpl, "Tmp_KeyName", 30, 12, 400, 12),
                 "Key", 26, UIBuild.Ink, TextAlignmentOptions.Left);
             var bRebind = UIBuild.MakeBtn(keyTpl, "Btn_Rebind", new Vector2(1f, 0.5f),
-                new Vector2(240, 70), new Vector2(-40, 0), "Rebind", UIBuild.Gold, 24f);
+                new Vector2(240, 70), new Vector2(-40, 0), "改键", UIBuild.Gold, 24f);
 
             var share = UIBuild.Stretch(rt, "Root_Share", 40, 860, 40, 60);
             UIBuild.Img(share, UIBuild.Card);
             var input = UIBuild.MakeInput(share, "Tmp_InputShare",
                 new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(30, -60), new Vector2(-720, 60));
             var bImport = UIBuild.MakeBtn(share, "Btn_Import", new Vector2(1f, 0.5f),
-                new Vector2(300, 90), new Vector2(-340, 0), "Import", UIBuild.Gold, 26f);
+                new Vector2(300, 90), new Vector2(-340, 0), "导入", UIBuild.Gold, 26f);
             var bExport = UIBuild.MakeBtn(share, "Btn_Export", new Vector2(1f, 0.5f),
-                new Vector2(300, 90), new Vector2(-30, 0), "Export", UIBuild.Card, 26f);
+                new Vector2(300, 90), new Vector2(-30, 0), "导出", UIBuild.Card, 26f);
 
             var bClose = UIBuild.MakeBtn(rt, "Btn_Close", new Vector2(1f, 1f),
-                new Vector2(96, 96), new Vector2(-50, -50), "X", UIBuild.Card, 30f);
+                new Vector2(96, 96), new Vector2(-50, -50), "返回", UIBuild.Card, 26f);
 
             UIBuild.Bind(comp, "_sldBgm", sldBgm.GetComponent<Slider>());
             UIBuild.Bind(comp, "_sldSfx", sldSfx.GetComponent<Slider>());

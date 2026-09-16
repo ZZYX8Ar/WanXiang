@@ -188,6 +188,10 @@ namespace WanXiang.EditorTools
         private static string Resolve(string nodeName, out bool fromScreen)
         {
             fromScreen = false;
+
+            // 透明热区（Hot_）永不挂图：它是盖在底图画好的图标上的命中判定区，
+            // 挂了图反而会把美术画好的图标盖住。见 UITool/UIPanelPrefabBuilder.Hotspot。
+            if (nodeName.StartsWith("Hot_")) return null;
             if (Exact.TryGetValue(nodeName, out var exact))
             {
                 if (exact == "@screen") { fromScreen = true; return null; }

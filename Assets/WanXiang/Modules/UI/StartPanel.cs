@@ -13,7 +13,10 @@ using WanXiang.Framework.UI;
 
 namespace WanXiang.Modules.UI
 {
-    [UIPanel("Panel_Start", Layer = UILayer.Main, CachePolicy = UICachePolicy.Resident)]
+    [UIPanel("Panel_Start", Layer = UILayer.Main, CachePolicy = UICachePolicy.Resident,
+             CloseOnMaskClick = false)]
+    // ↑ 全屏面板不该"点空白就关"：它铺满屏幕，没有"面板外"可言，
+    //   否则玩家点任何空白处都会把界面关掉（踩过）。
     public sealed class StartPanel : UIPanelBase
     {
         [SerializeField] private TMP_Text _tmpTitle;      // Tmp_Title      万相

@@ -21,7 +21,7 @@ namespace WanXiang.EditorTools
     {
         private static readonly string[] Prefixes =
             { "Root_", "Btn_", "Tmp_", "Img_", "Bar_", "Sld_", "Tgl_", "List_", "Item_", "Cell_", "Goods_", "Draft_",
-              "Opt_", "Choice_", "Tab_", "Track_", "HpBar_", "Scroll_", "Viewport", "Content" };
+              "Opt_", "Choice_", "Tab_", "Track_", "HpBar_", "Hot_", "Scroll_", "Viewport", "Content" };
 
         [MenuItem("WanXiang/UI/校验面板绑定", priority = 101)]
         public static void Validate()

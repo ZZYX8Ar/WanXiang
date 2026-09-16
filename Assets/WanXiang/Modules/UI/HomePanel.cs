@@ -14,7 +14,10 @@ using WanXiang.Fusion;
 
 namespace WanXiang.Modules.UI
 {
-    [UIPanel("Panel_Home", Layer = UILayer.Main, CachePolicy = UICachePolicy.Resident)]
+    [UIPanel("Panel_Home", Layer = UILayer.Main, CachePolicy = UICachePolicy.Resident,
+             CloseOnMaskClick = false)]
+    // ↑ 全屏面板不该"点空白就关"：它铺满屏幕，没有"面板外"可言，
+    //   否则玩家点任何空白处都会把界面关掉（踩过）。
     public sealed class HomePanel : UIPanelBase
     {
         [SerializeField] private TMP_Text _tmpEggs;        // Tmp_Eggs      灵卵数量
@@ -23,6 +26,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button  _btnDeploy;       // Btn_Deploy    出征
         [SerializeField] private Button  _btnCodex;        // Btn_Codex     图鉴
         [SerializeField] private Button  _btnMeta;         // Btn_Meta      局外成长
+        [SerializeField] private Button  _btnMarket;       // Btn_Market    灵市（底排布袋图标）
         [SerializeField] private Button  _btnSettings;     // Btn_Settings  设置
 
         [Header("数据引用（由生成器自动绑定）")]
@@ -34,6 +38,7 @@ namespace WanXiang.Modules.UI
             if (_btnDeploy != null) _btnDeploy.onClick.AddListener(OnDeployClicked);
             if (_btnCodex != null) _btnCodex.onClick.AddListener(OnCodexClicked);
             if (_btnMeta != null) _btnMeta.onClick.AddListener(OnMetaClicked);
+            if (_btnMarket != null) _btnMarket.onClick.AddListener(OnMarketClicked);
             if (_btnSettings != null) _btnSettings.onClick.AddListener(OnSettingsClicked);
         }
 
@@ -71,6 +76,11 @@ namespace WanXiang.Modules.UI
         private void OnMetaClicked()
         {
             OpenPanelAsync<MetaPanel>().Forget();
+        }
+
+        private void OnMarketClicked()
+        {
+            OpenPanelAsync<MarketPanel>().Forget();
         }
 
         private void OnSettingsClicked()
