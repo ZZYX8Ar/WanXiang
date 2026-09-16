@@ -101,7 +101,7 @@ namespace WanXiang.Modules.UI
             {
                 if (_imgEnemies[i] == null) continue;
                 int idx = System.Math.Min(half + i, _all.Length - 1);
-                var sprite = _sprites != null ? _sprites.Get(_all[idx].Id) : null;
+                var sprite = _sprites != null ? _sprites.GetHead(_all[idx].Id) : null;
                 if (sprite != null)
                 {
                     _imgEnemies[i].sprite = sprite;
@@ -148,7 +148,7 @@ namespace WanXiang.Modules.UI
                 if (head != null)
                 {
                     var img = head.GetComponent<Image>();
-                    var sprite = _sprites != null ? _sprites.Get(_all[i].Id) : null;
+                    var sprite = _sprites != null ? _sprites.GetHead(_all[i].Id) : null;
                     if (img != null && sprite != null)
                     {
                         img.sprite = sprite;
@@ -223,7 +223,7 @@ namespace WanXiang.Modules.UI
                 var img = go.AddComponent<Image>();
                 img.raycastTarget = false;
                 img.preserveAspect = true;
-                var sprite = _sprites != null ? _sprites.Get(_all[idx].Id) : null;
+                var sprite = _sprites != null ? _sprites.GetHead(_all[idx].Id) : null;
                 if (sprite != null) img.sprite = sprite;
             }
         }
@@ -512,7 +512,7 @@ namespace WanXiang.Modules.UI
             _ghost.SetActive(true);
 
             var sprite = (_sprites != null && _all != null && beastIndex < _all.Length)
-                ? _sprites.Get(_all[beastIndex].Id) : null;
+                ? _sprites.GetHead(_all[beastIndex].Id) : null;
             if (sprite != null)
             {
                 _ghostImg.sprite = sprite;

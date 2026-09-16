@@ -78,7 +78,7 @@ namespace WanXiang.Modules.UI
             {
                 if (_imgAvatars[i] == null) continue;
                 var sprite = (all != null && i < all.Length && _sprites != null)
-                    ? _sprites.Get(all[i].Id) : null;
+                    ? _sprites.GetHead(all[i].Id) : null;
                 if (sprite != null)
                 {
                     _imgAvatars[i].sprite = sprite;

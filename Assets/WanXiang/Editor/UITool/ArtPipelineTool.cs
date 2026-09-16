@@ -24,6 +24,7 @@ namespace WanXiang.EditorTools
     public static class ArtPipelineTool
     {
         private const string ArtRoot = "Assets/ArtRes";
+        private const string HeadsDir = "Assets/ArtRes/UI/Heads";
         private const string CatalogPath = "Assets/WanXiang/Config/SpriteCatalog.asset";
 
         /// <summary>需要九宫格切片的组件（与美术方案 Chapter 07 的 NINE_SLICE 一致）。</summary>
@@ -126,7 +127,8 @@ namespace WanXiang.EditorTools
                 string assetPath = ArtRoot + "/Beasts/" + id + ".png";
                 var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
                 if (sprite == null) continue;
-                catalog.Entries.Add(new SpriteCatalog.Entry { Id = id, Body = sprite });
+                var head = AssetDatabase.LoadAssetAtPath<Sprite>(HeadsDir + "/" + id + ".png");
+                catalog.Entries.Add(new SpriteCatalog.Entry { Id = id, Body = sprite, Head = head });
             }
             catalog.Rebuild();
             EditorUtility.SetDirty(catalog);

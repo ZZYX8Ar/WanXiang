@@ -1,0 +1,113 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: UIHeads
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings:
+    - serializedVersion: 3
+      m_BuildTarget: Standalone
+      m_MaxTextureSize: 1024
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: 50
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 1
+      m_IgnorePlatformSupport: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    - serializedVersion: 3
+      m_BuildTarget: Android
+      m_MaxTextureSize: 1024
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: 50
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 1
+      m_IgnorePlatformSupport: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    - serializedVersion: 3
+      m_BuildTarget: iPhone
+      m_MaxTextureSize: 1024
+      m_ResizeAlgorithm: 0
+      m_TextureFormat: 50
+      m_TextureCompression: 1
+      m_CompressionQuality: 50
+      m_CrunchedCompression: 0
+      m_AllowsAlphaSplitting: 0
+      m_Overridden: 1
+      m_IgnorePlatformSupport: 0
+      m_AndroidETC2FallbackOverride: 0
+      m_ForceMaximumCompressionQuality_BC6H_BC7: 0
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+      enableAlphaDilation: 0
+    secondaryTextureSettings: {}
+    variantMultiplier: 1
+    packables:
+    - {fileID: 2800000, guid: f1e723dfb517d9e44854f5f64bc41725, type: 3}
+    - {fileID: 2800000, guid: 9050a61033a8b424694a60f512b3c432, type: 3}
+    - {fileID: 2800000, guid: a91e18b481a33af4faefa24271626c5d, type: 3}
+    - {fileID: 2800000, guid: 15dc937017a592e4ead509a75b0e5f7d, type: 3}
+    - {fileID: 2800000, guid: 278ee9e7a1ad4a5418cd1965d49daf57, type: 3}
+    - {fileID: 2800000, guid: d656aa0a7357d1c4b897d8882af56cfd, type: 3}
+    - {fileID: 2800000, guid: ca6ac02e864af104b9872008275f2202, type: 3}
+    - {fileID: 2800000, guid: be1e0ab0a8050b1408ff38b4de1bb8a3, type: 3}
+    - {fileID: 2800000, guid: 77869c2b44cea2b429b77248842de112, type: 3}
+    - {fileID: 2800000, guid: 16b97f6888d4c4841bb2a01556ebea84, type: 3}
+    - {fileID: 2800000, guid: 3a3ec871d3db370458e363a8670fd640, type: 3}
+    - {fileID: 2800000, guid: dc91863b91cf15348ae126e19115d833, type: 3}
+    - {fileID: 2800000, guid: d399917a0fa1804468c97cc45a9077f2, type: 3}
+    - {fileID: 2800000, guid: 2c043e475c1f6d64c9503ff52f021c77, type: 3}
+    - {fileID: 2800000, guid: 1059583321d54b94998e9cd4907e5ba1, type: 3}
+    - {fileID: 2800000, guid: 9502ca25c6bc7804080608beddfcecd9, type: 3}
+    - {fileID: 2800000, guid: f3da423b22877e0469a5ca031110085f, type: 3}
+    - {fileID: 2800000, guid: 6504765f09f5f364bad59efedd2a7b19, type: 3}
+    - {fileID: 2800000, guid: e4e50235f1fde1b4b928da46733bedba, type: 3}
+    - {fileID: 2800000, guid: 824f6294a10fac74fa8da8b9c3c199e7, type: 3}
+    - {fileID: 2800000, guid: 81aa794c77af831409dbe5f0dadddb95, type: 3}
+    - {fileID: 2800000, guid: dda6086511f358c489870da3668eefbd, type: 3}
+    - {fileID: 2800000, guid: d178b4a4f5c389748b1ee0693956c62a, type: 3}
+    - {fileID: 2800000, guid: 8e5e1d730fd53bf40b552499a7592312, type: 3}
+    - {fileID: 2800000, guid: d76865e43289aaa49a697e832dae0ff0, type: 3}
+    - {fileID: 2800000, guid: e83cd2d4fea15fd4eba56d7fe483c9fb, type: 3}
+    - {fileID: 2800000, guid: fcc394fc9f3e23d4ab54df13a238741a, type: 3}
+    - {fileID: 2800000, guid: 5a630ec3281e94a4a857462c8afda57f, type: 3}
+    - {fileID: 2800000, guid: ed3d22913aba20544b6fbc73faf5607d, type: 3}
+    - {fileID: 2800000, guid: 8b0cf05c2c528a14294350875bd8e276, type: 3}
+    bindAsDefault: 1
+    isAtlasV2: 0
+    cachedData: {fileID: 0}
+    packedSpriteRenderDataKeys: []
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites: []
+  m_PackedSpriteNamesToIndex: []
+  m_RenderDataMap: {}
+  m_Tag: UIHeads
+  m_IsVariant: 0
