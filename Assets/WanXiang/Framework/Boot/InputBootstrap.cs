@@ -153,6 +153,21 @@ namespace WanXiang.Framework.Boot
                 if (_dontDestroyOnLoad) DontDestroyOnLoad(go);
                 eventSystem = go.AddComponent<EventSystem>();
             }
+            else if (_dontDestroyOnLoad)
+            {
+                // ⚠ 场景里本来就有 EventSystem 时，必须把它也变成常驻。
+                //
+                // 输入服务是 DontDestroyOnLoad 的，EventSystem 却不是 —— 切场景时
+                // 场景里那个 EventSystem 会被销毁，而输入服务还活着（它不会再建一个），
+                // 结果是"过场之后 UI 一个都点不动"，而且没有任何报错。
+                //
+                // 症状之所以难查：Boot 场景里点击一切正常，切到主城才开始全哑。
+                // 根因就这一行 —— 找到的 EventSystem 也要跨场景。
+                if (eventSystem.transform.parent == null)
+                {
+                    DontDestroyOnLoad(eventSystem.gameObject);
+                }
+            }
 
             var go2 = eventSystem.gameObject;
 

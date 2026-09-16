@@ -217,7 +217,12 @@ namespace WanXiang.EditorTools
             var bMeta = Hotspot(rt, "Hot_Meta", HomeIconX[2], HomeIconY, HomeIconSize, "成长");
             var bMarket = Hotspot(rt, "Hot_Market", HomeIconX[3], HomeIconY, HomeIconSize, "灵市");
             var bSettings = Hotspot(rt, "Hot_Settings", HomeIconX[7], HomeIconY, HomeIconSize, "设置");
-            // 底排其余图标（亭子 / 刀剑 / 双人 / 卷轴）功能未定，先不挂 —— 定了再加 Hotspot
+            // 底排其余四个：亭子→异闻 / 刀剑→试炼 / 双人→铸魂台 / 卷轴→天象
+            // （映射是"按图标形态猜的"，用户改主意只改这一行）
+            var bTale = Hotspot(rt, "Hot_Tale", HomeIconX[0], HomeIconY, HomeIconSize, "异闻");
+            var bTrial = Hotspot(rt, "Hot_Trial", HomeIconX[4], HomeIconY, HomeIconSize, "试炼");
+            var bForge = Hotspot(rt, "Hot_Forge", HomeIconX[5], HomeIconY, HomeIconSize, "铸魂");
+            var bOmen = Hotspot(rt, "Hot_Omen", HomeIconX[6], HomeIconY, HomeIconSize, "天象");
 
             // ---- 右下金色圆：出征（主按钮）----
             var bDeploy = UIBuild.Fixed(rt, "Hot_Deploy", new Vector2(1f, 0f),
@@ -240,6 +245,10 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_btnMeta", bMeta.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnMarket", bMarket.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnSettings", bSettings.GetComponent<Button>());
+            UIBuild.Bind(comp, "_btnTale", bTale.GetComponent<Button>());
+            UIBuild.Bind(comp, "_btnTrial", bTrial.GetComponent<Button>());
+            UIBuild.Bind(comp, "_btnForge", bForge.GetComponent<Button>());
+            UIBuild.Bind(comp, "_btnOmen", bOmen.GetComponent<Button>());
             UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
             UIBuild.Bind(comp, "_sprites", LoadAsset<SpriteCatalog>(SpriteCatalogPath));
             UIBuild.SavePrefab(root, "Panel_Home");

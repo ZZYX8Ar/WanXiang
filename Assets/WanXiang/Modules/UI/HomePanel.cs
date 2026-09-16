@@ -27,6 +27,10 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button  _btnCodex;        // Btn_Codex     图鉴
         [SerializeField] private Button  _btnMeta;         // Btn_Meta      局外成长
         [SerializeField] private Button  _btnMarket;       // Btn_Market    灵市（底排布袋图标）
+        [SerializeField] private Button  _btnTale;         // Hot_Tale      异闻（底排亭子图标）
+        [SerializeField] private Button  _btnTrial;        // Hot_Trial     试炼（底排刀剑图标，直进战斗场景）
+        [SerializeField] private Button  _btnForge;        // Hot_Forge     铸魂台（底排双人图标）
+        [SerializeField] private Button  _btnOmen;         // Hot_Omen      天象（底排卷轴图标）
         [SerializeField] private Button  _btnSettings;     // Btn_Settings  设置
 
         [Header("数据引用（由生成器自动绑定）")]
@@ -39,6 +43,10 @@ namespace WanXiang.Modules.UI
             if (_btnCodex != null) _btnCodex.onClick.AddListener(OnCodexClicked);
             if (_btnMeta != null) _btnMeta.onClick.AddListener(OnMetaClicked);
             if (_btnMarket != null) _btnMarket.onClick.AddListener(OnMarketClicked);
+            if (_btnTale != null) _btnTale.onClick.AddListener(OnTaleClicked);
+            if (_btnTrial != null) _btnTrial.onClick.AddListener(OnTrialClicked);
+            if (_btnForge != null) _btnForge.onClick.AddListener(OnForgeClicked);
+            if (_btnOmen != null) _btnOmen.onClick.AddListener(OnOmenClicked);
             if (_btnSettings != null) _btnSettings.onClick.AddListener(OnSettingsClicked);
         }
 
@@ -81,6 +89,27 @@ namespace WanXiang.Modules.UI
         private void OnMarketClicked()
         {
             OpenPanelAsync<MarketPanel>().Forget();
+        }
+
+        private void OnTaleClicked()
+        {
+            OpenPanelAsync<TalePanel>().Forget();
+        }
+
+        /// <summary>试炼：不经过节点地图，直接用内容目录组一场默认战斗进战斗场景。</summary>
+        private void OnTrialClicked()
+        {
+            SceneFlow.EnterBattle(null);
+        }
+
+        private void OnForgeClicked()
+        {
+            OpenPanelAsync<ForgePanel>().Forget();
+        }
+
+        private void OnOmenClicked()
+        {
+            OpenPanelAsync<OmenPanel>().Forget();
         }
 
         private void OnSettingsClicked()
