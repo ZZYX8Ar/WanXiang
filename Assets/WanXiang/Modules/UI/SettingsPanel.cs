@@ -3,6 +3,7 @@
 //  ============================================================================
 
 using TMPro;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using WanXiang.Framework.UI;
@@ -25,6 +26,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button _btnImport;            // Btn_Import
         [SerializeField] private Button _btnExport;            // Btn_Export
         [SerializeField] private Button _btnClose;             // Btn_Close
+        [SerializeField] private Button _btnBackToStart;  // Btn_BackToStart 返回开始界面
 
         protected override void OnCreate()
         {
@@ -35,6 +37,7 @@ namespace WanXiang.Modules.UI
             if (_btnImport != null) _btnImport.onClick.AddListener(OnImportClicked);
             if (_btnExport != null) _btnExport.onClick.AddListener(OnExportClicked);
             if (_btnClose != null) _btnClose.onClick.AddListener(CloseSelf);
+            if (_btnBackToStart != null) _btnBackToStart.onClick.AddListener(OnBackToStartClicked);
         }
 
         private void OnBgmChanged(float value)
@@ -79,6 +82,21 @@ namespace WanXiang.Modules.UI
             WanXiang.Run.RunSave.SaveCurrent();
             var cur = WanXiang.Run.RunSave.Current;
             Debug.Log("[Settings] 旅程已保存：槽位 " + cur.Slot + " " + cur.RealmText + " 灵卵 " + cur.Eggs);
+        }
+
+        /// <summary>
+        /// 返回开始界面：关掉当前所有界面，回到最初的开始面板。
+        /// 注意顺序 —— 必须先 CloseAll 再开 StartPanel，否则新开的会被一起关掉。
+        /// （旅程存档不动：玩家回来还能接着玩，这是"回菜单"而不是"弃档"。）
+        /// </summary>
+        private void OnBackToStartClicked()
+        {
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (ui == null) return;
+
+            ui.CloseAll();
+            OpenPanelAsync<StartPanel>().Forget();
+            Debug.Log("[Settings] 已返回开始界面（旅程存档保留）");
         }
     }
 }

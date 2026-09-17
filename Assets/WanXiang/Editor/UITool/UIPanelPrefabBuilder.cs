@@ -294,6 +294,18 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_tmpEggs", tmpEggs);
             UIBuild.Bind(comp, "_tmpInk", tmpInk);
             UIBuild.Bind(comp, "_imgHero", imgHero);
+
+            // ⚠ 这九条以前是漏的 —— 按钮全都 Bind 不上（字段为 null），
+            //   表现就是「主界面的按钮点了没反应」，而且没有任何报错（用户实测抓到）。
+            UIBuild.Bind(comp, "_btnDeploy", bDeploy);
+            UIBuild.Bind(comp, "_btnCodex", bCodex);
+            UIBuild.Bind(comp, "_btnMeta", bMeta);
+            UIBuild.Bind(comp, "_btnMarket", bMarket);
+            UIBuild.Bind(comp, "_btnTale", bTale);
+            UIBuild.Bind(comp, "_btnTrial", bTrial);
+            UIBuild.Bind(comp, "_btnForge", bForge);
+            UIBuild.Bind(comp, "_btnOmen", bOmen);
+            UIBuild.Bind(comp, "_btnSettings", bSettings);
             UIBuild.Bind(comp, "_btnDeploy", bDeploy.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnCodex", bCodex.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnMeta", bMeta.GetComponent<Button>());
@@ -496,7 +508,7 @@ namespace WanXiang.EditorTools
             var tmpTotalPower = UIBuild.Tmp(UIBuild.Fixed(bottom, "Tmp_TotalPower", new Vector2(0f, 0.5f),
                 new Vector2(360, 56), new Vector2(130, 0)), "总战力 0", 34, UIBuild.Ink, TextAlignmentOptions.Left);
             var bAutoFill = UIBuild.MakeBtn(bottom, "Btn_AutoFill", new Vector2(1f, 0.5f),
-                new Vector2(230, 100), new Vector2(-560, 0), "自动布阵", UIBuild.Card, 26f);
+                new Vector2(230, 100), new Vector2(-560, 0), "托管", UIBuild.Card, 26f);
             var bClear = UIBuild.MakeBtn(bottom, "Btn_Clear", new Vector2(1f, 0.5f),
                 new Vector2(200, 100), new Vector2(-310, 0), "清空", UIBuild.Card, 26f);
             var bDeploy = UIBuild.MakeBtn(bottom, "Btn_Deploy", new Vector2(1f, 0.5f),
@@ -1151,6 +1163,10 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_btnImport", bImport.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnExport", bExport.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnClose", bClose.GetComponent<Button>());
+            // 「返回开始界面」：回到最初的开始界面（回菜单，不弃档）
+            var bBackToStart = UIBuild.MakeBtn(rt, "Btn_BackToStart", new Vector2(0.5f, 0f),
+                new Vector2(520, 96), new Vector2(0f, 120f), "返回开始界面", UIBuild.Card, 28f);
+            UIBuild.Bind(comp, "_btnBackToStart", bBackToStart);
             UIBuild.SavePrefab(root, "Panel_Settings");
         }
     }
