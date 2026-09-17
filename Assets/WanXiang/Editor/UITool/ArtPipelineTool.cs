@@ -119,12 +119,20 @@ namespace WanXiang.EditorTools
             if (!Directory.Exists(dir)) return 0;
 
             catalog.Entries.Clear();
-            var files = Directory.GetFiles(dir, "*.png");
+            // ⚠ 必须递归：立绘按五行分在 Beasts/Wood|Fire|Earth|Metal|Water 子目录里，
+            //   非递归扫描会一张都扫不到 ⇒ SpriteCatalog 被清空 ⇒ 战斗里全是色块。
+            var files = Directory.GetFiles(dir, "*.png", SearchOption.AllDirectories);
             System.Array.Sort(files, System.StringComparer.Ordinal);
             foreach (var abs in files)
             {
                 string id = Path.GetFileNameWithoutExtension(abs);
-                string assetPath = ArtRoot + "/Beasts/" + id + ".png";
+                // 用 FindFiles 返回的路径直接定位资产。
+                // ⚠ 两个坑：① 传相对目录时 GetFiles 返回的也是相对路径（"Assets/..."），
+                //   所以不能按 "/Assets/" 找（带前置斜杠匹配不到，会静默回退到写死路径而全部 miss）；
+                //   ② 反斜杠要统一成正斜杠，AssetDatabase 只认正斜杠。
+                string rel = abs.Replace('\\', '/');
+                int assetsIdx = rel.IndexOf("Assets/", System.StringComparison.Ordinal);
+                string assetPath = assetsIdx >= 0 ? rel.Substring(assetsIdx) : ArtRoot + "/Beasts/" + id + ".png";
                 var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
                 if (sprite == null) continue;
                 var head = AssetDatabase.LoadAssetAtPath<Sprite>(HeadsDir + "/" + id + ".png");
@@ -146,7 +154,8 @@ namespace WanXiang.EditorTools
             foreach (var sub in new[] { "Beasts", "UI/Parts", "BattleBg", "Screens" })
             {
                 var abs = Path.Combine(ArtRoot, sub);
-                int c = Directory.Exists(abs) ? Directory.GetFiles(abs, "*.png").Length : 0;
+                int c = Directory.Exists(abs)
+                    ? Directory.GetFiles(abs, "*.png", SearchOption.AllDirectories).Length : 0;
                 lines.Add($"{sub,-12} {c,4} 张");
             }
             var catalog = AssetDatabase.LoadAssetAtPath<SpriteCatalog>(CatalogPath);
