@@ -55,5 +55,73 @@ namespace WanXiang.Modules.UI
             var all = ContentLibrary.BuildBeasts(catalog);
             return (all != null && all.Length > 0) ? all[0].Id : null;
         }
+
+        // ==================================================================
+        //  正式版组队：我方 = 存档队伍；敌方 = 种子抽签 + 劫数难度缩放
+        // ==================================================================
+
+        /// <summary>
+        /// 从一段进行中的旅程组一场战斗。
+        ///   我方 = 存档里记录的队伍（id 对不上的跳过；一只都对不上退回结构验证版）；
+        ///   敌方 = SeededEnemyProvider 按进度种子抽签，数量随劫数 3→5，
+        ///          强度用 DeployEntry.StatMul 挂旅程难度系数（速度/暴击不缩放）。
+        /// 同一存档同一劫 → 敌人阵容与数值完全一致（可背版、可复盘）。
+        /// </summary>
+        public static bool TryBuildFromRun(ContentCatalogSO catalog, WanXiang.Run.RunState run,
+                                           string weather, out BattleRequest req)
+        {
+            req = null;
+            if (catalog == null || run == null) return false;
+
+            var all = ContentLibrary.BuildBeasts(catalog);
+            if (all == null || all.Length < 2) return false;
+
+            // ---- 种子与规模 ----
+            ulong seed = SeededEnemyProvider.SeedOf(run.Slot, run.Realm, run.Jie, run.Wins);
+            int enemyCount = SeededEnemyProvider.EnemyCount(run.Jie);
+            float mul = run.Difficulty;
+
+            req = new BattleRequest
+            {
+                Title = "第" + Cn(run.Realm) + "境 · 第" + Cn(run.Jie) + "劫 · 遭遇战",
+                WeatherName = weather ?? "",
+                Seed = seed,
+            };
+
+            // ---- 我方：存档队伍按 id 回查 ----
+            var byId = new Dictionary<string, BeastDef>();
+            foreach (var b in all) byId[b.Id] = b;
+
+            if (run.Team != null)
+                foreach (var id in run.Team)
+                    if (!string.IsNullOrEmpty(id) && byId.TryGetValue(id, out var def) &&
+                        req.Player.Count < 5 && !req.Player.Contains(def))
+                        req.Player.Add(def);
+
+            // 队伍为空/全部失效 → 退回结构验证版前 5 只（保证一定能打）
+            if (req.Player.Count == 0)
+                for (int i = 0; i < 5 && i < all.Length; i++) req.Player.Add(all[i]);
+
+            // ---- 敌方：种子抽签；强度走 EnemyMul（回放层用 WithMul 挂到 DeployEntry）----
+            var enemies = SeededEnemyProvider.Pick(catalog, seed, enemyCount);
+            foreach (var def in enemies)
+            {
+                req.Enemy.Add(def);
+                req.EnemyMul.Add(mul);
+            }
+
+            return req.Player.Count > 0 && req.Enemy.Count > 0;
+        }
+
+        private static string Cn(int n)
+        {
+            switch (n)
+            {
+                case 1: return "一";
+                case 2: return "二";
+                case 3: return "三";
+                default: return n.ToString();
+            }
+        }
     }
 }

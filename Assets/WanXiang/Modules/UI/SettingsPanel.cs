@@ -59,12 +59,26 @@ namespace WanXiang.Modules.UI
 
         private void OnImportClicked()
         {
-            // TODO(交互): TeamCodec 解码导入；失败 Toast
+            // 重读磁盘上当前槽位的存档（另一台机器拷过来的档也能这样接上）
+            var slot = WanXiang.Run.RunSave.ActiveSlot;
+            if (slot <= 0) { Debug.Log("[Settings] 还没有进行中的旅程，先去存档面板选一档。"); return; }
+            var state = WanXiang.Run.RunSave.Load(slot);
+            if (state == null) { Debug.LogWarning("[Settings] 槽位 " + slot + " 在磁盘上不存在。"); return; }
+            WanXiang.Run.RunSave.ContinueWith(state);
+            Debug.Log("[Settings] 已重新读取槽位 " + slot + "：" + state.RealmText + " 灵卵 " + state.Eggs);
         }
 
         private void OnExportClicked()
         {
-            // TODO(交互): TeamCodec 编码导出；成功 Toast
+            // 导出按钮 = 保存旅程（旅程数据本身是 JSON，无需 TeamCodec）
+            if (WanXiang.Run.RunSave.Current == null)
+            {
+                Debug.Log("[Settings] 没有进行中的旅程可保存。");
+                return;
+            }
+            WanXiang.Run.RunSave.SaveCurrent();
+            var cur = WanXiang.Run.RunSave.Current;
+            Debug.Log("[Settings] 旅程已保存：槽位 " + cur.Slot + " " + cur.RealmText + " 灵卵 " + cur.Eggs);
         }
     }
 }

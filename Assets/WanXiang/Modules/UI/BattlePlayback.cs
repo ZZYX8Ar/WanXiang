@@ -25,6 +25,12 @@ namespace WanXiang.Modules.UI
         public List<BeastDef> Player = new List<BeastDef>();
         public List<BeastDef> Enemy = new List<BeastDef>();
 
+        /// <summary>
+        /// 敌方属性倍率（与 Enemy 一一对应；缺省按 1 处理）。
+        /// 来自存档的劫数难度系数 —— 敌人成长走这里，不走选兽。
+        /// </summary>
+        public List<float> EnemyMul = new List<float>();
+
         /// <summary>上阵格位顺序：前排 → 中宫 → 后排两侧（与 GDD 的推荐站位一致）。</summary>
         public static readonly int[] Cells = { 0, 1, 4, 7, 8 };
     }
@@ -53,7 +59,11 @@ namespace WanXiang.Modules.UI
 
             var e = new DeployEntry[req.Enemy.Count];
             for (int i = 0; i < e.Length; i++)
-                e[i] = DeployEntry.Enemy(req.Enemy[i], BattleRequest.Cells[i % BattleRequest.Cells.Length]);
+            {
+                float mul = (req.EnemyMul != null && i < req.EnemyMul.Count) ? req.EnemyMul[i] : 1f;
+                e[i] = DeployEntry.Enemy(req.Enemy[i], BattleRequest.Cells[i % BattleRequest.Cells.Length])
+                                  .WithMul(mul);
+            }
 
             State = BattleFactory.Create(cfg, req.Seed, p, e);
             Result = BattleSimulator.Run(State);   // 一次跑完，事件流/帧流即完整

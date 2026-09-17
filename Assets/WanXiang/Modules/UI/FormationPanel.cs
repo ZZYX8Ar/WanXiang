@@ -551,8 +551,12 @@ namespace WanXiang.Modules.UI
             }
 
             BattleRequest req;
-            if (!BattleRequestFactory.TryBuild(_contentCatalog, _node.Title, _node.Weather,
-                                              _node.Seed, out req))
+            var run = WanXiang.Run.RunSave.Current;
+            bool ok = (run != null)
+                ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req)
+                : BattleRequestFactory.TryBuild(_contentCatalog, _node.Title, _node.Weather,
+                                                _node.Seed, out req);
+            if (!ok)
             {
                 Debug.LogError("[FormationPanel] 组队失败，无法进入战斗。");
                 return;
