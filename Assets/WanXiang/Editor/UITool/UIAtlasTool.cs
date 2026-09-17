@@ -43,8 +43,10 @@ namespace WanXiang.EditorTools
         [MenuItem("WanXiang/美术/打包 UI 图集（部件 + 头像）", priority = 130)]
         public static void Pack()
         {
-            EnsureAtlas(PartsAtlas, PartsDir, 2048);
-            EnsureAtlas(HeadsAtlas, HeadsDir, 1024);
+            // 容量算过账：30 张 256 头像 ≈ 197 万像素（1024² 只有 105 万，塞不下会被压糊）；
+            // 部件里光按钮就有 1249×398 的，45 张合计远超 2048² → Heads 2048 / Parts 4096。
+            EnsureAtlas(PartsAtlas, PartsDir, 4096);
+            EnsureAtlas(HeadsAtlas, HeadsDir, 2048);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -57,51 +59,55 @@ namespace WanXiang.EditorTools
                       "新生成的部件图改完后重跑本菜单即可重新打包。");
         }
 
-        /// <summary>建（或重建）一张图集并加入整个目录。</summary>
+        /// <summary>建（或更新）一张图集并加入目录里的全部 sprite。设置每次都重刷 —— 改容量后重跑菜单即生效。</summary>
         private static void EnsureAtlas(string atlasPath, string sourceDir, int maxSize)
         {
             var existing = AssetDatabase.LoadAssetAtPath<SpriteAtlas>(atlasPath);
             if (existing == null)
             {
-                var atlas = new SpriteAtlas();
-                var settings = atlas.GetPackingSettings();
-                settings.enableRotation = false;      // 旋转会让 9-slice 边界难排查
-                settings.enableTightPacking = false;  // 同上；部件留矩形更稳
-                settings.padding = 4;
-                atlas.SetPackingSettings(settings);
-
-                var tex = atlas.GetTextureSettings();
-                tex.generateMipMaps = false;          // UI 不缩放显示，mip 是白费内存
-                atlas.SetTextureSettings(tex);
-
-                // 目标平台：编辑器 + 主流移动端全用 ASTC（平涂 + 等宽描边的最优解）
-                atlas.SetPlatformSettings(new TextureImporterPlatformSettings
-                {
-                    name = "Standalone",
-                    overridden = true,
-                    maxTextureSize = maxSize,
-                    format = TextureImporterFormat.ASTC_6x6,
-                    textureCompression = TextureImporterCompression.Compressed,
-                });
-                atlas.SetPlatformSettings(new TextureImporterPlatformSettings
-                {
-                    name = "Android",
-                    overridden = true,
-                    maxTextureSize = maxSize,
-                    format = TextureImporterFormat.ASTC_6x6,
-                    textureCompression = TextureImporterCompression.Compressed,
-                });
-                atlas.SetPlatformSettings(new TextureImporterPlatformSettings
-                {
-                    name = "iPhone",
-                    overridden = true,
-                    maxTextureSize = maxSize,
-                    format = TextureImporterFormat.ASTC_6x6,
-                    textureCompression = TextureImporterCompression.Compressed,
-                });
-
-                AssetDatabase.CreateAsset(atlas, atlasPath);
+                var created = new SpriteAtlas();
+                AssetDatabase.CreateAsset(created, atlasPath);
             }
+
+            // 设置对"新建"与"已存在"都重刷一遍：容量/压缩格式改了之后，
+            // 重跑本菜单就能生效，不用删了重建。
+            var atlas = AssetDatabase.LoadAssetAtPath<SpriteAtlas>(atlasPath);
+
+            var settings = atlas.GetPackingSettings();
+            settings.enableRotation = false;      // 旋转会让 9-slice 边界难排查
+            settings.enableTightPacking = false;  // 同上；部件留矩形更稳
+            settings.padding = 4;
+            atlas.SetPackingSettings(settings);
+
+            var tex = atlas.GetTextureSettings();
+            tex.generateMipMaps = false;          // UI 不缩放显示，mip 是白费内存
+            atlas.SetTextureSettings(tex);
+
+            // 目标平台：编辑器 + 主流移动端全用 ASTC（平涂 + 等宽描边的最优解）
+            atlas.SetPlatformSettings(new TextureImporterPlatformSettings
+            {
+                name = "Standalone",
+                overridden = true,
+                maxTextureSize = maxSize,
+                format = TextureImporterFormat.ASTC_6x6,
+                textureCompression = TextureImporterCompression.Compressed,
+            });
+            atlas.SetPlatformSettings(new TextureImporterPlatformSettings
+            {
+                name = "Android",
+                overridden = true,
+                maxTextureSize = maxSize,
+                format = TextureImporterFormat.ASTC_6x6,
+                textureCompression = TextureImporterCompression.Compressed,
+            });
+            atlas.SetPlatformSettings(new TextureImporterPlatformSettings
+            {
+                name = "iPhone",
+                overridden = true,
+                maxTextureSize = maxSize,
+                format = TextureImporterFormat.ASTC_6x6,
+                textureCompression = TextureImporterCompression.Compressed,
+            });
 
             // 显式枚举 sprite 加入（文件夹对象作为 packable 在代码路径下不会触发打包，
             // 实测 spriteCount 恒为 0；枚举加入虽然要在新增图片时重跑本菜单，但胜在确定生效）。
