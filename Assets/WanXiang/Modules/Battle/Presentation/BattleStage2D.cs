@@ -53,12 +53,18 @@ namespace WanXiang.Battle.Presentation
 
     public sealed class BattleStage2D : MonoBehaviour
     {
-        private const float Cell = 1.15f;
-        /// <summary>立绘枢轴在底部中点，抬高 0.4 让脚踩在格子中心（Build 与 Step 必须用同一个值）。</summary>
-        private const float FootOffset = 0.4f;
+        private const float Cell = 1.75f;        // 格子边长（放大后棋盘占屏宽 ~27%，原来只有 ~18%）
+        /// <summary>立绘枢轴在底部中点，抬高让脚踩在格子中心（Build 与 Step 必须用同一个值）。</summary>
+        private const float FootOffset = 0.7f;
 
-        private const float PlayerX = -2.95f;
-        private const float EnemyX = 2.95f;
+        /// <summary>立绘显示高度（世界单位）。格子 1.75 —— 立绘略高于格，气势更足。</summary>
+        private const float UnitHeight = 1.9f;
+
+        /// <summary>血条相对立绘容器的高度（立绘高 1.9，浮在头顶上沿）。</summary>
+        private const float HpBarY = 1.95f;
+
+        private const float PlayerX = -4.3f;
+        private const float EnemyX = 4.3f;
 
         public Sprite BgSpring;        // ArtRes/Battle/BG_spring.png
         public Sprite CatalogSpriteFallback;
@@ -180,11 +186,10 @@ namespace WanXiang.Battle.Presentation
                 if (sprite != null)
                 {
                     bodySr.sprite = sprite;
-                    // 显示高 ~1.2 世界单位（棋盘格 1.15，刚好填满不出格）
                     float h = sprite.bounds.size.y;
                     if (h > 0.001f)
                     {
-                        float k = 1.2f / h;
+                        float k = UnitHeight / h;   // 统一按显示高度换算缩放
                         root.transform.localScale = new Vector3(k, k, 1f);
                     }
                 }
@@ -195,15 +200,17 @@ namespace WanXiang.Battle.Presentation
                                                 new Color(0.16f, 0.13f, 0.09f));
                 }
                 bodySr.sortingOrder = u.Pos.Index / 3;   // row 0=后 1=中 2=前
+                // 敌方整体镜像：立绘原画朝一侧，敌阵要面向我方才自然
+                bodySr.flipX = !player;
                 // 敌方压暗一档（§4.4 敌我同源 + 浊化的轻量版）
                 if (!player) bodySr.color = new Color(0.72f, 0.72f, 0.80f);
                 view.Body = bodySr;
                 view.BaseColor = bodySr.color;
 
                 view.HpBg = MakeChildSprite(root, "HpBg", new Color(0.10f, 0.08f, 0.06f),
-                                            new Vector2(0.85f, 0.10f), new Vector2(0f, 1.18f), 2);
+                                            new Vector2(0.85f, 0.10f), new Vector2(0f, HpBarY), 2);
                 view.HpFill = MakeChildSprite(root, "HpFill", BattlePalette.Vital,
-                                              new Vector2(0.80f, 0.07f), new Vector2(0f, 1.18f), 3);
+                                              new Vector2(0.80f, 0.07f), new Vector2(0f, HpBarY), 3);
                 SetHpBar2D(view, u.Hp, u.MaxHp);
 
                 var nameGo = new GameObject("Name");
@@ -383,8 +390,8 @@ namespace WanXiang.Battle.Presentation
                     v.HomePos.x + lunge.x, v.HomePos.y + FootOffset + lunge.y + bob + sink, 0f);
 
                 // 血条跟随立绘（相机 2D 朝 -Z，直接摆即可）
-                if (v.HpBg != null) v.HpBg.transform.localPosition = new Vector3(0f, 1.18f, -0.01f);
-                if (v.HpFill != null) v.HpFill.transform.localPosition = new Vector3(0f, 1.18f, -0.02f);
+                if (v.HpBg != null) v.HpBg.transform.localPosition = new Vector3(0f, HpBarY, -0.01f);
+                if (v.HpFill != null) v.HpFill.transform.localPosition = new Vector3(0f, HpBarY, -0.02f);
             }
 
             // 伤害数字上浮 + 回收
@@ -416,7 +423,7 @@ namespace WanXiang.Battle.Presentation
         {
             var go = new GameObject("Dmg");
             go.transform.SetParent(transform, false);
-            go.transform.localPosition = v.Root.transform.position + new Vector3(0f, 0.9f, -1f);
+            go.transform.localPosition = v.Root.transform.position + new Vector3(0f, 1.5f, -1f);
             var f = LegacyFont();
             var tm = go.AddComponent<TextMesh>();
             if (f != null)
@@ -425,7 +432,7 @@ namespace WanXiang.Battle.Presentation
                 go.GetComponent<MeshRenderer>().sharedMaterial = f.material;
             }
             tm.text = amount.ToString();
-            tm.characterSize = 0.09f;
+            tm.characterSize = 0.13f;
             tm.fontSize = 64;
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;
