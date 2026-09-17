@@ -76,10 +76,11 @@ namespace WanXiang.EditorTools
             BuildMeta();
             BuildTrial();
             BuildSettings();
+            BuildDialog();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[PrefabBuilder] " + "15 个面板预制体生成完毕 → Assets/Resources/UI/");
+            Debug.Log("[PrefabBuilder] " + "16 个面板预制体生成完毕 → Assets/Resources/UI/");
         }
 
         // ==================================================================
@@ -1077,6 +1078,20 @@ namespace WanXiang.EditorTools
         // ==================================================================
         // 13 Panel_Settings —— 设置
         // ==================================================================
+
+        /// <summary>
+        /// 通用弹窗面板（v1.2 新增）。
+        /// ⚠ 它刻意**只建一个空根节点**：弹窗的标题/正文/按钮由 DialogPanel.BuildUi()
+        ///   在运行时用代码搭（见 DialogPanel 的注释）—— 弹窗是所有功能的公共依赖，
+        ///   先保证任何地方都能立刻弹一个能用的框；等美术给了对话框稿子，
+        ///   把 BuildUi() 换成读完这张 prefab 即可，调用方一行不用改。
+        /// </summary>
+        private static void BuildDialog()
+        {
+            var root = NewPanelRoot("Panel_Dialog", true, Vector2.zero);
+            root.AddComponent<WanXiang.Modules.UI.DialogPanel>();
+            UIBuild.SavePrefab(root, "Panel_Dialog");   // ⚠ 漏了这句，prefab 不会落盘（踩过）
+        }
 
         private static void BuildSettings()
         {

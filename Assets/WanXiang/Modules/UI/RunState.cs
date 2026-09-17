@@ -39,6 +39,19 @@ namespace WanXiang.Run
 
         /// <summary>幕内当前节点下标（-1 = 还没出发）；换幕时归 -1。</summary>
         public int NodeOffset = -1;
+
+        /// <summary>本幕已走过的节点序列（把路线描金 + 复盘用）。</summary>
+        public System.Collections.Generic.List<int> Path = new System.Collections.Generic.List<int>();
+
+        /// <summary>整局走过的全部节点（跨幕累计）。</summary>
+        public System.Collections.Generic.List<int> VisitedNodes = new System.Collections.Generic.List<int>();
+
+        /// <summary>
+        /// 问号节点的揭晓结果，形如 "7:nest"（节点下标:类型）。
+        /// ⚠ 不用 Dictionary —— JsonUtility 不支持，存成 List<string> 最省事。
+        /// </summary>
+        public System.Collections.Generic.List<string> QuestionRevealed =
+            new System.Collections.Generic.List<string>();
         public int Losses;                      // 本程败场
         public List<string> Team = new List<string>();   // 上阵异兽 id（继承用）
         public string LastSaved = "";           // 最后保存时间（展示用）

@@ -22,6 +22,7 @@
 // ============================================================================
 
 using System.Collections.Generic;
+using WanXiang.Battle.Core;
 
 namespace WanXiang.Campaign
 {
@@ -51,6 +52,12 @@ namespace WanXiang.Campaign
 
         /// <summary>天象：非战斗。三选一，每个增益都配一条明确的负面。</summary>
         Omen = 6,
+
+        /// <summary>
+        /// 问号：**未知**（v1.2 新增）。位置在生成时就定了，内容等玩家走上去才揭晓。
+        /// 揭晓池不含精英 —— 未知带来的是期待，不是惩罚。
+        /// </summary>
+        Question = 7,
     }
 
     public static class NodeKinds
@@ -69,6 +76,7 @@ namespace WanXiang.Campaign
                 case NodeKind.Tale: return "异闻";
                 case NodeKind.Forge: return "铸魂台";
                 case NodeKind.Omen: return "天象";
+                case NodeKind.Question: return "？";
                 default: return "？";
             }
         }
@@ -181,6 +189,116 @@ namespace WanXiang.Campaign
     /// </summary>
     public static class SolarTermGraph
     {
+        /// <summary>
+        /// v1.2 路线图：每幕 <paramref name="layers"/> 层（默认 12），层内 2~3 个候选，
+        /// 自下而上爬；最后一层是本幕守关。同一 (act, seed) 结果完全一致 —— 可背版、可复盘。
+        ///
+        /// 生成后立刻跑三条保底校验（战斗 ≥4、问号 1~3 且不连续、末层唯一），
+        /// 不通过就换盐重采样，最多 8 次；仍失败则退回 BuildDefault 的缺省图（保证一定能玩）。
+        /// </summary>
+        public static ActGraph BuildRoute(int act, ulong seed, int layers = 12)
+        {
+            var fallback = BuildDefault();
+            var baseGraph = act >= 1 && act <= fallback.Length ? fallback[act - 1] : null;
+
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                var g = TryBuild(act, seed + (ulong)attempt * 7919UL, layers);
+                if (g != null && MeetsV12Constraints(g)) return g;
+            }
+
+            // 兜底：缺省图（层数不足 12 时按 4 层用，至少能玩）
+            return baseGraph;
+        }
+
+        private static ActGraph TryBuild(int act, ulong seed, int layers)
+        {
+            var existing = BuildDefault();
+            var src = act >= 1 && act <= existing.Length ? existing[act - 1] : null;
+            if (src == null) return null;
+
+            var rng = new DeterministicRandom(seed);
+            var kinds = new List<NodeKind>(layers * 3);
+            var layerIndex = new List<int[]>(layers);
+            var terms = new List<int>(layers * 3);
+
+            for (int layer = 0; layer < layers; layer++)
+            {
+                bool isFirst = layer == 0;
+                bool isBoss = layer == layers - 1;
+
+                int width = isBoss ? 1 : (isFirst ? 3 : rng.NextInt(2, 4));   // 2~3
+                var row = new int[width];
+                for (int k = 0; k < width; k++)
+                {
+                    row[k] = kinds.Count;
+                    terms.Add(1 + (layer * 2 + k) % 24);        // 节气序号：够用即可，只为显示名
+                    kinds.Add(isBoss ? NodeKind.Elite : PickKind(rng, isFirst));
+                }
+                layerIndex.Add(row);
+            }
+
+            var g = new ActGraph
+            {
+                Act = act,
+                SeasonCn = src.SeasonCn,
+                SeasonElement = src.SeasonElement,
+                BossName = src.BossName,
+                Terms = terms.ToArray(),
+                Kinds = kinds.ToArray(),
+                Layers = layerIndex.ToArray(),
+            };
+            return g;
+        }
+
+        /// <summary>按权重抽一个节点类型。首层只出战斗 —— 开局第一脚不该是盲盒或商店。</summary>
+        private static NodeKind PickKind(DeterministicRandom rng, bool firstLayer)
+        {
+            if (firstLayer) return NodeKind.Encounter;
+
+            // 权重表见《节点地图设计 v1.2》第 3 节：战斗约四成、休整约六成、问号另计
+            int roll = rng.NextInt(0, 100);
+            if (roll < 34) return NodeKind.Encounter;
+            if (roll < 48) return NodeKind.Elite;
+            if (roll < 60) return NodeKind.Shop;
+            if (roll < 70) return NodeKind.Nest;
+            if (roll < 80) return NodeKind.Tale;
+            if (roll < 88) return NodeKind.Forge;
+            if (roll < 96) return NodeKind.Omen;
+            return NodeKind.Question;
+        }
+
+        /// <summary>
+        /// v1.2 三条保底校验（与 v1.1 的 MeetsV11Constraints 同思路，
+        /// 但 12 层随机之后「恰好一个」这种断言不再成立，只能用区间护栏）。
+        /// </summary>
+        public static bool MeetsV12Constraints(ActGraph g)
+        {
+            if (g == null || g.IsEmpty) return false;
+            if (g.Layers.Length != 12) return false;
+
+            int battles = 0, questions = 0;
+            for (int i = 0; i < g.Kinds.Length; i++)
+            {
+                if (NodeKinds.IsBattle(g.Kinds[i])) battles++;
+                if (g.Kinds[i] == NodeKind.Question) questions++;
+            }
+
+            if (battles < 4) return false;                       // 战斗保底
+            if (questions < 1 || questions > 3) return false;    // 问号数量
+            if (g.Layers[11].Length != 1) return false;          // 末层唯一（守关）
+
+            // 问号不连续：相邻两层最多一个问号
+            for (int l = 1; l < g.Layers.Length; l++)
+            {
+                int prev = 0, cur = 0;
+                foreach (var o in g.Layers[l - 1]) if (g.Kinds[o] == NodeKind.Question) prev++;
+                foreach (var o in g.Layers[l]) if (g.Kinds[o] == NodeKind.Question) cur++;
+                if (prev > 0 && cur > 0) return false;
+            }
+            return true;
+        }
+
         public static ActGraph[] BuildDefault()
         {
             // 每幕的 Kinds 逐位对应 Terms（下标 0..5 = 该幕六个节气按序）：

@@ -14,6 +14,7 @@ using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using WanXiang.Battle.Core;
 using WanXiang.Battle.Presentation;
 using WanXiang.Framework.UI;
 using WanXiang.Fusion;
@@ -87,6 +88,14 @@ namespace WanXiang.Modules.UI
         private static readonly Color NodeReachable = new Color(0.47f, 0.57f, 0.38f); // 木绿
         private static readonly Color NodeLocked = new Color(0.61f, 0.58f, 0.53f);    // 灰
 
+        // 路线图尺寸常量（连线的节点坐标必须与排布公式一致，所以提出来共用）
+        private const int Layers = 12;
+        private const float NodeW = 380f, NodeH = 110f, GapX = 40f, GapY = 90f;
+        private static readonly Color EdgeInk = new Color(0.72f, 0.68f, 0.60f, 0.9f);
+        private static readonly Color PathGold = new Color(0.79f, 0.63f, 0.39f, 1f);
+        private static readonly Color QuestionInk = new Color(0.45f, 0.42f, 0.62f, 1f);
+
+        private readonly HashSet<int> _visited = new HashSet<int>();
         private WanXiang.Campaign.ActGraph[] _acts;
         private WanXiang.Campaign.ActGraph _graph;
         private int _currentOffset = -1;      // 当前所在节点（-1 = 还没出发）
@@ -101,46 +110,56 @@ namespace WanXiang.Modules.UI
 
             for (int i = content.childCount - 1; i >= 0; i--)
             {
-                // 先失活再 Destroy：Destroy 要到帧末才真正销毁，
-                // 同一帧里"旧节点 + 新节点"会同时存在（重建列表时会被看到）。
                 var old = content.GetChild(i).gameObject;
-                old.SetActive(false);
+                old.SetActive(false);      // Destroy 要到帧末才生效，先失活避免同帧新旧共存
                 Destroy(old);
             }
             _nodeItems.Clear();
 
-            _acts = WanXiang.Campaign.SolarTermGraph.BuildDefault();
+            // ---- 数据源：v1.2 路线图（12 层、层内 2~3、种子稳定）----
             var run = WanXiang.Run.RunSave.Current;
-            int act = Mathf.Clamp(run != null ? run.Act : 1, 1, _acts.Length);
-            _graph = _acts[act - 1];
+            int act = Mathf.Clamp(run != null ? run.Act : 1, 1, 5);
+            ulong seed = CoreMath.Fnv1a("route:" + (run != null ? run.Slot : 0) + ":" + act);
+            _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(act, seed, Layers);
+
             _currentOffset = run != null ? run.NodeOffset : -1;
+            _visited.Clear();          // readonly 字段只能就地清空（不能 new）
+            if (run != null && run.VisitedNodes != null)
+                foreach (var v in run.VisitedNodes) _visited.Add(v);
 
             if (_tmpActTitle != null)
-                _tmpActTitle.text = "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn + " · 守关 " + _graph.BossName;
+                _tmpActTitle.text = "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn +
+                                    " · 守关 " + _graph.BossName;
             if (_tmpJie != null)
                 _tmpJie.text = run != null ? run.RealmText : "第一境 · 第一劫";
 
             if (_graph.IsEmpty) return;
 
-            // ---- 逐层排布 ----
-            // ⚠ 克隆出来的节点如果不动位置，会全部落在模板的原点（叠成一坨）——
-            //   这就是"节点都挤在一起"的原因。这里手动排：层内横排、层间拉开，
-            //   并把 content 高度撑开让 ScrollRect 能滚。
-            const float NodeW = 380f, NodeH = 110f;
-            const float GapX = 40f, GapY = 90f;
+            // ⚠ 手动排布前必须关掉 content 上的自动布局：
+            //   VerticalLayoutGroup / ContentSizeFitter 会按"里面的元素"自己算高度，
+            //   把我们设的 sizeDelta 覆盖掉 —— 表现出来是滚动范围不对、下面的层滑不到。
+            DisableAutoLayout(content);
 
+            // ---- 连线层：先建（渲染在节点之下）----
+            var lineLayer = new GameObject("LineLayer", typeof(RectTransform));
+            var lineRt = (RectTransform)lineLayer.transform;
+            lineRt.SetParent(content, false);
+            lineRt.anchorMin = lineRt.anchorMax = new Vector2(0.5f, 1f);
+            lineRt.pivot = new Vector2(0.5f, 1f);
+            lineRt.anchoredPosition = Vector2.zero;
+            lineRt.sizeDelta = Vector2.zero;
+
+            // ---- 节点：**从下往上**（第 0 层在底部，守关在顶部）----
             for (int layer = 0; layer < _graph.Layers.Length; layer++)
             {
                 var row = _graph.Layers[layer];
-                float y = -(NodeH + GapY) * layer;
+                float y = -(Layers - 1 - layer) * (NodeH + GapY);   // 层号越大越靠上
                 for (int k = 0; k < row.Length; k++)
                 {
                     var item = SpawnNodeItem(content, row[k], layer);
                     item.sizeDelta = new Vector2(NodeW, NodeH);
-                    // 锚点统一到"顶部中心"，这样 anchoredPosition 直接就是相对长卷顶部的坐标
                     item.anchorMin = item.anchorMax = new Vector2(0.5f, 1f);
                     item.pivot = new Vector2(0.5f, 1f);
-                    // 层内均匀分布：1 个居中，2 个左右分开
                     float x = row.Length <= 1
                         ? 0f
                         : (k - (row.Length - 1) * 0.5f) * (NodeW + GapX);
@@ -148,8 +167,88 @@ namespace WanXiang.Modules.UI
                 }
             }
 
-            float totalH = _graph.Layers.Length * (NodeH + GapY) + 40f;
+            DrawEdges(lineRt);
+
+            float totalH = Layers * (NodeH + GapY) + 80f;
             content.sizeDelta = new Vector2(content.sizeDelta.x, Mathf.Max(totalH, 600f));
+
+            // 打开时滚到当前层（12 层比一屏高，别让玩家自己找）
+            float curY = (_currentOffset >= 0)
+                ? -(Layers - 1 - _graph.LayerOf(_currentOffset)) * (NodeH + GapY)
+                : -(Layers - 1) * (NodeH + GapY);
+            _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 200f) / Mathf.Max(1f, totalH));
+        }
+
+        /// <summary>关掉 content 上的自动布局组件（手动排布的前提）。</summary>
+        private static void DisableAutoLayout(RectTransform content)
+        {
+            var vlg = content.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+            if (vlg != null) vlg.enabled = false;
+            var hlg = content.GetComponent<UnityEngine.UI.HorizontalLayoutGroup>();
+            if (hlg != null) hlg.enabled = false;
+            var fitter = content.GetComponent<UnityEngine.UI.ContentSizeFitter>();
+            if (fitter != null) fitter.enabled = false;
+        }
+
+        /// <summary>层间连线。走过的边描金，其余淡墨 —— 一眼看出自己的路线。</summary>
+        private void DrawEdges(RectTransform lineLayer)
+        {
+            if (_graph == null) return;
+
+            for (int layer = 0; layer + 1 < _graph.Layers.Length; layer++)
+            {
+                var from = _graph.Layers[layer];
+                var to = _graph.Layers[layer + 1];
+                foreach (var a in from)
+                {
+                    // 从下层某点连向上层：全连通里取"列序最接近"的那条，避免线打结
+                    int pickIdx = Mathf.Clamp(Mathf.RoundToInt((a % 3) / 2f * (to.Length - 1)), 0, to.Length - 1);
+                    int b = to[pickIdx];
+                    if (layer == 0) { /* 入口层额外连一条到次列，形成"汇合"观感 */ }
+
+                    Vector2 pa = NodePos(a);
+                    Vector2 pb = NodePos(b);
+                    bool walked = _visited.Contains(a) && _visited.Contains(b);
+
+                    var go = new GameObject("Edge_" + a + "_" + b, typeof(RectTransform));
+                    var rt = (RectTransform)go.transform;
+                    rt.SetParent(lineLayer, false);
+                    rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+                    rt.pivot = new Vector2(0f, 0.5f);
+                    rt.sizeDelta = new Vector2(Vector2.Distance(pa, pb), walked ? 7f : 4f);
+                    rt.anchoredPosition = pa;
+                    float ang = Mathf.Atan2(pb.y - pa.y, pb.x - pa.x) * Mathf.Rad2Deg;
+                    rt.localRotation = Quaternion.Euler(0f, 0f, ang);
+
+                    var img = go.AddComponent<Image>();
+                    img.sprite = WhiteSprite();
+                    img.raycastTarget = false;
+                    img.color = walked ? PathGold : EdgeInk;
+                }
+            }
+        }
+
+        /// <summary>节点中心的本地坐标（与 BuildNodeMap 的排布公式必须一致）。</summary>
+        private Vector2 NodePos(int offset)
+        {
+            int layer = _graph.LayerOf(offset);
+            if (layer < 0) return Vector2.zero;
+            var row = _graph.Layers[layer];
+            int k = System.Array.IndexOf(row, offset);
+            float x = row.Length <= 1 ? 0f : (k - (row.Length - 1) * 0.5f) * (NodeW + GapX);
+            float y = -(Layers - 1 - layer) * (NodeH + GapY) - NodeH * 0.5f;
+            return new Vector2(x, y);
+        }
+
+        private static Sprite _white;
+        private static Sprite WhiteSprite()
+        {
+            if (_white != null) return _white;
+            var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            tex.SetPixel(0, 0, Color.white);
+            tex.Apply();
+            _white = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 100f);
+            return _white;
         }
 
         private RectTransform SpawnNodeItem(RectTransform content, int offset, int layer)
@@ -161,25 +260,31 @@ namespace WanXiang.Modules.UI
             var kind = _graph.KindOf(offset);
             bool isHere = offset == _currentOffset;
             bool canGo = IsReachable(offset);
-            bool passed = _currentOffset >= 0 &&
-                          _graph.LayerOf(offset) <= _graph.LayerOf(_currentOffset);
+            bool passed = _visited.Contains(offset);
 
             var label = item.Find("Tmp_NodeText") != null
                 ? item.Find("Tmp_NodeText").GetComponent<TMP_Text>() : null;
             if (label != null)
             {
-                label.text = "第 " + (offset + 1) + " 节 · " + TermName(_graph.Terms[offset]) +
-                             "　【" + WanXiang.Campaign.NodeKinds.Cn(kind) + "】" +
+                string name = kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset)
+                    ? "？ 未知"
+                    : WanXiang.Campaign.NodeKinds.Cn(kind);
+                label.text = (offset + 1) + ". " + TermName(_graph.Terms[offset]) + "　【" + name + "】" +
                              (isHere ? "　◀ 当前" : canGo ? "　← 可前往" : passed ? "　已过" : "");
-                label.color = isHere ? NodeVisited : canGo ? NodeReachable : NodeLocked;
+                label.color = isHere ? NodeVisited : canGo ? NodeReachable : passed ? PathGold : NodeLocked;
             }
 
             var dot = item.Find("Img_Dot") != null ? item.Find("Img_Dot").GetComponent<Image>() : null;
             if (dot != null)
-                dot.color = isHere ? NodeVisited : canGo ? NodeReachable : NodeLocked;
+            {
+                bool q = kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset);
+                dot.color = q ? QuestionInk : isHere ? NodeVisited : canGo ? NodeReachable
+                              : passed ? PathGold : NodeLocked;
+            }
 
             var btn = item.GetComponent<Button>();
             if (btn == null) btn = item.gameObject.AddComponent<Button>();
+            btn.targetGraphic = item.GetComponent<Image>();
             btn.interactable = canGo || isHere;
             var captured = offset;
             btn.onClick.AddListener(() => SelectNode(captured, silent: false));
@@ -187,6 +292,16 @@ namespace WanXiang.Modules.UI
             if (isHere) item.SetAsFirstSibling();
             _nodeItems.Add(item);
             return item;
+        }
+
+        /// <summary>问号是否已揭晓（读存档的 "offset:kind" 记录）。</summary>
+        private bool IsRevealed(int offset)
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || run.QuestionRevealed == null) return false;
+            foreach (var rec in run.QuestionRevealed)
+                if (rec != null && rec.StartsWith(offset + ":")) return true;
+            return false;
         }
 
         /// <summary>可达 = 起点层，或"从当前节点走一步"（ActGraph.CanMove 的规则）。</summary>

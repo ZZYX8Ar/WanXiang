@@ -79,12 +79,74 @@ namespace WanXiang.Modules.UI
                     _imgHero.preserveAspect = true;
                 }
             }
+            RefreshDeployLabel();
             return UniTask.CompletedTask;
         }
 
+        /// <summary>
+        /// 出征：**不是**"开新局" —— 它是「继续当前旅程」。
+        /// 有进度时必须让玩家明确选一次（继续 / 重开），否则没人分得清这次出征是继续还是重来。
+        /// </summary>
         private void OnDeployClicked()
         {
+            var run = WanXiang.Run.RunSave.Current;
+            int layer = run != null ? run.NodeOffset + 1 : 0;
+            bool hasProgress = run != null && (run.NodeOffset >= 0 || run.Act > 1);
+
+            if (!hasProgress)
+            {
+                OpenPanelAsync<CampaignPanel>().Forget();
+                return;
+            }
+
+            DeployChoice(run, layer).Forget();
+        }
+
+        private async Cysharp.Threading.Tasks.UniTaskVoid DeployChoice(WanXiang.Run.RunState run, int layer)
+        {
+            int pick = await Dialog.Choose(
+                "继续旅程？",
+                string.Format("当前进度：第{0}幕 · 第 {1} 层\n继续会从这一层接着爬；重开会清空本次旅程的进度与队伍。",
+                              run.Act, layer),
+                "重开一局", "继续");
+
+            if (pick == 1)
+            {
+                OpenPanelAsync<CampaignPanel>().Forget();
+                return;
+            }
+
+            bool ok = await Dialog.Confirm("重开一局",
+                "本次旅程的进度、灵卵与队伍编成都会清空，确定重开？", "确定重开", "再想想");
+            if (!ok) return;
+
+            run.Act = 1;
+            run.NodeOffset = -1;
+            run.Wins = 0;
+            run.Eggs = 0;
+            run.Ink = 0;
+            if (run.Path != null) run.Path.Clear();
+            if (run.VisitedNodes != null) run.VisitedNodes.Clear();
+            if (run.QuestionRevealed != null) run.QuestionRevealed.Clear();
+            WanXiang.Run.RunSave.SaveCurrent();
+
+            RefreshDeployLabel();
             OpenPanelAsync<CampaignPanel>().Forget();
+        }
+
+        /// <summary>出征按钮的文案带上进度 —— 一眼看清"点下去是继续哪一层"。</summary>
+        private void RefreshDeployLabel()
+        {
+            if (_btnDeploy == null) return;
+            var label = _btnDeploy.transform.Find("Tmp_Label");
+            var t = label != null ? label.GetComponent<TMP_Text>() : null;
+            if (t == null) return;
+
+            var run = WanXiang.Run.RunSave.Current;
+            bool hasProgress = run != null && (run.NodeOffset >= 0 || run.Act > 1);
+            t.text = hasProgress
+                ? string.Format("继续 · 第{0}幕 第{1}层", run.Act, run.NodeOffset + 1)
+                : "出征";
         }
 
         private void OnCodexClicked()
@@ -99,12 +161,16 @@ namespace WanXiang.Modules.UI
 
         private void OnMarketClicked()
         {
-            OpenPanelAsync<MarketPanel>().Forget();
+            // v1.2 收口：这四个功能属于"旅途中遇到的节点"，不再从主城直接进。
+            // 直接进会让玩家以为两边是同一件事（旧版就是这样，语义冲突）。
+            Dialog.Tip("灵市", "请在旅程的路线图上走到「灵市」节点后进入。").Forget();
         }
 
         private void OnTaleClicked()
         {
-            OpenPanelAsync<TalePanel>().Forget();
+            // v1.2 收口：这四个功能属于"旅途中遇到的节点"，不再从主城直接进。
+            // 直接进会让玩家以为两边是同一件事（旧版就是这样，语义冲突）。
+            Dialog.Tip("异闻", "请在旅程的路线图上走到「异闻」节点后进入。").Forget();
         }
 
         /// <summary>试炼：不经过节点地图，直接用内容目录组一场默认战斗进战斗场景。</summary>
@@ -115,12 +181,16 @@ namespace WanXiang.Modules.UI
 
         private void OnForgeClicked()
         {
-            OpenPanelAsync<ForgePanel>().Forget();
+            // v1.2 收口：这四个功能属于"旅途中遇到的节点"，不再从主城直接进。
+            // 直接进会让玩家以为两边是同一件事（旧版就是这样，语义冲突）。
+            Dialog.Tip("铸魂台", "请在旅程的路线图上走到「铸魂台」节点后进入。").Forget();
         }
 
         private void OnOmenClicked()
         {
-            OpenPanelAsync<OmenPanel>().Forget();
+            // v1.2 收口：这四个功能属于"旅途中遇到的节点"，不再从主城直接进。
+            // 直接进会让玩家以为两边是同一件事（旧版就是这样，语义冲突）。
+            Dialog.Tip("天象", "请在旅程的路线图上走到「天象」节点后进入。").Forget();
         }
 
         private void OnSettingsClicked()
