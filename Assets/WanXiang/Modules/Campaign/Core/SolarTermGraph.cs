@@ -93,9 +93,21 @@ namespace WanXiang.Campaign
         /// <summary>逐节点的类型（与 <see cref="Terms"/> 等长，来自 v1.1 §4.2 的落位表）。</summary>
         public NodeKind[] Kinds;
 
-        /// <summary>分层拓扑：每层含哪些节点（下标指 <see cref="Terms"/>）。
-        /// 相邻层之间全连通（v1 占位，见文件头）。</summary>
+        /// <summary>分层拓扑：每层含哪些节点（下标指 <see cref="Terms"/>）。</summary>
         public int[][] Layers;
+
+        /// <summary>
+        /// v1.2：**真拓扑边表**。Edges[offset] = 该节点可前往的下一层节点下标列表。
+        /// 解锁规则跟着它走（"连线的那个才解锁"），不再是"相邻层全连通"的占位规则。
+        /// </summary>
+        public List<List<int>> Edges;
+
+        /// <summary>两个节点之间有没有边（解锁判据）。</summary>
+        public bool HasEdge(int fromOffset, int toOffset)
+        {
+            if (Edges == null || fromOffset < 0 || fromOffset >= Edges.Count) return false;
+            return Edges[fromOffset].Contains(toOffset);
+        }
 
         public int NodeCount => Terms.Length;
 
@@ -242,6 +254,50 @@ namespace WanXiang.Campaign
                 layerIndex.Add(row);
             }
 
+            // ---- 真拓扑连边：本层每点连下一层"列序最近"的 1 个，50% 再连一个相邻的；
+            //      最后保证下层每点至少一条入边（否则那点永远到不了）----
+            var edges = new List<List<int>>(kinds.Count);
+            for (int i = 0; i < kinds.Count; i++) edges.Add(new List<int>());
+
+            for (int layer = 0; layer + 1 < layers; layer++)
+            {
+                var cur = layerIndex[layer];
+                var nxt = layerIndex[layer + 1];
+                foreach (var a in cur)
+                {
+                    float ai = (float)System.Array.IndexOf(cur, a) / System.Math.Max(1, cur.Length - 1);
+                    int best = nxt[0]; float bd = 9f;
+                    for (int j = 0; j < nxt.Length; j++)
+                    {
+                        float d = System.Math.Abs((float)j / System.Math.Max(1, nxt.Length - 1) - ai);
+                        if (d < bd) { bd = d; best = nxt[j]; }
+                    }
+                    edges[a].Add(best);
+                    if (nxt.Length > 1 && rng.NextInt(0, 2) == 0)
+                    {
+                        int alt = best == nxt[0] ? nxt[nxt.Length - 1] : nxt[0];
+                        if (!edges[a].Contains(alt)) edges[a].Add(alt);
+                    }
+                }
+                foreach (var b in nxt)
+                {
+                    bool has = false;
+                    foreach (var a in cur) if (edges[a].Contains(b)) { has = true; break; }
+                    if (!has)
+                    {
+                        float bf = (float)System.Array.IndexOf(nxt, b) / System.Math.Max(1, nxt.Length - 1);
+                        int bestA = cur[0]; float bd2 = 9f;
+                        foreach (var a in cur)
+                        {
+                            float ai = (float)System.Array.IndexOf(cur, a) / System.Math.Max(1, cur.Length - 1);
+                            float d = System.Math.Abs(ai - bf);
+                            if (d < bd2) { bd2 = d; bestA = a; }
+                        }
+                        edges[bestA].Add(b);
+                    }
+                }
+            }
+
             var g = new ActGraph
             {
                 Act = act,
@@ -251,6 +307,7 @@ namespace WanXiang.Campaign
                 Terms = terms.ToArray(),
                 Kinds = kinds.ToArray(),
                 Layers = layerIndex.ToArray(),
+                Edges = edges,
             };
             return g;
         }

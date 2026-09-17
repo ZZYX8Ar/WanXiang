@@ -37,8 +37,13 @@ namespace WanXiang.Modules.Boot
                 return;
             }
 
+            // ⚠ 开始界面必须在这里关掉：StartPanel 与 Home 同在 Main 层，
+            //   它一直 Opened 就会一直"遮挡"Home ⇒ Home 永远 Paused，
+            //   表现就是「从节点地图返回主城，主界面是灰的/点不动」。
+            ui.Close<StartPanel>();
+
             await ui.OpenAsync<HomePanel>();
-            Debug.Log("[MainSceneEntry] 已进入主界面。");
+            Debug.Log("[MainSceneEntry] 已进入主界面（开始界面已关闭）。");
         }
     }
 }

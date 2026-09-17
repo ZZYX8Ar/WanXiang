@@ -201,11 +201,10 @@ namespace WanXiang.Modules.UI
                 var to = _graph.Layers[layer + 1];
                 foreach (var a in from)
                 {
-                    // 从下层某点连向上层：全连通里取"列序最接近"的那条，避免线打结
-                    int pickIdx = Mathf.Clamp(Mathf.RoundToInt((a % 3) / 2f * (to.Length - 1)), 0, to.Length - 1);
-                    int b = to[pickIdx];
-                    if (layer == 0) { /* 入口层额外连一条到次列，形成"汇合"观感 */ }
-
+                    // 按真拓扑边表画：图上看到的连线 = 真正能走的路（所见即所得）
+                    if (_graph.Edges == null || a >= _graph.Edges.Count) continue;
+                    foreach (var b in _graph.Edges[a])
+                    {
                     Vector2 pa = NodePos(a);
                     Vector2 pb = NodePos(b);
                     bool walked = _visited.Contains(a) && _visited.Contains(b);
@@ -224,6 +223,7 @@ namespace WanXiang.Modules.UI
                     img.sprite = WhiteSprite();
                     img.raycastTarget = false;
                     img.color = walked ? PathGold : EdgeInk;
+                    }
                 }
             }
         }
@@ -304,12 +304,12 @@ namespace WanXiang.Modules.UI
             return false;
         }
 
-        /// <summary>可达 = 起点层，或"从当前节点走一步"（ActGraph.CanMove 的规则）。</summary>
+        /// <summary>可达 = 起点层，或"与当前节点有边相连"（真拓扑，杀戮尖塔式解锁）。</summary>
         private bool IsReachable(int offset)
         {
             if (_graph == null) return false;
             if (_currentOffset < 0) return _graph.LayerOf(offset) == 0;
-            return _graph.CanMove(_currentOffset, offset);
+            return _graph.HasEdge(_currentOffset, offset);
         }
 
         /// <summary>选中一个节点：刷新信息卡与"出征/前往"按钮文案。</summary>

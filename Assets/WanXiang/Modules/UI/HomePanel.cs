@@ -143,10 +143,21 @@ namespace WanXiang.Modules.UI
         /// </summary>
         private void HideRetiredEntries()
         {
+            // ① 已收口为路线图节点：主城不再提供入口
             if (_btnMarket != null) _btnMarket.gameObject.SetActive(false);
             if (_btnTale != null) _btnTale.gameObject.SetActive(false);
             if (_btnForge != null) _btnForge.gameObject.SetActive(false);
             if (_btnOmen != null) _btnOmen.gameObject.SetActive(false);
+
+            // ② 「试炼」语义错配：它打开的 Panel_Trial 其实是 GDD 第 7 章的
+            //    「天阙抉择」（通关后三选一：登天阙 / 续劫 / 归元），属于**流程内**面板，
+            //    不该由主城直接进 —— GDD 全文没有"试炼"这个词（已核对，出现 0 次）。
+            if (_btnTrial != null) _btnTrial.gameObject.SetActive(false);
+
+            // ③ 「成长」= GDD 第 8 章局外成长（五条轨道 / 领奖励 / 数值增益封顶 8%），
+            //    但 MetaPanel 目前只有 UI 骨架（OnCreate 里只有 TODO），
+            //    点开只会看到静态界面 ⇒ 先隐藏，等实现再接回来。
+            if (_btnMeta != null) _btnMeta.gameObject.SetActive(false);
         }
 
         /// <summary>出征按钮的文案带上进度 —— 一眼看清"点下去是继续哪一层"。</summary>
@@ -171,7 +182,7 @@ namespace WanXiang.Modules.UI
 
         private void OnMetaClicked()
         {
-            OpenPanelAsync<MetaPanel>().Forget();
+            if (_btnMeta != null) _btnMeta.gameObject.SetActive(false);
         }
 
         /// <summary>
@@ -195,7 +206,7 @@ namespace WanXiang.Modules.UI
         /// <summary>试炼：不经过节点地图，直接用内容目录组一场默认战斗进战斗场景。</summary>
         private void OnTrialClicked()
         {
-            SceneFlow.EnterBattle(null);
+            if (_btnTrial != null) _btnTrial.gameObject.SetActive(false);
         }
 
         /// <summary>
