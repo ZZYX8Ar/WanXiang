@@ -84,12 +84,36 @@ namespace WanXiang.Modules.UI
             }
 
             var ui = UIBootstrap.UI;
+
+            // ---- 兜底启动 UI 系统 ----
+            // 直接 Play Battle2D 场景（开发时常干的事）时，Boot 场景的 [UIRoot] 不在，
+            // UI 系统就是空的 —— 以前这里只打一条错误日志然后 return，结果是
+            // "舞台有立绘、但没有战斗 HUD"，很像"战斗界面没做"。现在自己起一套：
+            // 有重复保护（Boot 流程进来时 UIBootstrap 还在，不会重复建）。
             if (ui == null)
             {
-                Debug.LogError("[BattleSceneDriver] UIBootstrap.UI 为空，无法打开战斗 HUD。" +
-                               "请从 Boot 场景开始游戏。");
+                // ⚠ 不要在这里 await：AddComponent 会**同步**触发 Awake，
+                //   所以建完 UIBootstrap 后 UIBootstrap.UI 立刻可用。
+                //   多一个 await 反而会在"帧不推进"的环境（自动化/编辑器预览）里卡住整条流程。
+                var boot = new GameObject("[UIRoot]");
+                boot.AddComponent<UIBootstrap>();
+                var input = new GameObject("[InputBootstrap]");
+                input.AddComponent<WanXiang.Framework.Boot.InputBootstrap>();
+                ui = UIBootstrap.UI;
+                Debug.Log("[BattleSceneDriver] 检测到 UI 系统未启动，已临时自建（单独 Play 战斗场景的情况）。");
+            }
+
+            if (ui == null)
+            {
+                Debug.LogError("[BattleSceneDriver] UI 系统仍不可用，无法打开战斗 HUD。");
                 return;
             }
+
+            // ---- 清掉主城侧界面，别让它们叠在战斗 HUD 下面 ----
+            // Home 是 Main 层常驻面板，出征时没人关它；它和 BattlePanel 同层，
+            // HUD 底图一旦有半透明区域就会透出主城 —— 玩家看到的就是"两个界面叠一起"。
+            // 战斗是独占画面的场景，这里整层清空是正确语义。
+            ui.CloseAll();
 
             await ui.OpenAsync<BattlePanel>(new BattleSceneContext
             {
