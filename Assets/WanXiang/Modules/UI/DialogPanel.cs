@@ -73,6 +73,9 @@ namespace WanXiang.Modules.UI
             return await dlg.WaitChoose();
         }
 
+        /// <summary>当前活着的弹窗实例。用于处理"连弹"的竞态，见 Open 的注释。</summary>
+        private static DialogPanel _current;
+
         private static async UniTask<DialogPanel> Open(string title, string body, DialogKind kind,
                                                        string leftText, string rightText)
         {
@@ -83,9 +86,21 @@ namespace WanXiang.Modules.UI
                 return null;
             }
 
+            // ⚠ 连弹竞态（实测踩过）：
+            //   上一个弹窗的关闭是异步的（有淡出动画），如果紧接着 OpenAsync 同一个面板，
+            //   框架会拿到"正在关闭"的那个实例 —— 结果是新弹窗内容写好了、但立刻被关掉，
+            //   表现就是「点了重开没反应」。所以必须等上一个真正关掉再开。
+            var prev = _current;
+            if (prev != null && prev.State != UIPanelState.Closed && prev.State != UIPanelState.None)
+            {
+                prev.CloseSelf();
+                await UniTask.WaitWhile(() => prev != null && prev.State != UIPanelState.Closed);
+            }
+
             var dlg = await ui.OpenAsync<DialogPanel>();
             if (dlg == null) return null;
 
+            _current = dlg;
             dlg.Setup(title, body, kind, leftText, rightText);
             return dlg;
         }
@@ -107,6 +122,7 @@ namespace WanXiang.Modules.UI
 
         protected override void OnClose()
         {
+            if (_current == this) _current = null;
             // 面板被外部关掉（例如整层清空）时不能让 await 永远挂着
             _confirmTcs?.TrySetResult(false);
             _chooseTcs?.TrySetResult(-1);

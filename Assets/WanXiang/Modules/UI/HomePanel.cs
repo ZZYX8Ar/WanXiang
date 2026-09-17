@@ -50,6 +50,7 @@ namespace WanXiang.Modules.UI
 
         protected override void OnCreate()
         {
+            HideRetiredEntries();
             if (_btnDeploy != null) _btnDeploy.onClick.AddListener(OnDeployClicked);
             if (_btnCodex != null) _btnCodex.onClick.AddListener(OnCodexClicked);
             if (_btnMeta != null) _btnMeta.onClick.AddListener(OnMetaClicked);
@@ -80,6 +81,7 @@ namespace WanXiang.Modules.UI
                 }
             }
             RefreshDeployLabel();
+            HideRetiredEntries();
             return UniTask.CompletedTask;
         }
 
@@ -134,6 +136,19 @@ namespace WanXiang.Modules.UI
             OpenPanelAsync<CampaignPanel>().Forget();
         }
 
+
+        /// <summary>
+        /// 隐藏已收口到路线图节点的四个入口（灵市 / 异闻 / 铸魂台 / 天象）。
+        /// 留着"能点但没用"的按钮比没有更糟 —— 玩家会反复点、然后以为游戏坏了。
+        /// </summary>
+        private void HideRetiredEntries()
+        {
+            if (_btnMarket != null) _btnMarket.gameObject.SetActive(false);
+            if (_btnTale != null) _btnTale.gameObject.SetActive(false);
+            if (_btnForge != null) _btnForge.gameObject.SetActive(false);
+            if (_btnOmen != null) _btnOmen.gameObject.SetActive(false);
+        }
+
         /// <summary>出征按钮的文案带上进度 —— 一眼看清"点下去是继续哪一层"。</summary>
         private void RefreshDeployLabel()
         {
@@ -159,18 +174,22 @@ namespace WanXiang.Modules.UI
             OpenPanelAsync<MetaPanel>().Forget();
         }
 
+        /// <summary>
+        /// v1.2 收口：该功能已改为路线图节点，主城不再提供入口。
+        /// 按钮本身会在 OnOpenAsync 里隐藏 —— 保留这个空实现只是防"万一被别处调用"。
+        /// </summary>
         private void OnMarketClicked()
         {
-            // v1.2 收口：这四个功能属于"旅途中遇到的节点"，不再从主城直接进。
-            // 直接进会让玩家以为两边是同一件事（旧版就是这样，语义冲突）。
-            Dialog.Tip("灵市", "请在旅程的路线图上走到「灵市」节点后进入。").Forget();
+            if (_btnMarket != null) _btnMarket.gameObject.SetActive(false);
         }
 
+        /// <summary>
+        /// v1.2 收口：该功能已改为路线图节点，主城不再提供入口。
+        /// 按钮本身会在 OnOpenAsync 里隐藏 —— 保留这个空实现只是防"万一被别处调用"。
+        /// </summary>
         private void OnTaleClicked()
         {
-            // v1.2 收口：这四个功能属于"旅途中遇到的节点"，不再从主城直接进。
-            // 直接进会让玩家以为两边是同一件事（旧版就是这样，语义冲突）。
-            Dialog.Tip("异闻", "请在旅程的路线图上走到「异闻」节点后进入。").Forget();
+            if (_btnTale != null) _btnTale.gameObject.SetActive(false);
         }
 
         /// <summary>试炼：不经过节点地图，直接用内容目录组一场默认战斗进战斗场景。</summary>
@@ -179,18 +198,22 @@ namespace WanXiang.Modules.UI
             SceneFlow.EnterBattle(null);
         }
 
+        /// <summary>
+        /// v1.2 收口：该功能已改为路线图节点，主城不再提供入口。
+        /// 按钮本身会在 OnOpenAsync 里隐藏 —— 保留这个空实现只是防"万一被别处调用"。
+        /// </summary>
         private void OnForgeClicked()
         {
-            // v1.2 收口：这四个功能属于"旅途中遇到的节点"，不再从主城直接进。
-            // 直接进会让玩家以为两边是同一件事（旧版就是这样，语义冲突）。
-            Dialog.Tip("铸魂台", "请在旅程的路线图上走到「铸魂台」节点后进入。").Forget();
+            if (_btnForge != null) _btnForge.gameObject.SetActive(false);
         }
 
+        /// <summary>
+        /// v1.2 收口：该功能已改为路线图节点，主城不再提供入口。
+        /// 按钮本身会在 OnOpenAsync 里隐藏 —— 保留这个空实现只是防"万一被别处调用"。
+        /// </summary>
         private void OnOmenClicked()
         {
-            // v1.2 收口：这四个功能属于"旅途中遇到的节点"，不再从主城直接进。
-            // 直接进会让玩家以为两边是同一件事（旧版就是这样，语义冲突）。
-            Dialog.Tip("天象", "请在旅程的路线图上走到「天象」节点后进入。").Forget();
+            if (_btnOmen != null) _btnOmen.gameObject.SetActive(false);
         }
 
         private void OnSettingsClicked()

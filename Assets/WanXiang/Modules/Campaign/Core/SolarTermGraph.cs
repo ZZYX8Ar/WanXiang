@@ -232,7 +232,11 @@ namespace WanXiang.Campaign
                 for (int k = 0; k < width; k++)
                 {
                     row[k] = kinds.Count;
-                    terms.Add(1 + (layer * 2 + k) % 24);        // 节气序号：够用即可，只为显示名
+                    // ⚠ 节气必须按幕取：幕 1 只有春（立春~谷雨 1..6）、幕 2 夏（7..12）、
+                    //   幕 3 秋（13..18）、幕 4 冬（19..24）。
+                    //   之前写 (layer*2+k)%24 会让第一幕冒出"大暑/霜降"，四季节气混在一起（用户抓到）。
+                    int termStart = (act - 1) * 6 + 1;
+                    terms.Add(termStart + ((layer + k) % 6));
                     kinds.Add(isBoss ? NodeKind.Elite : PickKind(rng, isFirst));
                 }
                 layerIndex.Add(row);
