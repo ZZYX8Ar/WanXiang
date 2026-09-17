@@ -68,7 +68,8 @@ namespace WanXiang.Modules.UI
         /// 同一存档同一劫 → 敌人阵容与数值完全一致（可背版、可复盘）。
         /// </summary>
         public static bool TryBuildFromRun(ContentCatalogSO catalog, WanXiang.Run.RunState run,
-                                           string weather, out BattleRequest req)
+                                           string weather, out BattleRequest req,
+                                           WanXiang.Campaign.NodeKind kind = WanXiang.Campaign.NodeKind.Encounter)
         {
             req = null;
             if (catalog == null || run == null) return false;
@@ -78,12 +79,14 @@ namespace WanXiang.Modules.UI
 
             // ---- 种子与规模 ----
             ulong seed = SeededEnemyProvider.SeedOf(run.Slot, run.Realm, run.Jie, run.Wins);
-            int enemyCount = SeededEnemyProvider.EnemyCount(run.Jie);
-            float mul = run.Difficulty;
+            bool elite = kind == WanXiang.Campaign.NodeKind.Elite;
+            int enemyCount = SeededEnemyProvider.EnemyCount(run.Jie) + (elite ? 1 : 0);   // 精英规模 +1（GDD §5.5）
+            float mul = run.Difficulty * (elite ? 1.18f : 1f);                            // 精英旗舰 ×1.18
 
             req = new BattleRequest
             {
-                Title = "第" + Cn(run.Realm) + "境 · 第" + Cn(run.Jie) + "劫 · 遭遇战",
+                Title = "第" + Cn(run.Realm) + "境 · 第" + Cn(run.Jie) + "劫 · " +
+                        (elite ? "精英战" : "遭遇战"),
                 WeatherName = weather ?? "",
                 Seed = seed,
             };

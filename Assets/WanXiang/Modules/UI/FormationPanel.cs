@@ -553,7 +553,7 @@ namespace WanXiang.Modules.UI
             BattleRequest req;
             var run = WanXiang.Run.RunSave.Current;
             bool ok = (run != null)
-                ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req)
+                ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req, _node.Kind)
                 : BattleRequestFactory.TryBuild(_contentCatalog, _node.Title, _node.Weather,
                                                 _node.Seed, out req);
             if (!ok)

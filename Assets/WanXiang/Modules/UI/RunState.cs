@@ -33,6 +33,12 @@ namespace WanXiang.Run
         public int Eggs = 12;                   // 灵卵
         public int Ink = 3;                     // 墨锭
         public int Wins;                        // 本程胜场
+
+        /// <summary>当前幕（1..5，对应 SolarTermGraph 的五幕）——节点地图用。</summary>
+        public int Act = 1;
+
+        /// <summary>幕内当前节点下标（-1 = 还没出发）；换幕时归 -1。</summary>
+        public int NodeOffset = -1;
         public int Losses;                      // 本程败场
         public List<string> Team = new List<string>();   // 上阵异兽 id（继承用）
         public string LastSaved = "";           // 最后保存时间（展示用）
