@@ -45,12 +45,36 @@ namespace WanXiang.Modules.UI
         [SerializeField] private ContentCatalogSO _contentCatalog;
         [SerializeField] private SpriteCatalog _sprites;
 
-        /// <summary>回放节奏：每 0.12 秒推进一批事件。
-        /// 为什么按"批"而不是"事件"：一场 5v5 有 700~900 条事件（含 ActionBegin/End 这类
-        /// 无表现的事件），逐条 0.28 秒要打两分钟。按批推进 + 每批只刷一次 UI，
-        /// 20 秒左右打完一场，观感更像自动战斗。</summary>
-        private const float TickInterval = 0.12f;
-        private const int EventsPerTick = 6;
+        /// <summary>
+        /// 回放节奏：**一次推进一个事件**，间隔按事件类型给。
+        ///
+        /// 为什么不再"按批推进"（旧版 0.12 秒 × 6×速度 个事件 = 100 事件/秒）：
+        /// 那样一场 500 多事件 5 秒就播完了 —— 观众根本看不清谁出手、谁挨打，
+        /// 表现层已有的抖动/变色/伤害数字全被下一批冲掉。自动战斗的观感 =
+        /// "一只一只来"，所以节奏必须由事件语义决定：
+        ///   出手（SkillCast）慢下来给冲锋演出，伤害留时间看反馈，琐碎事件快过。
+        /// 速度按钮（×1/×2/×4）缩放的是这些间隔，不再缩放"一批多少个"。
+        /// </summary>
+        private static float IntervalOf(BattleEventKind kind)
+        {
+            switch (kind)
+            {
+                case BattleEventKind.ActionBegin:   return 0.20f;
+                case BattleEventKind.SkillCast:     return 0.34f;   // 出手：配合冲锋前冲+停留
+                case BattleEventKind.Damage:        return 0.26f;   // 受击：看抖动、看数字
+                case BattleEventKind.Crit:          return 0.22f;
+                case BattleEventKind.Heal:          return 0.22f;
+                case BattleEventKind.Shield:        return 0.16f;
+                case BattleEventKind.Death:         return 0.55f;   // 阵亡：留时间看灰化下沉
+                case BattleEventKind.Revive:        return 0.45f;
+                case BattleEventKind.TurnStart:     return 0.32f;
+                case BattleEventKind.TurnEnd:       return 0.22f;
+                case BattleEventKind.RoundResolve:  return 0.28f;
+                case BattleEventKind.BattleEnd:     return 0.40f;
+                case BattleEventKind.BattleStart:   return 0.45f;
+                default:                            return 0.10f;   // 状态/怒气等琐碎
+            }
+        }
 
         private sealed class UnitView
         {
@@ -64,8 +88,9 @@ namespace WanXiang.Modules.UI
         private readonly Dictionary<string, UnitView> _views = new Dictionary<string, UnitView>(12);
         private BattlePlayback _play;
         private BattleRequest _req;
-        private float _speed = 2f;
+        private float _speed = 1f;   // 默认 1x：先能看清，再谈加速
         private bool _autoCast = true;
+        private bool _playing;      // 回放中（控制舞台是否逐帧推进）
 
         // ---- 战斗场景模式（单位由 BattleStage2D 渲染，本面板只当 HUD）----
         private bool _sceneMode;
@@ -267,22 +292,33 @@ namespace WanXiang.Modules.UI
         {
             ApplyFrames();
             if (_tmpLog != null) _tmpLog.text = "战斗开始";
+            _playing = true;
 
             int guard = 0;
-            while (!_play.Finished && guard++ < 4000)
+            while (!_play.Finished && guard++ < 20000)
             {
-                await UniTask.Delay(TimeSpan.FromSeconds(TickInterval), cancellationToken: ct);
+                if (!StepOnce()) break;
 
-                int batch = Mathf.RoundToInt(EventsPerTick * _speed);
-                for (int i = 0; i < batch; i++)
-                {
-                    if (!StepOnce()) break;
-                }
-                if (_stage != null) _stage.Step(TickInterval * batch);
+                // 节奏由事件语义决定；速度倍率只缩放间隔
+                float wait = IntervalOf(_play.Current.Kind) / Mathf.Max(1f, _speed);
+                await UniTask.Delay(TimeSpan.FromSeconds(wait), cancellationToken: ct);
             }
 
             while (StepOnce()) { }                   // 收尾：把剩余事件/帧走完
+            _playing = false;
             FinishAndLeave(0.8f, ct);
+        }
+
+        /// <summary>
+        /// 舞台演出由这里**逐帧**推进（血条缓降、抖动回弹、冲锋、伤害数字上浮）。
+        /// 不能像旧版那样"每次推进事件时 Step(整段时长)"：那样补间一步到位，
+        /// 抖动和冲锋看着就是瞬移。
+        /// </summary>
+        private void Update()
+        {
+            if (!_playing || _stage == null) return;
+            if (State != UIPanelState.Opened) return;      // 被上层盖住/暂停时不推进
+            _stage.Step(Time.deltaTime * Mathf.Max(1f, _speed));
         }
 
         /// <summary>推进一个事件：HUD + 舞台同步刷新。返回 false 表示已播完。</summary>

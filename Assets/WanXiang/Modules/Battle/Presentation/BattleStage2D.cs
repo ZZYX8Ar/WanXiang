@@ -42,11 +42,21 @@ namespace WanXiang.Battle.Presentation
         public float DeadBlend;
         public float ShakePulse;         // 受击回弹（>0 时向基色回退）
         public Color BaseColor = Color.white;
+
+        // ---- 出手冲锋（表现层演出，不改战斗数据）----
+        // 战斗核心只有事件流，没有"动画"概念；冲上去再回来完全由表现层决定。
+        public bool LungeActive;
+        public float LungeElapsed;
+        public Vector2 LungeTo;          // 冲锋落点（目标前方一点，避免盖住目标立绘）
+        public int BaseSortingOrder = 0; // 冲锋时临时置顶，回位要还原
     }
 
     public sealed class BattleStage2D : MonoBehaviour
     {
         private const float Cell = 1.15f;
+        /// <summary>立绘枢轴在底部中点，抬高 0.4 让脚踩在格子中心（Build 与 Step 必须用同一个值）。</summary>
+        private const float FootOffset = 0.4f;
+
         private const float PlayerX = -2.95f;
         private const float EnemyX = 2.95f;
 
@@ -89,6 +99,11 @@ namespace WanXiang.Battle.Presentation
             BuildBoard("BoardE", EnemyX, -0.2f);
             BuildUnits();
             BuildCamera();
+
+            // ⚠ 必须套第 0 帧（初始快照）。BattleState 传进来时**这场战斗已经跑完了**
+            //   （BattlePlayback 构造里一次 Run 到底），所以 BuildUnits 拿到的是终局
+            //   HP/存活状态 —— 不套初帧的话，开局画面就是"一半人已经死了"。
+            if (st.Frames.Count > 0) ApplyFrame(st.Frames[0]);
         }
 
         private void Clear()
@@ -146,7 +161,7 @@ namespace WanXiang.Battle.Presentation
                 bool player = u.Side == TeamSide.Player;
                 view.HomePos = CellPos(player, u.Pos.Index);
                 // Pivot=底部中 + Y 上偏 = 立绘脚踩格子中心（遮挡关系由 sortingOrder 管）
-                root.transform.localPosition = new Vector3(view.HomePos.x, view.HomePos.y + 0.4f, 0f);
+                root.transform.localPosition = new Vector3(view.HomePos.x, view.HomePos.y + FootOffset, 0f);
                 view.Root = root;
 
                 // 立绘：SpriteCatalog 按 BeastDef.Id 查；查不到回退五行色块
@@ -246,12 +261,61 @@ namespace WanXiang.Battle.Presentation
             }
         }
 
+        // ================================================================
+        //  出手冲锋
+        // ================================================================
+
+        private const float LungeForward = 0.14f;   // 前冲时长
+        private const float LungeHold = 0.10f;      // 贴脸停留（受击反馈在这段里播）
+        private const float LungeBack = 0.16f;      // 回位时长
+
+        /// <summary>
+        /// 让施动者冲到目标面前。停在目标前方 0.75 世界单位处（棋盘格 1.15，
+        /// 这个距离刚好"贴上但不盖住"），冲锋时立绘临时置顶，回位还原。
+        /// </summary>
+        public void StartLunge(string actorId, string targetId)
+        {
+            if (string.IsNullOrEmpty(actorId)) return;
+            if (!_views.TryGetValue(actorId, out var a) || a.Root == null || !a.Alive) return;
+            if (a.LungeActive) return;                  // 已经在冲，别叠
+
+            Vector2 stop;
+            if (!string.IsNullOrEmpty(targetId) && _views.TryGetValue(targetId, out var t) && t.Root != null)
+            {
+                Vector2 delta = t.HomePos - a.HomePos;
+                stop = delta.sqrMagnitude > 0.0001f
+                    ? t.HomePos - delta.normalized * 0.75f
+                    : t.HomePos;
+            }
+            else
+            {
+                // 群体技 / 无单体目标：朝对面方向冲一步
+                float dir = a.HomePos.x < 0f ? 1f : -1f;
+                stop = a.HomePos + new Vector2(dir * 1.6f, 0f);
+            }
+
+            a.LungeActive = true;
+            a.LungeElapsed = 0f;
+            a.LungeTo = stop;
+            if (a.Body != null)
+            {
+                if (a.BaseSortingOrder == 0) a.BaseSortingOrder = a.Body.sortingOrder;
+                a.Body.sortingOrder = 20;               // 冲锋中压过目标立绘
+            }
+        }
+
         public void ApplyEvent(int index, BattleEvent e)
         {
             switch (e.Kind)
             {
                 case BattleEventKind.ActionBegin:
                     _actingId = e.ActorId;
+                    break;
+
+                case BattleEventKind.SkillCast:
+                    // 出手：冲上去（GDD 的"跑到目标面前"）。目标 id 缺失（群体技/
+                    // 纯增益）时退化为"朝敌方方向冲一段"，不影响观感。
+                    StartLunge(e.ActorId, e.TargetId);
                     break;
 
                 case BattleEventKind.Damage:
@@ -294,7 +358,29 @@ namespace WanXiang.Battle.Presentation
                 {
                     v.Body.color = Color.Lerp(v.Body.color, v.BaseColor, dt * 10f);
                 }
-                v.Root.transform.localPosition = new Vector3(v.HomePos.x, v.HomePos.y + bob + sink, 0f);
+
+                // ---- 出手冲锋：前冲 → 短暂停留 → 回位 ----
+                Vector2 lunge = Vector2.zero;
+                if (v.LungeActive)
+                {
+                    v.LungeElapsed += dt;
+                    Vector2 delta = v.LungeTo - v.HomePos;
+                    if (v.LungeElapsed < LungeForward) lunge = delta * (v.LungeElapsed / LungeForward);
+                    else if (v.LungeElapsed < LungeForward + LungeHold) lunge = delta;
+                    else if (v.LungeElapsed < LungeForward + LungeHold + LungeBack)
+                    {
+                        float k = (v.LungeElapsed - LungeForward - LungeHold) / LungeBack;
+                        lunge = delta * (1f - k);
+                    }
+                    else
+                    {
+                        v.LungeActive = false;
+                        if (v.Body != null) v.Body.sortingOrder = v.BaseSortingOrder;
+                    }
+                }
+
+                v.Root.transform.localPosition = new Vector3(
+                    v.HomePos.x + lunge.x, v.HomePos.y + FootOffset + lunge.y + bob + sink, 0f);
 
                 // 血条跟随立绘（相机 2D 朝 -Z，直接摆即可）
                 if (v.HpBg != null) v.HpBg.transform.localPosition = new Vector3(0f, 1.18f, -0.01f);
