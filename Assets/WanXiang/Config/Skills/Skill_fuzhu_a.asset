@@ -21,11 +21,11 @@ MonoBehaviour:
   Effects:
   - Kind: 4
     Target: 4
-    Power: 0.04
+    Power: 0.041471202
     PercentOfMaxHp: 0
     ElementOverride: 0
     Hits: 0
-    StatusId: burn
+    StatusId: wet
     StatusStacks: 1
     StatusTurns: 3
     StatKey: 
@@ -33,6 +33,20 @@ MonoBehaviour:
     StatTurns: 0
     TrueDamage: 0
     IgnoreShield: 0
-  Description: "\u5BF9\u654C\u65B9\u5168\u4F53\u9020\u6210 100% \u653B\u51FB\u7684\u4F24\u5BB3\u5E76\u5404\u65BD\u52A0
-    2 \u5C42\u300C\u6E7F\u300D\uFF1B\u540C\u65F6\u4E3A\u6211\u65B9\u5168\u4F53\u9644\u52A0\u300C\u6D89\u6C34\u300D2
-    \u56DE\u5408\uFF1A\u514D\u75AB\u51CF\u901F\u4E0E\u51BB\u7ED3\uFF0C\u4E14\u53D7\u5230\u7684\u6C34\u5C5E\u6027\u4F24\u5BB3\u8F6C\u4E3A\u56DE\u590D\u3002"
+  - Kind: 1
+    Target: 4
+    Power: 0.519758
+    PercentOfMaxHp: 0
+    ElementOverride: 0
+    Hits: 1
+    StatusId: 
+    StatusStacks: 0
+    StatusTurns: 0
+    StatKey: 
+    StatDelta: 0
+    StatTurns: 0
+    TrueDamage: 0
+    IgnoreShield: 0
+  Description: "\u6218\u6280\uFF1A\u654C\u65B9\u5168\u4F53\u9644\u52A0\u300Cwet\u300D1
+    \u5C42\uFF1A\u6BCF\u5C42\u6BCF\u56DE\u5408 4% \u653B\u51FB\u4F24\u5BB3\uFF0C\u6301\u7EED
+    3 \u56DE\u5408\uFF1B\u654C\u65B9\u5168\u4F53\u9020\u6210 52% \u653B\u51FB\u4F24\u5BB3\u3002"

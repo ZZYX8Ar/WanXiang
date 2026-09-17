@@ -21,7 +21,7 @@ MonoBehaviour:
   Effects:
   - Kind: 1
     Target: 6
-    Power: 1.4
+    Power: 1.6458462
     PercentOfMaxHp: 0
     ElementOverride: 0
     Hits: 1
@@ -39,14 +39,13 @@ MonoBehaviour:
     PercentOfMaxHp: 0
     ElementOverride: 0
     Hits: 0
-    StatusId: frost
+    StatusId: corrode
     StatusStacks: 2
-    StatusTurns: 3
+    StatusTurns: 2
     StatKey: 
     StatDelta: 0
     StatTurns: 0
     TrueDamage: 0
     IgnoreShield: 0
-  Description: "\u5BF9\u901F\u5EA6\u4F4E\u4E8E\u81EA\u8EAB\u7684\u6240\u6709\u654C\u65B9\u5355\u4F4D\u4F9D\u6B21\u9020\u6210
-    120% \u653B\u51FB\u7684\u4F24\u5BB3\uFF08\u6700\u591A 5 \u6B21\uFF09\uFF1B\u6BCF\u6B21\u51FB\u6740\u4F7F\u81EA\u5DF1\u83B7\u5F97\u4E00\u6B21\u989D\u5916\u884C\u52A8\uFF0C\u5355\u573A\u6700\u591A\u8FDE\u9501
-    3 \u6B21\u3002"
+  Description: "\u7EDD\u6280\uFF1A\u968F\u673A\u654C\u4EBA\u9020\u6210 165% \u653B\u51FB\u4F24\u5BB3\uFF1B\u968F\u673A\u654C\u4EBA\u65BD\u52A0\u300Ccorrode\u300D2
+    \u5C42\uFF0C\u6301\u7EED 2 \u56DE\u5408\u3002"

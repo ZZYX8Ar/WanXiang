@@ -21,7 +21,7 @@ MonoBehaviour:
   Effects:
   - Kind: 3
     Target: 0
-    Power: 0.8
+    Power: 1.1569794
     PercentOfMaxHp: 0
     ElementOverride: 0
     Hits: 0
@@ -33,5 +33,19 @@ MonoBehaviour:
     StatTurns: 0
     TrueDamage: 0
     IgnoreShield: 0
-  Description: "\u6807\u8BB0\u4E00\u540D\u961F\u53CB\u6301\u7EED 3 \u56DE\u5408\uFF1A\u671F\u95F4\u8BE5\u961F\u53CB\u53D7\u5230\u7684\u6240\u6709\u4F24\u5BB3\u7531\u81EA\u8EAB\u4EE3\u4E3A\u627F\u53D7
-    60%\uFF0C\u4E14\u81EA\u8EAB\u83B7\u5F97 25% \u51CF\u4F24\u4E0E 15% \u53CD\u4F24\u3002"
+  - Kind: 1
+    Target: 1
+    Power: 0.7407158
+    PercentOfMaxHp: 0
+    ElementOverride: 0
+    Hits: 1
+    StatusId: 
+    StatusStacks: 0
+    StatusTurns: 0
+    StatKey: 
+    StatDelta: 0
+    StatTurns: 0
+    TrueDamage: 0
+    IgnoreShield: 0
+  Description: "\u6218\u6280\uFF1A\u81EA\u8EAB\u83B7\u5F97 116% \u653B\u51FB\u7684\u62A4\u76FE\uFF1B\u751F\u547D\u6700\u4F4E\u7684\u654C\u4EBA\u9020\u6210
+    74% \u653B\u51FB\u4F24\u5BB3\u3002"

@@ -21,7 +21,7 @@ MonoBehaviour:
   Effects:
   - Kind: 2
     Target: 5
-    Power: 0.5
+    Power: 0.65974575
     PercentOfMaxHp: 0
     ElementOverride: 0
     Hits: 0
@@ -35,7 +35,7 @@ MonoBehaviour:
     IgnoreShield: 0
   - Kind: 3
     Target: 5
-    Power: 0.5
+    Power: 0.47745028
     PercentOfMaxHp: 0
     ElementOverride: 0
     Hits: 0
@@ -61,7 +61,5 @@ MonoBehaviour:
     StatTurns: 0
     TrueDamage: 0
     IgnoreShield: 0
-  Description: "\u5728\u9635\u524D\u5C55\u5F00\u300C\u91CD\u660E\u4E4B\u7167\u300D\u6301\u7EED
-    3 \u56DE\u5408\uFF1A\u6211\u65B9\u5168\u5458\u653B\u51FB +20%\u3001\u66B4\u51FB\u7387
-    +20%\u3001\u514D\u75AB\u6240\u6709\u51CF\u76CA\uFF1B\u671F\u95F4\u6BCF\u6B21\u6211\u65B9\u66B4\u51FB\u90FD\u4F1A\u5BF9\u654C\u65B9\u5168\u4F53\u9020\u6210
-    30% \u653B\u51FB\u7684\u989D\u5916\u4F24\u5BB3\u3002"
+  Description: "\u7EDD\u6280\uFF1A\u6211\u65B9\u5168\u4F53\u56DE\u590D 66% \u653B\u51FB\u7684\u751F\u547D\uFF1B\u6211\u65B9\u5168\u4F53\u83B7\u5F97
+    48% \u653B\u51FB\u7684\u62A4\u76FE\uFF1B\u9A71\u6563\u6211\u65B9\u5168\u4F53\u7684\u51CF\u76CA\u3002"

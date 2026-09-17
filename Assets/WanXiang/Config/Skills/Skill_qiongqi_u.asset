@@ -21,10 +21,10 @@ MonoBehaviour:
   Effects:
   - Kind: 1
     Target: 7
-    Power: 0.6
+    Power: 0.6766454
     PercentOfMaxHp: 0
     ElementOverride: 0
-    Hits: 5
+    Hits: 6
     StatusId: 
     StatusStacks: 0
     StatusTurns: 0
@@ -33,7 +33,20 @@ MonoBehaviour:
     StatTurns: 0
     TrueDamage: 0
     IgnoreShield: 0
-  Description: "\u5265\u79BB\u654C\u65B9\u5168\u4F53\u6240\u6709\u589E\u76CA\u5E76\u8F6C\u5316\u4E3A\u81EA\u8EAB\u653B\u51FB\u529B\uFF08\u6BCF\u4E2A\u589E\u76CA
-    +15% \u653B\u51FB\uFF0C\u6301\u7EED 3 \u56DE\u5408\uFF09\uFF1B\u968F\u540E\u5BF9\u751F\u547D\u503C\u6700\u9AD8\u7684\u654C\u4EBA\u9020\u6210
-    500% \u653B\u51FB\u7684\u4F24\u5BB3\u2014\u2014\u76EE\u6807\u751F\u547D\u8D8A\u9AD8\uFF0C\u4F24\u5BB3\u8D8A\u9AD8\uFF08\u6BCF
-    10% \u751F\u547D\u5DEE +30%\uFF09\u3002"
+  - Kind: 4
+    Target: 6
+    Power: 0
+    PercentOfMaxHp: 0
+    ElementOverride: 0
+    Hits: 0
+    StatusId: armor_break
+    StatusStacks: 1
+    StatusTurns: 2
+    StatKey: 
+    StatDelta: 0
+    StatTurns: 0
+    TrueDamage: 0
+    IgnoreShield: 0
+  Description: "\u7EDD\u6280\uFF1A\u968F\u673A\u654C\u4EBA\u9020\u6210 68% \u653B\u51FB
+    \xD7 6 \u6BB5\u4F24\u5BB3\uFF1B\u968F\u673A\u654C\u4EBA\u65BD\u52A0\u300Carmor_break\u300D1
+    \u5C42\uFF0C\u6301\u7EED 2 \u56DE\u5408\u3002"

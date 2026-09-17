@@ -21,7 +21,7 @@ MonoBehaviour:
   Effects:
   - Kind: 1
     Target: 1
-    Power: 1
+    Power: 0.92371905
     PercentOfMaxHp: 0
     ElementOverride: 0
     Hits: 1
@@ -33,5 +33,5 @@ MonoBehaviour:
     StatTurns: 0
     TrueDamage: 0
     IgnoreShield: 0
-  Description: "\u5BF9\u5355\u4F53\u9020\u6210 100% \u653B\u51FB\u7684\u4F24\u5BB3\uFF1B\u82E5\u76EE\u6807\u4E3A\u6C34\u5C5E\u6027\uFF0C\u6539\u4E3A\u9020\u6210
-    150% \u653B\u51FB\u7684\u4F24\u5BB3\u5E76\u9A71\u6563\u5176 1 \u4E2A\u62A4\u76FE\u3002"
+  Description: "\u666E\u653B\uFF1A\u751F\u547D\u6700\u4F4E\u7684\u654C\u4EBA\u9020\u6210
+    92% \u653B\u51FB\u4F24\u5BB3\u3002"
