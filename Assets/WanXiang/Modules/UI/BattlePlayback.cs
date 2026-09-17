@@ -27,9 +27,16 @@ namespace WanXiang.Modules.UI
 
         /// <summary>
         /// 敌方属性倍率（与 Enemy 一一对应；缺省按 1 处理）。
-        /// 来自存档的劫数难度系数 —— 敌人成长走这里，不走选兽。
+        /// 旧的简版通道 —— 只用于"没有战役内容供给"的兜底组队。
         /// </summary>
         public List<float> EnemyMul = new List<float>();
+
+        /// <summary>
+        /// 敌方上阵条目（**正式通道**，优先于 Enemy/EnemyMul）。
+        /// 由 Campaign.SeededEnemyProvider.EnemiesFor 供给：自带阵位、属性倍率（规模表）
+        /// 和精英的「劫象」特性 —— BeastDef + 倍率那种简版表达不了劫象。
+        /// </summary>
+        public List<DeployEntry> EnemyEntries = new List<DeployEntry>();
 
         /// <summary>上阵格位顺序：前排 → 中宫 → 后排两侧（与 GDD 的推荐站位一致）。</summary>
         public static readonly int[] Cells = { 0, 1, 4, 7, 8 };
@@ -57,12 +64,21 @@ namespace WanXiang.Modules.UI
             for (int i = 0; i < p.Length; i++)
                 p[i] = DeployEntry.Player(req.Player[i], BattleRequest.Cells[i % BattleRequest.Cells.Length]);
 
-            var e = new DeployEntry[req.Enemy.Count];
-            for (int i = 0; i < e.Length; i++)
+            DeployEntry[] e;
+            if (req.EnemyEntries != null && req.EnemyEntries.Count > 0)
             {
-                float mul = (req.EnemyMul != null && i < req.EnemyMul.Count) ? req.EnemyMul[i] : 1f;
-                e[i] = DeployEntry.Enemy(req.Enemy[i], BattleRequest.Cells[i % BattleRequest.Cells.Length])
-                                  .WithMul(mul);
+                // 正式通道：阵位/倍率/劫象都在条目里，原样送入战斗核心
+                e = req.EnemyEntries.ToArray();
+            }
+            else
+            {
+                e = new DeployEntry[req.Enemy.Count];
+                for (int i = 0; i < e.Length; i++)
+                {
+                    float mul = (req.EnemyMul != null && i < req.EnemyMul.Count) ? req.EnemyMul[i] : 1f;
+                    e[i] = DeployEntry.Enemy(req.Enemy[i], BattleRequest.Cells[i % BattleRequest.Cells.Length])
+                                      .WithMul(mul);
+                }
             }
 
             State = BattleFactory.Create(cfg, req.Seed, p, e);

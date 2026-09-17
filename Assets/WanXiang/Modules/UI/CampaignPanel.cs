@@ -122,15 +122,37 @@ namespace WanXiang.Modules.UI
 
             if (_graph.IsEmpty) return;
 
+            // ---- 逐层排布 ----
+            // ⚠ 克隆出来的节点如果不动位置，会全部落在模板的原点（叠成一坨）——
+            //   这就是"节点都挤在一起"的原因。这里手动排：层内横排、层间拉开，
+            //   并把 content 高度撑开让 ScrollRect 能滚。
+            const float NodeW = 380f, NodeH = 110f;
+            const float GapX = 40f, GapY = 90f;
+
             for (int layer = 0; layer < _graph.Layers.Length; layer++)
             {
                 var row = _graph.Layers[layer];
+                float y = -(NodeH + GapY) * layer;
                 for (int k = 0; k < row.Length; k++)
-                    SpawnNodeItem(content, row[k], layer);
+                {
+                    var item = SpawnNodeItem(content, row[k], layer);
+                    item.sizeDelta = new Vector2(NodeW, NodeH);
+                    // 锚点统一到"顶部中心"，这样 anchoredPosition 直接就是相对长卷顶部的坐标
+                    item.anchorMin = item.anchorMax = new Vector2(0.5f, 1f);
+                    item.pivot = new Vector2(0.5f, 1f);
+                    // 层内均匀分布：1 个居中，2 个左右分开
+                    float x = row.Length <= 1
+                        ? 0f
+                        : (k - (row.Length - 1) * 0.5f) * (NodeW + GapX);
+                    item.anchoredPosition = new Vector2(x, y);
+                }
             }
+
+            float totalH = _graph.Layers.Length * (NodeH + GapY) + 40f;
+            content.sizeDelta = new Vector2(content.sizeDelta.x, Mathf.Max(totalH, 600f));
         }
 
-        private void SpawnNodeItem(RectTransform content, int offset, int layer)
+        private RectTransform SpawnNodeItem(RectTransform content, int offset, int layer)
         {
             var item = Instantiate(_nodeItemTemplate, content);
             item.name = "Item_Node_" + offset;
@@ -164,6 +186,7 @@ namespace WanXiang.Modules.UI
 
             if (isHere) item.SetAsFirstSibling();
             _nodeItems.Add(item);
+            return item;
         }
 
         /// <summary>可达 = 起点层，或"从当前节点走一步"（ActGraph.CanMove 的规则）。</summary>
@@ -209,6 +232,19 @@ namespace WanXiang.Modules.UI
             _current.Act = _graph.Act;
             _current.Offset = offset;
             _current.Kind = kind;
+
+            // 选中反馈：节点本身要有变化 —— 只看右侧信息卡不够明显（玩家会以为没点到）
+            for (int i = 0; i < _nodeItems.Count; i++)
+            {
+                var it = _nodeItems[i];
+                if (it == null) continue;
+                bool on = it.name == "Item_Node_" + offset;
+                it.localScale = on ? new Vector3(1.06f, 1.06f, 1f) : Vector3.one;
+                var d = it.Find("Img_Dot") != null ? it.Find("Img_Dot").GetComponent<Image>() : null;
+                if (d != null && on) d.color = NodeVisited;
+                else if (d != null && IsReachable(int.Parse(it.name.Substring("Item_Node_".Length))))
+                    d.color = NodeReachable;
+            }
 
             if (_btnNext != null)
             {
