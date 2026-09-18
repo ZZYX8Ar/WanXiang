@@ -93,11 +93,16 @@ namespace WanXiang.Modules.UI
                 Seed = seed,
             };
 
-            // 孵穴「回复 40%」：下一场战斗我方全体 ×1.4，用掉即清
-            if (run.HealPending > 0)
+            // 挂起修正（孵穴回复 / 天象异闻）：进本场后清零
+            if (run.HealPending != 0 || run.PlayerBuffPct != 0 || run.EnemyBuffPct != 0)
             {
-                req.PlayerMul = 1f + run.HealPending / 100f;
+                req.PlayerMul = 1f + (run.HealPending + run.PlayerBuffPct) / 100f;
+                if (req.EnemyEntries != null)
+                    foreach (var en in req.EnemyEntries)
+                        en.WithMul(en.StatMul * (1f + run.EnemyBuffPct / 100f));
                 run.HealPending = 0;
+                run.PlayerBuffPct = 0;
+                run.EnemyBuffPct = 0;
             }
 
             // ---- 我方：存档队伍按 id 回查 ----

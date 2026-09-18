@@ -47,6 +47,12 @@ namespace WanXiang.Run
         /// <summary>孵穴「回复 40%」的挂起值（下一场战斗我方 ×(1+值/100)，用后清零）。</summary>
         public int HealPending = 0;
 
+        /// <summary>天象/异闻挂起：下一场战斗我方修正 %（可负，用后清零）。</summary>
+        public int PlayerBuffPct = 0;
+
+        /// <summary>天象/异闻挂起：下一场战斗敌方修正 %（正=变强，用后清零）。</summary>
+        public int EnemyBuffPct = 0;
+
         /// <summary>是否已打赢天阙终局战（真通关；防止抉择重复触发）。</summary>
         public bool BeatFinale = false;
 
