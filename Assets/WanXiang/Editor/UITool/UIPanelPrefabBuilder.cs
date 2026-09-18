@@ -701,7 +701,9 @@ namespace WanXiang.EditorTools
             var tmpCost = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_RefreshCost", new Vector2(1f, 0.5f),
                 new Vector2(240, 48), new Vector2(-440, 0)), "刷新 3", 26, UIBuild.Ink2, TextAlignmentOptions.Right);
             var bRefresh = UIBuild.MakeBtn(top, "Btn_Refresh", new Vector2(1f, 0.5f),
-                new Vector2(260, 72), new Vector2(-150, 0), "刷新", UIBuild.Card, 26f);
+                new Vector2(260, 72), new Vector2(-150, 0), "刷新 1", UIBuild.Card, 26f);
+            var bBack = UIBuild.MakeBtn(top, "Btn_Back", new Vector2(0f, 0.5f),
+                new Vector2(260, 72), new Vector2(-150, 0), "返回地图", UIBuild.Card, 26f);
 
             var goods = UIBuild.GridLayout(rt, "Root_Goods",
                 new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(24, -300), new Vector2(-24, 400),
@@ -735,6 +737,9 @@ namespace WanXiang.EditorTools
 
             UIBuild.Bind(comp, "_tmpEggs", tmpEggs);
             UIBuild.Bind(comp, "_btnRefresh", bRefresh.GetComponent<Button>());
+            UIBuild.Bind(comp, "_btnBack", bBack.GetComponent<Button>());
+            UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
+            UIBuild.Bind(comp, "_sprites", LoadAsset<SpriteCatalog>(SpriteCatalogPath));
             UIBuild.Bind(comp, "_tmpRefreshCost", tmpCost);
             UIBuild.BindArr(comp, "_goodsBtns", goodsBtns);
             UIBuild.BindArr(comp, "_imgGoodsHead", goodsHeads);
