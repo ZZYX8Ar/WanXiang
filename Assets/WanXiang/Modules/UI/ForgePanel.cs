@@ -115,7 +115,7 @@ namespace WanXiang.Modules.UI
                 _selectedHost = _hosts[i];
                 MarkPicked();
                 if (_imgHost != null && _sprites != null)
-                    _imgHost.sprite = _sprites.GetBody(_selectedHost.Id);
+                    _imgHost.sprite = _sprites.Get(_selectedHost.Id);
                 RefreshPreview();
             });
 
@@ -133,7 +133,7 @@ namespace WanXiang.Modules.UI
             });
 
             if (_imgHost != null && _selectedHost != null && _sprites != null)
-                _imgHost.sprite = _sprites.GetBody(_selectedHost.Id);
+                _imgHost.sprite = _sprites.Get(_selectedHost.Id);
             RefreshPreview();
         }
 
@@ -248,6 +248,13 @@ namespace WanXiang.Modules.UI
         {
             if (scroll == null || scroll.content == null) return;
             var content = scroll.content;
+
+            // ⚠ ScrollVertical 生成的 content 自带 VerticalLayoutGroup + ContentSizeFitter，
+            //   会覆盖我们手动设的 sizeDelta 与行位置（实测 content 高被算成别的值）—— 先关掉。
+            var vlg = content.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+            if (vlg != null) vlg.enabled = false;
+            var fitter = content.GetComponent<UnityEngine.UI.ContentSizeFitter>();
+            if (fitter != null) fitter.enabled = false;
 
             for (int i = content.childCount - 1; i >= 0; i--)
             {

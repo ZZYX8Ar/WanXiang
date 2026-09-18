@@ -894,10 +894,12 @@ namespace WanXiang.EditorTools
 
             UIBuild.Bind(comp, "_tmpTitle", tmpTitle);
             UIBuild.Bind(comp, "_tmpEggs", tmpEggs);
-            UIBuild.Bind(comp, "_scrollHosts", scrollHosts);
+            // ⚠ scrollHosts 是 RectTransform，字段是 ScrollRect —— 直接 Bind 类型不匹配，
+            //   SerializedObject 赋值静默失败 ⇒ 运行时字段为 null（用户实测：列表全空）。
+            UIBuild.Bind(comp, "_scrollHosts", scrollHosts.GetComponentInParent<ScrollRect>());   // ⚠ ScrollVertical 返回的是 Content！
             UIBuild.Bind(comp, "_imgHost", imgHost);
             UIBuild.Bind(comp, "_imgVortex", imgVortex);
-            UIBuild.Bind(comp, "_scrollSouls", scrollSouls);
+            UIBuild.Bind(comp, "_scrollSouls", scrollSouls.GetComponentInParent<ScrollRect>());
             UIBuild.Bind(comp, "_imgSoul", imgSoul);
             UIBuild.BindArr(comp, "_imgCover", covers);
             UIBuild.BindArr(comp, "_imgSwatch", swatches);
