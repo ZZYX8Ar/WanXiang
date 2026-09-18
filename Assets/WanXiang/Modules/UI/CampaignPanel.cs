@@ -273,9 +273,13 @@ namespace WanXiang.Modules.UI
                 ? item.Find("Tmp_NodeText").GetComponent<TMP_Text>() : null;
             if (label != null)
             {
-                string name = kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset)
-                    ? "？ 未知"
-                    : WanXiang.Campaign.NodeKinds.Cn(kind);
+                string name;
+                if (kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset))
+                    name = "？ 未知";
+                else if (kind == WanXiang.Campaign.NodeKind.Question)
+                    name = WanXiang.Campaign.NodeKinds.Cn(RevealedKind(offset));   // 揭晓后显示真实类型
+                else
+                    name = WanXiang.Campaign.NodeKinds.Cn(kind);
                 label.text = (offset + 1) + ". " + TermName(_graph.Terms[offset]) + "　【" + name + "】" +
                              (isHere ? "　◀ 当前" : canGo ? "　← 可前往" : passed ? "　已过" : "");
                 label.color = isHere ? NodeVisited : canGo ? NodeReachable : passed ? PathGold : NodeLocked;
@@ -319,6 +323,17 @@ namespace WanXiang.Modules.UI
             if (isHere) item.SetAsFirstSibling();
             _nodeItems.Add(item);
             return item;
+        }
+
+        /// <summary>读揭晓结果（没揭晓返回 Question 本身）。</summary>
+        private WanXiang.Campaign.NodeKind RevealedKind(int offset)
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run != null && run.QuestionRevealed != null)
+                foreach (var rec in run.QuestionRevealed)
+                    if (rec != null && rec.StartsWith(offset + ":"))
+                        return (WanXiang.Campaign.NodeKind)int.Parse(rec.Substring(rec.IndexOf(':') + 1));
+            return WanXiang.Campaign.NodeKind.Question;
         }
 
         /// <summary>问号是否已揭晓（读存档的 "offset:kind" 记录）。</summary>
@@ -413,6 +428,25 @@ namespace WanXiang.Modules.UI
             }
         }
 
+        /// <summary>
+        /// 孵穴二选一（GDD §4.3）：回复全队 40% 生命 ／ 取 2 枚灵卵。
+        /// 「回复」在每场满血开局的架构下的表现 = 下一场战斗我方全体 ×1.4（用后清零）；
+        /// 等 HP 跨场持续化后再改回真·回复。
+        /// </summary>
+        private async Cysharp.Threading.Tasks.UniTaskVoid NestChoose(WanXiang.Run.RunState run)
+        {
+            if (run == null) return;
+            int pick = await Dialog.Choose("孵穴",
+                "二选一：\nA. 下一场战斗全队状态回复，能力 ×1.4\nB. 取 2 枚灵卵",
+                "状态回复", "取 2 灵卵");
+            if (pick == 0) run.HealPending = 40;
+            else run.Eggs += 2;
+            WanXiang.Run.RunSave.SaveCurrent();
+            await Dialog.Tip("孵穴", pick == 0
+                ? "全队状态回复！下一场战斗能力 ×1.4"
+                : "获得 2 枚灵卵（当前 " + run.Eggs + "）");
+        }
+
         private static string CnNum(int n)
         {
             switch (n)
@@ -478,7 +512,33 @@ namespace WanXiang.Modules.UI
             {
                 run.Act = _graph.Act;
                 run.NodeOffset = _selected;
+                if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
+                    run.VisitedNodes.Add(_selected);
+                if (run.Path != null) run.Path.Add(_selected);
                 WanXiang.Run.RunSave.SaveCurrent();
+            }
+
+            // ---- 问号节点：走上去这一刻揭晓（v1.2 核心）----
+            // 揭晓池 = 休整类五种（绝不揭晓成精英，保底见《节点地图设计 v1.2》第 4 节）
+            if (kind == WanXiang.Campaign.NodeKind.Question)
+            {
+                var pool = new[]
+                {
+                    WanXiang.Campaign.NodeKind.Shop, WanXiang.Campaign.NodeKind.Nest,
+                    WanXiang.Campaign.NodeKind.Tale, WanXiang.Campaign.NodeKind.Forge,
+                    WanXiang.Campaign.NodeKind.Omen,
+                };
+                var rng = new WanXiang.Battle.Core.DeterministicRandom(
+                    CoreMath.Fnv1a("reveal:" + (run != null ? run.RunSeed : 0) + ":" + _selected));
+                var revealed = pool[rng.NextInt(0, pool.Length)];
+                if (run != null)
+                {
+                    if (run.QuestionRevealed == null) run.QuestionRevealed = new System.Collections.Generic.List<string>();
+                    run.QuestionRevealed.Add(_selected + ":" + (int)revealed);
+                    WanXiang.Run.RunSave.SaveCurrent();
+                }
+                kind = revealed;
+                Dialog.Tip("？ 揭晓", "这里是「" + WanXiang.Campaign.NodeKinds.Cn(revealed) + "」！").Forget();
             }
 
             // 先关节点地图：它与接下来要开的面板同在 Normal 层
@@ -500,11 +560,7 @@ namespace WanXiang.Modules.UI
                     OpenPanelAsync<OmenPanel>().Forget();
                     return;
                 case WanXiang.Campaign.NodeKind.Nest:
-                    // TODO(玩法): 孵穴是"回复 40% 生命 / 取 2 枚灵卵"二选一，
-                    //   还缺一个二选一弹窗（可复用 Panel_Trial 的卡片形态）。
-                    //   先按"取 2 枚灵卵"结算，别把玩家卡在节点上。
-                    if (run != null) { run.Eggs += 2; WanXiang.Run.RunSave.SaveCurrent(); }
-                    Debug.Log("[Campaign] 孵穴：暂按「取 2 枚灵卵」结算（二选一弹窗待做）。");
+                    NestChoose(run).Forget();
                     return;
             }
 

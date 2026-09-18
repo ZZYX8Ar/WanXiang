@@ -44,6 +44,9 @@ namespace WanXiang.Run
         /// </summary>
         public int RunSeed = 0;
 
+        /// <summary>孵穴「回复 40%」的挂起值（下一场战斗我方 ×(1+值/100)，用后清零）。</summary>
+        public int HealPending = 0;
+
         /// <summary>幕内当前节点下标（-1 = 还没出发）；换幕时归 -1。</summary>
         public int NodeOffset = -1;
 

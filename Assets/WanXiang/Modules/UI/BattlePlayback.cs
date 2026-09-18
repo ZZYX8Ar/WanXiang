@@ -23,6 +23,9 @@ namespace WanXiang.Modules.UI
         public string WeatherName = "";
         public ulong Seed = 20260914UL;
         public List<BeastDef> Player = new List<BeastDef>();
+        /// <summary>我方全体属性倍率（孵穴「回复」的载体：下一场战斗 ×1.4）。</summary>
+        public float PlayerMul = 1f;
+
         public List<BeastDef> Enemy = new List<BeastDef>();
 
         /// <summary>
@@ -62,7 +65,8 @@ namespace WanXiang.Modules.UI
 
             var p = new DeployEntry[req.Player.Count];
             for (int i = 0; i < p.Length; i++)
-                p[i] = DeployEntry.Player(req.Player[i], BattleRequest.Cells[i % BattleRequest.Cells.Length]);
+                p[i] = DeployEntry.Player(req.Player[i], BattleRequest.Cells[i % BattleRequest.Cells.Length])
+                                  .WithMul(req.PlayerMul);
 
             DeployEntry[] e;
             if (req.EnemyEntries != null && req.EnemyEntries.Count > 0)

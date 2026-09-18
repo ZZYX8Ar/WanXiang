@@ -93,6 +93,13 @@ namespace WanXiang.Modules.UI
                 Seed = seed,
             };
 
+            // 孵穴「回复 40%」：下一场战斗我方全体 ×1.4，用掉即清
+            if (run.HealPending > 0)
+            {
+                req.PlayerMul = 1f + run.HealPending / 100f;
+                run.HealPending = 0;
+            }
+
             // ---- 我方：存档队伍按 id 回查 ----
             var byId = new Dictionary<string, BeastDef>();
             foreach (var b in all) byId[b.Id] = b;
