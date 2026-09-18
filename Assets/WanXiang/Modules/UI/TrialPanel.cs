@@ -6,6 +6,8 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using WanXiang.Battle.Core;
+using WanXiang.Fusion;
 using WanXiang.Framework.UI;
 
 namespace WanXiang.Modules.UI
@@ -21,6 +23,7 @@ namespace WanXiang.Modules.UI
         [BindArray("Tmp_ChoiceDesc_{0}", 3)]
         [SerializeField] private TMP_Text[] _tmpChoiceDescs;   // 后果说明
         [SerializeField] private TMP_Text _tmpStatus;          // Tmp_Status 当前境劫与灵卵数
+        [SerializeField] private WanXiang.Fusion.ContentCatalogSO _contentCatalog;  // 由生成器注入
 
         public override bool AllowBackClose => false;
 
@@ -33,9 +36,70 @@ namespace WanXiang.Modules.UI
             }
         }
 
+        /// <summary>
+        /// 天阙抉择（GDD 第 7 章，每轮结束三选一）：
+        ///   0 登天阙 → 终局战（后土位：图鉴最强 + 我方队伍镜像 ×1.5），赢了就是真通关；
+        ///   1 续劫   → 季节回春，队伍/资源/路线种子继承，敌强 +3%、+1 道劫律；
+        ///   2 归元   → 主动结束本局，按当前进度正常结算回主城。
+        /// </summary>
         private void OnChoiceClicked(int index)
         {
-            // TODO(交互): 0 登天阙 → 结算并解锁下一境；1 续劫 → 劫数+1 重开一轮；2 归元 → 结算回主界面
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return;
+
+            switch (index)
+            {
+                case 0:  // 登天阙：终局战
+                    {
+                        var all = _contentCatalog != null ? ContentLibrary.BuildBeasts(_contentCatalog) : null;
+                        if (all == null || all.Length == 0) { CloseSelf(); return; }
+
+                        // 主将 = 图鉴最强（后土的 BeastDef 待内容补齐，先以最强者顶位并注明）
+                        BeastDef boss = all[0];
+                        foreach (var b in all)
+                            if ((int)b.Rarity > (int)boss.Rarity) boss = b;
+
+                        var req = new BattleRequest
+                        {
+                            Title = "天阙 · " + boss.DisplayName,
+                            WeatherName = "终局：后土 + 我方镜像 ×3，倍率 ×1.5",
+                            Seed = (ulong)run.RunSeed + 9999,
+                        };
+                        var entries = new System.Collections.Generic.List<DeployEntry>();
+                        entries.Add(DeployEntry.Enemy(boss, BattleRequest.Cells[4]).WithMul(1.5f));
+                        int mirrors = System.Math.Min(3, run.Team != null ? run.Team.Count : 0);
+                        for (int i = 0; i < mirrors; i++)
+                        {
+                            var byId = new System.Collections.Generic.Dictionary<string, BeastDef>();
+                            foreach (var b in all) byId[b.Id] = b;
+                            if (byId.TryGetValue(run.Team[i], out var mirror))
+                                entries.Add(DeployEntry.Enemy(mirror, BattleRequest.Cells[i]).WithMul(1.2f));
+                        }
+                        req.EnemyEntries.AddRange(entries);
+
+                        CloseSelf();
+                        SceneFlow.EnterBattle(req);
+                        break;
+                    }
+                case 1:  // 续劫：回春 + 劫数 +1 + 敌强 +3%
+                    {
+                        run.Jie = run.Jie >= 3 ? 1 : run.Jie + 1;
+                        if (run.Jie == 1) run.Realm = System.Math.Min(3, run.Realm + 1);
+                        run.Act = 1;
+                        run.NodeOffset = -1;
+                        run.RunSeed = UnityEngine.Random.Range(1, int.MaxValue);   // 新劫新图
+                        if (run.QuestionRevealed != null) run.QuestionRevealed.Clear();
+                        WanXiang.Run.RunSave.SaveCurrent();
+
+                        CloseSelf();
+                        var tt = OpenPanelAsync<CampaignPanel>();
+                        Cysharp.Threading.Tasks.UniTaskExtensions.Forget<CampaignPanel>(tt);
+                        break;
+                    }
+                default:  // 归元：结束本局，回主城
+                    CloseSelf();
+                    break;
+            }
         }
     }
 }

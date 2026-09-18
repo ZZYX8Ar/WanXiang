@@ -32,6 +32,11 @@ namespace WanXiang.Modules.Boot
 
             if (SceneFlow.ConsumeResult(out var result))
             {
+                // 第四幕守关（第 12 层）胜利 → 回主城后弹「天阙抉择」三选一
+                var run0 = WanXiang.Run.RunSave.Current;
+                if (result.Win && run0 != null && run0.Act == 4 && run0.NodeOffset == 11 && !run0.BeatFinale)
+                    SceneFlow.PendingFinale = true;
+
                 await ui.OpenAsync<ResultPanel>(result);
                 Debug.Log("[MainSceneEntry] 已弹出战斗结算。");
                 return;

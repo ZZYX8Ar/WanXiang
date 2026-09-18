@@ -30,6 +30,9 @@ namespace WanXiang.Modules.UI
         /// <summary>回主城要弹的结算；主城入口取用后清零。</summary>
         public static ResultRequest PendingResult;
 
+        /// <summary>天阙抉择挂起标记：第四幕守关胜利后置位，主城打开时弹三选一。</summary>
+        public static bool PendingFinale;
+
         /// <summary>开始游戏：进主城。</summary>
         public static void EnterMain()
         {

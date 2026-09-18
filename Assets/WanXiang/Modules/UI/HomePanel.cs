@@ -82,6 +82,13 @@ namespace WanXiang.Modules.UI
             }
             RefreshDeployLabel();
             HideRetiredEntries();
+
+            // 天阙抉择挂起 → 弹三选一（登天阙 / 续劫 / 归元）。Overlay 层盖住主城，必须选。
+            if (SceneFlow.PendingFinale)
+            {
+                SceneFlow.PendingFinale = false;
+                OpenPanelAsync<TrialPanel>().Forget();
+            }
             return UniTask.CompletedTask;
         }
 

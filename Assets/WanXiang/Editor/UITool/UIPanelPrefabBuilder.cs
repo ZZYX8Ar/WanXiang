@@ -1097,6 +1097,7 @@ namespace WanXiang.EditorTools
             UIBuild.BindArr(comp, "_tmpChoiceTitles", choiceTitles);
             UIBuild.BindArr(comp, "_tmpChoiceDescs", choiceDescs);
             UIBuild.Bind(comp, "_tmpStatus", tmpStatus);
+            UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
             UIBuild.SavePrefab(root, "Panel_Trial");
         }
 
