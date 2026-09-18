@@ -285,7 +285,27 @@ namespace WanXiang.Modules.UI
             var btn = item.GetComponent<Button>();
             if (btn == null) btn = item.gameObject.AddComponent<Button>();
             btn.targetGraphic = item.GetComponent<Image>();
+            // 已过的节点：不可再点 + 变灰 + 右上角一个 ✕（用户要求"通过了就不能再点"）
             btn.interactable = canGo || isHere;
+
+            var mark = item.Find("Tmp_Done") != null ? item.Find("Tmp_Done").GetComponent<TMP_Text>() : null;
+            if (mark == null)
+            {
+                var mrt = new GameObject("Tmp_Done", typeof(RectTransform)).GetComponent<RectTransform>();
+                mrt.SetParent(item, false);
+                mrt.anchorMin = new Vector2(1f, 1f);
+                mrt.anchorMax = new Vector2(1f, 1f);
+                mrt.pivot = new Vector2(0.5f, 0.5f);
+                mrt.anchoredPosition = new Vector2(-30f, -20f);
+                mrt.sizeDelta = new Vector2(60f, 50f);
+                mark = mrt.gameObject.AddComponent<TextMeshProUGUI>();
+                mark.fontSize = 40;
+                mark.fontStyle = FontStyles.Bold;
+                mark.alignment = TextAlignmentOptions.Center;
+                mark.raycastTarget = false;
+            }
+            mark.gameObject.SetActive(passed && !isHere && !canGo);
+            if (mark.gameObject.activeSelf) mark.color = new Color(0.55f, 0.52f, 0.46f, 0.9f);
             var captured = offset;
             btn.onClick.AddListener(() => SelectNode(captured, silent: false));
 

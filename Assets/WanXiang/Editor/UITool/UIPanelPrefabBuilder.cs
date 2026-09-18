@@ -903,6 +903,8 @@ namespace WanXiang.EditorTools
             UIBuild.BindArr(comp, "_imgSwatch", swatches);
             UIBuild.Bind(comp, "_tmpResult", tmpResult);
             UIBuild.Bind(comp, "_btnFuse", bFuse.GetComponent<Button>());
+            UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
+            UIBuild.Bind(comp, "_sprites", LoadAsset<SpriteCatalog>(SpriteCatalogPath));
             UIBuild.SavePrefab(root, "Panel_Forge");
         }
 
