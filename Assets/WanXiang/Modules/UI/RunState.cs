@@ -47,6 +47,12 @@ namespace WanXiang.Run
         /// <summary>孵穴「回复 40%」的挂起值（下一场战斗我方 ×(1+值/100)，用后清零）。</summary>
         public int HealPending = 0;
 
+        /// <summary>
+        /// L4 祭坛：五行各一条数值增益，每条 0..5 级，每级 +1.6%（总封顶 +8%，GDD 第 8.3 节）。
+        /// 局外**永久**生效（区别于 HealPending 这类一次性挂起值）。
+        /// </summary>
+        public int[] MetaAltar = new int[5];
+
         /// <summary>天象/异闻挂起：下一场战斗我方修正 %（可负，用后清零）。</summary>
         public int PlayerBuffPct = 0;
 

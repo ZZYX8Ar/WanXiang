@@ -93,10 +93,15 @@ namespace WanXiang.Modules.UI
                 Seed = seed,
             };
 
+            // L4 祭坛：五行等级和 × 1.6% —— 局外永久数值线，每场都生效（总封顶 +8%）
+            int altarSum = 0;
+            if (run.MetaAltar != null)
+                foreach (var lv in run.MetaAltar) altarSum += lv;
+
             // 挂起修正（孵穴回复 / 天象异闻）：进本场后清零
-            if (run.HealPending != 0 || run.PlayerBuffPct != 0 || run.EnemyBuffPct != 0)
+            if (run.HealPending != 0 || run.PlayerBuffPct != 0 || run.EnemyBuffPct != 0 || altarSum > 0)
             {
-                req.PlayerMul = 1f + (run.HealPending + run.PlayerBuffPct) / 100f;
+                req.PlayerMul = 1f + altarSum * 0.016f + (run.HealPending + run.PlayerBuffPct) / 100f;
                 if (req.EnemyEntries != null)
                     foreach (var en in req.EnemyEntries)
                         en.WithMul(en.StatMul * (1f + run.EnemyBuffPct / 100f));
