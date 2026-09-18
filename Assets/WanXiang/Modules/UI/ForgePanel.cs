@@ -46,6 +46,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Image[] _imgSwatch;           // 五色区预览（bodyMain/bodyAccent/energyGlow/eyeCore/outline）
         [SerializeField] private TMP_Text _tmpResult;          // Tmp_ResultName 融合预览名
         [SerializeField] private Button _btnFuse;              // Btn_Fuse
+        [SerializeField] private Button _btnBack;              // Btn_Back  返回节点地图
         [SerializeField] private WanXiang.Fusion.ContentCatalogSO _contentCatalog;  // 由生成器注入
         [SerializeField] private WanXiang.Battle.Presentation.SpriteCatalog _sprites;  // 同上
 
@@ -65,6 +66,7 @@ namespace WanXiang.Modules.UI
         protected override void OnCreate()
         {
             if (_btnFuse != null) _btnFuse.onClick.AddListener(OnFuseClicked);
+            if (_btnBack != null) _btnBack.onClick.AddListener(CloseSelf);   // 回到节点地图
         }
 
         protected override UniTask OnOpenAsync(object payload)

@@ -37,6 +37,13 @@ namespace WanXiang.Run
         /// <summary>当前幕（1..5，对应 SolarTermGraph 的五幕）——节点地图用。</summary>
         public int Act = 1;
 
+        /// <summary>
+        /// 本局路线图种子。**新开一局时随机生成并持久化**：
+        /// 局内重进 → 同一张图（可背版）；重开一局 / 新档 → 新种子 → 全新路线图。
+        /// 0 = 未生成（打开节点地图时 lazy 补种）。
+        /// </summary>
+        public int RunSeed = 0;
+
         /// <summary>幕内当前节点下标（-1 = 还没出发）；换幕时归 -1。</summary>
         public int NodeOffset = -1;
 

@@ -891,6 +891,9 @@ namespace WanXiang.EditorTools
                 "宿主 · 灵魂", 34, UIBuild.Ink, TextAlignmentOptions.Center);
             var bFuse = UIBuild.MakeBtn(rt, "Btn_Fuse", new Vector2(1f, 0f),
                 new Vector2(420, 110), new Vector2(-120, 60), "熔炼", UIBuild.Gold, 34f);
+            // 返回节点地图（熔炼完或不想熔了，得有路回去）
+            var bBack = UIBuild.MakeBtn(rt, "Btn_Back", new Vector2(0f, 0f),
+                new Vector2(300, 96), new Vector2(120, 60), "返回地图", UIBuild.Card, 28f);
 
             UIBuild.Bind(comp, "_tmpTitle", tmpTitle);
             UIBuild.Bind(comp, "_tmpEggs", tmpEggs);
@@ -905,6 +908,7 @@ namespace WanXiang.EditorTools
             UIBuild.BindArr(comp, "_imgSwatch", swatches);
             UIBuild.Bind(comp, "_tmpResult", tmpResult);
             UIBuild.Bind(comp, "_btnFuse", bFuse.GetComponent<Button>());
+            UIBuild.Bind(comp, "_btnBack", bBack.GetComponent<Button>());
             UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
             UIBuild.Bind(comp, "_sprites", LoadAsset<SpriteCatalog>(SpriteCatalogPath));
             UIBuild.SavePrefab(root, "Panel_Forge");

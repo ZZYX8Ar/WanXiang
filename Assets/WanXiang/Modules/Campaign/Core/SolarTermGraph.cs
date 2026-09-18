@@ -318,15 +318,16 @@ namespace WanXiang.Campaign
             if (firstLayer) return NodeKind.Encounter;
 
             // 权重表见《节点地图设计 v1.2》第 3 节：战斗约四成、休整约六成、问号另计
+            // 权重表对应《节点地图设计 v1.2》第 3 节；问号从 4% 提到 14%（用户要求增加）
             int roll = rng.NextInt(0, 100);
-            if (roll < 34) return NodeKind.Encounter;
-            if (roll < 48) return NodeKind.Elite;
-            if (roll < 60) return NodeKind.Shop;
-            if (roll < 70) return NodeKind.Nest;
-            if (roll < 80) return NodeKind.Tale;
-            if (roll < 88) return NodeKind.Forge;
-            if (roll < 96) return NodeKind.Omen;
-            return NodeKind.Question;
+            if (roll < 32) return NodeKind.Encounter;
+            if (roll < 44) return NodeKind.Elite;
+            if (roll < 53) return NodeKind.Shop;
+            if (roll < 61) return NodeKind.Nest;
+            if (roll < 68) return NodeKind.Tale;
+            if (roll < 74) return NodeKind.Forge;
+            if (roll < 86) return NodeKind.Omen;
+            return NodeKind.Question;   // 14%
         }
 
         /// <summary>
@@ -346,7 +347,7 @@ namespace WanXiang.Campaign
             }
 
             if (battles < 4) return false;                       // 战斗保底
-            if (questions < 1 || questions > 3) return false;    // 问号数量
+            if (questions < 2 || questions > 5) return false;    // 问号数量（用户要求增加：2~5）
             if (g.Layers[11].Length != 1) return false;          // 末层唯一（守关）
 
             // 问号不连续：相邻两层最多一个问号

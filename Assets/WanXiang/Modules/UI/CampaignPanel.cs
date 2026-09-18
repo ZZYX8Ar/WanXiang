@@ -119,7 +119,14 @@ namespace WanXiang.Modules.UI
             // ---- 数据源：v1.2 路线图（12 层、层内 2~3、种子稳定）----
             var run = WanXiang.Run.RunSave.Current;
             int act = Mathf.Clamp(run != null ? run.Act : 1, 1, 5);
-            ulong seed = CoreMath.Fnv1a("route:" + (run != null ? run.Slot : 0) + ":" + act);
+            // ⚠ 种子绑定**本局**（RunSeed）而不是槽位：局内重进是同一张图，
+            //   重开一局 / 新档 → 新种子 → 全新路线图（用户：每局都要随机）。
+            if (run != null && run.RunSeed == 0)
+            {
+                run.RunSeed = UnityEngine.Random.Range(1, int.MaxValue);
+                WanXiang.Run.RunSave.SaveCurrent();
+            }
+            ulong seed = CoreMath.Fnv1a("route:" + (run != null ? run.RunSeed : 0) + ":" + act);
             _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(act, seed, Layers);
 
             _currentOffset = run != null ? run.NodeOffset : -1;

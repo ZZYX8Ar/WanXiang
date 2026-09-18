@@ -127,6 +127,7 @@ namespace WanXiang.Modules.UI
             run.Wins = 0;
             run.Eggs = 0;
             run.Ink = 0;
+            run.RunSeed = UnityEngine.Random.Range(1, int.MaxValue);   // 重开 = 全新路线图
             if (run.Path != null) run.Path.Clear();
             if (run.VisitedNodes != null) run.VisitedNodes.Clear();
             if (run.QuestionRevealed != null) run.QuestionRevealed.Clear();
