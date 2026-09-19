@@ -195,6 +195,9 @@ namespace WanXiang.Modules.UI
             float curY = (_currentOffset >= 0)
                 ? -(Layers - 1 - _graph.LayerOf(_currentOffset)) * (NodeH + GapY)
                 : -(Layers - 1) * (NodeH + GapY);
+            // ⚠ content.sizeDelta 刚改过，布局要等下一次 Canvas 更新才算完 ——
+            //   不 ForceUpdate 的话这行设置会被后续布局覆盖，玩家只能自己往上滑（用户实测）。
+            UnityEngine.Canvas.ForceUpdateCanvases();
             _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 200f) / Mathf.Max(1f, totalH));
         }
 

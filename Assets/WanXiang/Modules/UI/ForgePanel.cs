@@ -68,7 +68,11 @@ namespace WanXiang.Modules.UI
         protected override void OnCreate()
         {
             if (_btnFuse != null) _btnFuse.onClick.AddListener(OnFuseClicked);
-            if (_btnBack != null) _btnBack.onClick.AddListener(CloseSelf);   // 回到节点地图
+            if (_btnBack != null) _btnBack.onClick.AddListener(() => {
+                            CloseSelf();
+                var __ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+                if (__ui != null) _ = __ui.OpenAsync<CampaignPanel>();
+            });   // 回到节点地图（继续探索）
             BuildDiff();
         }
 
