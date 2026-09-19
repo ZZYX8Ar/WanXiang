@@ -63,10 +63,35 @@ namespace WanXiang.Modules.UI
         private static readonly Color CoverOff = new Color(0.62f, 0.60f, 0.55f, 0.45f);
         private static readonly Color CoverOn = new Color(0.42f, 0.55f, 0.36f, 1f);
 
+        private TMP_Text _tmpDiff;      // 代码自建：把"灵魂到底改了什么"一栏一栏列出来
+
         protected override void OnCreate()
         {
             if (_btnFuse != null) _btnFuse.onClick.AddListener(OnFuseClicked);
             if (_btnBack != null) _btnBack.onClick.AddListener(CloseSelf);   // 回到节点地图
+            BuildDiff();
+        }
+
+        /// <summary>
+        /// 玩家不知道"灵魂有什么用" —— 因为界面从没告诉他。
+        /// 这一块按《暗黑破坏神》镶嵌宝石的对比写法（绿色=变、灰=不变）把差异列清楚：
+        /// 五行 / 技能 / 特性 / 辉光色，四栏。
+        /// </summary>
+        private void BuildDiff()
+        {
+            if (_tmpDiff != null) return;
+            var rt = new GameObject("Tmp_SoulDiff", typeof(RectTransform)).GetComponent<RectTransform>();
+            rt.SetParent(transform, false);
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.sizeDelta = new Vector2(980f, 210f);
+            rt.anchoredPosition = new Vector2(0f, -300f);      // 漩涡下方
+            _tmpDiff = rt.gameObject.AddComponent<TextMeshProUGUI>();
+            _tmpDiff.fontSize = 24;
+            _tmpDiff.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+            _tmpDiff.alignment = TextAlignmentOptions.TopLeft;
+            _tmpDiff.raycastTarget = false;
         }
 
         protected override UniTask OnOpenAsync(object payload)
@@ -203,6 +228,65 @@ namespace WanXiang.Modules.UI
                     bool on = covered != Element.None && (int)covered == i;
                     _imgCover[i].color = on ? CoverOn : CoverOff;
                 }
+            }
+
+            WriteDiff(fused ?? _selectedHost);
+        }
+
+        /// <summary>把融合前后的差异写成四行（这是"灵魂有什么用"的答案）。</summary>
+        private void WriteDiff(BeastDef after)
+        {
+            if (_tmpDiff == null || _selectedHost == null || _selectedSoul == null) return;
+            var before = _selectedHost;
+            var sb = new System.Text.StringBuilder();
+
+            // 五行
+            sb.Append("五行　").Append(Cn(before.Element)).Append(" → ")
+              .Append(Cn(after.Element))
+              .Append(after.Element != before.Element ? "　（克制关系改变）" : "　（未变）").Append("\n");
+
+            // 技能：逐个槽位比对，只列变化
+            sb.Append("技能　");
+            bool anySkill = false;
+            anySkill |= SkillSlot(sb, "普攻", before.Basic, after.Basic, ref anySkill);
+            SkillSlot(sb, "主动", before.Active, after.Active, ref anySkill);
+            SkillSlot(sb, "绝技", before.Ultimate, after.Ultimate, ref anySkill);
+            if (!anySkill) sb.Append("未变");
+            sb.Append("\n");
+
+            // 特性
+            sb.Append("特性　").Append(string.IsNullOrEmpty(before.Trait.Name) ? "无" : before.Trait.Name)
+              .Append(" → ").Append(string.IsNullOrEmpty(after.Trait.Name) ? "无" : after.Trait.Name).Append("\n");
+
+            // 辉光 / 睛色
+            sb.Append("辉光　").Append(string.IsNullOrEmpty(before.Palette.EnergyGlow) ? "默认" : before.Palette.EnergyGlow)
+              .Append(" → ").Append(string.IsNullOrEmpty(after.Palette.EnergyGlow) ? "默认" : after.Palette.EnergyGlow)
+              .Append("　睛色　").Append(string.IsNullOrEmpty(before.Palette.EyeCore) ? "默认" : before.Palette.EyeCore)
+              .Append(" → ").Append(string.IsNullOrEmpty(after.Palette.EyeCore) ? "默认" : after.Palette.EyeCore);
+
+            _tmpDiff.text = sb.ToString();
+        }
+
+        private static bool SkillSlot(System.Text.StringBuilder sb, string label, SkillDef b, SkillDef a, ref bool any)
+        {
+            string bn = b != null ? b.Name : "无";
+            string an = a != null ? a.Name : "无";
+            if (bn == an) return false;
+            sb.Append(label).Append(" ").Append(bn).Append("→").Append(an).Append("　");
+            any = true;
+            return true;
+        }
+
+        private static string Cn(Element e)
+        {
+            switch (e)
+            {
+                case Element.Wood: return "木";
+                case Element.Fire: return "火";
+                case Element.Earth: return "土";
+                case Element.Metal: return "金";
+                case Element.Water: return "水";
+                default: return "无";
             }
         }
 
