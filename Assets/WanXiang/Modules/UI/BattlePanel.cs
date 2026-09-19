@@ -380,6 +380,27 @@ namespace WanXiang.Modules.UI
             _stage.Step(Time.deltaTime * Mathf.Max(1f, _speed));
         }
 
+        /// <summary>目标选择器的中文名（提示面板用；与 TargetSelector 一一对应）。</summary>
+        private static string TargetNameOf(WanXiang.Battle.Core.TargetSelector t)
+        {
+            switch (t)
+            {
+                case WanXiang.Battle.Core.TargetSelector.Self: return "自己";
+                case WanXiang.Battle.Core.TargetSelector.SingleLowestHp: return "生命最低的敌人";
+                case WanXiang.Battle.Core.TargetSelector.SingleHighestHp: return "生命最高的敌人";
+                case WanXiang.Battle.Core.TargetSelector.SingleHighestAtk: return "攻击最高的敌人";
+                case WanXiang.Battle.Core.TargetSelector.AllEnemies: return "全体敌人";
+                case WanXiang.Battle.Core.TargetSelector.AllAllies: return "全体友方";
+                case WanXiang.Battle.Core.TargetSelector.RandomEnemy: return "随机敌人";
+                case WanXiang.Battle.Core.TargetSelector.RandomEnemyMultiHit: return "随机敌人（连击）";
+                case WanXiang.Battle.Core.TargetSelector.AdjacentToSelf: return "自身相邻";
+                case WanXiang.Battle.Core.TargetSelector.AllOthers: return "全场其他";
+                case WanXiang.Battle.Core.TargetSelector.SingleFrontMost: return "最前排";
+                case WanXiang.Battle.Core.TargetSelector.SingleBackMost: return "最后排";
+                default: return "—";
+            }
+        }
+
         /// <summary>是否还有"已产生但未播放"的事件。</summary>
         private bool HasPendingEvent()
         {
@@ -779,7 +800,11 @@ namespace WanXiang.Modules.UI
                 {
                     if (!string.IsNullOrEmpty(sk.Name)) title = sk.Name;
                     string desc = string.IsNullOrEmpty(sk.Description) ? "（暂无描述）" : sk.Description;
-                    body = desc + "\n" + descHint + "\n\n" + body;
+                    // 目标规则：与核心的"普攻打最前排"特判保持一致（否则界面会误导布阵）
+                    string targetName = sk.Cd == 0
+                        ? "最前排（普攻默认打前排，站位决定谁先承伤）"
+                        : TargetNameOf(sk.PrimaryTarget);
+                    body = desc + "\n目标：" + targetName + "\n" + descHint + "\n\n" + body;
                     if (slot == 2 && u.Rage < u.RageCap)
                         body += "\n当前元气 " + (int)u.Rage + "/" + (int)u.RageCap + "（满值才可释放）";
                 }
