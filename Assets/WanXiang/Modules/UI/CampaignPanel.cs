@@ -43,6 +43,10 @@ namespace WanXiang.Modules.UI
     //   否则玩家点任何空白处都会把界面关掉（踩过）。
     public sealed class CampaignPanel : UIPanelBase
     {
+        /// <summary>节点地图不允许返回键关闭 —— 关掉后 Home 不会自动重开，屏幕就是空白（用户实测）。
+        ///  回主城走面板上的返回按钮。</summary>
+        public override bool AllowBackClose => false;
+
         [SerializeField] private TMP_Text _tmpActTitle;        // Tmp_ActTitle  幕名
         [SerializeField] private TMP_Text _tmpJie;             // Tmp_JieCount  劫数
         [SerializeField] private ScrollRect _scrollNodes;      // Scroll_Nodes  节点长卷

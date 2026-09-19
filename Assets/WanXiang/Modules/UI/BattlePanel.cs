@@ -339,7 +339,9 @@ namespace WanXiang.Modules.UI
                     {
                         _lastWaitedId = puId;
                         RefreshActionBar();                   // 亮出操作区（新单位上台时刷一次）
-                        RefreshComboButton();                 // 连携按钮同步刷一次（不进每帧路径）
+                        RefreshComboButton();                 // 连携按钮同步刷一次
+                        RefreshOrderList();                   // ⚠ 行动条也要刷 —— 等令期间没有事件推进，
+                                                              //   不刷的话高亮还停在"上一个异兽"（用户实测）
                     }
                     if (_autoBattle)
                     {
