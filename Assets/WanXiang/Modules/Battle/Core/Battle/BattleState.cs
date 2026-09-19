@@ -53,6 +53,27 @@ namespace WanXiang.Battle.Core
 
         /// <summary>本场结算（手动模式下战斗结束时由 AdvanceToNextDecision 写入）。</summary>
         public BattleResult Result;
+
+        // ---- 回合制 v2.1 P2：灵力（全队共享一条槽）----
+
+        /// <summary>全队灵力（MP）。战记消耗它，普攻不耗；终结技耗元气不耗灵力。</summary>
+        public int TeamMp = 6;
+
+        /// <summary>灵力上限。超出部分丢失 —— 这是"必须花掉"的节奏压力来源。</summary>
+        public int TeamMpMax = 12;
+
+        /// <summary>每回合开回合时自然回复的灵力。</summary>
+        public const int MpRegenPerTurn = 2;
+
+        /// <summary>按技能槽位取灵力消耗（普攻 0 / 战记 3 / 终结技 0——耗元气）。</summary>
+        public static int MpCostOf(SkillType slot)
+        {
+            switch (slot)
+            {
+                case SkillType.Active: return 3;
+                default: return 0;      // Basic 免费；Ultimate 走元气
+            }
+        }
         public bool IsOver => Outcome != BattleOutcome.Ongoing;
 
         private readonly BattleUnit[][] _slots = new BattleUnit[2][];

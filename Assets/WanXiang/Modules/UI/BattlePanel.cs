@@ -645,15 +645,22 @@ namespace WanXiang.Modules.UI
             if (!waiting) return;
 
             var u = _play.PendingUnit;
+            var stt = _play.State;
+            int mp = stt != null ? stt.TeamMp : 0;
+            int mpMax = stt != null ? stt.TeamMpMax : 0;
+
             if (_tmpActor != null)
                 _tmpActor.text = u != null
-                    ? "轮到「" + u.DisplayName + "」—— 选择战记（灵力系统 P2 接入）"
+                    ? "轮到「" + u.DisplayName + "」　灵力 " + mp + "/" + mpMax +
+                      "（战记 " + WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active) + " 点）"
                     : "轮到我方行动";
 
             if (_skillBtns != null && u != null)
             {
-                _skillBtns[0].interactable = true;
-                _skillBtns[1].interactable = u.GetSkill(SkillType.Active) != null;
+                _skillBtns[0].interactable = true;      // 普攻永远可用（0 耗兜底）
+                // 战记：有技能 + 灵力够 —— 灵力不足时置灰，让"取舍"看得见
+                _skillBtns[1].interactable = u.GetSkill(SkillType.Active) != null
+                                          && mp >= WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active);
                 _skillBtns[2].interactable = u.GetSkill(SkillType.Ultimate) != null;
             }
         }

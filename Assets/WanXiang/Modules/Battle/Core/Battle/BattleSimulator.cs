@@ -100,6 +100,10 @@ namespace WanXiang.Battle.Core
                 st.Turn = turn;
                 st.Log.Add(turn, BattleEventKind.TurnStart);
 
+                // 灵力自然回复（v2.1 §3）：超出上限的部分丢失 —— 逼玩家在回合内花掉
+                if (st.TeamMp < st.TeamMpMax)
+                    st.TeamMp = System.Math.Min(st.TeamMpMax, st.TeamMp + BattleState.MpRegenPerTurn);
+
                 // ---- 劫律 20「万相归一」：敌方每回合获得 1 层「劫」（攻击 +1%，无上限）。
                 //      ⚠ 只涨攻击不涨生命 —— 与 GDD"全属性"有偏差，血量同步牵扯
                 //      当前生命比例，先做攻击轴（压力曲线方向一致），偏差已记录。
@@ -426,7 +430,22 @@ namespace WanXiang.Battle.Core
             var cfg = st.Config;
             if (!u.CanCastSkills) return u.GetSkill(SkillType.Basic);   // 05 清明的对立面：沉默只封技能
 
-            // ---- 回合制 v2.1 P1-2：玩家指令优先 ----
+            // ---- 回合制 v2.1 P2：灵力裁决 ----
+            //  先按既有规则（玩家指令优先 / AI）选出技能，再统一结算灵力消耗：
+            //  不够就落回普攻（普攻 0 耗，永远可用的兜底，避免回合卡死）。
+            {
+                var slot = DecideSlot(st, u, out var chosen);
+                if (chosen != null)
+                {
+                    int cost = BattleState.MpCostOf(slot);
+                    if (cost <= st.TeamMp)
+                    {
+                        st.TeamMp -= cost;
+                        return chosen;
+                    }
+                }
+                return u.GetSkill(SkillType.Basic);
+            }
             //  SkillIndex 直接用 SkillType 的枚举值（Basic/Active/Ultimate），-1 = 未指定（走 AI）。
             //  不可用（冷却/元气不足）时回退普攻 —— 玩家的选择不该把回合卡死，
             //  但界面在点之前就该禁用按钮，所以这里的回退只是兜底。
@@ -442,13 +461,51 @@ namespace WanXiang.Battle.Core
                 return u.GetSkill(SkillType.Basic);
             }
 
+            return u.GetSkill(SkillType.Basic);
+        }
+
+        /// <summary>
+        /// 决定"这个单位这次放哪个槽"（不扣灵力）：玩家指令优先，其次 AI 规则。
+        /// 灵力消耗交给 ChooseSkill 统一结算。
+        /// </summary>
+        private static SkillType DecideSlot(BattleState st, BattleUnit u, out SkillDef chosen)
+        {
+            var cfg = st.Config;
+
+            // ---- 玩家指令优先（P1-2）----
+            if (st.PlayerControlled && u.Side == TeamSide.Player
+                && st.PendingCommand.Valid && st.PendingCommand.ActorId == u.RuntimeId
+                && st.PendingCommand.SkillIndex >= 0)
+            {
+                var want = (SkillType)st.PendingCommand.SkillIndex;
+                st.PendingCommand = default;      // 一令一用
+                var picked = u.GetSkill(want);
+                if (picked != null && (want == SkillType.Basic || u.CanCast(want, cfg)))
+                {
+                    chosen = picked;
+                    return want;
+                }
+                chosen = u.GetSkill(SkillType.Basic);
+                return SkillType.Basic;
+            }
+
+            // ---- AI 规则（原逻辑）----
             var ult = u.GetSkill(SkillType.Ultimate);
-            if (ult != null && cfg.AutoCastUltimate && u.CanCast(SkillType.Ultimate, cfg)) return ult;
+            if (ult != null && cfg.AutoCastUltimate && u.CanCast(SkillType.Ultimate, cfg))
+            {
+                chosen = ult;
+                return SkillType.Ultimate;
+            }
 
             var act = u.GetSkill(SkillType.Active);
-            if (act != null && u.CanCast(SkillType.Active, cfg)) return act;
+            if (act != null && u.CanCast(SkillType.Active, cfg))
+            {
+                chosen = act;
+                return SkillType.Active;
+            }
 
-            return u.GetSkill(SkillType.Basic);
+            chosen = u.GetSkill(SkillType.Basic);
+            return SkillType.Basic;
         }
 
         // ================================================================
