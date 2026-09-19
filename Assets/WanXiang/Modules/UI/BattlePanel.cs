@@ -666,6 +666,7 @@ namespace WanXiang.Modules.UI
                 if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
                 if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
                 if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
+                HookTipCombo();
                 _actionBar.gameObject.SetActive(false);
                 return;
             }
@@ -806,19 +807,64 @@ namespace WanXiang.Modules.UI
             _tipPanel.gameObject.SetActive(false);
         }
 
+        /// <summary>给连携按钮挂悬浮说明（用户不知道连携是什么 —— 界面必须自我解释）。</summary>
+        private void HookTipCombo()
+        {
+            if (_btnCombo == null) return;
+            var trg = _btnCombo.gameObject.GetComponent<EventTrigger>();
+            if (trg == null) trg = _btnCombo.gameObject.AddComponent<EventTrigger>();
+            var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+            enter.callback.AddListener(_ => ShowComboTip());
+            trg.triggers.Add(enter);
+            var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+            exit.callback.AddListener(_ => HideSkillTip());
+            trg.triggers.Add(exit);
+        }
+
+        /// <summary>连携说明（无论当前是否可发动，都要解释它是什么）。</summary>
+        private void ShowComboTip()
+        {
+            if (_tipPanel == null || _tipText == null) return;
+            var combos = _play != null ? _play.AvailableCombos : null;
+            string title, body;
+            if (combos != null && combos.Count > 0)
+            {
+                var c = combos[0];
+                title = "连携·" + c.Name;
+                body = c.Note + "\n\n消耗：双方各 2 灵力（合计 4）\n限制：每场每种连携限用一次\n条件：主兽在场 + 对应元素伙伴在场\n\n点按钮立即发动";
+            }
+            else
+            {
+                title = "连携技";
+                body = "两只特定异兽同场时解锁的**双人合击**。\n\n例如：句芒（木）+ 任何木属性伙伴 ⇒ 青阳共鸣\n\n把主兽和对应元素的伙伴编入同一队伍，轮到主兽行动时这里就会亮出可发动的连携。";
+            }
+            _tipText.text = "<size=26><b>" + title + "</b></size>\n" + body;
+
+            _tipPanel.gameObject.SetActive(true);
+            _tipTween?.Kill();
+            _tipGroup.alpha = 0f;
+            _tipPanel.anchoredPosition = new Vector2(30f, 40f);
+            _tipTween = DOTween.Sequence()
+                .Join(_tipPanel.DOAnchorPos(new Vector2(52f, 40f), 0.18f).SetEase(Ease.OutQuad))
+                .Join(_tipGroup.DOFade(1f, 0.18f));
+        }
+
         /// <summary>
         /// 鼠标是否已离开所有战记按钮 → 是则收起提示。
         /// Overlay 画布用 null 相机（RectTransformUtility 对 ScreenSpaceOverlay 要求 cam = null）。
         /// </summary>
         private void CheckTipHover()
         {
-            if (_skillBtns == null) { HideSkillTip(); return; }
+            if (_skillBtns == null || _btnCombo == null) { if (_skillBtns == null) HideSkillTip(); return; }
+            if (RectTransformUtility.RectangleContainsScreenPoint(
+                    _btnCombo.transform as RectTransform, Input.mousePosition, null))
+                return;      // 在连携按钮上
             for (int i = 0; i < _skillBtns.Length; i++)
             {
                 if (_skillBtns[i] == null) continue;
                 var rt = _skillBtns[i].transform as RectTransform;
                 if (rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, Input.mousePosition, null))
-                    return;      // 还在某个按钮上
+                    return;      // 还在某个战记按钮上
             }
             HideSkillTip();
         }
