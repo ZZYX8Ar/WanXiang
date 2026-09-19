@@ -315,27 +315,6 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_btnTrial", bTrial.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnForge", bForge.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnOmen", bOmen.GetComponent<Button>());
-            // ---- 回合制 v2.1 P1-3：战记操作区（底部，默认隐藏，等下令时亮出）----
-            var actionBar = UIBuild.Fixed(rt, "Root_Action", new Vector2(0.5f, 0f),
-                new Vector2(1800, 150), new Vector2(0f, 95f));
-            UIBuild.Img(actionBar, UIBuild.Night);
-            var tmpActor = UIBuild.Tmp(UIBuild.Fixed(actionBar, "Tmp_Actor", new Vector2(0.5f, 1f),
-                new Vector2(1700, 40), new Vector2(0f, -8f)), "轮到我方行动", 26, UIBuild.Paper,
-                TextAlignmentOptions.Center);
-            var skillBtns = new Button[3];
-            string[] skillNames = { "普攻", "战记", "终结技" };
-            for (int si = 0; si < 3; si++)
-                skillBtns[si] = UIBuild.MakeBtn(actionBar, "Btn_Skill_" + si, new Vector2(0f, 0f),
-                    new Vector2(190, 76), new Vector2(120f + si * 210f, 54f),
-                    skillNames[si], UIBuild.Gold, 26f).GetComponent<Button>();
-            var bAutoBattle = UIBuild.MakeBtn(actionBar, "Btn_AutoBattle", new Vector2(1f, 0f),
-                new Vector2(200, 76), new Vector2(-120f, 54f), "自动战斗", UIBuild.Card, 24f)
-                .GetComponent<Button>();
-            actionBar.gameObject.SetActive(false);   // 等 AwaitingCommand 时由 BattlePanel 亮出
-            UIBuild.Bind(comp, "_actionBar", actionBar);
-            UIBuild.Bind(comp, "_tmpActor", tmpActor);
-            UIBuild.BindArr(comp, "_skillBtns", skillBtns);
-            UIBuild.Bind(comp, "_btnAutoBattle", bAutoBattle);
             UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
             UIBuild.Bind(comp, "_sprites", LoadAsset<SpriteCatalog>(SpriteCatalogPath));
             UIBuild.SavePrefab(root, "Panel_Home");
@@ -630,6 +609,27 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_btnAuto", bAuto.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnLeave", bLeave.GetComponent<Button>());
             UIBuild.Bind(comp, "_tmpLog", tmpLog);
+            // ---- 回合制 v2.1 P1-3：战记操作区（底部，默认隐藏，等下令时亮出）----
+            var actionBar = UIBuild.Fixed(rt, "Root_Action", new Vector2(0.5f, 0f),
+                new Vector2(1800, 150), new Vector2(0f, 95f));
+            UIBuild.Img(actionBar, UIBuild.Night);
+            var tmpActor = UIBuild.Tmp(UIBuild.Fixed(actionBar, "Tmp_Actor", new Vector2(0.5f, 1f),
+                new Vector2(1700, 40), new Vector2(0f, -8f)), "轮到我方行动", 26, UIBuild.Paper,
+                TextAlignmentOptions.Center);
+            var skillBtns = new Button[3];
+            string[] skillNames = { "普攻", "战记", "终结技" };
+            for (int si = 0; si < 3; si++)
+                skillBtns[si] = UIBuild.MakeBtn(actionBar, "Btn_Skill_" + si, new Vector2(0f, 0f),
+                    new Vector2(190, 76), new Vector2(120f + si * 210f, 54f),
+                    skillNames[si], UIBuild.Gold, 26f).GetComponent<Button>();
+            var bAutoBattle = UIBuild.MakeBtn(actionBar, "Btn_AutoBattle", new Vector2(1f, 0f),
+                new Vector2(200, 76), new Vector2(-120f, 54f), "自动战斗", UIBuild.Card, 24f)
+                .GetComponent<Button>();
+            actionBar.gameObject.SetActive(false);   // 等 AwaitingCommand 时由 BattlePanel 亮出
+            UIBuild.Bind(comp, "_actionBar", actionBar);
+            UIBuild.Bind(comp, "_tmpActor", tmpActor);
+            UIBuild.BindArr(comp, "_skillBtns", skillBtns);
+            UIBuild.Bind(comp, "_btnAutoBattle", bAutoBattle);
             UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
             UIBuild.Bind(comp, "_sprites", LoadAsset<SpriteCatalog>(SpriteCatalogPath));
             UIBuild.SavePrefab(root, "Panel_Battle");

@@ -65,6 +65,7 @@ MonoBehaviour:
   - {fileID: 2225808202603308709}
   - {fileID: 2538988232122139771}
   _tmpStatus: {fileID: 2935750890188092801}
+  _contentCatalog: {fileID: 11400000, guid: 60369f2fff5459b478abab98f70a9251, type: 2}
 --- !u!1 &351223344949527515
 GameObject:
   m_ObjectHideFlags: 0
