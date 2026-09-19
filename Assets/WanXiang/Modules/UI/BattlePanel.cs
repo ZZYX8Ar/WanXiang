@@ -529,15 +529,29 @@ namespace WanXiang.Modules.UI
         //  点一下就把指令交给 BattlePlayback.SubmitCommand，目标暂交给 AI（-1）。
         //  「自动战斗」= 反复下 -1 指令（= 交给 AI），与 v2.1 文档第 13 节一致。
         // ================================================================
-        private RectTransform _actionBar;
-        private TMP_Text _tmpActor;
-        private Button[] _skillBtns;
-        private Button _btnAutoBattle;
+        [SerializeField] private RectTransform _actionBar;    // Root_Action（生成器产物）
+        [SerializeField] private TMP_Text _tmpActor;          // Tmp_Actor 当前待令单位
+        [SerializeField] private Button[] _skillBtns;         // Btn_Skill_0..2（下标 = SkillType）
+        [SerializeField] private Button _btnAutoBattle;       // Btn_AutoBattle
         private bool _autoBattle;
 
         private void BuildActionBar()
         {
-            if (_actionBar != null) return;
+            // prefab 已绑定（生成器产物）→ 只接线，不重复建控件
+            if (_actionBar != null)
+            {
+                if (_skillBtns != null)
+                    for (int i = 0; i < _skillBtns.Length && i < 3; i++)
+                    {
+                        int idx = i;
+                        if (_skillBtns[i] != null) _skillBtns[i].onClick.AddListener(() => OnSkillClicked(idx));
+                    }
+                if (_btnAutoBattle != null) _btnAutoBattle.onClick.AddListener(OnAutoBattleClicked);
+                _actionBar.gameObject.SetActive(false);
+                return;
+            }
+
+            // 兜底：prefab 里没有操作区时（例如旧 prefab 没重跑生成器）代码自建一套
             var go = new GameObject("Root_Action", typeof(RectTransform));
             _actionBar = (RectTransform)go.transform;
             _actionBar.SetParent(transform, false);
