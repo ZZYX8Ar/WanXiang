@@ -20,6 +20,10 @@ namespace WanXiang.Modules.UI
     //   否则玩家点任何空白处都会把界面关掉（踩过）。
     public sealed class HomePanel : UIPanelBase
     {
+        /// <summary>主城是常驻底层，返回键绝不能关它 —— 否则上层面板（如节点地图）的
+        ///  返回输入会穿透到这里，把主城关掉，屏幕只剩背景色（用户实测空白）。</summary>
+        public override bool AllowBackClose => false;
+
         [SerializeField] private TMP_Text _tmpEggs;        // Tmp_Eggs      灵卵数量
         [SerializeField] private TMP_Text _tmpInk;         // Tmp_Ink       墨锭数量
         [SerializeField] private Image   _imgHero;         // Img_HeroSprite 主战异兽立绘

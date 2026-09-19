@@ -1033,15 +1033,22 @@ namespace WanXiang.Modules.UI
             // ⚠ 显示"**接下来**轮到谁"：以当前事件的 actorId 在本回合序列中的位置为界，
             //   只展示它之后（含它自己）的单位 —— 已行动过的不再列出来（用户实测嫌乱）。
             _orderBuf.AddRange(stt.TurnOrder);
-            // ⚠ "行动中"要跟**正在演出的画面**一致：用当前事件的 actorId，
-            //    而不是 PendingUnit（那是在等玩家下令的**下一个**单位）——
-            //    用 PendingUnit 会让高亮慢一拍（用户实测：显示的其实是上一个回合的）。
+            // ⚠ "当前行动者"的语义**分两种**（都实测过，别合并）：
+            //   · 演出中 → 跟随画面（当前事件的 actorId）
+            //   · 等玩家下令 → **待令单位就是"该行动的"** —— 此时 _play.Current 还停留在
+            //     上一单位的收尾事件（ActionEnd）上，若按它找 cur，高亮永远慢一拍（用户实测）。
             BattleUnit cur = null;
-            var ev = _play.Current;   // BattleEvent 是 struct，无需 null 检查
-            if (!string.IsNullOrEmpty(ev.ActorId))
-                for (int i = 0; i < _orderBuf.Count; i++)
-                    if (_orderBuf[i].RuntimeId == ev.ActorId) { cur = _orderBuf[i]; break; }
-            if (cur == null && _play.AwaitingCommand) cur = _play.PendingUnit;   // 等下令时用待令单位
+            if (_play.AwaitingCommand)
+            {
+                cur = _play.PendingUnit;
+            }
+            else
+            {
+                var ev = _play.Current;   // BattleEvent 是 struct，无需 null 检查
+                if (!string.IsNullOrEmpty(ev.ActorId))
+                    for (int i = 0; i < _orderBuf.Count; i++)
+                        if (_orderBuf[i].RuntimeId == ev.ActorId) { cur = _orderBuf[i]; break; }
+            }
 
             // 指纹：顺序（RuntimeId 的 hash 组合）+ 当前行动者
             int stamp = 17;
