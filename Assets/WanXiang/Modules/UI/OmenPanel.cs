@@ -78,11 +78,19 @@ namespace WanXiang.Modules.UI
                 WanXiang.Run.RunSave.SaveCurrent();
             }
             CloseSelf();
+            var __ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            Cysharp.Threading.Tasks.UniTask.Void(async () =>
+            {
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);
+                await __ui.OpenAsync<CampaignPanel>();
+            });
         }
 
         private void OnDeclineClicked()
         {
             CloseSelf();      // 天象放弃无补偿（与异闻的"拒绝换灵卵"区分开）
+            
+            
         }
     }
 }

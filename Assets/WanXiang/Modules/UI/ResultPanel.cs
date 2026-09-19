@@ -23,7 +23,8 @@ namespace WanXiang.Modules.UI
         public string Summary = "";
     }
 
-    [UIPanel("Panel_Result", Layer = UILayer.Overlay, CachePolicy = UICachePolicy.Transient, FullScreen = false)]
+    [UIPanel("Panel_Result", Layer = UILayer.Overlay, CachePolicy = UICachePolicy.Transient, FullScreen = false,
+             CloseOnMaskClick = false)]   // 奖励三选一：点空白不能关 —— 用户点歪一下整个面板就没了（实测）
     public sealed class ResultPanel : UIPanelBase
     {
         /// <summary>结算必须看完（不该被 Esc 关掉）（基类默认允许，这里显式禁止）。</summary>

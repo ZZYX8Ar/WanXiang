@@ -381,6 +381,14 @@ namespace WanXiang.Modules.UI
             // 提示面板兜底收起：**被置灰（interactable=false）的按钮不触发 PointerExit**，
             // 悬停后又移开会让面板一直留着（用户实测）。这里轮询鼠标位置兜底，
             // 面板可见时才检查 3 个按钮的矩形，开销可忽略。
+            // 自动战斗指示：显示 + 旋转（金色 ⟳，1.4s 一圈，够醒目又不晃眼）
+            if (_autoSpin != null)
+            {
+                bool show = _autoBattle && _playing;
+                if (_autoSpin.gameObject.activeSelf != show) _autoSpin.gameObject.SetActive(show);
+                if (show) _autoSpin.Rotate(0f, 0f, -360f * Time.deltaTime / 1.4f);
+            }
+
             if (_tipPanel != null && _tipPanel.gameObject.activeSelf) CheckTipHover();
 
             if (!_playing || _stage == null) return;
@@ -649,6 +657,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button[] _skillBtns;         // Btn_Skill_0..2（下标 = SkillType）
         [SerializeField] private Button _btnAutoBattle;       // Btn_AutoBattle
         [SerializeField] private Button _btnCombo;            // Btn_Combo（连携）
+        [SerializeField] private RectTransform _autoSpin;     // Tmp_AutoSpin（自动战斗转圈）
         private bool _autoBattle;
 
         private void BuildActionBar()

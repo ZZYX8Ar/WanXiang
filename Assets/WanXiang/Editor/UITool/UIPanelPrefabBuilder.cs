@@ -631,6 +631,13 @@ namespace WanXiang.EditorTools
             UIBuild.BindArr(comp, "_skillBtns", skillBtns);
             UIBuild.Bind(comp, "_btnAutoBattle", bAutoBattle);
 
+            // ---- 自动战斗中的旋转指示（默认隐藏；BattlePanel 在自动时显示并旋转）----
+            var autoSpin = UIBuild.Tmp(UIBuild.Fixed(rt, "Tmp_AutoSpin", new Vector2(0.5f, 1f),
+                new Vector2(320, 64), new Vector2(0, -46)), "⟳ 自动战斗中", 26, UIBuild.Gold,
+                TextAlignmentOptions.Center);
+            autoSpin.gameObject.SetActive(false);
+            UIBuild.Bind(comp, "_autoSpin", autoSpin.GetComponent<RectTransform>());
+
 
             // ---- 连携按钮（主兽 + 对应元素伙伴在场时可用，v2.1 P4）----
             var bCombo = UIBuild.MakeBtn(actionBar, "Btn_Combo", new Vector2(1f, 0f),
