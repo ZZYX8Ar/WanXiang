@@ -20,6 +20,8 @@ namespace WanXiang.Modules.UI
     public sealed class BattleRequest
     {
         public string Title = "遭遇战";
+        /// <summary>这队敌人的 AI 打法（v2.1 P4：节点/遭遇决定，精英更凶）。</summary>
+        public AiProfile AiProfile = AiProfile.Balanced;
         public string WeatherName = "";
         public ulong Seed = 20260914UL;
         public List<BeastDef> Player = new List<BeastDef>();
@@ -76,6 +78,7 @@ namespace WanXiang.Modules.UI
         public BattlePlayback(BattleRequest req, bool manual = false)
         {
             var cfg = BattleConfig.Default;
+            cfg.AiProfile = req.AiProfile;      // 敌方打法跟随节点遭遇（v2.1 P4）
             // 回合制 v2.1 P3：**手动模式下 AI 不抢放终结技**，把它留给玩家决定时机；
             // 自动模式（manual=false）保持自动放 —— 两种模式的差别只在"谁来做决定"。
             cfg.AutoCastUltimate = !manual;

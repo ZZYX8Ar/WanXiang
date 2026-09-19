@@ -85,12 +85,22 @@ namespace WanXiang.Modules.UI
             // 种子：同存档同幕同节点 → 同一套敌人（可背版、可复盘）
             ulong seed = CoreMath.Fnv1a("run:" + run.Slot + ":" + act + ":" + term + ":" + run.Wins);
 
+            // AI 打法（v2.1 P4）：精英必激进；普通遭遇按节点种子轮换 ——
+            // 同存档同节点永远同一打法（可背版、可复盘），不同节点之间有差异。
+            var roll = (int)(seed % 3);
+            var profile = elite
+                ? AiProfile.Aggressive
+                : (roll == 0 ? AiProfile.Balanced
+                 : roll == 1 ? AiProfile.Cautious
+                 : AiProfile.Aggressive);
+
             req = new BattleRequest
             {
                 Title = "第" + Cn(act) + "幕 · 第 " + (term + 1) + " 节 · " +
                         (elite ? "精英战" : "遭遇战"),
                 WeatherName = weather ?? "",
                 Seed = seed,
+                AiProfile = profile,
             };
 
             // L4 祭坛：五行等级和 × 1.6% —— 局外永久数值线，每场都生效（总封顶 +8%）
