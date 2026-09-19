@@ -426,6 +426,22 @@ namespace WanXiang.Battle.Core
             var cfg = st.Config;
             if (!u.CanCastSkills) return u.GetSkill(SkillType.Basic);   // 05 清明的对立面：沉默只封技能
 
+            // ---- 回合制 v2.1 P1-2：玩家指令优先 ----
+            //  SkillIndex 直接用 SkillType 的枚举值（Basic/Active/Ultimate），-1 = 未指定（走 AI）。
+            //  不可用（冷却/元气不足）时回退普攻 —— 玩家的选择不该把回合卡死，
+            //  但界面在点之前就该禁用按钮，所以这里的回退只是兜底。
+            if (st.PlayerControlled && u.Side == TeamSide.Player
+                && st.PendingCommand.Valid && st.PendingCommand.ActorId == u.RuntimeId
+                && st.PendingCommand.SkillIndex >= 0)
+            {
+                var want = (SkillType)st.PendingCommand.SkillIndex;
+                st.PendingCommand = default;      // 一令一用：消费掉，避免影响下一个单位
+                var picked = u.GetSkill(want);
+                bool usable = picked != null && (want == SkillType.Basic || u.CanCast(want, cfg));
+                if (usable) return picked;
+                return u.GetSkill(SkillType.Basic);
+            }
+
             var ult = u.GetSkill(SkillType.Ultimate);
             if (ult != null && cfg.AutoCastUltimate && u.CanCast(SkillType.Ultimate, cfg)) return ult;
 
