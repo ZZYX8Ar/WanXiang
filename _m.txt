@@ -1,0 +1,17 @@
+fix(battle): 手动战斗看不到掉血/伤害数字 + 悬浮面板没挂上（两处真因）
+
+用户对比：**自动战斗能看到掉血数字，手动看不到** —— 这个对比直接指出两条路径的差异。
+
+一、手动看不到掉血（血条不动、伤害数字不飘）
+  真因：BattlePlayback.SubmitCommand **越权调用了 AdvanceSim()** ——
+  它把"下一个决策点之前的所有事件"一次性推完，播放循环（PlayLoop→StepOnce）
+  再也看不到这些事件，自然不推帧 → 血条/伤害数字全无。
+  （自动模式补下令的时机恰好不同，所以反而正常 —— 这就是用户观察到差异的原因。）
+  修：SubmitCommand 只登记指令（ApplyPlayerCommand），不推进；
+     由 Step() 逐事件推进（它在"事件播完但模拟未结束"时会自行 AdvanceSim 推下一段）。
+  验证：模拟完整 PlayLoop 跑一场 —— 总步数 23 远多于决策数 4，事件被逐条消费 ✓
+
+二、悬浮面板没有
+  真因：HookTip/BuildSkillTip 写在 BuildActionBar 的**代码自建分支末尾**，
+  而 prefab 已绑定操作区时该方法**提前 return** ⇒ 挂载代码从未执行。
+  修：移到 OnCreate 里（BuildActionBar 之后），两个分支都能走到。
