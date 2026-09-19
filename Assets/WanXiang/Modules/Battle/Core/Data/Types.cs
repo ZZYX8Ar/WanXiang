@@ -103,6 +103,13 @@ namespace WanXiang.Battle.Core
         RandomEnemyMultiHit = 7,
         AdjacentToSelf = 8,   // 自身相邻格（含对角与否由参数决定）
         AllOthers = 9,        // 除自己以外的全场（混沌的「径过」用这个）
+
+        // ---- 按站位选目标（v2.1 回合制 P4）----
+        //  棋盘的前后排必须影响承伤分配，站位才有策略意义。
+        //  判据用"与施法者的行距"（不依赖谁在上方，两边都能用）：
+        //  SingleFrontMost = 离施法者最近的那一排；SingleBackMost = 最远的那一排。
+        SingleFrontMost = 10, // 最前排（离施法者最近）
+        SingleBackMost = 11,  // 最后排（离施法者最远）
     }
 
     /// <summary>

@@ -410,6 +410,28 @@ namespace WanXiang.Battle.Core
                 return;
             }
 
+            // ---- v2.1 P4：普攻（无冷却）默认打「最前排」----
+            //  棋盘的"前排/后排"必须决定谁先承伤，站位才有策略意义；
+            //  否则人人都能随手切后排，站位就只是摆着好看。
+            //  特殊技能保留各自的目标规则（如刺客类打"生命最低"/后排）。
+            //  ⚠ Clone() 是深拷贝 Effects（已确认），改副本不会污染技能定义；
+            //     但每次普攻都 Clone 一次有分配开销 —— 普攻频率不高，先做对再做快。
+            if (skill.Cd == 0)
+            {
+                var patched = skill.Clone();
+                patched.PrimaryTarget = TargetSelector.SingleFrontMost;
+                for (int i = 0; i < patched.Effects.Length; i++)
+                {
+                    var a = patched.Effects[i];
+                    if (a.Kind == EffectAtomKind.Damage)
+                    {
+                        a.Target = TargetSelector.SingleFrontMost;
+                        patched.Effects[i] = a;
+                    }
+                }
+                skill = patched;
+            }
+
             st.Log.Add(st.Turn, BattleEventKind.SkillCast, actorId: actor.RuntimeId,
                        skillName: skill.Name, element: ResolveElement(Element.None, skill, actor),
                        note: $"{actor.DisplayName}·{Cn.Of(skill.Type)}", skill: skill.Type);
@@ -1240,6 +1262,15 @@ namespace WanXiang.Battle.Core
                     PickOne(st, pool, into, PickHighestAtk);
                     break;
 
+                // ---- 按站位选目标：自包含实现（需要 src 参与比较，PickOne 的 mode 传不了）----
+                case TargetSelector.SingleFrontMost:
+                    PickByRank(st, pool, into, src, true);
+                    break;
+
+                case TargetSelector.SingleBackMost:
+                    PickByRank(st, pool, into, src, false);
+                    break;
+
                 case TargetSelector.RandomEnemy:
                 case TargetSelector.RandomEnemyMultiHit:
                 {
@@ -1260,6 +1291,44 @@ namespace WanXiang.Battle.Core
         /// 选一个目标。平局按站位索引从左到右，再按阵营、实例 id ——
         /// 与出手序列同一套全序，保证"生命值一样时打谁"不会因运行而变。
         /// </summary>
+        /// <summary>
+        /// 按站位选一个目标（v2.1 回合制 P4）。
+        /// <para>
+        /// ⚠ 判据用 **Row 大小**，不是"与施法者的行距" —— 实测发现双方**共用同一套格位**
+        /// （Player/Enemy 都用 BattleRequest.Cells），行距恒为 0，用它判不出前后排。
+        /// 项目已有明确语义：<c>BattleStage2D</c> 里 <c>sortingOrder = Pos.Index / 3</c>
+        /// 且注释写明「row 0=后 1=中 2=前」，双方镜像绘制 ⇒ **Row 大 = 前排**，双方对称。
+        /// </para>
+        /// </summary>
+        private static void PickByRank(BattleState st, TeamSide side, List<BattleUnit> into,
+                                       BattleUnit src, bool frontMost)
+        {
+            st.CollectAlive(side, into);
+            if (into.Count <= 1) return;
+
+            int best = 0;
+            for (int i = 1; i < into.Count; i++)
+                if (RanksCloser(into[i], into[best], src, frontMost)) best = i;
+
+            var pick = into[best];
+            into.Clear();
+            into.Add(pick);
+        }
+
+        private static bool RanksCloser(BattleUnit a, BattleUnit b, BattleUnit src, bool frontMost)
+        {
+            int ra = a.Pos.IsValid ? a.Pos.Row : -1;
+            int rb = b.Pos.IsValid ? b.Pos.Row : -1;
+            if (ra != rb) return frontMost ? ra > rb : ra < rb;   // 前排 = Row 大；后排 = Row 小
+
+            // 同排：列小的先（左侧优先，稳定），再取生命比例高的（更像"挡在前面"的）
+            int ca = a.Pos.IsValid ? a.Pos.Col : int.MaxValue;
+            int cb = b.Pos.IsValid ? b.Pos.Col : int.MaxValue;
+            if (ca != cb) return ca < cb;
+            if (a.HpPercent != b.HpPercent) return a.HpPercent > b.HpPercent;
+            return true;
+        }
+
         private static void PickOne(BattleState st, TeamSide side, List<BattleUnit> into, int mode)
         {
             st.CollectAlive(side, into);
