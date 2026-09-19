@@ -881,10 +881,10 @@ namespace WanXiang.Modules.UI
 
         private void BuildOrderList()
         {
-            if (_orderPanel != null) return;
-
-            // prefab 已绑定（生成器产物）→ 只取行内引用，不建控件
-            if (_orderRows != null && _orderRows.Length > 0 && _orderRows[0] != null)
+            // ⚠ 不能写成 `if (_orderPanel != null) return;` —— prefab 绑定时会直接返回，
+            //   把下面"取行内引用"的代码整段跳过（_orderHeads/_orderNames 永远为 null，
+            //   行动条就成了空壳）。必须在这里取完引用再 return。（这个坑踩过三次了）
+            if (_orderPanel != null && _orderRows != null && _orderRows.Length > 0 && _orderRows[0] != null)
             {
                 _orderHeads = new Image[_orderRows.Length];
                 _orderNames = new TMP_Text[_orderRows.Length];
@@ -899,6 +899,7 @@ namespace WanXiang.Modules.UI
                 _orderPanel.gameObject.SetActive(false);
                 return;
             }
+            if (_orderPanel != null) { _orderPanel.gameObject.SetActive(false); return; }   // 只绑了面板没绑行：显示空壳，不崩
 
             var go = new GameObject("Root_OrderList", typeof(RectTransform));
             _orderPanel = (RectTransform)go.transform;
