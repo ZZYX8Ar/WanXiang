@@ -76,7 +76,9 @@ namespace WanXiang.Modules.UI
         public BattlePlayback(BattleRequest req, bool manual = false)
         {
             var cfg = BattleConfig.Default;
-            cfg.AutoCastUltimate = true;      // 结构验证版：绝技自动放，先不接手动干预
+            // 回合制 v2.1 P3：**手动模式下 AI 不抢放终结技**，把它留给玩家决定时机；
+            // 自动模式（manual=false）保持自动放 —— 两种模式的差别只在"谁来做决定"。
+            cfg.AutoCastUltimate = !manual;
             cfg.MaxTurns = 24;
 
             var p = new DeployEntry[req.Player.Count];

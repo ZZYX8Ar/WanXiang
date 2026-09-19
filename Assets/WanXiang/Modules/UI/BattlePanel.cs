@@ -649,11 +649,19 @@ namespace WanXiang.Modules.UI
             int mp = stt != null ? stt.TeamMp : 0;
             int mpMax = stt != null ? stt.TeamMpMax : 0;
 
-            if (_tmpActor != null)
-                _tmpActor.text = u != null
-                    ? "轮到「" + u.DisplayName + "」　灵力 " + mp + "/" + mpMax +
-                      "（战记 " + WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active) + " 点）"
-                    : "轮到我方行动";
+            var cfg = stt != null ? stt.Config : null;
+            if (_tmpActor != null && u != null)
+            {
+                string line = "轮到「" + u.DisplayName + "」　灵力 " + mp + "/" + mpMax +
+                              "（战记 " + WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active) + " 点）";
+                if (u.GetSkill(SkillType.Ultimate) != null)
+                    line += "　元气 " + (int)u.Rage + "/" + (int)u.RageCap;
+                _tmpActor.text = line;
+            }
+            else if (_tmpActor != null)
+            {
+                _tmpActor.text = "轮到我方行动";
+            }
 
             if (_skillBtns != null && u != null)
             {
@@ -661,7 +669,10 @@ namespace WanXiang.Modules.UI
                 // 战记：有技能 + 灵力够 —— 灵力不足时置灰，让"取舍"看得见
                 _skillBtns[1].interactable = u.GetSkill(SkillType.Active) != null
                                           && mp >= WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active);
-                _skillBtns[2].interactable = u.GetSkill(SkillType.Ultimate) != null;
+                // 终结技：直接复用核心的 CanCast（CD + 怒气满），单一真源，不重复判断规则
+                _skillBtns[2].interactable = u.GetSkill(SkillType.Ultimate) != null
+                                          && cfg != null
+                                          && u.CanCast(SkillType.Ultimate, cfg);
             }
         }
 
