@@ -51,8 +51,40 @@ namespace WanXiang.Battle.Core
 
     public static class BattleSimulator
     {
-        /// <summary>跑完整场战斗，返回结果摘要。同步、无引擎依赖、同种子必同结果。</summary>
-        public static BattleResult Run(BattleState st)
+        // ================================================================
+        //  断点驱动（回合制 v2.1 P1）
+        //  ------------------------------------------------------------------
+        //  实现要点：用 C# 迭代器当状态机 —— buf / total 这些局部变量在迭代器里
+        //  天然保持状态，**不需要**把它们提升到 BattleState，也不必重写回合逻辑。
+        //    · RunSteps           原 Run 的循环体，仅在我方单位行动前 yield 一个决策点
+        //    · Run                消费步骤流一次跑完（自动战斗 / 无 UI / 测试）
+        //    · AdvanceToNextDecision / ApplyPlayerCommand   手动模式的驱动接口
+        //  伤害、五行、状态、结算的全部既有逻辑一行未改。
+        // ================================================================
+
+        /// <summary>战斗推进的一步。</summary>
+        public struct BattleStep
+        {
+            public BattleStepKind Kind;
+            public BattleUnit Unit;        // NeedDecision：等待下令的单位
+            public BattleResult Result;    // Finished：整场结算
+        }
+
+        public enum BattleStepKind
+        {
+            /// <summary>自动推进中（敌方行动、回合结算等），UI 可继续。</summary>
+            Animating = 0,
+            /// <summary>轮到我方单位，等待玩家下令。</summary>
+            NeedDecision = 1,
+            /// <summary>战斗结束（Result 有效）。</summary>
+            Finished = 2,
+        }
+
+        /// <summary>
+        /// 分步跑完整场战斗。`st.PlayerControlled = true` 时，每个尚能行动的我方单位
+        /// 行动之前会 yield 一个 NeedDecision；调用方下令后再 MoveNext 继续。
+        /// </summary>
+        public static System.Collections.Generic.IEnumerable<BattleStep> RunSteps(BattleState st)
         {
             var cfg = st.Config;
             var buf = new Buffers();
@@ -103,6 +135,9 @@ namespace WanXiang.Battle.Core
                 {
                     var u = buf.Order[i];
                     if (!u.IsAlive) continue;          // 可能在别人回合里被打死
+                    // 回合制断点：我方单位行动前把控制权交回调用方（手动模式等玩家下令）
+                    if (st.PlayerControlled && u.Side == TeamSide.Player)
+                        yield return new BattleStep { Kind = BattleStepKind.NeedDecision, Unit = u };
                     ExecuteAction(st, u, buf);
                     DevourAfterAction(st, u);      // 「吞噬」劫象：行动结束剥离对侧 1 增益 + 自损
                     if (st.CheckOutcome()) break;
@@ -143,7 +178,60 @@ namespace WanXiang.Battle.Core
                 SkillsCast = st.Log.CountOf(BattleEventKind.SkillCast),
                 Crits = st.Log.CountOf(BattleEventKind.Crit),
             };
+            yield return new BattleStep { Kind = BattleStepKind.Finished, Result = r };
+        }
+
+        /// <summary>一次跑完整场（自动战斗 / 无 UI 场景）：忽略决策点，一路推进到底。</summary>
+        public static BattleResult Run(BattleState st)
+        {
+            BattleResult r = default;
+            foreach (var step in RunSteps(st))
+                if (step.Kind == BattleStepKind.Finished) r = step.Result;
             return r;
+        }
+
+        /// <summary>
+        /// 推进到下一个需要玩家决策的点。
+        /// 返回 true = 有单位等待下令（见 st.PendingUnit）；返回 false = 战斗结束（st.Result 有效）。
+        /// </summary>
+        public static bool AdvanceToNextDecision(BattleState st)
+        {
+            if (st.Stepper == null) st.Stepper = RunSteps(st).GetEnumerator();
+
+            while (st.Stepper.MoveNext())
+            {
+                var step = st.Stepper.Current;
+                if (step.Kind == BattleStepKind.NeedDecision)
+                {
+                    st.PendingUnit = step.Unit;
+                    return true;
+                }
+                if (step.Kind == BattleStepKind.Finished)
+                {
+                    st.Result = step.Result;
+                    st.PendingUnit = null;
+                    return false;
+                }
+            }
+            st.PendingUnit = null;
+            return false;
+        }
+
+        /// <summary>
+        /// 应用玩家指令。skillIndex = -1 表示普攻，&gt;= 0 表示战记下标；
+        /// targetIndex = 目标下标（-1 = 交给 AI 选目标）。
+        /// 指令写入 st.PendingCommand，轮到该单位时由 ExecuteAction 读取（P1：驱动就绪，
+        /// 技能/目标注入见 P2 对 ChooseSkill 的改造）。
+        /// </summary>
+        public static void ApplyPlayerCommand(BattleState st, int skillIndex, int targetIndex)
+        {
+            st.PendingCommand = new PlayerCommand
+            {
+                ActorId = st.PendingUnit != null ? st.PendingUnit.RuntimeId : null,
+                SkillIndex = skillIndex,
+                TargetIndex = targetIndex,
+                Valid = st.PendingUnit != null,
+            };
         }
 
         private static void Accumulate(ref BoardRoundReport acc, in BoardRoundReport d)

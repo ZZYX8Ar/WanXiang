@@ -36,6 +36,23 @@ namespace WanXiang.Battle.Core
         public int Turn = 1;
 
         public BattleOutcome Outcome = BattleOutcome.Ongoing;
+
+        // ---- 回合制 v2.1 P1：断点驱动所需的运行时字段（不落存档，每场新建） ----
+
+        /// <summary>手动模式：为 true 时 RunSteps 会在每个我方单位行动前等待决策。</summary>
+        public bool PlayerControlled;
+
+        /// <summary>手动推进用的迭代器（由 BattleSimulator.AdvanceToNextDecision 管理）。</summary>
+        public System.Collections.Generic.IEnumerator<BattleSimulator.BattleStep> Stepper;
+
+        /// <summary>等待下令的单位（AdvanceToNextDecision 返回 true 时非空）。</summary>
+        public BattleUnit PendingUnit;
+
+        /// <summary>玩家最近一次下发的指令（由 ApplyPlayerCommand 写入）。</summary>
+        public PlayerCommand PendingCommand;
+
+        /// <summary>本场结算（手动模式下战斗结束时由 AdvanceToNextDecision 写入）。</summary>
+        public BattleResult Result;
         public bool IsOver => Outcome != BattleOutcome.Ongoing;
 
         private readonly BattleUnit[][] _slots = new BattleUnit[2][];
@@ -437,5 +454,20 @@ namespace WanXiang.Battle.Core
             sb.Append(DescribeBoard(TeamSide.Enemy));
             return sb.ToString();
         }
+    }
+    /// <summary>玩家下发给某个单位的指令（回合制 v2.1）。</summary>
+    public struct PlayerCommand
+    {
+        /// <summary>下令对象（BattleUnit.RuntimeId，**string** —— 与日志里的 actorId 同类型）。</summary>
+        public string ActorId;
+
+        /// <summary>-1 = 普攻；>= 0 = 战记下标。</summary>
+        public int SkillIndex;
+
+        /// <summary>-1 = 交给 AI 选目标；>= 0 = 目标下标。</summary>
+        public int TargetIndex;
+
+        /// <summary>本条指令是否有效（无待令单位时为 false）。</summary>
+        public bool Valid;
     }
 }
