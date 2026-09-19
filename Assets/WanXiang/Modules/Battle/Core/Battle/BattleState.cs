@@ -37,6 +37,16 @@ namespace WanXiang.Battle.Core
 
         public BattleOutcome Outcome = BattleOutcome.Ongoing;
 
+        /// <summary>
+        /// 本回合**已确定**的出手序列（回合开始时构建一次，模拟与 UI 共用同一份）。
+        /// <para>
+        /// 为什么要存下来：行动条若自己按"当前速度"重排，会与模拟真正用的序列不一致
+        /// （核心的 buf.Order 在回合开始就定死了）。存这份 ⇒ 界面显示的就是实际会发生的顺序。
+        /// </para>
+        /// </summary>
+        public readonly System.Collections.Generic.List<BattleUnit> TurnOrder =
+            new System.Collections.Generic.List<BattleUnit>(16);
+
         // ---- 回合制 v2.1 P1：断点驱动所需的运行时字段（不落存档，每场新建） ----
 
         /// <summary>手动模式：为 true 时 RunSteps 会在每个我方单位行动前等待决策。</summary>

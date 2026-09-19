@@ -375,6 +375,11 @@ namespace WanXiang.Modules.UI
         /// </summary>
         private void Update()
         {
+            // 提示面板兜底收起：**被置灰（interactable=false）的按钮不触发 PointerExit**，
+            // 悬停后又移开会让面板一直留着（用户实测）。这里轮询鼠标位置兜底，
+            // 面板可见时才检查 3 个按钮的矩形，开销可忽略。
+            if (_tipPanel != null && _tipPanel.gameObject.activeSelf) CheckTipHover();
+
             if (!_playing || _stage == null) return;
             if (State != UIPanelState.Opened) return;      // 被上层盖住/暂停时不推进
             _stage.Step(Time.deltaTime * Mathf.Max(1f, _speed));
@@ -780,6 +785,23 @@ namespace WanXiang.Modules.UI
             _tipPanel.gameObject.SetActive(false);
         }
 
+        /// <summary>
+        /// 鼠标是否已离开所有战记按钮 → 是则收起提示。
+        /// Overlay 画布用 null 相机（RectTransformUtility 对 ScreenSpaceOverlay 要求 cam = null）。
+        /// </summary>
+        private void CheckTipHover()
+        {
+            if (_skillBtns == null) { HideSkillTip(); return; }
+            for (int i = 0; i < _skillBtns.Length; i++)
+            {
+                if (_skillBtns[i] == null) continue;
+                var rt = _skillBtns[i].transform as RectTransform;
+                if (rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, Input.mousePosition, null))
+                    return;      // 还在某个按钮上
+            }
+            HideSkillTip();
+        }
+
         /// <summary>给按钮挂鼠标进出（用 EventTrigger，不改 prefab）。</summary>
         private void HookTip(Button btn, int slot)
         {
@@ -984,8 +1006,10 @@ namespace WanXiang.Modules.UI
             if (_orderPanel == null || _play == null || _play.State == null) return;
             var stt = _play.State;
 
+            // ⚠ 读 State.TurnOrder（回合开始时定下的那份），不要自己按当前速度重排 ——
+            //   否则加速/减速之后，界面显示的顺序会与模拟真正执行的顺序不一致。
             _orderBuf.Clear();
-            stt.BuildActionOrderInto(_orderBuf);
+            _orderBuf.AddRange(stt.TurnOrder);
             // ⚠ "行动中"要跟**正在演出的画面**一致：用当前事件的 actorId，
             //    而不是 PendingUnit（那是在等玩家下令的**下一个**单位）——
             //    用 PendingUnit 会让高亮慢一拍（用户实测：显示的其实是上一个回合的）。
@@ -1016,7 +1040,9 @@ namespace WanXiang.Modules.UI
                 if (!u.IsAlive) continue;
 
                 bool mine = u.Side == WanXiang.Battle.Core.TeamSide.Player;
-                bool isCur = cur != null && u.RuntimeId == cur.RuntimeId;
+                // 用户要求：**只高亮我方**。敌方出手不必高亮（玩家只需知道"还没轮到我"），
+                // 高亮跳到敌人身上反而误导成"该我操作了"。
+                bool isCur = mine && cur != null && u.RuntimeId == cur.RuntimeId;
 
                 _orderRows[shown].gameObject.SetActive(true);
                 if (_orderHeads[shown] != null && _sprites != null && u.Def != null)

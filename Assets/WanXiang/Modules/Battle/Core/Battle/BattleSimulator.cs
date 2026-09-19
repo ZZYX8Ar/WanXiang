@@ -133,6 +133,10 @@ namespace WanXiang.Battle.Core
                 // ---- 2) 出手序列 ----（先手连击在生成序列**之前**判定，GDD v1.1 §3.6）
                 ResolveInitiativeChain(st, buf);
                 st.BuildActionOrderInto(buf.Order);
+
+                // 同步给 UI：行动条显示"本回合实际会发生的顺序"，而不是自己重排
+                st.TurnOrder.Clear();
+                st.TurnOrder.AddRange(buf.Order);
                 st.Log.Add(turn, BattleEventKind.RoundResolve, note: "出手序列 " + DescribeOrder(buf.Order));
 
                 // ---- 3) 逐个行动 ----
