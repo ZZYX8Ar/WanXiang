@@ -300,6 +300,20 @@ namespace WanXiang.Modules.UI
             int guard = 0;
             while (!_play.Finished && guard++ < 20000)
             {
+                // ⚠ 回合制：等玩家下令时必须**原地等**，绝不能 break ——
+                //    break 会被下方收尾逻辑当成"播完"，导致一进战斗就直接结算（踩过）。
+                if (_play.AwaitingCommand)
+                {
+                    RefreshActionBar();                       // 亮出操作区
+                    if (_autoBattle)
+                    {
+                        _play.SubmitCommand(-1, -1);          // 自动战斗：AI 代下令
+                        RefreshActionBar();
+                    }
+                    await UniTask.Yield(PlayerLoopTiming.Update, ct);
+                    continue;                                 // 不推进事件、不退出循环
+                }
+
                 if (!StepOnce()) break;
 
                 // 节奏由事件语义决定；速度倍率只缩放间隔
@@ -328,15 +342,7 @@ namespace WanXiang.Modules.UI
         private bool StepOnce()
         {
             if (_play == null || _play.Finished) return false;
-
-            // 回合制：轮到我方时停住播放，等玩家在操作区下令
-            RefreshActionBar();
-            if (_play.AwaitingCommand)
-            {
-                if (_autoBattle) { _play.SubmitCommand(-1, -1); RefreshActionBar(); }   // 自动战斗：AI 代下令
-                else return false;                                                       // 停住等玩家
-            }
-
+            if (_play.AwaitingCommand) return true;    // 等下令（由 PlayLoop 处理），不是"播完"✗
             if (!_play.Step()) return false;
 
             _eventIndex++;
@@ -640,11 +646,19 @@ namespace WanXiang.Modules.UI
         private void RefreshActionBar()
         {
             if (_actionBar == null || _play == null) return;
-            bool waiting = _play.AwaitingCommand;
-            if (_actionBar.gameObject.activeSelf != waiting) _actionBar.gameObject.SetActive(waiting);
-            if (!waiting) return;
+            // ⚠ 自动模式下也要显示操作区：否则按钮消失后再也点不到「自动战斗」开关，
+            //    玩家就被卡在自动里出不来（用户实测反馈：打着打着自动了、按钮没了）。
+            bool show = _play.AwaitingCommand || _autoBattle;
+            if (_actionBar.gameObject.activeSelf != show) _actionBar.gameObject.SetActive(show);
+            if (!show) return;
 
             var u = _play.PendingUnit;
+            if (_autoBattle && u == null)
+            {
+                // 自动推进中（不是在等某个单位）：给一句可回退的提示
+                if (_tmpActor != null) _tmpActor.text = "自动战斗中……（点任意战记即可接管）";
+                return;
+            }
             var stt = _play.State;
             int mp = stt != null ? stt.TeamMp : 0;
             int mpMax = stt != null ? stt.TeamMpMax : 0;
@@ -679,6 +693,16 @@ namespace WanXiang.Modules.UI
         private void OnSkillClicked(int skillIndex)
         {
             if (_play == null) return;
+
+            // 自动推进中点战记 = 接管：先关自动（此刻不在"待令"状态，SubmitCommand 会无效）
+            if (_autoBattle && !_play.AwaitingCommand)
+            {
+                _autoBattle = false;
+                if (_tmpLog != null) _tmpLog.text = "已接管 —— 从下一个单位开始由你下令";
+                RefreshActionBar();
+                return;
+            }
+
             _autoBattle = false;                        // 手动下令即视为关自动
             _play.SubmitCommand(skillIndex, -1);        // 下标 = SkillType；目标暂交 AI
             RefreshActionBar();
