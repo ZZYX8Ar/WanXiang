@@ -29,7 +29,7 @@ namespace WanXiang.Modules.UI
     {
         [SerializeField] private TMP_Text _tmpRound;            // Tmp_Round
         /// <summary>回合制手动模式：开启后我方行动前等玩家下令（需操作区就绪）。</summary>
-        [SerializeField] private bool _manualBattle;
+        [SerializeField] private bool _manualBattle = true;   // 回合制手动（操作区已就位；关掉即全自动）
         [SerializeField] private GameObject _rootWeather;       // Root_WeatherBanner
         [SerializeField] private TMP_Text _tmpWeatherName;      // Tmp_WeatherName
         [SerializeField] private RectTransform _rootStage;      // Root_Stage
@@ -105,6 +105,7 @@ namespace WanXiang.Modules.UI
 
         protected override void OnCreate()
         {
+            BuildActionBar();
             if (_rootWeather != null) _rootWeather.SetActive(false);
             if (_btnUltimate != null) _btnUltimate.onClick.AddListener(OnUltimateClicked);
             if (_btnSpeed != null) _btnSpeed.onClick.AddListener(OnSpeedClicked);
@@ -327,6 +328,15 @@ namespace WanXiang.Modules.UI
         private bool StepOnce()
         {
             if (_play == null || _play.Finished) return false;
+
+            // 回合制：轮到我方时停住播放，等玩家在操作区下令
+            RefreshActionBar();
+            if (_play.AwaitingCommand)
+            {
+                if (_autoBattle) { _play.SubmitCommand(-1, -1); RefreshActionBar(); }   // 自动战斗：AI 代下令
+                else return false;                                                       // 停住等玩家
+            }
+
             if (!_play.Step()) return false;
 
             _eventIndex++;
@@ -510,6 +520,145 @@ namespace WanXiang.Modules.UI
                 Summary = "撤退",
                 Retreated = true,
             });
+        }
+
+        // ================================================================
+        //  回合制 v2.1 P1-3：战记操作区
+        //  ------------------------------------------------------------------
+        //  代码自建（不改 prefab / 生成器）：战记三槽 = SkillType 的三个枚举值，
+        //  点一下就把指令交给 BattlePlayback.SubmitCommand，目标暂交给 AI（-1）。
+        //  「自动战斗」= 反复下 -1 指令（= 交给 AI），与 v2.1 文档第 13 节一致。
+        // ================================================================
+        private RectTransform _actionBar;
+        private TMP_Text _tmpActor;
+        private Button[] _skillBtns;
+        private Button _btnAutoBattle;
+        private bool _autoBattle;
+
+        private void BuildActionBar()
+        {
+            if (_actionBar != null) return;
+            var go = new GameObject("Root_Action", typeof(RectTransform));
+            _actionBar = (RectTransform)go.transform;
+            _actionBar.SetParent(transform, false);
+            _actionBar.anchorMin = new Vector2(0f, 0f);
+            _actionBar.anchorMax = new Vector2(1f, 0f);
+            _actionBar.pivot = new Vector2(0.5f, 0f);
+            _actionBar.anchoredPosition = new Vector2(0f, 10f);
+            _actionBar.sizeDelta = new Vector2(-40f, 150f);
+            var bg = go.AddComponent<Image>();
+            bg.color = new Color(0.16f, 0.13f, 0.09f, 0.72f);
+
+            var art = new GameObject("Tmp_Actor", typeof(RectTransform)).GetComponent<RectTransform>();
+            art.SetParent(_actionBar, false);
+            art.anchorMin = new Vector2(0f, 1f);
+            art.anchorMax = new Vector2(1f, 1f);
+            art.pivot = new Vector2(0.5f, 1f);
+            art.anchoredPosition = new Vector2(0f, -6f);
+            art.sizeDelta = new Vector2(-24f, 40f);
+            _tmpActor = art.gameObject.AddComponent<TextMeshProUGUI>();
+            _tmpActor.fontSize = 26;
+            _tmpActor.color = new Color(0.98f, 0.96f, 0.9f, 1f);
+            _tmpActor.alignment = TextAlignmentOptions.Center;
+            _tmpActor.raycastTarget = false;
+
+            string[] names = { "普攻", "战记", "终结技" };   // 下标 = SkillType 枚举值
+            _skillBtns = new Button[names.Length];
+            for (int i = 0; i < names.Length; i++)
+            {
+                var brt = new GameObject("Btn_Skill_" + i, typeof(RectTransform)).GetComponent<RectTransform>();
+                brt.SetParent(_actionBar, false);
+                brt.anchorMin = brt.anchorMax = new Vector2(0f, 0f);
+                brt.pivot = new Vector2(0f, 0f);
+                brt.anchoredPosition = new Vector2(20f + i * 210f, 18f);
+                brt.sizeDelta = new Vector2(190f, 76f);
+                var img = brt.gameObject.AddComponent<Image>();
+                img.color = new Color(0.79f, 0.63f, 0.39f, 1f);
+                var btn = brt.gameObject.AddComponent<Button>();
+                btn.targetGraphic = img;
+
+                var lrt = new GameObject("Tmp", typeof(RectTransform)).GetComponent<RectTransform>();
+                lrt.SetParent(brt, false);
+                lrt.anchorMin = Vector2.zero;
+                lrt.anchorMax = Vector2.one;
+                lrt.offsetMin = new Vector2(6f, 4f);
+                lrt.offsetMax = new Vector2(-6f, -4f);
+                var tmp = lrt.gameObject.AddComponent<TextMeshProUGUI>();
+                tmp.text = names[i];
+                tmp.fontSize = 26;
+                tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+                tmp.alignment = TextAlignmentOptions.Center;
+                tmp.raycastTarget = false;
+
+                int idx = i;
+                btn.onClick.AddListener(() => OnSkillClicked(idx));
+                _skillBtns[i] = btn;
+            }
+
+            var ar = new GameObject("Btn_Auto", typeof(RectTransform)).GetComponent<RectTransform>();
+            ar.SetParent(_actionBar, false);
+            ar.anchorMin = ar.anchorMax = new Vector2(1f, 0f);
+            ar.pivot = new Vector2(1f, 0f);
+            ar.anchoredPosition = new Vector2(-20f, 18f);
+            ar.sizeDelta = new Vector2(200f, 76f);
+            var aimg = ar.gameObject.AddComponent<Image>();
+            aimg.color = new Color(0.94f, 0.92f, 0.88f, 1f);
+            _btnAutoBattle = ar.gameObject.AddComponent<Button>();
+            _btnAutoBattle.targetGraphic = aimg;
+            var lrt2 = new GameObject("Tmp", typeof(RectTransform)).GetComponent<RectTransform>();
+            lrt2.SetParent(ar, false);
+            lrt2.anchorMin = Vector2.zero;
+            lrt2.anchorMax = Vector2.one;
+            lrt2.offsetMin = new Vector2(6f, 4f);
+            lrt2.offsetMax = new Vector2(-6f, -4f);
+            var tmp2 = lrt2.gameObject.AddComponent<TextMeshProUGUI>();
+            tmp2.text = "自动战斗";
+            tmp2.fontSize = 24;
+            tmp2.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+            tmp2.alignment = TextAlignmentOptions.Center;
+            tmp2.raycastTarget = false;
+            _btnAutoBattle.onClick.AddListener(OnAutoBattleClicked);
+
+            _actionBar.gameObject.SetActive(false);
+        }
+
+        /// <summary>按"是否在等下令"刷新操作区（StepPlayback 每帧调）。</summary>
+        private void RefreshActionBar()
+        {
+            if (_actionBar == null || _play == null) return;
+            bool waiting = _play.AwaitingCommand;
+            if (_actionBar.gameObject.activeSelf != waiting) _actionBar.gameObject.SetActive(waiting);
+            if (!waiting) return;
+
+            var u = _play.PendingUnit;
+            if (_tmpActor != null)
+                _tmpActor.text = u != null
+                    ? "轮到「" + u.DisplayName + "」—— 选择战记（灵力系统 P2 接入）"
+                    : "轮到我方行动";
+
+            if (_skillBtns != null && u != null)
+            {
+                _skillBtns[0].interactable = true;
+                _skillBtns[1].interactable = u.GetSkill(SkillType.Active) != null;
+                _skillBtns[2].interactable = u.GetSkill(SkillType.Ultimate) != null;
+            }
+        }
+
+        private void OnSkillClicked(int skillIndex)
+        {
+            if (_play == null) return;
+            _autoBattle = false;                        // 手动下令即视为关自动
+            _play.SubmitCommand(skillIndex, -1);        // 下标 = SkillType；目标暂交 AI
+            RefreshActionBar();
+        }
+
+        private void OnAutoBattleClicked()
+        {
+            if (_play == null) return;
+            _autoBattle = !_autoBattle;
+            if (_autoBattle) _play.SubmitCommand(-1, -1);   // -1 = 交给 AI（自动战斗）
+            if (_tmpLog != null) _tmpLog.text = _autoBattle ? "自动战斗：开" : "自动战斗：关（等你下令）";
+            RefreshActionBar();
         }
     }
 }
