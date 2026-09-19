@@ -115,6 +115,8 @@ namespace WanXiang.Modules.UI
             if (_skillBtns != null)
                 for (int i = 0; i < _skillBtns.Length; i++)
                     HookTip(_skillBtns[i], i);
+
+            BuildOrderList();   // 右上角"行动顺序"，让玩家看清轮到谁（v2.1 P4 前置）
             if (_rootWeather != null) _rootWeather.SetActive(false);
             if (_btnUltimate != null) _btnUltimate.onClick.AddListener(OnUltimateClicked);
             if (_btnSpeed != null) _btnSpeed.onClick.AddListener(OnSpeedClicked);
@@ -716,6 +718,7 @@ namespace WanXiang.Modules.UI
             var u = _play.PendingUnit;
 
             string title, body;
+            string descHint = "（描述里的百分比是**攻击力系数**，不是生命百分比）";
             if (slot == 0) { title = "普攻"; body = CostLine(0); }
             else if (slot == 1) { title = "战记 · 主动"; body = CostLine(1); }
             else { title = "终结技"; body = CostLine(2); }
@@ -727,7 +730,7 @@ namespace WanXiang.Modules.UI
                 {
                     if (!string.IsNullOrEmpty(sk.Name)) title = sk.Name;
                     string desc = string.IsNullOrEmpty(sk.Description) ? "（暂无描述）" : sk.Description;
-                    body = desc + "\n\n" + body;
+                    body = desc + "\n" + descHint + "\n\n" + body;
                     if (slot == 2 && u.Rage < u.RageCap)
                         body += "\n当前元气 " + (int)u.Rage + "/" + (int)u.RageCap + "（满值才可释放）";
                 }
@@ -773,6 +776,77 @@ namespace WanXiang.Modules.UI
             });
         }
 
+        // ================================================================
+        //  行动顺序（右上角）—— 让"轮到谁"一眼可见
+        //  ------------------------------------------------------------------
+        //  顺序来自核心的 BuildActionOrderInto（按**有效速度**降序，我方敌方混排），
+        //  直接复用 ⇒ UI 与战斗逻辑永远一致（不自己再排一遍）。
+        // ================================================================
+        private RectTransform _orderPanel;
+        private TMP_Text _orderText;
+        private readonly System.Collections.Generic.List<BattleUnit> _orderBuf =
+            new System.Collections.Generic.List<BattleUnit>(16);
+
+        private void BuildOrderList()
+        {
+            if (_orderPanel != null) return;
+            var go = new GameObject("Root_OrderList", typeof(RectTransform));
+            _orderPanel = (RectTransform)go.transform;
+            _orderPanel.SetParent(transform, false);
+            _orderPanel.anchorMin = _orderPanel.anchorMax = new Vector2(1f, 1f);
+            _orderPanel.pivot = new Vector2(1f, 1f);
+            _orderPanel.sizeDelta = new Vector2(300f, 330f);
+            _orderPanel.anchoredPosition = new Vector2(-24f, -120f);
+
+            var bg = go.AddComponent<Image>();
+            bg.color = new Color(0.11f, 0.09f, 0.07f, 0.62f);
+
+            var trt = new GameObject("Tmp_Order", typeof(RectTransform)).GetComponent<RectTransform>();
+            trt.SetParent(_orderPanel, false);
+            trt.anchorMin = Vector2.zero;
+            trt.anchorMax = Vector2.one;
+            trt.offsetMin = new Vector2(12f, 10f);
+            trt.offsetMax = new Vector2(-12f, -10f);
+            _orderText = trt.gameObject.AddComponent<TextMeshProUGUI>();
+            _orderText.fontSize = 20;
+            _orderText.color = new Color(0.96f, 0.94f, 0.88f, 1f);
+            _orderText.alignment = TextAlignmentOptions.TopLeft;
+            _orderText.raycastTarget = false;
+            _orderPanel.gameObject.SetActive(false);
+        }
+
+        /// <summary>刷新行动顺序（当前行动者 ▶ 金色；我方偏绿、敌方偏红）。</summary>
+        private void RefreshOrderList()
+        {
+            if (_orderText == null || _play == null || _play.State == null) return;
+            var stt = _play.State;
+
+            _orderBuf.Clear();
+            stt.BuildActionOrderInto(_orderBuf);
+            if (_orderBuf.Count == 0) { _orderPanel.gameObject.SetActive(false); return; }
+            _orderPanel.gameObject.SetActive(true);
+
+            var cur = _play.PendingUnit;
+            var sb = new System.Text.StringBuilder("行动顺序（按速度）\n");
+            int shown = 0;
+            for (int i = 0; i < _orderBuf.Count && shown < 8; i++)
+            {
+                var u = _orderBuf[i];
+                if (!u.IsAlive) continue;
+                shown++;
+                bool mine = u.Side == WanXiang.Battle.Core.TeamSide.Player;
+                bool isCur = cur != null && u.RuntimeId == cur.RuntimeId;
+                string color = isCur ? "#F0C36D" : (mine ? "#BFD8B8" : "#E8B4A8");
+                sb.Append(isCur ? "▶ " : "　　")
+                  .Append("<color=").Append(color).Append(">")
+                  .Append(u.DisplayName)
+                  .Append(mine ? "（我方）" : "（敌方）")
+                  .Append(isCur ? " ← 行动中" : "")
+                  .Append("</color>\n");
+            }
+            _orderText.text = sb.ToString();
+        }
+
         /// <summary>按"是否在等下令"刷新操作区（StepPlayback 每帧调）。</summary>
         private void RefreshActionBar()
         {
@@ -793,6 +867,8 @@ namespace WanXiang.Modules.UI
             var stt = _play.State;
             int mp = stt != null ? stt.TeamMp : 0;
             int mpMax = stt != null ? stt.TeamMpMax : 0;
+
+            RefreshOrderList();
 
             var cfg = stt != null ? stt.Config : null;
             if (_tmpActor != null && u != null)
