@@ -803,7 +803,7 @@ namespace WanXiang.Modules.UI
             var u = _play.PendingUnit;
 
             string title, body;
-            string descHint = "（描述里的百分比是**攻击力系数**，不是生命百分比）";
+            string descHint = "（描述里的百分比是攻击力系数，不是生命百分比）";
             if (slot == 0) { title = "普攻"; body = CostLine(0); }
             else if (slot == 1) { title = "战记 · 主动"; body = CostLine(1); }
             else { title = "终结技"; body = CostLine(2); }
@@ -815,10 +815,17 @@ namespace WanXiang.Modules.UI
                 {
                     if (!string.IsNullOrEmpty(sk.Name)) title = sk.Name;
                     string desc = string.IsNullOrEmpty(sk.Description) ? "（暂无描述）" : sk.Description;
-                    // 目标规则：与核心的"普攻打最前排"特判保持一致（否则界面会误导布阵）
+                    // 目标规则：与核心的"普攻打最前排"特判保持一致（否则界面会误导布阵）。
+                    //  ⚠ 取**效果 atom** 的目标而不是 PrimaryTarget —— 后者是"主目标"语义，
+                    //    对"给自己人加盾"这类技能会显示成"生命最低的敌人"（实测踩到）。
+                    var target = sk.PrimaryTarget;
+                    if (sk.Effects != null)
+                        for (int ai = 0; ai < sk.Effects.Length; ai++)
+                            if (sk.Effects[ai].Target != WanXiang.Battle.Core.TargetSelector.Self)
+                            { target = sk.Effects[ai].Target; break; }
                     string targetName = sk.Cd == 0
                         ? "最前排（普攻默认打前排，站位决定谁先承伤）"
-                        : TargetNameOf(sk.PrimaryTarget);
+                        : TargetNameOf(target);
                     body = desc + "\n目标：" + targetName + "\n" + descHint + "\n\n" + body;
                     if (slot == 2 && u.Rage < u.RageCap)
                         body += "\n当前元气 " + (int)u.Rage + "/" + (int)u.RageCap + "（满值才可释放）";
@@ -1031,7 +1038,15 @@ namespace WanXiang.Modules.UI
                 shown++;
             }
             for (int i = shown; i < OrderRowCount; i++)
-                if (_orderRows[i] != null) _orderRows[i].gameObject.SetActive(false);
+            {
+                if (_orderRows[i] == null) continue;
+                // 隐藏行顺手清文本：避免残留内容在将来复用/截图时露出来
+                if (_orderNames != null && i < _orderNames.Length && _orderNames[i] != null)
+                    _orderNames[i].text = string.Empty;
+                if (_orderHeads != null && i < _orderHeads.Length && _orderHeads[i] != null)
+                    _orderHeads[i].sprite = null;
+                _orderRows[i].gameObject.SetActive(false);
+            }
         }
 
         /// <summary>按"是否在等下令"刷新操作区（StepPlayback 每帧调）。</summary>
