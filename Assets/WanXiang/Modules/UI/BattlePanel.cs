@@ -314,6 +314,19 @@ namespace WanXiang.Modules.UI
             int guard = 0;
             while (!_play.Finished && guard++ < 20000)
             {
+                // ★ 顺序铁律：**先把已产生的事件全部播完，再考虑等令**。
+                //   模拟推进是"跑一段"（可能一次性产生多个事件），若一看到 AwaitingCommand
+                //   就停住等令，那段事件会被跳过 —— 表现就是"第一次攻击没效果、之后才补播"（实测）。
+                if (HasPendingEvent())
+                {
+                    if (!StepOnce()) break;
+                    var k2 = _play.Current.Kind;
+                    float w2 = IntervalOf(k2) / Mathf.Max(1f, _speed);
+                    if (MustSee(k2)) w2 = Mathf.Max(w2, 0.36f / Mathf.Max(1f, _speed));
+                    await UniTask.Delay(TimeSpan.FromSeconds(w2), cancellationToken: ct);
+                    continue;
+                }
+
                 // ⚠ 回合制：等玩家下令时必须**原地等**，绝不能 break ——
                 //    break 会被下方收尾逻辑当成"播完"，导致一进战斗就直接结算（踩过）。
                 if (_play.AwaitingCommand)
@@ -345,13 +358,7 @@ namespace WanXiang.Modules.UI
                 // ⚠ 关键事件保底时长：技能释放 / 伤害 / 治疗 / 死亡这些"要看清楚"的事件，
                 //   若间隔太小会一闪而过 —— 玩家会觉得"第一次攻击没效果"（实测）。
                 //   只给这几类保底，其他事件（回合开始、结算等）保持原节奏，不会拖慢整体。
-                var kind = _play.Current.Kind;
-                bool mustSee = kind == WanXiang.Battle.Core.BattleEventKind.SkillCast
-                            || kind == WanXiang.Battle.Core.BattleEventKind.Damage
-                            || kind == WanXiang.Battle.Core.BattleEventKind.Heal
-                            || kind == WanXiang.Battle.Core.BattleEventKind.Death
-                            || kind == WanXiang.Battle.Core.BattleEventKind.Shield;
-                if (mustSee) wait = Mathf.Max(wait, 0.36f / Mathf.Max(1f, _speed));
+                if (MustSee(_play.Current.Kind)) wait = Mathf.Max(wait, 0.36f / Mathf.Max(1f, _speed));
 
                 await UniTask.Delay(TimeSpan.FromSeconds(wait), cancellationToken: ct);
             }
@@ -373,11 +380,29 @@ namespace WanXiang.Modules.UI
             _stage.Step(Time.deltaTime * Mathf.Max(1f, _speed));
         }
 
+        /// <summary>是否还有"已产生但未播放"的事件。</summary>
+        private bool HasPendingEvent()
+        {
+            return _play != null && _play.State != null && _eventIndex + 1 < _play.State.Log.Count;
+        }
+
+        /// <summary>这些事件必须让玩家看清（保底演出时长）。</summary>
+        private static bool MustSee(WanXiang.Battle.Core.BattleEventKind kind)
+        {
+            return kind == WanXiang.Battle.Core.BattleEventKind.SkillCast
+                || kind == WanXiang.Battle.Core.BattleEventKind.Damage
+                || kind == WanXiang.Battle.Core.BattleEventKind.Heal
+                || kind == WanXiang.Battle.Core.BattleEventKind.Death
+                || kind == WanXiang.Battle.Core.BattleEventKind.Shield;
+        }
+
         /// <summary>推进一个事件：HUD + 舞台同步刷新。返回 false 表示已播完。</summary>
         private bool StepOnce()
         {
             if (_play == null || _play.Finished) return false;
-            if (_play.AwaitingCommand) return true;    // 等下令（由 PlayLoop 处理），不是"播完"✗
+            // ⚠ 这里绝不能因"在等令"就提前返回 —— 等令期间**仍有已产生但未播的事件**
+            //   （模拟推进是"跑一段"，事件先产生、播放器随后逐条播）。
+            //   曾因提前返回把"第一次攻击"整段跳过（用户实测）。由 PlayLoop 决定何时等令。
             if (!_play.Step()) return false;
 
             _eventIndex++;
