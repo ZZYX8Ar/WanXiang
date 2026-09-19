@@ -870,13 +870,21 @@ namespace WanXiang.Modules.UI
 
             _orderBuf.Clear();
             stt.BuildActionOrderInto(_orderBuf);
-            var cur = _play.PendingUnit;
+            // ⚠ "行动中"要跟**正在演出的画面**一致：用当前事件的 actorId，
+            //    而不是 PendingUnit（那是在等玩家下令的**下一个**单位）——
+            //    用 PendingUnit 会让高亮慢一拍（用户实测：显示的其实是上一个回合的）。
+            BattleUnit cur = null;
+            var ev = _play.Current;   // BattleEvent 是 struct，无需 null 检查
+            if (!string.IsNullOrEmpty(ev.ActorId))
+                for (int i = 0; i < _orderBuf.Count; i++)
+                    if (_orderBuf[i].RuntimeId == ev.ActorId) { cur = _orderBuf[i]; break; }
+            if (cur == null && _play.AwaitingCommand) cur = _play.PendingUnit;   // 等下令时用待令单位
 
             // 指纹：顺序（RuntimeId 的 hash 组合）+ 当前行动者
             int stamp = 17;
             for (int i = 0; i < _orderBuf.Count; i++)
                 stamp = stamp * 31 + (_orderBuf[i].RuntimeId != null ? _orderBuf[i].RuntimeId.GetHashCode() : 0);
-            string curId = cur != null ? cur.RuntimeId : null;
+            string curId = (cur != null ? cur.RuntimeId : null) + "#" + stt.Turn;
             bool same = stamp == _lastOrderStamp && curId == _lastActorId;
             if (same && _orderPanel.gameObject.activeSelf) return;   // ★ 守卫：没变化就什么都不做
             _lastOrderStamp = stamp;
