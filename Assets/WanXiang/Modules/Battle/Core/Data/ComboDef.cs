@@ -85,6 +85,42 @@ namespace WanXiang.Battle.Core
             return list;
         }
 
+        /// <summary>
+        /// 为什么不能发动（返回 null = 可以发动）。给界面显示"差什么"，让玩家不用猜。
+        /// </summary>
+        public static string WhyNot(BattleState st, BattleUnit actor)
+        {
+            if (actor == null || actor.Def == null) return "没有待令单位";
+            if (!actor.IsAlive) return "单位已阵亡";
+
+            ComboDef matched = null;
+            for (int i = 0; i < Table.Length; i++)
+                if (actor.Def.Id == Table[i].HostId) { matched = Table[i]; break; }
+            if (matched == null)
+                return actor.DisplayName + " 不是任何连携的主兽（连携由句芒/祝融/蓐收发动）";
+
+            if (st.UsedCombos.Contains(matched.Id)) return "本场已发动过「" + matched.Name + "」";
+            var partner = FindPartner(st, actor, matched);
+            if (partner == null)
+                return "需要一名" + ElementName(matched.PartnerElement) + "属性的伙伴在场";
+            if (st.TeamMp < matched.MpCost * 2)
+                return "全队灵力不足 " + (matched.MpCost * 2) + " 点（当前 " + st.TeamMp + "）";
+            return null;      // 可以发动
+        }
+
+        private static string ElementName(Element e)
+        {
+            switch (e)
+            {
+                case Element.Wood: return "木";
+                case Element.Fire: return "火";
+                case Element.Earth: return "土";
+                case Element.Metal: return "金";
+                case Element.Water: return "水";
+                default: return e.ToString();
+            }
+        }
+
         /// <summary>找连携伙伴：其他友方中第一个元素匹配且活着的。</summary>
         public static BattleUnit FindPartner(BattleState st, BattleUnit actor, ComboDef c)
         {

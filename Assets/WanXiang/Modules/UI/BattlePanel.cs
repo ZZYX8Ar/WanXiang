@@ -836,8 +836,14 @@ namespace WanXiang.Modules.UI
             else
             {
                 title = "连携技";
-                body = "两只特定异兽同场时解锁的**双人合击**。\n\n例如：句芒（木）+ 任何木属性伙伴 ⇒ 青阳共鸣\n\n把主兽和对应元素的伙伴编入同一队伍，轮到主兽行动时这里就会亮出可发动的连携。";
-            }
+                var pending = _play != null ? _play.PendingUnit : null;
+                var why = pending != null && _play.State != null
+                    ? ComboRules.WhyNot(_play.State, pending)
+                    : "没有待令单位";
+                body = "两只特定异兽同场时解锁的双人合击（例如：句芒+任何木属性伙伴 ⇒ 青阳共鸣）。\n\n当前："
+                     + (why ?? "可以发动")
+                     + "\n\n发动时机：连携占用主兽本次行动。";
+
             _tipText.text = "<size=26><b>" + title + "</b></size>\n" + body;
 
             _tipPanel.gameObject.SetActive(true);
@@ -847,6 +853,7 @@ namespace WanXiang.Modules.UI
             _tipTween = DOTween.Sequence()
                 .Join(_tipPanel.DOAnchorPos(new Vector2(52f, 40f), 0.18f).SetEase(Ease.OutQuad))
                 .Join(_tipGroup.DOFade(1f, 0.18f));
+            }
         }
 
         /// <summary>
