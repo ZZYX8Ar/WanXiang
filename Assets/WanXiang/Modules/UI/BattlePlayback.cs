@@ -180,7 +180,12 @@ namespace WanXiang.Modules.UI
             if (State == null) return;
             BattleSimulator.ApplyPlayerCommand(State, skillIndex, targetIndex);
             _awaiting = false;
-            AdvanceSim();
+
+            // ⚠ 这里**绝不能** AdvanceSim()：那会把"下一个决策点之前的所有事件"一次性推完，
+            //    播放循环再也看不到它们 —— 玩家表现就是"伤害数字不飘、血条不动"
+            //    （用户实测：手动看不到掉血、自动能看到，就是这个差异）。
+            //    正确姿势：只登记指令，由 Step() 逐事件推进；
+            //    Step() 在"事件播完但模拟未结束"时会自己 AdvanceSim 推进下一段。
         }
 
         /// <summary>推进模拟到下一个决策点（或结束）。</summary>

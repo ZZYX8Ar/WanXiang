@@ -108,6 +108,13 @@ namespace WanXiang.Modules.UI
         protected override void OnCreate()
         {
             BuildActionBar();
+
+            // ⚠ 必须在 BuildActionBar 之外挂：prefab 已绑定操作区时那个方法会提前 return，
+            //    把挂载写在里面就永远挂不上（用户实测"悬浮面板没有"就是这个原因）。
+            BuildSkillTip();
+            if (_skillBtns != null)
+                for (int i = 0; i < _skillBtns.Length; i++)
+                    HookTip(_skillBtns[i], i);
             if (_rootWeather != null) _rootWeather.SetActive(false);
             if (_btnUltimate != null) _btnUltimate.onClick.AddListener(OnUltimateClicked);
             if (_btnSpeed != null) _btnSpeed.onClick.AddListener(OnSpeedClicked);
@@ -642,12 +649,6 @@ namespace WanXiang.Modules.UI
             _btnAutoBattle.onClick.AddListener(OnAutoBattleClicked);
 
             _actionBar.gameObject.SetActive(false);
-
-            // 给三个战记按钮挂悬浮提示（鼠标移入 → 左侧弹出技能说明，移出消失）
-            BuildSkillTip();
-            if (_skillBtns != null)
-                for (int i = 0; i < _skillBtns.Length; i++)
-                    HookTip(_skillBtns[i], i);
         }
 
         // ================================================================
