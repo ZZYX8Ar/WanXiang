@@ -315,10 +315,19 @@ namespace WanXiang.Modules.UI
                 //    break 会被下方收尾逻辑当成"播完"，导致一进战斗就直接结算（踩过）。
                 if (_play.AwaitingCommand)
                 {
-                    RefreshActionBar();                       // 亮出操作区
+                    // ⚠ 只在"待令单位变化"时刷一次 UI —— 绝不要每帧刷：
+                    //    每帧 SetActive/interactable/SetText 会持续触发 UI 重建，导致卡死（用户实测）。
+                    var pu = _play.PendingUnit;
+                    string puId = pu != null ? pu.RuntimeId : "none";
+                    if (puId != _lastWaitedId)
+                    {
+                        _lastWaitedId = puId;
+                        RefreshActionBar();                   // 亮出操作区（新单位上台时刷一次）
+                    }
                     if (_autoBattle)
                     {
                         _play.SubmitCommand(-1, -1);          // 自动战斗：AI 代下令
+                        _lastWaitedId = null;                 // 自动推进：下一轮必然重刷
                         RefreshActionBar();
                     }
                     await UniTask.Yield(PlayerLoopTiming.Update, ct);
@@ -793,6 +802,7 @@ namespace WanXiang.Modules.UI
             new System.Collections.Generic.List<BattleUnit>(16);
         private int _lastOrderStamp = -1;
         private string _lastActorId;
+        private string _lastWaitedId;   // 上次已刷新的待令单位（避免每帧刷 UI）
         private string _lastActorLine;
 
         private void BuildOrderList()
@@ -960,7 +970,11 @@ namespace WanXiang.Modules.UI
             }
             else if (_tmpActor != null)
             {
-                _tmpActor.text = "轮到我方行动";
+                if (_lastActorLine != "轮到我方行动")
+                {
+                    _lastActorLine = "轮到我方行动";
+                    _tmpActor.text = _lastActorLine;
+                }
             }
 
             if (_skillBtns != null && u != null)
