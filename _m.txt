@@ -1,0 +1,14 @@
+fix(battle-ui): 提示面板目标取效果 atom（护盾技不再误显示为打敌人）
+
+真机验证提示面板时发现的瑕疵：
+  「青阳律」（给生命最低的队友加护盾）显示成 "目标：生命最低的敌人" ——
+  因为它读的是 Skill.PrimaryTarget（主目标语义），对自增益/护盾类技能会误导。
+
+修：
+  · 目标改为**遍历 Effects，取第一个非 Self 的 atom.Target**（真正决定打谁的那个）
+  · 顺手去掉 descHint 里的 Markdown 星号（TMP 用 <b> 而不是 **，星号会原样显示）
+
+真机验证（MCP，Play 中调 ShowSkillTip）：
+  操作区文案 = 轮到「句芒」　灵力 8/12（战记 3 点）　元气 0/100 ✓
+  提示面板 未悬浮=False / 调 ShowSkillTip 后=True ✓（DOTween 淡出 0.12s 后自动隐藏）
+  内容 = 技能名 + 描述 + 目标 + 消耗 全就位 ✓
