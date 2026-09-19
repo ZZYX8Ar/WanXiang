@@ -341,6 +341,18 @@ namespace WanXiang.Modules.UI
 
                 // 节奏由事件语义决定；速度倍率只缩放间隔
                 float wait = IntervalOf(_play.Current.Kind) / Mathf.Max(1f, _speed);
+
+                // ⚠ 关键事件保底时长：技能释放 / 伤害 / 治疗 / 死亡这些"要看清楚"的事件，
+                //   若间隔太小会一闪而过 —— 玩家会觉得"第一次攻击没效果"（实测）。
+                //   只给这几类保底，其他事件（回合开始、结算等）保持原节奏，不会拖慢整体。
+                var kind = _play.Current.Kind;
+                bool mustSee = kind == WanXiang.Battle.Core.BattleEventKind.SkillCast
+                            || kind == WanXiang.Battle.Core.BattleEventKind.Damage
+                            || kind == WanXiang.Battle.Core.BattleEventKind.Heal
+                            || kind == WanXiang.Battle.Core.BattleEventKind.Death
+                            || kind == WanXiang.Battle.Core.BattleEventKind.Shield;
+                if (mustSee) wait = Mathf.Max(wait, 0.36f / Mathf.Max(1f, _speed));
+
                 await UniTask.Delay(TimeSpan.FromSeconds(wait), cancellationToken: ct);
             }
 
