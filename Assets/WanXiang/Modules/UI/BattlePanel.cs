@@ -339,6 +339,7 @@ namespace WanXiang.Modules.UI
                     {
                         _lastWaitedId = puId;
                         RefreshActionBar();                   // 亮出操作区（新单位上台时刷一次）
+                        RefreshComboButton();                 // 连携按钮同步刷一次（不进每帧路径）
                     }
                     if (_autoBattle)
                     {
@@ -383,6 +384,20 @@ namespace WanXiang.Modules.UI
             if (!_playing || _stage == null) return;
             if (State != UIPanelState.Opened) return;      // 被上层盖住/暂停时不推进
             _stage.Step(Time.deltaTime * Mathf.Max(1f, _speed));
+        }
+
+        /// <summary>
+        /// 刷新连携按钮（只在**待令单位变化**时调用，不进每帧路径）。
+        /// AvailableCombos 每次会分配新 List、还要找子节点 —— 逐帧调它就是卡顿源。
+        /// </summary>
+        private void RefreshComboButton()
+        {
+            if (_btnCombo == null || _play == null) return;
+            var combos = _play.AvailableCombos;
+            _btnCombo.interactable = combos.Count > 0;
+            var label = _btnCombo.GetComponentInChildren<TMPro.TMP_Text>();
+            if (label != null)
+                label.text = combos.Count > 0 ? "连携·" + combos[0].Name : "连携";
         }
 
         /// <summary>目标选择器的中文名（提示面板用；与 TargetSelector 一一对应）。</summary>
@@ -1013,6 +1028,8 @@ namespace WanXiang.Modules.UI
             // ⚠ 读 State.TurnOrder（回合开始时定下的那份），不要自己按当前速度重排 ——
             //   否则加速/减速之后，界面显示的顺序会与模拟真正执行的顺序不一致。
             _orderBuf.Clear();
+            // ⚠ 显示"**接下来**轮到谁"：以当前事件的 actorId 在本回合序列中的位置为界，
+            //   只展示它之后（含它自己）的单位 —— 已行动过的不再列出来（用户实测嫌乱）。
             _orderBuf.AddRange(stt.TurnOrder);
             // ⚠ "行动中"要跟**正在演出的画面**一致：用当前事件的 actorId，
             //    而不是 PendingUnit（那是在等玩家下令的**下一个**单位）——
@@ -1037,8 +1054,18 @@ namespace WanXiang.Modules.UI
             if (_orderBuf.Count == 0) { _orderPanel.gameObject.SetActive(false); return; }
             _orderPanel.gameObject.SetActive(true);
 
+            // 只显示"**还没行动**"的单位：从当前演出者（ev.ActorId）的位置开始。
+            // 之前显示整条回合序列，已行动过的还挂在上面 —— 用户实测嫌乱（"越做越奇怪"）。
+            int start = 0;
+            {
+                var cev = _play.Current;                       // struct，无需判空
+                if (!string.IsNullOrEmpty(cev.ActorId))
+                    for (int i = 0; i < _orderBuf.Count; i++)
+                        if (_orderBuf[i].RuntimeId == cev.ActorId) { start = i; break; }
+            }
+
             int shown = 0;
-            for (int i = 0; i < _orderBuf.Count && shown < OrderRowCount; i++)
+            for (int i = start; i < _orderBuf.Count && shown < OrderRowCount; i++)
             {
                 var u = _orderBuf[i];
                 if (!u.IsAlive) continue;
@@ -1133,15 +1160,7 @@ namespace WanXiang.Modules.UI
                                           && u.CanCast(SkillType.Ultimate, cfg);
             }
 
-            // 连携：当前单位是主兽 + 伙伴在场 + 双方灵力够（核心判定，单一真源）
-            if (_btnCombo != null)
-            {
-                var combos = _play.AvailableCombos;
-                _btnCombo.interactable = combos.Count > 0;
-                var label = _btnCombo.GetComponentInChildren<TMPro.TMP_Text>();
-                if (label != null)
-                    label.text = combos.Count > 0 ? "连携·" + combos[0].Name : "连携";
-            }
+            // 连携按钮不在每帧路径里刷新（见 RefreshComboButton，避免每帧 GC/查子节点）
         }
 
         private void OnSkillClicked(int skillIndex)
