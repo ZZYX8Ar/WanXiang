@@ -726,14 +726,23 @@ namespace WanXiang.Modules.UI
         // ================================================================
         //  战记悬浮提示（hover → 左侧弹出 / 离开消失，DOTween 做动画）
         // ================================================================
-        private RectTransform _tipPanel;
-        private TMP_Text _tipText;
+        [SerializeField] private RectTransform _tipPanel;       // Root_SkillTip（生成器产物）
+        [SerializeField] private TMP_Text _tipText;            // Tmp_Tip
         private CanvasGroup _tipGroup;
         private DG.Tweening.Tween _tipTween;
 
         private void BuildSkillTip()
         {
-            if (_tipPanel != null) return;
+            if (_tipPanel != null)
+            {
+                // prefab 已绑定（生成器产物）→ 取引用即可（_tipText 也来自 prefab）
+                _tipGroup = _tipPanel.GetComponent<CanvasGroup>();
+                if (_tipGroup == null) _tipGroup = _tipPanel.gameObject.AddComponent<CanvasGroup>();
+                _tipGroup.alpha = 0f;
+                _tipGroup.blocksRaycasts = false;
+                _tipPanel.gameObject.SetActive(false);
+                return;
+            }
 
             var go = new GameObject("Root_SkillTip", typeof(RectTransform));
             _tipPanel = (RectTransform)go.transform;
@@ -859,9 +868,9 @@ namespace WanXiang.Modules.UI
         //    现在每帧只做一次 10 单位的排序 + 指纹比对，开销可忽略。
         // ================================================================
         private const int OrderRowCount = 8;
-        private RectTransform _orderPanel;
-        private RectTransform[] _orderRows;
-        private Image[] _orderHeads;
+        [SerializeField] private RectTransform _orderPanel;     // Root_OrderList（生成器产物）
+        [SerializeField] private RectTransform[] _orderRows;    // OrderRow_0..7
+        private Image[] _orderHeads;                            // 行内引用：生成器产物里按名字取
         private TMP_Text[] _orderNames;
         private readonly System.Collections.Generic.List<BattleUnit> _orderBuf =
             new System.Collections.Generic.List<BattleUnit>(16);
@@ -873,6 +882,24 @@ namespace WanXiang.Modules.UI
         private void BuildOrderList()
         {
             if (_orderPanel != null) return;
+
+            // prefab 已绑定（生成器产物）→ 只取行内引用，不建控件
+            if (_orderRows != null && _orderRows.Length > 0 && _orderRows[0] != null)
+            {
+                _orderHeads = new Image[_orderRows.Length];
+                _orderNames = new TMP_Text[_orderRows.Length];
+                for (int i = 0; i < _orderRows.Length; i++)
+                {
+                    if (_orderRows[i] == null) continue;
+                    var h = _orderRows[i].Find("Head");
+                    if (h != null) _orderHeads[i] = h.GetComponent<Image>();
+                    var n = _orderRows[i].Find("Tmp_Name");
+                    if (n != null) _orderNames[i] = n.GetComponent<TMP_Text>();
+                }
+                _orderPanel.gameObject.SetActive(false);
+                return;
+            }
+
             var go = new GameObject("Root_OrderList", typeof(RectTransform));
             _orderPanel = (RectTransform)go.transform;
             _orderPanel.SetParent(transform, false);

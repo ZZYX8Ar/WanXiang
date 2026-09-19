@@ -630,6 +630,44 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_tmpActor", tmpActor);
             UIBuild.BindArr(comp, "_skillBtns", skillBtns);
             UIBuild.Bind(comp, "_btnAutoBattle", bAutoBattle);
+            // ---- 行动顺序（右上角）：标题 + 8 行（每行：头像 + 名字）----
+            var orderPanel = UIBuild.Fixed(rt, "Root_OrderList", new Vector2(1f, 1f),
+                new Vector2(330, 380), new Vector2(-24f, -120f));
+            orderPanel.pivot = new Vector2(1f, 1f);      // 从右上角往左下排
+            UIBuild.Img(orderPanel, UIBuild.Night);
+
+            var tmpOrderTitle = UIBuild.Tmp(UIBuild.Fixed(orderPanel, "Tmp_OrderTitle",
+                new Vector2(0.5f, 1f), new Vector2(310, 30), new Vector2(0f, -22f)),
+                "行动顺序（按速度）", 20, UIBuild.Paper, TextAlignmentOptions.Center);
+
+            var orderRows = new RectTransform[8];
+            for (int ri = 0; ri < 8; ri++)
+            {
+                var row = UIBuild.Fixed(orderPanel, "OrderRow_" + ri, new Vector2(0.5f, 1f),
+                    new Vector2(304, 38), new Vector2(0f, -59f - ri * 41f));
+                // 行内：头像 + 名字（BattlePanel 首次运行按名字取引用，不逐帧创建）
+                var head = UIBuild.Fixed(row, "Head", new Vector2(0f, 0.5f),
+                    new Vector2(36, 36), new Vector2(24f, 0f));
+                UIBuild.Img(head, UIBuild.Paper);
+                UIBuild.Tmp(UIBuild.Stretch(row, "Tmp_Name", 50, 0, 6, 0),
+                    "—", 19, UIBuild.Paper, TextAlignmentOptions.MidlineLeft);
+                orderRows[ri] = row;
+            }
+            orderPanel.gameObject.SetActive(false);
+
+            // ---- 战记悬浮提示（左侧）----
+            var tipPanel = UIBuild.Fixed(rt, "Root_SkillTip", new Vector2(0f, 0.5f),
+                new Vector2(430, 260), new Vector2(52f, 40f));
+            tipPanel.pivot = new Vector2(0f, 0.5f);
+            UIBuild.Img(tipPanel, UIBuild.Night);
+            var tmpTip = UIBuild.Tmp(UIBuild.Stretch(tipPanel, "Tmp_Tip", 18, 14, 18, 14),
+                "", 22, UIBuild.Paper, TextAlignmentOptions.TopLeft);
+            tipPanel.gameObject.SetActive(false);
+
+            UIBuild.Bind(comp, "_orderPanel", orderPanel);
+            UIBuild.BindArr(comp, "_orderRows", orderRows);
+            UIBuild.Bind(comp, "_tipPanel", tipPanel);
+            UIBuild.Bind(comp, "_tipText", tmpTip);
             UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
             UIBuild.Bind(comp, "_sprites", LoadAsset<SpriteCatalog>(SpriteCatalogPath));
             UIBuild.SavePrefab(root, "Panel_Battle");
