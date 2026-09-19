@@ -759,6 +759,7 @@ namespace WanXiang.Modules.UI
         // ================================================================
         //  战记悬浮提示（hover → 左侧弹出 / 离开消失，DOTween 做动画）
         // ================================================================
+        private int _tipShowingSlot = -1;                      // 当前展示的战记槽（防抖：同一按钮不重复建动画）
         [SerializeField] private RectTransform _tipPanel;       // Root_SkillTip（生成器产物）
         [SerializeField] private TMP_Text _tipText;            // Tmp_Tip
         private CanvasGroup _tipGroup;
@@ -825,6 +826,7 @@ namespace WanXiang.Modules.UI
         private void ShowComboTip()
         {
             if (_tipPanel == null || _tipText == null) return;
+            _tipShowingSlot = 90;          // 连携（不复用战记槽位）
             var combos = _play != null ? _play.AvailableCombos : null;
             string title, body;
             if (combos != null && combos.Count > 0)
@@ -896,6 +898,10 @@ namespace WanXiang.Modules.UI
         private void ShowSkillTip(int slot)
         {
             if (_tipPanel == null || _play == null) return;
+            // ★ 防抖：同一槽位且面板已显示 → 直接返回。反复悬浮会疯狂创建 DOTween
+            //   Sequence（每次 1 个容器 + 2 个 Tweener），编辑器实测直接卡死。
+            if (_tipShowingSlot == slot && _tipPanel.gameObject.activeSelf) return;
+            _tipShowingSlot = slot;
             var u = _play.PendingUnit;
 
             string title, body;
@@ -961,6 +967,7 @@ namespace WanXiang.Modules.UI
         private void HideSkillTip()
         {
             if (_tipPanel == null || !_tipPanel.gameObject.activeSelf) return;
+            _tipShowingSlot = -1;
             _tipTween?.Kill();
             _tipTween = _tipGroup.DOFade(0f, 0.12f).OnComplete(() =>
             {
