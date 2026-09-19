@@ -92,6 +92,9 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public bool AutoCastUltimate = true;
 
+        /// <summary>AI 策略组（只影响敌方单位的自动决策；v2.1 P4）。</summary>
+        public AiProfile AiProfile = AiProfile.Balanced;
+
         /// <summary>「生机」每层每回合回复最大生命的百分比（GDD 立春节点）。</summary>
         public float VigorRegenPerStack = 0.02f;
 

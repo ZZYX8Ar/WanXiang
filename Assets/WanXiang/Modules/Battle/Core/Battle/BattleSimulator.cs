@@ -517,19 +517,28 @@ namespace WanXiang.Battle.Core
                 return SkillType.Basic;
             }
 
-            // ---- AI 规则（原逻辑）----
+            // ---- AI 规则（按策略组调整，v2.1 P4；只影响敌方，我方由玩家下令）----
             var ult = u.GetSkill(SkillType.Ultimate);
-            if (ult != null && cfg.AutoCastUltimate && u.CanCast(SkillType.Ultimate, cfg))
-            {
-                chosen = ult;
-                return SkillType.Ultimate;
-            }
-
             var act = u.GetSkill(SkillType.Active);
-            if (act != null && u.CanCast(SkillType.Active, cfg))
+
+            if (cfg.AiProfile == AiProfile.Aggressive)
             {
-                chosen = act;
-                return SkillType.Active;
+                // 激进：资源优先兑现成伤害 —— 终结技能放就放，不等时机
+                if (ult != null && u.CanCast(SkillType.Ultimate, cfg)) { chosen = ult; return SkillType.Ultimate; }
+                if (act != null && u.CanCast(SkillType.Active, cfg)) { chosen = act; return SkillType.Active; }
+            }
+            else if (cfg.AiProfile == AiProfile.Cautious)
+            {
+                // 稳健：生命低于一半才舍得放战记（其余普攻攒着），终结技同理
+                bool hurt = u.HpPercent < 0.5f;
+                if (!hurt && act != null && u.CanCast(SkillType.Active, cfg)) { chosen = act; return SkillType.Active; }
+            }
+            else
+            {
+                // 均衡（默认）：沿用原规则
+                if (ult != null && cfg.AutoCastUltimate && u.CanCast(SkillType.Ultimate, cfg))
+                { chosen = ult; return SkillType.Ultimate; }
+                if (act != null && u.CanCast(SkillType.Active, cfg)) { chosen = act; return SkillType.Active; }
             }
 
             chosen = u.GetSkill(SkillType.Basic);

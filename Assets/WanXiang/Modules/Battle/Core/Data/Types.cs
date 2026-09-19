@@ -194,4 +194,12 @@ namespace WanXiang.Battle.Core
             }
         }
     }
+/// <summary>AI 策略组（敌方 EncounterDef 挂这个，决定敌人怎么打；v2.1 P4）。</summary>
+public enum AiProfile
+{
+    Balanced = 0,     // 均衡：默认规则（有战记就放，终结技自动）
+    Aggressive = 1,   // 激进：资源优先兑现（终结技/战记能放就放）
+    Cautious = 2,     // 稳健：生命低于一半才舍得放战记，其余普攻
 }
+}
+
