@@ -1111,13 +1111,13 @@ namespace WanXiang.Modules.UI
 
             // 只显示"**还没行动**"的单位：从当前演出者（ev.ActorId）的位置开始。
             // 之前显示整条回合序列，已行动过的还挂在上面 —— 用户实测嫌乱（"越做越奇怪"）。
+            // ⚠ start 与 cur 必须**同一来源**：等令时 cur = PendingUnit（九尾狐），
+            //   而 start 若还按"上一个已播事件"的 actor 找，就会从别的位置开始切，
+            //   把待令单位自己切掉（用户截图：轮到九尾狐，面板却只剩鹿蜀）。
             int start = 0;
-            {
-                var cev = _play.Current;                       // struct，无需判空
-                if (!string.IsNullOrEmpty(cev.ActorId))
-                    for (int i = 0; i < _orderBuf.Count; i++)
-                        if (_orderBuf[i].RuntimeId == cev.ActorId) { start = i; break; }
-            }
+            if (cur != null)
+                for (int i = 0; i < _orderBuf.Count; i++)
+                    if (_orderBuf[i].RuntimeId == cur.RuntimeId) { start = i; break; }
 
             int shown = 0;
             for (int i = start; i < _orderBuf.Count && shown < OrderRowCount; i++)

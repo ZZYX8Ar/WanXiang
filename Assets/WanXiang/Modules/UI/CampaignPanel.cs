@@ -47,6 +47,14 @@ namespace WanXiang.Modules.UI
         ///  回主城走面板上的返回按钮。</summary>
         public override bool AllowBackClose => false;
 
+        /// <summary>返回主城：节点图是全屏面板，只 Close 不 Open Home 会留白屏（用户实测）。</summary>
+        private void OnBackToHome()
+        {
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            CloseSelf();
+            if (ui != null) _ = ui.OpenAsync<HomePanel>();
+        }
+
         [SerializeField] private TMP_Text _tmpActTitle;        // Tmp_ActTitle  幕名
         [SerializeField] private TMP_Text _tmpJie;             // Tmp_JieCount  劫数
         [SerializeField] private ScrollRect _scrollNodes;      // Scroll_Nodes  节点长卷
@@ -71,7 +79,7 @@ namespace WanXiang.Modules.UI
         {
             if (_rootNodeInfo != null) _rootNodeInfo.SetActive(true);
             if (_btnNext != null) _btnNext.onClick.AddListener(OnNextClicked);
-            if (_btnBack != null) _btnBack.onClick.AddListener(CloseSelf);
+            if (_btnBack != null) _btnBack.onClick.AddListener(OnBackToHome);
         }
 
         protected override UniTask OnOpenAsync(object payload)
