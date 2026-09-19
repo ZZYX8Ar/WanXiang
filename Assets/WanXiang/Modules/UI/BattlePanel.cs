@@ -432,6 +432,12 @@ namespace WanXiang.Modules.UI
             var e = _play.Current;
             ApplyEvent(e);
             if (_stage != null) _stage.ApplyEvent(_eventIndex, e);
+
+            // ⚠ 行动条必须**随事件推进刷新**，不能只在"等玩家下令"时刷 ——
+            //   否则敌方行动期间高亮不动，玩家看到的是"敌人打完了指针还停在我方/敌人身上"
+            //   （用户实测）。RefreshOrderList 内部有指纹守卫（顺序 + 当前行动者 + 回合），
+            //   只有真的变了才重建 UI，所以每事件调一次也不会卡。
+            RefreshOrderList();
             return true;
         }
 
