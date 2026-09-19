@@ -26,6 +26,9 @@ namespace WanXiang.Modules.UI
     [UIPanel("Panel_Result", Layer = UILayer.Overlay, CachePolicy = UICachePolicy.Transient, FullScreen = false)]
     public sealed class ResultPanel : UIPanelBase
     {
+        /// <summary>结算必须看完（不该被 Esc 关掉）（基类默认允许，这里显式禁止）。</summary>
+        public override bool AllowBackClose => false;
+
         [SerializeField] private Image _imgBanner;             // Img_Banner    胜负横幅
         [BindArray("Tmp_Line_{0}", 4)]
         [SerializeField] private TMP_Text[] _tmpLines;         // 结算明细 4 行

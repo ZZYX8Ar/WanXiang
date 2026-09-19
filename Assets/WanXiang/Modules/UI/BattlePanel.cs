@@ -29,6 +29,9 @@ namespace WanXiang.Modules.UI
     //   否则玩家点任何空白处都会把界面关掉（踩过）。
     public sealed class BattlePanel : UIPanelBase
     {
+        /// <summary>战斗 HUD 有「离开」按钮，Esc 误关会让玩家以为卡死（基类默认允许，这里显式禁止）。</summary>
+        public override bool AllowBackClose => false;
+
         [SerializeField] private TMP_Text _tmpRound;            // Tmp_Round
         /// <summary>回合制手动模式：开启后我方行动前等玩家下令（需操作区就绪）。</summary>
         [SerializeField] private bool _manualBattle = true;   // 回合制手动（操作区已就位；关掉即全自动）
