@@ -1182,7 +1182,43 @@ namespace WanXiang.EditorTools
         private static void BuildDialog()
         {
             var root = NewPanelRoot("Panel_Dialog", true, Vector2.zero);
-            root.AddComponent<WanXiang.Modules.UI.DialogPanel>();
+            var comp = root.AddComponent<WanXiang.Modules.UI.DialogPanel>();
+            // ---- 对话框控件（v2.1：此前 prefab 是空壳 + 运行时生成，实测按钮跑飞）----
+            var rt = (RectTransform)root.transform;
+
+            var dim = UIBuild.Stretch(rt, "Dim", 0, 0, 0, 0);
+            var dimImg = dim.gameObject.GetComponent<Image>();
+            if (dimImg == null) dimImg = dim.gameObject.AddComponent<Image>();
+            dimImg.color = new Color(0.12f, 0.10f, 0.08f, 0.62f);
+            dimImg.raycastTarget = true;
+
+            var card = UIBuild.Fixed(rt, "Card", new Vector2(0.5f, 0.5f),
+                new Vector2(720, 420), Vector2.zero);
+            var cardImg = card.gameObject.GetComponent<Image>();
+            if (cardImg == null) cardImg = card.gameObject.AddComponent<Image>();
+            cardImg.color = new Color(0.98f, 0.97f, 0.94f, 0.98f);
+
+            var title = UIBuild.Tmp(UIBuild.Fixed(card, "Tmp_Title", new Vector2(0.5f, 1f),
+                new Vector2(-96, 64), new Vector2(0, -40)), "", 36, UIBuild.Ink, TextAlignmentOptions.Center);
+            var body = UIBuild.Tmp(UIBuild.Fixed(card, "Tmp_Body", new Vector2(0.5f, 1f),
+                new Vector2(-128, 320), new Vector2(0, -120)), "", 26, UIBuild.Ink, TextAlignmentOptions.TopLeft);
+
+            var left = UIBuild.MakeBtn(card, "Btn_Left", new Vector2(0f, 0f),
+                new Vector2(280, 92), new Vector2(64f, 40f), "取消",
+                new Color(0.94f, 0.92f, 0.88f, 1f), 28);
+            var right = UIBuild.MakeBtn(card, "Btn_Right", new Vector2(1f, 0f),
+                new Vector2(280, 92), new Vector2(-64f, 40f), "知道了",
+                new Color(0.79f, 0.63f, 0.39f, 1f), 28);
+
+            root.gameObject.SetActive(false);
+
+            UIBuild.Bind(comp, "_title", title.GetComponent<TMPro.TextMeshProUGUI>());
+            UIBuild.Bind(comp, "_body", body.GetComponent<TMPro.TextMeshProUGUI>());
+            UIBuild.Bind(comp, "_left", left.GetComponent<Button>());
+            UIBuild.Bind(comp, "_right", right.GetComponent<Button>());
+            UIBuild.Bind(comp, "_leftLabel", left.GetComponentInChildren<TMPro.TextMeshProUGUI>());
+            UIBuild.Bind(comp, "_rightLabel", right.GetComponentInChildren<TMPro.TextMeshProUGUI>());
+
             UIBuild.SavePrefab(root, "Panel_Dialog");   // ⚠ 漏了这句，prefab 不会落盘（踩过）
         }
 

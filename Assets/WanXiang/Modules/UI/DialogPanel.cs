@@ -35,12 +35,12 @@ namespace WanXiang.Modules.UI
              CloseOnMaskClick = false)]
     public sealed class DialogPanel : UIPanelBase
     {
-        private TMP_Text _title;
-        private TMP_Text _body;
-        private Button _left;       // 取消 / 选项一
-        private Button _right;      // 确定 / 选项二
-        private TMP_Text _leftLabel;
-        private TMP_Text _rightLabel;
+        [SerializeField] private TMP_Text _title;
+        [SerializeField] private TMP_Text _body;
+        [SerializeField] private Button _left;       // 取消 / 选项一
+        [SerializeField] private Button _right;      // 确定 / 选项二
+        [SerializeField] private TMP_Text _leftLabel;
+        [SerializeField] private TMP_Text _rightLabel;
 
         private UniTaskCompletionSource<bool> _confirmTcs;
         private UniTaskCompletionSource<int> _chooseTcs;
@@ -208,6 +208,11 @@ namespace WanXiang.Modules.UI
         {
             if (_built) return;
             _built = true;
+
+            // ★ prefab 已绑定（生成器产物 Panel_Dialog.prefab）→ 字段由序列化注入，
+            //   运行时什么都不建。之前运行时生成 UI 实测多次 Open 后按钮 transform
+            //   跑飞到屏幕外（"知道了"点不了）。只有 prefab 缺失时才走自建兜底。
+            if (_right != null) return;
 
             var rt = (RectTransform)transform;
 
