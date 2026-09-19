@@ -44,6 +44,10 @@ namespace WanXiang.Battle.Core
         /// （核心的 buf.Order 在回合开始就定死了）。存这份 ⇒ 界面显示的就是实际会发生的顺序。
         /// </para>
         /// </summary>
+        /// <summary>本场已发动的连携 Id（每条每场限一次，v2.1 P4）。</summary>
+        public readonly System.Collections.Generic.List<string> UsedCombos =
+            new System.Collections.Generic.List<string>(4);
+
         public readonly System.Collections.Generic.List<BattleUnit> TurnOrder =
             new System.Collections.Generic.List<BattleUnit>(16);
 

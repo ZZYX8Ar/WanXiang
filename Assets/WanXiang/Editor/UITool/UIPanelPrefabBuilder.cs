@@ -630,6 +630,14 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_tmpActor", tmpActor);
             UIBuild.BindArr(comp, "_skillBtns", skillBtns);
             UIBuild.Bind(comp, "_btnAutoBattle", bAutoBattle);
+
+
+            // ---- 连携按钮（主兽 + 对应元素伙伴在场时可用，v2.1 P4）----
+            var bCombo = UIBuild.MakeBtn(actionBar, "Btn_Combo", new Vector2(1f, 0f),
+                new Vector2(200, 76), new Vector2(-240f, 54f), "连携", UIBuild.Card, 24f)
+                .GetComponent<Button>();
+            bCombo.interactable = false;
+            UIBuild.Bind(comp, "_btnCombo", bCombo);
             // ---- 行动顺序（右上角）：标题 + 8 行（每行：头像 + 名字）----
             var orderPanel = UIBuild.Fixed(rt, "Root_OrderList", new Vector2(1f, 1f),
                 new Vector2(330, 380), new Vector2(-24f, -120f));

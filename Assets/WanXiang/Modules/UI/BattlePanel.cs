@@ -631,6 +631,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text _tmpActor;          // Tmp_Actor 当前待令单位
         [SerializeField] private Button[] _skillBtns;         // Btn_Skill_0..2（下标 = SkillType）
         [SerializeField] private Button _btnAutoBattle;       // Btn_AutoBattle
+        [SerializeField] private Button _btnCombo;            // Btn_Combo（连携）
         private bool _autoBattle;
 
         private void BuildActionBar()
@@ -645,6 +646,9 @@ namespace WanXiang.Modules.UI
                         if (_skillBtns[i] != null) _skillBtns[i].onClick.AddListener(() => OnSkillClicked(idx));
                     }
                 if (_btnAutoBattle != null) _btnAutoBattle.onClick.AddListener(OnAutoBattleClicked);
+                if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
+                if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
+                if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
                 _actionBar.gameObject.SetActive(false);
                 return;
             }
@@ -1128,6 +1132,16 @@ namespace WanXiang.Modules.UI
                                           && cfg != null
                                           && u.CanCast(SkillType.Ultimate, cfg);
             }
+
+            // 连携：当前单位是主兽 + 伙伴在场 + 双方灵力够（核心判定，单一真源）
+            if (_btnCombo != null)
+            {
+                var combos = _play.AvailableCombos;
+                _btnCombo.interactable = combos.Count > 0;
+                var label = _btnCombo.GetComponentInChildren<TMPro.TMP_Text>();
+                if (label != null)
+                    label.text = combos.Count > 0 ? "连携·" + combos[0].Name : "连携";
+            }
         }
 
         private void OnSkillClicked(int skillIndex)
@@ -1145,6 +1159,16 @@ namespace WanXiang.Modules.UI
 
             _autoBattle = false;                        // 手动下令即视为关自动
             _play.SubmitCommand(skillIndex, -1);        // 下标 = SkillType；目标暂交 AI
+            RefreshActionBar();
+        }
+
+        private void OnComboClicked()
+        {
+            if (_play == null || !_play.AwaitingCommand) return;
+            var combos = _play.AvailableCombos;
+            if (combos.Count == 0) return;
+            _autoBattle = false;
+            _play.SubmitCombo(combos[0].Id);      // v1：发第一条可用连携（多条选择下一轮做）
             RefreshActionBar();
         }
 

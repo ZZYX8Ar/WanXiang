@@ -188,6 +188,29 @@ namespace WanXiang.Modules.UI
             //    Step() 在"事件播完但模拟未结束"时会自己 AdvanceSim 推进下一段。
         }
 
+        /// <summary>当前待令单位可发动的连携（供操作区按钮判断）。</summary>
+        public System.Collections.Generic.List<ComboDef> AvailableCombos
+        {
+            get
+            {
+                if (State == null || PendingUnit == null || !AwaitingCommand)
+                    return new System.Collections.Generic.List<ComboDef>();
+                return ComboRules.AvailableFor(State, PendingUnit);
+            }
+        }
+
+        /// <summary>
+        /// 发动连携（替代该单位本次的普攻/战记）。返回 false = 条件不满足。
+        /// 连携的事件已写入日志，由播放循环逐条演出。
+        /// </summary>
+        public bool SubmitCombo(string comboId)
+        {
+            if (State == null || !_awaiting) return false;
+            bool ok = BattleSimulator.ExecuteCombo(State, comboId, PendingUnit);
+            if (ok) _awaiting = false;
+            return ok;
+        }
+
         /// <summary>推进模拟到下一个决策点（或结束）。</summary>
         private void AdvanceSim()
         {

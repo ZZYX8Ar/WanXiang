@@ -545,6 +545,60 @@ namespace WanXiang.Battle.Core
             return SkillType.Basic;
         }
 
+        /// <summary>
+        /// 执行连携技（v2.1 P4）：主兽 + 伙伴各扣 2 灵力，按 ComboEffect 结算。
+        /// 返回 false = 条件不满足（每场限一次 / 伙伴不在 / 灵力不足），不产生任何事件。
+        /// </summary>
+        public static bool ExecuteCombo(BattleState st, string comboId, BattleUnit host)
+        {
+            var combo = ComboRules.For(comboId);
+            if (combo == null || host == null || !host.IsAlive) return false;
+            if (st.UsedCombos.Contains(comboId)) return false;
+            var partner = ComboRules.FindPartner(st, host, combo);
+            if (partner == null) return false;
+            if (st.TeamMp < combo.MpCost * 2) return false;
+
+            st.TeamMp -= combo.MpCost * 2;
+            st.UsedCombos.Add(comboId);
+
+            st.Log.Add(st.Turn, BattleEventKind.SkillCast, actorId: host.RuntimeId,
+                       skillName: combo.Name, element: Element.None,
+                       note: host.DisplayName + "×" + partner.DisplayName + "·" + combo.Name,
+                       skill: SkillType.Active);
+
+            int power = CoreMath.RoundDamage(host.Attack * combo.Power);
+            var foeSide = BattleState.Opponent(host.Side);
+
+            switch (combo.Effect)
+            {
+                case ComboEffect.WoodPulse:
+                {
+                    var foes = st.UnitsOf(foeSide);
+                    for (int i = 0; i < foes.Count; i++)
+                        if (foes[i].IsAlive) foes[i].TakeDamage(power);
+                    var ours = st.UnitsOf(host.Side);
+                    for (int i = 0; i < ours.Count; i++)
+                        if (ours[i].IsAlive) ours[i].Heal((int)(ours[i].MaxHp * 0.15f));
+                    break;
+                }
+                case ComboEffect.FireStorm:
+                {
+                    var foes = st.UnitsOf(foeSide);
+                    for (int i = 0; i < foes.Count; i++)
+                        if (foes[i].IsAlive) foes[i].TakeDamage(power);
+                    break;
+                }
+                case ComboEffect.MetalBreak:
+                {
+                    var list = new System.Collections.Generic.List<BattleUnit>();
+                    PickByRank(st, foeSide, list, host, true);      // 最前排单体
+                    if (list.Count > 0 && list[0].IsAlive) list[0].TakeDamage(power);
+                    break;
+                }
+            }
+            return true;
+        }
+
         // ================================================================
         //  原子效果结算
         // ================================================================
