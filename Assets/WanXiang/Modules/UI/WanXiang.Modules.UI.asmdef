@@ -9,7 +9,9 @@
         "WanXiang.Modules.Fusion",
         "WanXiang.Campaign.Core",
         "UniTask",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "DOTween",
+        "DOTween.Modules"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

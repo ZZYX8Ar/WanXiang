@@ -46,22 +46,30 @@ namespace WanXiang.Battle.Core
     /// </summary>
     public static class PassiveCatalog
     {
-        private static readonly PassiveDef[] Table =
-        {
-            //  索引 = (int)Element：0 木 / 1 火 / 2 土 / 3 金 / 4 水
-            new PassiveDef { Trigger = PassiveTrigger.OnTurnEnd,    Effect = PassiveEffect.Heal,     Value = 0.05f, Note = "生生不息：每回合末回复 5% 生命" },
-            new PassiveDef { Trigger = PassiveTrigger.OnBattleStart, Effect = PassiveEffect.AttackUp, Value = 0.08f, Note = "燎原：开场攻击 +8%" },
-            new PassiveDef { Trigger = PassiveTrigger.OnBattleStart, Effect = PassiveEffect.Heal,     Value = 0.12f, Note = "厚德：开场回复 12% 生命" },
-            new PassiveDef { Trigger = PassiveTrigger.OnBattleStart, Effect = PassiveEffect.AttackUp, Value = 0.10f, Note = "肃杀：开场攻击 +10%" },
-            new PassiveDef { Trigger = PassiveTrigger.OnTurnEnd,     Effect = PassiveEffect.Heal,     Value = 0.03f, Note = "渊流：每回合末回复 3% 生命" },
-        };
-
-        /// <summary>取某只异兽的被动（按五行）。</summary>
+        // ⚠ 用显式 switch 而非"枚举下标查表"：Element 的枚举顺序不是
+        //   木火土金水（踩过——祝融拿到了土系的被动）。显式映射不受顺序影响。
         public static PassiveDef For(BeastDef def)
         {
-            int i = (int)def.Element;
-            if (i < 0 || i >= Table.Length) return default;
-            return Table[i];
+            switch (def.Element)
+            {
+                case Element.Wood:
+                    return new PassiveDef { Trigger = PassiveTrigger.OnTurnEnd, Effect = PassiveEffect.Heal,
+                                            Value = 0.05f, Note = "生生不息：每回合末回复 5% 生命" };
+                case Element.Fire:
+                    return new PassiveDef { Trigger = PassiveTrigger.OnBattleStart, Effect = PassiveEffect.AttackUp,
+                                            Value = 0.08f, Note = "燎原：开场攻击 +8%" };
+                case Element.Earth:
+                    return new PassiveDef { Trigger = PassiveTrigger.OnBattleStart, Effect = PassiveEffect.Heal,
+                                            Value = 0.12f, Note = "厚德：开场回复 12% 生命" };
+                case Element.Metal:
+                    return new PassiveDef { Trigger = PassiveTrigger.OnBattleStart, Effect = PassiveEffect.AttackUp,
+                                            Value = 0.10f, Note = "肃杀：开场攻击 +10%" };
+                case Element.Water:
+                    return new PassiveDef { Trigger = PassiveTrigger.OnTurnEnd, Effect = PassiveEffect.Heal,
+                                            Value = 0.03f, Note = "渊流：每回合末回复 3% 生命" };
+                default:
+                    return default;
+            }
         }
 
         public static PassiveDef ByTrigger(BeastDef def, PassiveTrigger trigger)
