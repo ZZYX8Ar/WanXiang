@@ -127,14 +127,24 @@ namespace WanXiang.Modules.UI
             }
             _picked = index;
             Apply(index);
-            CloseSelf();
+            BackToMap();
         }
 
         private void OnDeclineClicked()
         {
             var run = WanXiang.Run.RunSave.Current;
             if (run != null) { run.Eggs += 1; WanXiang.Run.RunSave.SaveCurrent(); }   // GDD：拒绝换 1 灵卵
-            CloseSelf();
+            BackToMap();
         }
+
+        /// <summary>异闻是节点图的子面板：返回 = 回节点地图继续探索，不是回主城。</summary>
+        private void BackToMap()
+        {
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            CloseSelf();
+            if (ui != null) _ = ui.OpenAsync<CampaignPanel>();
+        }
+
+
     }
 }

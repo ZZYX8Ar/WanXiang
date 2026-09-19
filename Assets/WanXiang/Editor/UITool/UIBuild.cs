@@ -392,6 +392,16 @@ namespace WanXiang.EditorTools
         /// 底图由 UIPanelArtApplier 按面板名灌入 Assets/ArtRes/Screens/Panel_X.png。</summary>
         internal static GameObject SavePrefab(GameObject root, string file)
         {
+            // ★ 防覆盖：prefab 已存在就跳过落盘 —— 用户会在 prefab 里手工调整
+            //   （位置/字体/配色），生成器重跑一次就把手改全冲掉（用户实测暴怒点）。
+            //   要全量刷新时用菜单 WanXiang/UI/强制重建全部面板（先删 Resources/UI 再跑）。
+            string existing = "Assets/Resources/UI/" + file + ".prefab";
+            if (System.IO.File.Exists(existing))
+            {
+                Debug.LogWarning("[PrefabBuilder] 跳过（已存在，保留你的手工修改）：" + existing);
+                return root;      // 不落盘；内存对象留着，调用方后续 Bind 不会 NRE
+            }
+
             var rt = (RectTransform)root.transform;
             var plate = Node(root.transform, "Img_Plate", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             plate.SetAsFirstSibling();
