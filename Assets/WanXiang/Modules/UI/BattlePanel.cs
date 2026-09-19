@@ -777,15 +777,23 @@ namespace WanXiang.Modules.UI
         }
 
         // ================================================================
-        //  行动顺序（右上角）—— 让"轮到谁"一眼可见
+        //  行动顺序（右上角）—— 头像 + 名字，一眼看清轮到谁
         //  ------------------------------------------------------------------
-        //  顺序来自核心的 BuildActionOrderInto（按**有效速度**降序，我方敌方混排），
-        //  直接复用 ⇒ UI 与战斗逻辑永远一致（不自己再排一遍）。
+        //  · 顺序取自核心 BuildActionOrderInto（按有效速度降序，我敌混排）= 单一真源
+        //  · **刷新守卫**：只有"顺序或当前行动者变化"时才重建 UI。
+        //    之前每帧重建 TMP 文本 ⇒ 每帧触发 mesh 重建 + 大量 GC ⇒ Unity 卡死（用户实测）。
+        //    现在每帧只做一次 10 单位的排序 + 指纹比对，开销可忽略。
         // ================================================================
+        private const int OrderRowCount = 8;
         private RectTransform _orderPanel;
-        private TMP_Text _orderText;
+        private RectTransform[] _orderRows;
+        private Image[] _orderHeads;
+        private TMP_Text[] _orderNames;
         private readonly System.Collections.Generic.List<BattleUnit> _orderBuf =
             new System.Collections.Generic.List<BattleUnit>(16);
+        private int _lastOrderStamp = -1;
+        private string _lastActorId;
+        private string _lastActorLine;
 
         private void BuildOrderList()
         {
@@ -795,56 +803,118 @@ namespace WanXiang.Modules.UI
             _orderPanel.SetParent(transform, false);
             _orderPanel.anchorMin = _orderPanel.anchorMax = new Vector2(1f, 1f);
             _orderPanel.pivot = new Vector2(1f, 1f);
-            _orderPanel.sizeDelta = new Vector2(300f, 330f);
+            _orderPanel.sizeDelta = new Vector2(330f, 380f);
             _orderPanel.anchoredPosition = new Vector2(-24f, -120f);
-
             var bg = go.AddComponent<Image>();
             bg.color = new Color(0.11f, 0.09f, 0.07f, 0.62f);
 
-            var trt = new GameObject("Tmp_Order", typeof(RectTransform)).GetComponent<RectTransform>();
+            // 标题
+            var trt = new GameObject("Tmp_Title", typeof(RectTransform)).GetComponent<RectTransform>();
             trt.SetParent(_orderPanel, false);
-            trt.anchorMin = Vector2.zero;
-            trt.anchorMax = Vector2.one;
-            trt.offsetMin = new Vector2(12f, 10f);
-            trt.offsetMax = new Vector2(-12f, -10f);
-            _orderText = trt.gameObject.AddComponent<TextMeshProUGUI>();
-            _orderText.fontSize = 20;
-            _orderText.color = new Color(0.96f, 0.94f, 0.88f, 1f);
-            _orderText.alignment = TextAlignmentOptions.TopLeft;
-            _orderText.raycastTarget = false;
+            trt.anchorMin = new Vector2(0f, 1f);
+            trt.anchorMax = new Vector2(1f, 1f);
+            trt.pivot = new Vector2(0.5f, 1f);
+            trt.anchoredPosition = new Vector2(0f, -6f);
+            trt.sizeDelta = new Vector2(-16f, 30f);
+            var title = trt.gameObject.AddComponent<TextMeshProUGUI>();
+            title.text = "行动顺序（按速度）";
+            title.fontSize = 20;
+            title.color = new Color(0.96f, 0.94f, 0.88f, 1f);
+            title.alignment = TextAlignmentOptions.Center;
+            title.raycastTarget = false;
+
+            // 8 行：头像 + 名字
+            _orderRows = new RectTransform[OrderRowCount];
+            _orderHeads = new Image[OrderRowCount];
+            _orderNames = new TMP_Text[OrderRowCount];
+            for (int i = 0; i < OrderRowCount; i++)
+            {
+                var row = new GameObject("Row_" + i, typeof(RectTransform)).GetComponent<RectTransform>();
+                row.SetParent(_orderPanel, false);
+                row.anchorMin = new Vector2(0f, 1f);
+                row.anchorMax = new Vector2(1f, 1f);
+                row.pivot = new Vector2(0.5f, 1f);
+                row.anchoredPosition = new Vector2(0f, -38f - i * 41f);
+                row.sizeDelta = new Vector2(-14f, 38f);
+                _orderRows[i] = row;
+
+                var head = new GameObject("Head", typeof(RectTransform)).GetComponent<RectTransform>();
+                head.SetParent(row, false);
+                head.anchorMin = head.anchorMax = new Vector2(0f, 0.5f);
+                head.pivot = new Vector2(0f, 0.5f);
+                head.anchoredPosition = new Vector2(6f, 0f);
+                head.sizeDelta = new Vector2(36f, 36f);
+                _orderHeads[i] = head.gameObject.AddComponent<Image>();
+                _orderHeads[i].raycastTarget = false;
+                _orderHeads[i].preserveAspect = true;
+
+                var nm = new GameObject("Tmp_Name", typeof(RectTransform)).GetComponent<RectTransform>();
+                nm.SetParent(row, false);
+                nm.anchorMin = Vector2.zero;
+                nm.anchorMax = Vector2.one;
+                nm.offsetMin = new Vector2(50f, 0f);
+                nm.offsetMax = new Vector2(-6f, 0f);
+                _orderNames[i] = nm.gameObject.AddComponent<TextMeshProUGUI>();
+                _orderNames[i].fontSize = 19;
+                _orderNames[i].alignment = TextAlignmentOptions.MidlineLeft;
+                _orderNames[i].raycastTarget = false;
+            }
             _orderPanel.gameObject.SetActive(false);
         }
 
-        /// <summary>刷新行动顺序（当前行动者 ▶ 金色；我方偏绿、敌方偏红）。</summary>
+        /// <summary>刷新行动顺序（带守卫：只有变化才重建 UI）。</summary>
         private void RefreshOrderList()
         {
-            if (_orderText == null || _play == null || _play.State == null) return;
+            if (_orderPanel == null || _play == null || _play.State == null) return;
             var stt = _play.State;
 
             _orderBuf.Clear();
             stt.BuildActionOrderInto(_orderBuf);
+            var cur = _play.PendingUnit;
+
+            // 指纹：顺序（RuntimeId 的 hash 组合）+ 当前行动者
+            int stamp = 17;
+            for (int i = 0; i < _orderBuf.Count; i++)
+                stamp = stamp * 31 + (_orderBuf[i].RuntimeId != null ? _orderBuf[i].RuntimeId.GetHashCode() : 0);
+            string curId = cur != null ? cur.RuntimeId : null;
+            bool same = stamp == _lastOrderStamp && curId == _lastActorId;
+            if (same && _orderPanel.gameObject.activeSelf) return;   // ★ 守卫：没变化就什么都不做
+            _lastOrderStamp = stamp;
+            _lastActorId = curId;
+
             if (_orderBuf.Count == 0) { _orderPanel.gameObject.SetActive(false); return; }
             _orderPanel.gameObject.SetActive(true);
 
-            var cur = _play.PendingUnit;
-            var sb = new System.Text.StringBuilder("行动顺序（按速度）\n");
             int shown = 0;
-            for (int i = 0; i < _orderBuf.Count && shown < 8; i++)
+            for (int i = 0; i < _orderBuf.Count && shown < OrderRowCount; i++)
             {
                 var u = _orderBuf[i];
                 if (!u.IsAlive) continue;
-                shown++;
+
                 bool mine = u.Side == WanXiang.Battle.Core.TeamSide.Player;
                 bool isCur = cur != null && u.RuntimeId == cur.RuntimeId;
-                string color = isCur ? "#F0C36D" : (mine ? "#BFD8B8" : "#E8B4A8");
-                sb.Append(isCur ? "▶ " : "　　")
-                  .Append("<color=").Append(color).Append(">")
-                  .Append(u.DisplayName)
-                  .Append(mine ? "（我方）" : "（敌方）")
-                  .Append(isCur ? " ← 行动中" : "")
-                  .Append("</color>\n");
+
+                _orderRows[shown].gameObject.SetActive(true);
+                if (_orderHeads[shown] != null && _sprites != null && u.Def != null)
+                {
+                    var sp = _sprites.GetHead(u.Def.Id);
+                    _orderHeads[shown].sprite = sp;
+                    _orderHeads[shown].color = sp != null
+                        ? (isCur ? Color.white : new Color(1f, 1f, 1f, 0.85f))
+                        : new Color(0f, 0f, 0f, 0f);
+                }
+                if (_orderNames[shown] != null)
+                {
+                    _orderNames[shown].text = (isCur ? "▶ " : "") + u.DisplayName
+                        + (mine ? "（我方）" : "（敌方）") + (isCur ? " ← 行动中" : "");
+                    _orderNames[shown].color = isCur
+                        ? new Color(0.94f, 0.76f, 0.43f, 1f)
+                        : (mine ? new Color(0.75f, 0.85f, 0.72f, 1f) : new Color(0.91f, 0.71f, 0.66f, 1f));
+                }
+                shown++;
             }
-            _orderText.text = sb.ToString();
+            for (int i = shown; i < OrderRowCount; i++)
+                if (_orderRows[i] != null) _orderRows[i].gameObject.SetActive(false);
         }
 
         /// <summary>按"是否在等下令"刷新操作区（StepPlayback 每帧调）。</summary>
@@ -877,7 +947,8 @@ namespace WanXiang.Modules.UI
                               "（战记 " + WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active) + " 点）";
                 if (u.GetSkill(SkillType.Ultimate) != null)
                     line += "　元气 " + (int)u.Rage + "/" + (int)u.RageCap;
-                _tmpActor.text = line;
+                // 守卫：文本没变就不重设（TMP 每次 SetText 都会重建 mesh，逐帧设置会卡）
+                if (line != _lastActorLine) { _lastActorLine = line; _tmpActor.text = line; }
             }
             else if (_tmpActor != null)
             {
