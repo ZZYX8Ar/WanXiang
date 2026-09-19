@@ -140,9 +140,13 @@ namespace WanXiang.Modules.UI
         /// <summary>异闻是节点图的子面板：返回 = 回节点地图继续探索，不是回主城。</summary>
         private void BackToMap()
         {
-            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
             CloseSelf();
-            if (ui != null) _ = ui.OpenAsync<CampaignPanel>();
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (ui != null) Cysharp.Threading.Tasks.UniTask.Void(async () =>
+            {
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);
+                await ui.OpenAsync<CampaignPanel>();
+            });
         }
 
 

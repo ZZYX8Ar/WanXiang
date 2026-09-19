@@ -52,9 +52,13 @@ namespace WanXiang.Modules.UI
         {
             if (_btnRefresh != null) _btnRefresh.onClick.AddListener(OnRefreshClicked);
             if (_btnBack != null) _btnBack.onClick.AddListener(() => {
-                            CloseSelf();
+                CloseSelf();
                 var __ui = WanXiang.Framework.Boot.UIBootstrap.UI;
-                if (__ui != null) _ = __ui.OpenAsync<CampaignPanel>();
+                if (__ui != null) Cysharp.Threading.Tasks.UniTask.Void(async () =>
+                {
+                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);
+                    await __ui.OpenAsync<CampaignPanel>();
+                });
             });   // 回到节点地图（继续探索）
             for (int i = 0; i < _goodsBtns.Length; i++)
             {
