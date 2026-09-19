@@ -11,9 +11,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using WanXiang.Battle.Core;
 using WanXiang.Battle.Presentation;
 using WanXiang.Framework.UI;
@@ -640,6 +642,134 @@ namespace WanXiang.Modules.UI
             _btnAutoBattle.onClick.AddListener(OnAutoBattleClicked);
 
             _actionBar.gameObject.SetActive(false);
+
+            // 给三个战记按钮挂悬浮提示（鼠标移入 → 左侧弹出技能说明，移出消失）
+            BuildSkillTip();
+            if (_skillBtns != null)
+                for (int i = 0; i < _skillBtns.Length; i++)
+                    HookTip(_skillBtns[i], i);
+        }
+
+        // ================================================================
+        //  战记悬浮提示（hover → 左侧弹出 / 离开消失，DOTween 做动画）
+        // ================================================================
+        private RectTransform _tipPanel;
+        private TMP_Text _tipText;
+        private CanvasGroup _tipGroup;
+        private DG.Tweening.Tween _tipTween;
+
+        private void BuildSkillTip()
+        {
+            if (_tipPanel != null) return;
+
+            var go = new GameObject("Root_SkillTip", typeof(RectTransform));
+            _tipPanel = (RectTransform)go.transform;
+            _tipPanel.SetParent(transform, false);           // 挂在本面板下，不受操作区显隐影响
+            _tipPanel.anchorMin = _tipPanel.anchorMax = new Vector2(0f, 0.5f);
+            _tipPanel.pivot = new Vector2(0f, 0.5f);
+            _tipPanel.sizeDelta = new Vector2(430f, 260f);
+            _tipPanel.anchoredPosition = new Vector2(30f, 40f);   // 屏幕左侧
+
+            var bg = go.AddComponent<Image>();
+            bg.color = new Color(0.11f, 0.09f, 0.07f, 0.95f);    // 墨底，和战斗 HUD 一致
+
+            _tipGroup = go.AddComponent<CanvasGroup>();
+            _tipGroup.alpha = 0f;
+            _tipGroup.blocksRaycasts = false;
+
+            var trt = new GameObject("Tmp_Tip", typeof(RectTransform)).GetComponent<RectTransform>();
+            trt.SetParent(_tipPanel, false);
+            trt.anchorMin = Vector2.zero;
+            trt.anchorMax = Vector2.one;
+            trt.offsetMin = new Vector2(18f, 14f);
+            trt.offsetMax = new Vector2(-18f, -14f);
+            _tipText = trt.gameObject.AddComponent<TextMeshProUGUI>();
+            _tipText.fontSize = 22;
+            _tipText.color = new Color(0.97f, 0.94f, 0.88f, 1f);
+            _tipText.alignment = TextAlignmentOptions.TopLeft;
+            _tipText.raycastTarget = false;
+
+            _tipPanel.gameObject.SetActive(false);
+        }
+
+        /// <summary>给按钮挂鼠标进出（用 EventTrigger，不改 prefab）。</summary>
+        private void HookTip(Button btn, int slot)
+        {
+            if (btn == null) return;
+            var trg = btn.gameObject.GetComponent<EventTrigger>();
+            if (trg == null) trg = btn.gameObject.AddComponent<EventTrigger>();
+
+            var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+            enter.callback.AddListener(_ => ShowSkillTip(slot));
+            trg.triggers.Add(enter);
+
+            var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+            exit.callback.AddListener(_ => HideSkillTip());
+            trg.triggers.Add(exit);
+        }
+
+        /// <summary>填充并淡入提示：从左滑入 20px + 透明度 0→1。</summary>
+        private void ShowSkillTip(int slot)
+        {
+            if (_tipPanel == null || _play == null) return;
+            var u = _play.PendingUnit;
+
+            string title, body;
+            if (slot == 0) { title = "普攻"; body = CostLine(0); }
+            else if (slot == 1) { title = "战记 · 主动"; body = CostLine(1); }
+            else { title = "终结技"; body = CostLine(2); }
+
+            if (u != null)
+            {
+                var sk = u.GetSkill((SkillType)slot);
+                if (sk != null)
+                {
+                    if (!string.IsNullOrEmpty(sk.Name)) title = sk.Name;
+                    string desc = string.IsNullOrEmpty(sk.Description) ? "（暂无描述）" : sk.Description;
+                    body = desc + "\n\n" + body;
+                    if (slot == 2 && u.Rage < u.RageCap)
+                        body += "\n当前元气 " + (int)u.Rage + "/" + (int)u.RageCap + "（满值才可释放）";
+                }
+                else
+                {
+                    body = "这只异兽没有这一槽战记。";
+                }
+            }
+            else
+            {
+                body = "轮到某个单位行动时才能查看具体战记效果。\n\n" + body;
+            }
+
+            _tipText.text = "<size=26><b>" + title + "</b></size>\n" + body;
+
+            _tipPanel.gameObject.SetActive(true);
+            _tipTween?.Kill();
+            _tipGroup.alpha = 0f;
+            _tipPanel.anchoredPosition = new Vector2(30f, 40f);          // 起点：略靠左（滑入）
+            _tipTween = DOTween.Sequence()
+                .Join(_tipPanel.DOAnchorPos(new Vector2(52f, 40f), 0.18f).SetEase(Ease.OutQuad))
+                .Join(_tipGroup.DOFade(1f, 0.18f));
+        }
+
+        private string CostLine(int slot)
+        {
+            switch (slot)
+            {
+                case 0: return "消耗：无（0 灵力，永远可用）";
+                case 1: return "消耗：灵力 " + WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active) + " 点（全队共享）";
+                default: return "消耗：元气满 100 时手动释放，每场一次";
+            }
+        }
+
+        /// <summary>淡出并收起。</summary>
+        private void HideSkillTip()
+        {
+            if (_tipPanel == null || !_tipPanel.gameObject.activeSelf) return;
+            _tipTween?.Kill();
+            _tipTween = _tipGroup.DOFade(0f, 0.12f).OnComplete(() =>
+            {
+                if (_tipPanel != null) _tipPanel.gameObject.SetActive(false);
+            });
         }
 
         /// <summary>按"是否在等下令"刷新操作区（StepPlayback 每帧调）。</summary>

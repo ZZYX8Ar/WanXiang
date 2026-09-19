@@ -91,7 +91,8 @@ namespace WanXiang.Battle.Core
             var total = new BoardRoundReport();
 
             st.Log.Add(0, BattleEventKind.BattleStart, note: $"种子 {st.Random.Seed}｜回合上限 {cfg.MaxTurns}");
-            BoardRules.ApplyResonance(st);   // 开局先算一次，让"上阵即共鸣"在第一回合就成立
+            BoardRules.ApplyResonance(st);
+            PassiveHooks.ApplyBattleStart(st);   // v2.1 P3b：开场被动（攻击加成 / 开场回复）   // 开局先算一次，让"上阵即共鸣"在第一回合就成立
 
             int limit = CoreMath.Max(1, cfg.MaxTurns);
             int turn = 1;
@@ -154,6 +155,7 @@ namespace WanXiang.Battle.Core
 
                 // ---- 4) 回合末（天时·回合末在 EndOfTurn 之后、TurnEnd 事件之前） ----
                 EndOfTurn(st);
+                PassiveHooks.ApplyTurnEnd(st);     // v2.1 P3b：回合末被动（回复类）
                 WeatherEndExtraActions(st, buf);   // 23 小寒：速度最高者额外普攻（判空短路）
                 WeatherResolver.ResolveTurnEnd(st);
                 st.Log.Add(turn, BattleEventKind.TurnEnd);
