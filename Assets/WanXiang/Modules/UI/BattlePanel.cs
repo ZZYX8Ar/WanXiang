@@ -28,6 +28,8 @@ namespace WanXiang.Modules.UI
     public sealed class BattlePanel : UIPanelBase
     {
         [SerializeField] private TMP_Text _tmpRound;            // Tmp_Round
+        /// <summary>回合制手动模式：开启后我方行动前等玩家下令（需操作区就绪）。</summary>
+        [SerializeField] private bool _manualBattle;
         [SerializeField] private GameObject _rootWeather;       // Root_WeatherBanner
         [SerializeField] private TMP_Text _tmpWeatherName;      // Tmp_WeatherName
         [SerializeField] private RectTransform _rootStage;      // Root_Stage
@@ -135,7 +137,7 @@ namespace WanXiang.Modules.UI
                 return UniTask.CompletedTask;
             }
 
-            if (_play == null) _play = new BattlePlayback(_req);
+            if (_play == null) _play = new BattlePlayback(_req, _manualBattle);
 
             if (_tmpWeatherName != null) _tmpWeatherName.text = _req.WeatherName ?? "";
             if (_rootWeather != null) _rootWeather.SetActive(!string.IsNullOrEmpty(_req.WeatherName));

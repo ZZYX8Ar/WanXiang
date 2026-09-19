@@ -54,10 +54,26 @@ namespace WanXiang.Modules.UI
         private int _frameIndex = 0;
 
         public int EventCount => State != null ? State.Log.Count : 0;
-        public bool Finished => State != null && _eventIndex + 1 >= State.Log.Count;
+        // 手动模式下事件流会在决策点"暂时播完"，不能据此判定结束 —— 必须两个条件都满足
+        public bool Finished => State != null && _simDone && _eventIndex + 1 >= State.Log.Count;
         public BattleEvent Current { get; private set; }
 
-        public BattlePlayback(BattleRequest req)
+        // ---- 回合制 v2.1 P1-3：手动模式的状态 ----
+        /// <summary>手动模式：遇我方决策点暂停，等 SubmitCommand。</summary>
+        private bool _manualMode;
+        /// <summary>当前是否在等我方下令。</summary>
+        private bool _awaiting;
+        /// <summary>模拟是否已跑完（事件流播完 ≠ 模拟结束：手动模式下会在决策点停住）。</summary>
+        private bool _simDone;
+
+        /// <summary>是否在等玩家下令（UI 据此显示战记操作区）。</summary>
+        public bool AwaitingCommand => _awaiting && !_simDone;
+
+        /// <summary>等待下令的单位（AwaitingCommand 为 true 时非空）。</summary>
+        public BattleUnit PendingUnit => State != null ? State.PendingUnit : null;
+
+        /// <param name="manual">true = 回合制手动模式（我方每个单位行动前暂停等下令）。</param>
+        public BattlePlayback(BattleRequest req, bool manual = false)
         {
             var cfg = BattleConfig.Default;
             cfg.AutoCastUltimate = true;      // 结构验证版：绝技自动放，先不接手动干预
@@ -86,7 +102,19 @@ namespace WanXiang.Modules.UI
             }
 
             State = BattleFactory.Create(cfg, req.Seed, p, e);
-            Result = BattleSimulator.Run(State);   // 一次跑完，事件流/帧流即完整
+
+            _manualMode = manual;
+            State.PlayerControlled = manual;
+
+            if (manual)
+            {
+                AdvanceSim();                      // 先跑到第一个决策点（或直接打完）
+            }
+            else
+            {
+                Result = BattleSimulator.Run(State);   // 一次跑完，事件流/帧流即完整
+                _simDone = true;
+            }
 
             ApplyInitialFrame();
         }
@@ -107,6 +135,15 @@ namespace WanXiang.Modules.UI
             PendingFrames.Clear();
             if (Finished) return false;
 
+            // 事件流播到头了：分三种情况（手动模式的分片推进全在这里）
+            if (_eventIndex + 1 >= State.Log.Count)
+            {
+                if (_awaiting) return true;      // 在等玩家下令 → 停住（UI 看 AwaitingCommand）
+                if (_simDone) return false;      // 模拟跑完 → 真正结束
+                AdvanceSim();                    // 否则继续跑下一段
+                if (_eventIndex + 1 >= State.Log.Count) return _awaiting && !_simDone;
+            }
+
             _eventIndex++;
             Current = State.Log.Events[_eventIndex];
 
@@ -123,7 +160,40 @@ namespace WanXiang.Modules.UI
         /// <summary>直接跳到结尾（测试/跳过用）。</summary>
         public void FastForward()
         {
-            while (Step()) { }
+            while (true)
+            {
+                // 手动模式下自动推进：-1 指令 = 未指定，交给 AI（这正是自动战斗的语义）
+                if (AwaitingCommand) SubmitCommand(-1, -1);
+                if (!Step()) break;
+            }
+        }
+
+        /// <summary>
+        /// 提交玩家指令：skillIndex 用 SkillType 枚举值（Basic/Active/Ultimate），-1 = 交给 AI；
+        /// targetIndex = 目标下标，-1 = 交给 AI 选目标。
+        /// 提交后立即推进到下一个决策点（或打完）。
+        /// </summary>
+        public void SubmitCommand(int skillIndex, int targetIndex)
+        {
+            if (State == null) return;
+            BattleSimulator.ApplyPlayerCommand(State, skillIndex, targetIndex);
+            _awaiting = false;
+            AdvanceSim();
+        }
+
+        /// <summary>推进模拟到下一个决策点（或结束）。</summary>
+        private void AdvanceSim()
+        {
+            if (!BattleSimulator.AdvanceToNextDecision(State))
+            {
+                _simDone = true;
+                _awaiting = false;
+                Result = State.Result;
+            }
+            else
+            {
+                _awaiting = true;     // 有单位等待下令
+            }
         }
 
         public bool PlayerWin => State != null && State.Outcome == BattleOutcome.PlayerWin;

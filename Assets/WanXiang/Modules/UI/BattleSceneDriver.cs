@@ -43,6 +43,8 @@ namespace WanXiang.Modules.UI
         [Header("兜底")]
         [Tooltip("没有入参且内容目录缺失时，是否直接回主城（避免卡死在战斗场景）。")]
         [SerializeField] private bool _returnToMainOnFailure = true;
+        /// <summary>回合制手动模式：开启后我方每个单位行动前等下令（与操作区配套）。</summary>
+        [SerializeField] private bool _manualBattle;
 
         private async UniTaskVoid Start()
         {
@@ -61,7 +63,7 @@ namespace WanXiang.Modules.UI
                 return;
             }
 
-            var play = new BattlePlayback(req);
+            var play = new BattlePlayback(req, _manualBattle);
 
             if (_stage == null) _stage = FindObjectOfType<BattleStage2D>();
             if (_stage != null)
