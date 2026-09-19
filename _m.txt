@@ -1,0 +1,22 @@
+fix(battle-ui): 行动条空壳 —— 又一次"提前 return 跳过代码"（真机复验通过）
+
+真机回归发现：UI 都进 prefab 了（Root_Action/Root_OrderList/Root_SkillTip 都在，
+行数 9、首行子节点 Head+Tmp_Name 都在），但行动条内容是空的（名字还是"—"、头像空）。
+
+真因：BuildOrderList 的第一行是  ——
+     prefab 绑定后**直接返回**，把下面"取行内引用"的代码整段跳过
+     ⇒ _orderHeads / _orderNames 永远为 null ⇒ 空壳。
+
+修：改成 ，
+    并在后面补"只绑了面板没绑行"的兜底（显示空壳但不崩）。
+
+⚠ 这是**第三次**踩同一个模式（前两次：StepOnce 的等令早退、操作区显示条件）：
+   **凡是会提前 return 的入口，都要想清楚"后面的代码还该不该执行"**。
+
+真机复验（MCP）：
+  面板可见 ✓ 行数=9 ✓ _orderHeads=8 / _orderNames=8 ✓
+  行0：▶ 九尾狐（我方）← 行动中 ｜ 行1：句芒（我方）｜ 行2：灌灌（敌方）｜ 行3：迷榖（敌方）
+  首行头像 = jiuweihu ✓
+  ⇒ 顺序正确（速度混排）、高亮正确、头像正常
+
+至此本轮完成：攻击目标规则 + tooltip 目标提示 + UI 全部进生成器（prefab 可见可调）。
