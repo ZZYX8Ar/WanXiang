@@ -78,6 +78,9 @@ namespace WanXiang.Run
         public System.Collections.Generic.List<string> QuestionRevealed =
             new System.Collections.Generic.List<string>();
         public int Losses;                      // 本程败场
+        /// <summary>拥有的异兽图鉴（灵市购买进这里，不占出战名额；出战 5 只在编阵界面选）。</summary>
+        public List<string> Collection = new List<string>();
+
         public List<string> Team = new List<string>();   // 上阵异兽 id（继承用）
         public string LastSaved = "";           // 最后保存时间（展示用）
 

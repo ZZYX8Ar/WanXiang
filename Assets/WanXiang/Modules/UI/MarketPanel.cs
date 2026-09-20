@@ -179,19 +179,16 @@ namespace WanXiang.Modules.UI
                 return;
             }
 
-            if (run.Team == null) run.Team = new System.Collections.Generic.List<string>();
-            if (run.Team.Count >= 5)
-            {
-                if (_tmpHint != null) _tmpHint.text = "队伍已满（5 只），买不下这只了";
-                return;
-            }
+            if (run.Collection == null) run.Collection = new System.Collections.Generic.List<string>();
 
             run.Eggs -= g.Price;
-            run.Team.Add(g.Beast.Id);
+            run.Collection.Add(g.Beast.Id);
             g.Sold = true;
             WanXiang.Run.RunSave.SaveCurrent();
 
-            if (_tmpHint != null) _tmpHint.text = g.Beast.DisplayName + " 加入了队伍！";
+            if (_tmpHint != null)
+                _tmpHint.text = g.Beast.DisplayName + " 收入图鉴（共 " + run.Collection.Count +
+                                " 只）—— 出战阵容在编阵界面调整";
             if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
             Paint();
         }
