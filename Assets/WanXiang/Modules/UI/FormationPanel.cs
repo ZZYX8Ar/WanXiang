@@ -76,7 +76,39 @@ namespace WanXiang.Modules.UI
         protected override UniTask OnOpenAsync(object payload)
         {
             _node = payload as NodeRequest ?? _node;
-            _all = _contentCatalog != null ? ContentLibrary.BuildBeasts(_contentCatalog) : null;
+            var allBeasts = _contentCatalog != null ? ContentLibrary.BuildBeasts(_contentCatalog) : null;
+            // ★ 编阵只列"你已拥有的"：图鉴里买到的 + 初始队伍。
+            //   之前摆出整本图鉴 —— 没买过的也能上阵，"拥有"就没意义了。
+            var run = WanXiang.Run.RunSave.Current;
+            if (allBeasts != null && run != null)
+            {
+                var ownedIds = new System.Collections.Generic.List<string>();
+                if (run.Collection != null) ownedIds.AddRange(run.Collection);
+                if (run.Team != null) ownedIds.AddRange(run.Team);      // 初始队伍也算拥有
+
+                if (ownedIds.Count > 0)
+                {
+                    var byId = new Dictionary<string, BeastDef>();
+                    foreach (var b in allBeasts) byId[b.Id] = b;
+                    var owned = new System.Collections.Generic.List<BeastDef>();
+                    foreach (var id in ownedIds)
+                    {
+                        if (string.IsNullOrEmpty(id)) continue;
+                        BeastDef d;
+                        if (byId.TryGetValue(id, out d) && !owned.Contains(d)) owned.Add(d);
+                    }
+                    // 空图鉴兜底：一场都没买过时先给全图鉴，保证新档能开局
+                    _all = owned.Count > 0 ? owned.ToArray() : allBeasts;
+                }
+                else
+                {
+                    _all = allBeasts;
+                }
+            }
+            else
+            {
+                _all = allBeasts;      // 没存档（试玩/直接进编阵）→ 全图鉴
+            }
 
             if (_tmpNodeTitle != null) _tmpNodeTitle.text = _node.Title;
             if (_tmpWeatherWarn != null) _tmpWeatherWarn.text = _node.Weather;
