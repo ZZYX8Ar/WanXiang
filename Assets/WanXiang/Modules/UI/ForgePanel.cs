@@ -104,6 +104,7 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
+            EnsureBackButton();
             Fill();
             return UniTask.CompletedTask;
         }
@@ -393,5 +394,47 @@ namespace WanXiang.Modules.UI
             float totalH = labels.Count * 92f + 40f;
             content.sizeDelta = new Vector2(content.sizeDelta.x, Mathf.Max(totalH, 300f));
         }
+
+        /// <summary>返回地图按钮兜底（prefab 没有时代码创建，保证能返回继续探索）。</summary>
+        private void EnsureBackButton()
+        {
+            if (_btnBack != null) return;
+
+            var go = new GameObject("Btn_Back", typeof(RectTransform));
+            go.transform.SetParent(transform, false);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.94f, 0.92f, 0.88f, 1f);
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            var r = (RectTransform)go.transform;
+            r.anchorMin = r.anchorMax = new Vector2(0f, 1f);
+            r.anchoredPosition = new Vector2(96f, -52f);
+            r.sizeDelta = new Vector2(152f, 64f);
+
+            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var tmp = tgo.AddComponent<TextMeshProUGUI>();
+            tmp.text = "返回地图";
+            tmp.fontSize = 26;
+            tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            var tr = (RectTransform)tgo.transform;
+            tr.anchorMin = Vector2.zero;
+            tr.anchorMax = Vector2.one;
+            tr.sizeDelta = Vector2.zero;
+
+            _btnBack = btn;
+            btn.onClick.AddListener(() =>
+            {
+                CloseSelf();
+                var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+                Cysharp.Threading.Tasks.UniTask.Void(async () =>
+                {
+                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);
+                    await ui.OpenAsync<CampaignPanel>();
+                });
+            });
+        }
+
     }
 }

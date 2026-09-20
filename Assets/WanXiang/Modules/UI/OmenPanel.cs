@@ -17,6 +17,8 @@ namespace WanXiang.Modules.UI
              CloseOnMaskClick = false)]
     public sealed class OmenPanel : UIPanelBase
     {
+        [SerializeField] private Button _btnBack;              // Btn_Back（兜底创建）
+
         [SerializeField] private TMP_Text _tmpTitle;           // Tmp_Title
         [SerializeField] private TMP_Text _tmpGain;            // Tmp_GainText  收益（鎏金栏）
         [SerializeField] private TMP_Text _tmpCost;            // Tmp_CostText  代价（朱红栏）
@@ -56,6 +58,7 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
+            EnsureBackButton();
             var run = WanXiang.Run.RunSave.Current;
             ulong seed = WanXiang.Battle.Core.CoreMath.Fnv1a(
                 "omen:" + (run != null ? run.RunSeed : 0) + ":" + (run != null ? run.NodeOffset : 0));
@@ -92,5 +95,47 @@ namespace WanXiang.Modules.UI
             
             
         }
+
+        /// <summary>返回地图按钮兜底（prefab 没有时代码创建，保证能返回继续探索）。</summary>
+        private void EnsureBackButton()
+        {
+            if (_btnBack != null) return;
+
+            var go = new GameObject("Btn_Back", typeof(RectTransform));
+            go.transform.SetParent(transform, false);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.94f, 0.92f, 0.88f, 1f);
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            var r = (RectTransform)go.transform;
+            r.anchorMin = r.anchorMax = new Vector2(0f, 1f);
+            r.anchoredPosition = new Vector2(96f, -52f);
+            r.sizeDelta = new Vector2(152f, 64f);
+
+            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var tmp = tgo.AddComponent<TextMeshProUGUI>();
+            tmp.text = "返回地图";
+            tmp.fontSize = 26;
+            tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            var tr = (RectTransform)tgo.transform;
+            tr.anchorMin = Vector2.zero;
+            tr.anchorMax = Vector2.one;
+            tr.sizeDelta = Vector2.zero;
+
+            _btnBack = btn;
+            btn.onClick.AddListener(() =>
+            {
+                CloseSelf();
+                var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+                Cysharp.Threading.Tasks.UniTask.Void(async () =>
+                {
+                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);
+                    await ui.OpenAsync<CampaignPanel>();
+                });
+            });
+        }
+
     }
 }
