@@ -32,7 +32,8 @@ namespace WanXiang.Modules.UI
     public enum DialogKind { Tip = 0, Confirm = 1, Choose = 2 }
 
     [UIPanel("Panel_Dialog", Layer = UILayer.Overlay, CachePolicy = UICachePolicy.Cached,
-             CloseOnMaskClick = false)]
+             CloseOnMaskClick = true)]   // ★ 点遮罩也能关：若按钮回调没挂上（重入失败），
+                                          //   遮罩会常驻挡住后面所有面板（? 节点实测：进去什么都点不了）
     public sealed class DialogPanel : UIPanelBase
     {
         [SerializeField] private TMP_Text _title;
