@@ -30,6 +30,7 @@ namespace WanXiang.Modules.UI
 
         protected override void OnCreate()
         {
+            EnsureBackToStart();
             if (_sldBgm != null) _sldBgm.onValueChanged.AddListener(OnBgmChanged);
             if (_sldSfx != null) _sldSfx.onValueChanged.AddListener(OnSfxChanged);
             if (_tglFullscreen != null) _tglFullscreen.onValueChanged.AddListener(OnFullscreenChanged);
@@ -98,5 +99,39 @@ namespace WanXiang.Modules.UI
             OpenPanelAsync<StartPanel>().Forget();
             Debug.Log("[Settings] 已返回开始界面（旅程存档保留）");
         }
+
+        /// <summary>返回开始界面按钮的兜底创建：prefab 里没有这个按钮时也要能返回，
+        /// 否则玩家点不到（用户实测"返回开始界面"没反应）。同 EnsureBackButton 模式。</summary>
+        private void EnsureBackToStart()
+        {
+            if (_btnBackToStart != null) return;
+
+            var go = new GameObject("Btn_BackToStart", typeof(RectTransform));
+            go.transform.SetParent(transform, false);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.94f, 0.92f, 0.88f, 1f);
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            var r = (RectTransform)go.transform;
+            r.anchorMin = r.anchorMax = new Vector2(0.5f, 0f);
+            r.anchoredPosition = new Vector2(0f, 60f);
+            r.sizeDelta = new Vector2(240f, 72f);
+
+            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var tmp = tgo.AddComponent<TextMeshProUGUI>();
+            tmp.text = "返回开始界面";
+            tmp.fontSize = 26;
+            tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            var tr = (RectTransform)tgo.transform;
+            tr.anchorMin = Vector2.zero;
+            tr.anchorMax = Vector2.one;
+            tr.sizeDelta = Vector2.zero;
+
+            _btnBackToStart = btn;
+            btn.onClick.AddListener(OnBackToStartClicked);
+        }
+
     }
 }
