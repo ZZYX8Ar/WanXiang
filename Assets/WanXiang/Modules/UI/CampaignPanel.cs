@@ -456,6 +456,11 @@ namespace WanXiang.Modules.UI
                 "状态回复", "取 2 灵卵");
             if (pick == 0) run.HealPending = 40;
             else run.Eggs += 2;
+
+            // 二选一完成 ⇒ 这时才把节点记为通过（未完成前不推进）
+            run.NodeOffset = _selected;
+            if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
+                run.VisitedNodes.Add(_selected);
             WanXiang.Run.RunSave.SaveCurrent();
             await Dialog.Tip("孵穴", pick == 0
                 ? "全队状态回复！下一场战斗能力 ×1.4"
@@ -526,7 +531,10 @@ namespace WanXiang.Modules.UI
             if (run != null)
             {
                 run.Act = _graph.Act;
-                run.NodeOffset = _selected;
+                // ★ 孵穴延后推进：点进去就写 NodeOffset 的话，玩家还没做二选一就关游戏，
+                //   再进来节点已通过 ⇒ 奖励白白丢失（用户实测）。改为选完后由 NestChoose 推进。
+                if (kind != WanXiang.Campaign.NodeKind.Nest)
+                    run.NodeOffset = _selected;
                 if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                     run.VisitedNodes.Add(_selected);
                 if (run.Path != null) run.Path.Add(_selected);
