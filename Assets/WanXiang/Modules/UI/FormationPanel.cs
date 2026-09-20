@@ -88,7 +88,7 @@ namespace WanXiang.Modules.UI
 
                 if (ownedIds.Count > 0)
                 {
-                    var byId = new Dictionary<string, BeastDef>();
+                    var byId = new System.Collections.Generic.Dictionary<string, BeastDef>();
                     foreach (var b in allBeasts) byId[b.Id] = b;
                     var owned = new System.Collections.Generic.List<BeastDef>();
                     foreach (var id in ownedIds)
