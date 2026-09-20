@@ -631,12 +631,13 @@ namespace WanXiang.EditorTools
             UIBuild.BindArr(comp, "_skillBtns", skillBtns);
             UIBuild.Bind(comp, "_btnAutoBattle", bAutoBattle);
 
-            // ---- 自动战斗中的旋转指示（默认隐藏；BattlePanel 在自动时显示并旋转）----
-            var autoSpin = UIBuild.Tmp(UIBuild.Fixed(rt, "Tmp_AutoSpin", new Vector2(0.5f, 1f),
-                new Vector2(320, 64), new Vector2(0, -46)), "⟳ 自动战斗中", 26, UIBuild.Gold,
-                TextAlignmentOptions.Center);
+            // ---- 自动战斗指示（默认隐藏）：一张图 + 代码旋转，不需要序列帧 ----
+            //   占位是纯色方块；美术到位后把 sprite 换成圆环/序列帧即可，控制逻辑不用动。
+            var autoSpin = UIBuild.Fixed(rt, "Img_AutoSpin", new Vector2(0.5f, 1f),
+                new Vector2(72, 72), new Vector2(0, -46));
+            UIBuild.Img(autoSpin, UIBuild.Gold);
             autoSpin.gameObject.SetActive(false);
-            UIBuild.Bind(comp, "_autoSpin", autoSpin.GetComponent<RectTransform>());
+            UIBuild.Bind(comp, "_autoSpin", autoSpin);
 
 
             // ---- 连携按钮（主兽 + 对应元素伙伴在场时可用，v2.1 P4）----

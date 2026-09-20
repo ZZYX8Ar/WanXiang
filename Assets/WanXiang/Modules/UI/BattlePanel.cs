@@ -400,6 +400,26 @@ namespace WanXiang.Modules.UI
         /// 刷新连携按钮（只在**待令单位变化**时调用，不进每帧路径）。
         /// AvailableCombos 每次会分配新 List、还要找子节点 —— 逐帧调它就是卡顿源。
         /// </summary>
+        /// <summary>
+        /// 转圈控件的兜底创建（prefab 被防覆盖跳过新控件时也能立刻看到）。
+        /// 美术替换：把 Image 的 sprite 换成圆环/序列帧即可，旋转逻辑通用。
+        /// </summary>
+        private void EnsureAutoSpin()
+        {
+            if (_autoSpin != null) return;
+            var go = new GameObject("Img_AutoSpin", typeof(RectTransform));
+            go.transform.SetParent(transform, false);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.79f, 0.63f, 0.39f, 1f);      // 金色占位
+            img.raycastTarget = false;
+            var r = (RectTransform)go.transform;
+            r.anchorMin = r.anchorMax = new Vector2(0.5f, 1f);
+            r.anchoredPosition = new Vector2(0f, -46f);
+            r.sizeDelta = new Vector2(72f, 72f);
+            go.SetActive(false);
+            _autoSpin = r;
+        }
+
         private void RefreshComboButton()
         {
             if (_btnCombo == null || _play == null) return;
@@ -676,6 +696,7 @@ namespace WanXiang.Modules.UI
                 if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
                 if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
                 HookTipCombo();
+                EnsureAutoSpin();
                 _actionBar.gameObject.SetActive(false);
                 return;
             }
