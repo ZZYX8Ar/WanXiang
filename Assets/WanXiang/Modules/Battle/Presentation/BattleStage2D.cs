@@ -467,7 +467,7 @@ namespace WanXiang.Battle.Presentation
             int col = cell % 3, row = cell / 3;
             float cx = player ? PlayerX : EnemyX;
             // 我方在后（row 0 靠外），敌方镜像；行距压一点制造纵深
-            float dy = (1 - row) * Cell * 0.66f;
+            float dy = (1 - row) * Cell * 1.15f;   // ★ 行距原 0.66×Cell=1.155 < 单位高 1.9 ⇒ 上下排视觉重叠（像一格站两只）
             float y = (player ? -0.55f : 0.55f) + dy * (player ? 1f : -1f);
             return new Vector2(cx + (col - 1) * Cell * 0.82f, y);
         }
