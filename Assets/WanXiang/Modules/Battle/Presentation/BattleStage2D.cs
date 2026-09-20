@@ -58,7 +58,8 @@ namespace WanXiang.Battle.Presentation
         private const float FootOffset = 0.7f;
 
         /// <summary>立绘显示高度（世界单位）。格子 1.75 —— 立绘略高于格，气势更足。</summary>
-        private const float UnitHeight = 1.9f;
+        private const float UnitHeight = Cell * 0.60f;   // ★ 与行距(0.66×Cell)匹配：既在美术网格内，又不会上下排重叠
+                                                        //   （原来写死 1.9 > 行距 1.155 ⇒ 视觉挤在一起）
 
         /// <summary>血条相对立绘容器的高度（立绘高 1.9，浮在头顶上沿）。</summary>
         private const float HpBarY = 1.95f;
@@ -496,7 +497,8 @@ namespace WanXiang.Battle.Presentation
             int col = cell % 3, row = cell / 3;
             float cx = player ? PlayerX : EnemyX;
             // 我方在后（row 0 靠外），敌方镜像；行距压一点制造纵深
-            float dy = (1 - row) * Cell * 1.15f;   // ★ 行距原 0.66×Cell=1.155 < 单位高 1.9 ⇒ 上下排视觉重叠（像一格站两只）
+            float dy = (1 - row) * Cell * 0.66f;    // ⚠ 不要动这个系数：3×3 网格是固定尺寸的美术背景图，
+                                                  //   改行距会让单位跑出格子（试过 1.15，单位错位）
             float y = (player ? -0.55f : 0.55f) + dy * (player ? 1f : -1f);
             return new Vector2(cx + (col - 1) * Cell * 0.82f, y);
         }
