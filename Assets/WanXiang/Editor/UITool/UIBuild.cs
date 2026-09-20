@@ -399,7 +399,11 @@ namespace WanXiang.EditorTools
             if (System.IO.File.Exists(existing))
             {
                 Debug.LogWarning("[PrefabBuilder] 跳过（已存在，保留你的手工修改）：" + existing);
-                return root;      // 不落盘；内存对象留着，调用方后续 Bind 不会 NRE
+                // ★ 临时对象必须销毁！否则每次跑生成器都往 Boot 场景里堆一整套面板
+                //   （用户实测：Hierarchy 里堆出两套 Panel_*）。Bind 都在 SavePrefab 之前
+                //   完成，这里销毁是安全的。
+                Object.DestroyImmediate(root);
+                return null;
             }
 
             var rt = (RectTransform)root.transform;
