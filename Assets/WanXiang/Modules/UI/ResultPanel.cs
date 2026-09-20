@@ -83,10 +83,11 @@ namespace WanXiang.Modules.UI
             SetLine(2, "过程指纹：0x" + (req != null ? req.Fingerprint.ToString("X8") : "00000000"));
             SetLine(3, "灵卵 +1");
 
+            // 三选一奖励（v2.1）：不再是无内容的占位草稿，走 RunState 已有字段立即生效。
             for (int i = 0; i < _tmpDraftNames.Length; i++)
-                if (_tmpDraftNames[i] != null) _tmpDraftNames[i].text = "技能草稿 " + (i + 1);
+                if (_tmpDraftNames[i] != null) _tmpDraftNames[i].text = DraftTitle(i);
             for (int i = 0; i < _tmpDraftDescs.Length; i++)
-                if (_tmpDraftDescs[i] != null) _tmpDraftDescs[i].text = "（结构验证版未接内容）";
+                if (_tmpDraftDescs[i] != null) _tmpDraftDescs[i].text = DraftDesc(i);
 
             if (_btnConfirm != null) _btnConfirm.interactable = false;
             return UniTask.CompletedTask;
@@ -120,7 +121,8 @@ namespace WanXiang.Modules.UI
         {
             // 结构验证版：三选一草稿还不是真实内容，没选也允许继续（选了就记一下）
             if (_selectedDraft >= 0)
-                Debug.Log("[ResultPanel] 已选择技能草稿 " + (_selectedDraft + 1));
+                ApplyDraft(_selectedDraft);
+                Debug.Log("[ResultPanel] 已选择奖励 " + (_selectedDraft + 1) + "：" + DraftTitle(_selectedDraft));
             ApplyOutcome();
             BackToCampaign();
         }
@@ -161,5 +163,48 @@ namespace WanXiang.Modules.UI
             CloseSelf();
             OpenPanelAsync<CampaignPanel>().Forget();
         }
+
+        // ================================================================
+        //  三选一奖励（用 RunState 已有字段，美术/内容接入后可换成图鉴奖励）
+        // ================================================================
+        private static string DraftTitle(int i)
+        {
+            switch (i)
+            {
+                case 0: return "灵卵 +2";
+                case 1: return "全队疗愈";
+                default: return "威慑";
+            }
+        }
+
+        private static string DraftDesc(int i)
+        {
+            switch (i)
+            {
+                case 0: return "立刻获得 2 枚灵卵，可在灵市换取异兽。";
+                case 1: return "全队回复 15% 生命（下一场开打前生效）。";
+                default: return "下一场战斗敌方属性 -5%（士气受挫）。";
+            }
+        }
+
+        private static void ApplyDraft(int i)
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return;
+            switch (i)
+            {
+                case 0:
+                    run.Eggs += 2;
+                    break;
+                case 1:
+                    run.HealPending += 15;          // 回到节点图后由孵穴/下一场结算
+                    break;
+                default:
+                    run.EnemyBuffPct -= 5;
+                    break;
+            }
+            WanXiang.Run.RunSave.SaveCurrent();
+        }
+
     }
 }
