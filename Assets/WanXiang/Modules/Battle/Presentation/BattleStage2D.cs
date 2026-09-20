@@ -428,7 +428,10 @@ namespace WanXiang.Battle.Presentation
                 }
                 if (_tempLife[i] <= 0f)
                 {
-                    if (go != null) DestroyImmediate(go);
+                    // ⚠⚠ 这里在 Step(dt) 里，是**每帧路径** —— 原来用 DestroyImmediate
+                    //   （强制同步销毁，Unity 运行时明令禁用）⇒ 战斗越久触发次数越多、越来越卡，
+                    //   最后卡死（用户实测"战斗久一点就卡死"）。必须用 Destroy（延迟销毁）。
+                    if (go != null) Destroy(go);
                     _tempTexts.RemoveAt(i); _tempLife.RemoveAt(i);
                 }
             }
