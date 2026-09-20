@@ -84,7 +84,7 @@ namespace WanXiang.Modules.UI
             var __ui = WanXiang.Framework.Boot.UIBootstrap.UI;
             Cysharp.Threading.Tasks.UniTask.Void(async () =>
             {
-                await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);
                 await __ui.OpenAsync<CampaignPanel>();
             });
         }
@@ -131,7 +131,7 @@ namespace WanXiang.Modules.UI
                 var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
                 Cysharp.Threading.Tasks.UniTask.Void(async () =>
                 {
-                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);
+                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);
                     await ui.OpenAsync<CampaignPanel>();
                 });
             });

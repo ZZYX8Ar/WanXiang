@@ -147,7 +147,7 @@ namespace WanXiang.Modules.UI
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
             if (ui != null) Cysharp.Threading.Tasks.UniTask.Void(async () =>
             {
-                await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);
                 await ui.OpenAsync<CampaignPanel>();
             });
         }
