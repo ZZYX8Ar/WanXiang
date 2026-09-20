@@ -334,6 +334,22 @@ namespace WanXiang.Battle.Presentation
                     }
                     break;
 
+                case BattleEventKind.Heal:
+                    if (e.TargetId != null && _views.TryGetValue(e.TargetId, out var hv))
+                    {
+                        SpawnNumber(hv, "+" + e.Amount, new Color(0.42f, 0.85f, 0.45f));   // 绿：恢复
+                        hv.Body.color = new Color(0.72f, 1f, 0.78f);
+                    }
+                    break;
+
+                case BattleEventKind.Shield:
+                    if (e.TargetId != null && _views.TryGetValue(e.TargetId, out var sv))
+                    {
+                        SpawnNumber(sv, "盾 +" + e.Amount, new Color(0.45f, 0.72f, 1f));   // 蓝：护盾
+                        sv.Body.color = new Color(0.75f, 0.88f, 1f);
+                    }
+                    break;
+
                 case BattleEventKind.Crit:
                     if (e.TargetId != null && _views.TryGetValue(e.TargetId, out var cv))
                         cv.Body.color = new Color(1f, 0.25f, 0.2f);
@@ -419,7 +435,18 @@ namespace WanXiang.Battle.Presentation
 
         // ================================================================
 
+        /// <summary>通用飘字（伤害/恢复/护盾共用）。美术替换：改这里的字体/字号/描边即可。</summary>
+        private void SpawnNumber(UnitView2D v, string text, Color color)
+        {
+            SpawnNumberInternal(v, text, color);
+        }
+
         private void SpawnDamageNumber(UnitView2D v, int amount, bool isMelt)
+        {
+            SpawnNumberInternal(v, amount.ToString(), isMelt ? BattlePalette.GoldRich : BattlePalette.Crimson);
+        }
+
+        private void SpawnNumberInternal(UnitView2D v, string text, Color color)
         {
             var go = new GameObject("Dmg");
             go.transform.SetParent(transform, false);
@@ -431,17 +458,19 @@ namespace WanXiang.Battle.Presentation
                 tm.font = f;
                 go.GetComponent<MeshRenderer>().sharedMaterial = f.material;
             }
-            tm.text = amount.ToString();
+            tm.text = text;
             tm.characterSize = 0.13f;
             tm.fontSize = 64;
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;
-            tm.color = isMelt ? BattlePalette.GoldRich : BattlePalette.Crimson;
+            tm.color = color;
             _tempTexts.Add(go);
             _tempLife.Add(0.7f);
-            while (_tempTexts.Count > 8)
+            // ⚠ 运行时不能用 DestroyImmediate（强制同步销毁，长战斗里反复触发会卡）；
+            //   改用 Destroy 并把上限放宽到 24，给延迟销毁留出缓冲。
+            while (_tempTexts.Count > 24)
             {
-                if (_tempTexts[0] != null) DestroyImmediate(_tempTexts[0]);
+                if (_tempTexts[0] != null) Destroy(_tempTexts[0]);
                 _tempTexts.RemoveAt(0); _tempLife.RemoveAt(0);
             }
         }
