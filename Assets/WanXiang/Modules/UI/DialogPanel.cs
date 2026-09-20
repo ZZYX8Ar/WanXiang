@@ -53,7 +53,8 @@ namespace WanXiang.Modules.UI
         /// <summary>提示：只有一个「知道了」。</summary>
         public static async UniTask Tip(string title, string body)
         {
-            var dlg = await Open(title, body, DialogKind.Tip, null, null);
+            var dlg = await OpenRetry(title, body, DialogKind.Tip, null, null);
+            if (dlg == null) return;      // ★ 打开失败（重入被拒）时不再 NRE
             await dlg.WaitTip();
         }
 
@@ -61,7 +62,8 @@ namespace WanXiang.Modules.UI
         public static async UniTask<bool> Confirm(string title, string body,
                                                   string okText = "确定", string cancelText = "取消")
         {
-            var dlg = await Open(title, body, DialogKind.Confirm, okText, cancelText);
+            var dlg = await OpenRetry(title, body, DialogKind.Confirm, okText, cancelText);
+            if (dlg == null) return false;
             return await dlg.WaitConfirm();
         }
 
@@ -75,6 +77,23 @@ namespace WanXiang.Modules.UI
 
         /// <summary>当前活着的弹窗实例。用于处理"连弹"的竞态，见 Open 的注释。</summary>
         private static DialogPanel _current;
+
+        /// <summary>
+        /// 打开弹窗并重试：连续弹窗（如孵穴的 Choose → Tip）时，上一个还在淡出，
+        /// 重入保护会拒绝新的打开（返回 null）⇒ 调用方 NRE。这里等 30 帧重试最多 3 次。
+        /// </summary>
+        private static async UniTask<DialogPanel> OpenRetry(string title, string body, DialogKind kind,
+                                                            string leftText, string rightText)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                var dlg = await Open(title, body, kind, leftText, rightText);
+                if (dlg != null) return dlg;
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);      // 等上一个淡出彻底结束
+            }
+            Debug.LogWarning("[Dialog] 打开失败（重入保护连续拒绝）：" + title);
+            return null;
+        }
 
         private static async UniTask<DialogPanel> Open(string title, string body, DialogKind kind,
                                                        string leftText, string rightText)
