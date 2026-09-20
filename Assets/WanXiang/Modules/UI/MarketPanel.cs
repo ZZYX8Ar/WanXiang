@@ -51,6 +51,7 @@ namespace WanXiang.Modules.UI
         protected override void OnCreate()
         {
             if (_btnRefresh != null) _btnRefresh.onClick.AddListener(OnRefreshClicked);
+            EnsureBackButton();
             if (_btnBack != null) _btnBack.onClick.AddListener(() => {
                 CloseSelf();
                 var __ui = WanXiang.Framework.Boot.UIBootstrap.UI;
@@ -192,5 +193,50 @@ namespace WanXiang.Modules.UI
             if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
             Paint();
         }
+
+        /// <summary>
+        /// 返回地图按钮的兜底创建：prefab 里没有（防覆盖后新控件不落盘）时也要能返回，
+        /// 否则玩家进了灵市就出不去了。同 EnsureAutoSpin 模式。
+        /// </summary>
+        private void EnsureBackButton()
+        {
+            if (_btnBack != null) return;
+
+            var go = new GameObject("Btn_Back", typeof(RectTransform));
+            go.transform.SetParent(transform, false);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.94f, 0.92f, 0.88f, 1f);
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            var r = (RectTransform)go.transform;
+            r.anchorMin = r.anchorMax = new Vector2(0f, 1f);
+            r.anchoredPosition = new Vector2(96f, -52f);
+            r.sizeDelta = new Vector2(152f, 64f);
+
+            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var tmp = tgo.AddComponent<TextMeshProUGUI>();
+            tmp.text = "返回地图";
+            tmp.fontSize = 26;
+            tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            var tr = (RectTransform)tgo.transform;
+            tr.anchorMin = Vector2.zero;
+            tr.anchorMax = Vector2.one;
+            tr.sizeDelta = Vector2.zero;
+
+            _btnBack = btn;
+            btn.onClick.AddListener(() =>
+            {
+                CloseSelf();
+                var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+                Cysharp.Threading.Tasks.UniTask.Void(async () =>
+                {
+                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);
+                    await ui.OpenAsync<CampaignPanel>();
+                });
+            });
+        }
+
     }
 }
