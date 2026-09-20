@@ -366,7 +366,7 @@ namespace WanXiang.Modules.UI
                 await UniTask.Delay(TimeSpan.FromSeconds(wait), cancellationToken: ct);
             }
 
-            while (StepOnce()) { }                   // 收尾：把剩余事件/帧走完
+            await DrainRest(ct);                     // 收尾：分帧走完剩余事件（见 DrainRest 注释）
             _playing = false;
             FinishAndLeave(0.8f, ct);
         }
@@ -568,7 +568,8 @@ namespace WanXiang.Modules.UI
         public void CompleteAndShowResult()
         {
             if (_play == null) return;
-            while (StepOnce()) { }
+            int __drain = 0;
+            while (StepOnce() && __drain++ < 2000) { }   // ⚠ 同步入口：加上限，避免单帧跑爆主线程
             FinishAndLeave(0f, CancellationToken.None);
         }
 
@@ -1298,5 +1299,20 @@ namespace WanXiang.Modules.UI
             if (_tmpLog != null) _tmpLog.text = _autoBattle ? "自动战斗：开" : "自动战斗：关（等你下令）";
             RefreshActionBar();
         }
+
+        /// <summary>
+        /// 收尾排空：把剩余事件/帧走完，但**每 8 步让出一帧**。
+        /// ★ 原来这里是 `while (StepOnce()) { }` —— 纯同步空转，一场战斗几千个事件
+        ///   全挤在一帧里跑完 ⇒ 主线程占死、Unity 整个界面无响应（用户实测"战斗卡死"）。
+        /// </summary>
+        private async UniTask DrainRest(CancellationToken ct)
+        {
+            int n = 0;
+            while (StepOnce())
+            {
+                if (++n % 8 == 0) await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
+        }
+
     }
 }
