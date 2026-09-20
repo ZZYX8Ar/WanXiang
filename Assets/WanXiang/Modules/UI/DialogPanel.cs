@@ -206,7 +206,11 @@ namespace WanXiang.Modules.UI
 
         private void BuildUi()
         {
-            if (_built) return;
+            // ★ 防重入条件是"建过且按钮在"—— 只看 _built 会漏掉这种情形：
+            //   UISystem 缓存了 prefab 重建前的旧实例，序列化字段全为 null，
+            //   Tip 里 dlg 配置/回调全炸（NRE），按钮没回调 = "知道了"点不了（用户实测）。
+            //   字段为空就重建（自建兜底），保证 Tip/Confirm/Choose 永远有可用的按钮。
+            if (_built && _right != null) return;
             _built = true;
 
             // ★ prefab 已绑定（生成器产物 Panel_Dialog.prefab）→ 字段由序列化注入，
