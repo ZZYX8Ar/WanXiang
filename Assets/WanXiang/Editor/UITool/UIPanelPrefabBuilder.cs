@@ -1206,10 +1206,10 @@ namespace WanXiang.EditorTools
             if (cardImg == null) cardImg = card.gameObject.AddComponent<Image>();
             cardImg.color = new Color(0.98f, 0.97f, 0.94f, 0.98f);
 
-            var title = UIBuild.Tmp(UIBuild.Fixed(card, "Tmp_Title", new Vector2(0.5f, 1f),
-                new Vector2(-96, 64), new Vector2(0, -40)), "", 36, UIBuild.Ink, TextAlignmentOptions.Center);
-            var body = UIBuild.Tmp(UIBuild.Fixed(card, "Tmp_Body", new Vector2(0.5f, 1f),
-                new Vector2(-128, 320), new Vector2(0, -120)), "", 26, UIBuild.Ink, TextAlignmentOptions.TopLeft);
+            var title = UIBuild.Tmp(UIBuild.Stretch(card, "Tmp_Title", 48, 20, 48, 84),
+                "", 36, UIBuild.Ink, TextAlignmentOptions.Center);
+            var body = UIBuild.Tmp(UIBuild.Stretch(card, "Tmp_Body", 64, 110, 64, 130),
+                "", 26, UIBuild.Ink, TextAlignmentOptions.TopLeft);
 
             var left = UIBuild.MakeBtn(card, "Btn_Left", new Vector2(0f, 0f),
                 new Vector2(280, 92), new Vector2(64f, 40f), "取消",
