@@ -57,7 +57,10 @@ namespace WanXiang.Modules.UI
 
         [SerializeField] private TMP_Text _tmpActTitle;        // Tmp_ActTitle  幕名
         [SerializeField] private TMP_Text _tmpJie;             // Tmp_JieCount  劫数
-        private int _pendingCommit = -1;      // 事件类节点：完成后才推进（未完成就关游戏 ⇒ 节点不通过、奖励不丢）
+        private int _pendingCommit = -1;
+
+        /// <summary>待推进节点（跨面板共享）：出征时保留、返回地图时撤销。</summary>
+        public static int PendingCommit = -1;      // 事件类节点：完成后才推进（未完成就关游戏 ⇒ 节点不通过、奖励不丢）
         [SerializeField] private ScrollRect _scrollNodes;      // Scroll_Nodes  节点长卷
         [SerializeField] private RectTransform _nodeItemTemplate;  // Item_Node（模板，默认隐藏）
         [SerializeField] private GameObject _rootNodeInfo;     // Root_NodeInfo 右侧信息卡
@@ -579,13 +582,12 @@ namespace WanXiang.Modules.UI
                 //   点进去就写 NodeOffset 的话，玩家还没处理完就关游戏，再进来节点已通过 ⇒ 奖励丢失。
                 //   改为"离开事件面板、回到节点图时"才落地（见 OnOpenAsync 的 _pendingCommit）。
                 //   战斗类保持立即推进（打完/撤退都会回到节点图，语义一致）。
-                bool isEventNode = kind == WanXiang.Campaign.NodeKind.Shop
-                                || kind == WanXiang.Campaign.NodeKind.Nest
-                                || kind == WanXiang.Campaign.NodeKind.Forge
-                                || kind == WanXiang.Campaign.NodeKind.Tale
-                                || kind == WanXiang.Campaign.NodeKind.Omen;
-                if (isEventNode) _pendingCommit = _selected;
-                else run.NodeOffset = _selected;
+                // ★ **所有**节点都延后推进：点节点只是"进入"，真正通过要等
+                //   ① 事件类处理完回地图（OnOpenAsync 落地）
+                //   ② 战斗类点了「出征」（FormationPanel 写入）
+                //   —— 否则"进编阵看一眼再返回"会被算作通过（用户实测：白嫖节点）。
+                _pendingCommit = _selected;
+                PendingCommit = _selected;
                 if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                     run.VisitedNodes.Add(_selected);
                 if (run.Path != null) run.Path.Add(_selected);

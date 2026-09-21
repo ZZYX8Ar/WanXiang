@@ -705,6 +705,8 @@ namespace WanXiang.Modules.UI
             _btnBack = btn;
             btn.onClick.AddListener(() =>
             {
+                // ★ 返回 = 取消这次出征：节点不该被算作通过（用户实测"返回也直接过了"）
+                CampaignPanel.PendingCommit = -1;
                 CloseSelf();
                 var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
                 Cysharp.Threading.Tasks.UniTask.Void(async () =>
