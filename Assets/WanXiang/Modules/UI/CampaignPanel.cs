@@ -95,7 +95,8 @@ namespace WanXiang.Modules.UI
                 var prun = WanXiang.Run.RunSave.Current;
                 if (prun != null)
                 {
-                    prun.NodeOffset = PendingCommit;
+                    if (prun.CompletedNodes == null) prun.CompletedNodes = new System.Collections.Generic.List<int>();
+                    if (!prun.CompletedNodes.Contains(PendingCommit)) prun.CompletedNodes.Add(PendingCommit);
                     if (prun.VisitedNodes != null && !prun.VisitedNodes.Contains(PendingCommit))
                         prun.VisitedNodes.Add(PendingCommit);
                     WanXiang.Run.RunSave.SaveCurrent();
@@ -184,9 +185,13 @@ namespace WanXiang.Modules.UI
             //    （用户实测"明明第二幕却直接到第三幕"）。必须在建图之后判、判完重建新幕的图。
             //    ⚠ 必须用"**正好走到最后一格**"（==），用 >= 会在满足后反复推进把 Act 推到上限；
             //      同时要求图是完整的（NodeCount 至少等于层数），避免残缺图误判。
-            if (run != null && run.Act < 5 && _graph.NodeCount >= Layers
-                && run.NodeOffset == _graph.NodeCount - 1)
+            if (run != null && run.CompletedNodes != null && run.Act < 5 && _graph.NodeCount >= Layers)
             {
+                var lastOffset = _graph.NodeCount - 1;
+                if (run.NodeOffset == lastOffset && !run.CompletedNodes.Contains(lastOffset))
+                    run.CompletedNodes.Add(lastOffset);      // 老档迁移
+                if (!run.CompletedNodes.Contains(lastOffset)) return;
+
                 run.Act++;
                 run.NodeOffset = -1;
                 if (run.VisitedNodes != null) run.VisitedNodes.Clear();   // 新幕重新探索
@@ -614,7 +619,8 @@ namespace WanXiang.Modules.UI
                 //   ① 事件类处理完回地图（OnOpenAsync 落地）
                 //   ② 战斗类点了「出征」（FormationPanel 写入）
                 //   —— 否则"进编阵看一眼再返回"会被算作通过（用户实测：白嫖节点）。
-                PendingCommit = _selected;
+                run.NodeOffset = _selected;      // ★ 进入 = 移动（人在哪），可达性靠它
+                PendingCommit = _selected;       // 是否【通过】等胜利/处理完再定
                 if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                     run.VisitedNodes.Add(_selected);
                 if (run.Path != null) run.Path.Add(_selected);

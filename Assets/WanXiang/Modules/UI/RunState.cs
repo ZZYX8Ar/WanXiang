@@ -75,6 +75,8 @@ namespace WanXiang.Run
         /// 问号节点的揭晓结果，形如 "7:nest"（节点下标:类型）。
         /// ⚠ 不用 Dictionary —— JsonUtility 不支持，存成 List<string> 最省事。
         /// </summary>
+        /// <summary>已【通过】的节点格号（幕推进判定用；与 VisitedNodes「去过」区分）。</summary>
+        public System.Collections.Generic.List<int> CompletedNodes;
         public System.Collections.Generic.List<string> QuestionRevealed =
             new System.Collections.Generic.List<string>();
         public int Losses;                      // 本程败场
