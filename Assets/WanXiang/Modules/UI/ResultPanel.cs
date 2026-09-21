@@ -95,19 +95,10 @@ namespace WanXiang.Modules.UI
                 ? "灵卵 +1"
                 : "本局结束 —— 进度已清空，再次出征将从第一幕重新开始");
 
-            // ★ 失败时不显示奖励区（用户要求）：失败没有奖励可选，只留信息 + 确认按钮。
-            if (!win)
-            {
-                if (_imgEgg != null) _imgEgg.gameObject.SetActive(false);
-                if (_btnSkip != null) _btnSkip.gameObject.SetActive(false);
-                if (_draftBtns != null)
-                    foreach (var b in _draftBtns) if (b != null) b.gameObject.SetActive(false);
-                if (_tmpDraftNames != null)
-                    foreach (var t in _tmpDraftNames) if (t != null) t.gameObject.SetActive(false);
-                if (_tmpDraftDescs != null)
-                    foreach (var t in _tmpDraftDescs) if (t != null) t.gameObject.SetActive(false);
-                if (_btnConfirm != null) _btnConfirm.interactable = true;   // 失败无需选奖励，直接可确认
-            }
+            // ★ 奖励区整块开关（方案 B）：prefab 里所有奖励控件都在 Root_Rewards 下，
+            //   这里一行控制 —— 胜利显示奖励、失败隐藏（不再逐个 SetActive，避免遗漏）。
+            var rewardsRoot = transform.Find("Root_Rewards");
+            if (rewardsRoot != null) rewardsRoot.gameObject.SetActive(win);
 
             // 三选一奖励（v2.1）：不再是无内容的占位草稿，走 RunState 已有字段立即生效。
             for (int i = 0; i < _tmpDraftNames.Length; i++)
