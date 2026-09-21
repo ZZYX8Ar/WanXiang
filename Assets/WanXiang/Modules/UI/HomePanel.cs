@@ -104,14 +104,7 @@ namespace WanXiang.Modules.UI
         {
             var run = WanXiang.Run.RunSave.Current;
             int layer = run != null ? run.NodeOffset + 1 : 0;
-            // ★ 判据放宽：以前只认 NodeOffset>=0 / Act>1，但"进过节点却没通过"时
-            //   NodeOffset 仍是 -1（节点改为延后推进）⇒ 判定成"无进度"，直接进图不弹窗
-            //   （用户实测）。现在只要有过任何探索痕迹就算有进度。
-            bool hasProgress = run != null && (
-                run.NodeOffset >= 0 || run.Act > 1
-                || (run.Path != null && run.Path.Count > 0)
-                || (run.VisitedNodes != null && run.VisitedNodes.Count > 0)
-                || run.Wins > 0 || run.Losses > 0);
+            bool hasProgress = run != null && (run.NodeOffset >= 0 || run.Act > 1);
 
             if (!hasProgress)
             {
@@ -134,14 +127,9 @@ namespace WanXiang.Modules.UI
             //   旧逻辑只判了 pick == 1，导致"点 × "也会掉进重开确认弹窗（用户实测）。
             if (pick != 0)
             {
-                if (pick == 1)
-                {
-                    CloseSelf();                                            // ★ 关主界面，否则栈里残留
-                    OpenPanelAsync<CampaignPanel>().Forget();               // 继续旅程
-                }
+                if (pick == 1) OpenPanelAsync<CampaignPanel>().Forget();   // 继续旅程
                 return;                                                   // -1 = 留在主界面
             }
-            CloseSelf();                                                  // ★ 重开 = 也关主界面（后面回节点图）
 
             bool ok = await Dialog.Confirm("重开一局",
                 "本次旅程的进度、灵卵与队伍编成都会清空，确定重开？", "确定重开", "再想想");

@@ -57,6 +57,7 @@ namespace WanXiang.Modules.UI
 
         [SerializeField] private TMP_Text _tmpActTitle;        // Tmp_ActTitle  幕名
         [SerializeField] private TMP_Text _tmpJie;             // Tmp_JieCount  劫数
+        private int _pendingCommit = -1;
 
         /// <summary>待推进节点（跨面板共享）：出征时保留、返回地图时撤销。</summary>
         public static int PendingCommit = -1;      // 事件类节点：完成后才推进（未完成就关游戏 ⇒ 节点不通过、奖励不丢）
@@ -90,18 +91,17 @@ namespace WanXiang.Modules.UI
             // ★ 待推进落地：从事件面板（灵市/孵穴/铸魂台/异闻/天象）返回节点图时，
             //   把之前未完成的节点记为通过 —— 玩家没处理完就关游戏的话，_pendingCommit 是内存变量、
             //   不会持久化，节点也不会推进 ⇒ 下次进来还能重做（奖励不丢）。
-            if (PendingCommit >= 0)
+            if (_pendingCommit >= 0)
             {
                 var prun = WanXiang.Run.RunSave.Current;
                 if (prun != null)
                 {
-                    if (prun.CompletedNodes == null) prun.CompletedNodes = new System.Collections.Generic.List<int>();
-                    if (!prun.CompletedNodes.Contains(PendingCommit)) prun.CompletedNodes.Add(PendingCommit);
-                    if (prun.VisitedNodes != null && !prun.VisitedNodes.Contains(PendingCommit))
-                        prun.VisitedNodes.Add(PendingCommit);
+                    prun.NodeOffset = _pendingCommit;
+                    if (prun.VisitedNodes != null && !prun.VisitedNodes.Contains(_pendingCommit))
+                        prun.VisitedNodes.Add(_pendingCommit);
                     WanXiang.Run.RunSave.SaveCurrent();
                 }
-                PendingCommit = -1;
+                _pendingCommit = -1;
             }
 
             BuildNodeMap();
@@ -150,25 +150,6 @@ namespace WanXiang.Modules.UI
 
             // ---- 数据源：v1.2 路线图（12 层、层内 2~3、种子稳定）----
             var run = WanXiang.Run.RunSave.Current;
-            // ★★ 存档自愈：早期幕推进判据用过 `>=`，可能把 Act 反复推到上限、
-            //   或让 NodeOffset 越界，导致存档与节点图错位（用户实测"全部存档不能推进"）。
-            //   这里把越界值钳回合理范围，保证存档一定能继续玩。
-            if (run != null)
-            {
-                if (run.Act < 1 || run.Act > 5)
-                {
-                    run.Act = Mathf.Clamp(run.Act, 1, 5);
-                    run.NodeOffset = -1;
-                    Debug.LogWarning("[Campaign] 存档自愈：Act 越界 → 钳到 " + run.Act);
-                }
-                if (run.NodeOffset >= Layers * 3)      // 格号上限 = 层数 × 每层格数
-                {
-                    Debug.LogWarning("[Campaign] 存档自愈：NodeOffset 越界(" + run.NodeOffset + ") → 回到本幕起点");
-                    run.NodeOffset = -1;
-                }
-                WanXiang.Run.RunSave.SaveCurrent();
-            }
-
             int act = Mathf.Clamp(run != null ? run.Act : 1, 1, 5);
             // ⚠ 种子绑定**本局**（RunSeed）而不是槽位：局内重进是同一张图，
             //   重开一局 / 新档 → 新种子 → 全新路线图（用户：每局都要随机）。
@@ -183,15 +164,9 @@ namespace WanXiang.Modules.UI
             // ★★ 幕推进：用 **格号** 判定（NodeOffset 范围 0..NodeCount-1，每层 3 格 × Layers 层）。
             //    之前误用 Layers-1(=11) 当阈值 ⇒ 走到第 4 层左右就误判"幕末"提前跳幕
             //    （用户实测"明明第二幕却直接到第三幕"）。必须在建图之后判、判完重建新幕的图。
-            //    ⚠ 必须用"**正好走到最后一格**"（==），用 >= 会在满足后反复推进把 Act 推到上限；
-            //      同时要求图是完整的（NodeCount 至少等于层数），避免残缺图误判。
-            if (run != null && run.CompletedNodes != null && run.Act < 5 && _graph.NodeCount >= Layers)
+            if (run != null && run.Act < 5 && _graph.NodeCount > 0
+                && run.NodeOffset >= _graph.NodeCount - 1)
             {
-                var lastOffset = _graph.NodeCount - 1;
-                if (run.NodeOffset == lastOffset && !run.CompletedNodes.Contains(lastOffset))
-                    run.CompletedNodes.Add(lastOffset);      // 老档迁移
-                if (!run.CompletedNodes.Contains(lastOffset)) return;
-
                 run.Act++;
                 run.NodeOffset = -1;
                 if (run.VisitedNodes != null) run.VisitedNodes.Clear();   // 新幕重新探索
@@ -603,26 +578,16 @@ namespace WanXiang.Modules.UI
             if (run != null)
             {
                 run.Act = _graph.Act;
-
-                // ★★ 「访问过」必须在**进入节点时**就记，不能跟着"通过"一起延后！
-                //    节点图的可达性依赖 VisitedNodes——之前把这段一起延后了，导致它永远是空的，
-                //    节点图认为"哪儿都没去过" ⇒ 只有第 0 层可达 ⇒ **点不动任何节点**（用户实测）。
-                //    「访问」与「通过」是两件事：进入即访问，胜利/处理完才算通过。
-                if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
-                    run.VisitedNodes.Add(_selected);
-                WanXiang.Run.RunSave.SaveCurrent();
                 // ★ 事件类节点（灵市/孵穴/铸魂台/异闻/天象）**延后推进**：
                 //   点进去就写 NodeOffset 的话，玩家还没处理完就关游戏，再进来节点已通过 ⇒ 奖励丢失。
-                //   改为"离开事件面板、回到节点图时"才落地（见 OnOpenAsync 的 PendingCommit）。
+                //   改为"离开事件面板、回到节点图时"才落地（见 OnOpenAsync 的 _pendingCommit）。
                 //   战斗类保持立即推进（打完/撤退都会回到节点图，语义一致）。
                 // ★ **所有**节点都延后推进：点节点只是"进入"，真正通过要等
                 //   ① 事件类处理完回地图（OnOpenAsync 落地）
                 //   ② 战斗类点了「出征」（FormationPanel 写入）
                 //   —— 否则"进编阵看一眼再返回"会被算作通过（用户实测：白嫖节点）。
-                run.NodeOffset = _selected;      // ★ 进入 = 移动（人在哪），可达性靠它
-                _currentOffset = _selected;      // ★ 同步渲染缓存：否则本次打开期间下层仍不可点
-                PendingCommit = _selected;       // 是否【通过】等胜利/处理完再定
-                BuildNodeMap();                  // ★ 当场重画，刷新可达性与高亮
+                _pendingCommit = _selected;
+                PendingCommit = _selected;
                 if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                     run.VisitedNodes.Add(_selected);
                 if (run.Path != null) run.Path.Add(_selected);
@@ -649,9 +614,7 @@ namespace WanXiang.Modules.UI
                     WanXiang.Run.RunSave.SaveCurrent();
                 }
                 kind = revealed;
-                // ★ 不再弹揭晓弹窗（用户要求）：这个 Dialog 在实战里关不掉，索性不弹。
-                //   揭晓结果通过节点图本身呈现——该节点会按 RevealedKind 显示成真实类型（见 RefreshNodes）。
-                Debug.Log("[Campaign] ？节点揭晓 → " + WanXiang.Campaign.NodeKinds.Cn(revealed));
+                Dialog.Tip("？ 揭晓", "这里是「" + WanXiang.Campaign.NodeKinds.Cn(revealed) + "」！").Forget();
             }
 
             // 先关节点地图：它与接下来要开的面板同在 Normal 层

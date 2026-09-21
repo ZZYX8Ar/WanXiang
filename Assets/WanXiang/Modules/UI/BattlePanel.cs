@@ -129,12 +129,6 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
-            // ★ 每场战斗重置 自动/倍速：面板是 Cached 复用的，字段会带过来。
-            //   放在 OnOpenAsync（每次打开必然经过）比放在 PlayLoop 更可靠（用户实测未生效）。
-            _autoBattle = false;
-            _speed = 1f;
-            RefreshSpeedLabel();          // ★ 必须同步刷新按钮文案，否则仍显示上一场的 ×4（用户实测）
-
             // 两条路径：战斗场景（单位交给 BattleStage2D，本面板只当 HUD）/
             // 主城内直接打（本面板自己画单位视图）
             var sceneCtx = payload as BattleSceneContext;
@@ -428,14 +422,6 @@ namespace WanXiang.Modules.UI
             r.sizeDelta = new Vector2(72f, 72f);
             go.SetActive(false);
             _autoSpin = r;
-        }
-
-        /// <summary>刷新倍速按钮文案（必须与 _speed 同步，避免显示与状态不一致）。</summary>
-        private void RefreshSpeedLabel()
-        {
-            if (_btnSpeed == null) return;
-            var label = _btnSpeed.GetComponentInChildren<TMP_Text>();
-            if (label != null) label.text = "×" + _speed.ToString("0.##");
         }
 
         private void RefreshComboButton()

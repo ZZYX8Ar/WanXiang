@@ -247,7 +247,6 @@ namespace WanXiang.Modules.UI
             tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.sizeDelta = Vector2.zero;
 
             _btnCloseX = btn;
-
             btn.onClick.AddListener(() =>
             {
                 _confirmTcs?.TrySetResult(false);     // 取消 / 什么都不选

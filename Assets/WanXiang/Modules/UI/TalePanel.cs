@@ -143,7 +143,6 @@ namespace WanXiang.Modules.UI
         /// <summary>异闻是节点图的子面板：返回 = 回节点地图继续探索，不是回主城。</summary>
         private void BackToMap()
         {
-            CampaignPanel.PendingCommit = -1;          // 返回 = 未完成，节点不通过
             CloseSelf();
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
             if (ui != null) Cysharp.Threading.Tasks.UniTask.Void(async () =>

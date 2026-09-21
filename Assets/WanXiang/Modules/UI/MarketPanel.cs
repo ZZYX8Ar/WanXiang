@@ -228,7 +228,6 @@ namespace WanXiang.Modules.UI
             _btnBack = btn;
             btn.onClick.AddListener(() =>
             {
-                CampaignPanel.PendingCommit = -1;      // 返回 = 未完成，节点不通过
                 CloseSelf();
                 var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
                 Cysharp.Threading.Tasks.UniTask.Void(async () =>

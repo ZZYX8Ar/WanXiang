@@ -176,12 +176,7 @@ namespace WanXiang.Modules.UI
         private void BackToCampaign()
         {
             CloseSelf();
-            // ★ 按结果分流（用户规则）：
-            //   胜利 → 回节点地图继续探索
-            //   失败 → 本局已结束，回**主界面**（让玩家在主界面决定"继续/新局"），
-            //          以前无条件回节点图，看起来像"进度被清还留在游戏里"（用户实测）。
-            if (_win) OpenPanelAsync<CampaignPanel>().Forget();
-            else OpenPanelAsync<HomePanel>().Forget();
+            OpenPanelAsync<CampaignPanel>().Forget();
         }
 
         // ================================================================
