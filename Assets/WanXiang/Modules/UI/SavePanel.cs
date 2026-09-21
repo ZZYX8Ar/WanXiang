@@ -55,8 +55,11 @@ namespace WanXiang.Modules.UI
             return set.Count;
         }
 
+        [SerializeField] private Button _btnClearAll;      // 兜底创建
+
         protected override UniTask OnOpenAsync(object payload)
         {
+            EnsureClearAllButton();
             RefreshSlots();
             return UniTask.CompletedTask;
         }
@@ -128,5 +131,67 @@ namespace WanXiang.Modules.UI
                 default: return "三";
             }
         }
+
+        /// <summary>「清空全部存档」兜底按钮（代码自建，放屏幕底部）。</summary>
+        private void EnsureClearAllButton()
+        {
+            if (_btnClearAll != null) return;
+
+            var go = new GameObject("Btn_ClearAll", typeof(RectTransform));
+            go.transform.SetParent(transform, false);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.85f, 0.62f, 0.58f, 1f);
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            var r = (RectTransform)go.transform;
+            r.anchorMin = r.anchorMax = new Vector2(0.5f, 0f);
+            r.anchoredPosition = new Vector2(0f, 40f);
+            r.sizeDelta = new Vector2(260f, 60f);
+
+            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var tmp = tgo.AddComponent<TMP_Text>();
+            tmp.text = "清空全部存档";
+            tmp.fontSize = 24;
+            tmp.color = new Color(0.35f, 0.16f, 0.13f, 1f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            var tr = (RectTransform)tgo.transform;
+            tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.sizeDelta = Vector2.zero;
+
+            _btnClearAll = btn;
+            btn.onClick.AddListener(() =>
+            {
+                bool ok = awaitClearConfirm();
+                if (!ok) return;
+                WanXiang.Run.RunSave.ClearAll();
+                // 刷新列表显示
+                OpenPanelAsync<SavePanel>().Forget();
+            });
+        }
+
+        private bool _clearConfirming;
+
+        private bool awaitClearConfirm()
+        {
+            // 双重确认：先弹确认框（异步），这里用一个简单标记避免重复点击
+            if (_clearConfirming) return false;
+            _clearConfirming = true;
+            ConfirmClear();
+            return false;
+        }
+
+        private async void ConfirmClear()
+        {
+            try
+            {
+                bool ok = await Dialog.Confirm("清空全部存档", "所有旅程记录都会被删除，且无法恢复。确定？", "确定清空", "取消");
+                if (!ok) return;
+                WanXiang.Run.RunSave.ClearAll();
+                var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+                if (ui != null) await ui.OpenAsync<SavePanel>();
+            }
+            finally { _clearConfirming = false; }
+        }
+
     }
 }

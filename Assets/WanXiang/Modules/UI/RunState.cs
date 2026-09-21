@@ -253,6 +253,18 @@ namespace WanXiang.Run
             }
         }
 
+        /// <summary>清空全部存档（删文件 + 清当前）。给"从头开始"用。</summary>
+        public static void ClearAll()
+        {
+            for (int slot = 1; slot <= SlotCount; slot++)
+            {
+                try { if (File.Exists(PathOf(slot))) File.Delete(PathOf(slot)); }
+                catch (Exception ex) { Debug.LogWarning("[RunSave] 删除失败 slot=" + slot + "：" + ex.Message); }
+            }
+            Current = null;
+            Debug.Log("[RunSave] 已清空全部存档");
+        }
+
         /// <summary>在指定槽位开一段全新旅程（覆盖该槽位）。</summary>
         public static RunState StartNew(int slot)
         {

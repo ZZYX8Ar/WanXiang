@@ -149,6 +149,25 @@ namespace WanXiang.Modules.UI
 
             // ---- 数据源：v1.2 路线图（12 层、层内 2~3、种子稳定）----
             var run = WanXiang.Run.RunSave.Current;
+            // ★★ 存档自愈：早期幕推进判据用过 `>=`，可能把 Act 反复推到上限、
+            //   或让 NodeOffset 越界，导致存档与节点图错位（用户实测"全部存档不能推进"）。
+            //   这里把越界值钳回合理范围，保证存档一定能继续玩。
+            if (run != null)
+            {
+                if (run.Act < 1 || run.Act > 5)
+                {
+                    run.Act = Mathf.Clamp(run.Act, 1, 5);
+                    run.NodeOffset = -1;
+                    Debug.LogWarning("[Campaign] 存档自愈：Act 越界 → 钳到 " + run.Act);
+                }
+                if (run.NodeOffset >= Layers * 3)      // 格号上限 = 层数 × 每层格数
+                {
+                    Debug.LogWarning("[Campaign] 存档自愈：NodeOffset 越界(" + run.NodeOffset + ") → 回到本幕起点");
+                    run.NodeOffset = -1;
+                }
+                WanXiang.Run.RunSave.SaveCurrent();
+            }
+
             int act = Mathf.Clamp(run != null ? run.Act : 1, 1, 5);
             // ⚠ 种子绑定**本局**（RunSeed）而不是槽位：局内重进是同一张图，
             //   重开一局 / 新档 → 新种子 → 全新路线图（用户：每局都要随机）。
@@ -163,8 +182,10 @@ namespace WanXiang.Modules.UI
             // ★★ 幕推进：用 **格号** 判定（NodeOffset 范围 0..NodeCount-1，每层 3 格 × Layers 层）。
             //    之前误用 Layers-1(=11) 当阈值 ⇒ 走到第 4 层左右就误判"幕末"提前跳幕
             //    （用户实测"明明第二幕却直接到第三幕"）。必须在建图之后判、判完重建新幕的图。
-            if (run != null && run.Act < 5 && _graph.NodeCount > 0
-                && run.NodeOffset >= _graph.NodeCount - 1)
+            //    ⚠ 必须用"**正好走到最后一格**"（==），用 >= 会在满足后反复推进把 Act 推到上限；
+            //      同时要求图是完整的（NodeCount 至少等于层数），避免残缺图误判。
+            if (run != null && run.Act < 5 && _graph.NodeCount >= Layers
+                && run.NodeOffset == _graph.NodeCount - 1)
             {
                 run.Act++;
                 run.NodeOffset = -1;
