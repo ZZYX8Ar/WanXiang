@@ -614,7 +614,9 @@ namespace WanXiang.Modules.UI
                     WanXiang.Run.RunSave.SaveCurrent();
                 }
                 kind = revealed;
-                Dialog.Tip("？ 揭晓", "这里是「" + WanXiang.Campaign.NodeKinds.Cn(revealed) + "」！").Forget();
+                // 揭晓不再弹窗（该 Dialog 在实战里关不掉）。揭晓结果由节点图本身呈现：
+                // 该节点会按 RevealedKind(offset) 显示成真实类型，玩家在图上直接看到。
+                Debug.Log("[Campaign] ？节点揭晓 → " + WanXiang.Campaign.NodeKinds.Cn(revealed));
             }
 
             // 先关节点地图：它与接下来要开的面板同在 Normal 层
