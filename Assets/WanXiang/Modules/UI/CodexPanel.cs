@@ -147,7 +147,7 @@ namespace WanXiang.Modules.UI
             if (_tmpName != null) _tmpName.text = unlocked ? b.DisplayName : "？？？";
             if (_tmpSource != null) _tmpSource.text = unlocked ? (b.Source ?? "") : "——尚未收录——";
             if (_tmpQuote != null) _tmpQuote.text = unlocked ? (b.Quote ?? "") : "";
-            if (_tmpTrait != null) _tmpTrait.text = unlocked && b.Trait != null ? b.Trait.Name : "";
+            if (_tmpTrait != null) _tmpTrait.text = unlocked ? b.Trait.Name : "";
             if (_tmpSchool != null)
                 _tmpSchool.text = unlocked
                     ? (b.Element + " · " + b.Role + " · " + b.Rarity)
