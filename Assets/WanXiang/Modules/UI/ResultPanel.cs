@@ -2,7 +2,7 @@
 //  Panel_Result —— 战斗结算（含三选一技能草稿）
 //  ---------------------------------------------------------------------------
 //  三种出口：确认（拿草稿继续）→ 回节点地图；跳过（+1 灵卵）→ 回节点地图；
-//  失败/撤退 → 也回节点地图（结构验证版不做真正的失败惩罚）。
+//  失败 → **本局直接结束**（清空局内进度、保留胜败统计）；撤退 → 回节点地图。
 // ============================================================================
 
 using Cysharp.Threading.Tasks;
@@ -150,8 +150,23 @@ namespace WanXiang.Modules.UI
             }
             else
             {
+                // ★ 失败 = **这一局直接结束**（用户规则）。旧实现只给 2 灵卵保底、节点照样推进
+                //   ⇒ 失败没有代价（结构验证版占位）。现在清空本局进度，只保留胜败统计。
                 cur.Losses++;
-                cur.Eggs += 2;      // 保底：败了也给一点，别把玩家卡死
+                cur.Eggs = 0;
+                cur.Ink = 0;
+                cur.Act = 1;
+                cur.NodeOffset = -1;
+                cur.Jie = 1;
+                cur.Realm = 1;
+                if (cur.Team != null) cur.Team.Clear();
+                if (cur.Collection != null) cur.Collection.Clear();
+                if (cur.VisitedNodes != null) cur.VisitedNodes.Clear();
+                if (cur.Path != null) cur.Path.Clear();
+                if (cur.QuestionRevealed != null) cur.QuestionRevealed.Clear();
+                cur.RunSeed = UnityEngine.Random.Range(1, int.MaxValue);   // 新一局 = 新路线
+                CampaignPanel.PendingCommit = -1;                          // 失败不推进节点
+                Debug.Log("[ResultPanel] 战斗失败 ⇒ 本局结束（保留胜败统计，进度已清空）");
             }
             WanXiang.Run.RunSave.Save(cur);
             Debug.Log("[ResultPanel] 旅程已保存：槽位 " + cur.Slot + " " + cur.RealmText +
