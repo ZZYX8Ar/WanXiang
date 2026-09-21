@@ -45,6 +45,8 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text _tmpPower;           // Tmp_TotalPower
         [SerializeField] private Button _btnAutoFill;          // Btn_AutoFill
         [SerializeField] private Button _btnClear;             // Btn_Clear
+        /// <summary>出战上限（GDD：一队 5 只）。上阵/拖放共用这个值，别再各处硬编码。</summary>
+        private const int MaxDeploy = 5;
         [SerializeField] private Button _btnDeploy;            // Btn_Deploy
 
         [Header("数据引用（由生成器自动绑定）")]
@@ -487,7 +489,27 @@ namespace WanXiang.Modules.UI
             }
             else if (beastIndex >= 0 && target >= 0)
             {
-                // 卡池 → 格子：上阵（若格上已有兽，替换下来自动回卡池）
+                // 卡池 → 格子：上阵。★ 拖拽路径此前**没有任何校验**（点选路径 OnRosterClicked 有），
+                //   所以会出现"超过 5 只还能上""同一只可重复上"（用户实测）。这里补齐两道。
+                for (int c = 0; c < _deployed.Length; c++)
+                {
+                    if (_deployed[c] == beastIndex)
+                    {
+                        Debug.Log("[FormationPanel] 该异兽已在阵中，不能重复上阵。");
+                        _dragBeast = -1; _dragFromCell = -1;
+                        CommitLayout();
+                        return;
+                    }
+                }
+                int used = 0;
+                for (int c = 0; c < _deployed.Length; c++) if (_deployed[c] >= 0) used++;
+                if (used >= MaxDeploy)
+                {
+                    Debug.Log("[FormationPanel] 最多上阵 " + MaxDeploy + " 只，请先下阵一只。");
+                    _dragBeast = -1; _dragFromCell = -1;
+                    CommitLayout();
+                    return;
+                }
                 _deployed[target] = beastIndex;
             }
 
