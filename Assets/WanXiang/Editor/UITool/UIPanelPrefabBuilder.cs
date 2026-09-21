@@ -1065,6 +1065,8 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_tmpTrait", tmpTrait);
             UIBuild.Bind(comp, "_tmpSchool", tmpSchool);
             UIBuild.Bind(comp, "_btnCloseDetail", bClose.GetComponent<Button>());
+            UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
+            UIBuild.Bind(comp, "_sprites", LoadAsset<SpriteCatalog>(SpriteCatalogPath));
             UIBuild.SavePrefab(root, "Panel_Codex");
         }
 
