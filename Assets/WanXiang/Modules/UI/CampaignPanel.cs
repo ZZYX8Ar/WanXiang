@@ -482,6 +482,15 @@ namespace WanXiang.Modules.UI
             await Dialog.Tip("孵穴", pick == 0
                 ? "全队状态回复！下一场战斗能力 ×1.4"
                 : "获得 2 枚灵卵（当前 " + run.Eggs + "）");
+
+            // ★ 处理完回节点地图继续探索（之前什么都不做 ⇒ 玩家以为被踢回主城界面）
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (ui != null)
+                Cysharp.Threading.Tasks.UniTask.Void(async () =>
+                {
+                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);   // 等弹窗淡出结束
+                    await ui.OpenAsync<CampaignPanel>();
+                });
         }
 
         private static string CnNum(int n)
