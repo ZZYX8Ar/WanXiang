@@ -45,7 +45,6 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text _tmpPower;           // Tmp_TotalPower
         [SerializeField] private Button _btnAutoFill;          // Btn_AutoFill
         [SerializeField] private Button _btnBack;              // Btn_Back（兜底创建）
-        [SerializeField] private Button _btnBack;              // Btn_Back（兜底创建）
         [SerializeField] private Button _btnClear;             // Btn_Clear
         /// <summary>出战上限（GDD：一队 5 只）。上阵/拖放共用这个值，别再各处硬编码。</summary>
         private const int MaxDeploy = 5;
