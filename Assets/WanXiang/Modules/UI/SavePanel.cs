@@ -59,6 +59,7 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
+            EnsureSlotResetButtons();
             EnsureClearAllButton();
             RefreshSlots();
             return UniTask.CompletedTask;
@@ -97,6 +98,52 @@ namespace WanXiang.Modules.UI
             else RunSave.ContinueWith(state);
             CloseSelf();
             SceneFlow.EnterMain();
+        }
+
+        /// <summary>给已存档的槽位加一个小的「重置」按钮（代码自建，带确认弹窗）。</summary>
+        private void EnsureSlotResetButtons()
+        {
+            for (int i = 0; i < _btnSlots.Length && i < RunSave.SlotCount; i++)
+            {
+                var slot = i + 1;
+                var slotBtn = _btnSlots[i];
+                if (slotBtn == null || !RunSave.Exists(slot)) continue;
+
+                // 防重复
+                if (slotBtn.transform.Find("Btn_Reset") != null) continue;
+
+                var go = new GameObject("Btn_Reset", typeof(RectTransform));
+                go.transform.SetParent(slotBtn.transform, false);
+                var img = go.AddComponent<Image>();
+                img.color = new Color(0.85f, 0.62f, 0.58f, 1f);
+                var btn = go.AddComponent<Button>();
+                btn.targetGraphic = img;
+                var r = (RectTransform)go.transform;
+                r.anchorMin = r.anchorMax = new Vector2(1f, 0.5f);
+                r.anchoredPosition = new Vector2(-46f, 0f);
+                r.sizeDelta = new Vector2(72f, 44f);
+
+                var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
+                tgo.transform.SetParent(go.transform, false);
+                var tmp = tgo.AddComponent<TMP_Text>();
+                tmp.text = "重置";
+                tmp.fontSize = 20;
+                tmp.color = new Color(0.35f, 0.16f, 0.13f, 1f);
+                tmp.alignment = TextAlignmentOptions.Center;
+                var tr = (RectTransform)tgo.transform;
+                tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.sizeDelta = Vector2.zero;
+
+                btn.onClick.AddListener(() => ResetAfterConfirm(slot));
+            }
+        }
+
+        private async void ResetAfterConfirm(int slot)
+        {
+            bool ok = await Dialog.Confirm("重置存档 " + slot, "该存档的进度会被清空并从第一幕重新开始。确定？", "确定重置", "取消");
+            if (!ok) return;
+            WanXiang.Run.RunSave.ClearSlot(slot);
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (ui != null) await ui.OpenAsync<SavePanel>();
         }
 
         /// <summary>「新的旅程」：挑第一个空档；全满则提示（避免手滑覆盖）。</summary>
