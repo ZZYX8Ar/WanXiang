@@ -598,6 +598,14 @@ namespace WanXiang.Modules.UI
             if (run != null)
             {
                 run.Act = _graph.Act;
+
+                // ★★ 「访问过」必须在**进入节点时**就记，不能跟着"通过"一起延后！
+                //    节点图的可达性依赖 VisitedNodes——之前把这段一起延后了，导致它永远是空的，
+                //    节点图认为"哪儿都没去过" ⇒ 只有第 0 层可达 ⇒ **点不动任何节点**（用户实测）。
+                //    「访问」与「通过」是两件事：进入即访问，胜利/处理完才算通过。
+                if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
+                    run.VisitedNodes.Add(_selected);
+                WanXiang.Run.RunSave.SaveCurrent();
                 // ★ 事件类节点（灵市/孵穴/铸魂台/异闻/天象）**延后推进**：
                 //   点进去就写 NodeOffset 的话，玩家还没处理完就关游戏，再进来节点已通过 ⇒ 奖励丢失。
                 //   改为"离开事件面板、回到节点图时"才落地（见 OnOpenAsync 的 PendingCommit）。

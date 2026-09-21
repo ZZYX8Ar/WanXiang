@@ -65,7 +65,7 @@ namespace WanXiang.Modules.UI
 
             var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
             tgo.transform.SetParent(go.transform, false);
-            var tmp = tgo.AddComponent<TMP_Text>();
+            var tmp = tgo.AddComponent<TextMeshProUGUI>();
             tmp.text = "返回";
             tmp.fontSize = 26;
             tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
