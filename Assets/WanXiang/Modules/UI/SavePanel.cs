@@ -65,7 +65,9 @@ namespace WanXiang.Modules.UI
                 else
                 {
                     _tmpSlots[i].text = "存档 " + Cn(slot) + " · " + state.RealmText +
-                                        "    灵卵 " + state.Eggs + " · 队伍 " + state.Team.Count + " 只" +
+                                        "    灵卵 " + state.Eggs + " · 异兽 " +
+                                        (state.Collection != null && state.Collection.Count > 0
+                                            ? state.Collection.Count : state.Team.Count) + " 只" +
                                         "\n胜 " + state.Wins + " / 败 " + state.Losses +
                                         "    最后旅程 " + (string.IsNullOrEmpty(state.LastSaved) ? "—" : state.LastSaved);
                 }

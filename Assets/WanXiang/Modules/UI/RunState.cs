@@ -89,7 +89,9 @@ namespace WanXiang.Run
 
         public string RealmText
         {
-            get { return "第" + Cn(Realm) + "境 · 第" + Cn(Jie) + "劫"; }
+            // ★ 进度主轴是 **Act（幕）** —— Realm/Jie 是旧体系，幕推进时不更新，
+            //   会出现"已经第二幕了存档还写第一境"（用户实测）。这里直接以幕为准。
+            get { return "第" + Cn(Act) + "幕"; }
         }
 
         private static string Cn(int n)

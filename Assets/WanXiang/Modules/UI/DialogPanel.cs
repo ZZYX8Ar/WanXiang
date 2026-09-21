@@ -38,6 +38,7 @@ namespace WanXiang.Modules.UI
     {
         [SerializeField] private TMP_Text _title;
         [SerializeField] private TMP_Text _body;
+        [SerializeField] private Button _btnCloseX;   // 右上角关闭（代码兜底创建）
         [SerializeField] private Button _left;       // 取消 / 选项一
         [SerializeField] private Button _right;      // 确定 / 选项二
         [SerializeField] private TMP_Text _leftLabel;
@@ -137,6 +138,7 @@ namespace WanXiang.Modules.UI
         protected override UniTask OnOpenAsync(object payload)
         {
             BuildUi();               // 从缓存里复用时也要保证结构在
+            EnsureCloseX();          // 右上角关闭入口（可"什么都不选"）
             return UniTask.CompletedTask;
         }
 
@@ -211,6 +213,46 @@ namespace WanXiang.Modules.UI
         {
             _chooseTcs = new UniTaskCompletionSource<int>();
             return await _chooseTcs.Task;
+        }
+
+        /// <summary>
+        /// 右上角关闭按钮（"什么都不选"也能退出）。用户要求：弹窗应有关闭入口，
+        /// 尤其 Confirm/Choose 不该强迫玩家二选一。
+        /// </summary>
+        private void EnsureCloseX()
+        {
+            if (_btnCloseX != null) return;
+            var card = transform.Find("Card") as RectTransform;
+            var parent = card != null ? card : (RectTransform)transform;
+
+            var go = new GameObject("Btn_CloseX", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.86f, 0.84f, 0.80f, 1f);
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            var r = (RectTransform)go.transform;
+            r.anchorMin = r.anchorMax = new Vector2(1f, 1f);
+            r.anchoredPosition = new Vector2(-34f, -34f);
+            r.sizeDelta = new Vector2(52f, 52f);
+
+            var tgo = new GameObject("Tmp_X", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var tmp = tgo.AddComponent<TextMeshProUGUI>();
+            tmp.text = "×";
+            tmp.fontSize = 34;
+            tmp.color = new Color(0.35f, 0.32f, 0.28f, 1f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            var tr = (RectTransform)tgo.transform;
+            tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.sizeDelta = Vector2.zero;
+
+            _btnCloseX = btn;
+            btn.onClick.AddListener(() =>
+            {
+                _confirmTcs?.TrySetResult(false);     // 取消 / 什么都不选
+                _chooseTcs?.TrySetResult(-1);
+                Finish();
+            });
         }
 
         private void Finish()
@@ -331,5 +373,6 @@ namespace WanXiang.Modules.UI
 
         public static UniTask<int> Choose(string title, string body, string leftText, string rightText)
             => DialogPanel.Choose(title, body, leftText, rightText);
+
     }
 }
