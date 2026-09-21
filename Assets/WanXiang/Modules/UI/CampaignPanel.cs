@@ -147,6 +147,18 @@ namespace WanXiang.Modules.UI
 
             // ---- 数据源：v1.2 路线图（12 层、层内 2~3、种子稳定）----
             var run = WanXiang.Run.RunSave.Current;
+            // ★★ 幕推进（必须在算 act / 建图**之前**）：走到本幕最后一格 ⇒ 进入下一幕。
+            //    此前无人调用 Campaign.RunState.DefeatBoss（只在自检工具里），
+            //    所以通关第一幕也永远停在幕末（用户实测"通关最后节点没进第二幕"）。
+            if (run != null && run.Act < 5 && run.NodeOffset >= Layers - 1)
+            {
+                run.Act++;
+                run.NodeOffset = -1;
+                if (run.VisitedNodes != null) run.VisitedNodes.Clear();   // 新幕重新探索
+                WanXiang.Run.RunSave.SaveCurrent();
+                Debug.Log("[Campaign] 幕推进 ⇒ 第 " + run.Act + " 幕");
+            }
+
             int act = Mathf.Clamp(run != null ? run.Act : 1, 1, 5);
             // ⚠ 种子绑定**本局**（RunSeed）而不是槽位：局内重进是同一张图，
             //   重开一局 / 新档 → 新种子 → 全新路线图（用户：每局都要随机）。
@@ -166,6 +178,7 @@ namespace WanXiang.Modules.UI
             if (_tmpActTitle != null)
                 _tmpActTitle.text = "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn +
                                     " · 守关 " + _graph.BossName;
+            if (_tmpActTitle != null) _tmpActTitle.text += "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
             if (_tmpJie != null)
                 _tmpJie.text = run != null ? run.RealmText : "第一境 · 第一劫";
 
