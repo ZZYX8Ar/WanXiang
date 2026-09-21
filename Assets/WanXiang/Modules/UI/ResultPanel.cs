@@ -67,7 +67,9 @@ namespace WanXiang.Modules.UI
             bool win = req != null && req.Win;
             _win = win;
             _selectedDraft = -1;
-            _win = false;
+            // ★★ 这里原本有一行 `_win = false;` —— 它把上面刚算好的胜负又覆盖成"失败"，
+            //    导致"明明赢了却判失败/奖励不显示/确认可直接点/回主界面/节点不解锁"五个症状。
+            //    已删除，胜负只认 ResultRequest.Win。
 
             if (_imgBanner != null)
             {
