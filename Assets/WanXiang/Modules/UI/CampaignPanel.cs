@@ -615,6 +615,13 @@ namespace WanXiang.Modules.UI
                 //   ② 战斗类点了「出征」（FormationPanel 写入）
                 //   —— 否则"进编阵看一眼再返回"会被算作通过（用户实测：白嫖节点）。
                 PendingCommit = _selected;
+
+                // ★★ 「人在哪」必须当场写入 —— 节点图的可达性用它（IsReachable 的锚点）：
+                //    之前这里只写 PendingCommit（内存），run.NodeOffset 一直是 -1
+                //    ⇒ 可达性永远只开放第 0 层 ⇒ 后续节点全部点不动（用户实测）。
+                run.NodeOffset = _selected;
+                _currentOffset = _selected;      // 同步渲染缓存，本次打开期间立即生效
+                BuildNodeMap();                  // 当场重画，刷新可达性与高亮
                 if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                     run.VisitedNodes.Add(_selected);
                 if (run.Path != null) run.Path.Add(_selected);
