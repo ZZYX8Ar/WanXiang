@@ -64,6 +64,7 @@ namespace WanXiang.Battle.Presentation
         /// <summary>血条相对立绘容器的高度（立绘高 1.9，浮在头顶上沿）。</summary>
         private const float HpBarY = 1.95f;
 
+        private const float BoardY = -0.2f;      // 棋盘（3×3 网格）中心 y —— 网格与单位**必须共用**
         private const float PlayerX = -4.3f;
         private const float EnemyX = 4.3f;
 
@@ -102,8 +103,8 @@ namespace WanXiang.Battle.Presentation
             }
             bgSr.sortingOrder = -10;
 
-            BuildBoard("BoardP", PlayerX, -0.2f);
-            BuildBoard("BoardE", EnemyX, -0.2f);
+            BuildBoard("BoardP", PlayerX, BoardY);
+            BuildBoard("BoardE", EnemyX, BoardY);
             BuildUnits();
             BuildCamera();
 
@@ -495,15 +496,20 @@ namespace WanXiang.Battle.Presentation
         //  工具
         // ================================================================
 
+        /// <summary>
+        /// 单位落位：★ 必须与 <see cref="BuildBoard"/> 的格子公式**完全一致**，
+        /// 否则单位站不进格子（用户反馈"九宫格站不对"的真因：网格用 1.00/0.72，
+        /// 单位却用 0.82/0.66 且双方 y 基准相反 ⇒ 永远对不上）。
+        /// 网格格子中心 = (cx + (col-1)*Cell, BoardY + (1-row)*Cell*0.72)。
+        /// 单位枢轴在底部中点、Step 会再加 FootOffset 抬脚 ⇒ 这里先减去它。
+        /// 双方**不做镜像**（网格本身就没镜像），只用各自的 cx 区分。
+        /// </summary>
         private static Vector2 CellPos(bool player, int cell)
         {
             int col = cell % 3, row = cell / 3;
             float cx = player ? PlayerX : EnemyX;
-            // 我方在后（row 0 靠外），敌方镜像；行距压一点制造纵深
-            float dy = (1 - row) * Cell * 0.66f;    // ⚠ 不要动这个系数：3×3 网格是固定尺寸的美术背景图，
-                                                  //   改行距会让单位跑出格子（试过 1.15，单位错位）
-            float y = (player ? -0.55f : 0.55f) + dy * (player ? 1f : -1f);
-            return new Vector2(cx + (col - 1) * Cell * 0.82f, y);
+            return new Vector2(cx + (col - 1) * Cell,
+                               BoardY + (1 - row) * Cell * 0.72f - FootOffset);
         }
 
         private SpriteRenderer MakeChildSprite(GameObject parent, string name, Color c,
