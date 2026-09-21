@@ -601,11 +601,18 @@ namespace WanXiang.Modules.UI
             //    手动操作路径若没跑到判负点，Outcome 会停在 Ongoing
             //    ⇒ PlayerWin = false ⇒ **明明赢了却按失败结算**（用户实测 A 情况）。
             //    这里在结算前补一次判定；CheckOutcome 会据"敌方全灭/我方全灭"给出正确结果。
-            if (_play != null && _play.State != null &&
-                _play.State.Outcome == WanXiang.Battle.Core.BattleOutcome.Ongoing)
+            if (_play != null && _play.State != null)
             {
-                _play.State.CheckOutcome();
-                Debug.Log("[BattlePanel] 结算前补判胜负 → " + _play.State.Outcome);
+                var before = _play.State.Outcome;
+                if (before == WanXiang.Battle.Core.BattleOutcome.Ongoing) _play.State.CheckOutcome();
+                var st = _play.State;
+                int mine = 0, foe = 0;
+                var pu = st.UnitsOf(WanXiang.Battle.Core.TeamSide.Player);
+                var eu = st.UnitsOf(WanXiang.Battle.Core.TeamSide.Enemy);
+                for (int i = 0; i < pu.Count; i++) if (pu[i].IsAlive) mine++;
+                for (int i = 0; i < eu.Count; i++) if (eu[i].IsAlive) foe++;
+                Debug.Log("[BattlePanel] 结算诊断：Outcome " + before + " → " + st.Outcome +
+                          "｜我方存活=" + mine + " 敌方存活=" + foe + "（PlayerWin=" + _play.PlayerWin + "）");
             }
 
             var result = new ResultRequest

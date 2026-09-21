@@ -104,6 +104,11 @@ namespace WanXiang.Modules.UI
             }
 
             BuildNodeMap();
+            Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString() : "?") +
+                      " NodeCount=" + (_graph != null ? _graph.NodeCount.ToString() : "?") +
+                      " 实际画出=" + _nodeItems.Count +
+                      "｜Act=" + (WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : -1) +
+                      " RunSeed=" + (WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.RunSeed : 0));
 
             var node = payload as NodeRequest ?? _current;
             FillTeamPreview();
