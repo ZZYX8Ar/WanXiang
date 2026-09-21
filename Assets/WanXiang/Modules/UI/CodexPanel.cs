@@ -34,6 +34,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private SpriteCatalog _sprites;
 
         private int _tab;                                       // 0 = 全部，1..5 = 五行
+        [SerializeField] private Button _btnBack;                // Btn_Back（兜底创建）
 
         protected override void OnCreate()
         {
@@ -46,8 +47,48 @@ namespace WanXiang.Modules.UI
             if (_btnCloseDetail != null) _btnCloseDetail.onClick.AddListener(OnCloseDetailClicked);
         }
 
+        /// <summary>返回按钮兜底（图鉴是全屏面板，没返回就出不去了）。返回主界面。</summary>
+        private void EnsureBackButton()
+        {
+            if (_btnBack != null) return;
+
+            var go = new GameObject("Btn_Back", typeof(RectTransform));
+            go.transform.SetParent(transform, false);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.94f, 0.92f, 0.88f, 1f);
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            var r = (RectTransform)go.transform;
+            r.anchorMin = r.anchorMax = new Vector2(0f, 1f);
+            r.anchoredPosition = new Vector2(96f, -52f);
+            r.sizeDelta = new Vector2(152f, 64f);
+
+            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var tmp = tgo.AddComponent<TMP_Text>();
+            tmp.text = "返回";
+            tmp.fontSize = 26;
+            tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            var tr = (RectTransform)tgo.transform;
+            tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.sizeDelta = Vector2.zero;
+
+            _btnBack = btn;
+            btn.onClick.AddListener(() =>
+            {
+                CloseSelf();
+                var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+                Cysharp.Threading.Tasks.UniTask.Void(async () =>
+                {
+                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);
+                    await ui.OpenAsync<HomePanel>();
+                });
+            });
+        }
+
         protected override Cysharp.Threading.Tasks.UniTask OnOpenAsync(object payload)
         {
+            EnsureBackButton();
             if (_rootDetail != null) _rootDetail.SetActive(false);
             Rebuild();
             return Cysharp.Threading.Tasks.UniTask.CompletedTask;
