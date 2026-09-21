@@ -106,6 +106,68 @@ namespace WanXiang.Run
         }
     }
 
+    /// <summary>
+    /// 局外图鉴解锁表（**跨局永久**，独立于任何槽位）。
+    /// 设计：异兽都是"局内养成"的，失败清空 Collection —— 但**只要曾经获得过**，
+    /// 外面的图鉴就永久解锁（用户明确要求）。
+    /// </summary>
+    public static class CodexUnlock
+    {
+        private static System.Collections.Generic.HashSet<string> _ids;
+        private static string FilePath
+        {
+            get { return System.IO.Path.Combine(Application.persistentDataPath, "codex_unlocked.json"); }
+        }
+
+        [System.Serializable]
+        private class Wrap { public string[] Ids; }
+
+        private static void Ensure()
+        {
+            if (_ids != null) return;
+            _ids = new System.Collections.Generic.HashSet<string>();
+            try
+            {
+                if (System.IO.File.Exists(FilePath))
+                {
+                    var w = JsonUtility.FromJson<Wrap>(System.IO.File.ReadAllText(FilePath));
+                    if (w != null && w.Ids != null)
+                        foreach (var id in w.Ids)
+                            if (!string.IsNullOrEmpty(id)) _ids.Add(id);
+                }
+            }
+            catch (System.Exception ex) { Debug.LogWarning("[CodexUnlock] 读取失败：" + ex.Message); }
+        }
+
+        private static void Flush()
+        {
+            try
+            {
+                var list = new System.Collections.Generic.List<string>(_ids);
+                System.IO.File.WriteAllText(FilePath, JsonUtility.ToJson(new Wrap { Ids = list.ToArray() }, true));
+            }
+            catch (System.Exception ex) { Debug.LogWarning("[CodexUnlock] 写入失败：" + ex.Message); }
+        }
+
+        /// <summary>是否曾经获得过（用于图鉴显示解锁状态）。</summary>
+        public static bool IsUnlocked(string id)
+        {
+            Ensure();
+            return !string.IsNullOrEmpty(id) && _ids.Contains(id);
+        }
+
+        /// <summary>登记"曾获得"。返回 true = 这次是新解锁。</summary>
+        public static bool Unlock(string id)
+        {
+            Ensure();
+            if (string.IsNullOrEmpty(id) || !_ids.Add(id)) return false;
+            Flush();
+            return true;
+        }
+
+        public static int Count { get { Ensure(); return _ids.Count; } }
+    }
+
     /// <summary>存档读写 + 当前旅程的单例入口。</summary>
     public static class RunSave
     {
@@ -137,6 +199,9 @@ namespace WanXiang.Run
         }
 
         /// <summary>读槽位。空档/损坏返回 null（不抛异常，让调用方走"空档"分支）。</summary>
+        /// <summary>
+        /// 只读取槽位数据、**不改变 Current**（存档列表用它显示；进入存档请走 ContinueWith）。
+        /// </summary>
         public static RunState Load(int slot)
         {
             try
@@ -158,17 +223,55 @@ namespace WanXiang.Run
         /// <summary>写槽位（自动盖时间戳）。</summary>
         public static void Save(RunState state)
         {
+            // ★ 防跨档污染：只允许把 **当前旅程** 写回它自己的槽位。
+            //   出现过"在 A 存档里操作却覆盖了 B 存档"（某处拿到了不属于 Current 的旧对象）。
+            //   这里直接拦掉并留日志，比事后找凶手容易得多。
+            if (state != null && Current != null && !ReferenceEquals(state, Current))
+            {
+                Debug.LogWarning("[RunSave] 拒绝写入非当前旅程（write slot=" + state.Slot +
+                                 " / current slot=" + Current.Slot + "），已阻止跨档污染");
+                return;
+            }
+
             if (state == null) return;
             try
             {
                 if (!Directory.Exists(Dir)) Directory.CreateDirectory(Dir);
                 state.LastSaved = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+            // ★ 自动登记图鉴解锁：凡是出现在本局"图鉴/队伍"里的异兽，都算"曾经获得过"
+            //   （存在 Collection 或 Team 即可，不必在各获得点分别调用，避免漏登记）
+            if (state.Collection != null)
+                foreach (var id in state.Collection) CodexUnlock.Unlock(id);
+            if (state.Team != null)
+                foreach (var id in state.Team) CodexUnlock.Unlock(id);
                 File.WriteAllText(PathOf(state.Slot), JsonUtility.ToJson(state, true));
             }
             catch (Exception ex)
             {
                 Debug.LogError("[RunSave] 写入存档失败 slot=" + state.Slot + "\n" + ex);
             }
+        }
+
+        /// <summary>清空单个槽位（删文件；若是当前档则清 Current）。</summary>
+        public static void ClearSlot(int slot)
+        {
+            try { if (File.Exists(PathOf(slot))) File.Delete(PathOf(slot)); }
+            catch (Exception ex) { Debug.LogWarning("[RunSave] 删除失败 slot=" + slot + "：" + ex.Message); }
+            if (Current != null && Current.Slot == slot) Current = null;
+            Debug.Log("[RunSave] 已清空槽位 " + slot);
+        }
+
+        /// <summary>清空全部存档（删文件 + 清当前）。给"从头开始"用。</summary>
+        public static void ClearAll()
+        {
+            for (int slot = 1; slot <= SlotCount; slot++)
+            {
+                try { if (File.Exists(PathOf(slot))) File.Delete(PathOf(slot)); }
+                catch (Exception ex) { Debug.LogWarning("[RunSave] 删除失败 slot=" + slot + "：" + ex.Message); }
+            }
+            Current = null;
+            Debug.Log("[RunSave] 已清空全部存档");
         }
 
         /// <summary>在指定槽位开一段全新旅程（覆盖该槽位）。</summary>

@@ -1065,6 +1065,8 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_tmpTrait", tmpTrait);
             UIBuild.Bind(comp, "_tmpSchool", tmpSchool);
             UIBuild.Bind(comp, "_btnCloseDetail", bClose.GetComponent<Button>());
+            UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
+            UIBuild.Bind(comp, "_sprites", LoadAsset<SpriteCatalog>(SpriteCatalogPath));
             UIBuild.SavePrefab(root, "Panel_Codex");
         }
 
@@ -1206,10 +1208,15 @@ namespace WanXiang.EditorTools
             if (cardImg == null) cardImg = card.gameObject.AddComponent<Image>();
             cardImg.color = new Color(0.98f, 0.97f, 0.94f, 0.98f);
 
-            var title = UIBuild.Tmp(UIBuild.Stretch(card, "Tmp_Title", 48, 20, 48, 84),
-                "", 36, UIBuild.Ink, TextAlignmentOptions.Center);
-            var body = UIBuild.Tmp(UIBuild.Stretch(card, "Tmp_Body", 64, 110, 64, 130),
-                "", 26, UIBuild.Ink, TextAlignmentOptions.TopLeft);
+            // 标题 / 正文：★ Fixed + 单点锚 + **正尺寸**（Stretch 的 (l,t,r,b)→pos(l,b) 语义
+            //   容易传错，曾导致"标题跑到正文下面、正文挤到底部"）。参数直白，不会再错。
+            var title = UIBuild.Tmp(UIBuild.Fixed(card, "Tmp_Title", new Vector2(0.5f, 1f),
+                new Vector2(624, 64), new Vector2(0, -60)), "", 36, UIBuild.Ink, TextAlignmentOptions.Center);
+            // ⚠ 正文下移：标题框中心 (0,-60) 高 64 ⇒ 底边 -92；正文 TopLeft、高 180
+            //   ⇒ 若中心 -152 则文字首行在 -62，与标题重叠（用户："标题和正文挤在一起"）。
+            //   放到中心 -190 ⇒ 首行 -100，与标题底边 -92 留 8px 间隙。
+            var body = UIBuild.Tmp(UIBuild.Fixed(card, "Tmp_Body", new Vector2(0.5f, 1f),
+                new Vector2(592, 180), new Vector2(0, -190)), "", 26, UIBuild.Ink, TextAlignmentOptions.TopLeft);
 
             var left = UIBuild.MakeBtn(card, "Btn_Left", new Vector2(0f, 0f),
                 new Vector2(280, 92), new Vector2(64f, 40f), "取消",
