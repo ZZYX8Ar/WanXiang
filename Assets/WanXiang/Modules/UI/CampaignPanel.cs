@@ -620,7 +620,9 @@ namespace WanXiang.Modules.UI
                 //   ② 战斗类点了「出征」（FormationPanel 写入）
                 //   —— 否则"进编阵看一眼再返回"会被算作通过（用户实测：白嫖节点）。
                 run.NodeOffset = _selected;      // ★ 进入 = 移动（人在哪），可达性靠它
+                _currentOffset = _selected;      // ★ 同步渲染缓存：否则本次打开期间下层仍不可点
                 PendingCommit = _selected;       // 是否【通过】等胜利/处理完再定
+                BuildNodeMap();                  // ★ 当场重画，刷新可达性与高亮
                 if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                     run.VisitedNodes.Add(_selected);
                 if (run.Path != null) run.Path.Add(_selected);
