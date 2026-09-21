@@ -1388,8 +1388,8 @@ namespace WanXiang.Battle.Core
             //   横版对阵时中线是竖直线，"离中线多远"由 X（列）决定；
             //   此前用 Row（上下方向）判前后排是错的 —— 注释里"Row 0 靠中线"的推理
             //   把 CellPos 里 row 控制的 Y 当成了离中线距离。用户指定：第一列（0/3/6）为前排。
-            int ra = a.Pos.IsValid ? a.Pos.FrontRank : int.MaxValue;
-            int rb = b.Pos.IsValid ? b.Pos.FrontRank : int.MaxValue;
+            int ra = a.Pos.IsValid ? a.Pos.FrontRankFor(a.Side) : int.MaxValue;
+            int rb = b.Pos.IsValid ? b.Pos.FrontRankFor(b.Side) : int.MaxValue;
             if (ra != rb) return frontMost ? ra < rb : ra > rb;   // 前排 = 列小；后排 = 列大
 
             // 同列：行小的先（上→下，稳定），再取生命比例高的（更像"挡在前面"的）

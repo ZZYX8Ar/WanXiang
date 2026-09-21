@@ -29,12 +29,14 @@ namespace WanXiang.Battle.Core
         public int Col => Index % BoardLayout.Columns;
 
         /// <summary>
-        /// 前后排（0 = 前排）。★ 横版对阵（我方左/敌方右，中线为竖直线）下，
-        /// "离中线多远"由**列**决定，所以前后排 = 列号，不是行号。
-        /// （此前 BattleSimulator 误用 Row＝上下方向判前后排，注释也把那句理解写错了。）
-        /// 用户指定：0 3 6（第一列）为前排。
+        /// 前后排（0 = 前排）—— **按阵营镜像**：双方都是"离中线最近的那一列"为前排。
+        /// <para>我方在左（col 2 靠中线）⇒ 前排 = 2 - Col，即格号 <b>2 5 8</b>；</para>
+        /// <para>敌方在右（col 0 靠中线）⇒ 前排 = Col，即格号 <b>0 3 6</b>。</para>
+        /// （用户定义："我在左边所以 258 是前排；敌人在右边所以敌人的 036 是前排。"）
+        /// ⚠ 此前用 Row（上下方向）判前后排是错的：横版对阵的中线是竖直线，离中线远近由列决定。
         /// </summary>
-        public int FrontRank => Index % BoardLayout.Columns;
+        public int FrontRankFor(TeamSide side)
+            => side == TeamSide.Player ? (BoardLayout.Columns - 1 - Col) : Col;
 
         /// <summary>中宫：第 2 行第 2 列，索引 4。全棋盘唯一的特殊格。</summary>
         public bool IsCenter => Index == BoardLayout.CenterIndex;
