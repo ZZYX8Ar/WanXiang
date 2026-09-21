@@ -106,6 +106,68 @@ namespace WanXiang.Run
         }
     }
 
+    /// <summary>
+    /// 局外图鉴解锁表（**跨局永久**，独立于任何槽位）。
+    /// 设计：异兽都是"局内养成"的，失败清空 Collection —— 但**只要曾经获得过**，
+    /// 外面的图鉴就永久解锁（用户明确要求）。
+    /// </summary>
+    public static class CodexUnlock
+    {
+        private static System.Collections.Generic.HashSet<string> _ids;
+        private static string FilePath
+        {
+            get { return System.IO.Path.Combine(Application.persistentDataPath, "codex_unlocked.json"); }
+        }
+
+        [System.Serializable]
+        private class Wrap { public string[] Ids; }
+
+        private static void Ensure()
+        {
+            if (_ids != null) return;
+            _ids = new System.Collections.Generic.HashSet<string>();
+            try
+            {
+                if (System.IO.File.Exists(FilePath))
+                {
+                    var w = JsonUtility.FromJson<Wrap>(System.IO.File.ReadAllText(FilePath));
+                    if (w != null && w.Ids != null)
+                        foreach (var id in w.Ids)
+                            if (!string.IsNullOrEmpty(id)) _ids.Add(id);
+                }
+            }
+            catch (System.Exception ex) { Debug.LogWarning("[CodexUnlock] 读取失败：" + ex.Message); }
+        }
+
+        private static void Flush()
+        {
+            try
+            {
+                var list = new System.Collections.Generic.List<string>(_ids);
+                System.IO.File.WriteAllText(FilePath, JsonUtility.ToJson(new Wrap { Ids = list.ToArray() }, true));
+            }
+            catch (System.Exception ex) { Debug.LogWarning("[CodexUnlock] 写入失败：" + ex.Message); }
+        }
+
+        /// <summary>是否曾经获得过（用于图鉴显示解锁状态）。</summary>
+        public static bool IsUnlocked(string id)
+        {
+            Ensure();
+            return !string.IsNullOrEmpty(id) && _ids.Contains(id);
+        }
+
+        /// <summary>登记"曾获得"。返回 true = 这次是新解锁。</summary>
+        public static bool Unlock(string id)
+        {
+            Ensure();
+            if (string.IsNullOrEmpty(id) || !_ids.Add(id)) return false;
+            Flush();
+            return true;
+        }
+
+        public static int Count { get { Ensure(); return _ids.Count; } }
+    }
+
     /// <summary>存档读写 + 当前旅程的单例入口。</summary>
     public static class RunSave
     {
@@ -176,6 +238,13 @@ namespace WanXiang.Run
             {
                 if (!Directory.Exists(Dir)) Directory.CreateDirectory(Dir);
                 state.LastSaved = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+            // ★ 自动登记图鉴解锁：凡是出现在本局"图鉴/队伍"里的异兽，都算"曾经获得过"
+            //   （存在 Collection 或 Team 即可，不必在各获得点分别调用，避免漏登记）
+            if (state.Collection != null)
+                foreach (var id in state.Collection) CodexUnlock.Unlock(id);
+            if (state.Team != null)
+                foreach (var id in state.Team) CodexUnlock.Unlock(id);
                 File.WriteAllText(PathOf(state.Slot), JsonUtility.ToJson(state, true));
             }
             catch (Exception ex)
