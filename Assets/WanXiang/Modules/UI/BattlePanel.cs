@@ -597,6 +597,17 @@ namespace WanXiang.Modules.UI
             if (_tmpRound != null) _tmpRound.text = "第 " + _play.State.Turn + " 回合";
             if (_tmpLog != null) _tmpLog.text = _play.Summary();
 
+            // ★★ 结算前兜底判定胜负：Outcome 只在 BattleSimulator 的循环里由 CheckOutcome 赋值，
+            //    手动操作路径若没跑到判负点，Outcome 会停在 Ongoing
+            //    ⇒ PlayerWin = false ⇒ **明明赢了却按失败结算**（用户实测 A 情况）。
+            //    这里在结算前补一次判定；CheckOutcome 会据"敌方全灭/我方全灭"给出正确结果。
+            if (_play != null && _play.State != null &&
+                _play.State.Outcome == WanXiang.Battle.Core.BattleOutcome.Ongoing)
+            {
+                _play.State.CheckOutcome();
+                Debug.Log("[BattlePanel] 结算前补判胜负 → " + _play.State.Outcome);
+            }
+
             var result = new ResultRequest
             {
                 Win = _play.PlayerWin,
