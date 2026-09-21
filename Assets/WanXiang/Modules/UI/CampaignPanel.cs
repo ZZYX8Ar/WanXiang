@@ -147,18 +147,6 @@ namespace WanXiang.Modules.UI
 
             // ---- 数据源：v1.2 路线图（12 层、层内 2~3、种子稳定）----
             var run = WanXiang.Run.RunSave.Current;
-            // ★★ 幕推进（必须在算 act / 建图**之前**）：走到本幕最后一格 ⇒ 进入下一幕。
-            //    此前无人调用 Campaign.RunState.DefeatBoss（只在自检工具里），
-            //    所以通关第一幕也永远停在幕末（用户实测"通关最后节点没进第二幕"）。
-            if (run != null && run.Act < 5 && run.NodeOffset >= Layers - 1)
-            {
-                run.Act++;
-                run.NodeOffset = -1;
-                if (run.VisitedNodes != null) run.VisitedNodes.Clear();   // 新幕重新探索
-                WanXiang.Run.RunSave.SaveCurrent();
-                Debug.Log("[Campaign] 幕推进 ⇒ 第 " + run.Act + " 幕");
-            }
-
             int act = Mathf.Clamp(run != null ? run.Act : 1, 1, 5);
             // ⚠ 种子绑定**本局**（RunSeed）而不是槽位：局内重进是同一张图，
             //   重开一局 / 新档 → 新种子 → 全新路线图（用户：每局都要随机）。
@@ -169,6 +157,23 @@ namespace WanXiang.Modules.UI
             }
             ulong seed = CoreMath.Fnv1a("route:" + (run != null ? run.RunSeed : 0) + ":" + act);
             _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(act, seed, Layers);
+
+            // ★★ 幕推进：用 **格号** 判定（NodeOffset 范围 0..NodeCount-1，每层 3 格 × Layers 层）。
+            //    之前误用 Layers-1(=11) 当阈值 ⇒ 走到第 4 层左右就误判"幕末"提前跳幕
+            //    （用户实测"明明第二幕却直接到第三幕"）。必须在建图之后判、判完重建新幕的图。
+            if (run != null && run.Act < 5 && _graph.NodeCount > 0
+                && run.NodeOffset >= _graph.NodeCount - 1)
+            {
+                run.Act++;
+                run.NodeOffset = -1;
+                if (run.VisitedNodes != null) run.VisitedNodes.Clear();   // 新幕重新探索
+                WanXiang.Run.RunSave.SaveCurrent();
+                Debug.Log("[Campaign] 幕推进 ⇒ 第 " + run.Act + " 幕");
+
+                act = Mathf.Clamp(run.Act, 1, 5);
+                seed = CoreMath.Fnv1a("route:" + run.RunSeed + ":" + act);
+                _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(act, seed, Layers);
+            }
 
             _currentOffset = run != null ? run.NodeOffset : -1;
             _visited.Clear();          // readonly 字段只能就地清空（不能 new）

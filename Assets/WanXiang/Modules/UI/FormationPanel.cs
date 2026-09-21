@@ -44,6 +44,8 @@ namespace WanXiang.Modules.UI
         [SerializeField] private RectTransform _rosterItemTemplate;  // Item_Roster（模板）
         [SerializeField] private TMP_Text _tmpPower;           // Tmp_TotalPower
         [SerializeField] private Button _btnAutoFill;          // Btn_AutoFill
+        [SerializeField] private Button _btnBack;              // Btn_Back（兜底创建）
+        [SerializeField] private Button _btnBack;              // Btn_Back（兜底创建）
         [SerializeField] private Button _btnClear;             // Btn_Clear
         /// <summary>出战上限（GDD：一队 5 只）。上阵/拖放共用这个值，别再各处硬编码。</summary>
         private const int MaxDeploy = 5;
@@ -77,6 +79,7 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
+            EnsureBackButton();
             _node = payload as NodeRequest ?? _node;
             var allBeasts = _contentCatalog != null ? ContentLibrary.BuildBeasts(_contentCatalog) : null;
             // ★ 编阵只列"你已拥有的"：图鉴里买到的 + 初始队伍。
@@ -673,5 +676,45 @@ namespace WanXiang.Modules.UI
             CloseSelf();
             SceneFlow.EnterBattle(req);
         }
+
+        /// <summary>返回地图按钮兜底（进编阵后必须能退出去看节点）。</summary>
+        private void EnsureBackButton()
+        {
+            if (_btnBack != null) return;
+
+            var go = new GameObject("Btn_Back", typeof(RectTransform));
+            go.transform.SetParent(transform, false);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.94f, 0.92f, 0.88f, 1f);
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            var r = (RectTransform)go.transform;
+            r.anchorMin = r.anchorMax = new Vector2(0f, 1f);
+            r.anchoredPosition = new Vector2(96f, -52f);
+            r.sizeDelta = new Vector2(152f, 64f);
+
+            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var tmp = tgo.AddComponent<TextMeshProUGUI>();
+            tmp.text = "返回地图";
+            tmp.fontSize = 26;
+            tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            var tr = (RectTransform)tgo.transform;
+            tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.sizeDelta = Vector2.zero;
+
+            _btnBack = btn;
+            btn.onClick.AddListener(() =>
+            {
+                CloseSelf();
+                var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+                Cysharp.Threading.Tasks.UniTask.Void(async () =>
+                {
+                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);
+                    await ui.OpenAsync<CampaignPanel>();
+                });
+            });
+        }
+
     }
 }
