@@ -137,6 +137,9 @@ namespace WanXiang.Run
         }
 
         /// <summary>读槽位。空档/损坏返回 null（不抛异常，让调用方走"空档"分支）。</summary>
+        /// <summary>
+        /// 只读取槽位数据、**不改变 Current**（存档列表用它显示；进入存档请走 ContinueWith）。
+        /// </summary>
         public static RunState Load(int slot)
         {
             try
@@ -158,6 +161,16 @@ namespace WanXiang.Run
         /// <summary>写槽位（自动盖时间戳）。</summary>
         public static void Save(RunState state)
         {
+            // ★ 防跨档污染：只允许把 **当前旅程** 写回它自己的槽位。
+            //   出现过"在 A 存档里操作却覆盖了 B 存档"（某处拿到了不属于 Current 的旧对象）。
+            //   这里直接拦掉并留日志，比事后找凶手容易得多。
+            if (state != null && Current != null && !ReferenceEquals(state, Current))
+            {
+                Debug.LogWarning("[RunSave] 拒绝写入非当前旅程（write slot=" + state.Slot +
+                                 " / current slot=" + Current.Slot + "），已阻止跨档污染");
+                return;
+            }
+
             if (state == null) return;
             try
             {
