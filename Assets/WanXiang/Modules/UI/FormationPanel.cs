@@ -662,11 +662,14 @@ namespace WanXiang.Modules.UI
 
             // 用玩家真实布阵替换工厂给的默认队形
             req.Player.Clear();
+            if (req.PlayerCells == null) req.PlayerCells = new System.Collections.Generic.List<int>();
+            req.PlayerCells.Clear();
             for (int cell = 0; cell < _deployed.Length; cell++)
             {
                 int idx = _deployed[cell];
                 if (idx < 0 || _all == null || idx >= _all.Length) continue;
                 req.Player.Add(_all[idx]);
+                req.PlayerCells.Add(cell);      // ★ 记录真实格号，战斗按它站位
             }
 
             SaveTeamToRun();

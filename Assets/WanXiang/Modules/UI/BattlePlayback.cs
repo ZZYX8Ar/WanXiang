@@ -25,6 +25,9 @@ namespace WanXiang.Modules.UI
         public string WeatherName = "";
         public ulong Seed = 20260914UL;
         public List<BeastDef> Player = new List<BeastDef>();
+
+        /// <summary>与 Player 一一对应的【九宫格格号】(0..8)。为空则回退到默认 Cells。</summary>
+        public List<int> PlayerCells = new List<int>();
         /// <summary>我方全体属性倍率（孵穴「回复」的载体：下一场战斗 ×1.4）。</summary>
         public float PlayerMul = 1f;
 
@@ -86,8 +89,14 @@ namespace WanXiang.Modules.UI
 
             var p = new DeployEntry[req.Player.Count];
             for (int i = 0; i < p.Length; i++)
-                p[i] = DeployEntry.Player(req.Player[i], BattleRequest.Cells[i % BattleRequest.Cells.Length])
-                                  .WithMul(req.PlayerMul);
+            {
+                // ★ 用编阵传入的真实格号（方案 B：编阵怎么摆，战斗就怎么站）。
+                //   之前按列表索引取固定 Cells，导致"编阵拖好的位置进战斗后全变"（用户实测）。
+                int cell = (req.PlayerCells != null && i < req.PlayerCells.Count)
+                    ? req.PlayerCells[i]
+                    : BattleRequest.Cells[i % BattleRequest.Cells.Length];
+                p[i] = DeployEntry.Player(req.Player[i], cell).WithMul(req.PlayerMul);
+            }
 
             DeployEntry[] e;
             if (req.EnemyEntries != null && req.EnemyEntries.Count > 0)
