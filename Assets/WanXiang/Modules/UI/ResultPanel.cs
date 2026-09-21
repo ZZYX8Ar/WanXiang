@@ -80,8 +80,20 @@ namespace WanXiang.Modules.UI
             // 明细行：回合 / 事件指纹 / 结果
             SetLine(0, win ? "战斗胜利" : (req != null && req.Retreated ? "撤退" : "战斗失败"));
             SetLine(1, "回合数：" + (req != null ? req.Turns : 0));
-            SetLine(2, "过程指纹：0x" + (req != null ? req.Fingerprint.ToString("X8") : "00000000"));
-            SetLine(3, "灵卵 +1");
+
+            // ★ 结算信息改为"本局探索回顾"（用户要求）：过程指纹对玩家无意义，去掉；
+            //   失败时也要说明"本局已结束"，而不是显示"灵卵 +1"（失败会清空）。
+            var look = WanXiang.Run.RunSave.Current;
+            int act = look != null ? look.Act : 1;
+            int layer = look != null ? look.NodeOffset + 1 : 0;
+            int wins = look != null ? look.Wins : 0;
+            int losses = look != null ? look.Losses : 0;
+            SetLine(2, win
+                ? "本局进度：第 " + act + " 幕 · 第 " + layer + " 层"
+                : "倒在：第 " + act + " 幕 · 第 " + layer + " 层（本局胜 " + wins + " 场）");
+            SetLine(3, win
+                ? "灵卵 +1"
+                : "本局结束 —— 进度已清空，再次出征将从第一幕重新开始");
 
             // 三选一奖励（v2.1）：不再是无内容的占位草稿，走 RunState 已有字段立即生效。
             for (int i = 0; i < _tmpDraftNames.Length; i++)
