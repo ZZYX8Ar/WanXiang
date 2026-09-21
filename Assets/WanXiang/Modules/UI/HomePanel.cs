@@ -104,7 +104,14 @@ namespace WanXiang.Modules.UI
         {
             var run = WanXiang.Run.RunSave.Current;
             int layer = run != null ? run.NodeOffset + 1 : 0;
-            bool hasProgress = run != null && (run.NodeOffset >= 0 || run.Act > 1);
+            // ★ 判据放宽：以前只认 NodeOffset>=0 / Act>1，但"进过节点却没通过"时
+            //   NodeOffset 仍是 -1（节点改为延后推进）⇒ 判定成"无进度"，直接进图不弹窗
+            //   （用户实测）。现在只要有过任何探索痕迹就算有进度。
+            bool hasProgress = run != null && (
+                run.NodeOffset >= 0 || run.Act > 1
+                || (run.Path != null && run.Path.Count > 0)
+                || (run.VisitedNodes != null && run.VisitedNodes.Count > 0)
+                || run.Wins > 0 || run.Losses > 0);
 
             if (!hasProgress)
             {
