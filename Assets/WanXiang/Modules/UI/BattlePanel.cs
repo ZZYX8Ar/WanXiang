@@ -310,6 +310,10 @@ namespace WanXiang.Modules.UI
             ApplyFrames();
             if (_tmpLog != null) _tmpLog.text = "战斗开始";
             _playing = true;
+            // ★ 每场战斗重置自动/倍速：面板是 Cached 复用的，字段会从上场带过来，
+            //   玩家若不注意会莫名继续自动战斗（用户要求"应该要自己点"）。
+            _autoBattle = false;
+            _speed = 1f;
 
             int guard = 0;
             while (!_play.Finished && guard++ < 20000)

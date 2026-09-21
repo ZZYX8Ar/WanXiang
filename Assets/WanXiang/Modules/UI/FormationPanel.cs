@@ -125,24 +125,48 @@ namespace WanXiang.Modules.UI
         //  敌方情报
         // ================================================================
 
+        /// <summary>
+        /// 敌方情报：★ 必须用**真实战斗请求**里的敌人。
+        /// 旧实现拿"图鉴数组后半段"当预览、强度写死 5.35 ⇒ 与实际开打的敌人完全不符（用户实测）。
+        /// </summary>
         private void FillEnemyIntel()
         {
             if (_all == null) return;
-            int half = System.Math.Max(1, _all.Length / 2);
+
+            var run = WanXiang.Run.RunSave.Current;
+            BattleRequest req;
+            bool ok;
+            // 预览不能消耗挂起修正（孵穴回血/天象加成）⇒ 先记住、调完工厂再还原
+            int hp = 0, pb = 0, eb = 0;
+            if (run != null) { hp = run.HealPending; pb = run.PlayerBuffPct; eb = run.EnemyBuffPct; }
+
+            ok = (run != null)
+                ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req, _node.Kind)
+                : BattleRequestFactory.TryBuild(_contentCatalog, _node.Title, _node.Weather,
+                                                _node.Seed, out req);
+            if (run != null) { run.HealPending = hp; run.PlayerBuffPct = pb; run.EnemyBuffPct = eb; }
+            if (!ok || req == null) return;
+
+            var enemies = req.Enemy;
             for (int i = 0; i < _imgEnemies.Length; i++)
             {
                 if (_imgEnemies[i] == null) continue;
-                int idx = System.Math.Min(half + i, _all.Length - 1);
-                var sprite = _sprites != null ? _sprites.GetHead(_all[idx].Id) : null;
+                if (i >= enemies.Count || enemies[i] == null)
+                {
+                    _imgEnemies[i].enabled = false;      // 敌人没那么多 ⇒ 隐藏空位
+                    continue;
+                }
+                var sprite = _sprites != null ? _sprites.GetHead(enemies[i].Id) : null;
                 if (sprite != null)
                 {
+                    _imgEnemies[i].enabled = true;
                     _imgEnemies[i].sprite = sprite;
                     _imgEnemies[i].color = new Color(0.72f, 0.72f, 0.80f, 1f);   // 敌方压暗
                     _imgEnemies[i].preserveAspect = true;
                 }
             }
             if (_tmpEnemyPower != null)
-                _tmpEnemyPower.text = "敌方强度 BP 5.35";
+                _tmpEnemyPower.text = "敌方 " + enemies.Count + " 只";
         }
 
         // ================================================================
