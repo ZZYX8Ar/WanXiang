@@ -437,6 +437,11 @@ namespace WanXiang.Modules.UI
             }
             if (offset < 0 || offset >= _graph.NodeCount)
             {
+                // ★★ 越界必须先归零！否则下面循环条件（offset < 0）不成立、循环不执行，
+                //    带着越界值走到 Terms[offset] 就 IndexOutOfRange（用户实测：奖励后回节点图报错）。
+                //    越界来源：payload 带的 Offset 属于旧图/上一幕，格号超出当前图范围。
+                if (offset >= _graph.NodeCount) offset = -1;
+
                 // 没有 payload 时默认指向第一个可前往的节点，避免右侧信息卡空着
                 for (int l = 0; l < _graph.Layers.Length && offset < 0; l++)
                     foreach (var o in _graph.Layers[l])
