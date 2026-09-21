@@ -1384,17 +1384,17 @@ namespace WanXiang.Battle.Core
 
         private static bool RanksCloser(BattleUnit a, BattleUnit b, BattleUnit src, bool frontMost)
         {
-            int ra = a.Pos.IsValid ? a.Pos.Row : int.MaxValue;
-            int rb = b.Pos.IsValid ? b.Pos.Row : int.MaxValue;
-            // ⚠ 前排 = Row **小**（Row 0 靠中线）。BattleStage2D.CellPos 的实现证明：
-            //    我方 row0 的 y=+0.11（最靠中线）而 row2=-1.21（最远）；
-            //    该文件里"row 0=后 1=中 2=前"的注释是错的（sortingOrder 只是绘制层级）。
-            //    别再被那句注释带偏 —— 以 CellPos 的实现为准。
-            if (ra != rb) return frontMost ? ra < rb : ra > rb;   // 前排 = Row 小；后排 = Row 大
+            // ★ 前后排 = **列**（FrontRank），不是行。
+            //   横版对阵时中线是竖直线，"离中线多远"由 X（列）决定；
+            //   此前用 Row（上下方向）判前后排是错的 —— 注释里"Row 0 靠中线"的推理
+            //   把 CellPos 里 row 控制的 Y 当成了离中线距离。用户指定：第一列（0/3/6）为前排。
+            int ra = a.Pos.IsValid ? a.Pos.FrontRank : int.MaxValue;
+            int rb = b.Pos.IsValid ? b.Pos.FrontRank : int.MaxValue;
+            if (ra != rb) return frontMost ? ra < rb : ra > rb;   // 前排 = 列小；后排 = 列大
 
-            // 同排：列小的先（左侧优先，稳定），再取生命比例高的（更像"挡在前面"的）
-            int ca = a.Pos.IsValid ? a.Pos.Col : int.MaxValue;
-            int cb = b.Pos.IsValid ? b.Pos.Col : int.MaxValue;
+            // 同列：行小的先（上→下，稳定），再取生命比例高的（更像"挡在前面"的）
+            int ca = a.Pos.IsValid ? a.Pos.Row : int.MaxValue;
+            int cb = b.Pos.IsValid ? b.Pos.Row : int.MaxValue;
             if (ca != cb) return ca < cb;
             if (a.HpPercent != b.HpPercent) return a.HpPercent > b.HpPercent;
             return true;
