@@ -214,6 +214,8 @@ namespace WanXiang.Modules.UI
                 if (head != null)
                 {
                     var img = head.GetComponent<Image>();
+                    // ★ 卡池项必须能接收点击/拖拽：图若被设成不接收射线，事件到不了代理组件
+                    if (img != null) img.raycastTarget = true;
                     var sprite = _sprites != null ? _sprites.GetHead(_all[i].Id) : null;
                     if (img != null && sprite != null)
                     {
@@ -417,6 +419,12 @@ namespace WanXiang.Modules.UI
                 if (_deployed[slot] < 0) { _deployed[slot] = beastIndex; CommitLayout(); return; }
             }
             Debug.Log("[FormationPanel] 九宫格已满，先点击格子下阵一只。");
+        }
+
+        /// <summary>拖拽卡池项时临时关掉 ScrollRect，避免拖拽被滚动抢走。</summary>
+        public void SetRosterScrollEnabled(bool on)
+        {
+            if (_scrollRoster != null) _scrollRoster.enabled = on;
         }
 
         /// <summary>空手点击格子：有兽 → 下阵。</summary>
