@@ -134,9 +134,14 @@ namespace WanXiang.Modules.UI
             //   旧逻辑只判了 pick == 1，导致"点 × "也会掉进重开确认弹窗（用户实测）。
             if (pick != 0)
             {
-                if (pick == 1) OpenPanelAsync<CampaignPanel>().Forget();   // 继续旅程
+                if (pick == 1)
+                {
+                    CloseSelf();                                            // ★ 关主界面，否则栈里残留
+                    OpenPanelAsync<CampaignPanel>().Forget();               // 继续旅程
+                }
                 return;                                                   // -1 = 留在主界面
             }
+            CloseSelf();                                                  // ★ 重开 = 也关主界面（后面回节点图）
 
             bool ok = await Dialog.Confirm("重开一局",
                 "本次旅程的进度、灵卵与队伍编成都会清空，确定重开？", "确定重开", "再想想");
