@@ -115,7 +115,9 @@ namespace WanXiang.Modules.UI
             for (int i = 0; i < _tmpDraftDescs.Length; i++)
                 if (_tmpDraftDescs[i] != null) _tmpDraftDescs[i].text = DraftDesc(i);
 
-            if (_btnConfirm != null) _btnConfirm.interactable = false;
+            // ★ 按胜负决定确认按钮是否可点（原来无条件设 false，把"失败可直接确认"覆盖掉了）：
+            //   胜利 → 必须先选一张奖励才可确认；失败 → 没有奖励，直接可确认。
+            if (_btnConfirm != null) _btnConfirm.interactable = !_win;
             return UniTask.CompletedTask;
         }
 
