@@ -165,8 +165,18 @@ namespace WanXiang.Modules.UI
                     _imgEnemies[i].preserveAspect = true;
                 }
             }
+            // 敌方强度 BP：用 EnemyBudget 的计价口径（稀有度 × 定位 × 属性倍率）——
+            // 与"敌方预算"同源，不是拍脑袋的常量（旧实现写死 5.35 是占位）。
+            float bp = 0f;
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                if (enemies[i] == null) continue;
+                float mul = (req.EnemyMul != null && i < req.EnemyMul.Count) ? req.EnemyMul[i] : 1f;
+                bp += WanXiang.Campaign.EnemyBudget.RarityCost(enemies[i].Rarity)
+                    * WanXiang.Campaign.EnemyBudget.RoleCost(enemies[i].Role) * mul;
+            }
             if (_tmpEnemyPower != null)
-                _tmpEnemyPower.text = "敌方 " + enemies.Count + " 只";
+                _tmpEnemyPower.text = "敌方强度 BP " + bp.ToString("0.00") + "（" + enemies.Count + " 只）";
         }
 
         // ================================================================
