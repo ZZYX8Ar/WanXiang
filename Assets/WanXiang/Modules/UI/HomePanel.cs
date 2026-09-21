@@ -123,10 +123,12 @@ namespace WanXiang.Modules.UI
                               run.Act, layer),
                 "重开一局", "继续");
 
-            if (pick == 1)
+            // ★ pick：0 = 重开一局、1 = 继续、-1 = 关闭/点遮罩（什么都不选）
+            //   旧逻辑只判了 pick == 1，导致"点 × "也会掉进重开确认弹窗（用户实测）。
+            if (pick != 0)
             {
-                OpenPanelAsync<CampaignPanel>().Forget();
-                return;
+                if (pick == 1) OpenPanelAsync<CampaignPanel>().Forget();   // 继续旅程
+                return;                                                   // -1 = 留在主界面
             }
 
             bool ok = await Dialog.Confirm("重开一局",

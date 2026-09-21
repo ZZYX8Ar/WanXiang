@@ -42,6 +42,19 @@ namespace WanXiang.Modules.UI
             }
         }
 
+        /// <summary>
+        /// 拥有的异兽数 = 图鉴(Collection) ∪ 出战队伍(Team) 去重。
+        /// 旧存档没有 Collection 字段（那时买到就直接进队伍）⇒ 只看 Collection 会显示成 0/5。
+        /// </summary>
+        private static int OwnedBeastCount(WanXiang.Run.RunState st)
+        {
+            if (st == null) return 0;
+            var set = new System.Collections.Generic.HashSet<string>();
+            if (st.Collection != null) foreach (var id in st.Collection) if (!string.IsNullOrEmpty(id)) set.Add(id);
+            if (st.Team != null) foreach (var id in st.Team) if (!string.IsNullOrEmpty(id)) set.Add(id);
+            return set.Count;
+        }
+
         protected override UniTask OnOpenAsync(object payload)
         {
             RefreshSlots();
@@ -65,9 +78,7 @@ namespace WanXiang.Modules.UI
                 else
                 {
                     _tmpSlots[i].text = "存档 " + Cn(slot) + " · " + state.RealmText +
-                                        "    灵卵 " + state.Eggs + " · 异兽 " +
-                                        (state.Collection != null && state.Collection.Count > 0
-                                            ? state.Collection.Count : state.Team.Count) + " 只" +
+                                        "    灵卵 " + state.Eggs + " · 异兽 " + OwnedBeastCount(state) + " 只" +
                                         "\n胜 " + state.Wins + " / 败 " + state.Losses +
                                         "    最后旅程 " + (string.IsNullOrEmpty(state.LastSaved) ? "—" : state.LastSaved);
                 }
