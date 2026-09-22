@@ -159,17 +159,18 @@ namespace WanXiang.Modules.UI
                 UnityEngine.Debug.Log("[BattleRequestFactory] 轮回 " + (runAsc != null ? runAsc.Ascension : 0) +
                                       " ⇒ 敌人属性 ×" + ascMul.ToString("0.00"));
 
-            // ★★ 轮回难度（"续劫"）：每轮回**敌人数量 +1**（最多 +3，避免队列爆掉）。
+            // ★★ 轮回难度（"续劫"）：每轮回**敌人数量 +1**，上限 **9 只**（棋盘共 9 格）。
             //    与上面的"属性 +15%/轮回"叠加 —— 数量 + 强度双重递增。
-            int extra = System.Math.Min(3, runAsc != null ? runAsc.Ascension : 0);
+            int extra = System.Math.Min(9 - req.EnemyEntries.Count,
+                                        runAsc != null ? runAsc.Ascension : 0);
             if (extra > 0 && all != null && all.Length > 0)
             {
                 var rng2 = new System.Random((int)(seed ^ 0x9E3779B9u));
                 for (int i = 0; i < extra; i++)
                 {
                     var pick = all[rng2.Next(all.Length)];
-                    // 位置从第 4 格起（避开守关 Boss 独占的中宫）
-                    int cell = BattleRequest.Cells[(i + 1) % BattleRequest.Cells.Length];
+                    // 格号：基础敌人占前几格 ⇒ 额外敌人从它们的后面接着排（0..8 共 9 格）
+                    int cell = (req.EnemyEntries.Count + i) % 9;
                     var add = DeployEntry.Enemy(pick, cell).WithMul(0.9f * ascMul);
                     req.EnemyEntries.Add(add);
                     req.Enemy.Add(pick);
