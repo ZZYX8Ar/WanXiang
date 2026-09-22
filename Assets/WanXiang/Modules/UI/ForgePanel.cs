@@ -366,7 +366,13 @@ namespace WanXiang.Modules.UI
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
                 rt.pivot = new Vector2(0.5f, 1f);
                 rt.anchoredPosition = new Vector2(0f, -i * 92f);
-                rt.sizeDelta = new Vector2(-8f, 84f);
+                // ★★ 这里原来是 sizeDelta = (-8, 84) —— 但上面用的是【水平单点锚】
+                //    (anchorMin.x == anchorMax.x == 0.5)，此时 sizeDelta.x 就是**实际宽度**，
+                //    写成负数 ⇒ 行宽 -8 ⇒ 行内文本更窄(-36) ⇒ 文字被挤成一列（竖排乱码）。
+                //    负边距只在【双向锚】下才有意义。这里用视口宽度算真实行宽。
+                float rowW = (scroll.viewport != null ? scroll.viewport.rect.width : 420f) - 8f;
+                if (rowW < 120f) rowW = 420f;      // 布局尚未算完时的兜底
+                rt.sizeDelta = new Vector2(rowW, 84f);
 
                 var img = go.AddComponent<Image>();
                 img.color = RowIdle;
