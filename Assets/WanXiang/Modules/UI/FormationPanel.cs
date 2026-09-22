@@ -660,6 +660,10 @@ namespace WanXiang.Modules.UI
                 return;
             }
 
+            // ⚠⚠ 临时调试用战力倍率（验证通关链路时用）—— 数值调到 5 倍，
+            //   验证完这一项请与开发者一起改回 1f（或直接删掉这两行）。
+            req.PlayerMul = 5f;
+
             // 用玩家真实布阵替换工厂给的默认队形
             req.Player.Clear();
             if (req.PlayerCells == null) req.PlayerCells = new System.Collections.Generic.List<int>();
