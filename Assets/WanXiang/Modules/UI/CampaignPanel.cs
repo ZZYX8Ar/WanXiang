@@ -238,7 +238,7 @@ namespace WanXiang.Modules.UI
             _nodeItems.Clear();
 
             // ⚠⚠ 调试（问题解决后删除）：进入本方法就打印，确认代码路径一定执行
-            Debug.LogWarning("[Campaign][排版调试A] 进入 BuildNodeMap｜_graph=" +
+            Debug.Log("[Campaign][排版调试A] 进入 BuildNodeMap｜_graph=" +
                 (_graph != null ? ("Act" + _graph.Act + " Layers" + (_graph.Layers != null ? _graph.Layers.Length : -1) +
                  " NodeCount" + _graph.NodeCount) : "null") +
                 "｜_scrollNodes=" + (_scrollNodes != null ? "✓" : "null") +
@@ -379,7 +379,7 @@ namespace WanXiang.Modules.UI
                     var c = content.GetChild(i) as RectTransform;
                     if (c != null && c.name.StartsWith("Node_")) { p0 = c.anchoredPosition.ToString(); break; }
                 }
-                Debug.LogWarning("[Campaign][排版调试B] lc=" + lcD +
+                Debug.Log("[Campaign][排版调试B] totalH=" + (lcD * (NodeH + GapY) + 80f).ToString("0") + " lc=" + lcD +
                     " viewport=" + vpD.width.ToString("0") + "x" + vpD.height.ToString("0") +
                     " content=" + content.sizeDelta.x.ToString("0") + "x" + content.sizeDelta.y.ToString("0") +
                     " 子数=" + content.childCount + " totalH=" + (lcD * (NodeH + GapY) + 80f).ToString("0") +
