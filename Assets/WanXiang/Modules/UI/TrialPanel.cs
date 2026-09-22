@@ -57,6 +57,54 @@ namespace WanXiang.Modules.UI
             return Cysharp.Threading.Tasks.UniTask.CompletedTask;
         }
 
+        /// <summary>
+        /// 构造【终局战】：后土（图鉴最强顶位，×1.5）+ 我方队伍镜像（×1.2）+ 玩家自己的队伍。
+        /// 由 <c>CampaignPanel</c> 在"走到天阙最后一格"时调用（登天阙本身只负责进入天阙图）。
+        /// ⚠ 玩家队伍必须填！手写 BattleRequest 漏填 Player 会让驱动判定"拿不到可用的战斗入参"。
+        /// </summary>
+        public static BattleRequest BuildFinaleBattle(WanXiang.Run.RunState run, BeastDef[] all)
+        {
+            BeastDef boss = all[0];
+            foreach (var b in all)
+                if ((int)b.Rarity > (int)boss.Rarity) boss = b;
+
+            var byId = new System.Collections.Generic.Dictionary<string, BeastDef>();
+            foreach (var b in all) byId[b.Id] = b;
+
+            var req = new BattleRequest
+            {
+                Title = "天阙 · " + boss.DisplayName,
+                WeatherName = "终局：后土 + 我方镜像 ×3，倍率 ×1.5",
+                Seed = (ulong)run.RunSeed + 9999,
+            };
+
+            var entries = new System.Collections.Generic.List<DeployEntry>();
+            entries.Add(DeployEntry.Enemy(boss, BattleRequest.Cells[4]).WithMul(1.5f));
+            int mirrors = System.Math.Min(3, run.Team != null ? run.Team.Count : 0);
+            for (int i = 0; i < mirrors; i++)
+                if (byId.TryGetValue(run.Team[i], out var mirror))
+                    entries.Add(DeployEntry.Enemy(mirror, BattleRequest.Cells[i]).WithMul(1.2f));
+            req.EnemyEntries.AddRange(entries);
+
+            req.Player.Clear();
+            if (req.PlayerCells == null) req.PlayerCells = new System.Collections.Generic.List<int>();
+            req.PlayerCells.Clear();
+            int[] myCells = { 2, 5, 8, 1, 4, 7, 0, 3, 6 };
+            int k = 0;
+            if (run.Team != null)
+            {
+                foreach (var tid in run.Team)
+                {
+                    if (!byId.TryGetValue(tid, out var pb)) continue;
+                    req.Player.Add(pb);
+                    req.PlayerCells.Add(myCells[k % myCells.Length]);
+                    k++;
+                }
+            }
+            UnityEngine.Debug.Log("[TrialPanel] 终局战：我方 " + req.Player.Count + " 只，敌方 " + entries.Count + " 只");
+            return req;
+        }
+
         protected override void OnCreate()
         {
             for (int i = 0; i < _choiceBtns.Length; i++)
@@ -79,65 +127,24 @@ namespace WanXiang.Modules.UI
 
             switch (index)
             {
-                case 0:  // 登天阙：终局战
+                case 0:  // 登天阙：**进入天阙图**（休整→商店→熔炼→看护关→后土），不是直接开战
                     {
-                        var all = _contentCatalog != null ? ContentLibrary.BuildBeasts(_contentCatalog) : null;
-                        if (all == null || all.Length == 0) { CloseSelf(); return; }
-
-                        // 主将 = 图鉴最强（后土的 BeastDef 待内容补齐，先以最强者顶位并注明）
-                        BeastDef boss = all[0];
-                        foreach (var b in all)
-                            if ((int)b.Rarity > (int)boss.Rarity) boss = b;
-
-                        var req = new BattleRequest
+                        // ★★ 用户设计：登天阙后要走一段"登天"流程（天阙图），
+                        //    走到最后一格（后土）才打终局战。原来这里直接 EnterBattle，
+                        //    等于跳过整段流程（用户实测："选登天阙没有进入第五幕，而是直接开战"）。
+                        SceneFlow.IsFinaleBattle = false;   // 终局战推迟到天阙最后一格
+                        var run0 = WanXiang.Run.RunSave.Current;
+                        if (run0 != null)
                         {
-                            Title = "天阙 · " + boss.DisplayName,
-                            WeatherName = "终局：后土 + 我方镜像 ×3，倍率 ×1.5",
-                            Seed = (ulong)run.RunSeed + 9999,
-                        };
-                        var entries = new System.Collections.Generic.List<DeployEntry>();
-                        entries.Add(DeployEntry.Enemy(boss, BattleRequest.Cells[4]).WithMul(1.5f));
-                        int mirrors = System.Math.Min(3, run.Team != null ? run.Team.Count : 0);
-                        for (int i = 0; i < mirrors; i++)
-                        {
-                            var byId = new System.Collections.Generic.Dictionary<string, BeastDef>();
-                            foreach (var b in all) byId[b.Id] = b;
-                            if (byId.TryGetValue(run.Team[i], out var mirror))
-                                entries.Add(DeployEntry.Enemy(mirror, BattleRequest.Cells[i]).WithMul(1.2f));
+                            run0.Act = 5;
+                            run0.NodeOffset = -1;
+                            if (run0.VisitedNodes != null) run0.VisitedNodes.Clear();
+                            WanXiang.Run.RunSave.SaveCurrent();
                         }
-                        req.EnemyEntries.AddRange(entries);
-
-                        // ★★ 必须填【玩家队伍】！这里原来是手写 new BattleRequest，
-                        //    只塞了敌方 ⇒ BattleSceneDriver 判定"拿不到可用的战斗入参"，
-                        //    战斗直接失败（用户实测：登天阙后弹"战斗失败 回合数 0"）。
-                        //    普通战斗走 BattleRequestFactory 会自动填 Player，手写路径必须自己填。
-                        var byId2 = new System.Collections.Generic.Dictionary<string, BeastDef>();
-                        foreach (var b in all) byId2[b.Id] = b;
-                        req.Player.Clear();
-                        if (req.PlayerCells == null) req.PlayerCells = new System.Collections.Generic.List<int>();
-                        req.PlayerCells.Clear();
-                        // 我方格位：优先放靠中线的列（我方前排 = col 2 → 格 2/5/8）
-                        int[] myCells = { 2, 5, 8, 1, 4, 7, 0, 3, 6 };
-                        int k2 = 0;
-                        if (run.Team != null)
-                        {
-                            foreach (var tid in run.Team)
-                            {
-                                if (!byId2.TryGetValue(tid, out var pb)) continue;
-                                req.Player.Add(pb);
-                                req.PlayerCells.Add(myCells[k2 % myCells.Length]);
-                                k2++;
-                            }
-                        }
-                        Debug.Log("[TrialPanel] 终局战：我方 " + req.Player.Count + " 只，敌方 " + entries.Count + " 只");
-
-                        // ★ 标记为终局战：胜利即"真通关"（ResultPanel 据此写 BeatFinale）
-                        SceneFlow.IsFinaleBattle = true;
-
                         CloseSelf();
-                        SceneFlow.EnterBattle(req);
-                        break;
+                        _ = OpenPanelAsync<CampaignPanel>();   // 进天阙图（该文件无 UniTask using，用弃元）
                     }
+                    break;
                 case 1:  // 续劫：回春 + 劫数 +1 + 敌强 +3%
                     {
                         run.Jie = run.Jie >= 3 ? 1 : run.Jie + 1;

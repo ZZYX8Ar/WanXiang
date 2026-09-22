@@ -99,6 +99,23 @@ namespace WanXiang.Modules.UI
                     if (prun.VisitedNodes != null && !prun.VisitedNodes.Contains(PendingCommit))
                         prun.VisitedNodes.Add(PendingCommit);
 
+                    // ★★ 天阙（第 5 幕）最后一格 = 后土：通过它 ⇒ 打【终局战】（而非回主城/推进）。
+                    if (_graph != null && _graph.Act >= 5 && PendingCommit == _graph.NodeCount - 1)
+                    {
+                        var cat = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
+                        var all = (cat != null && cat.Length > 0)
+                            ? WanXiang.Fusion.ContentLibrary.BuildBeasts(cat[0]) : null;
+                        if (all != null && all.Length > 0)
+                        {
+                            var req = TrialPanel.BuildFinaleBattle(prun, all);
+                            SceneFlow.IsFinaleBattle = true;
+                            PendingCommit = -1;
+                            CloseSelf();
+                            SceneFlow.EnterBattle(req);
+                            return UniTask.CompletedTask;
+                        }
+                    }
+
                     // ★★ 幕推进绑在"通过"这一刻：刚通过的是本幕最后一格 ⇒ 进下一幕。
                     //    原先靠"人在最后一格(NodeOffset==NodeCount-1)"当判据是错的：
                     //    只要存档停在这个位置（不论是否真通过），一进节点图就会跳幕，
