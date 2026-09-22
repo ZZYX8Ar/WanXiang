@@ -201,6 +201,15 @@ namespace WanXiang.Modules.UI
                 act = Mathf.Clamp(run.Act, 1, 5);
                 seed = CoreMath.Fnv1a("route:" + run.RunSeed + ":" + act);
                 _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(act, seed, Layers);
+
+                // ★★ 换了幕就换了图，必须立刻按新图重画 + 同步可达性锚点！
+                //    否则节点还是上一幕那张图的形状，而可达性按新图算 ⇒ 全部显示为锁定灰
+                //    （用户实测：通关第一幕到第二幕，一个节点都没解锁）。
+                _currentOffset = run.NodeOffset;          // 新幕 = -1（尚未出发）
+                _visited.Clear();
+                if (run.VisitedNodes != null)
+                    foreach (var v in run.VisitedNodes) _visited.Add(v);
+                BuildNodeMap();                          // 递归安全：此时 NodeOffset(-1) != NodeCount-1，不会再触发幕推进
             }
 
             _currentOffset = run != null ? run.NodeOffset : -1;
