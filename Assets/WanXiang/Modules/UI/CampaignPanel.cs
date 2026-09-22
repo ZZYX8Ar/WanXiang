@@ -546,7 +546,7 @@ namespace WanXiang.Modules.UI
             else run.Eggs += 2;
 
             // 二选一完成 ⇒ 这时才把节点记为通过（未完成前不推进）
-            run.NodeOffset = _selected;
+            // ★ 同上：孵穴也只记"已处理"，推进交给 OnOpenAsync 的落地（PendingCommit）。
             if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                 run.VisitedNodes.Add(_selected);
             WanXiang.Run.RunSave.SaveCurrent();
@@ -646,12 +646,10 @@ namespace WanXiang.Modules.UI
                 //   —— 否则"进编阵看一眼再返回"会被算作通过（用户实测：白嫖节点）。
                 PendingCommit = _selected;
 
-                // ★★ 「人在哪」必须当场写入 —— 节点图的可达性用它（IsReachable 的锚点）：
-                //    之前这里只写 PendingCommit（内存），run.NodeOffset 一直是 -1
-                //    ⇒ 可达性永远只开放第 0 层 ⇒ 后续节点全部点不动（用户实测）。
-                run.NodeOffset = _selected;
-                _currentOffset = _selected;      // 同步渲染缓存，本次打开期间立即生效
-                BuildNodeMap();                  // 当场重画，刷新可达性与高亮
+                // ★★ NodeOffset 只表示"已经通过到哪一节"（可达性锚点 + 进度），
+                //    这里**不能**写它 —— 否则"点开战斗节点、再点返回地图"也被算作通过
+                //    （用户实测："这个战斗节点没有打，点击返回地图却通过了"）。
+                //    真正推进在通过时落地：见 OnOpenAsync 里对 PendingCommit 的处理。
                 if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                     run.VisitedNodes.Add(_selected);
                 if (run.Path != null) run.Path.Add(_selected);
