@@ -551,25 +551,6 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                       " NodeCount=" + (_graph != null ? _graph.NodeCount : -1));
         }
 
-        /// <summary>
-        /// 按【当前存档】重建图并重画 —— 供天阙抉择里"续劫"复用本面板时调用
-        /// （节点图就在栈里，弹窗关掉后会露出来；只需让它按新的 Act 重排）。
-        /// </summary>
-        public void ReloadForCurrentAct()
-        {
-            var run = WanXiang.Run.RunSave.Current;
-            if (run == null) return;
-            RebuildGraphFor(run.Act, run.RunSeed);
-            _currentOffset = run.NodeOffset;
-            _visited.Clear();
-            if (run.VisitedNodes != null)
-                foreach (var v in run.VisitedNodes) _visited.Add(v);
-            BuildNodeMap();
-            Debug.Log("[Campaign] 已按当前存档重排节点图：Act=" + run.Act +
-                      " Layers=" + (_graph != null && _graph.Layers != null ? _graph.Layers.Length : -1) +
-                      " NodeCount=" + (_graph != null ? _graph.NodeCount : -1));
-        }
-
         /// <summary>按幕号重建路线图（换幕时用）。</summary>
         private void RebuildGraphFor(int act, int runSeed)
         {
