@@ -59,8 +59,13 @@ namespace WanXiang.Modules.Boot
                 //    实测（日志）：场景被切了两次 ⇒ MainSceneEntry 跑了两次，
                 //    第一次进 HomePanel 分支把主界面打开了；第二次虽然成功打开节点图，
                 //    但主界面还在栈里 ⇒ 下一次**栈重算**就把节点图判掉（2 帧后 active=False）。
-                ui.Close<HomePanel>();
-                await UniTask.DelayFrame(1);       // 等这次关闭的栈重算跑完
+                // ★★★ 用最硬的办法：**清空整个面板栈**再打开节点图。
+                //     实测：只关 HomePanel 不够 —— 场景被切两次 ⇒ MainSceneEntry 跑两次，
+                //     第一次遗留的面板会让 UISystem 的"栈重算"把刚打开的节点图判掉
+                //     （日志：打开成功但 2 帧后 active=False）。
+                ui.CloseAll();
+                await UniTask.DelayFrame(2);       // 等 CloseAll 引发的栈重算彻底跑完
+                Debug.Log("[MainSceneEntry] 已清空面板栈，准备打开天阙图");
                 var cp = await ui.OpenAsync<CampaignPanel>();
                 Debug.Log("[MainSceneEntry] 登天阙 ⇒ 已请求节点地图，结果=" +
                           (cp != null ? ("成功 " + cp.name) : "null（打开失败）"));
