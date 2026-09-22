@@ -32,10 +32,10 @@ namespace WanXiang.Modules.Boot
 
             if (SceneFlow.ConsumeResult(out var result))
             {
-                // 第四幕守关（第 12 层）胜利 → 回主城后弹「天阙抉择」三选一
-                var run0 = WanXiang.Run.RunSave.Current;
-                if (result.Win && run0 != null && run0.Act == 4 && run0.NodeOffset == 11 && !run0.BeatFinale)
-                    SceneFlow.PendingFinale = true;
+                // ⚠ 旧的天阙触发条件（Act==4 && NodeOffset==11）已废弃并删除：
+                //   11 是"4 层 × 3 格"时代的遗留格号，与现在的 12 层图对不上；
+                //   而且幕推进会把 NodeOffset 重置为 -1 ⇒ 条件永远不成立 ⇒ 天阙永不触发。
+                //   现在改为：**幕推进到第 5 幕的那一刻**置位 PendingFinale（见 CampaignPanel）。
 
                 await ui.OpenAsync<ResultPanel>(result);
                 Debug.Log("[MainSceneEntry] 已弹出战斗结算。");

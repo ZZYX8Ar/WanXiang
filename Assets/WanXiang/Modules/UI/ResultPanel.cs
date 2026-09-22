@@ -171,6 +171,30 @@ namespace WanXiang.Modules.UI
                 //   Jie/Realm 的递进不再执行（幕推进已由 Act 承担），字段保留以兼容旧存档。
                 cur.Eggs += 1;
                 cur.Ink += 1;
+
+                // ★★ 终局战（登天阙）胜利 = **真通关**：写入 BeatFinale。
+                //    这是"通关一次后解锁无尽模式 / 难度"的唯一依据。
+                if (SceneFlow.IsFinaleBattle)
+                {
+                    SceneFlow.IsFinaleBattle = false;
+                    if (!cur.BeatFinale)
+                    {
+                        cur.BeatFinale = true;
+                        Debug.Log("[ResultPanel] ★ 终局战胜利 ⇒ 通关！解锁无尽模式与更高难度");
+                    }
+                }
+
+                // ★★ 终局战（登天阙）胜利 = **真通关**：写入 BeatFinale。
+                //    这是"通关一次后解锁无尽模式 / 难度"的唯一依据。
+                if (SceneFlow.IsFinaleBattle)
+                {
+                    SceneFlow.IsFinaleBattle = false;
+                    if (!cur.BeatFinale)
+                    {
+                        cur.BeatFinale = true;
+                        Debug.Log("[ResultPanel] ★ 终局战胜利 ⇒ 通关！解锁无尽模式与更高难度");
+                    }
+                }
             }
             else
             {

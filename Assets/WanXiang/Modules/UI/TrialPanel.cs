@@ -77,6 +77,9 @@ namespace WanXiang.Modules.UI
                         }
                         req.EnemyEntries.AddRange(entries);
 
+                        // ★ 标记为终局战：胜利即"真通关"（ResultPanel 据此写 BeatFinale）
+                        SceneFlow.IsFinaleBattle = true;
+
                         CloseSelf();
                         SceneFlow.EnterBattle(req);
                         break;
@@ -97,6 +100,7 @@ namespace WanXiang.Modules.UI
                         break;
                     }
                 default:  // 归元：结束本局，回主城
+                    SceneFlow.IsFinaleBattle = false;
                     CloseSelf();
                     break;
             }

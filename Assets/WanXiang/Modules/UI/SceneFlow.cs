@@ -33,6 +33,12 @@ namespace WanXiang.Modules.UI
         /// <summary>天阙抉择挂起标记：第四幕守关胜利后置位，主城打开时弹三选一。</summary>
         public static bool PendingFinale;
 
+        /// <summary>
+        /// 「终局战」标记（登天阙时置位，跨场景保持）：战斗胜利后据此判定**真通关**
+        /// （写入 RunState.BeatFinale，解锁无尽模式与难度）。战斗结算时消费并清零。
+        /// </summary>
+        public static bool IsFinaleBattle;
+
         /// <summary>开始游戏：进主城。</summary>
         public static void EnterMain()
         {

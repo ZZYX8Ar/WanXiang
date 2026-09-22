@@ -111,6 +111,20 @@ namespace WanXiang.Modules.UI
                         if (prun.VisitedNodes != null) prun.VisitedNodes.Clear();
                         Debug.Log("[Campaign] 通过本幕最后一格 ⇒ 推进到第 " + prun.Act + " 幕");
                         WanXiang.Run.RunSave.SaveCurrent();
+
+                        // ★★ 第四幕通关 ⇒ 第 5 幕 = 天阙：挂起"天阙抉择"，并直接回主城等玩家选。
+                        //    旧实现靠 MainSceneEntry 里 `NodeOffset == 11` 判定（当时是 4 层×3 格的遗留），
+                        //    既与现在的 12 层图对不上，又会被幕推进重置成 -1 ⇒ 天阙永远不会触发。
+                        if (prun.Act >= 5)
+                        {
+                            SceneFlow.PendingFinale = true;
+                            Debug.Log("[Campaign] 已到天阙 ⇒ 回主城弹出天阙抉择");
+                            WanXiang.Run.RunSave.SaveCurrent();
+                            SceneFlow.EnterMain();
+                            CloseSelf();                 // 面板自己的关闭（不是 UI 系统的）
+                            return UniTask.CompletedTask; // 本方法返回 UniTask
+                        }
+
                         RebuildGraphFor(prun.Act, prun.RunSeed);   // 换新幕的图
                         _currentOffset = -1;
                         _visited.Clear();
