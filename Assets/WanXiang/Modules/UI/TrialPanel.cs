@@ -10,6 +10,8 @@ using WanXiang.Battle.Core;
 using WanXiang.Fusion;
 using WanXiang.Framework.UI;
 
+using Cysharp.Threading.Tasks;
+
 namespace WanXiang.Modules.UI
 {
     [UIPanel("Panel_Trial", Layer = UILayer.Overlay, CachePolicy = UICachePolicy.Transient,
@@ -141,12 +143,18 @@ namespace WanXiang.Modules.UI
                             if (run0.VisitedNodes != null) run0.VisitedNodes.Clear();
                             WanXiang.Run.RunSave.SaveCurrent();
                         }
-                        // ★★ 必须先把主界面关掉：它压在栈里会把节点图挡住，
-                        //    玩家看到的就是"选完登天阙直接回到主界面"（用户实测）。
+                        // ★★ 顺序很关键：
+                        //   ① 先关主界面（它压在栈里会把节点图挡住 ⇒ 看起来"直接回主界面"）
+                        //   ② 用 **UI 系统的静态入口** 打开节点图（不能用 this 的 OpenPanelAsync ——
+                        //      本面板马上要销毁，实例方法的调用会被丢弃 ⇒ 面板全关、一片空白）
+                        //   ③ 最后才关自己
                         var ui2 = WanXiang.Framework.Boot.UIBootstrap.UI;
-                        if (ui2 != null) ui2.Close<HomePanel>();
-                        CloseSelf();                            // 关掉天阙抉择自己（Overlay 层）
-                        _ = OpenPanelAsync<CampaignPanel>();    // 进天阙图（该文件无 UniTask using，用弃元）
+                        if (ui2 != null)
+                        {
+                            ui2.Close<HomePanel>();
+                            ui2.OpenAsync<CampaignPanel>().Forget();
+                        }
+                        CloseSelf();
                     }
                     break;
                 case 1:  // 续劫：回春 + 劫数 +1 + 敌强 +3%
