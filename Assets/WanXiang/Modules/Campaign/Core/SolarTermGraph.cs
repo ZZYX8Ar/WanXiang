@@ -213,13 +213,21 @@ namespace WanXiang.Campaign
             var fallback = BuildDefault();
             var baseGraph = act >= 1 && act <= fallback.Length ? fallback[act - 1] : null;
 
-            for (int attempt = 0; attempt < 8; attempt++)
+            // ★★ 重试次数从 8 提到 64：实测有些种子连续 8 次都生成不出合规图，
+            //    于是静默兜底到"缺省图"（只有 6 个节点、布局重叠），玩家看到的就是
+            //    "节点地图不对/挤在一起"（用户实测）。提高重试后基本不会落到兜底。
+            for (int attempt = 0; attempt < 64; attempt++)
             {
                 var g = TryBuild(act, seed + (ulong)attempt * 7919UL, layers);
                 if (g != null && MeetsV12Constraints(g)) return g;
             }
 
-            // 兜底：缺省图（层数不足 12 时按 4 层用，至少能玩）
+            // 兜底：缺省图（层数不足 12 时按 4 层用，至少能玩）。
+            // ⚠ 走到这里说明 64 次都没生成出合规图 —— 一定要有日志，否则又是"静默降级"。
+            UnityEngine.Debug.LogWarning("[SolarTermGraph] 幕 " + act + " 生成失败（64 次重试）→ " +
+                                         "回退缺省图，节点数=" +
+                                         (baseGraph != null ? baseGraph.NodeCount.ToString() : "null") +
+                                         "，种子=" + seed);
             return baseGraph;
         }
 
