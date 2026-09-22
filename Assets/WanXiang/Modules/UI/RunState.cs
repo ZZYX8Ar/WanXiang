@@ -28,8 +28,13 @@ namespace WanXiang.Run
     public sealed class RunState
     {
         public int Slot = 1;                    // 1..SlotCount
-        public int Realm = 1;                   // 境 1..3
-        public int Jie = 1;                     // 劫 1..3（每境三劫）
+        /// <summary>
+        /// 【旧体系】境 / 劫。进度主轴已改为 **Act（幕）**（见 RealmText / Difficulty）。
+        /// 仅为兼容旧存档与试炼玩法保留 —— **不要再依据它们做进度/数值判断**，
+        /// 否则会出现"已经第二幕了但数值还按第一境算"这类不一致（已踩过）。
+        /// </summary>
+        public int Realm = 1;                   // 境 1..3（旧）
+        public int Jie = 1;                     // 劫 1..3（旧）
         public int Eggs = 12;                   // 灵卵
         public int Ink = 3;                     // 墨锭
         public int Wins;                        // 本程胜场
@@ -84,8 +89,12 @@ namespace WanXiang.Run
         public List<string> Team = new List<string>();   // 上阵异兽 id（继承用）
         public string LastSaved = "";           // 最后保存时间（展示用）
 
-        /// <summary>进战斗用的强度系数：随劫数缓涨，给敌人与奖励一个共同标尺。</summary>
-        public float Difficulty => 1f + (Realm - 1) * 0.35f + (Jie - 1) * 0.12f;
+        /// <summary>
+        /// 进战斗用的强度系数：随【幕】缓涨，给敌人与奖励一个共同标尺。
+        /// ⚠ 原实现用 Realm/Jie（旧"境/劫"体系）—— 那套在幕推进后已不再递增，
+        ///   会导致难度永远停在 1.0（数值标尺失效）。现改为以 Act 为唯一主轴。
+        /// </summary>
+        public float Difficulty => 1f + (Act - 1) * 0.35f;
 
         public string RealmText
         {
