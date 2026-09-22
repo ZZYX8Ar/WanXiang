@@ -228,7 +228,15 @@ namespace WanXiang.Modules.UI
             //   胜利 → 回节点地图继续探索
             //   失败 → 本局已结束，回**主界面**（让玩家在主界面决定"继续/新局"），
             //          以前无条件回节点图，看起来像"进度被清还留在游戏里"（用户实测）。
-            if (_win) OpenPanelAsync<CampaignPanel>().Forget();
+            if (_win)
+            {
+                // ★★ 终局战胜利 = 通关 ⇒ 回【主界面】，不能回节点图：
+                //    通关后 Act=5（天阙），那张图没有可走的节点 ⇒ 回节点图会是一片空白
+                //    （用户实测：选完通关奖励后画面全空）。
+                var r = WanXiang.Run.RunSave.Current;
+                if (r != null && r.BeatFinale) OpenPanelAsync<HomePanel>().Forget();
+                else OpenPanelAsync<CampaignPanel>().Forget();
+            }
             else OpenPanelAsync<HomePanel>().Forget();
         }
 
