@@ -76,7 +76,12 @@ namespace WanXiang.Meta
         /// <summary>局外种子：孵蛋随机流的根。禁系统时间，由玩家/存档决定。</summary>
         public ulong Seed;
 
-        public int Eggs;              // 灵卵余额
+        public int Eggs;              // 灵卵余额（局内货币的局外镜像，暂留）
+        /// <summary>
+        /// 墨铊余额 —— **局外养成的主货币**（局内也能获得，跨局积累）。
+        /// 用户明确：灵卵是局内货币，局外养成的钱应该是墨铊。
+        /// </summary>
+        public int Ink;
         public int HatchCount;        // 已孵次数（进哈希 ⇒ 每次孵化结果不同且可复现）
         public int RunsPlayed;
         public int RunsCompleted;
@@ -112,7 +117,8 @@ namespace WanXiang.Meta
             if (elementIndex < 0 || elementIndex >= AltarLevels.Length) return false;
             if (AltarLevels[elementIndex] >= 1) return false;        // 已满级
             if (eggs < MetaDefaults.AltarCost) return false;
-            Eggs -= MetaDefaults.AltarCost;
+            // ★ 局外养成花【墨铊】（用户明确：灵卵是局内货币）
+            Ink -= MetaDefaults.AltarCost;
             AltarLevels[elementIndex] = 1;
             return true;
         }

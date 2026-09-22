@@ -28,7 +28,7 @@ namespace WanXiang.Meta
 {
     public static class MetaSaveCode
     {
-        public const byte CurrentVersion = 1;
+        public const byte CurrentVersion = 2;   // v2：新增 Ink（墨铊）
         public const int MaxIndex = 254;        // 下标用 1 字节，255 留作哨兵
         public const int MaxEggs = 65535;
 
@@ -41,7 +41,7 @@ namespace WanXiang.Meta
             if (!IndicesValid(st.UnlockedHosts) || !IndicesValid(st.UnlockedSouls)) return null;
 
             // 19 个固定字节 + 宿主下标 + 1 个灵魂数量字节 + 灵魂下标
-            int size = 20 + st.UnlockedHosts.Count + st.UnlockedSouls.Count;
+            int size = 21 + st.UnlockedHosts.Count + st.UnlockedSouls.Count;   // v2: +1 字节墨铊
             var b = new byte[size];
             b[0] = CurrentVersion;
             WriteU64(b, 1, st.Seed);
@@ -50,8 +50,9 @@ namespace WanXiang.Meta
             WriteU16(b, 13, (ushort)System.Math.Min(st.RunsPlayed, MaxEggs));
             WriteU16(b, 15, (ushort)System.Math.Min(st.RunsCompleted, MaxEggs));
             b[17] = (byte)st.BestActReached;
-            b[18] = (byte)st.UnlockedHosts.Count;
-            int p = 19;
+            WriteU16(b, 18, (ushort)System.Math.Min(System.Math.Max(0, st.Ink), MaxEggs));   // ★ v2 墨铊
+            b[20] = (byte)st.UnlockedHosts.Count;
+            int p = 21;
             for (int i = 0; i < st.UnlockedHosts.Count; i++) b[p++] = (byte)st.UnlockedHosts[i];
             b[p++] = (byte)st.UnlockedSouls.Count;
             for (int i = 0; i < st.UnlockedSouls.Count; i++) b[p++] = (byte)st.UnlockedSouls[i];
@@ -67,7 +68,7 @@ namespace WanXiang.Meta
             byte[] b;
             try { b = FromBase64Url(code); }
             catch (FormatException) { return false; }
-            if (b == null || b.Length < 20) return false;
+            if (b == null || b.Length < 21) return false;   // v2 头部 21 字节
             if (b[0] != CurrentVersion) return false;
 
             var st = new MetaState(ReadU64(b, 1));
@@ -77,8 +78,9 @@ namespace WanXiang.Meta
             st.RunsCompleted = ReadU16(b, 15);
             st.BestActReached = b[17];
             if (st.BestActReached > 5) return false;
+            st.Ink = ReadU16(b, 18);            // ★ v2 墨铊
 
-            int p = 18;
+            int p = 20;
             int hostCount = b[p++];
             if (p + hostCount > b.Length) return false;
             for (int i = 0; i < hostCount; i++) st.UnlockedHosts.Add(b[p++]);

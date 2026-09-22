@@ -43,7 +43,7 @@ namespace WanXiang.Meta
                     if (MetaSaveCode.TryDecode(code, out var decoded))
                     {
                         Current = decoded;
-                        Debug.Log("[MetaStore] 已载入局外存档：灵卵 " + Current.Eggs +
+                        Debug.Log("[MetaStore] 已载入局外存档：墨铊 " + Current.Ink +
                                   "｜局数 " + Current.RunsPlayed + "｜最远第 " + Current.BestActReached + " 幕" +
                                   "｜解锁宿主 " + Current.UnlockedHosts.Count + " 灵魂 " + Current.UnlockedSouls.Count);
                         return Current;
@@ -130,7 +130,7 @@ namespace WanXiang.Meta
 
             Debug.Log("[MetaStore] 局外结算：节点 " + nodes + " · 击破 " + bosses +
                       " · 最远第 " + actReached + " 幕 · 通关=" + cleared +
-                      " ⇒ 墨铊/灵卵 +" + income.Total + "（局外灵卵共 " + meta.Eggs +
+                      " ⇒ 墨铊 +" + income.Total + "（局外墨铊共 " + meta.Ink +
                       "，累计 " + meta.RunsPlayed + " 局）");
             return income;
         }

@@ -88,7 +88,8 @@ namespace WanXiang.Meta
             state.RunsPlayed++;
             if (cleared) state.RunsCompleted++;
             if (actReached > state.BestActReached) state.BestActReached = actReached;
-            state.Eggs += income.Total;
+            // ★ 局外养成的收益进【墨铊】（用户明确：灵卵是局内货币，局外不掺和）
+            state.Ink += income.Total;
             return income;
         }
 
