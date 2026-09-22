@@ -141,8 +141,12 @@ namespace WanXiang.Modules.UI
                             if (run0.VisitedNodes != null) run0.VisitedNodes.Clear();
                             WanXiang.Run.RunSave.SaveCurrent();
                         }
-                        CloseSelf();
-                        _ = OpenPanelAsync<CampaignPanel>();   // 进天阙图（该文件无 UniTask using，用弃元）
+                        // ★★ 必须先把主界面关掉：它压在栈里会把节点图挡住，
+                        //    玩家看到的就是"选完登天阙直接回到主界面"（用户实测）。
+                        var ui2 = WanXiang.Framework.Boot.UIBootstrap.UI;
+                        if (ui2 != null) ui2.Close<HomePanel>();
+                        CloseSelf();                            // 关掉天阙抉择自己（Overlay 层）
+                        _ = OpenPanelAsync<CampaignPanel>();    // 进天阙图（该文件无 UniTask using，用弃元）
                     }
                     break;
                 case 1:  // 续劫：回春 + 劫数 +1 + 敌强 +3%
