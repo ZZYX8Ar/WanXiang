@@ -1362,7 +1362,7 @@ namespace WanXiang.Battle.Core
         /// 按站位选一个目标（v2.1 回合制 P4）。
         /// <para>
         /// ⚠ 判据用 **Row 大小**，不是"与施法者的行距" —— 实测发现双方**共用同一套格位**
-        /// （Player/Enemy 都用 BattleRequest.Cells），行距恒为 0，用它判不出前后排。
+        /// （Player 现在用编阵传入的 PlayerCells；Enemy 走 BattleRequest.Cells）。
         /// 项目已有明确语义：<c>BattleStage2D</c> 里 <c>sortingOrder = Pos.Index / 3</c>
         /// 且注释写明「row 0=后 1=中 2=前」，双方镜像绘制 ⇒ **Row 大 = 前排**，双方对称。
         /// </para>

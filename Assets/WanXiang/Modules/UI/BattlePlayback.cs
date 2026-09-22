@@ -46,8 +46,22 @@ namespace WanXiang.Modules.UI
         /// </summary>
         public List<DeployEntry> EnemyEntries = new List<DeployEntry>();
 
-        /// <summary>上阵格位顺序：前排 → 中宫 → 后排两侧（与 GDD 的推荐站位一致）。</summary>
-        public static readonly int[] Cells = { 0, 1, 4, 7, 8 };
+        /// <summary>
+        /// 默认上阵格位（5 格）——**按"列 = 前后排"的新规则**重新排布。
+        /// <para>前后排 = 离中线最近的列（见 GridPos.FrontRankFor）：
+        /// 我方前排 = col 2，敌方前排 = col 0。</para>
+        /// <para>本数组用于"敌方走工厂路径（无 EnemyEntries）"的默认站位，
+        /// 阵型为 **2 前排 + 1 中宫 + 2 后排**（与 GDD 推荐的 2-1-2 一致）：</para>
+        /// <code>
+        ///   col0  col1  col2     敌方前排 = col0
+        ///     0     1     2
+        ///     3     4     5      → 取 0,3（前排）4（中宫）5,8（后排）
+        ///     6     7     8
+        /// </code>
+        /// <para>⚠ 旧的 {0,1,4,7,8} 是"按行分前后排"时代的产物，按新规则会让
+        /// 3 个单位挤在中列（1 前 3 中 1 后）。玩家的站位走 PlayerCells，不受此影响。</para>
+        /// </summary>
+        public static readonly int[] Cells = { 0, 3, 4, 5, 8 };
     }
 
     public sealed class BattlePlayback
