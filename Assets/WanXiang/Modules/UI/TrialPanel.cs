@@ -186,15 +186,24 @@ namespace WanXiang.Modules.UI
                         if (run.QuestionRevealed != null) run.QuestionRevealed.Clear();
                         WanXiang.Run.RunSave.SaveCurrent();
 
+                        // ★ 回主城（不是"边关边开节点图"—— 那会踩 UISystem 的栈重算：
+                        //   本面板在 Overlay 层，关闭时会重算整个栈，把刚打开的节点图一起判掉）。
+                        //   回主城后玩家点「出征 → 继续」即进入第 1 幕的新图。
+                        Debug.Log("[TrialPanel] 续劫 ⇒ 回春至第 1 幕（队伍/资源继承，敌强+3%）");
                         CloseSelf();
-                        var tt = OpenPanelAsync<CampaignPanel>();
-                        Cysharp.Threading.Tasks.UniTaskExtensions.Forget<CampaignPanel>(tt);
+                        WanXiang.Modules.UI.SceneFlow.EnterMain();
                         break;
                     }
                 default:  // 归元：结束本局，回主城
-                    SceneFlow.IsFinaleBattle = false;
-                    CloseSelf();
-                    break;
+                    {
+                        SceneFlow.IsFinaleBattle = false;
+                        // ★ 之前只 CloseSelf() ⇒ 玩家还留在天阙图里，看起来像"选归元却进了第五幕"
+                        //   （用户实测）。归元 = 主动结束本局，应该回主城。
+                        Debug.Log("[TrialPanel] 归元 ⇒ 结束本局，回主城");
+                        CloseSelf();
+                        WanXiang.Modules.UI.SceneFlow.EnterMain();
+                        break;
+                    }
             }
         }
     }
