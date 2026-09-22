@@ -186,12 +186,15 @@ namespace WanXiang.Modules.UI
                         if (run.QuestionRevealed != null) run.QuestionRevealed.Clear();
                         WanXiang.Run.RunSave.SaveCurrent();
 
-                        // ★ 回主城（不是"边关边开节点图"—— 那会踩 UISystem 的栈重算：
-                        //   本面板在 Overlay 层，关闭时会重算整个栈，把刚打开的节点图一起判掉）。
-                        //   回主城后玩家点「出征 → 继续」即进入第 1 幕的新图。
-                        Debug.Log("[TrialPanel] 续劫 ⇒ 回春至第 1 幕（队伍/资源继承，敌强+3%）");
+                        // ★★ 续劫 = 直接进入【第一幕】的节点图。
+                        //    节点图（CampaignPanel）就在栈里 —— 本弹窗关掉后会自然露出来。
+                        //    所以只要让它**按新的 Act=1 重排**即可，不需要切场景/切面板
+                        //    （切面板会踩 UISystem 的栈重算，今天已经踩过很多次）。
+                        Debug.Log("[TrialPanel] 续劫 ⇒ 第 1 幕（队伍/资源继承，敌强+3%）");
+                        var cp = UnityEngine.Object.FindObjectOfType<CampaignPanel>();
+                        if (cp != null) cp.ReloadForCurrentAct();
+                        else Debug.LogWarning("[TrialPanel] 续劫：找不到 CampaignPanel，节点图无法重排");
                         CloseSelf();
-                        WanXiang.Modules.UI.SceneFlow.EnterMain();
                         break;
                     }
                 default:  // 归元：结束本局，回主城
