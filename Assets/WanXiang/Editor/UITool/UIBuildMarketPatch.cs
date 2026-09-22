@@ -45,9 +45,12 @@ namespace WanXiang.EditorTools
                 changed |= EnsureBuySoulButton(root);
                 changed |= EnsureDetailCard(root);
 
+                // 即使节点已存在，也重跑一次绑定（幂等：把节点赋给 MarketPanel 的字段）
+                BindFields(root);
+
                 if (!changed)
                 {
-                    Debug.Log("[MarketPatch] 无需补丁（两个控件都已存在）");
+                    Debug.Log("[MarketPatch] 节点已存在，仅重做字段绑定");
                     return;
                 }
 
@@ -153,6 +156,45 @@ namespace WanXiang.EditorTools
             mask.SetActive(false);      // 默认隐藏
             Debug.Log("[MarketPatch] + Market_DetailMask / Market_DetailCard（含 7 个文本与 2 个按钮）");
             return true;
+        }
+
+        /// <summary>
+        /// 把 prefab 里的节点赋给 MarketPanel 的 [SerializeField] 字段。
+        /// ⚠ 只加节点不绑定 = 运行时字段仍然是 null，详情卡不会显示（必须做这一步）。
+        /// </summary>
+        private static void BindFields(GameObject root)
+        {
+            var panel = root.GetComponent<WanXiang.Modules.UI.MarketPanel>();
+            if (panel == null)
+            {
+                Debug.LogError("[MarketPatch] Panel_Market 上没有 MarketPanel 组件，无法绑定");
+                return;
+            }
+
+            var so = new SerializedObject(panel);
+            SetRef(so, "_detailRoot", FindDeep(root.transform, "Market_DetailMask"));
+            SetRef(so, "_detailBig", FindDeep(root.transform, "Img_Big"));
+            SetRef(so, "_detailName", FindDeep(root.transform, "Tmp_Name"));
+            SetRef(so, "_detailInfo", FindDeep(root.transform, "Tmp_Info"));
+            SetRef(so, "_detailSource", FindDeep(root.transform, "Tmp_Source"));
+            SetRef(so, "_detailPrice", FindDeep(root.transform, "Tmp_Price"));
+            SetRef(so, "_detailBuy", FindDeep(root.transform, "Btn_Buy"));
+            SetRef(so, "_detailClose", FindDeep(root.transform, "Btn_Close"));
+            SetRef(so, "_btnBuySoul", FindDeep(root.transform, "Btn_BuySoul"));
+            so.ApplyModifiedPropertiesWithoutUndo();
+            Debug.Log("[MarketPatch] 字段绑定完成（9 个）");
+        }
+
+        private static void SetRef(SerializedObject so, string field, Transform t)
+        {
+            var p = so.FindProperty(field);
+            if (p == null)
+            {
+                Debug.LogWarning("[MarketPatch] MarketPanel 上找不到字段：" + field);
+                return;
+            }
+            p.objectReferenceValue = t != null ? t.gameObject : null;
+            if (t == null) Debug.LogWarning("[MarketPatch] 节点缺失，字段置空：" + field);
         }
 
         // ---- 小工具 ----
