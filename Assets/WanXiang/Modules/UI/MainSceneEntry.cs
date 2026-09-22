@@ -55,6 +55,12 @@ namespace WanXiang.Modules.Boot
             if (SceneFlow.EnterFinaleMap)
             {
                 SceneFlow.EnterFinaleMap = false;
+                // ★★ 关键：先关掉"残留的主界面"！
+                //    实测（日志）：场景被切了两次 ⇒ MainSceneEntry 跑了两次，
+                //    第一次进 HomePanel 分支把主界面打开了；第二次虽然成功打开节点图，
+                //    但主界面还在栈里 ⇒ 下一次**栈重算**就把节点图判掉（2 帧后 active=False）。
+                ui.Close<HomePanel>();
+                await UniTask.DelayFrame(1);       // 等这次关闭的栈重算跑完
                 var cp = await ui.OpenAsync<CampaignPanel>();
                 Debug.Log("[MainSceneEntry] 登天阙 ⇒ 已请求节点地图，结果=" +
                           (cp != null ? ("成功 " + cp.name) : "null（打开失败）"));
