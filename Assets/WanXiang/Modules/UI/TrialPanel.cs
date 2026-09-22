@@ -37,11 +37,25 @@ namespace WanXiang.Modules.UI
         protected override Cysharp.Threading.Tasks.UniTask OnOpenAsync(object payload)
         {
             string[] titles = { "登天阙", "续劫", "归元" };
+
+            // ★ 描述里必须写清"这一选拿到什么"（用户反馈：原来只写后果，看不出奖励）
+            var metaNow = WanXiang.Meta.MetaStore.Ensure();
+            int inkNow = metaNow != null ? metaNow.Ink : 0;
+            int ascNow = metaNow != null ? metaNow.RunsPlayed : 0;
+
             string[] descs =
             {
-                "终局战：后土 + 我方队伍镜像（×1.5）。\n赢了就是真通关 —— 解锁无尽模式与更高难度。",
-                "季节回春：队伍与资源全部继承，\n敌人强度 +3%、道劫律 +1（无尽模式）。",
-                "归元：主动结束本局，\n按当前进度正常结算后回主城。",
+                "终局战：后土 + 我方队伍镜像 ×1.5。\n" +
+                "★ 奖励：打赢 = 真通关，本局成果结算为【墨铊】\n" +
+                "   并解锁无尽模式与更高难度。",
+
+                "★ 奖励：队伍 / 灵卵 / 图鉴 全部继承。\n" +
+                "★ 代价：敌人属性 +15%、数量 +1（上限 9 格），\n" +
+                "   轮回数 " + ascNow + " → " + (ascNow + 1) + "（可无限叠加）。",
+
+                "主动结束本局。\n" +
+                "★ 奖励：按本局进度结算【墨铊】（节点 / 击破 / 通关都会算），\n" +
+                "   用于局外养成；当前持有墨铊 " + inkNow + "。",
             };
 
             for (int i = 0; i < titles.Length; i++)
@@ -54,7 +68,9 @@ namespace WanXiang.Modules.UI
 
             var run = WanXiang.Run.RunSave.Current;
             if (_tmpStatus != null && run != null)
-                _tmpStatus.text = run.RealmText + " · 灵卵 " + run.Eggs;
+                _tmpStatus.text = run.RealmText + " · 灵卵 " + run.Eggs +
+                                  " · 墨铊 " + (metaNow != null ? metaNow.Ink : 0) +
+                                  "（局外累计 " + (metaNow != null ? metaNow.RunsPlayed : 0) + " 局）";
 
             return Cysharp.Threading.Tasks.UniTask.CompletedTask;
         }
