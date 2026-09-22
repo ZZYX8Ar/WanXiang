@@ -216,6 +216,11 @@ namespace WanXiang.Modules.UI
             }
             _nodeItems.Clear();
 
+            // ★★ 首帧强制刷新 Canvas：第一次打开本面板时，viewport/content 的 rect 还没被
+            //    布局系统算出来，此时用它们的尺寸排版会错位（用户实测："第一次进不行、
+            //    返回再进来就成功了"）。这里先强制算一次。
+            UnityEngine.Canvas.ForceUpdateCanvases();
+
             // ★ 本图的实际层数（天阙图只有 5 层，普通幕 12 层）—— 摆位/高度/自动定位都用它
             int lc = (_graph != null && _graph.Layers != null) ? _graph.Layers.Length : Layers;
 
@@ -329,6 +334,9 @@ namespace WanXiang.Modules.UI
                 : -(lc - 1) * (NodeH + GapY);
             // ⚠ content.sizeDelta 刚改过，布局要等下一次 Canvas 更新才算完 ——
             //   不 ForceUpdate 的话这行设置会被后续布局覆盖，玩家只能自己往上滑（用户实测）。
+            UnityEngine.Canvas.ForceUpdateCanvases();
+            if (_scrollNodes != null && _scrollNodes.viewport != null)
+                UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)_scrollNodes.viewport);
             UnityEngine.Canvas.ForceUpdateCanvases();
             _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 200f) / Mathf.Max(1f, totalH));
         }
