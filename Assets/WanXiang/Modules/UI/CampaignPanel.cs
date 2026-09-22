@@ -533,6 +533,18 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
 
         /// <summary>选中一个节点：刷新信息卡与"出征/前往"按钮文案。</summary>
         /// <summary>
+        /// 重置显示状态（归元/开新局时用）—— 光关面板不够，`_currentOffset`/`_visited`
+        /// 这些字段还留着上一局的值，重开时会沿用旧位置（用户实测：归元后重进
+        /// 落点在第 27 节，而不是起点）。
+        /// </summary>
+        public void ResetViewForNewRun()
+        {
+            _currentOffset = -1;
+            _visited.Clear();
+            Debug.Log("[Campaign] 视图状态已重置（_currentOffset=-1, visited 清空）");
+        }
+
+        /// <summary>
         /// 按【当前存档】重建图并重画 —— 供天阙抉择里"续劫"复用本面板时调用
         /// （节点图就在栈里，弹窗关掉后会露出来；只需让它按新的 Act 重排）。
         /// </summary>

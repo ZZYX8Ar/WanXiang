@@ -222,7 +222,8 @@ namespace WanXiang.Modules.UI
                         var cpEnd = UnityEngine.Object.FindObjectOfType<CampaignPanel>();
                         if (cpEnd != null)
                         {
-                            Debug.Log("[TrialPanel] 归元：关闭节点图面板 " + cpEnd.name);
+                            Debug.Log("[TrialPanel] 归元：关闭节点图面板并重置视图 " + cpEnd.name);
+                            cpEnd.ResetViewForNewRun();      // ★ 清 _currentOffset/_visited
                             cpEnd.CloseSelf();
                         }
                         else Debug.Log("[TrialPanel] 归元：未找到节点图面板（可能已关）");
