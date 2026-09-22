@@ -151,8 +151,11 @@ namespace WanXiang.Modules.UI
             }
 
             if (_tmpHint != null)
-                _tmpHint.text = run != null && run.Team != null && run.Team.Count >= 5
-                    ? "队伍已满（5 只）—— 买到的异兽会暂存图鉴（后续开放替换）"
+                // ★ 澄清"拥有"与"上阵"的区别（用户疑问：不是可以超过 5 只吗？）
+                //   拥有：不设上限（都进图鉴/收藏）；上阵：最多 5 只，在编阵界面挑选。
+                _tmpHint.text = (run != null && run.Team != null && run.Team.Count >= 5)
+                    ? "当前拥有 " + (run.Collection != null ? run.Collection.Count : 0) +
+                      " 只（不设上限）｜出战时最多上阵 5 只 —— 在编阵界面调整阵容"
                     : "点商品用灵卵购买，买到的异兽直接加入队伍";
         }
 
@@ -165,15 +168,173 @@ namespace WanXiang.Modules.UI
             Reroll(free: false);
         }
 
+        /// <summary>点货架 = 打开【详情卡】（用户要求：不能一点就买，先看介绍再决定）。</summary>
         private void OnGoodsClicked(int index)
         {
             if (index < 0 || index >= _goods.Count) return;
+            if (_goods[index].Sold) return;          // 已售出：不弹
+            ShowDetail(index);
+        }
+
+        // ================================================================
+        //  详情卡（代码自建，不动 prefab）：立绘 / 名字 / 五行·定位·稀有度 /
+        //  出处 / 价格 + 「购买」「关闭」。购买只作用于当前选中的这只。
+        // ================================================================
+        private RectTransform _detailRoot;
+        private Image _detailBig;
+        private TMP_Text _detailName, _detailInfo, _detailSource, _detailPrice;
+        private Button _detailBuy;
+        private int _detailIndex = -1;
+
+        private void EnsureDetail()
+        {
+            if (_detailRoot != null) return;
+
+            // 遮罩（点击关闭）
+            var mask = new GameObject("Market_DetailMask", typeof(RectTransform));
+            mask.transform.SetParent(transform, false);
+            var mrt = (RectTransform)mask.transform;
+            mrt.anchorMin = Vector2.zero; mrt.anchorMax = Vector2.one;
+            mrt.offsetMin = Vector2.zero; mrt.offsetMax = Vector2.zero;
+            var mimg = mask.AddComponent<Image>();
+            mimg.color = new Color(0f, 0f, 0f, 0.45f);
+            var mbtn = mask.AddComponent<Button>();
+            mbtn.targetGraphic = mimg;
+            mbtn.onClick.AddListener(HideDetail);
+            mask.transform.SetAsLastSibling();
+
+            // 卡片
+            var card = new GameObject("Market_DetailCard", typeof(RectTransform));
+            card.transform.SetParent(mask.transform, false);
+            var crt = (RectTransform)card.transform;
+            crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0.5f);
+            crt.sizeDelta = new Vector2(760f, 560f);
+            crt.anchoredPosition = Vector2.zero;
+            var cimg = card.AddComponent<Image>();
+            cimg.color = new Color(0.97f, 0.95f, 0.90f, 1f);
+            card.AddComponent<Button>().targetGraphic = cimg;      // 吃掉点击，避免穿透到遮罩
+
+            // 立绘
+            var big = new GameObject("Img_Big", typeof(RectTransform));
+            big.transform.SetParent(card.transform, false);
+            var brt = (RectTransform)big.transform;
+            brt.anchorMin = brt.anchorMax = new Vector2(0f, 0.5f);
+            brt.sizeDelta = new Vector2(300f, 300f);
+            brt.anchoredPosition = new Vector2(180f, 60f);
+            _detailBig = big.AddComponent<Image>();
+            _detailBig.preserveAspect = true;
+
+            _detailName = MkText(card.transform, "Tmp_Name", new Vector2(0f, 1f), new Vector2(420f, 56f),
+                                 new Vector2(470f, -60f), 40, TextAlignmentOptions.Left);
+            _detailInfo = MkText(card.transform, "Tmp_Info", new Vector2(0f, 1f), new Vector2(420f, 48f),
+                                 new Vector2(470f, -128f), 26, TextAlignmentOptions.Left);
+            _detailSource = MkText(card.transform, "Tmp_Source", new Vector2(0f, 1f), new Vector2(420f, 110f),
+                                   new Vector2(470f, -212f), 22, TextAlignmentOptions.TopLeft);
+            _detailSource.enableWordWrapping = true;
+            _detailPrice = MkText(card.transform, "Tmp_Price", new Vector2(0f, 0f), new Vector2(420f, 48f),
+                                  new Vector2(470f, 128f), 30, TextAlignmentOptions.Left);
+
+            MkButton(card.transform, "Btn_Buy", "购买", new Vector2(0f, 0f), new Vector2(200f, 72f),
+                     new Vector2(400f, 64f), new Color(0.85f, 0.72f, 0.35f, 1f), OnBuyClicked, out _detailBuy);
+            MkButton(card.transform, "Btn_Close", "关闭", new Vector2(0f, 0f), new Vector2(160f, 72f),
+                     new Vector2(180f, 64f), new Color(0.88f, 0.86f, 0.80f, 1f), HideDetail, out _);
+
+            _detailRoot = mask.transform as RectTransform;
+            _detailRoot.gameObject.SetActive(false);
+        }
+
+        private TMP_Text MkText(Transform parent, string name, Vector2 anchor, Vector2 size,
+                                Vector2 pos, int fontSize, TextAlignmentOptions align)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = anchor;
+            rt.sizeDelta = size;
+            rt.anchoredPosition = pos;
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            tmp.fontSize = fontSize;
+            tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+            tmp.alignment = align;
+            tmp.raycastTarget = false;
+            return tmp;
+        }
+
+        private void MkButton(Transform parent, string name, string label, Vector2 anchor, Vector2 size,
+                              Vector2 pos, Color color, UnityEngine.Events.UnityAction onClick, out Button btn)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = anchor;
+            rt.sizeDelta = size;
+            rt.anchoredPosition = pos;
+            var img = go.AddComponent<Image>();
+            img.color = color;
+            btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(onClick);
+            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var trt = (RectTransform)tgo.transform;
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+            var tmp = tgo.AddComponent<TextMeshProUGUI>();
+            tmp.text = label;
+            tmp.fontSize = 28;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+        }
+
+        private void ShowDetail(int index)
+        {
+            EnsureDetail();
             var g = _goods[index];
-            if (g.Sold) return;
+            _detailIndex = index;
+
+            if (_detailBig != null)
+            {
+                _detailBig.sprite = _sprites != null ? _sprites.Get(_detailBig_BeastId(g)) : null;
+                _detailBig.color = _detailBig.sprite != null ? Color.white : new Color(0.86f, 0.82f, 0.74f, 1f);
+            }
+            if (_detailName != null) _detailName.text = g.Beast.DisplayName;
+            if (_detailInfo != null)
+                _detailInfo.text = g.Beast.Element + " · " + g.Beast.Role + " · " + g.Beast.Rarity;
+            if (_detailSource != null) _detailSource.text = (g.Beast.Source ?? "") + "\n" + (g.Beast.Quote ?? "");
+            if (_detailPrice != null) _detailPrice.text = "价格：" + g.Price + " 灵卵";
+            if (_detailBuy != null)
+            {
+                var run = WanXiang.Run.RunSave.Current;
+                bool afford = run != null && run.Eggs >= g.Price;
+                _detailBuy.interactable = afford;
+                var l = _detailBuy.GetComponentInChildren<TMP_Text>();
+                if (l != null) l.text = afford ? "购买" : "灵卵不足";
+            }
+            if (_detailRoot != null)
+            {
+                _detailRoot.gameObject.SetActive(true);
+                _detailRoot.SetAsLastSibling();
+            }
+        }
+
+        private string _detailBig_BeastId(Good g) => g.Beast != null ? g.Beast.Id : "";
+
+        private void HideDetail()
+        {
+            _detailIndex = -1;
+            if (_detailRoot != null) _detailRoot.gameObject.SetActive(false);
+        }
+
+        /// <summary>购买（只买详情卡里当前选中的那只）。</summary>
+        private void OnBuyClicked()
+        {
+            int index = _detailIndex;
+            if (index < 0 || index >= _goods.Count) return;
+            var g = _goods[index];
+            if (g.Sold) { HideDetail(); return; }
 
             var run = WanXiang.Run.RunSave.Current;
             if (run == null) return;
-
             if (run.Eggs < g.Price)
             {
                 if (_tmpHint != null) _tmpHint.text = "灵卵不够（需要 " + g.Price + "）";
@@ -188,9 +349,10 @@ namespace WanXiang.Modules.UI
             WanXiang.Run.RunSave.SaveCurrent();
 
             if (_tmpHint != null)
-                _tmpHint.text = g.Beast.DisplayName + " 收入图鉴（共 " + run.Collection.Count +
-                                " 只）—— 出战阵容在编阵界面调整";
+                _tmpHint.text = g.Beast.DisplayName + " 已收入图鉴（当前拥有 " + run.Collection.Count +
+                                " 只）——  出战最多 5 只，在编阵界面调整";
             if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
+            HideDetail();
             Paint();
         }
 

@@ -103,7 +103,8 @@ namespace WanXiang.Modules.UI
         private void OnDeployClicked()
         {
             var run = WanXiang.Run.RunSave.Current;
-            int layer = run != null ? run.NodeOffset + 1 : 0;
+            // ★ 未出发（NodeOffset = -1）时显示"第 1 层"，不要显示"第 0 层"
+            int layer = run != null ? Mathf.Max(1, run.NodeOffset + 1) : 1;
             // ★ 判据放宽：以前只认 NodeOffset>=0 / Act>1，但"进过节点却没通过"时
             //   NodeOffset 仍是 -1（节点改为延后推进）⇒ 判定成"无进度"，直接进图不弹窗
             //   （用户实测）。现在只要有过任何探索痕迹就算有进度。
