@@ -134,12 +134,20 @@ namespace WanXiang.Modules.UI
                         //    既与现在的 12 层图对不上，又会被幕推进重置成 -1 ⇒ 天阙永远不会触发。
                         if (prun.Act >= 5)
                         {
-                            SceneFlow.PendingFinale = true;
-                            Debug.Log("[Campaign] 已到天阙 ⇒ 回主城弹出天阙抉择");
+                            // ★★ 关键：**不切场景**！就地重建天阙图 + 原地弹出天阙抉择。
+                            //    原来这里 EnterMain() 切场景 ⇒ MainSceneEntry 跑两次 ⇒
+                            //    面板实例在"关闭中"状态被再次 OpenAsync，返回实例却不激活
+                            //    ⇒ 最后画面一片空白 / 主界面（日志实测：打开成功但 2 帧后 active=False）。
+                            SceneFlow.PendingFinale = false;   // 不需要跨场景挂起了
+                            Debug.Log("[Campaign] 已到天阙 ⇒ 就地弹出天阙抉择（不切场景）");
                             WanXiang.Run.RunSave.SaveCurrent();
-                            SceneFlow.EnterMain();
-                            CloseSelf();                 // 面板自己的关闭（不是 UI 系统的）
-                            return UniTask.CompletedTask; // 本方法返回 UniTask
+                            RebuildGraphFor(prun.Act, prun.RunSeed);   // 换成天阙图（5 节点）
+                            _currentOffset = -1;
+                            _visited.Clear();
+                            BuildNodeMap();
+                            var uiF = WanXiang.Framework.Boot.UIBootstrap.UI;
+                            if (uiF != null) uiF.OpenAsync<TrialPanel>().Forget();
+                            return UniTask.CompletedTask;
                         }
 
                         RebuildGraphFor(prun.Act, prun.RunSeed);   // 换新幕的图
