@@ -107,6 +107,30 @@ namespace WanXiang.Modules.UI
                         }
                         req.EnemyEntries.AddRange(entries);
 
+                        // ★★ 必须填【玩家队伍】！这里原来是手写 new BattleRequest，
+                        //    只塞了敌方 ⇒ BattleSceneDriver 判定"拿不到可用的战斗入参"，
+                        //    战斗直接失败（用户实测：登天阙后弹"战斗失败 回合数 0"）。
+                        //    普通战斗走 BattleRequestFactory 会自动填 Player，手写路径必须自己填。
+                        var byId2 = new System.Collections.Generic.Dictionary<string, BeastDef>();
+                        foreach (var b in all) byId2[b.Id] = b;
+                        req.Player.Clear();
+                        if (req.PlayerCells == null) req.PlayerCells = new System.Collections.Generic.List<int>();
+                        req.PlayerCells.Clear();
+                        // 我方格位：优先放靠中线的列（我方前排 = col 2 → 格 2/5/8）
+                        int[] myCells = { 2, 5, 8, 1, 4, 7, 0, 3, 6 };
+                        int k2 = 0;
+                        if (run.Team != null)
+                        {
+                            foreach (var tid in run.Team)
+                            {
+                                if (!byId2.TryGetValue(tid, out var pb)) continue;
+                                req.Player.Add(pb);
+                                req.PlayerCells.Add(myCells[k2 % myCells.Length]);
+                                k2++;
+                            }
+                        }
+                        Debug.Log("[TrialPanel] 终局战：我方 " + req.Player.Count + " 只，敌方 " + entries.Count + " 只");
+
                         // ★ 标记为终局战：胜利即"真通关"（ResultPanel 据此写 BeatFinale）
                         SceneFlow.IsFinaleBattle = true;
 

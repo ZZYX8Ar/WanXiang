@@ -87,7 +87,7 @@ namespace WanXiang.Modules.UI
             //   失败时也要说明"本局已结束"，而不是显示"灵卵 +1"（失败会清空）。
             var look = WanXiang.Run.RunSave.Current;
             int act = look != null ? look.Act : 1;
-            int layer = look != null ? look.NodeOffset + 1 : 0;
+            int layer = look != null ? UnityEngine.Mathf.Max(1, look.NodeOffset + 1) : 1;   // 未出发显示第1层，不要第0层
             int wins = look != null ? look.Wins : 0;
             int losses = look != null ? look.Losses : 0;
             SetLine(2, win
