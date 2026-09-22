@@ -143,18 +143,14 @@ namespace WanXiang.Modules.UI
                             if (run0.VisitedNodes != null) run0.VisitedNodes.Clear();
                             WanXiang.Run.RunSave.SaveCurrent();
                         }
-                        // ★★ 顺序很关键：
-                        //   ① 先关主界面（它压在栈里会把节点图挡住 ⇒ 看起来"直接回主界面"）
-                        //   ② 用 **UI 系统的静态入口** 打开节点图（不能用 this 的 OpenPanelAsync ——
-                        //      本面板马上要销毁，实例方法的调用会被丢弃 ⇒ 面板全关、一片空白）
-                        //   ③ 最后才关自己
-                        var ui2 = WanXiang.Framework.Boot.UIBootstrap.UI;
-                        if (ui2 != null)
-                        {
-                            ui2.Close<HomePanel>();
-                            ui2.OpenAsync<CampaignPanel>().Forget();
-                        }
+                        // ★★ 不再试图"直接切到节点图" —— UISystem 是栈式管理，
+                        //    本面板（Overlay 层）关闭时栈重算，会把同时打开的节点图一起判掉，
+                        //    结果是**所有面板都关、画面全空**（MCP 实测：8 个面板全部 activeSelf=False）。
+                        //
+                        //    改成最可靠的一条路：**回主城**，由玩家点「出征 → 继续」进天阙图。
+                        //    这也符合设计：登天阙 = 踏上登天之路，回主城整备再出发。
                         CloseSelf();
+                        WanXiang.Modules.UI.SceneFlow.EnterMain();
                     }
                     break;
                 case 1:  // 续劫：回春 + 劫数 +1 + 敌强 +3%
