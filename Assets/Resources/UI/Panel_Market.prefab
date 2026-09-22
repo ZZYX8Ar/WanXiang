@@ -4039,6 +4039,15 @@ MonoBehaviour:
   _tmpHint: {fileID: 5303890949405697587}
   _contentCatalog: {fileID: 11400000, guid: 60369f2fff5459b478abab98f70a9251, type: 2}
   _sprites: {fileID: 11400000, guid: d9c1f82fc8f96ed429a357fa76152807, type: 2}
+  _detailRoot: {fileID: 3834513810595234140}
+  _detailBig: {fileID: 5170740176667032215}
+  _detailName: {fileID: 6920940634443998464}
+  _detailInfo: {fileID: 3654833947643080477}
+  _detailSource: {fileID: 3745557589245173814}
+  _detailPrice: {fileID: 6524895563075219396}
+  _detailBuy: {fileID: 7015217709560015078}
+  _detailClose: {fileID: 2909860008174410361}
+  _btnBuySoul: {fileID: 4424069263345942898}
 --- !u!1 &4697045026533534417
 GameObject:
   m_ObjectHideFlags: 0
