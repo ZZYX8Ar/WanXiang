@@ -228,8 +228,9 @@ namespace WanXiang.Modules.UI
                                  new Vector2(470f, -60f), 40, TextAlignmentOptions.Left);
             _detailInfo = MkText(card.transform, "Tmp_Info", new Vector2(0f, 1f), new Vector2(420f, 48f),
                                  new Vector2(470f, -128f), 26, TextAlignmentOptions.Left);
-            _detailSource = MkText(card.transform, "Tmp_Source", new Vector2(0f, 1f), new Vector2(420f, 110f),
-                                   new Vector2(470f, -212f), 22, TextAlignmentOptions.TopLeft);
+            // 战斗要点文本框：容纳 3~4 行（推荐站位 / 技能 / 特性），行距默认即可
+            _detailSource = MkText(card.transform, "Tmp_Source", new Vector2(0f, 1f), new Vector2(430f, 190f),
+                                   new Vector2(475f, -206f), 22, TextAlignmentOptions.TopLeft);
             _detailSource.enableWordWrapping = true;
             _detailPrice = MkText(card.transform, "Tmp_Price", new Vector2(0f, 0f), new Vector2(420f, 48f),
                                   new Vector2(470f, 128f), 30, TextAlignmentOptions.Left);
@@ -298,9 +299,25 @@ namespace WanXiang.Modules.UI
                 _detailBig.color = _detailBig.sprite != null ? Color.white : new Color(0.86f, 0.82f, 0.74f, 1f);
             }
             if (_detailName != null) _detailName.text = g.Beast.DisplayName;
+
+            // ★ 详情只讲"战斗相关"（用户要求）：属性 / 推荐站位（前后排）/ 技能 / 特性。
+            //   原来的典籍原文对玩家没有决策价值，已去掉（最长一段大段古文占了大半张卡）。
             if (_detailInfo != null)
-                _detailInfo.text = g.Beast.Element + " · " + g.Beast.Role + " · " + g.Beast.Rarity;
-            if (_detailSource != null) _detailSource.text = (g.Beast.Source ?? "") + "\n" + (g.Beast.Quote ?? "");
+                _detailInfo.text = Cn.Of(g.Beast.Element) + " · " + Cn.Of(g.Beast.Role) +
+                                    " · " + RarityCn(g.Beast.Rarity);
+
+            if (_detailSource != null)
+            {
+                var b = new System.Text.StringBuilder();
+                b.Append("推荐站位：").Append(RowHint(g.Beast.Role));
+                b.Append("\n技能：");
+                if (g.Beast.Basic != null) b.Append(g.Beast.Basic.Name).Append("（基础）");
+                if (g.Beast.Active != null) b.Append("　").Append(g.Beast.Active.Name).Append("（主动）");
+                if (g.Beast.Ultimate != null) b.Append("　").Append(g.Beast.Ultimate.Name).Append("（奥义）");
+                if (!string.IsNullOrEmpty(g.Beast.Trait.Name))
+                    b.Append("\n特性：").Append(g.Beast.Trait.Name);
+                _detailSource.text = b.ToString();
+            }
             if (_detailPrice != null) _detailPrice.text = "价格：" + g.Price + " 灵卵";
             if (_detailBuy != null)
             {
@@ -314,6 +331,33 @@ namespace WanXiang.Modules.UI
             {
                 _detailRoot.gameObject.SetActive(true);
                 _detailRoot.SetAsLastSibling();
+            }
+        }
+
+        /// <summary>推荐站位（用户要的"前后排"提示）：由定位推导，与战斗的 RanksCloser 一致。</summary>
+        private static string RowHint(WanXiang.Battle.Core.RoleType role)
+        {
+            switch (role)
+            {
+                case WanXiang.Battle.Core.RoleType.Guard:   return "前排（御：血厚攻低，优先承伤）";
+                case WanXiang.Battle.Core.RoleType.Striker: return "后排（攻：脆但爆发）";
+                case WanXiang.Battle.Core.RoleType.Swift:   return "后排（疾：依赖先手）";
+                case WanXiang.Battle.Core.RoleType.Caster:  return "中排（术：输出主力）";
+                case WanXiang.Battle.Core.RoleType.Support: return "中排（辅：增益治疗）";
+                default: return "任意";
+            }
+        }
+
+        private static string RarityCn(WanXiang.Battle.Core.Rarity r)
+        {
+            switch (r.ToString())
+            {
+                case "Common": return "凡";
+                case "Rare": return "珍";
+                case "Epic": return "史诗";
+                case "Legend": return "传说";
+                case "Legendary": return "传说";
+                default: return r.ToString();
             }
         }
 
