@@ -201,9 +201,21 @@ namespace WanXiang.Modules.UI
                 default:  // 归元：结束本局，回主城
                     {
                         SceneFlow.IsFinaleBattle = false;
-                        // ★ 之前只 CloseSelf() ⇒ 玩家还留在天阙图里，看起来像"选归元却进了第五幕"
-                        //   （用户实测）。归元 = 主动结束本局，应该回主城。
-                        Debug.Log("[TrialPanel] 归元 ⇒ 结束本局，回主城");
+                        // ★★ 归元 = 主动结束本局：
+                        //   ① **必须重置本局进度** —— 只回主城的话 Act 仍是 5，
+                        //      玩家再出征又进天阙图（用户实测："归元还是直接进入第5幕"）。
+                        //   ② 保留图鉴/魂/灵卵（它们属于跨局资产），清掉本局路线与进度。
+                        var runEnd = WanXiang.Run.RunSave.Current;
+                        if (runEnd != null)
+                        {
+                            runEnd.Act = 1;
+                            runEnd.NodeOffset = -1;
+                            if (runEnd.VisitedNodes != null) runEnd.VisitedNodes.Clear();
+                            if (runEnd.Path != null) runEnd.Path.Clear();
+                            if (runEnd.QuestionRevealed != null) runEnd.QuestionRevealed.Clear();
+                            WanXiang.Run.RunSave.SaveCurrent();
+                        }
+                        Debug.Log("[TrialPanel] 归元 ⇒ 结束本局（进度已重置为第 1 幕），回主城");
                         CloseSelf();
                         WanXiang.Modules.UI.SceneFlow.EnterMain();
                         break;
