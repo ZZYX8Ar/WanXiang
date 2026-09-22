@@ -216,6 +216,9 @@ namespace WanXiang.Modules.UI
             }
             _nodeItems.Clear();
 
+            // ★ 本图的实际层数（天阙图只有 5 层，普通幕 12 层）—— 摆位/高度/自动定位都用它
+            int lc = (_graph != null && _graph.Layers != null) ? _graph.Layers.Length : Layers;
+
             // ---- 数据源：v1.2 路线图（12 层、层内 2~3、种子稳定）----
             var run = WanXiang.Run.RunSave.Current;
             // ★★ 存档自愈：早期幕推进判据用过 `>=`，可能把 Act 反复推到上限、
@@ -294,7 +297,10 @@ namespace WanXiang.Modules.UI
             for (int layer = 0; layer < _graph.Layers.Length; layer++)
             {
                 var row = _graph.Layers[layer];
-                float y = -(Layers - 1 - layer) * (NodeH + GapY);   // 层号越大越靠上
+                // ★★ 用【图的真实层数】而不是常量 Layers(12)：
+                //    天阙图只有 5 层，用 12 会把节点摆到很下面、content 也算出 2480 的空白区，
+                //    表现就是"往上滑一片空白、还滑不回来"（用户实测）。
+                float y = -(lc - 1 - layer) * (NodeH + GapY);   // 层号越大越靠上
                 for (int k = 0; k < row.Length; k++)
                 {
                     var item = SpawnNodeItem(content, row[k], layer);
@@ -310,7 +316,7 @@ namespace WanXiang.Modules.UI
 
             DrawEdges(lineRt);
 
-            float totalH = Layers * (NodeH + GapY) + 80f;
+            float totalH = lc * (NodeH + GapY) + 80f;      // lc = 实际层数
             // ★★ content 高度必须 >= 视口高度，否则 ScrollRect 的滚动范围会算错，
             //    表现是"往上滑过头就回不来了 / 一片空白"（用户实测：天阙图只有 5 个节点时）。
             float viewH = (_scrollNodes != null && _scrollNodes.viewport != null)
@@ -319,8 +325,8 @@ namespace WanXiang.Modules.UI
 
             // 打开时滚到当前层（12 层比一屏高，别让玩家自己找）
             float curY = (_currentOffset >= 0)
-                ? -(Layers - 1 - _graph.LayerOf(_currentOffset)) * (NodeH + GapY)
-                : -(Layers - 1) * (NodeH + GapY);
+                ? -(lc - 1 - _graph.LayerOf(_currentOffset)) * (NodeH + GapY)
+                : -(lc - 1) * (NodeH + GapY);
             // ⚠ content.sizeDelta 刚改过，布局要等下一次 Canvas 更新才算完 ——
             //   不 ForceUpdate 的话这行设置会被后续布局覆盖，玩家只能自己往上滑（用户实测）。
             UnityEngine.Canvas.ForceUpdateCanvases();
@@ -398,7 +404,8 @@ namespace WanXiang.Modules.UI
             var row = _graph.Layers[layer];
             int k = System.Array.IndexOf(row, offset);
             float x = row.Length <= 1 ? 0f : (k - (row.Length - 1) * 0.5f) * (NodeW + GapX);
-            float y = -(Layers - 1 - layer) * (NodeH + GapY) - NodeH * 0.5f;
+            int lc2 = (_graph != null && _graph.Layers != null) ? _graph.Layers.Length : Layers;
+            float y = -(lc2 - 1 - layer) * (NodeH + GapY) - NodeH * 0.5f;
             return new Vector2(x, y);
         }
 
