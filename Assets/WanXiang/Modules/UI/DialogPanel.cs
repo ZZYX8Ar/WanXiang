@@ -138,7 +138,7 @@ namespace WanXiang.Modules.UI
         protected override UniTask OnOpenAsync(object payload)
         {
             BuildUi();               // 从缓存里复用时也要保证结构在
-            // // EnsureCloseX();   // × 已由 BuildUi 自建   // × 已由 BuildUi 自建          // 右上角关闭入口（可"什么都不选"）
+            EnsureCloseX();          // 右上角关闭入口（可"什么都不选"）
             return UniTask.CompletedTask;
         }
 
@@ -219,8 +219,7 @@ namespace WanXiang.Modules.UI
         /// 右上角关闭按钮（"什么都不选"也能退出）。用户要求：弹窗应有关闭入口，
         /// 尤其 Confirm/Choose 不该强迫玩家二选一。
         /// </summary>
-        /// <summary>保留占位：× 已在 BuildUi 里自建，这里不再重复创建。</summary>
-        private void EnsureCloseX_Unused()
+        private void EnsureCloseX()
         {
             if (_btnCloseX != null) return;
             var card = transform.Find("Card") as RectTransform;
@@ -277,29 +276,19 @@ namespace WanXiang.Modules.UI
             if (_built && _right != null) return;
             _built = true;
 
-            // ★★★ 不再信任 prefab 的布局与绑定 —— Panel_Dialog.prefab 的序列化布局
-            //   反复出问题（负 sizeDelta 导致标题正文重叠、按钮跑飞出卡片、遮罩挡点击…），
-            //   而且"有绑定就用 prefab"让下面这套正确的自建逻辑永远不执行。
-            //   现在一律代码自建：布局完全可控（全正数尺寸 + 明确层级）。
+            // ★ prefab 已绑定（生成器产物 Panel_Dialog.prefab）→ 字段由序列化注入，
+            //   运行时什么都不建。之前运行时生成 UI 实测多次 Open 后按钮 transform
+            //   跑飞到屏幕外（"知道了"点不了）。只有 prefab 缺失时才走自建兜底。
+            if (_right != null) return;
+
             var rt = (RectTransform)transform;
 
-            // 清掉 prefab 带来的子对象，避免新旧两套叠在一起
-            for (int i = rt.childCount - 1; i >= 0; i--)
-            {
-                var child = rt.GetChild(i).gameObject;
-                child.SetActive(false);
-                Destroy(child);
-            }
-
-            // 全屏暗遮罩（挡住下层点击 + 点击关闭）
+            // 全屏暗遮罩（挡住下层点击）
             var dim = NewRect("Dim", rt, new Vector2(0f, 0f), new Vector2(1f, 1f),
                               new Vector2(0f, 0f), new Vector2(0f, 0f));
             var dimImg = dim.gameObject.AddComponent<Image>();
             dimImg.color = new Color(0.12f, 0.10f, 0.08f, 0.62f);
             dimImg.raycastTarget = true;
-            var dimBtn = dim.gameObject.AddComponent<Button>();
-            dimBtn.targetGraphic = dimImg;
-            dimBtn.onClick.AddListener(Finish);       // 点空白处 = 关闭（取消）
 
             // 卡片
             var card = NewRect("Card", rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
@@ -321,14 +310,6 @@ namespace WanXiang.Modules.UI
             _right = NewButton("Btn_Right", card, new Vector2(1f, 0f), new Vector2(1f, 0f),
                                new Vector2(-64f, 40f), new Vector2(280f, 92f),
                                new Color(0.79f, 0.63f, 0.39f, 1f), out _rightLabel);
-
-            // 右上角 ×（自建，避免依赖 prefab 的兜底逻辑）
-            var closeX = NewButton("Btn_CloseX", card, new Vector2(1f, 1f), new Vector2(1f, 1f),
-                                   new Vector2(-36f, -36f), new Vector2(48f, 48f),
-                                   new Color(0.90f, 0.86f, 0.80f, 1f), out var closeXLabel);
-            if (closeXLabel != null) { closeXLabel.text = "×"; closeXLabel.fontSize = 34; }
-            _btnCloseX = closeX;
-            closeX.onClick.AddListener(Finish);
         }
 
         private static RectTransform NewRect(string name, RectTransform parent,
