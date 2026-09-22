@@ -308,15 +308,15 @@ namespace WanXiang.Modules.UI
             // ★★ 修正视口 —— prefab 里 Viewport 的高度是 **负数**（-350），
             //    会导致 ScrollRect 的滚动范围完全算错：滑过头回不来、滚轮无效（用户实测）。
             //    负尺寸 = 布局炸裂（和 Dialog 的负 sizeDelta 同一个病）。
-            if (_scrollNodes != null && _scrollNodes.viewport != null)
+            // 本方法是静态的：用 content 的父级（ScrollRect 标准层级里就是 Viewport）取视口，
+            // 不依赖 _scrollNodes 实例字段。
+            var vp = content != null ? content.parent as RectTransform : null;
+            if (vp != null && vp.rect.height <= 1f)
             {
-                var vp = _scrollNodes.viewport;
-                if (vp.rect.height <= 1f)
-                {
-                    vp.offsetMin = Vector2.zero;
-                    vp.offsetMax = Vector2.zero;
-                    Debug.LogWarning("[Campaign] 节点图视口高度异常(" + vp.rect.height + ") → 已铺满修正");
-                }
+                vp.offsetMin = Vector2.zero;
+                vp.offsetMax = Vector2.zero;
+                UnityEngine.Debug.LogWarning("[Campaign] 节点图视口高度异常(" + vp.rect.height +
+                                             ") → 已铺满修正（否则滚动范围算错：滑过头回不来）");
             }
 
             var vlg = content.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
