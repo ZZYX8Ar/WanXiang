@@ -47,6 +47,17 @@ namespace WanXiang.Modules.Boot
             //   表现就是「从节点地图返回主城，主界面是灰的/点不动」。
             ui.Close<StartPanel>();
 
+            // ★★ 登天阙：刚从天阙抉择选了"登天阙" ⇒ 直接在**第 5 幕天阙图**开局，
+            //    而不是进主界面（用户要求：登天后直接进入第五幕节点地图）。
+            //    放在这里是因为：场景已加载完成、UI 栈干净，不会像"Overlay 面板内切面板"那样被栈重算判掉。
+            if (SceneFlow.EnterFinaleMap)
+            {
+                SceneFlow.EnterFinaleMap = false;
+                await ui.OpenAsync<CampaignPanel>();
+                Debug.Log("[MainSceneEntry] 登天阙 ⇒ 已进入第五幕节点地图。");
+                return;
+            }
+
             await ui.OpenAsync<HomePanel>();
             Debug.Log("[MainSceneEntry] 已进入主界面（开始界面已关闭）。");
         }

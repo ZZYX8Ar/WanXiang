@@ -163,8 +163,12 @@ namespace WanXiang.Modules.UI
                         //    难点：本面板在 **Overlay 层**，CloseSelf() 会触发 UISystem 的"栈重算"，
                         //    若同一帧就打开节点图，它会被这次重算一起判掉 ⇒ 8 个面板全关、画面全空（MCP 实测）。
                         //    ⇒ 必须**先关自己，等两帧、栈重算完成后再打开节点图**。
+                        // ★★ 不在本面板里切面板（Overlay 关闭会触发栈重算，把新面板一起判掉）。
+                        //    改为：置跨场景标记 + 回主城；由 MainSceneEntry 在**场景加载完成后**
+                        //    直接打开节点图（那时栈是干净的，绝不可能失败）。
+                        WanXiang.Modules.UI.SceneFlow.EnterFinaleMap = true;
                         CloseSelf();
-                        OpenCampaignNextFrame();
+                        WanXiang.Modules.UI.SceneFlow.EnterMain();
                     }
                     break;
                 case 1:  // 续劫：回春 + 劫数 +1 + 敌强 +3%
