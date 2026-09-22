@@ -168,28 +168,7 @@ namespace WanXiang.Modules.UI
                                  " < 期望 " + Layers + " 层 —— BuildRoute 回退到了缺省图，" +
                                  "请检查 MeetsV12Constraints 或更换 RunSeed。");
 
-            // ⚠ 临时：把布局数值并进这条"图诊断"普通日志（调试完删除这段拼接）
-            {
-                var vpX = (_scrollNodes != null && _scrollNodes.viewport != null) ? _scrollNodes.viewport.rect : new Rect();
-                string pos0 = "?";
-                if (_scrollNodes != null && _scrollNodes.content != null)
-                    for (int i = 0; i < _scrollNodes.content.childCount; i++)
-                    {
-                        var c = _scrollNodes.content.GetChild(i) as RectTransform;
-                        if (c != null && c.name.StartsWith("Node_")) { pos0 = c.anchoredPosition.ToString(); break; }
-                    }
-                Debug.Log("[Campaign] 布局调试：lc=" +
-                    ((_graph != null && _graph.Layers != null) ? _graph.Layers.Length : -1) +
-                    " 图Layers=" + ((_graph != null && _graph.Layers != null) ? _graph.Layers.Length : -1) +
-                    "｜viewport=" + vpX.width.ToString("0") + "x" + vpX.height.ToString("0") +
-                    "｜content=" + (_scrollNodes != null && _scrollNodes.content != null
-                        ? (_scrollNodes.content.sizeDelta.x.ToString("0") + "x" + _scrollNodes.content.sizeDelta.y.ToString("0")) : "?") +
-                    "｜子数=" + (_scrollNodes != null && _scrollNodes.content != null ? _scrollNodes.content.childCount : -1) +
-                    "｜首节点pos=" + pos0 +
-                    "｜NodeH=" + NodeH + " GapY=" + GapY);
-            }
-
-            Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString() : "?") +
+Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString() : "?") +
                       " NodeCount=" + (_graph != null ? _graph.NodeCount.ToString() : "?") +
                       " 实际画出=" + _nodeItems.Count +
                       "｜Act=" + (WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : -1) +
@@ -237,22 +216,16 @@ namespace WanXiang.Modules.UI
             }
             _nodeItems.Clear();
 
-            // ⚠⚠ 调试（问题解决后删除）：进入本方法就打印，确认代码路径一定执行
-            Debug.Log("[Campaign][排版调试A] 进入 BuildNodeMap｜_graph=" +
-                (_graph != null ? ("Act" + _graph.Act + " Layers" + (_graph.Layers != null ? _graph.Layers.Length : -1) +
-                 " NodeCount" + _graph.NodeCount) : "null") +
-                "｜_scrollNodes=" + (_scrollNodes != null ? "✓" : "null") +
-                " content=" + (content != null ? "✓" : "null") +
-                " viewport=" + (_scrollNodes != null && _scrollNodes.viewport != null ? "✓" : "null"),
-                this);
-
             // ★★ 首帧强制刷新 Canvas：第一次打开本面板时，viewport/content 的 rect 还没被
             //    布局系统算出来，此时用它们的尺寸排版会错位（用户实测："第一次进不行、
             //    返回再进来就成功了"）。这里先强制算一次。
             UnityEngine.Canvas.ForceUpdateCanvases();
 
-            // ★ 本图的实际层数（天阙图只有 5 层，普通幕 12 层）—— 摆位/高度/自动定位都用它
-            int lc = (_graph != null && _graph.Layers != null) ? _graph.Layers.Length : Layers;
+            // ★ 本图的实际层数（天阙图 5 层、普通幕 12 层）—— 摆位/高度/自动定位都用它。
+            //  ⚠ 注意：本方法内部才建 `_graph`（见下方 BuildRoute），所以这里先给兜底值，
+            //    建图之后必须**重新计算**一次 lc —— 否则永远拿到兜底的 12（用户实测：
+            //    第一次进天阙图 content 高 2480、多出 1440 空白区）。
+            int lc = Layers;
 
             // ---- 数据源：v1.2 路线图（12 层、层内 2~3、种子稳定）----
             var run = WanXiang.Run.RunSave.Current;
@@ -285,6 +258,9 @@ namespace WanXiang.Modules.UI
             }
             ulong seed = CoreMath.Fnv1a("route:" + (run != null ? run.RunSeed : 0) + ":" + act);
             _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(act, seed, Layers);
+
+            // ★★ 建图后重算实际层数（上面那个 lc 是兜底值！）
+            lc = (_graph != null && _graph.Layers != null) ? _graph.Layers.Length : Layers;
 
             // ★ 幕推进已改为"通过最后一格时"触发（见上方 PendingCommit 落地处），
             //   这里不再用"人在最后一格"当判据 —— 它既会误跳幕，又会让可达性锚点失效。
@@ -369,24 +345,7 @@ namespace WanXiang.Modules.UI
                 UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)_scrollNodes.viewport);
             UnityEngine.Canvas.ForceUpdateCanvases();
 
-            // ⚠⚠ 调试（问题解决后删除）：排版定稿后的数值
-            {
-                var vpD = (_scrollNodes != null && _scrollNodes.viewport != null) ? _scrollNodes.viewport.rect : new Rect();
-                int lcD = (_graph != null && _graph.Layers != null) ? _graph.Layers.Length : Layers;
-                string p0 = "?";
-                for (int i = 0; i < content.childCount; i++)
-                {
-                    var c = content.GetChild(i) as RectTransform;
-                    if (c != null && c.name.StartsWith("Node_")) { p0 = c.anchoredPosition.ToString(); break; }
-                }
-                Debug.Log("[Campaign][排版调试B] totalH=" + (lcD * (NodeH + GapY) + 80f).ToString("0") + " lc=" + lcD +
-                    " viewport=" + vpD.width.ToString("0") + "x" + vpD.height.ToString("0") +
-                    " content=" + content.sizeDelta.x.ToString("0") + "x" + content.sizeDelta.y.ToString("0") +
-                    " 子数=" + content.childCount + " totalH=" + (lcD * (NodeH + GapY) + 80f).ToString("0") +
-                    " 首节点pos=" + p0, this);
-            }
-
-            _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 200f) / Mathf.Max(1f, totalH));
+_scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 200f) / Mathf.Max(1f, totalH));
         }
 
         /// <summary>关掉 content 上的自动布局组件（手动排布的前提）。</summary>
