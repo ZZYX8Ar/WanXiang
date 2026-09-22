@@ -338,6 +338,27 @@ namespace WanXiang.Modules.UI
             if (_scrollNodes != null && _scrollNodes.viewport != null)
                 UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)_scrollNodes.viewport);
             UnityEngine.Canvas.ForceUpdateCanvases();
+
+            // ⚠⚠ 调试日志（定位"节点错位/空白区"用，问题解决后删除）⚠⚠
+            {
+                var vpDbg = (_scrollNodes != null && _scrollNodes.viewport != null)
+                    ? _scrollNodes.viewport.rect : new Rect();
+                string firstPos = "?";
+                for (int i = 0; i < content.childCount; i++)
+                {
+                    var c = content.GetChild(i) as RectTransform;
+                    if (c != null && c.name.StartsWith("Node_"))
+                    { firstPos = c.anchoredPosition.ToString(); break; }
+                }
+                Debug.LogWarning("[Campaign][排版调试] lc=" + lc +
+                    " 图Act=" + (_graph != null ? _graph.Act : -1) +
+                    " Layers=" + (_graph != null && _graph.Layers != null ? _graph.Layers.Length : -1) +
+                    " NodeCount=" + (_graph != null ? _graph.NodeCount : -1) +
+                    "｜viewport=" + vpDbg.width.ToString("0") + "x" + vpDbg.height.ToString("0") +
+                    " content=" + content.sizeDelta.x.ToString("0") + "x" + content.sizeDelta.y.ToString("0") +
+                    " 子数=" + content.childCount + " 首节点pos=" + firstPos);
+            }
+
             _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 200f) / Mathf.Max(1f, totalH));
         }
 
