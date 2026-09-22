@@ -305,6 +305,20 @@ namespace WanXiang.Modules.UI
         /// <summary>关掉 content 上的自动布局组件（手动排布的前提）。</summary>
         private static void DisableAutoLayout(RectTransform content)
         {
+            // ★★ 修正视口 —— prefab 里 Viewport 的高度是 **负数**（-350），
+            //    会导致 ScrollRect 的滚动范围完全算错：滑过头回不来、滚轮无效（用户实测）。
+            //    负尺寸 = 布局炸裂（和 Dialog 的负 sizeDelta 同一个病）。
+            if (_scrollNodes != null && _scrollNodes.viewport != null)
+            {
+                var vp = _scrollNodes.viewport;
+                if (vp.rect.height <= 1f)
+                {
+                    vp.offsetMin = Vector2.zero;
+                    vp.offsetMax = Vector2.zero;
+                    Debug.LogWarning("[Campaign] 节点图视口高度异常(" + vp.rect.height + ") → 已铺满修正");
+                }
+            }
+
             var vlg = content.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
             if (vlg != null) vlg.enabled = false;
             var hlg = content.GetComponent<UnityEngine.UI.HorizontalLayoutGroup>();
