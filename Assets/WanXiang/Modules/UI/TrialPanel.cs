@@ -27,6 +27,36 @@ namespace WanXiang.Modules.UI
 
         public override bool AllowBackClose => false;
 
+        /// <summary>
+        /// ★★ 填充三个选项的文案 —— 这些字段以前**从来没被赋值过**，
+        ///    所以天阙抉择弹出来时显示的是 prefab 里的占位符（Choice 0 / desc），
+        ///    玩家完全看不出三个选项是什么意思（用户实测）。
+        /// </summary>
+        protected override Cysharp.Threading.Tasks.UniTask OnOpenAsync(object payload)
+        {
+            string[] titles = { "登天阙", "续劫", "归元" };
+            string[] descs =
+            {
+                "终局战：后土 + 我方队伍镜像（×1.5）。\n赢了就是真通关 —— 解锁无尽模式与更高难度。",
+                "季节回春：队伍与资源全部继承，\n敌人强度 +3%、道劫律 +1（无尽模式）。",
+                "归元：主动结束本局，\n按当前进度正常结算后回主城。",
+            };
+
+            for (int i = 0; i < titles.Length; i++)
+            {
+                if (_tmpChoiceTitles != null && i < _tmpChoiceTitles.Length && _tmpChoiceTitles[i] != null)
+                    _tmpChoiceTitles[i].text = titles[i];
+                if (_tmpChoiceDescs != null && i < _tmpChoiceDescs.Length && _tmpChoiceDescs[i] != null)
+                    _tmpChoiceDescs[i].text = descs[i];
+            }
+
+            var run = WanXiang.Run.RunSave.Current;
+            if (_tmpStatus != null && run != null)
+                _tmpStatus.text = run.RealmText + " · 灵卵 " + run.Eggs;
+
+            return Cysharp.Threading.Tasks.UniTask.CompletedTask;
+        }
+
         protected override void OnCreate()
         {
             for (int i = 0; i < _choiceBtns.Length; i++)
