@@ -286,7 +286,11 @@ namespace WanXiang.Modules.UI
             DrawEdges(lineRt);
 
             float totalH = Layers * (NodeH + GapY) + 80f;
-            content.sizeDelta = new Vector2(content.sizeDelta.x, Mathf.Max(totalH, 600f));
+            // ★★ content 高度必须 >= 视口高度，否则 ScrollRect 的滚动范围会算错，
+            //    表现是"往上滑过头就回不来了 / 一片空白"（用户实测：天阙图只有 5 个节点时）。
+            float viewH = (_scrollNodes != null && _scrollNodes.viewport != null)
+                ? _scrollNodes.viewport.rect.height : 0f;
+            content.sizeDelta = new Vector2(content.sizeDelta.x, Mathf.Max(totalH, viewH + 1f));
 
             // 打开时滚到当前层（12 层比一屏高，别让玩家自己找）
             float curY = (_currentOffset >= 0)
@@ -501,7 +505,11 @@ namespace WanXiang.Modules.UI
             string term = TermName(_graph.Terms[offset]);
 
             if (_tmpNodeName != null) _tmpNodeName.text = "第 " + (offset + 1) + " 节 · " + term;
-            if (_tmpNodeType != null)
+            // ★ 天阙最后一格 = 终局战（后土）：类型显示为"守关·后土"，而不是占位用的【精英】
+            bool isFinaleBoss = _graph != null && _graph.Act >= 5 && offset == _graph.NodeCount - 1;
+            if (isFinaleBoss && _tmpNodeName != null)
+                _tmpNodeName.text = "终局 · " + (_graph.BossName ?? "后土");
+            if (_tmpNodeType != null && !isFinaleBoss)
                 _tmpNodeType.text = WanXiang.Campaign.NodeKinds.Cn(kind) +
                                     (WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "　（战斗）" : "　（休整）");
             if (_tmpWeather != null) _tmpWeather.text = WeatherHint(kind);

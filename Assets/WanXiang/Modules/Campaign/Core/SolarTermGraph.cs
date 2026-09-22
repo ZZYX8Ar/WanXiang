@@ -405,6 +405,16 @@ namespace WanXiang.Campaign
                     NodeKind.Elite,      // 后土（终局战，CampaignPanel 特判）
                 },
                 Layers = new[] { new[] { 0 }, new[] { 1 }, new[] { 2 }, new[] { 3 }, new[] { 4 } },
+                // ★★ 必须给 Edges！HasEdge 在 Edges==null 时**恒返回 false**
+                //    ⇒ 整张图除了第 0 层全部不可达（用户实测："通关第一个下一个没解锁"）。
+                Edges = new System.Collections.Generic.List<System.Collections.Generic.List<int>>
+                {
+                    new System.Collections.Generic.List<int> { 1 },
+                    new System.Collections.Generic.List<int> { 2 },
+                    new System.Collections.Generic.List<int> { 3 },
+                    new System.Collections.Generic.List<int> { 4 },
+                    new System.Collections.Generic.List<int>(),
+                },
             };
         }
 
