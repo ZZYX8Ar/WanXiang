@@ -216,6 +216,16 @@ namespace WanXiang.Modules.UI
                             WanXiang.Run.RunSave.SaveCurrent();
                         }
                         Debug.Log("[TrialPanel] 归元 ⇒ 结束本局（进度已重置为第 1 幕），回主城");
+                        // ★★ 必须先关掉**节点图面板**！CampaignPanel 是跨场景缓存的，
+                        //    不关就会盖住回主城后新打开的主界面 —— 表现就是"点了归元，
+                        //    画面还停在天阙图"（用户实测，日志显示 Act=1 但视图未变）。
+                        var cpEnd = UnityEngine.Object.FindObjectOfType<CampaignPanel>();
+                        if (cpEnd != null)
+                        {
+                            Debug.Log("[TrialPanel] 归元：关闭节点图面板 " + cpEnd.name);
+                            cpEnd.CloseSelf();
+                        }
+                        else Debug.Log("[TrialPanel] 归元：未找到节点图面板（可能已关）");
                         CloseSelf();
                         WanXiang.Modules.UI.SceneFlow.EnterMain();
                         break;
