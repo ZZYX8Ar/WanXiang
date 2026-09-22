@@ -168,6 +168,27 @@ namespace WanXiang.Modules.UI
                                  " < 期望 " + Layers + " 层 —— BuildRoute 回退到了缺省图，" +
                                  "请检查 MeetsV12Constraints 或更换 RunSeed。");
 
+            // ⚠ 临时：把布局数值并进这条"图诊断"普通日志（调试完删除这段拼接）
+            {
+                var vpX = (_scrollNodes != null && _scrollNodes.viewport != null) ? _scrollNodes.viewport.rect : new Rect();
+                string pos0 = "?";
+                if (_scrollNodes != null && _scrollNodes.content != null)
+                    for (int i = 0; i < _scrollNodes.content.childCount; i++)
+                    {
+                        var c = _scrollNodes.content.GetChild(i) as RectTransform;
+                        if (c != null && c.name.StartsWith("Node_")) { pos0 = c.anchoredPosition.ToString(); break; }
+                    }
+                Debug.Log("[Campaign] 布局调试：lc=" +
+                    ((_graph != null && _graph.Layers != null) ? _graph.Layers.Length : -1) +
+                    " 图Layers=" + ((_graph != null && _graph.Layers != null) ? _graph.Layers.Length : -1) +
+                    "｜viewport=" + vpX.width.ToString("0") + "x" + vpX.height.ToString("0") +
+                    "｜content=" + (_scrollNodes != null && _scrollNodes.content != null
+                        ? (_scrollNodes.content.sizeDelta.x.ToString("0") + "x" + _scrollNodes.content.sizeDelta.y.ToString("0")) : "?") +
+                    "｜子数=" + (_scrollNodes != null && _scrollNodes.content != null ? _scrollNodes.content.childCount : -1) +
+                    "｜首节点pos=" + pos0 +
+                    "｜NodeH=" + NodeH + " GapY=" + GapY);
+            }
+
             Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString() : "?") +
                       " NodeCount=" + (_graph != null ? _graph.NodeCount.ToString() : "?") +
                       " 实际画出=" + _nodeItems.Count +
