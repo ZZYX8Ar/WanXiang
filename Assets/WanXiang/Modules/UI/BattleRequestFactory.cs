@@ -140,15 +140,24 @@ namespace WanXiang.Modules.UI
             var provider = new WanXiang.Campaign.SeededEnemyProvider(actIdx => all);
             var entries = provider.EnemiesFor(act, term, kind, seed);
 
+            // ★★ 轮回难度（"续劫"次数）：每轮回敌人属性 +15%
+            //    —— 之前的"敌强 +3%"只写在注释里，实际没有任何代码读取（Jie/Realm 已废弃）。
+            var runAsc = WanXiang.Run.RunSave.Current;
+            float ascMul = 1f + 0.15f * (runAsc != null ? runAsc.Ascension : 0);
+
             req.EnemyEntries.Clear();
             req.Enemy.Clear();
             req.EnemyMul.Clear();
             foreach (var en in entries)
             {
-                req.EnemyEntries.Add(en);
-                req.Enemy.Add(en.Def);          // 兼容通道：HUD/预览按 BeastDef 显示名字
-                req.EnemyMul.Add(en.StatMul);
+                var scaled = en.WithMul(en.StatMul * ascMul);
+                req.EnemyEntries.Add(scaled);
+                req.Enemy.Add(scaled.Def);      // 兼容通道：HUD/预览按 BeastDef 显示名字
+                req.EnemyMul.Add(scaled.StatMul);
             }
+            if (ascMul > 1f)
+                UnityEngine.Debug.Log("[BattleRequestFactory] 轮回 " + (runAsc != null ? runAsc.Ascension : 0) +
+                                      " ⇒ 敌人属性 ×" + ascMul.ToString("0.00"));
 
             return req.Player.Count > 0 && req.EnemyEntries.Count > 0;
         }

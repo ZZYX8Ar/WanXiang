@@ -183,6 +183,7 @@ namespace WanXiang.Modules.UI
                         run.Act = 1;
                         run.NodeOffset = -1;
                         run.RunSeed = UnityEngine.Random.Range(1, int.MaxValue);   // 新劫新图
+                        run.Ascension++;                                          // ★ 轮回 +1 ⇒ 敌人 +15%
                         if (run.QuestionRevealed != null) run.QuestionRevealed.Clear();
                         WanXiang.Run.RunSave.SaveCurrent();
 
