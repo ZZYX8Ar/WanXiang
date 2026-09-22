@@ -199,8 +199,6 @@ namespace WanXiang.Modules.UI
         // ================================================================
         private int _detailIndex = -1;    // 当前详情卡指向的货架下标（字段已改为 prefab 注入）
 
-        /// <summary>「买魂」的价格（灵卵）。</summary>
-        private const int SoulPrice = 5;
 
         /// <summary>「买魂」的价格（灵卵）。</summary>
         private const int SoulPrice = 5;
