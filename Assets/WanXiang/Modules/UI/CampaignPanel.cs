@@ -98,6 +98,23 @@ namespace WanXiang.Modules.UI
                     prun.NodeOffset = PendingCommit;
                     if (prun.VisitedNodes != null && !prun.VisitedNodes.Contains(PendingCommit))
                         prun.VisitedNodes.Add(PendingCommit);
+
+                    // ★★ 幕推进绑在"通过"这一刻：刚通过的是本幕最后一格 ⇒ 进下一幕。
+                    //    原先靠"人在最后一格(NodeOffset==NodeCount-1)"当判据是错的：
+                    //    只要存档停在这个位置（不论是否真通过），一进节点图就会跳幕，
+                    //    而且它同时被当作"可达性锚点"⇒ 全图锁定灰（用户实测）。
+                    int lastCell = _graph != null ? _graph.NodeCount - 1 : -1;
+                    if (lastCell >= 0 && PendingCommit == lastCell && prun.Act < 5)
+                    {
+                        prun.Act++;
+                        prun.NodeOffset = -1;
+                        if (prun.VisitedNodes != null) prun.VisitedNodes.Clear();
+                        Debug.Log("[Campaign] 通过本幕最后一格 ⇒ 推进到第 " + prun.Act + " 幕");
+                        WanXiang.Run.RunSave.SaveCurrent();
+                        RebuildGraphFor(prun.Act, prun.RunSeed);   // 换新幕的图
+                        _currentOffset = -1;
+                        _visited.Clear();
+                    }
                     WanXiang.Run.RunSave.SaveCurrent();
                 }
                 PendingCommit = -1;
@@ -184,32 +201,18 @@ namespace WanXiang.Modules.UI
             ulong seed = CoreMath.Fnv1a("route:" + (run != null ? run.RunSeed : 0) + ":" + act);
             _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(act, seed, Layers);
 
-            // ★★ 幕推进：用 **格号** 判定（NodeOffset 范围 0..NodeCount-1，每层 3 格 × Layers 层）。
-            //    之前误用 Layers-1(=11) 当阈值 ⇒ 走到第 4 层左右就误判"幕末"提前跳幕
-            //    （用户实测"明明第二幕却直接到第三幕"）。必须在建图之后判、判完重建新幕的图。
-            //    ⚠ 必须用"**正好走到最后一格**"（==），用 >= 会在满足后反复推进把 Act 推到上限；
-            //      同时要求图是完整的（NodeCount 至少等于层数），避免残缺图误判。
-            if (run != null && run.Act < 5 && _graph.NodeCount >= Layers
-                && run.NodeOffset == _graph.NodeCount - 1)
+            // ★ 幕推进已改为"通过最后一格时"触发（见上方 PendingCommit 落地处），
+            //   这里不再用"人在最后一格"当判据 —— 它既会误跳幕，又会让可达性锚点失效。
+
+            // ★★ 存档自愈：NodeOffset 必须落在"本幕可继续"的范围内。
+            //    停在幕末格（== NodeCount-1）多半是上一幕的残留位置（修复前产生的存档），
+            //    它会同时导致"全图锁定灰"，这里一律回到本幕起点。
+            if (run != null && _graph != null && run.NodeOffset >= _graph.NodeCount - 1)
             {
-                run.Act++;
+                Debug.LogWarning("[Campaign] 自愈：NodeOffset(" + run.NodeOffset +
+                                 ") 停在幕末/越界 → 回到本幕起点");
                 run.NodeOffset = -1;
-                if (run.VisitedNodes != null) run.VisitedNodes.Clear();   // 新幕重新探索
                 WanXiang.Run.RunSave.SaveCurrent();
-                Debug.Log("[Campaign] 幕推进 ⇒ 第 " + run.Act + " 幕");
-
-                act = Mathf.Clamp(run.Act, 1, 5);
-                seed = CoreMath.Fnv1a("route:" + run.RunSeed + ":" + act);
-                _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(act, seed, Layers);
-
-                // ★★ 换了幕就换了图，必须立刻按新图重画 + 同步可达性锚点！
-                //    否则节点还是上一幕那张图的形状，而可达性按新图算 ⇒ 全部显示为锁定灰
-                //    （用户实测：通关第一幕到第二幕，一个节点都没解锁）。
-                _currentOffset = run.NodeOffset;          // 新幕 = -1（尚未出发）
-                _visited.Clear();
-                if (run.VisitedNodes != null)
-                    foreach (var v in run.VisitedNodes) _visited.Add(v);
-                BuildNodeMap();                          // 递归安全：此时 NodeOffset(-1) != NodeCount-1，不会再触发幕推进
             }
 
             _currentOffset = run != null ? run.NodeOffset : -1;
@@ -442,6 +445,14 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>选中一个节点：刷新信息卡与"出征/前往"按钮文案。</summary>
+        /// <summary>按幕号重建路线图（换幕时用）。</summary>
+        private void RebuildGraphFor(int act, int runSeed)
+        {
+            int a = Mathf.Clamp(act, 1, 5);
+            ulong sd = CoreMath.Fnv1a("route:" + runSeed + ":" + a);
+            _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(a, sd, Layers);
+        }
+
         private void SelectNode(int offset, bool silent)
         {
             if (_graph == null)
