@@ -164,10 +164,13 @@ namespace WanXiang.Modules.UI
             if (_win)
             {
                 cur.Wins++;
-                cur.Eggs += 8 + cur.Jie * 2;
+                // ★ 战斗胜利固定送 1 枚灵卵。
+                //   原来是 `8 + Jie * 2` —— 那是早期"劫/境"体系的遗留公式，
+                //   会导致打两场就涨到 26+（用户实测"才两场就 27 了"），且与界面文案
+                //   （"灵卵 +1"）完全不符。现已改为与 GDD 一致：胜利固定 +1。
+                //   Jie/Realm 的递进不再执行（幕推进已由 Act 承担），字段保留以兼容旧存档。
+                cur.Eggs += 1;
                 cur.Ink += 1;
-                cur.Jie++;
-                if (cur.Jie > 3) { cur.Jie = 1; cur.Realm++; }
             }
             else
             {
