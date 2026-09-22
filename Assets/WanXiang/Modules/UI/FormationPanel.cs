@@ -676,6 +676,19 @@ namespace WanXiang.Modules.UI
                 req.PlayerCells.Add(cell);      // ★ 记录真实格号，战斗按它站位
             }
 
+            // ★ 记录本场敌方异兽 id（结算掉魂用）
+            WanXiang.Modules.UI.SceneFlow.LastFoeIds.Clear();
+            if (req.EnemyEntries != null && req.EnemyEntries.Count > 0)
+            {
+                foreach (var en in req.EnemyEntries)
+                    if (en.Def != null) WanXiang.Modules.UI.SceneFlow.LastFoeIds.Add(en.Def.Id);
+            }
+            else if (req.Enemy != null)
+            {
+                foreach (var b in req.Enemy)
+                    if (b != null) WanXiang.Modules.UI.SceneFlow.LastFoeIds.Add(b.Id);
+            }
+
             SaveTeamToRun();
             // 出征 = 切到战斗场景。关掉布阵界面：布阵是 Normal 层，
             // 战斗 HUD 在 Main 层，留着会被布阵的遮罩压住。

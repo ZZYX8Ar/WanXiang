@@ -83,6 +83,14 @@ namespace WanXiang.Run
         public System.Collections.Generic.List<string> QuestionRevealed =
             new System.Collections.Generic.List<string>();
         public int Losses;                      // 本程败场
+        /// <summary>
+        /// 已获得的【灵魂】（存"魂的主人"的异兽 id）。
+        /// 魂本体不落盘：由 <c>SoulForge.Derive(beast, ordinal)</c> 按 id 确定性重建（同 id 必同魂）。
+        /// 来源：灵市购买 / 战斗与事件掉落 / 铸魂台"炼魂"（消耗一只异兽）。
+        /// </summary>
+        public System.Collections.Generic.List<string> Souls =
+            new System.Collections.Generic.List<string>();
+
         /// <summary>拥有的异兽图鉴（灵市购买进这里，不占出战名额；出战 5 只在编阵界面选）。</summary>
         public List<string> Collection = new List<string>();
 

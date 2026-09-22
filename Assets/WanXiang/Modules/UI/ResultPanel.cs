@@ -172,6 +172,23 @@ namespace WanXiang.Modules.UI
                 cur.Eggs += 1;
                 cur.Ink += 1;
 
+                // ★ 胜利掉魂（B 来源）：按幕数给概率，掉"本场敌方某只"的魂。
+                //   魂本体不落盘，只记主人 id —— 取用时 SoulForge.Derive 重建。
+                {
+                    var foeIds = WanXiang.Modules.UI.SceneFlow.LastFoeIds;
+                    if (foeIds != null && foeIds.Count > 0)
+                    {
+                        int chance = 25 + cur.Act * 10;          // 第1幕 35% → 第4幕 65%
+                        if (UnityEngine.Random.Range(0, 100) < chance)
+                        {
+                            var pick = foeIds[UnityEngine.Random.Range(0, foeIds.Count)];
+                            if (cur.Souls == null) cur.Souls = new System.Collections.Generic.List<string>();
+                            cur.Souls.Add(pick);
+                            Debug.Log("[ResultPanel] 掉魂：" + pick + "（现有 " + cur.Souls.Count + " 个）");
+                        }
+                    }
+                }
+
                 // ★★ 终局战（登天阙）胜利 = **真通关**：写入 BeatFinale。
                 //    这是"通关一次后解锁无尽模式 / 难度"的唯一依据。
                 if (SceneFlow.IsFinaleBattle)

@@ -30,6 +30,10 @@ namespace WanXiang.Modules.UI
         /// <summary>回主城要弹的结算；主城入口取用后清零。</summary>
         public static ResultRequest PendingResult;
 
+        /// <summary>上一场战斗的敌方异兽 id（结算掉魂时用；切场景保持）。</summary>
+        public static System.Collections.Generic.List<string> LastFoeIds =
+            new System.Collections.Generic.List<string>();
+
         /// <summary>天阙抉择挂起标记：第四幕守关胜利后置位，主城打开时弹三选一。</summary>
         public static bool PendingFinale;
 
