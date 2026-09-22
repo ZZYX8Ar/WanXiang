@@ -216,6 +216,15 @@ namespace WanXiang.Modules.UI
             }
             _nodeItems.Clear();
 
+            // ⚠⚠ 调试（问题解决后删除）：进入本方法就打印，确认代码路径一定执行
+            Debug.LogWarning("[Campaign][排版调试A] 进入 BuildNodeMap｜_graph=" +
+                (_graph != null ? ("Act" + _graph.Act + " Layers" + (_graph.Layers != null ? _graph.Layers.Length : -1) +
+                 " NodeCount" + _graph.NodeCount) : "null") +
+                "｜_scrollNodes=" + (_scrollNodes != null ? "✓" : "null") +
+                " content=" + (content != null ? "✓" : "null") +
+                " viewport=" + (_scrollNodes != null && _scrollNodes.viewport != null ? "✓" : "null"),
+                this);
+
             // ★★ 首帧强制刷新 Canvas：第一次打开本面板时，viewport/content 的 rect 还没被
             //    布局系统算出来，此时用它们的尺寸排版会错位（用户实测："第一次进不行、
             //    返回再进来就成功了"）。这里先强制算一次。
@@ -339,24 +348,21 @@ namespace WanXiang.Modules.UI
                 UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)_scrollNodes.viewport);
             UnityEngine.Canvas.ForceUpdateCanvases();
 
-            // ⚠⚠ 调试日志（定位"节点错位/空白区"用，问题解决后删除）⚠⚠
+            // ⚠⚠ 调试（问题解决后删除）：排版定稿后的数值
             {
-                var vpDbg = (_scrollNodes != null && _scrollNodes.viewport != null)
-                    ? _scrollNodes.viewport.rect : new Rect();
-                string firstPos = "?";
+                var vpD = (_scrollNodes != null && _scrollNodes.viewport != null) ? _scrollNodes.viewport.rect : new Rect();
+                int lcD = (_graph != null && _graph.Layers != null) ? _graph.Layers.Length : Layers;
+                string p0 = "?";
                 for (int i = 0; i < content.childCount; i++)
                 {
                     var c = content.GetChild(i) as RectTransform;
-                    if (c != null && c.name.StartsWith("Node_"))
-                    { firstPos = c.anchoredPosition.ToString(); break; }
+                    if (c != null && c.name.StartsWith("Node_")) { p0 = c.anchoredPosition.ToString(); break; }
                 }
-                Debug.LogWarning("[Campaign][排版调试] lc=" + lc +
-                    " 图Act=" + (_graph != null ? _graph.Act : -1) +
-                    " Layers=" + (_graph != null && _graph.Layers != null ? _graph.Layers.Length : -1) +
-                    " NodeCount=" + (_graph != null ? _graph.NodeCount : -1) +
-                    "｜viewport=" + vpDbg.width.ToString("0") + "x" + vpDbg.height.ToString("0") +
+                Debug.LogWarning("[Campaign][排版调试B] lc=" + lcD +
+                    " viewport=" + vpD.width.ToString("0") + "x" + vpD.height.ToString("0") +
                     " content=" + content.sizeDelta.x.ToString("0") + "x" + content.sizeDelta.y.ToString("0") +
-                    " 子数=" + content.childCount + " 首节点pos=" + firstPos);
+                    " 子数=" + content.childCount + " totalH=" + (lcD * (NodeH + GapY) + 80f).ToString("0") +
+                    " 首节点pos=" + p0, this);
             }
 
             _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 200f) / Mathf.Max(1f, totalH));
