@@ -8,6 +8,7 @@
         "WanXiang.Modules.Fusion.Core",
         "WanXiang.Modules.Fusion",
         "WanXiang.Campaign.Core",
+        "WanXiang.Meta.Core",
         "UniTask",
         "Unity.TextMeshPro",
         "DOTween",
