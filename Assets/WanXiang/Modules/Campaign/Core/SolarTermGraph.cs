@@ -210,6 +210,10 @@ namespace WanXiang.Campaign
         /// </summary>
         public static ActGraph BuildRoute(int act, ulong seed, int layers = 12)
         {
+            // ★★ 第 5 幕 = 天阙：**固定 5 节点线性图**（休整 → 商店 → 熔炼 → 看护关 → 后土）。
+            //    不走随机生成：这是通关前的最后一段"登天"流程，形态必须确定（用户设计）。
+            if (act >= 5) return BuildFinale();
+
             var fallback = BuildDefault();
             var baseGraph = act >= 1 && act <= fallback.Length ? fallback[act - 1] : null;
 
@@ -369,6 +373,39 @@ namespace WanXiang.Campaign
                 if (prev > 0 && cur > 0) return false;
             }
             return true;
+        }
+
+        /// <summary>
+        /// 天阙（第 5 幕）图：**固定 5 节点、逐层线性**，用户确定的设计：
+        /// <code>
+        ///   层1 休整（孵穴：回复全队 40% 生命 / 取 2 枚灵卵）
+        ///   层2 商店（灵市：灵卵换异兽 / 灵魂 / 重铸）
+        ///   层3 熔炼（铸魂台：宿主 + 灵魂融合）
+        ///   层4 看护关（精英战：必须打赢才能继续）
+        ///   层5 后土（终局战：由 CampaignPanel 特判触发，胜利即真通关）
+        /// </code>
+        /// <para>⚠ 最后一格复用 <see cref="NodeKind.Elite"/> 作为类型占位；
+        /// "走到最后一格要打终局战（后土）"由 <c>CampaignPanel</c> 按 Act==5 特判。</para>
+        /// </summary>
+        private static ActGraph BuildFinale()
+        {
+            return new ActGraph
+            {
+                Act = 5,
+                SeasonCn = "长夏",
+                SeasonElement = WanXiang.Battle.Core.Element.Earth,
+                BossName = "后土",
+                Terms = new[] { 19, 20, 21, 22, 23 },      // 仅用于显示序号占位
+                Kinds = new[]
+                {
+                    NodeKind.Nest,       // 休整
+                    NodeKind.Shop,       // 商店
+                    NodeKind.Forge,      // 熔炼
+                    NodeKind.Elite,      // 看护关（精英）
+                    NodeKind.Elite,      // 后土（终局战，CampaignPanel 特判）
+                },
+                Layers = new[] { new[] { 0 }, new[] { 1 }, new[] { 2 }, new[] { 3 }, new[] { 4 } },
+            };
         }
 
         public static ActGraph[] BuildDefault()

@@ -138,7 +138,7 @@ namespace WanXiang.Modules.UI
             // ⚠ 图完整性告警：BuildRoute 在 64 次重试都失败时会回退到"缺省图"
             //   （旧 4 层结构、只有 6 个节点、布局重叠）—— 必须让它在 Console 里可见，
             //   否则就是"地图坏了但没有任何报错"（今天已经踩过这种静默降级）。
-            if (_graph != null && _graph.NodeCount < Layers)
+            if (_graph != null && _graph.Act < 5 && _graph.NodeCount < Layers)
                 Debug.LogWarning("[Campaign] ⚠ 节点图不完整：NodeCount=" + _graph.NodeCount +
                                  " < 期望 " + Layers + " 层 —— BuildRoute 回退到了缺省图，" +
                                  "请检查 MeetsV12Constraints 或更换 RunSeed。");
