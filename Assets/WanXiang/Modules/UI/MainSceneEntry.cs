@@ -50,11 +50,23 @@ namespace WanXiang.Modules.Boot
             // ★★ 登天阙：刚从天阙抉择选了"登天阙" ⇒ 直接在**第 5 幕天阙图**开局，
             //    而不是进主界面（用户要求：登天后直接进入第五幕节点地图）。
             //    放在这里是因为：场景已加载完成、UI 栈干净，不会像"Overlay 面板内切面板"那样被栈重算判掉。
+            Debug.Log("[MainSceneEntry] 进入主城：EnterFinaleMap=" + SceneFlow.EnterFinaleMap +
+                      " Act=" + (WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : -1));
             if (SceneFlow.EnterFinaleMap)
             {
                 SceneFlow.EnterFinaleMap = false;
-                await ui.OpenAsync<CampaignPanel>();
-                Debug.Log("[MainSceneEntry] 登天阙 ⇒ 已进入第五幕节点地图。");
+                var cp = await ui.OpenAsync<CampaignPanel>();
+                Debug.Log("[MainSceneEntry] 登天阙 ⇒ 已请求节点地图，结果=" +
+                          (cp != null ? ("成功 " + cp.name) : "null（打开失败）"));
+                // ⚠ 打开后立刻复查它是否还活着（栈重算可能把它关掉）
+                await UniTask.DelayFrame(2);
+                Debug.Log("[MainSceneEntry] 2 帧后 CampaignPanel=" +
+                          (cp != null ? ("active=" + cp.gameObject.activeInHierarchy) : "null"));
+                if (cp == null || !cp.gameObject.activeInHierarchy)
+                {
+                    Debug.LogWarning("[MainSceneEntry] 节点图被关闭了 → 改为进主界面（至少不让画面空着）");
+                    await ui.OpenAsync<HomePanel>();
+                }
                 return;
             }
 
