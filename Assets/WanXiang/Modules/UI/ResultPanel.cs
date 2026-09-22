@@ -194,6 +194,9 @@ namespace WanXiang.Modules.UI
                 if (SceneFlow.IsFinaleBattle)
                 {
                     SceneFlow.IsFinaleBattle = false;
+                    // ★ 局外结算：通关（cleared=true）
+                    try { WanXiang.Meta.MetaStore.SettleRun(cur, true); }
+                    catch (System.Exception ex) { Debug.LogWarning("[ResultPanel] 局外结算异常：" + ex.Message); }
                     if (!cur.BeatFinale)
                     {
                         cur.BeatFinale = true;
@@ -218,6 +221,10 @@ namespace WanXiang.Modules.UI
                 // ★ 失败 = **这一局直接结束**（用户规则）。旧实现只给 2 灵卵保底、节点照样推进
                 //   ⇒ 失败没有代价（结构验证版占位）。现在清空本局进度，只保留胜败统计。
                 cur.Losses++;
+                // ★ 局外结算：本局失败（cleared=false，但走过的路也算收益）
+                //    必须在下面的"清空进度"**之前**。
+                try { WanXiang.Meta.MetaStore.SettleRun(cur, false); }
+                catch (System.Exception ex) { Debug.LogWarning("[ResultPanel] 局外结算异常：" + ex.Message); }
                 cur.Eggs = 0;
                 cur.Ink = 0;
                 cur.Act = 1;
