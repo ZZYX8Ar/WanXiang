@@ -60,6 +60,22 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>
+        /// 关闭本面板后，等两帧再打开节点图。
+        /// 为什么需要延迟：UISystem 是栈式重算，Overlay 层的本面板关闭会触发一次重算，
+        /// 同一帧打开的节点图会被"判为不在栈里"而立刻关闭（实测 8 个面板全关、画面全空）。
+        /// </summary>
+        private async void OpenCampaignNextFrame()
+        {
+            await UniTask.DelayFrame(2);
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (ui != null)
+            {
+                ui.Close<HomePanel>();                 // 主界面若还开着，先关掉（避免压住节点图）
+                await ui.OpenAsync<CampaignPanel>();
+            }
+        }
+
+        /// <summary>
         /// 构造【终局战】：后土（图鉴最强顶位，×1.5）+ 我方队伍镜像（×1.2）+ 玩家自己的队伍。
         /// 由 <c>CampaignPanel</c> 在"走到天阙最后一格"时调用（登天阙本身只负责进入天阙图）。
         /// ⚠ 玩家队伍必须填！手写 BattleRequest 漏填 Player 会让驱动判定"拿不到可用的战斗入参"。
@@ -143,14 +159,12 @@ namespace WanXiang.Modules.UI
                             if (run0.VisitedNodes != null) run0.VisitedNodes.Clear();
                             WanXiang.Run.RunSave.SaveCurrent();
                         }
-                        // ★★ 不再试图"直接切到节点图" —— UISystem 是栈式管理，
-                        //    本面板（Overlay 层）关闭时栈重算，会把同时打开的节点图一起判掉，
-                        //    结果是**所有面板都关、画面全空**（MCP 实测：8 个面板全部 activeSelf=False）。
-                        //
-                        //    改成最可靠的一条路：**回主城**，由玩家点「出征 → 继续」进天阙图。
-                        //    这也符合设计：登天阙 = 踏上登天之路，回主城整备再出发。
+                        // ★★ 进入天阙图（第 5 幕节点地图）。
+                        //    难点：本面板在 **Overlay 层**，CloseSelf() 会触发 UISystem 的"栈重算"，
+                        //    若同一帧就打开节点图，它会被这次重算一起判掉 ⇒ 8 个面板全关、画面全空（MCP 实测）。
+                        //    ⇒ 必须**先关自己，等两帧、栈重算完成后再打开节点图**。
                         CloseSelf();
-                        WanXiang.Modules.UI.SceneFlow.EnterMain();
+                        OpenCampaignNextFrame();
                     }
                     break;
                 case 1:  // 续劫：回春 + 劫数 +1 + 敌强 +3%
