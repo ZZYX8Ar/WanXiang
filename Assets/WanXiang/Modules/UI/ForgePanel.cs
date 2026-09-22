@@ -303,11 +303,24 @@ namespace WanXiang.Modules.UI
         //  熔炼
         // ================================================================
 
-        private async void OnFuseClicked()
+        /// <summary>熔炼花费的灵卵（用户要求：确认时扣 3 枚）。</summary>
+        private const int FuseCost = 3;
+
+        private void OnFuseClicked()
         {
             if (_selectedHost == null || _selectedSoul == null)
             {
-                await Dialog.Tip("铸魂台", "先在两侧各选中一个宿主与灵魂。");
+                SetHint("先在两侧各选中一个宿主与灵魂。");
+                return;
+            }
+
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return;
+
+            // ★ 扣灵卵（不足则拒绝，不动任何状态）
+            if (run.Eggs < FuseCost)
+            {
+                SetHint("灵卵不足：熔炼需要 " + FuseCost + " 枚（当前 " + run.Eggs + "）");
                 return;
             }
 
@@ -315,24 +328,33 @@ namespace WanXiang.Modules.UI
             try { fused = FusionRules.Fuse(_selectedHost, _selectedSoul, id => null); }
             catch (Exception ex)
             {
-                await Dialog.Tip("融合失败", ex.Message);
+                SetHint("融合失败：" + ex.Message);
                 return;
             }
 
+            run.Eggs -= FuseCost;
+
             // 结果写回存档：队伍里对应宿主替换为融合体（融合是"改写"不是凭空造兽）
-            var run = WanXiang.Run.RunSave.Current;
-            if (run != null && run.Team != null)
+            if (run.Team != null)
             {
                 int idx = run.Team.IndexOf(_selectedHost.Id);
                 if (idx >= 0) run.Team[idx] = fused.Id;
-                WanXiang.Run.RunSave.SaveCurrent();
             }
+            WanXiang.Run.RunSave.SaveCurrent();
 
-            await Dialog.Tip("熔炼完成",
-                fused.DisplayName + " 诞生了！\n魂：" + _selectedSoul.Epithet +
-                "　五行覆盖：" + (_selectedSoul.ElementOverride == Element.None ? "无" : _selectedSoul.ElementOverride.ToString()));
-
+            if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
+            SetHint("熔炼完成：" + fused.DisplayName + " 诞生了！（灵卵 -" + FuseCost + "）");
             Fill();      // 重灌：队伍已变化
+        }
+
+        /// <summary>
+        /// 画面内提示（不用 Dialog —— 那个弹窗在实战里关不掉，用户明确要求避免）。
+        /// 复用结算预览那行文本显示。
+        /// </summary>
+        private void SetHint(string msg)
+        {
+            if (_tmpResult != null) _tmpResult.text = msg;
+            Debug.Log("[Forge] " + msg);
         }
 
         // ================================================================
