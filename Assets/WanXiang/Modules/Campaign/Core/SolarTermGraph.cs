@@ -224,10 +224,12 @@ namespace WanXiang.Campaign
 
             // 兜底：缺省图（层数不足 12 时按 4 层用，至少能玩）。
             // ⚠ 走到这里说明 64 次都没生成出合规图 —— 一定要有日志，否则又是"静默降级"。
-            UnityEngine.Debug.LogWarning("[SolarTermGraph] 幕 " + act + " 生成失败（64 次重试）→ " +
-                                         "回退缺省图，节点数=" +
-                                         (baseGraph != null ? baseGraph.NodeCount.ToString() : "null") +
-                                         "，种子=" + seed);
+            // ⚠ 本程序集不引用 UnityEngine，这里只能用 System.Diagnostics。
+            //    真正的"玩家可见告警"由调用方（CampaignPanel，有 UnityEngine）在
+            //    建图后检查 NodeCount 时打印（见那里的"图诊断"日志）。
+            System.Diagnostics.Debug.WriteLine(
+                "[SolarTermGraph] act=" + act + " 生成失败（64 次重试）→ 回退缺省图，节点数=" +
+                (baseGraph != null ? baseGraph.NodeCount.ToString() : "null") + "，种子=" + seed);
             return baseGraph;
         }
 
