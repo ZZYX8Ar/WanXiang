@@ -174,6 +174,33 @@ namespace WanXiang.Modules.UI
 
                 // ★ 胜利掉魂（B 来源）：按幕数给概率，掉"本场敌方某只"的魂。
                 //   魂本体不落盘，只记主人 id —— 取用时 SoulForge.Derive 重建。
+                // ★ 掉觉醒技（只掉【终结技】，因为觉醒技槽只能装终结技）：
+                //   8% + 幕数×4%（比精魄更稀有 —— 它直接改变战斗手段）
+                {
+                    var metaS = WanXiang.Meta.MetaStore.Ensure();
+                    if (metaS != null)
+                    {
+                        int chanceS = 8 + cur.Act * 4;       // 第1幕 12% → 第4幕 24%
+                        if (UnityEngine.Random.Range(0, 100) < chanceS)
+                        {
+                            var allB = WanXiang.Fusion.ContentLibrary.BuildBeasts(
+                                UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>()[0]);
+                            if (allB != null && allB.Length > 0)
+                            {
+                                var pick = allB[UnityEngine.Random.Range(0, allB.Length)];
+                                var ult = pick.Ultimate;
+                                if (ult != null && !string.IsNullOrEmpty(ult.Id))
+                                {
+                                    bool isNew = metaS.AddAwakenSkill(ult.Id);
+                                    WanXiang.Meta.MetaStore.Save();
+                                    Debug.Log("[ResultPanel] 掉技能：" + ult.Name + "（" + ult.Id + "）" +
+                                              (isNew ? " ✓ 新收集" : "（已有）") + "，共 " + metaS.AwakenSkills.Count + " 个");
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // ★ 掉精魄（进化材料，比魂稀有）：15% + 幕数×8%
                 {
                     var metaE = WanXiang.Meta.MetaStore.Ensure();
