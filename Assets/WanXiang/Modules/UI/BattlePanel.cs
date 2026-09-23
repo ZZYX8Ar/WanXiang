@@ -132,7 +132,7 @@ namespace WanXiang.Modules.UI
             ApplyPvpUiMode();   // ★ 每次进入战斗面板都重新应用 PvP UI 模式（时机修正）
             // ★ 每场战斗重置 自动/倍速：面板是 Cached 复用的，字段会带过来。
             //   放在 OnOpenAsync（每次打开必然经过）比放在 PlayLoop 更可靠（用户实测未生效）。
-            _autoBattle = false;
+            _autoBattle = !SceneFlow.LastWasPvp;   // ★ PvP 不许被重置掉
             _speed = 1f;
             RefreshSpeedLabel();          // ★ 必须同步刷新按钮文案，否则仍显示上一场的 ×4（用户实测）
 
@@ -318,7 +318,7 @@ namespace WanXiang.Modules.UI
             if (_tmpLog != null) _tmpLog.text = "战斗开始";
             _playing = true;
             // ★ 每场战斗重置自动/倍速：面板是 Cached 复用的，字段会从上场带过来，
-            //   玩家若不注意会莫名继续自动战斗（用户要求"应该要自己点"）。
+            //   玩家若不注意会莫名_autoBattle = !SceneFlow.LastWasPvp;   // ★ PvP 不许被重置掉。
             _autoBattle = false;
             _speed = 1f;
 
@@ -832,6 +832,7 @@ namespace WanXiang.Modules.UI
         /// </summary>
         private void ApplyPvpUiMode()
         {
+            Debug.Log("[BattlePanel][调试] ApplyPvpUiMode 调用：LastWasPvp=" + SceneFlow.LastWasPvp);
             if (!SceneFlow.LastWasPvp) return;
 
             // 1) 技能四槽 + 连携 + 自动战斗切换
@@ -841,6 +842,16 @@ namespace WanXiang.Modules.UI
             if (_btnCombo != null) _btnCombo.gameObject.SetActive(false);
             if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(false);
             _autoBattle = true;
+            // ★ 关键：光设 true 不会动 —— 必须像 OnAutoBattleClicked 那样提交一次 AI 指令
+            if (_play != null)
+            {
+                _play.SubmitCommand(-1, -1);
+                Debug.Log("[BattlePanel][调试] PvP 已提交 -1（AI 指令），回放应开始");
+            }
+            else
+            {
+                Debug.Log("[BattlePanel][调试] PvP 时 _play 尚未就绪，等待 OnOpenAsync 重置点补偿提交");
+            }
 
             // 2) Root_Action 下的其它按钮（×N 倍速 / 自动布阵 / 撤退 等代码自建按钮）
             if (_actionBar != null)

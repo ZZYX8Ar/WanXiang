@@ -376,6 +376,12 @@ namespace WanXiang.Modules.UI
                 var metaH = WanXiang.Meta.MetaStore.Ensure();
                 if (metaH == null) return;
                 var allies = WanXiang.Modules.UI.SceneFlow.LastAllyIds;
+                // ★ 调试：记录点数据
+                Debug.Log("[ResultPanel][调试] PushRunHistory：Act=" + run.Act +
+                          " LastAllyIds=[" + string.Join(",", allies ?? new System.Collections.Generic.List<string>()) + "]" +
+                          " LastAllyCells=[" + string.Join(",",
+                            (WanXiang.Modules.UI.SceneFlow.LastAllyCells ?? new System.Collections.Generic.List<int>()).ConvertAll(x => x.ToString())) + "]" +
+                          " LastWasPvp=" + WanXiang.Modules.UI.SceneFlow.LastWasPvp);
                 var names = new System.Text.StringBuilder();
                 int power = 0;
                 var allBeasts = WanXiang.Fusion.ContentLibrary.BuildBeasts(

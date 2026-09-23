@@ -115,6 +115,24 @@ namespace WanXiang.Modules.UI
             };
 
             // ★★ 进入战斗场景（AI 自动对战回放）
+            // ★ 调试：打印双方 payload 的下标（定位"兽/站位不一样"）
+            {
+                var decA = new WanXiang.Fusion.SharePayload();
+                var decB = new WanXiang.Fusion.SharePayload();
+                bool oa = WanXiang.Fusion.ShareCode.TryDecode(mine, beasts.Length, souls.Count, out decA);
+                bool ob = WanXiang.Fusion.ShareCode.TryDecode(opp, beasts.Length, souls.Count, out decB);
+                System.Func<WanXiang.Fusion.SharePayload, string> dump = (pp) =>
+                {
+                    if (!oa && pp == null) return "<解码失败>";
+                    var b2 = string.Join(",", pp.BeastIndices ?? new int[0]);
+                    var s2 = string.Join(",", pp.SoulIndices ?? new int[0]);
+                    var c2 = string.Join(",", pp.BoardSlots ?? new int[0]);
+                    return "兽[" + b2 + "] 魂[" + s2 + "] 格[" + c2 + "]";
+                };
+                Debug.Log("[PvpPanel][调试] 我的码解码=" + oa + " " + (oa ? dump(decA) : ""));
+                Debug.Log("[PvpPanel][调试] 对方码解码=" + ob + " " + (ob ? dump(decB) : ""));
+            }
+
             var myEntries = WanXiang.Pvp.PvpMatch.BuildSquadOf(mine, content,
                 WanXiang.Battle.Core.TeamSide.Player, out string errMine);
             if (myEntries == null) { Show("我方：" + errMine); return; }
