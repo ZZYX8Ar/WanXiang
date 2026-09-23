@@ -336,15 +336,6 @@ namespace WanXiang.Modules.UI
             }
         }
 
-        private static string RarityCn(WanXiang.Battle.Core.Rarity r)
-        {
-            switch (r)
-            {
-                case WanXiang.Battle.Core.Rarity.Legend: return "传说";
-                case WanXiang.Battle.Core.Rarity.Epic: return "史诗";
-                default: return "稀有";
-            }
-        }
 
         private void ShowDetail(int index)
         {
