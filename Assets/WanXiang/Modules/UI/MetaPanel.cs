@@ -164,21 +164,30 @@ namespace WanXiang.Modules.UI
 
             if (_tmpStats != null)
             {
-                int hp = Mathf.RoundToInt(b.BaseHp * mul);
-                int atk = Mathf.RoundToInt(b.BaseAtk * mul);
+                // ★ 属性必须用与战斗同一套公式（BattleConfig.ApplyPlaceholderStats：
+                //   职业基准 × 稀有度乘数），否则显示的是内容目录里的 0（用户反馈"看不到生命攻击"）。
+                var statDef = b.Clone();
+                WanXiang.Battle.Core.BattleConfig.Default.ApplyPlaceholderStats(statDef);
+
+                int hp = Mathf.RoundToInt(statDef.BaseHp * mul);
+                int atk = Mathf.RoundToInt(statDef.BaseAtk * mul);
                 int nextLv = Mathf.Min(MaxLevel, lv + 1);
-                int hpNext = Mathf.RoundToInt(b.BaseHp * (1f + nextLv * PerLevelBonus));
-                int atkNext = Mathf.RoundToInt(b.BaseAtk * (1f + nextLv * PerLevelBonus));
+                int hpNext = Mathf.RoundToInt(statDef.BaseHp * (1f + nextLv * PerLevelBonus));
+                int atkNext = Mathf.RoundToInt(statDef.BaseAtk * (1f + nextLv * PerLevelBonus));
+                string head = "生命 " + hp + "　攻击 " + atk +
+                              "　防御 " + statDef.BaseDef + "　速度 " + statDef.BaseSpeed + "\n";
                 _tmpStats.text = lv >= MaxLevel
-                    ? ("生命 " + hp + "　攻击 " + atk + "\n等级 " + lv + "/" + MaxLevel + "（已满）")
-                    : ("生命 " + hp + " → " + hpNext + "　攻击 " + atk + " → " + atkNext +
-                       "\n等级 " + lv + "/" + MaxLevel + "　当前加成 +" + (lv * PerLevelBonus * 100f).ToString("0.0") + "%");
+                    ? (head + "等级 " + lv + "/" + MaxLevel + "（已满）")
+                    : (head + "升级后：生命 " + hpNext + "　攻击 " + atkNext +
+                       "　（Lv." + lv + " → Lv." + nextLv + "，+1.6%）");
             }
 
-            if (_tmpSkill1 != null) _tmpSkill1.text = "① " + SkillName(b, 0);
-            if (_tmpSkill2 != null) _tmpSkill2.text = "② " + SkillName(b, 1);
+            if (_tmpSkill1 != null) _tmpSkill1.text = SkillText(b, 0, "①");
+            if (_tmpSkill2 != null) _tmpSkill2.text = SkillText(b, 1, "②");
             if (_tmpSkill3 != null)
-                _tmpSkill3.text = evolved ? ("③ " + SkillName(b, 2)) : "③ ――（觉醒后开放特殊技能槽）";
+                _tmpSkill3.text = evolved
+                    ? SkillText(b, 2, "③")
+                    : "③ ―― 觉醒后开放特殊技能槽（可装备探索中收集的技能）";
 
             if (_tmpTrait != null)
                 _tmpTrait.text = "特性：" + (string.IsNullOrEmpty(b.Trait.Name) ? "—" : b.Trait.Name);
@@ -289,16 +298,29 @@ namespace WanXiang.Modules.UI
             }
         }
 
-        private static string SkillName(BeastDef b, int slot)
+        /// <summary>技能一行：① 名称（类型·冷却）—— 描述。</summary>
+        private static string SkillText(BeastDef b, int slot, string index)
         {
             var arr = b.AllSkills;
-            if (arr == null || slot >= arr.Length) return "――";
+            if (arr == null || slot >= arr.Length) return index + " ――";
             var sk = arr[slot];
-            return sk == null ? "――" : sk.Name;
+            if (sk == null) return index + " ――";
+
+            string typeCn;
+            switch (sk.Type)
+            {
+                case SkillType.Basic: typeCn = "普攻"; break;
+                case SkillType.Active: typeCn = "战技"; break;
+                case SkillType.Ultimate: typeCn = "终结技"; break;
+                default: typeCn = sk.Type.ToString(); break;
+            }
+            string cd = sk.Cd > 0 ? ("·CD" + sk.Cd) : "";
+            string desc = string.IsNullOrEmpty(sk.Description) ? "" : ("　" + sk.Description);
+            return index + " " + sk.Name + "（" + typeCn + cd + "）" + desc;
         }
 
         private static string EvolveConditionText(BeastDef b)
-            => "进化条件：材料 ×2 + 8 墨铊（材料在探索中随机掉落）";
+            => "进化条件：精魄 ×2 + 8 墨铊（精魄在探索中随机掉落）";
 
         private static string ElementCn(WanXiang.Battle.Core.Element e)
         {
