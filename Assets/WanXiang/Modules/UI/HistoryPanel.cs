@@ -26,12 +26,14 @@ namespace WanXiang.Modules.UI
         [SerializeField] private RectTransform _itemTemplate; // Item_Record（模板，默认隐藏）
         [SerializeField] private TMP_Text _tmpCode;           // Tmp_Code（选中的编队码）
         [SerializeField] private Button _btnBack;             // Btn_Back
+        [SerializeField] private Button _btnPvp;              // Btn_Pvp（去好友对战）
 
         private readonly List<RectTransform> _items = new List<RectTransform>();
 
         protected override void OnCreate()
         {
             if (_btnBack != null) _btnBack.onClick.AddListener(CloseSelf);
+            if (_btnPvp != null) _btnPvp.onClick.AddListener(() => OpenPanelAsync<PvpPanel>().Forget());
             if (_itemTemplate != null) _itemTemplate.gameObject.SetActive(false);
         }
 
