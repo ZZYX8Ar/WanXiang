@@ -58,7 +58,8 @@ namespace WanXiang.Meta
 
             // ⚠ 必须算准：写入的是  BeastCount(1) + beastBytes + HostCount(1) + hosts + SoulCount(1) + souls
             //   ⇒ 固定头 21 + beastBytes + hosts + souls + 2（曾少算 2 字节 → IndexOutOfRange，存档写不进去）
-            int size = 22 + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count + 2;   // v4: 头 22
+            // ⚠ 固定字节要逐个数清：头 22 + BeastCount(1) + HostCount(1) + SoulCount(1) = 25
+            int size = 25 + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count;   // v4: 头22+3个计数
             var b = new byte[size];
             b[0] = CurrentVersion;
             WriteU64(b, 1, st.Seed);
@@ -86,6 +87,9 @@ namespace WanXiang.Meta
             for (int i = 0; i < st.UnlockedHosts.Count; i++) b[p++] = (byte)st.UnlockedHosts[i];
             b[p++] = (byte)st.UnlockedSouls.Count;
             for (int i = 0; i < st.UnlockedSouls.Count; i++) b[p++] = (byte)st.UnlockedSouls[i];
+
+            // ★ 自检：写满即正确（size 靠手数很容易差 1~2 字节，这里兜底并把错误暴露出来）
+            if (p != size) return null;
 
             return ToBase64Url(b);
         }
