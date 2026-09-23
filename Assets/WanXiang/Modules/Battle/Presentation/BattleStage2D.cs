@@ -103,8 +103,8 @@ namespace WanXiang.Battle.Presentation
             }
             bgSr.sortingOrder = -10;
 
-            BuildBoard("BoardP", PlayerX, BoardY);
-            BuildBoard("BoardE", EnemyX, BoardY);
+            BuildBoard("BoardP", PlayerX, BoardY, true);
+            BuildBoard("BoardE", EnemyX, BoardY, false);
             BuildUnits();
             BuildCamera();
 
@@ -125,7 +125,8 @@ namespace WanXiang.Battle.Presentation
             _cam = null;
         }
 
-        private void BuildBoard(string boardName, float cx, float cy)
+        // player=true 我方（左，不镜像）；player=false 敌方（右，列镜像 ⇒ 与我方对称）
+        private void BuildBoard(string boardName, float cx, float cy, bool player)
         {
             var board = new GameObject(boardName);
             board.transform.SetParent(transform, false);
@@ -141,7 +142,9 @@ namespace WanXiang.Battle.Presentation
                     (int)(Cell * 100), (int)(Cell * 100), 3,
                     center ? new Color(0.79f, 0.63f, 0.39f) : new Color(0.16f, 0.13f, 0.09f));
                 sr.sortingOrder = -5;
-                int col = i % 3, row = i / 3;
+                int col = i % 3;
+                if (!player) col = 2 - col;   // 敌方列镜像，与我方对称
+                int row = i / 3;
                 cell.transform.localPosition = new Vector3(
                     cx + (col - 1) * Cell, cy + (1 - row) * Cell * 0.72f, 0f);
             }
@@ -502,11 +505,13 @@ namespace WanXiang.Battle.Presentation
         /// 单位却用 0.82/0.66 且双方 y 基准相反 ⇒ 永远对不上）。
         /// 网格格子中心 = (cx + (col-1)*Cell, BoardY + (1-row)*Cell*0.72)。
         /// 单位枢轴在底部中点、Step 会再加 FootOffset 抬脚 ⇒ 这里先减去它。
-        /// 双方**不做镜像**（网格本身就没镜像），只用各自的 cx 区分。
+        /// 敌方做列镜像（col→2-col）与我方对称；BuildBoard 用同一镜像公式，单位与格子始终对齐。
         /// </summary>
         private static Vector2 CellPos(bool player, int cell)
         {
-            int col = cell % 3, row = cell / 3;
+            int col = cell % 3;
+            if (!player) col = 2 - col;   // 敌方列镜像 ⇒ 同码两侧呈镜像对称
+            int row = cell / 3;
             float cx = player ? PlayerX : EnemyX;
             return new Vector2(cx + (col - 1) * Cell,
                                BoardY + (1 - row) * Cell * 0.72f - FootOffset);
