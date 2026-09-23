@@ -34,6 +34,10 @@ namespace WanXiang.Modules.UI
         /// <summary>上一场是不是好友对战（结算时用来跳过历程记录）。</summary>
         public static bool LastWasPvp;
 
+        /// <summary>上一场我方上场的九宫格格号（与 LastAllyIds 一一对应；编队码站位用）。</summary>
+        public static System.Collections.Generic.List<int> LastAllyCells =
+            new System.Collections.Generic.List<int>();
+
         public static System.Collections.Generic.List<string> LastAllyIds =
             new System.Collections.Generic.List<string>();
 

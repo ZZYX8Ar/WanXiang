@@ -678,9 +678,19 @@ namespace WanXiang.Modules.UI
 
             // ★ 记录本场【我方】上场 id（结算生成编队码用）
             WanXiang.Modules.UI.SceneFlow.LastAllyIds.Clear();
+            if (WanXiang.Modules.UI.SceneFlow.LastAllyCells == null)
+                WanXiang.Modules.UI.SceneFlow.LastAllyCells = new System.Collections.Generic.List<int>();
+            WanXiang.Modules.UI.SceneFlow.LastAllyCells.Clear();
             if (req.Player != null)
                 foreach (var pb in req.Player)
-                    if (pb != null) WanXiang.Modules.UI.SceneFlow.LastAllyIds.Add(pb.Id);
+                    if (pb != null)
+                    {
+                        WanXiang.Modules.UI.SceneFlow.LastAllyIds.Add(pb.Id);
+                        // 真实站位：PlayerCells 与 Player 一一对应（缺失时回退序号）
+                        int cell = (req.PlayerCells != null && req.PlayerCells.Count > i)
+                            ? req.PlayerCells[i] : i;
+                        WanXiang.Modules.UI.SceneFlow.LastAllyCells.Add(cell);
+                    }
 
             // ★ 记录本场敌方异兽 id（结算掉魂用）
             WanXiang.Modules.UI.SceneFlow.LastFoeIds.Clear();

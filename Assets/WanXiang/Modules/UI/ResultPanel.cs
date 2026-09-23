@@ -424,7 +424,11 @@ namespace WanXiang.Modules.UI
                             // ★ 魂下标 = 兽下标：与 SoulForge.Derive(beast, i) 的单机派生规则一致，
                             //   否则对方解码后会融合成"第 0 个魂"的兽（外观属性全变，用户反馈）。
                             payload.SoulIndices[i] = idx < 0 ? 0 : idx;
-                            payload.BoardSlots[i] = i;
+                            // ★ 真实站位（之前存 0..4 顺序 → 对方站位和保存的不一样）
+                            payload.BoardSlots[i] =
+                                (WanXiang.Modules.UI.SceneFlow.LastAllyCells != null &&
+                                 i < WanXiang.Modules.UI.SceneFlow.LastAllyCells.Count)
+                                ? WanXiang.Modules.UI.SceneFlow.LastAllyCells[i] : i;
                         }
                         code = WanXiang.Fusion.ShareCode.Encode(payload) ?? "";
                     }

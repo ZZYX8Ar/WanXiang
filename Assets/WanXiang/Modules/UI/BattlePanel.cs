@@ -129,6 +129,7 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
+            ApplyPvpUiMode();   // ★ 每次进入战斗面板都重新应用 PvP UI 模式（时机修正）
             // ★ 每场战斗重置 自动/倍速：面板是 Cached 复用的，字段会带过来。
             //   放在 OnOpenAsync（每次打开必然经过）比放在 PlayLoop 更可靠（用户实测未生效）。
             _autoBattle = false;
@@ -821,16 +822,40 @@ namespace WanXiang.Modules.UI
             _btnAutoBattle.onClick.AddListener(OnAutoBattleClicked);
 
             _actionBar.gameObject.SetActive(false);
-            // ★ 好友对战：全 AI 自动 —— 隐藏手动技能按钮（点击会打断回放），并默认开启自动战斗
-            if (SceneFlow.LastWasPvp)
-            {
+            ApplyPvpUiMode();      // ★ 好友对战：隐藏手动 UI + 强制自动（每次激活都会再应用）
+        }
+
+        /// <summary>
+        /// 好友对战 UI 模式：隐藏【所有】手动操作（技能/连携/自动切换/倍速/自动布阵/撤退），
+        /// 强制开启自动战斗。⚠ 必须在【每次战斗开始】时调用 ——
+        /// BuildActionBar 只在面板创建时跑一次，那时 LastWasPvp 还没被 EnterBattle 设置（踩过）。
+        /// </summary>
+        private void ApplyPvpUiMode()
+        {
+            if (!SceneFlow.LastWasPvp) return;
+
+            // 1) 技能四槽 + 连携 + 自动战斗切换
+            if (_skillBtns != null)
                 for (int i = 0; i < _skillBtns.Length; i++)
                     if (_skillBtns[i] != null) _skillBtns[i].gameObject.SetActive(false);
-                if (_btnCombo != null) _btnCombo.gameObject.SetActive(false);
-                _autoBattle = true;                       // 默认自动
-                if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(false);
-                Debug.Log("[BattlePanel] 好友对战：隐藏手动操作，自动战斗已开启");
+            if (_btnCombo != null) _btnCombo.gameObject.SetActive(false);
+            if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(false);
+            _autoBattle = true;
+
+            // 2) Root_Action 下的其它按钮（×N 倍速 / 自动布阵 / 撤退 等代码自建按钮）
+            if (_actionBar != null)
+            {
+                for (int i = 0; i < _actionBar.childCount; i++)
+                {
+                    var c = _actionBar.GetChild(i);
+                    string n = c.name;
+                    bool isActor = n == "Tmp_Actor";
+                    if (!isActor && c.GetComponent<Button>() != null)
+                        c.gameObject.SetActive(false);
+                }
             }
+
+            Debug.Log("[BattlePanel] 好友对战：手动 UI 已全部隐藏，自动战斗开启");
         }
 
         // ================================================================
