@@ -843,30 +843,55 @@ namespace WanXiang.Modules.UI
         private void ApplyPvpUiMode()
         {
             Debug.Log("[BattlePanel][调试] ApplyPvpUiMode 调用：LastWasPvp=" + SceneFlow.LastWasPvp);
-            if (!SceneFlow.LastWasPvp) return;
-
-            // 1) 技能四槽 + 连携 + 自动战斗切换
-            if (_skillBtns != null)
-                for (int i = 0; i < _skillBtns.Length; i++)
-                    if (_skillBtns[i] != null) _skillBtns[i].gameObject.SetActive(false);
-            if (_btnCombo != null) _btnCombo.gameObject.SetActive(false);
-            if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(false);
-            _autoBattle = true;   // auto 模式整场已预模拟，设 true 即可（回放自动推进）
-
-            // 2) Root_Action 下的其它按钮（×N 倍速 / 自动布阵 / 撤退 等代码自建按钮）
-            if (_actionBar != null)
+            if (SceneFlow.LastWasPvp)
             {
-                for (int i = 0; i < _actionBar.childCount; i++)
-                {
-                    var c = _actionBar.GetChild(i);
-                    string n = c.name;
-                    bool isActor = n == "Tmp_Actor";
-                    if (!isActor && c.GetComponent<Button>() != null)
-                        c.gameObject.SetActive(false);
-                }
-            }
+                // ★ PvP：隐藏全部手动操作 + 强制自动（面板是 Cached 复用的，上一局 PvE 亮出的按钮要收掉）
+                if (_skillBtns != null)
+                    for (int i = 0; i < _skillBtns.Length; i++)
+                        if (_skillBtns[i] != null) _skillBtns[i].gameObject.SetActive(false);
+                if (_btnCombo != null) _btnCombo.gameObject.SetActive(false);
+                if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(false);
+                _autoBattle = true;   // auto 模式整场已预模拟，设 true 即可（回放自动推进）
 
-            Debug.Log("[BattlePanel] 好友对战：手动 UI 已全部隐藏，自动战斗开启");
+                // 2) Root_Action 下的其它按钮（×N 倍速 / 自动布阵 / 撤退 等代码自建按钮）
+                if (_actionBar != null)
+                {
+                    for (int i = 0; i < _actionBar.childCount; i++)
+                    {
+                        var c = _actionBar.GetChild(i);
+                        bool isActor = c.name == "Tmp_Actor";
+                        if (!isActor && c.GetComponent<Button>() != null)
+                            c.gameObject.SetActive(false);
+                    }
+                }
+
+                Debug.Log("[BattlePanel] 好友对战：手动 UI 已全部隐藏，自动战斗开启");
+            }
+            else
+            {
+                // ★ 正常战斗：Cached 面板若在上一局 PvP 里被隐藏过手动 UI，这里必须**重新亮出**，
+                //   否则 PvP 之后打正常战斗会看到"空的操作区"（技能/连携/自动按钮都不见）。
+                //   第 4 槽（觉醒技）是否显示交给 RefreshActionBar 按"是否装备"决定，这里只恢复 0..2 三槽。
+                if (_skillBtns != null)
+                    for (int i = 0; i < _skillBtns.Length && i < 3; i++)
+                        if (_skillBtns[i] != null) _skillBtns[i].gameObject.SetActive(true);
+                if (_btnCombo != null) _btnCombo.gameObject.SetActive(true);
+                if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(true);
+                _autoBattle = false;   // 正常战斗=手动，等令分支不自动提交
+
+                if (_actionBar != null)
+                {
+                    for (int i = 0; i < _actionBar.childCount; i++)
+                    {
+                        var c = _actionBar.GetChild(i);
+                        bool isActor = c.name == "Tmp_Actor";
+                        if (!isActor && c.GetComponent<Button>() != null)
+                            c.gameObject.SetActive(true);
+                    }
+                }
+
+                Debug.Log("[BattlePanel] 正常战斗：手动 UI 已重新亮出（技能/连携/自动战斗）");
+            }
         }
 
         // ================================================================
@@ -1295,7 +1320,15 @@ namespace WanXiang.Modules.UI
             // ⚠ 自动模式下也要显示操作区：否则按钮消失后再也点不到「自动战斗」开关，
             //    玩家就被卡在自动里出不来（用户实测反馈：打着打着自动了、按钮没了）。
             bool show = _play.AwaitingCommand || _autoBattle;
-            if (_actionBar.gameObject.activeSelf != show) _actionBar.gameObject.SetActive(show);
+            bool before = _actionBar.gameObject.activeSelf;
+            if (before != show)
+            {
+                _actionBar.gameObject.SetActive(show);
+                bool s0 = _skillBtns != null && _skillBtns.Length > 0 && _skillBtns[0] != null && _skillBtns[0].gameObject.activeSelf;
+                Debug.Log("[BattlePanel][调试] RefreshActionBar 可见性: " + before + "→" + show
+                    + " | AwaitingCommand=" + _play.AwaitingCommand + " auto=" + _autoBattle
+                    + " | 技能键[0]active=" + s0);
+            }
             if (!show) return;
 
             var u = _play.PendingUnit;
