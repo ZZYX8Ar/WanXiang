@@ -1294,6 +1294,17 @@ namespace WanXiang.Modules.UI
                 _skillBtns[2].interactable = u.GetSkill(SkillType.Ultimate) != null
                                           && cfg != null
                                           && u.CanCast(SkillType.Ultimate, cfg);
+
+                // ★ 觉醒技（第 4 槽）：**没装备就隐藏**（用户要求）；
+                //   装了则按 CanCast（元气满）决定可否点击。
+                if (_skillBtns.Length > 3 && _skillBtns[3] != null)
+                {
+                    bool hasAwaken = u.GetSkill(SkillType.Awaken) != null;
+                    if (_skillBtns[3].gameObject.activeSelf != hasAwaken)
+                        _skillBtns[3].gameObject.SetActive(hasAwaken);
+                    if (hasAwaken)
+                        _skillBtns[3].interactable = cfg != null && u.CanCast(SkillType.Awaken, cfg);
+                }
             }
 
             // 连携按钮不在每帧路径里刷新（见 RefreshComboButton，避免每帧 GC/查子节点）
