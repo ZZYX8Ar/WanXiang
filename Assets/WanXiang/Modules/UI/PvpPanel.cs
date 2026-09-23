@@ -123,7 +123,7 @@ namespace WanXiang.Modules.UI
                 bool ob = WanXiang.Fusion.ShareCode.TryDecode(opp, beasts.Length, souls.Count, out decB);
                 System.Func<WanXiang.Fusion.SharePayload, string> dump = (pp) =>
                 {
-                    if (!oa && pp == null) return "<解码失败>";
+                    if (pp.BeastIndices == null) return "<解码失败>";
                     var b2 = string.Join(",", pp.BeastIndices ?? new int[0]);
                     var s2 = string.Join(",", pp.SoulIndices ?? new int[0]);
                     var c2 = string.Join(",", pp.BoardSlots ?? new int[0]);
