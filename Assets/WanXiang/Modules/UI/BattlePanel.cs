@@ -161,6 +161,15 @@ namespace WanXiang.Modules.UI
 
             if (_play == null) _play = new BattlePlayback(_req, _manualBattle);
 
+            // ★★ PvP 补偿：ApplyPvpUiMode 跑的时候 _play 还是 null（Console 已证实），
+            //    所以真正的「提交 AI 指令」必须放在 _play 就绪之后 —— 否则回放一直等指令（异兽不动）。
+            if (SceneFlow.LastWasPvp && _play != null)
+            {
+                _autoBattle = true;
+                _play.SubmitCommand(-1, -1);
+                Debug.Log("[BattlePanel][调试] PvP 补偿提交 -1（_play 就绪），回放开始");
+            }
+
             if (_tmpWeatherName != null) _tmpWeatherName.text = _req.WeatherName ?? "";
             if (_rootWeather != null) _rootWeather.SetActive(!string.IsNullOrEmpty(_req.WeatherName));
 
