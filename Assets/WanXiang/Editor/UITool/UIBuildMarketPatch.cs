@@ -44,6 +44,8 @@ namespace WanXiang.EditorTools
                 bool changed = false;
                 changed |= EnsureBuySoulButton(root);
                 changed |= EnsureDetailCard(root);
+                changed |= EnsureSoulPicker(root);
+                changed |= EnsureSoulPicker(root);
 
                 // 即使节点已存在，也重跑一次绑定（幂等：把节点赋给 MarketPanel 的字段）
                 BindFields(root);
@@ -181,11 +183,34 @@ namespace WanXiang.EditorTools
             SetRef(so, "_detailBuy", FindDeep(root.transform, "Btn_Buy"));
             SetRef(so, "_detailClose", FindDeep(root.transform, "Btn_Close"));
             SetRef(so, "_btnBuySoul", FindDeep(root.transform, "Btn_BuySoul"));
+            SetRef(so, "_soulPickerRoot", FindDeep(root.transform, "Market_SoulPicker"));
+            SetRef(so, "_soulPickerClose", FindDeep(root.transform, "Btn_SoulPickerClose"));
+            SetRef(so, "_soulTitle", FindDeep(root.transform, "Tmp_SoulTitle"));
+            SetRefArray(so, "_soulRowTexts", new string[] { "Tmp_SoulRow0", "Tmp_SoulRow1", "Tmp_SoulRow2" }, root.transform);
+            SetRefArray(so, "_soulRowBtns", new string[] { "Btn_SoulBuy0", "Btn_SoulBuy1", "Btn_SoulBuy2" }, root.transform);
+            SetRef(so, "_soulPickerRoot", FindDeep(root.transform, "Market_SoulPicker"));
+            SetRef(so, "_soulPickerClose", FindDeep(root.transform, "Btn_SoulPickerClose"));
+            SetRef(so, "_soulTitle", FindDeep(root.transform, "Tmp_SoulTitle"));
+            SetRefArray(so, "_soulRowTexts", new string[] { "Tmp_SoulRow0", "Tmp_SoulRow1", "Tmp_SoulRow2" }, root.transform);
+            SetRefArray(so, "_soulRowBtns", new string[] { "Btn_SoulBuy0", "Btn_SoulBuy1", "Btn_SoulBuy2" }, root.transform);
             so.ApplyModifiedPropertiesWithoutUndo();
             Debug.Log("[MarketPatch] 字段绑定完成（9 个）");
         }
 
-        private static void SetRef(SerializedObject so, string field, Transform t)
+        private static void SetRefArray(SerializedObject so, string field, string[] names, Transform root)
+        {
+            var p = so.FindProperty(field);
+            if (p == null) { Debug.LogWarning("[MarketPatch] 找不到数组字段：" + field); return; }
+            p.arraySize = names.Length;
+            for (int i = 0; i < names.Length; i++)
+            {
+                var t = FindDeep(root, names[i]);
+                p.GetArrayElementAtIndex(i).objectReferenceValue = t != null ? t.gameObject : null;
+                if (t == null) Debug.LogWarning("[MarketPatch] 数组元素缺失：" + field + "[" + i + "] ← " + names[i]);
+            }
+        }
+
+                private static void SetRef(SerializedObject so, string field, Transform t)
         {
             var p = so.FindProperty(field);
             if (p == null)
@@ -195,6 +220,67 @@ namespace WanXiang.EditorTools
             }
             p.objectReferenceValue = t != null ? t.gameObject : null;
             if (t == null) Debug.LogWarning("[MarketPatch] 节点缺失，字段置空：" + field);
+        }
+
+        /// <summary>魂选单（点「买魂」弹出）：3 个明码标价的候选，各显示 魂名·魄名 / 五行·品阶 / 价格。</summary>
+        private static bool EnsureSoulPicker(GameObject root)
+        {
+            if (FindDeep(root.transform, "Market_SoulPicker") != null) return false;
+
+            var mask = NewNode(root.transform, "Market_SoulPicker");
+            var mrt = (RectTransform)mask.transform;
+            mrt.anchorMin = Vector2.zero; mrt.anchorMax = Vector2.one;
+            mrt.offsetMin = Vector2.zero; mrt.offsetMax = Vector2.zero;
+            var mimg = mask.AddComponent<Image>();
+            mimg.color = new Color(0f, 0f, 0f, 0.45f);
+            mask.AddComponent<Button>().targetGraphic = mimg;
+
+            var card = NewNode(mask.transform, "Card");
+            var crt = (RectTransform)card.transform;
+            crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0.5f);
+            crt.sizeDelta = new Vector2(820f, 520f);
+            crt.anchoredPosition = Vector2.zero;
+            card.AddComponent<Image>().color = UIBuild.Card;
+            card.AddComponent<Button>().targetGraphic = card.GetComponent<Image>();
+
+            var title = NewText(card.transform, "Tmp_SoulTitle", "可买的魂", 36, TextAlignmentOptions.Center, UIBuild.Ink);
+            var trt = (RectTransform)title.transform;
+            trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 1f);
+            trt.pivot = new Vector2(0.5f, 1f);
+            trt.sizeDelta = new Vector2(760f, 56f);
+            trt.anchoredPosition = new Vector2(0f, -24f);
+
+            for (int i = 0; i < 3; i++)
+            {
+                float y = -100f - i * 118f;
+
+                var rowBg = NewNode(card.transform, "SoulRow_" + i);
+                var rrt = (RectTransform)rowBg.transform;
+                rrt.anchorMin = rrt.anchorMax = new Vector2(0.5f, 1f);
+                rrt.pivot = new Vector2(0.5f, 1f);
+                rrt.sizeDelta = new Vector2(760f, 100f);
+                rrt.anchoredPosition = new Vector2(0f, y);
+                rowBg.AddComponent<Image>().color = UIBuild.Silk;
+
+                var txt = NewText(rowBg.transform, "Tmp_SoulRow" + i, "—", 26,
+                                  TextAlignmentOptions.MidlineLeft, UIBuild.Ink);
+                var txtRt = (RectTransform)txt.transform;
+                txtRt.anchorMin = txtRt.anchorMax = new Vector2(0f, 0.5f);
+                txtRt.pivot = new Vector2(0f, 0.5f);
+                txtRt.sizeDelta = new Vector2(540f, 84f);
+                txtRt.anchoredPosition = new Vector2(24f, 0f);
+                txt.enableWordWrapping = true;
+
+                NewButton(rowBg.transform, "Btn_SoulBuy" + i, "买", new Vector2(1f, 0.5f),
+                          new Vector2(120f, 64f), new Vector2(-24f, 0f), UIBuild.Gold);
+            }
+
+            NewButton(card.transform, "Btn_SoulPickerClose", "关闭", new Vector2(0.5f, 0f),
+                      new Vector2(160f, 64f), new Vector2(0f, 24f), UIBuild.Silk);
+
+            mask.SetActive(false);
+            Debug.Log("[MarketPatch] + Market_SoulPicker（3 行候选 + 关闭）");
+            return true;
         }
 
         // ---- 小工具 ----

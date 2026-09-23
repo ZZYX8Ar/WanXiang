@@ -48,6 +48,13 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button _detailClose;          // Btn_Close
         [SerializeField] private Button _btnBuySoul;           // Btn_BuySoul
 
+        // ---- 魂选单（点「买魂」弹出；同样由 prefab 注入）----
+        [SerializeField] private RectTransform _soulPickerRoot;   // Market_SoulPicker
+        [SerializeField] private Button _soulPickerClose;         // Btn_SoulPickerClose
+        [SerializeField] private TMP_Text _soulTitle;             // Tmp_SoulTitle
+        [SerializeField] private TMP_Text[] _soulRowTexts;        // Tmp_SoulRow0..2
+        [SerializeField] private Button[] _soulRowBtns;           // Btn_SoulBuy0..2
+
         private sealed class Good
         {
             public BeastDef Beast;
@@ -64,7 +71,17 @@ namespace WanXiang.Modules.UI
             if (_btnRefresh != null) _btnRefresh.onClick.AddListener(OnRefreshClicked);
             // 详情卡与买魂按钮现在来自 Panel_Market.prefab（见 Editor/UITool/UIBuildMarketPatch.cs）
             // ——代码只负责绑事件与填数据，不再运行时建 UI。
-            if (_btnBuySoul != null) _btnBuySoul.onClick.AddListener(OnBuySoulClicked);
+            if (_btnBuySoul != null) _btnBuySoul.onClick.AddListener(ShowSoulPicker);
+            if (_soulPickerClose != null) _soulPickerClose.onClick.AddListener(HideSoulPicker);
+            if (_soulPickerRoot != null) _soulPickerRoot.gameObject.SetActive(false);
+            if (_soulRowBtns != null)
+            {
+                for (int i = 0; i < _soulRowBtns.Length; i++)
+                {
+                    int idx = i;
+                    if (_soulRowBtns[i] != null) _soulRowBtns[i].onClick.AddListener(() => OnBuySoulAt(idx));
+                }
+            }
             if (_detailBuy != null) _detailBuy.onClick.AddListener(OnBuyClicked);
             if (_detailClose != null) _detailClose.onClick.AddListener(HideDetail);
             if (_detailRoot != null) _detailRoot.gameObject.SetActive(false);   // 默认隐藏
@@ -203,36 +220,130 @@ namespace WanXiang.Modules.UI
         /// <summary>「买魂」的价格（灵卵）。</summary>
         private const int SoulPrice = 5;
 
-        private void OnBuySoulClicked()
+        // ================================================================
+        //  魂选单（方案 A）：点「买魂」列出 3 个明码标价的候选，
+        //  玩家看清 魂名·魄名 / 五行·品阶 后再买 —— 不是盲盒（用户要求）。
+        // ================================================================
+        private readonly System.Collections.Generic.List<string> _soulCandidates =
+            new System.Collections.Generic.List<string>(3);
+
+        private void ShowSoulPicker()
         {
             var run = WanXiang.Run.RunSave.Current;
             if (run == null) return;
+
+            var cats = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
+            if (cats == null || cats.Length == 0) { SetHint("（内容目录缺失）"); return; }
+            var all = WanXiang.Fusion.ContentLibrary.BuildBeasts(cats[0]);
+            if (all == null || all.Length == 0) return;
+
+            // 用"当前货架种子 + 局内已购次数"决定候选，同一回合内稳定
+            var rng = new System.Random(unchecked((int)WanXiang.Battle.Core.CoreMath.Fnv1a(
+                "souls:" + run.RunSeed + ":" + run.Eggs)));
+            _soulCandidates.Clear();
+            for (int i = 0; i < 3 && i < all.Length; i++)
+            {
+                var pick = all[rng.Next(all.Length)];
+                if (_soulCandidates.Contains(pick.Id)) { i--; continue; }
+                _soulCandidates.Add(pick.Id);
+            }
+
+            for (int i = 0; i < 3; i++)
+            {
+                if (_soulRowTexts == null || i >= _soulRowTexts.Length || _soulRowTexts[i] == null) continue;
+                if (i >= _soulCandidates.Count) { _soulRowTexts[i].text = "—"; SetRowBtn(i, false); continue; }
+
+                var beast = FindBeast(all, _soulCandidates[i]);
+                var soul = WanXiang.Fusion.SoulForge.Derive(beast, i);
+                _soulRowTexts[i].text =
+                    soul.DisplayName + " · 「" + soul.Epithet + "」\n" +
+                    ElementCn(soul.ElementOverride != WanXiang.Battle.Core.Element.None
+                              ? soul.ElementOverride : beast.Element)
+                    + " · " + RarityCn(beast.Rarity) + " · 融合时改写宿主外观与特性";
+                SetRowBtn(i, run.Eggs >= SoulPrice);
+            }
+
+            if (_soulTitle != null)
+                _soulTitle.text = "可买的魂（每个 " + SoulPrice + " 灵卵 · 当前 " + run.Eggs + "）";
+            if (_soulPickerRoot != null) _soulPickerRoot.gameObject.SetActive(true);
+        }
+
+        private void HideSoulPicker()
+        {
+            if (_soulPickerRoot != null) _soulPickerRoot.gameObject.SetActive(false);
+        }
+
+        private void OnBuySoulAt(int index)
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return;
+            if (index < 0 || index >= _soulCandidates.Count)
+            {
+                SetHint("请先选择要买的魂");
+                return;
+            }
             if (run.Eggs < SoulPrice)
             {
-                if (_tmpHint != null) _tmpHint.text = "灵卵不够：买魂需要 " + SoulPrice + " 枚";
+                SetHint("灵卵不够：买魂需要 " + SoulPrice + " 枚");
                 return;
             }
 
             var cats = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
-            if (cats == null || cats.Length == 0)
-            {
-                if (_tmpHint != null) _tmpHint.text = "（内容目录缺失，买不了魂）";
-                return;
-            }
-            var all = WanXiang.Fusion.ContentLibrary.BuildBeasts(cats[0]);
-            if (all == null || all.Length == 0) return;
+            var all = (cats != null && cats.Length > 0) ? WanXiang.Fusion.ContentLibrary.BuildBeasts(cats[0]) : null;
+            if (all == null) return;
+            var beast = FindBeast(all, _soulCandidates[index]);
+            if (beast == null) return;
 
-            var pick = all[UnityEngine.Random.Range(0, all.Length)];
             run.Eggs -= SoulPrice;
             if (run.Souls == null) run.Souls = new System.Collections.Generic.List<string>();
-            run.Souls.Add(pick.Id);
+            run.Souls.Add(beast.Id);
             WanXiang.Run.RunSave.SaveCurrent();
 
             if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
-            if (_tmpHint != null)
-                _tmpHint.text = "买魂：" + pick.DisplayName + " 之魂（现有 " + run.Souls.Count + " 个）—— 铸魂台可用";
-            UnityEngine.Debug.Log("[Market] 买魂 " + pick.Id + "（现有 " + run.Souls.Count + "）");
+            SetHint("已买：" + beast.DisplayName + " 之魂（现有 " + run.Souls.Count + " 个）—— 铸魂台可用");
+            UnityEngine.Debug.Log("[Market] 买魂 " + beast.Id + "（现有 " + run.Souls.Count + "）");
+            HideSoulPicker();
             Paint();
+        }
+
+        private void SetRowBtn(int i, bool interactable)
+        {
+            if (_soulRowBtns == null || i >= _soulRowBtns.Length || _soulRowBtns[i] == null) return;
+            _soulRowBtns[i].interactable = interactable;
+        }
+
+        private void SetHint(string msg)
+        {
+            if (_tmpHint != null) _tmpHint.text = msg;
+        }
+
+        private static BeastDef FindBeast(BeastDef[] all, string id)
+        {
+            for (int i = 0; i < all.Length; i++) if (all[i].Id == id) return all[i];
+            return null;
+        }
+
+        private static string ElementCn(WanXiang.Battle.Core.Element e)
+        {
+            switch (e)
+            {
+                case WanXiang.Battle.Core.Element.Wood: return "木";
+                case WanXiang.Battle.Core.Element.Fire: return "火";
+                case WanXiang.Battle.Core.Element.Earth: return "土";
+                case WanXiang.Battle.Core.Element.Metal: return "金";
+                case WanXiang.Battle.Core.Element.Water: return "水";
+                default: return "无";
+            }
+        }
+
+        private static string RarityCn(WanXiang.Battle.Core.Rarity r)
+        {
+            switch (r)
+            {
+                case WanXiang.Battle.Core.Rarity.Legend: return "传说";
+                case WanXiang.Battle.Core.Rarity.Epic: return "史诗";
+                default: return "稀有";
+            }
         }
 
         private void ShowDetail(int index)
