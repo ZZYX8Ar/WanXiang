@@ -36,6 +36,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button  _btnForge;        // Hot_Forge     铸魂台（底排双人图标）
         [SerializeField] private Button  _btnOmen;         // Hot_Omen      天象（底排卷轴图标）
         [SerializeField] private Button  _btnSettings;     // Btn_Settings  设置
+        [SerializeField] private Button  _btnHistory;      // Btn_History   历程（最近 10 局）
 
         [Header("数据引用（由生成器自动绑定）")]
         [SerializeField] private ContentCatalogSO _contentCatalog;
@@ -58,6 +59,7 @@ namespace WanXiang.Modules.UI
             if (_btnDeploy != null) _btnDeploy.onClick.AddListener(OnDeployClicked);
             if (_btnCodex != null) _btnCodex.onClick.AddListener(OnCodexClicked);
             if (_btnMeta != null) _btnMeta.onClick.AddListener(OnMetaClicked);
+            if (_btnHistory != null) _btnHistory.onClick.AddListener(() => OpenPanelAsync<HistoryPanel>().Forget());
             if (_btnMarket != null) _btnMarket.onClick.AddListener(OnMarketClicked);
             if (_btnTale != null) _btnTale.onClick.AddListener(OnTaleClicked);
             if (_btnTrial != null) _btnTrial.onClick.AddListener(OnTrialClicked);

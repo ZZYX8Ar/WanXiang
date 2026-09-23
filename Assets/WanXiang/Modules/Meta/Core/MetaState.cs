@@ -89,7 +89,7 @@ namespace WanXiang.Meta
         public int Essence;
 
         // ---- 历程（最近 50 局）：只记最远幕数 / 上场异兽 / 综合战力 / 编队码 ----
-        public const int HistoryCap = 50;
+        public const int HistoryCap = 10;   // 一屏放得下（用户定案）
         public readonly List<int> HistActs = new List<int>(HistoryCap);
         public readonly List<int> HistPowers = new List<int>(HistoryCap);
         public readonly List<string> HistBeasts = new List<string>(HistoryCap);
