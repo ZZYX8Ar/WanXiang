@@ -1046,7 +1046,8 @@ namespace WanXiang.Modules.UI
             string descHint = "（描述里的百分比是攻击力系数，不是生命百分比）";
             if (slot == 0) { title = "普攻"; body = CostLine(0); }
             else if (slot == 1) { title = "战记 · 主动"; body = CostLine(1); }
-            else { title = "终结技"; body = CostLine(2); }
+            else if (slot == 2) { title = "终结技"; body = CostLine(2); }
+            else { title = "觉醒技"; body = CostLine(3); }   // slot==3（及更高，防御性默认）
 
             if (u != null)
             {
@@ -1067,12 +1068,12 @@ namespace WanXiang.Modules.UI
                         ? "最前排（普攻默认打前排，站位决定谁先承伤）"
                         : TargetNameOf(target);
                     body = desc + "\n目标：" + targetName + "\n" + descHint + "\n\n" + body;
-                    if (slot == 2 && u.Rage < u.RageCap)
+                    if ((slot == 2 || slot == 3) && u.Rage < u.RageCap)
                         body += "\n当前元气 " + (int)u.Rage + "/" + (int)u.RageCap + "（满值才可释放）";
                 }
                 else
                 {
-                    body = "这只异兽没有这一槽战记。";
+                    body = slot == 3 ? "这只异兽没有装备觉醒技。" : "这只异兽没有这一槽战记。";
                 }
             }
             else
@@ -1097,6 +1098,7 @@ namespace WanXiang.Modules.UI
             {
                 case 0: return "消耗：无（0 灵力，永远可用）";
                 case 1: return "消耗：灵力 " + WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active) + " 点（全队共享）";
+                case 3: return "消耗：元气满 100 时手动释放（觉醒技，每场一次）";
                 default: return "消耗：元气满 100 时手动释放，每场一次";
             }
         }
