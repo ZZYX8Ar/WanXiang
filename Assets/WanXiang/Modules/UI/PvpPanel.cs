@@ -109,9 +109,6 @@ namespace WanXiang.Modules.UI
                 Resolver = resolver,
             };
 
-            WanXiang.Pvp.PvpReport report;
-            try
-            {
             // ★★ 进入战斗场景（AI 自动对战回放）
             var myEntries = WanXiang.Pvp.PvpMatch.BuildSquadOf(mine, content,
                 WanXiang.Battle.Core.TeamSide.Player, out string errMine);
@@ -128,12 +125,15 @@ namespace WanXiang.Modules.UI
                 WeatherName = "AI 自动对战（双方各自动放技能）",
                 Seed = seed,
             };
+            // DeployEntry 自带 Def/Side/PosIndex/StatMul —— 直接整组塞给 EnemyEntries
             req.EnemyEntries.AddRange(oppEntries);
-            foreach (var en in oppEntries) { req.Enemy.Add(en.Def); req.EnemyMul.Add(en.StatMul); }
-            req.Player.Clear();
             if (req.PlayerCells == null) req.PlayerCells = new System.Collections.Generic.List<int>();
             req.PlayerCells.Clear();
-            foreach (var e in myEntries) { req.Player.Add(e.Def); req.PlayerCells.Add(e.BoardSlot); req.PlayerMul.Add(e.StatMul); }
+            foreach (var e in myEntries)
+            {
+                req.Player.Add(e.Def);
+                req.PlayerCells.Add(e.PosIndex);   // DeployEntry 的字段名是 PosIndex（不是 BoardSlot）
+            }
 
             CloseSelf();
             SceneFlow.EnterBattle(req);
