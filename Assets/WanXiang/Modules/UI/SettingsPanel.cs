@@ -69,6 +69,7 @@ namespace WanXiang.Modules.UI
             var state = WanXiang.Run.RunSave.Load(slot);
             if (state == null) { Debug.LogWarning("[Settings] 槽位 " + slot + " 在磁盘上不存在。"); return; }
             WanXiang.Run.RunSave.ContinueWith(state);
+            WanXiang.Meta.MetaStore.ReloadHistory();   // ★ 重读该槽位历程，避免显示其它档的记录
             Debug.Log("[Settings] 已重新读取槽位 " + slot + "：" + state.RealmText + " 灵卵 " + state.Eggs);
         }
 

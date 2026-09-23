@@ -132,7 +132,7 @@ namespace WanXiang.Modules.UI
             ApplyPvpUiMode();   // ★ 每次进入战斗面板都重新应用 PvP UI 模式（时机修正）
             // ★ 每场战斗重置 自动/倍速：面板是 Cached 复用的，字段会带过来。
             //   放在 OnOpenAsync（每次打开必然经过）比放在 PlayLoop 更可靠（用户实测未生效）。
-            _autoBattle = !SceneFlow.LastWasPvp;   // ★ PvP 不许被重置掉
+            _autoBattle = SceneFlow.LastWasPvp;   // ★ PvP=自动；正常战斗=手动(玩家自己下令)，与回放 manual 一致
             _speed = 1f;
             RefreshSpeedLabel();          // ★ 必须同步刷新按钮文案，否则仍显示上一场的 ×4（用户实测）
 
@@ -320,8 +320,8 @@ namespace WanXiang.Modules.UI
             if (_tmpLog != null) _tmpLog.text = "战斗开始";
             _playing = true;
             // ★ 每场战斗重置自动/倍速：面板是 Cached 复用的，字段会从上场带过来。
-            //   PvP 必须保持自动战斗（否则异兽卡在等令、不动）；单机手动战重置为 false。
-            _autoBattle = !SceneFlow.LastWasPvp;
+            //   PvP 必须保持自动战斗（否则异兽卡在等令、不动）；单机正常战斗=手动（玩家自己下令）。
+            _autoBattle = SceneFlow.LastWasPvp;
             _speed = 1f;
 
             int guard = 0;

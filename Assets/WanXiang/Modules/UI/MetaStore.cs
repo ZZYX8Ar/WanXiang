@@ -105,6 +105,13 @@ namespace WanXiang.Meta
         public static void LoadHistory()
         {
             if (Current == null) return;
+            // ★ 切档重读前必须清空内存历程，否则会带上其它槽位的记录（跨档污染）。
+            Current.HistRunIds.Clear();
+            Current.HistActs.Clear();
+            Current.HistPowers.Clear();
+            Current.HistBeasts.Clear();
+            Current.HistCodes.Clear();
+            Current.HistTimes.Clear();
             if (!File.Exists(HistoryPath)) return;
             try
             {
@@ -121,6 +128,29 @@ namespace WanXiang.Meta
                 Debug.Log("[MetaStore] 已载入历程 " + Current.HistActs.Count + " 条");
             }
             catch (System.Exception e) { Debug.LogWarning("[MetaStore] 历程读入失败：" + e.Message); }
+        }
+
+        /// <summary>切档后重读当前槽位历程：清空内存再按 ActiveSlot 加载对应文件。</summary>
+        public static void ReloadHistory()
+        {
+            LoadHistory();
+        }
+
+        /// <summary>删除指定槽位的历程文件（重置该档时用）。</summary>
+        public static void DeleteHistory(int slot)
+        {
+            try
+            {
+                var p = Path.Combine(Application.persistentDataPath, "wanxiang_history_s" + slot + ".sav");
+                if (File.Exists(p)) File.Delete(p);
+            }
+            catch (System.Exception e) { Debug.LogWarning("[MetaStore] 删历程失败 slot=" + slot + "：" + e.Message); }
+        }
+
+        /// <summary>删除全部槽位的历程文件（清空全部存档时用）。</summary>
+        public static void DeleteAllHistory()
+        {
+            for (int slot = 1; slot <= WanXiang.Run.RunSave.SlotCount; slot++) DeleteHistory(slot);
         }
 
         /// <summary>写回磁盘。任何改动局外存档后都应调用一次。</summary>

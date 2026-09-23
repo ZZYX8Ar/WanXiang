@@ -96,6 +96,7 @@ namespace WanXiang.Modules.UI
             var state = RunSave.Load(slot);
             if (state == null) RunSave.StartNew(slot);
             else RunSave.ContinueWith(state);
+            WanXiang.Meta.MetaStore.ReloadHistory();   // ★ 切档后按新槽位重读历程，避免跨档污染
             CloseSelf();
             SceneFlow.EnterMain();
         }
@@ -142,6 +143,7 @@ namespace WanXiang.Modules.UI
             bool ok = await Dialog.Confirm("重置存档 " + slot, "该存档的进度会被清空并从第一幕重新开始。确定？", "确定重置", "取消");
             if (!ok) return;
             WanXiang.Run.RunSave.ClearSlot(slot);
+            WanXiang.Meta.MetaStore.DeleteHistory(slot);   // ★ 顺手删该档历程，否则重进还会显示旧历程
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
             if (ui != null) await ui.OpenAsync<SavePanel>();
         }
@@ -154,6 +156,7 @@ namespace WanXiang.Modules.UI
                 if (!RunSave.Exists(slot))
                 {
                     RunSave.StartNew(slot);
+                    WanXiang.Meta.MetaStore.ReloadHistory();   // ★ 新档：内存历程应为空
                     CloseSelf();
                     SceneFlow.EnterMain();
                     return;
@@ -211,6 +214,7 @@ namespace WanXiang.Modules.UI
                 bool ok = awaitClearConfirm();
                 if (!ok) return;
                 WanXiang.Run.RunSave.ClearAll();
+                WanXiang.Meta.MetaStore.DeleteAllHistory();   // ★ 连历程一起清
                 // 刷新列表显示
                 OpenPanelAsync<SavePanel>().Forget();
             });
@@ -234,6 +238,7 @@ namespace WanXiang.Modules.UI
                 bool ok = await Dialog.Confirm("清空全部存档", "所有旅程记录都会被删除，且无法恢复。确定？", "确定清空", "取消");
                 if (!ok) return;
                 WanXiang.Run.RunSave.ClearAll();
+                WanXiang.Meta.MetaStore.DeleteAllHistory();   // ★ 连历程一起清
                 var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
                 if (ui != null) await ui.OpenAsync<SavePanel>();
             }
