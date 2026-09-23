@@ -174,6 +174,21 @@ namespace WanXiang.Modules.UI
 
                 // ★ 胜利掉魂（B 来源）：按幕数给概率，掉"本场敌方某只"的魂。
                 //   魂本体不落盘，只记主人 id —— 取用时 SoulForge.Derive 重建。
+                // ★ 掉精魄（进化材料，比魂稀有）：15% + 幕数×8%
+                {
+                    var metaE = WanXiang.Meta.MetaStore.Ensure();
+                    if (metaE != null)
+                    {
+                        int chanceE = 15 + cur.Act * 8;      // 第1幕 23% → 第4幕 47%
+                        if (UnityEngine.Random.Range(0, 100) < chanceE)
+                        {
+                            metaE.Essence += 1;
+                            WanXiang.Meta.MetaStore.Save();
+                            Debug.Log("[ResultPanel] 掉精魄 +1（现有 " + metaE.Essence + "）—— 可用于异兽进化");
+                        }
+                    }
+                }
+
                 {
                     var foeIds = WanXiang.Modules.UI.SceneFlow.LastFoeIds;
                     if (foeIds != null && foeIds.Count > 0)

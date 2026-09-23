@@ -52,6 +52,10 @@ namespace WanXiang.Modules.UI
         private const int MaxLevel = 5;
         private const float PerLevelBonus = 0.016f;   // 每级 +1.6%（5 级 = +8%，与 GDD 数值封顶一致）
 
+        /// <summary>进化消耗：精魄（探索掉落）+ 墨铊。</summary>
+        private const int EvolveEssenceCost = 2;
+        private const int EvolveInkCost = 8;
+
         /// <summary>升级单价（墨铊）：第 N 级 = 3 + N×2。</summary>
         private static int UpgradeCost(int curLevel) => 3 + curLevel * 2;
 
@@ -92,8 +96,8 @@ namespace WanXiang.Modules.UI
         {
             var meta = WanXiang.Meta.MetaStore.Ensure();
             if (_tmpStatus != null)
-                _tmpStatus.text = meta == null ? "墨铊 0" :
-                    ("墨铊 " + meta.Ink);   // 累计局数/最远幕 → 以后移到独立的【历程面板】
+                _tmpStatus.text = (meta == null ? "墨铊 0" : ("墨铊 " + meta.Ink)) + "　精魄 " + (meta != null ? meta.Essence : 0);
+            // 累计局数/最远幕 → 以后移到独立的【历程面板】
         }
 
         // ---------------------------------------------------------------- 列表
@@ -205,10 +209,14 @@ namespace WanXiang.Modules.UI
             }
             if (_btnEvolve != null)
             {
-                _btnEvolve.interactable = !evolved;
+                bool canEv = !evolved && meta != null &&
+                             meta.Essence >= EvolveEssenceCost && meta.Ink >= EvolveInkCost;
+                _btnEvolve.interactable = canEv;
                 var l = _btnEvolve.transform.Find("Tmp_Label") != null
                         ? _btnEvolve.transform.Find("Tmp_Label").GetComponent<TMP_Text>() : null;
-                if (l != null) l.text = evolved ? "已觉醒" : "进化";
+                if (l != null)
+                    l.text = evolved ? "已觉醒"
+                           : ("进化 · 精魄" + EvolveEssenceCost + " + 墨铊" + EvolveInkCost);
             }
         }
 
@@ -237,8 +245,27 @@ namespace WanXiang.Modules.UI
             if (_selected < 0 || _selected >= _shown.Count) return;
             var b = _shown[_selected];
             if (IsEvolved(b.Id)) return;
-            // ⚠ 进化（材料 + 剧情条件）待阶段 ③-4 接上数据层
-            Debug.LogWarning("[MetaPanel] 进化「" + b.DisplayName + "」尚未实现：" + EvolveConditionText(b));
+
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            if (meta == null) return;
+            if (meta.Essence < EvolveEssenceCost)
+            {
+                Debug.LogWarning("[MetaPanel] 精魄不足：进化需 " + EvolveEssenceCost + "（现有 " + meta.Essence + "）");
+                return;
+            }
+            if (meta.Ink < EvolveInkCost)
+            {
+                Debug.LogWarning("[MetaPanel] 墨铊不足：进化需 " + EvolveInkCost + "（现有 " + meta.Ink + "）");
+                return;
+            }
+
+            meta.Essence -= EvolveEssenceCost;
+            meta.Ink -= EvolveInkCost;
+            SetEvolved(b.Id);
+            WanXiang.Meta.MetaStore.Save();
+            Debug.Log("[MetaPanel] ★ 进化「" + b.DisplayName + "」（-精魄" + EvolveEssenceCost +
+                      " -墨铊" + EvolveInkCost + "）⇒ 觉醒，开放第 3 技能槽；剩精魄 " + meta.Essence);
+            Refresh();
         }
 
         // ------------------------------------------------- 数据层（MetaStore）
@@ -263,6 +290,20 @@ namespace WanXiang.Modules.UI
                 m.BeastEvolved.Add(false);
             }
             else m.BeastLevels[i] = level;
+        }
+
+        private static void SetEvolved(string id)
+        {
+            var m = WanXiang.Meta.MetaStore.Current;
+            if (m == null) return;
+            int i = m.BeastIds.IndexOf(id);
+            if (i < 0)
+            {
+                m.BeastIds.Add(id);
+                m.BeastLevels.Add(0);
+                m.BeastEvolved.Add(true);
+            }
+            else if (i < m.BeastEvolved.Count) m.BeastEvolved[i] = true;
         }
 
         private static bool IsEvolved(string id)
@@ -320,7 +361,8 @@ namespace WanXiang.Modules.UI
         }
 
         private static string EvolveConditionText(BeastDef b)
-            => "进化条件：精魄 ×2 + 8 墨铊（精魄在探索中随机掉落）";
+            => "进化条件：精魄 ×" + EvolveEssenceCost + " + 墨铊 ×" + EvolveInkCost +
+               "（精魄在探索中随机掉落，每局胜场有概率获得）";
 
         private static string ElementCn(WanXiang.Battle.Core.Element e)
         {

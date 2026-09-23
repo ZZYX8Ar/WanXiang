@@ -83,6 +83,11 @@ namespace WanXiang.Meta
         /// </summary>
         public int Ink;
 
+        /// <summary>
+        /// 精魄 —— 进化材料（用户定名）。探索中随机掉落，用于异兽进化。
+        /// </summary>
+        public int Essence;
+
         // ---- 异兽培养（阶段③）：局外永久成长，替代原"祭坛" ----
         //   ⚠ 用"下标对齐的三个 List"而不是 Dictionary：静态序列化更简单。
         //   ⚠ 当前暂未写入存档（MetaSaveCode 仍是 v2）—— 见 TODO(存档)。

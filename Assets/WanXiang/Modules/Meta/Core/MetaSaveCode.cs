@@ -31,7 +31,7 @@ namespace WanXiang.Meta
 {
     public static class MetaSaveCode
     {
-        public const byte CurrentVersion = 3;   // v3：新增异兽培养（id/等级/觉醒）
+        public const byte CurrentVersion = 4;   // v4：新增精魄（进化材料）
         public const int MaxIndex = 254;        // 下标用 1 字节，255 留作哨兵
         public const int MaxEggs = 65535;
 
@@ -58,7 +58,7 @@ namespace WanXiang.Meta
 
             // ⚠ 必须算准：写入的是  BeastCount(1) + beastBytes + HostCount(1) + hosts + SoulCount(1) + souls
             //   ⇒ 固定头 21 + beastBytes + hosts + souls + 2（曾少算 2 字节 → IndexOutOfRange，存档写不进去）
-            int size = 21 + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count + 2;
+            int size = 22 + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count + 2;   // v4: 头 22
             var b = new byte[size];
             b[0] = CurrentVersion;
             WriteU64(b, 1, st.Seed);
@@ -69,7 +69,9 @@ namespace WanXiang.Meta
             b[17] = (byte)st.BestActReached;
             WriteU16(b, 18, (ushort)System.Math.Min(System.Math.Max(0, st.Ink), MaxEggs));
 
-            int p = 20;
+            WriteU16(b, 20, (ushort)System.Math.Min(System.Math.Max(0, st.Essence), MaxEggs));   // ★ v4 精魄
+
+            int p = 22;
             b[p++] = (byte)n;                               // ★ v3 培养数量
             for (int i = 0; i < n; i++)
             {
@@ -96,7 +98,7 @@ namespace WanXiang.Meta
             byte[] b;
             try { b = FromBase64Url(code); }
             catch (FormatException) { return false; }
-            if (b == null || b.Length < 21) return false;   // v2 头部 21 字节
+            if (b == null || b.Length < 22) return false;   // v4 头部 22 字节
             if (b[0] != CurrentVersion) return false;
 
             var st = new MetaState(ReadU64(b, 1));
@@ -108,7 +110,9 @@ namespace WanXiang.Meta
             if (st.BestActReached > 5) return false;
             st.Ink = ReadU16(b, 18);            // ★ v2 墨铊
 
-            int p = 20;
+            st.Essence = ReadU16(b, 20);                    // ★ v4 精魄
+
+            int p = 22;
             int beastCount = b[p++];                        // ★ v3 培养段
             if (p > b.Length) return false;
             for (int i = 0; i < beastCount; i++)
