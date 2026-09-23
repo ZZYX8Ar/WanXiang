@@ -34,6 +34,9 @@ namespace WanXiang.Modules.UI
         /// <summary>上一场是不是好友对战（结算时用来跳过历程记录）。</summary>
         public static bool LastWasPvp;
 
+        /// <summary>PvP 打完回主城：不弹结算、直接重开好友对战面板（用户要求）。</summary>
+        public static bool PendingPvpReturn;
+
         /// <summary>上一场我方上场的九宫格格号（与 LastAllyIds 一一对应；编队码站位用）。</summary>
         public static System.Collections.Generic.List<int> LastAllyCells =
             new System.Collections.Generic.List<int>();

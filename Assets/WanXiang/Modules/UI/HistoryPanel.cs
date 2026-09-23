@@ -12,6 +12,7 @@ using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using WanXiang.Framework.Boot;
 using WanXiang.Framework.UI;
 
 namespace WanXiang.Modules.UI
@@ -33,8 +34,23 @@ namespace WanXiang.Modules.UI
         protected override void OnCreate()
         {
             if (_btnBack != null) _btnBack.onClick.AddListener(CloseSelf);
-            if (_btnPvp != null) _btnPvp.onClick.AddListener(() => OpenPanelAsync<PvpPanel>().Forget());
+            if (_btnPvp != null) _btnPvp.onClick.AddListener(() => OnGoPvpAsync().Forget());
             if (_itemTemplate != null) _itemTemplate.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// 去好友对战：先关自己、等 2 帧、再开对战面板。
+        /// ★ 为什么不就地弹层：历程面板开着时，它的行/按钮叠在对战面板下半部
+        ///   （正是 Inp_MyCode 的位置），UGUI 射线会先命中历程的行 ——
+        ///   用户实测「我的码」输入框点不进去（上面的开始对战却能点）。
+        ///   延迟 2 帧避开「边关边开」的栈重算坑（项目铁律：CloseAll+等帧）。
+        /// </summary>
+        private async UniTaskVoid OnGoPvpAsync()
+        {
+            CloseSelf();
+            await UniTask.DelayFrame(2);
+            await UIBootstrap.UI.OpenAsync<PvpPanel>();
+            Debug.Log("[HistoryPanel][调试] 已关历程并重开对战面板（输入框不再被遮挡）");
         }
 
         protected override UniTask OnOpenAsync(object payload)

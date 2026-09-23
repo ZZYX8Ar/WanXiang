@@ -30,6 +30,18 @@ namespace WanXiang.Modules.Boot
                 return;
             }
 
+            // ★ PvP 打完回主城：不弹结算面板，直接垫主界面 + 叠好友对战面板（用户要求）。
+            //   必须放在 ConsumeResult 之前（PvP 回来时 PendingResult 本来就是 null）。
+            if (SceneFlow.PendingPvpReturn)
+            {
+                SceneFlow.PendingPvpReturn = false;
+                ui.Close<StartPanel>();
+                await ui.OpenAsync<HomePanel>();   // 底下垫主界面，关掉对战面板不是空屏
+                await ui.OpenAsync<PvpPanel>();    // 再叠好友对战面板
+                Debug.Log("[MainSceneEntry][调试] PvP 结束 → 已直接回到好友对战面板（无结算）");
+                return;
+            }
+
             if (SceneFlow.ConsumeResult(out var result))
             {
                 // ⚠ 旧的天阙触发条件（Act==4 && NodeOffset==11）已废弃并删除：
