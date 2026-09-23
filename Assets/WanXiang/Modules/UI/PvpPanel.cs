@@ -38,6 +38,16 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
+            // ★ 兜底：prefab 序列化引用丢失（如 Unity 未 reimport 改过的 prefab）时，
+            //   按名字找回 Inp_MyCode 节点，保证「我的码」一定是可编辑输入框
+            //   （好友的 Inp_OppCode 同理）。—— 否则用户会看到「我的码不可修改」。
+            if (_inputMine == null)
+            {
+                var mineGo = transform.Find("Inp_MyCode");
+                if (mineGo != null) _inputMine = mineGo.GetComponent<TMP_InputField>();
+            }
+            if (_inputMine != null) _inputMine.interactable = true;
+
             RenderMine();
             if (_inputMine != null && string.IsNullOrEmpty(_inputMine.text))
                 _inputMine.text = MyLatestCode();     // 默认带入最新一局的码（可手动改）

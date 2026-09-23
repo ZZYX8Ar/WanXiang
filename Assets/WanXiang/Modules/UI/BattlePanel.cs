@@ -159,16 +159,9 @@ namespace WanXiang.Modules.UI
                 return UniTask.CompletedTask;
             }
 
-            if (_play == null) _play = new BattlePlayback(_req, _manualBattle);
-
-            // ★★ PvP 补偿：ApplyPvpUiMode 跑的时候 _play 还是 null（Console 已证实），
-            //    所以真正的「提交 AI 指令」必须放在 _play 就绪之后 —— 否则回放一直等指令（异兽不动）。
-            if (SceneFlow.LastWasPvp && _play != null)
-            {
-                _autoBattle = true;
-                _play.SubmitCommand(-1, -1);
-                Debug.Log("[BattlePanel][调试] PvP 补偿提交 -1（_play 就绪），回放开始");
-            }
+            // ★ PvP 走全自动回放（manual=false，与 BattleSceneDriver 一致）；
+            //   单机非场景战保持 _manualBattle。auto 模式整场已预模拟，无需 SubmitCommand。
+            if (_play == null) _play = new BattlePlayback(_req, _manualBattle && !SceneFlow.LastWasPvp);
 
             if (_tmpWeatherName != null) _tmpWeatherName.text = _req.WeatherName ?? "";
             if (_rootWeather != null) _rootWeather.SetActive(!string.IsNullOrEmpty(_req.WeatherName));
@@ -326,9 +319,9 @@ namespace WanXiang.Modules.UI
             ApplyFrames();
             if (_tmpLog != null) _tmpLog.text = "战斗开始";
             _playing = true;
-            // ★ 每场战斗重置自动/倍速：面板是 Cached 复用的，字段会从上场带过来，
-            //   玩家若不注意会莫名_autoBattle = !SceneFlow.LastWasPvp;   // ★ PvP 不许被重置掉。
-            _autoBattle = false;
+            // ★ 每场战斗重置自动/倍速：面板是 Cached 复用的，字段会从上场带过来。
+            //   PvP 必须保持自动战斗（否则异兽卡在等令、不动）；单机手动战重置为 false。
+            _autoBattle = !SceneFlow.LastWasPvp;
             _speed = 1f;
 
             int guard = 0;
@@ -850,17 +843,7 @@ namespace WanXiang.Modules.UI
                     if (_skillBtns[i] != null) _skillBtns[i].gameObject.SetActive(false);
             if (_btnCombo != null) _btnCombo.gameObject.SetActive(false);
             if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(false);
-            _autoBattle = true;
-            // ★ 关键：光设 true 不会动 —— 必须像 OnAutoBattleClicked 那样提交一次 AI 指令
-            if (_play != null)
-            {
-                _play.SubmitCommand(-1, -1);
-                Debug.Log("[BattlePanel][调试] PvP 已提交 -1（AI 指令），回放应开始");
-            }
-            else
-            {
-                Debug.Log("[BattlePanel][调试] PvP 时 _play 尚未就绪，等待 OnOpenAsync 重置点补偿提交");
-            }
+            _autoBattle = true;   // auto 模式整场已预模拟，设 true 即可（回放自动推进）
 
             // 2) Root_Action 下的其它按钮（×N 倍速 / 自动布阵 / 撤退 等代码自建按钮）
             if (_actionBar != null)
