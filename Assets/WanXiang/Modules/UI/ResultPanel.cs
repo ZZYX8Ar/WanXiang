@@ -365,6 +365,12 @@ namespace WanXiang.Modules.UI
         public static void PushRunHistory(WanXiang.Run.RunState run)
         {
             if (run == null) return;
+            // ★ 好友对战绝不记历程（Console 证实：通关/失败分支直调也会漏进来）——单点拦截。
+            if (SceneFlow.LastWasPvp)
+            {
+                Debug.Log("[ResultPanel] 好友对战不记历程（PushRunHistory 拦截）");
+                return;
+            }
             try
             {
                 var metaH = WanXiang.Meta.MetaStore.Ensure();
@@ -415,7 +421,9 @@ namespace WanXiang.Modules.UI
                             for (int k = 0; k < allBeasts.Length; k++)
                                 if (allBeasts[k].Id == allies[i]) { idx = k; break; }
                             payload.BeastIndices[i] = idx < 0 ? 0 : idx;
-                            payload.SoulIndices[i] = 0;   // ⚠ 不能为 -1（Encode 拒绝负下标）
+                            // ★ 魂下标 = 兽下标：与 SoulForge.Derive(beast, i) 的单机派生规则一致，
+                            //   否则对方解码后会融合成"第 0 个魂"的兽（外观属性全变，用户反馈）。
+                            payload.SoulIndices[i] = idx < 0 ? 0 : idx;
                             payload.BoardSlots[i] = i;
                         }
                         code = WanXiang.Fusion.ShareCode.Encode(payload) ?? "";

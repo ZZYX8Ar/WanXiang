@@ -821,6 +821,16 @@ namespace WanXiang.Modules.UI
             _btnAutoBattle.onClick.AddListener(OnAutoBattleClicked);
 
             _actionBar.gameObject.SetActive(false);
+            // ★ 好友对战：全 AI 自动 —— 隐藏手动技能按钮（点击会打断回放），并默认开启自动战斗
+            if (SceneFlow.LastWasPvp)
+            {
+                for (int i = 0; i < _skillBtns.Length; i++)
+                    if (_skillBtns[i] != null) _skillBtns[i].gameObject.SetActive(false);
+                if (_btnCombo != null) _btnCombo.gameObject.SetActive(false);
+                _autoBattle = true;                       // 默认自动
+                if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(false);
+                Debug.Log("[BattlePanel] 好友对战：隐藏手动操作，自动战斗已开启");
+            }
         }
 
         // ================================================================
