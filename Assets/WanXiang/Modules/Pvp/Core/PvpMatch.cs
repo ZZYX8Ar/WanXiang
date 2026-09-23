@@ -178,5 +178,25 @@ namespace WanXiang.Pvp
         }
 
         private static string CodeOf(SharePayload p) => $"payload:{p.Seed}:{p.UnitCount}";
-    }
+        /// <summary>
+        /// 把一侧的分享码解析成上场 entries（给战斗场景/回放用）。
+        /// 失败时返回 null 并通过 err 给出原因。
+        /// </summary>
+        public static DeployEntry[] BuildSquadOf(string code, PvpContent content, TeamSide side, out string err)
+        {
+            var all = content.Beasts;
+            int beastCount = all != null ? all.Length : 0;
+            int soulCount = content.Souls != null ? content.Souls.Length : 0;
+            err = null;
+            if (!ShareCode.TryDecode(code, beastCount, soulCount, out var payload))
+            { err = "配对码解码失败"; return null; }
+            return BuildSquad(payload, content, side, out _, out err);
+        }
+
+        /// <summary>两只码的对战种子（与 Play 内部同一公式，保证回放一致）。</summary>
+        public static ulong SeedOf(string myCode, string oppCode)
+            => MatchSeed(myCode ?? CodeOf(new SharePayload()), oppCode ?? CodeOf(new SharePayload()));
 }
+    }
+
+

@@ -112,16 +112,31 @@ namespace WanXiang.Modules.UI
             WanXiang.Pvp.PvpReport report;
             try
             {
-                report = WanXiang.Pvp.PvpMatch.PlayByCode(mine, opp, beasts.Length, souls.Count, content);
-            }
-            catch (System.Exception e)
-            {
-                Show("对战异常：" + e.Message);
-                return;
-            }
+            // ★★ 进入战斗场景（AI 自动对战回放）
+            var myEntries = WanXiang.Pvp.PvpMatch.BuildSquadOf(mine, content,
+                WanXiang.Battle.Core.TeamSide.Player, out string errMine);
+            if (myEntries == null) { Show("我方：" + errMine); return; }
+            var oppEntries = WanXiang.Pvp.PvpMatch.BuildSquadOf(opp, content,
+                WanXiang.Battle.Core.TeamSide.Enemy, out string errOpp);
+            if (oppEntries == null) { Show("对方：" + errOpp); return; }
 
-            Show(report.Digest());
-            Debug.Log("[PvpPanel] 对战结果：" + report.Digest());
+            ulong seed = WanXiang.Pvp.PvpMatch.SeedOf(mine, opp);
+
+            var req = new WanXiang.Modules.UI.BattleRequest
+            {
+                Title = "好友对战",
+                WeatherName = "AI 自动对战（双方各自动放技能）",
+                Seed = seed,
+            };
+            req.EnemyEntries.AddRange(oppEntries);
+            foreach (var en in oppEntries) { req.Enemy.Add(en.Def); req.EnemyMul.Add(en.StatMul); }
+            req.Player.Clear();
+            if (req.PlayerCells == null) req.PlayerCells = new System.Collections.Generic.List<int>();
+            req.PlayerCells.Clear();
+            foreach (var e in myEntries) { req.Player.Add(e.Def); req.PlayerCells.Add(e.BoardSlot); req.PlayerMul.Add(e.StatMul); }
+
+            CloseSelf();
+            SceneFlow.EnterBattle(req);
         }
 
         private void Show(string text)
