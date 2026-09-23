@@ -38,6 +38,7 @@ namespace WanXiang.EditorTools
         internal static void Build()
         {
             var root = new GameObject("Panel_Meta", typeof(RectTransform));
+            root.AddComponent<WanXiang.Modules.UI.MetaPanel>();
             var rt = (RectTransform)root.transform;
             rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
@@ -52,7 +53,7 @@ namespace WanXiang.EditorTools
                 TextAlignmentOptions.MidlineLeft);
 
             UIBuild.Tmp(UIBuild.Node(top, "Tmp_Status", new Vector2(0.4f, 0f), Vector2.one,
-                Vector2.zero, new Vector2(-24f, 0f)), "墨铊 0 · 累计 0 局 · 最远第 0 幕", 26, UIBuild.Ink2,
+                Vector2.zero, new Vector2(-24f, 0f)), "墨铊 0", 26, UIBuild.Ink2,
                 TextAlignmentOptions.MidlineRight);
 
             // ---------- 五行页签（全部 + 木火土金水）----------

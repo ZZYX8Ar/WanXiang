@@ -93,7 +93,7 @@ namespace WanXiang.Modules.UI
             var meta = WanXiang.Meta.MetaStore.Ensure();
             if (_tmpStatus != null)
                 _tmpStatus.text = meta == null ? "墨铊 0" :
-                    ("墨铊 " + meta.Ink + " · 累计 " + meta.RunsPlayed + " 局 · 最远第 " + meta.BestActReached + " 幕");
+                    ("墨铊 " + meta.Ink);   // 累计局数/最远幕 → 以后移到独立的【历程面板】
         }
 
         // ---------------------------------------------------------------- 列表
