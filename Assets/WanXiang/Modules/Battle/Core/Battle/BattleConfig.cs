@@ -208,6 +208,14 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public bool UltimateNeedsRage = true;
 
+        /// <summary>
+        /// 是否启用技能冷却（CD）。
+        /// **默认 false**：资源消耗（灵力 / 元气）本身就是限制，
+        /// 再叠一层 CD 属于双重限制、对手动回合制不必要（用户定案）。
+        /// 打开它 = 恢复旧行为（CD 与资源叠加）。
+        /// </summary>
+        public bool UseCooldown = false;
+
         /// <summary>释放绝技消耗的怒气（= 怒气满值，也就是"清零"）。</summary>
         public float UltimateRageCost = 100f;
 

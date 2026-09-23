@@ -529,7 +529,7 @@ namespace WanXiang.Modules.UI
                 if (_tmpRound != null && f.Turn > 0) _tmpRound.text = "第 " + f.Turn + " 回合";
             }
 
-            // 怒气环取我方第一个单位，作为这一局的手感指示器
+            // 元气环取我方第一个单位，作为这一局的手感指示器
             if (_imgRage != null && _play != null)
             {
                 var mine = _play.State.UnitsOf(TeamSide.Player);
@@ -537,7 +537,7 @@ namespace WanXiang.Modules.UI
                 {
                     var u = mine[0];
                     _imgRage.fillAmount = u.RageCap > 0f ? Mathf.Clamp01(u.Rage / u.RageCap) : 0f;
-                    if (_tmpRage != null) _tmpRage.text = "怒气 " + (int)u.Rage;
+                    if (_tmpRage != null) _tmpRage.text = "元气 " + (int)u.Rage;
                 }
             }
         }

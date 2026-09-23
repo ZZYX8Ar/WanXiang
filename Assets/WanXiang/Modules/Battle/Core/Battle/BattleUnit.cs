@@ -507,11 +507,12 @@ namespace WanXiang.Battle.Core
             Rage = CoreMath.Clamp(Rage - amount, 0f, RageCap);
         }
 
-        /// <summary>是否满足释放条件（CD 与怒气）。</summary>
+        /// <summary>是否满足释放条件（资源为主；CD 由 cfg.UseCooldown 决定是否参与）。</summary>
         public bool CanCast(SkillType type, BattleConfig cfg)
         {
             int idx = (int)type;
-            if (Cooldowns[idx] > 0) return false;
+            // ★ CD 改为可开关：默认关（资源本身即限制）。见 BattleConfig.UseCooldown 的说明。
+            if (cfg.UseCooldown && Cooldowns[idx] > 0) return false;
             if (type == SkillType.Ultimate && cfg.UltimateNeedsRage && Rage < cfg.RageMax) return false;
             return true;
         }

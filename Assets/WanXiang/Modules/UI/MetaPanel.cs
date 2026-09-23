@@ -355,7 +355,8 @@ namespace WanXiang.Modules.UI
                 case SkillType.Ultimate: typeCn = "终结技"; break;
                 default: typeCn = sk.Type.ToString(); break;
             }
-            string cd = sk.Cd > 0 ? ("·CD" + sk.Cd) : "";
+            // CD 已废弃（资源即限制）：不再显示，见 BattleConfig.UseCooldown
+            string cd = "";
             string desc = string.IsNullOrEmpty(sk.Description) ? "" : ("　" + sk.Description);
             return index + " " + sk.Name + "（" + typeCn + cd + "）" + desc;
         }
