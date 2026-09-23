@@ -144,6 +144,9 @@ namespace WanXiang.Modules.UI
             if (_selectedDraft >= 0)
                 ApplyDraft(_selectedDraft);
                 Debug.Log("[ResultPanel] 已选择奖励 " + (_selectedDraft + 1) + "：" + DraftTitle(_selectedDraft));
+            // ★ 每场战斗结算后刷新历程那一条（一局一条，同局覆盖）——
+            //   失败/通关时也一样走这里，所以那条天然就是最终态。
+            PushRunHistory(WanXiang.Run.RunSave.Current);
             ApplyOutcome();
             BackToCampaign();
         }
@@ -417,8 +420,9 @@ namespace WanXiang.Modules.UI
                 }
                 catch (System.Exception ex2) { Debug.LogWarning("[ResultPanel] 编队码生成失败：" + ex2.Message); }
 
-                metaH.PushHistory(run.Act, power, names.ToString(), code,
-                                  System.DateTime.Now.ToString("MM-dd HH:mm"));
+                // ★ 一局一条：用 RunSeed 作局标识，同局覆盖刷新
+                metaH.UpsertHistory("run_" + run.RunSeed, run.Act, power, names.ToString(), code,
+                                    System.DateTime.Now.ToString("MM-dd HH:mm"));
                 WanXiang.Meta.MetaStore.SaveHistory();
                 Debug.Log("[ResultPanel] 历程+1（局结束）：第 " + run.Act + " 幕 · 战力 " + power +
                           " · " + names + " · 码" + (code.Length > 0 ? (code.Length + "字符") : "无"));

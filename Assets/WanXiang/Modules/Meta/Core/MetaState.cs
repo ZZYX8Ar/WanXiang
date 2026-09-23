@@ -90,26 +90,43 @@ namespace WanXiang.Meta
 
         // ---- 历程（最近 50 局）：只记最远幕数 / 上场异兽 / 综合战力 / 编队码 ----
         public const int HistoryCap = 10;   // 一屏放得下（用户定案）
+        public readonly List<string> HistRunIds = new List<string>(HistoryCap);   // 局标识（RunSeed）
         public readonly List<int> HistActs = new List<int>(HistoryCap);
         public readonly List<int> HistPowers = new List<int>(HistoryCap);
         public readonly List<string> HistBeasts = new List<string>(HistoryCap);
         public readonly List<string> HistCodes = new List<string>(HistoryCap);   // ShareCode 编队码
         public readonly List<string> HistTimes = new List<string>(HistoryCap);
 
-        /// <summary>追加一条历程（超出上限时丢最旧的）。</summary>
-        public void PushHistory(int act, int power, string beasts, string code, string time)
+        /// <summary>
+        /// 写入/刷新一局历程 —— **同一局覆盖同一条**（用户定案）：
+        ///   每打完一场战斗调一次，记录这一局的最新状态；局结束时那条即最终态。
+        ///   不同局各自一条，最多 HistoryCap 条（超出丢最旧的）。
+        /// </summary>
+        public void UpsertHistory(string runId, int act, int power, string beasts, string code, string time)
         {
-            HistActs.Add(act);
-            HistPowers.Add(power);
-            HistBeasts.Add(beasts ?? "");
-            HistCodes.Add(code ?? "");
-            HistTimes.Add(time ?? "");
-            while (HistActs.Count > HistoryCap)
+            int i = HistRunIds.IndexOf(runId);
+            if (i < 0)
             {
-                HistActs.RemoveAt(0); HistPowers.RemoveAt(0);
+                HistRunIds.Add(runId);
+                HistActs.Add(act); HistPowers.Add(power);
+                HistBeasts.Add(beasts ?? ""); HistCodes.Add(code ?? ""); HistTimes.Add(time ?? "");
+            }
+            else
+            {
+                HistActs[i] = act; HistPowers[i] = power;
+                HistBeasts[i] = beasts ?? ""; HistCodes[i] = code ?? ""; HistTimes[i] = time ?? "";
+            }
+
+            while (HistRunIds.Count > HistoryCap)
+            {
+                HistRunIds.RemoveAt(0); HistActs.RemoveAt(0); HistPowers.RemoveAt(0);
                 HistBeasts.RemoveAt(0); HistCodes.RemoveAt(0); HistTimes.RemoveAt(0);
             }
         }
+
+        /// <summary>兼容旧调用（等同新开一条）。</summary>
+        public void PushHistory(int act, int power, string beasts, string code, string time)
+            => UpsertHistory("run_" + HistRunIds.Count + "_" + act, act, power, beasts, code, time);
 
         // ---- 觉醒技（批次B）：觉醒后可装备的【终结技】 ----
         //   来源：① 已解锁异兽的终结技（图鉴已有）② 探索掉落

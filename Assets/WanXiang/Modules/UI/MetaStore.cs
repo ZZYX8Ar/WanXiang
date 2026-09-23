@@ -77,7 +77,8 @@ namespace WanXiang.Meta
                 var sb = new System.Text.StringBuilder();
                 for (int i = 0; i < Current.HistActs.Count; i++)
                 {
-                    sb.Append(Current.HistActs[i]).Append('|')
+                    sb.Append(i < Current.HistRunIds.Count ? Current.HistRunIds[i] : "").Append('|')
+                      .Append(Current.HistActs[i]).Append('|')
                       .Append(i < Current.HistPowers.Count ? Current.HistPowers[i] : 0).Append('|')
                       .Append(i < Current.HistBeasts.Count ? Current.HistBeasts[i] : "").Append('|')
                       .Append(i < Current.HistCodes.Count ? Current.HistCodes[i] : "").Append('|')
@@ -100,11 +101,11 @@ namespace WanXiang.Meta
                 {
                     if (string.IsNullOrEmpty(line)) continue;
                     var parts = line.Split('|');
-                    if (parts.Length < 5) continue;
+                    if (parts.Length < 6) continue;      // v2: runId|act|power|beasts|code|time
                     int act, power;
-                    if (!int.TryParse(parts[0], out act)) continue;
-                    if (!int.TryParse(parts[1], out power)) power = 0;
-                    Current.PushHistory(act, power, parts[2], parts[3], parts[4]);
+                    if (!int.TryParse(parts[1], out act)) continue;
+                    if (!int.TryParse(parts[2], out power)) power = 0;
+                    Current.UpsertHistory(parts[0], act, power, parts[3], parts[4], parts[5]);
                 }
                 Debug.Log("[MetaStore] 已载入历程 " + Current.HistActs.Count + " 条");
             }
