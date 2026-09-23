@@ -31,7 +31,7 @@ namespace WanXiang.Meta
 {
     public static class MetaSaveCode
     {
-        public const byte CurrentVersion = 4;   // v4：新增精魄（进化材料）
+        public const byte CurrentVersion = 5;   // v5：新增觉醒技（收集 + 装备）
         public const int MaxIndex = 254;        // 下标用 1 字节，255 留作哨兵
         public const int MaxEggs = 65535;
 
@@ -59,7 +59,31 @@ namespace WanXiang.Meta
             // ⚠ 必须算准：写入的是  BeastCount(1) + beastBytes + HostCount(1) + hosts + SoulCount(1) + souls
             //   ⇒ 固定头 21 + beastBytes + hosts + souls + 2（曾少算 2 字节 → IndexOutOfRange，存档写不进去）
             // ⚠ 固定字节要逐个数清：头 22 + BeastCount(1) + HostCount(1) + SoulCount(1) = 25
-            int size = 25 + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count;   // v4: 头22+3个计数
+            // 觉醒技段字节数：AwakenSkills(1 + Σ(1+len)) + EquipCount(1) + Σ(1+len+1+len)
+            int awakenBytes = 1;
+            var awRaw = new System.Collections.Generic.List<byte[]>(st.AwakenSkills.Count);
+            foreach (var sid in st.AwakenSkills)
+            {
+                var raw = Encoding.UTF8.GetBytes(sid ?? "");
+                if (raw.Length == 0 || raw.Length > 250) continue;
+                awRaw.Add(raw);
+                awakenBytes += 1 + raw.Length;
+            }
+            var eqBeastRaw = new System.Collections.Generic.List<byte[]>(st.AwakenBeastIds.Count);
+            var eqSkillRaw = new System.Collections.Generic.List<byte[]>(st.AwakenEquipped.Count);
+            int eqCount = System.Math.Min(st.AwakenBeastIds.Count, st.AwakenEquipped.Count);
+            awakenBytes += 1;
+            for (int i = 0; i < eqCount; i++)
+            {
+                var bRaw = Encoding.UTF8.GetBytes(st.AwakenBeastIds[i] ?? "");
+                var sRaw = Encoding.UTF8.GetBytes(st.AwakenEquipped[i] ?? "");
+                if (bRaw.Length == 0 || bRaw.Length > 250 || sRaw.Length > 250) { eqCount--; i--; continue; }
+                eqBeastRaw.Add(bRaw);
+                eqSkillRaw.Add(sRaw);
+                awakenBytes += 1 + bRaw.Length + 1 + sRaw.Length;
+            }
+
+            int size = 25 + awakenBytes + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count;
             var b = new byte[size];
             b[0] = CurrentVersion;
             WriteU64(b, 1, st.Seed);
@@ -73,6 +97,23 @@ namespace WanXiang.Meta
             WriteU16(b, 20, (ushort)System.Math.Min(System.Math.Max(0, st.Essence), MaxEggs));   // ★ v4 精魄
 
             int p = 22;
+
+            // ★ v5 觉醒技段
+            b[p++] = (byte)awRaw.Count;
+            for (int i = 0; i < awRaw.Count; i++)
+            {
+                b[p++] = (byte)awRaw[i].Length;
+                for (int k = 0; k < awRaw[i].Length; k++) b[p++] = awRaw[i][k];
+            }
+            b[p++] = (byte)eqBeastRaw.Count;
+            for (int i = 0; i < eqBeastRaw.Count; i++)
+            {
+                b[p++] = (byte)eqBeastRaw[i].Length;
+                for (int k = 0; k < eqBeastRaw[i].Length; k++) b[p++] = eqBeastRaw[i][k];
+                b[p++] = (byte)eqSkillRaw[i].Length;
+                for (int k = 0; k < eqSkillRaw[i].Length; k++) b[p++] = eqSkillRaw[i][k];
+            }
+
             b[p++] = (byte)n;                               // ★ v3 培养数量
             for (int i = 0; i < n; i++)
             {
@@ -117,6 +158,36 @@ namespace WanXiang.Meta
             st.Essence = ReadU16(b, 20);                    // ★ v4 精魄
 
             int p = 22;
+
+            // ★ v5 觉醒技段
+            if (p >= b.Length) return false;
+            int awCount = b[p++];
+            for (int i = 0; i < awCount; i++)
+            {
+                if (p >= b.Length) return false;
+                int len = b[p++];
+                if (len == 0 || p + len > b.Length) return false;
+                st.AwakenSkills.Add(Encoding.UTF8.GetString(b, p, len));
+                p += len;
+            }
+            if (p >= b.Length) return false;
+            int eqN = b[p++];
+            for (int i = 0; i < eqN; i++)
+            {
+                if (p >= b.Length) return false;
+                int bl = b[p++];
+                if (bl == 0 || p + bl > b.Length) return false;
+                string bid = Encoding.UTF8.GetString(b, p, bl);
+                p += bl;
+                if (p >= b.Length) return false;
+                int sl = b[p++];
+                if (p + sl > b.Length) return false;
+                string sid = Encoding.UTF8.GetString(b, p, sl);
+                p += sl;
+                st.AwakenBeastIds.Add(bid);
+                st.AwakenEquipped.Add(sid);
+            }
+
             int beastCount = b[p++];                        // ★ v3 培养段
             if (p > b.Length) return false;
             for (int i = 0; i < beastCount; i++)

@@ -88,6 +88,36 @@ namespace WanXiang.Meta
         /// </summary>
         public int Essence;
 
+        // ---- 觉醒技（批次B）：觉醒后可装备的【终结技】 ----
+        //   来源：① 已解锁异兽的终结技（图鉴已有）② 探索掉落
+        public readonly List<string> AwakenSkills = new List<string>(32);      // 已收集的技能 id（如 jumang_u）
+        public readonly List<string> AwakenBeastIds = new List<string>(32);    // 哪只异兽
+        public readonly List<string> AwakenEquipped = new List<string>(32);    // 它装备的觉醒技 id
+
+        /// <summary>某异兽装备的觉醒技 id（未装备返回空串）。</summary>
+        public string AwakenOf(string beastId)
+        {
+            int i = AwakenBeastIds.IndexOf(beastId);
+            return i >= 0 && i < AwakenEquipped.Count ? AwakenEquipped[i] : "";
+        }
+
+        /// <summary>装备觉醒技（同兽覆盖）。</summary>
+        public void EquipAwaken(string beastId, string skillId)
+        {
+            int i = AwakenBeastIds.IndexOf(beastId);
+            if (i < 0) { AwakenBeastIds.Add(beastId); AwakenEquipped.Add(skillId ?? ""); return; }
+            AwakenEquipped[i] = skillId ?? "";
+        }
+
+        /// <summary>收进技能池（去重）。</summary>
+        public bool AddAwakenSkill(string skillId)
+        {
+            if (string.IsNullOrEmpty(skillId)) return false;
+            if (AwakenSkills.Contains(skillId)) return false;
+            AwakenSkills.Add(skillId);
+            return true;
+        }
+
         // ---- 异兽培养（阶段③）：局外永久成长，替代原"祭坛" ----
         //   ⚠ 用"下标对齐的三个 List"而不是 Dictionary：静态序列化更简单。
         //   ⚠ 当前暂未写入存档（MetaSaveCode 仍是 v2）—— 见 TODO(存档)。
