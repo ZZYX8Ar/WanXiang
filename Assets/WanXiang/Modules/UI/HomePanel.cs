@@ -176,10 +176,9 @@ namespace WanXiang.Modules.UI
             //    不该由主城直接进 —— GDD 全文没有"试炼"这个词（已核对，出现 0 次）。
             if (_btnTrial != null) _btnTrial.gameObject.SetActive(false);
 
-            // ③ 「成长」= GDD 第 8 章局外成长（五条轨道 / 领奖励 / 数值增益封顶 8%），
-            //    但 MetaPanel 目前只有 UI 骨架（OnCreate 里只有 TODO），
-            //    点开只会看到静态界面 ⇒ 先隐藏，等实现再接回来。
-            if (_btnMeta != null) _btnMeta.gameObject.SetActive(false);
+            // ③ 「成长」= GDD 第 8 章局外成长 —— **已接回来**：
+            //    MetaPanel 现已接到局外存档（MetaStore：祭坛花墨铊升级 / 加成经 PlayerMul 生效），
+            //    不再是空壳。原来的"先隐藏等实现"注释到此结束。
         }
 
         /// <summary>出征按钮的文案带上进度 —— 一眼看清"点下去是继续哪一层"。</summary>
@@ -204,7 +203,8 @@ namespace WanXiang.Modules.UI
 
         private void OnMetaClicked()
         {
-            if (_btnMeta != null) _btnMeta.gameObject.SetActive(false);
+            // ★ 打开局外成长面板（原来这里只把自己隐藏了，等于点不进去）
+            OpenPanelAsync<MetaPanel>().Forget();
         }
 
         /// <summary>
