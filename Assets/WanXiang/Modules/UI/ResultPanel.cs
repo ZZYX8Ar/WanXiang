@@ -144,9 +144,12 @@ namespace WanXiang.Modules.UI
             if (_selectedDraft >= 0)
                 ApplyDraft(_selectedDraft);
                 Debug.Log("[ResultPanel] 已选择奖励 " + (_selectedDraft + 1) + "：" + DraftTitle(_selectedDraft));
-            // ★ 每场战斗结算后刷新历程那一条（一局一条，同局覆盖）——
-            //   失败/通关时也一样走这里，所以那条天然就是最终态。
-            PushRunHistory(WanXiang.Run.RunSave.Current);
+            // ★ 每场战斗结算后刷新历程（一局一条，同局覆盖）。
+            //   ⚠ 好友对战跳过：不是"局"，编队来自分享码。
+            if (SceneFlow.LastWasPvp)
+                Debug.Log("[ResultPanel] 好友对战结算，不记历程");
+            else
+                PushRunHistory(WanXiang.Run.RunSave.Current);
             ApplyOutcome();
             BackToCampaign();
         }

@@ -20,6 +20,8 @@ namespace WanXiang.Modules.UI
     public sealed class BattleRequest
     {
         public string Title = "遭遇战";
+        /// <summary>好友对战（AI 自动）—— 结算时【不推历程】（不是"局"，编队来自分享码）。</summary>
+        public bool IsPvpMatch;
         /// <summary>这队敌人的 AI 打法（v2.1 P4：节点/遭遇决定，精英更凶）。</summary>
         public AiProfile AiProfile = AiProfile.Balanced;
         public string WeatherName = "";

@@ -22,6 +22,7 @@ namespace WanXiang.Modules.UI
     public sealed class PvpPanel : UIPanelBase
     {
         [SerializeField] private TMP_InputField _inputOpp;    // Inp_OppCode（粘贴对手码）
+        [SerializeField] private TMP_InputField _inputMine;   // Inp_MyCode（我的码，默认最新一局，可改）
         [SerializeField] private TMP_Text _tmpMyCode;         // Tmp_MyCode（我的码，可复制）
         [SerializeField] private Button _btnCopyMine;         // Btn_CopyMine
         [SerializeField] private Button _btnFight;            // Btn_Fight
@@ -38,7 +39,9 @@ namespace WanXiang.Modules.UI
         protected override UniTask OnOpenAsync(object payload)
         {
             RenderMine();
-            if (_tmpResult != null) _tmpResult.text = "粘贴朋友的配对码，然后点「开始对战」。";
+            if (_inputMine != null && string.IsNullOrEmpty(_inputMine.text))
+                _inputMine.text = MyLatestCode();     // 默认带入最新一局的码（可手动改）
+            if (_tmpResult != null) _tmpResult.text = "确认/修改上方两个配对码，然后点「开始对战」。";
             return UniTask.CompletedTask;
         }
 
@@ -76,8 +79,10 @@ namespace WanXiang.Modules.UI
 
         private void OnFight()
         {
-            var mine = MyLatestCode();
-            if (string.IsNullOrEmpty(mine)) { Show("我还没有配对码 —— 先打一局。"); return; }
+            // ★ 我的码：优先用输入框（自己填/改），空则回落到历程最新一条
+            var mine = _inputMine != null ? (_inputMine.text ?? "").Trim() : "";
+            if (string.IsNullOrEmpty(mine)) mine = MyLatestCode();
+            if (string.IsNullOrEmpty(mine)) { Show("我还没有配对码 —— 先打一局，或在上面粘贴一个。"); return; }
 
             string opp = _inputOpp != null ? (_inputOpp.text ?? "").Trim() : "";
             if (string.IsNullOrEmpty(opp)) { Show("请先粘贴对方的配对码。"); return; }
@@ -122,6 +127,7 @@ namespace WanXiang.Modules.UI
             var req = new WanXiang.Modules.UI.BattleRequest
             {
                 Title = "好友对战",
+                IsPvpMatch = true,
                 WeatherName = "AI 自动对战（双方各自动放技能）",
                 Seed = seed,
             };

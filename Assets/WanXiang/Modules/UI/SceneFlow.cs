@@ -31,6 +31,9 @@ namespace WanXiang.Modules.UI
         public static ResultRequest PendingResult;
 
         /// <summary>上一场战斗的【我方】异兽 id（结算时生成编队码用；切场景保持）。</summary>
+        /// <summary>上一场是不是好友对战（结算时用来跳过历程记录）。</summary>
+        public static bool LastWasPvp;
+
         public static System.Collections.Generic.List<string> LastAllyIds =
             new System.Collections.Generic.List<string>();
 
@@ -64,6 +67,7 @@ namespace WanXiang.Modules.UI
         /// <summary>出征：进战斗场景。</summary>
         public static void EnterBattle(BattleRequest request)
         {
+            LastWasPvp = request != null && request.IsPvpMatch;
             PendingBattle = request;
             Load(BattleScene);
         }
