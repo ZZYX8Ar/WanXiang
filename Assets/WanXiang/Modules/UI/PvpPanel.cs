@@ -32,7 +32,12 @@ namespace WanXiang.Modules.UI
         protected override void OnCreate()
         {
             if (_btnBack != null) _btnBack.onClick.AddListener(CloseSelf);
-            if (_btnCopyMine != null) _btnCopyMine.onClick.AddListener(OnCopyMine);
+            if (_btnCopyMine != null)
+            {
+                _btnCopyMine.onClick.AddListener(OnEditMine);   // 用户定案：复制按钮改为「修改」弹窗
+                var lblTxt = _btnCopyMine.GetComponentInChildren<TMP_Text>();
+                if (lblTxt != null) lblTxt.text = "修改";
+            }
             if (_btnFight != null) _btnFight.onClick.AddListener(OnFight);
         }
 
@@ -49,8 +54,10 @@ namespace WanXiang.Modules.UI
             if (_inputMine != null) _inputMine.interactable = true;
 
             RenderMine();
-            if (_inputMine != null && string.IsNullOrEmpty(_inputMine.text))
-                _inputMine.text = MyLatestCode();     // 默认带入最新一局的码（可手动改）
+            // ★ 默认永远是最新一局的码（面板是 Cached 的，旧逻辑「只在为空时填」
+            //   会留下上一局的旧码 —— 用户实测「对战码保存的异兽和最后一次战斗的不一样」
+            //   就是拿旧码在打）。要打其他阵容：用「修改」弹窗或直接改输入框。
+            if (_inputMine != null) _inputMine.text = MyLatestCode();
             if (_tmpResult != null) _tmpResult.text = "确认/修改上方两个配对码，然后点「开始对战」。";
             return UniTask.CompletedTask;
         }
@@ -150,6 +157,18 @@ namespace WanXiang.Modules.UI
                 WanXiang.Battle.Core.TeamSide.Enemy, out string errOpp);
             if (oppEntries == null) { Show("对方：" + errOpp); return; }
 
+            // ★ 调试：把实际进入对战的双方阵容（名字+格号）打出来，与历程对照
+            {
+                var s1 = new System.Text.StringBuilder("[PvpPanel][调试] 我方实际上场：");
+                for (int i = 0; i < myEntries.Length; i++)
+                    s1.Append(myEntries[i].Def.DisplayName).Append('(').Append(myEntries[i].PosIndex).Append(") ");
+                var s2 = new System.Text.StringBuilder("[PvpPanel][调试] 对方实际上场：");
+                for (int i = 0; i < oppEntries.Length; i++)
+                    s2.Append(oppEntries[i].Def.DisplayName).Append('(').Append(oppEntries[i].PosIndex).Append(") ");
+                Debug.Log(s1.ToString());
+                Debug.Log(s2.ToString());
+            }
+
             ulong seed = WanXiang.Pvp.PvpMatch.SeedOf(mine, opp);
 
             var req = new WanXiang.Modules.UI.BattleRequest
@@ -171,6 +190,125 @@ namespace WanXiang.Modules.UI
 
             CloseSelf();
             SceneFlow.EnterBattle(req);
+        }
+
+        // ------------------------------------------ 修改我的码·弹窗（用户定案）
+        private RectTransform _editRoot;
+        private TMP_InputField _editInput;
+
+        private void OnEditMine()
+        {
+            EnsureEditDialog();
+            if (_editInput == null) { Debug.LogWarning("[PvpPanel] 修改弹窗输入框未建成功"); return; }
+            _editInput.text = _inputMine != null ? (_inputMine.text ?? "") : MyLatestCode();
+            _editRoot.gameObject.SetActive(true);
+            Debug.Log("[PvpPanel][调试] 打开修改弹窗，当前码=" + _editInput.text);
+        }
+
+        private void EnsureEditDialog()
+        {
+            if (_editRoot != null) return;
+
+            // 全屏遮罩：挡住底下所有点击
+            var rootGo = new GameObject("EditMineOverlay", typeof(RectTransform));
+            var root = (RectTransform)rootGo.transform;
+            root.SetParent(transform, false);
+            root.anchorMin = Vector2.zero; root.anchorMax = Vector2.one;
+            root.offsetMin = root.offsetMax = Vector2.zero;
+            var mask = rootGo.AddComponent<Image>();
+            mask.color = new Color(0f, 0f, 0f, 0.6f);
+            mask.raycastTarget = true;
+            _editRoot = root;
+            rootGo.SetActive(false);
+
+            // 中央盒子
+            var boxGo = new GameObject("Box", typeof(RectTransform));
+            var box = (RectTransform)boxGo.transform;
+            box.SetParent(root, false);
+            box.anchorMin = box.anchorMax = new Vector2(0.5f, 0.5f);
+            box.anchoredPosition = Vector2.zero;
+            box.sizeDelta = new Vector2(960f, 300f);
+            var boxImg = boxGo.AddComponent<Image>();
+            boxImg.color = new Color(0.96f, 0.93f, 0.86f, 1f);
+            boxImg.raycastTarget = true;
+
+            // 标题
+            var titleGo = new GameObject("Title", typeof(RectTransform));
+            var trt = (RectTransform)titleGo.transform;
+            trt.SetParent(box, false);
+            trt.anchorMin = new Vector2(0f, 1f); trt.anchorMax = new Vector2(1f, 1f);
+            trt.pivot = new Vector2(0.5f, 1f);
+            trt.anchoredPosition = new Vector2(0f, -14f);
+            trt.sizeDelta = new Vector2(0f, 46f);
+            var title = titleGo.AddComponent<TMPro.TextMeshProUGUI>();
+            title.text = "输入我的配对码（默认最新一局，可改成其他阵容的码）";
+            title.fontSize = 26;
+            title.color = new Color(0.15f, 0.12f, 0.08f, 1f);
+            title.alignment = TMPro.TextAlignmentOptions.Center;
+            title.raycastTarget = false;
+
+            // 输入框：克隆 Inp_OppCode（已知可编辑的输入框结构），拆掉里面的按钮/标签
+            if (_inputOpp != null)
+            {
+                var cloneGo = UnityEngine.Object.Instantiate(_inputOpp.gameObject, box);
+                cloneGo.name = "Inp_Edit";
+                var crt = (RectTransform)cloneGo.transform;
+                crt.anchorMin = new Vector2(0.5f, 0.5f); crt.anchorMax = new Vector2(0.5f, 0.5f);
+                crt.anchoredPosition = new Vector2(0f, 10f);
+                crt.sizeDelta = new Vector2(860f, 64f);
+                var fight = cloneGo.transform.Find("Btn_Fight");
+                if (fight != null) UnityEngine.Object.Destroy(fight.gameObject);
+                var lblNode = cloneGo.transform.Find("Tmp_Label");
+                if (lblNode != null) UnityEngine.Object.Destroy(lblNode.gameObject);
+                _editInput = cloneGo.GetComponent<TMP_InputField>();
+                var ph = cloneGo.transform.Find("Viewport/Placeholder");
+                if (ph != null)
+                {
+                    var ptxt = ph.GetComponent<TMPro.TextMeshProUGUI>();
+                    if (ptxt != null) ptxt.text = "输入或粘贴我的配对码";
+                }
+            }
+
+            // 按钮：复制 / 确定 / 取消
+            MakeDlgBtn(box, "Btn_Copy", "复制", new Vector2(-300f, -100f), () =>
+            {
+                GUIUtility.systemCopyBuffer = _editInput.text ?? "";
+                Debug.Log("[PvpPanel] 已复制（弹窗）：" + _editInput.text);
+            });
+            MakeDlgBtn(box, "Btn_Ok", "确定", new Vector2(0f, -100f), () =>
+            {
+                if (_inputMine != null) _inputMine.text = (_editInput.text ?? "").Trim();
+                _editRoot.gameObject.SetActive(false);
+                Debug.Log("[PvpPanel][调试] 我的码已改为：" + (_inputMine != null ? _inputMine.text : ""));
+            });
+            MakeDlgBtn(box, "Btn_Cancel", "取消", new Vector2(300f, -100f), () =>
+                _editRoot.gameObject.SetActive(false));
+        }
+
+        private void MakeDlgBtn(RectTransform box, string name, string label,
+                                Vector2 pos, System.Action onClick)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(box, false);
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = pos;
+            rt.sizeDelta = new Vector2(180f, 56f);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.72f, 0.55f, 0.32f, 1f);
+            var btn = go.AddComponent<Button>();
+            var tGo = new GameObject("Text", typeof(RectTransform));
+            var trt = (RectTransform)tGo.transform;
+            trt.SetParent(rt, false);
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = trt.offsetMax = Vector2.zero;
+            var txt = tGo.AddComponent<TMPro.TextMeshProUGUI>();
+            txt.text = label;
+            txt.fontSize = 26;
+            txt.color = Color.white;
+            txt.alignment = TMPro.TextAlignmentOptions.Center;
+            txt.raycastTarget = false;
+            btn.onClick.AddListener(new UnityEngine.Events.UnityAction(onClick));
         }
 
         private void Show(string text)
