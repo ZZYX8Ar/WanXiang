@@ -227,7 +227,7 @@ namespace WanXiang.Modules.UI
                                     for (int k = 0; k < allBeasts.Length; k++)
                                         if (allBeasts[k].Id == allies[i]) { idx = k; break; }
                                     payload.BeastIndices[i] = idx < 0 ? 0 : idx;
-                                    payload.SoulIndices[i] = -1;
+                                    payload.SoulIndices[i] = 0;   // ⚠ 不能为 -1（Encode 会拒绝负下标）
                                     payload.BoardSlots[i] = i;
                                 }
                                 code = WanXiang.Fusion.ShareCode.Encode(payload) ?? "";
