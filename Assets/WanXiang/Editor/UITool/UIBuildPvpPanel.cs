@@ -38,11 +38,27 @@ namespace WanXiang.EditorTools
 
             // 我的码区
             var mine = UIBuild.Node(root.transform, "Root_Mine",
-                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, -260f), new Vector2(-30f, -116f));
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(30f, -336f), new Vector2(-30f, -116f));
             UIBuild.Img(mine, UIBuild.Card, true);
             UIBuild.Tmp(UIBuild.Node(mine, "Tmp_MyCode", Vector2.zero, Vector2.one,
                 new Vector2(20f, 10f), new Vector2(-220f, -10f)), "我的配对码", 22, UIBuild.Ink,
                 TextAlignmentOptions.MidlineLeft).enableWordWrapping = true;
+
+            // 我的码输入框（默认填最新一局的码，可手动改）
+            var mineInp = UIBuild.Node(mine, "Inp_MyCode",
+                new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(20f, 14f), new Vector2(-220f, 58f));
+            UIBuild.Img(mineInp, Color.white, true);
+            var mi = mineInp.gameObject.AddComponent<TMP_InputField>();
+            var mvp = UIBuild.Node(mineInp, "Viewport", Vector2.zero, Vector2.one,
+                new Vector2(10f, 6f), new Vector2(-10f, -6f));
+            mvp.gameObject.AddComponent<RectMask2D>();
+            var mtx = UIBuild.Node(mvp, "Text", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var mtxT = UIBuild.Tmp(mtx, "", 20, UIBuild.Ink, TextAlignmentOptions.MidlineLeft);
+            mtxT.enableWordWrapping = false;
+            var mph = UIBuild.Node(mvp, "Placeholder", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var mphT = UIBuild.Tmp(mph, "我的配对码（可修改）", 20, UIBuild.Dim, TextAlignmentOptions.MidlineLeft);
+            mi.textViewport = mvp; mi.textComponent = mtxT; mi.placeholder = mphT;
+            mi.targetGraphic = mineInp.GetComponent<Image>();
 
             var copy = UIBuild.Node(mine, "Btn_CopyMine",
                 new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-196f, -30f), new Vector2(-16f, 30f));
