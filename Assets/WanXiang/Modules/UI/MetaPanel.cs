@@ -213,9 +213,18 @@ namespace WanXiang.Modules.UI
             if (_tmpSkill4 != null)
             {
                 string eq = meta != null ? meta.AwakenOf(b.Id) : "";
-                _tmpSkill4.text = "④ 觉醒技：" + (string.IsNullOrEmpty(eq)
-                    ? "――（觉醒后可装备，仅限终结技）"
-                    : (eq + "（" + SkillNameById(eq) + "）"));
+                if (string.IsNullOrEmpty(eq))
+                {
+                    _tmpSkill4.text = "④ 觉醒技：――（觉醒后可装备，仅限终结技）";
+                }
+                else
+                {
+                    // 与上方技能同样的排版：名字（类型）　描述
+                    var sk = FindSkill(eq);
+                    string tn = sk != null ? TypeCn(sk.Type) : "终结技";
+                    string de = sk != null && !string.IsNullOrEmpty(sk.Description) ? ("　" + sk.Description) : "";
+                    _tmpSkill4.text = "④ 觉醒技·" + (sk != null ? sk.Name : eq) + "（" + tn + "）" + de;
+                }
             }
             if (_btnAwakenPick != null) _btnAwakenPick.gameObject.SetActive(evolved);
 
@@ -386,7 +395,7 @@ namespace WanXiang.Modules.UI
             }
 
             if (_awakenPickerTitle != null)
-                _awakenPickerTitle.text = "为「" + _shown[_selected].DisplayName + "」选择觉醒技（仅限终结技）· 共 " + entries.Count + " 项";
+                _awakenPickerTitle.text = "觉醒技 · " + _shown[_selected].DisplayName + "（共 " + entries.Count + "）";
 
             // 生成列表
             if (_listContent != null && _awakenItemTemplate != null) { }
@@ -431,16 +440,34 @@ namespace WanXiang.Modules.UI
             if (_awakenPicker != null) _awakenPicker.SetActive(true);
         }
 
-        /// <summary>按技能 id 取名字（从内容目录里扫全部技能）。</summary>
-        private static string SkillNameById(string skillId)
+        /// <summary>按技能 id 找 SkillDef（扫内容目录）。</summary>
+        private static SkillDef FindSkill(string skillId)
         {
-            if (string.IsNullOrEmpty(skillId)) return "?";
+            if (string.IsNullOrEmpty(skillId)) return null;
             var all = AllBeasts();
-            if (all == null) return skillId;
+            if (all == null) return null;
             for (int i = 0; i < all.Length; i++)
                 foreach (var sk in all[i].AllSkills)
-                    if (sk != null && sk.Id == skillId) return sk.Name;
-            return skillId;
+                    if (sk != null && sk.Id == skillId) return sk;
+            return null;
+        }
+
+        private static string TypeCn(SkillType t)
+        {
+            switch (t)
+            {
+                case SkillType.Basic: return "普攻";
+                case SkillType.Active: return "战技";
+                case SkillType.Ultimate: return "终结技";
+                default: return t.ToString();
+            }
+        }
+
+        /// <summary>按技能 id 取名字（找不到就返回 id）。</summary>
+        private static string SkillNameById(string skillId)
+        {
+            var sk = FindSkill(skillId);
+            return sk != null ? sk.Name : (skillId ?? "?");
         }
 
         /// <summary>按技能 id 取名字（从内容目录里扫全部技能）。</summary>
