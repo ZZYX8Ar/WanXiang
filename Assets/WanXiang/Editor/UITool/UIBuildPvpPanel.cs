@@ -132,6 +132,7 @@ namespace WanXiang.EditorTools
                 if (panel == null) { Debug.LogError("[PvpBuild] 根上没有 PvpPanel"); return; }
                 var so = new SerializedObject(panel);
                 SetRef(so, root, "_inputOpp", "Inp_OppCode");
+                SetRef(so, root, "_inputMine", "Inp_MyCode");
                 SetRef(so, root, "_tmpMyCode", "Tmp_MyCode");
                 SetRef(so, root, "_btnCopyMine", "Btn_CopyMine");
                 SetRef(so, root, "_btnFight", "Btn_Fight");
