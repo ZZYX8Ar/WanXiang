@@ -15,6 +15,9 @@
 //    [18]    宿主数量 n，随后 n 字节下标
 //    [..]    灵魂数量 m，随后 m 字节下标
 //
+//  v3 追加：头 21 字节后的"培养段"（n + n×(idLen+id+lv+ev)）——
+//    异兽局外等级与觉醒标记，跨局永久。
+//
 //  合法性校验（解码侧全查，任一不成立就 false，绝不带病读档）：
 //    版本一致 / 长度吻合 / 下标 < 255 / 解锁列表无重复 / 最远幕在 1..5。
 //  与 ShareCode 一致：**不做签名**（单机进度，篡改只影响自己），
@@ -28,7 +31,7 @@ namespace WanXiang.Meta
 {
     public static class MetaSaveCode
     {
-        public const byte CurrentVersion = 2;   // v2：新增 Ink（墨铊）
+        public const byte CurrentVersion = 3;   // v3：新增异兽培养（id/等级/觉醒）
         public const int MaxIndex = 254;        // 下标用 1 字节，255 留作哨兵
         public const int MaxEggs = 65535;
 
@@ -40,8 +43,20 @@ namespace WanXiang.Meta
             if (st.UnlockedHosts.Count > 255 || st.UnlockedSouls.Count > 255) return null;
             if (!IndicesValid(st.UnlockedHosts) || !IndicesValid(st.UnlockedSouls)) return null;
 
-            // 19 个固定字节 + 宿主下标 + 1 个灵魂数量字节 + 灵魂下标
-            int size = 21 + st.UnlockedHosts.Count + st.UnlockedSouls.Count;   // v2: +1 字节墨铊
+            // 头 21 字节 + 培养段 + 宿主下标 + 灵魂下标
+            var idBytes = new System.Collections.Generic.List<byte[]>(st.BeastIds.Count);
+            int beastBytes = 0;
+            int n = System.Math.Min(st.BeastIds.Count,
+                                    System.Math.Min(st.BeastLevels.Count, st.BeastEvolved.Count));
+            for (int i = 0; i < n; i++)
+            {
+                var raw = Encoding.UTF8.GetBytes(st.BeastIds[i] ?? "");
+                if (raw.Length > 250) return null;          // id 过长 = 脏档
+                idBytes.Add(raw);
+                beastBytes += 1 + raw.Length + 1 + 1;       // idLen + id + level + evolved
+            }
+
+            int size = 21 + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count + 1;
             var b = new byte[size];
             b[0] = CurrentVersion;
             WriteU64(b, 1, st.Seed);
@@ -50,9 +65,20 @@ namespace WanXiang.Meta
             WriteU16(b, 13, (ushort)System.Math.Min(st.RunsPlayed, MaxEggs));
             WriteU16(b, 15, (ushort)System.Math.Min(st.RunsCompleted, MaxEggs));
             b[17] = (byte)st.BestActReached;
-            WriteU16(b, 18, (ushort)System.Math.Min(System.Math.Max(0, st.Ink), MaxEggs));   // ★ v2 墨铊
-            b[20] = (byte)st.UnlockedHosts.Count;
-            int p = 21;
+            WriteU16(b, 18, (ushort)System.Math.Min(System.Math.Max(0, st.Ink), MaxEggs));
+
+            int p = 20;
+            b[p++] = (byte)n;                               // ★ v3 培养数量
+            for (int i = 0; i < n; i++)
+            {
+                var raw = idBytes[i];
+                b[p++] = (byte)raw.Length;
+                for (int k = 0; k < raw.Length; k++) b[p++] = raw[k];
+                b[p++] = (byte)System.Math.Min(255, System.Math.Max(0, st.BeastLevels[i]));
+                b[p++] = (byte)(st.BeastEvolved[i] ? 1 : 0);
+            }
+
+            b[p++] = (byte)st.UnlockedHosts.Count;
             for (int i = 0; i < st.UnlockedHosts.Count; i++) b[p++] = (byte)st.UnlockedHosts[i];
             b[p++] = (byte)st.UnlockedSouls.Count;
             for (int i = 0; i < st.UnlockedSouls.Count; i++) b[p++] = (byte)st.UnlockedSouls[i];
@@ -81,6 +107,23 @@ namespace WanXiang.Meta
             st.Ink = ReadU16(b, 18);            // ★ v2 墨铊
 
             int p = 20;
+            int beastCount = b[p++];                        // ★ v3 培养段
+            if (p > b.Length) return false;
+            for (int i = 0; i < beastCount; i++)
+            {
+                if (p >= b.Length) return false;
+                int idLen = b[p++];
+                if (idLen == 0 || p + idLen > b.Length) return false;
+                string id = Encoding.UTF8.GetString(b, p, idLen);
+                p += idLen;
+                if (p + 1 >= b.Length) return false;        // 还需 level + evolved
+                int lv = b[p++];
+                bool ev = b[p++] != 0;
+                st.BeastIds.Add(id);
+                st.BeastLevels.Add(lv);
+                st.BeastEvolved.Add(ev);
+            }
+
             int hostCount = b[p++];
             if (p + hostCount > b.Length) return false;
             for (int i = 0; i < hostCount; i++) st.UnlockedHosts.Add(b[p++]);
