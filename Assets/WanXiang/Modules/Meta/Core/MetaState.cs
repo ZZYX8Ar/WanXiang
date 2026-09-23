@@ -82,6 +82,20 @@ namespace WanXiang.Meta
         /// 用户明确：灵卵是局内货币，局外养成的钱应该是墨铊。
         /// </summary>
         public int Ink;
+
+        // ---- 异兽培养（阶段③）：局外永久成长，替代原"祭坛" ----
+        //   ⚠ 用"下标对齐的三个 List"而不是 Dictionary：静态序列化更简单。
+        //   ⚠ 当前暂未写入存档（MetaSaveCode 仍是 v2）—— 见 TODO(存档)。
+        public readonly List<string> BeastIds = new List<string>(32);
+        public readonly List<int> BeastLevels = new List<int>(32);
+        public readonly List<bool> BeastEvolved = new List<bool>(32);
+
+        /// <summary>某异兽的局外等级（0 = 未培养）。</summary>
+        public int BeastLevelOf(string id)
+        {
+            int i = BeastIds.IndexOf(id);
+            return i >= 0 && i < BeastLevels.Count ? BeastLevels[i] : 0;
+        }
         public int HatchCount;        // 已孵次数（进哈希 ⇒ 每次孵化结果不同且可复现）
         public int RunsPlayed;
         public int RunsCompleted;

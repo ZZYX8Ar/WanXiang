@@ -1,208 +1,328 @@
 // ============================================================================
-//  Panel_Meta —— 局外成长（境 · 五条成长线）
-//  v1.2 实现：五条轨道按 GDD 第 8 章渲染。
-//    L1 血脉 / L2 灵魄 / L3 图鉴 / L5 起手 —— 显示进度，功能待接（灰置说明）
-//    L4 祭坛 —— **本轮实现**：五行各 5 级、每级 +1.6%、总封顶 +8%（GDD 8.3），
-//               用灵卵升级（3 + 级 × 2），永久生效（走 BattleRequest.PlayerMul）。
-//  核心原则（GDD 8）：数值类局外增益封顶 +8% —— 真正变强靠局内构筑。
+//  Panel_Meta —— 局外养成 · 异兽培养
+//  ---------------------------------------------------------------------------
+//  布局（仿图鉴 Panel_Codex，但详情【常驻右侧】）：
+//    顶栏：墨铊 / 累计局数 / 最远幕
+//    页签：全部 + 木火土金水
+//    左侧：异兽列表（点选）
+//    右侧：立绘 / 名称 / 五行·定位·品阶 / 属性(含升级预览) / 技能×3 / 特性
+//          [升级 · N 墨铊]  [进化 · 条件]
+//
+//  ⚠ 祭坛已移除：它"全局五行 +1.6%/级"和"异兽升级"功能重复，
+//    保留异兽培养（更有养成感、且绑定具体异兽）。
 // ============================================================================
 
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using WanXiang.Battle.Core;
 using WanXiang.Framework.UI;
 
 namespace WanXiang.Modules.UI
 {
     [UIPanel("Panel_Meta", Layer = UILayer.Normal, CachePolicy = UICachePolicy.Cached,
              CloseOnMaskClick = false)]
-    // ↑ 全屏面板不该"点空白就关"：它铺满屏幕，没有"面板外"可言，
-    //   否则玩家点任何空白处都会把界面关掉（踩过）。
+    // ↑ 全屏面板不该"点空白就关"：它铺满屏幕，没有"面板外"可言。
     public sealed class MetaPanel : UIPanelBase
     {
-        [SerializeField] private TMP_Text _tmpRealm;           // Tmp_RealmText 当前境·劫
-        [BindArray("Tmp_TrackName_{0}", 5)]
-        [SerializeField] private TMP_Text[] _tmpTrackNames;    // 五条轨道名
-        [BindArray("Track_{0}", 5)]
-        [SerializeField] private RectTransform[] _trackNodes;  // 五条轨道容器（节点圆点由代码生成）
-        [SerializeField] private RectTransform _rewardItemTemplate;  // Item_Reward（模板，默认隐藏）
-        [SerializeField] private TMP_Text _tmpCap;             // Tmp_MetaCap 数值类增益封顶 +8%
+        [SerializeField] private TMP_Text _tmpTitle;         // Tmp_Title
+        [SerializeField] private TMP_Text _tmpStatus;        // Tmp_Status（墨铊/统计）
+        [SerializeField] private Button[] _tabBtns;          // Tab_0..Tab_5（全部+五行）
 
-        private static readonly string[] TrackDesc =
-        {
-            "血脉 · 孵穴扩容宿主池（待接）",
-            "灵魄 · 灵魂池扩容（待接）",
-            "图鉴 · 每 5 条解锁 1 个被动（待接）",
-            "祭坛 · 五行各 5 级，每级 +1.6%（可用灵卵升级）",
-            "起手 · 开局条件解锁（待接）",
-        };
-        private static readonly int[] AltarCostBase = { 3, 5, 7, 9, 11 };   // 升到第 N 级的花费
+        [SerializeField] private ScrollRect _scrollList;     // Scroll_Grid
+        [SerializeField] private RectTransform _listContent; // Content
+        [SerializeField] private RectTransform _itemTemplate;// Item_Beast（模板，默认隐藏）
+
+        [SerializeField] private GameObject _rootDetail;     // Root_Detail
+        [SerializeField] private Image _imgBig;              // Img_BeastBig
+        [SerializeField] private TMP_Text _tmpName;          // Tmp_Name
+        [SerializeField] private TMP_Text _tmpClass;         // Tmp_Class
+        [SerializeField] private TMP_Text _tmpStats;         // Tmp_Stats
+        [SerializeField] private TMP_Text _tmpSkill1;        // Tmp_Skill1
+        [SerializeField] private TMP_Text _tmpSkill2;        // Tmp_Skill2
+        [SerializeField] private TMP_Text _tmpSkill3;        // Tmp_Skill3
+        [SerializeField] private TMP_Text _tmpTrait;         // Tmp_Trait
+        [SerializeField] private TMP_Text _tmpEvolveCond;    // Tmp_EvolveCond
+        [SerializeField] private Button _btnUpgrade;         // Btn_Upgrade
+        [SerializeField] private Button _btnEvolve;          // Btn_Evolve
+        [SerializeField] private Button _btnBack;            // Btn_Back
+
+        private const int MaxLevel = 5;
+        private const float PerLevelBonus = 0.016f;   // 每级 +1.6%（5 级 = +8%，与 GDD 数值封顶一致）
+
+        /// <summary>升级单价（墨铊）：第 N 级 = 3 + N×2。</summary>
+        private static int UpgradeCost(int curLevel) => 3 + curLevel * 2;
+
+        private readonly List<BeastDef> _shown = new List<BeastDef>();
+        private readonly List<RectTransform> _items = new List<RectTransform>();
+        private int _tab;            // 0=全部，1..5=五行
+        private int _selected = -1;
 
         protected override void OnCreate()
         {
-            // TODO(交互): 领取奖励由代码生成的 Reward 按钮触发
+            for (int i = 0; i < (_tabBtns != null ? _tabBtns.Length : 0); i++)
+            {
+                int idx = i;
+                if (_tabBtns[i] != null) _tabBtns[i].onClick.AddListener(() => { _tab = idx; _selected = 0; Refresh(); });
+            }
+            if (_btnUpgrade != null) _btnUpgrade.onClick.AddListener(OnUpgradeClicked);
+            if (_btnEvolve != null) _btnEvolve.onClick.AddListener(OnEvolveClicked);
+            if (_btnBack != null) _btnBack.onClick.AddListener(CloseSelf);
+            if (_itemTemplate != null) _itemTemplate.gameObject.SetActive(false);
         }
 
         protected override UniTask OnOpenAsync(object payload)
         {
-            Render();
+            Refresh();
             return UniTask.CompletedTask;
         }
 
-        private void Render()
+        private void Refresh()
         {
-            var run = WanXiang.Run.RunSave.Current;
+            RenderTop();
+            RenderList();
+            RenderDetail();
+        }
 
-            // ★★ 局外养成走 MetaStore（跨局持久），不再读 run 的局内字段：
-            //    run.RealmText 是废弃字段；run.MetaAltar/run.Eggs 都是局内的，每局重置 = 养成无意义。
+        // ---------------------------------------------------------------- 顶栏
+
+        private void RenderTop()
+        {
             var meta = WanXiang.Meta.MetaStore.Ensure();
+            if (_tmpStatus != null)
+                _tmpStatus.text = meta == null ? "墨铊 0" :
+                    ("墨铊 " + meta.Ink + " · 累计 " + meta.RunsPlayed + " 局 · 最远第 " + meta.BestActReached + " 幕");
+        }
 
-            if (_tmpRealm != null)
+        // ---------------------------------------------------------------- 列表
+
+        private void RenderList()
+        {
+            if (_listContent == null || _itemTemplate == null) return;
+
+            for (int i = _items.Count - 1; i >= 0; i--)
+                if (_items[i] != null) { _items[i].gameObject.SetActive(false); Destroy(_items[i].gameObject); }
+            _items.Clear();
+            _shown.Clear();
+
+            var all = AllBeasts();
+            if (all == null) return;
+
+            for (int i = 0; i < all.Length; i++)
+                if (_tab <= 0 || ElementMatches(all[i].Element, _tab)) _shown.Add(all[i]);
+
+            for (int i = 0; i < _shown.Count; i++)
             {
-                _tmpRealm.text = meta == null
-                    ? "局外修行"
-                    : ("局外修行 · 累计 " + meta.RunsPlayed + " 局 · 最远第 " +
-                       meta.BestActReached + " 幕 · 通关 " + meta.RunsCompleted + " 次");
+                var rt = Instantiate(_itemTemplate, _listContent);
+                rt.gameObject.SetActive(true);
+                rt.name = "Item_" + _shown[i].Id;
+                rt.anchoredPosition = new Vector2(8f, -8f - i * 104f);
+                rt.sizeDelta = new Vector2(-16f, 96f);
+
+                var nameT = rt.Find("Tmp_ItemName") != null ? rt.Find("Tmp_ItemName").GetComponent<TMP_Text>() : null;
+                if (nameT != null) nameT.text = _shown[i].DisplayName;
+                var lvT = rt.Find("Tmp_ItemLevel") != null ? rt.Find("Tmp_ItemLevel").GetComponent<TMP_Text>() : null;
+                if (lvT != null) lvT.text = "Lv." + LevelOf(_shown[i].Id);
+
+                var btn = rt.GetComponent<Button>();
+                if (btn == null) btn = rt.gameObject.AddComponent<Button>();
+                btn.targetGraphic = rt.GetComponent<Image>();
+                int idx = i;
+                btn.onClick.AddListener(() => { _selected = idx; RenderDetail(); });
+
+                _items.Add(rt);
             }
-            if (_tmpCap != null)
+
+            if (_selected >= _shown.Count) _selected = _shown.Count - 1;
+            _listContent.sizeDelta = new Vector2(_listContent.sizeDelta.x, _shown.Count * 104f + 16f);
+        }
+
+        // ---------------------------------------------------------------- 详情
+
+        private void RenderDetail()
+        {
+            if (_rootDetail == null) return;
+
+            if (_selected < 0 || _selected >= _shown.Count)
             {
-                _tmpCap.text = (meta != null ? ("墨铊 " + meta.Ink + "　｜　") : "")
-                    + "数值类局外增益封顶 +8% —— 真正的变强在局内构筑";
+                _rootDetail.SetActive(false);
+                return;
+            }
+            _rootDetail.SetActive(true);
+
+            var b = _shown[_selected];
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            int lv = LevelOf(b.Id);
+            float mul = 1f + lv * PerLevelBonus;
+            bool evolved = IsEvolved(b.Id);
+
+            if (_tmpName != null) _tmpName.text = b.DisplayName + (evolved ? " · 觉醒" : "");
+            if (_tmpClass != null)
+                _tmpClass.text = ElementCn(b.Element) + " · " + RoleCn(b.Role) + " · " + RarityCn(b.Rarity);
+
+            if (_tmpStats != null)
+            {
+                int hp = Mathf.RoundToInt(b.BaseHp * mul);
+                int atk = Mathf.RoundToInt(b.BaseAtk * mul);
+                int nextLv = Mathf.Min(MaxLevel, lv + 1);
+                int hpNext = Mathf.RoundToInt(b.BaseHp * (1f + nextLv * PerLevelBonus));
+                int atkNext = Mathf.RoundToInt(b.BaseAtk * (1f + nextLv * PerLevelBonus));
+                _tmpStats.text = lv >= MaxLevel
+                    ? ("生命 " + hp + "　攻击 " + atk + "\n等级 " + lv + "/" + MaxLevel + "（已满）")
+                    : ("生命 " + hp + " → " + hpNext + "　攻击 " + atk + " → " + atkNext +
+                       "\n等级 " + lv + "/" + MaxLevel + "　当前加成 +" + (lv * PerLevelBonus * 100f).ToString("0.0") + "%");
             }
 
-            if (_tmpTrackNames != null && _trackNodes != null)
+            if (_tmpSkill1 != null) _tmpSkill1.text = "① " + SkillName(b, 0);
+            if (_tmpSkill2 != null) _tmpSkill2.text = "② " + SkillName(b, 1);
+            if (_tmpSkill3 != null)
+                _tmpSkill3.text = evolved ? ("③ " + SkillName(b, 2)) : "③ ――（觉醒后开放特殊技能槽）";
+
+            if (_tmpTrait != null)
+                _tmpTrait.text = "特性：" + (string.IsNullOrEmpty(b.Trait.Name) ? "—" : b.Trait.Name);
+
+            if (_tmpEvolveCond != null)
+                _tmpEvolveCond.text = evolved ? "已觉醒（可更换第 3 技能）" : EvolveConditionText(b);
+
+            int cost = UpgradeCost(lv);
+            if (_btnUpgrade != null)
             {
-                for (int i = 0; i < _trackNodes.Length && i < 5; i++)
-                {
-                    if (_tmpTrackNames[i] == null) continue;
-
-                    // L4 祭坛（第 4 条）：可升级 —— 花【墨铊】升【局外】祭坛
-                    if (i == 3)
-                    {
-                        float bonus = meta != null ? meta.AltarBonusTotal : 0f;
-                        _tmpTrackNames[i].text = TrackDesc[i] + "　当前 +" +
-                                                 (bonus * 100f).ToString("0.0") + "%";
-                        BuildAltar(_trackNodes[i], meta);
-                        continue;
-                    }
-
-                    // 其余四条：进度骨架（待接）
-                    _tmpTrackNames[i].text = TrackDesc[i];
-                    BuildPlaceholder(_trackNodes[i]);
-                }
+                _btnUpgrade.interactable = lv < MaxLevel && meta != null && meta.Ink >= cost;
+                var l = _btnUpgrade.transform.Find("Tmp_Label") != null
+                        ? _btnUpgrade.transform.Find("Tmp_Label").GetComponent<TMP_Text>() : null;
+                if (l != null) l.text = lv >= MaxLevel ? "已满级" : ("升级 · " + cost + " 墨铊");
+            }
+            if (_btnEvolve != null)
+            {
+                _btnEvolve.interactable = !evolved;
+                var l = _btnEvolve.transform.Find("Tmp_Label") != null
+                        ? _btnEvolve.transform.Find("Tmp_Label").GetComponent<TMP_Text>() : null;
+                if (l != null) l.text = evolved ? "已觉醒" : "进化";
             }
         }
 
-        /// <summary>
-        /// 祭坛轨道：五行各一行（等级 + 升级按钮）。
-        /// ★ 数据全部来自局外存档（MetaStore）：等级 AltarLevels、货币 Ink（墨铊）。
-        ///   升级 = 花墨铊永久 +1.6%/级，跨局生效（GDD 8.3：五条全点封顶 +8%）。
-        /// </summary>
-        private void BuildAltar(RectTransform track, WanXiang.Meta.MetaState meta)
+        // ---------------------------------------------------------------- 交互
+
+        private void OnUpgradeClicked()
         {
-            ClearChildren(track);
+            if (_selected < 0 || _selected >= _shown.Count) return;
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            var b = _shown[_selected];
             if (meta == null) return;
 
-            string[] elems = { "木", "火", "土", "金", "水" };
-            for (int i = 0; i < 5; i++)
+            int lv = LevelOf(b.Id);
+            int cost = UpgradeCost(lv);
+            if (lv >= MaxLevel || meta.Ink < cost) return;
+
+            meta.Ink -= cost;
+            SetLevel(b.Id, lv + 1);
+            WanXiang.Meta.MetaStore.Save();
+            Debug.Log("[MetaPanel] 升级 " + b.Id + " → Lv." + (lv + 1) + "（墨铊剩 " + meta.Ink + "）");
+            Refresh();
+        }
+
+        private void OnEvolveClicked()
+        {
+            if (_selected < 0 || _selected >= _shown.Count) return;
+            var b = _shown[_selected];
+            if (IsEvolved(b.Id)) return;
+            // ⚠ 进化（材料 + 剧情条件）待阶段 ③-4 接上数据层
+            Debug.LogWarning("[MetaPanel] 进化「" + b.DisplayName + "」尚未实现：" + EvolveConditionText(b));
+        }
+
+        // ------------------------------------------------- 数据层（MetaStore）
+
+        private static int LevelOf(string id)
+        {
+            var m = WanXiang.Meta.MetaStore.Current;
+            if (m == null) return 0;
+            int i = m.BeastIds.IndexOf(id);
+            return i >= 0 ? m.BeastLevels[i] : 0;
+        }
+
+        private static void SetLevel(string id, int level)
+        {
+            var m = WanXiang.Meta.MetaStore.Current;
+            if (m == null) return;
+            int i = m.BeastIds.IndexOf(id);
+            if (i < 0)
             {
-                int lv = i < meta.AltarLevels.Length ? meta.AltarLevels[i] : 0;
-                int cost = lv < AltarCostBase.Length ? AltarCostBase[lv] : 0;
+                m.BeastIds.Add(id);
+                m.BeastLevels.Add(level);
+                m.BeastEvolved.Add(false);
+            }
+            else m.BeastLevels[i] = level;
+        }
 
-                var row = new GameObject("Altar_" + i, typeof(RectTransform)).GetComponent<RectTransform>();
-                row.SetParent(track, false);
-                row.anchorMin = new Vector2(0f, 1f);
-                row.anchorMax = new Vector2(1f, 1f);
-                row.pivot = new Vector2(0.5f, 1f);
-                row.anchoredPosition = new Vector2(0f, -i * 64f);
-                row.sizeDelta = new Vector2(-16f, 56f);
+        private static bool IsEvolved(string id)
+        {
+            var m = WanXiang.Meta.MetaStore.Current;
+            if (m == null) return false;
+            int i = m.BeastIds.IndexOf(id);
+            return i >= 0 && i < m.BeastEvolved.Count && m.BeastEvolved[i];
+        }
 
-                var bg = row.gameObject.AddComponent<Image>();
-                bg.color = lv >= 5 ? new Color(0.85f, 0.76f, 0.56f, 0.35f) : new Color(0.96f, 0.94f, 0.89f, 0.8f);
+        /// <summary>该异兽的局外等级加成（供战斗读取）。</summary>
+        public static float LevelBonusOf(string id) => LevelOf(id) * PerLevelBonus;
 
-                var name = NewTmp(row, "Tmp", new Vector2(14f, 0f), new Vector2(-190f, 0f), 24,
-                    TextAlignmentOptions.MidlineLeft);
-                name.text = elems[i] + " · 等级 " + lv + "/5　（+" + (lv * 1.6f).ToString("0.0") + "%）";
+        // ---------------------------------------------------------------- 小工具
 
-                var btn = new GameObject("Btn_Up", typeof(RectTransform)).GetComponent<RectTransform>();
-                btn.SetParent(row, false);
-                btn.anchorMin = btn.anchorMax = new Vector2(1f, 0.5f);
-                btn.pivot = new Vector2(1f, 0.5f);
-                btn.anchoredPosition = new Vector2(-12f, 0f);
-                btn.sizeDelta = new Vector2(180f, 44f);
-                var bImg = btn.gameObject.AddComponent<Image>();
-                bImg.color = lv >= 5 ? new Color(0.8f, 0.8f, 0.78f, 0.6f) : new Color(0.79f, 0.63f, 0.39f, 1f);
-                var bBtn = btn.gameObject.AddComponent<Button>();
-                bBtn.targetGraphic = bImg;
-                var bTxt = NewTmp(btn, "Tmp", Vector2.zero, Vector2.one, 20, TextAlignmentOptions.Center);
-                bTxt.color = new Color(0.16f, 0.13f, 0.09f, 1f);
-                bTxt.text = lv >= 5 ? "已满级" : ("升级（" + cost + " 墨铊）");
-                bBtn.interactable = lv < 5 && meta.Ink >= cost;
+        private static BeastDef[] AllBeasts()
+        {
+            var cats = Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
+            if (cats == null || cats.Length == 0) return null;
+            return WanXiang.Fusion.ContentLibrary.BuildBeasts(cats[0]);
+        }
 
-                int slot = i;
-                bBtn.onClick.AddListener(() =>
-                {
-                    var m = WanXiang.Meta.MetaStore.Ensure();
-                    if (m == null) return;
-                    int cur = slot < m.AltarLevels.Length ? m.AltarLevels[slot] : 0;
-                    int c = cur < AltarCostBase.Length ? AltarCostBase[cur] : 0;
-                    if (cur >= 5 || m.Ink < c) return;
-                    if (m.UpgradeAltar(slot, m.Ink))     // 内部扣墨铊并 +1 级
-                    {
-                        WanXiang.Meta.MetaStore.Save();
-                        UnityEngine.Debug.Log("[MetaPanel] 祭坛升级：" + elems[slot] +
-                                              " → " + m.AltarLevels[slot] + " 级（墨铊剩 " + m.Ink +
-                                              "，总加成 " + (m.AltarBonusTotal * 100f).ToString("0.0") + "%）");
-                        Render();
-                    }
-                });
+        private static bool ElementMatches(WanXiang.Battle.Core.Element e, int tab)
+        {
+            switch (tab)
+            {
+                case 1: return e == WanXiang.Battle.Core.Element.Wood;
+                case 2: return e == WanXiang.Battle.Core.Element.Fire;
+                case 3: return e == WanXiang.Battle.Core.Element.Earth;
+                case 4: return e == WanXiang.Battle.Core.Element.Metal;
+                case 5: return e == WanXiang.Battle.Core.Element.Water;
+                default: return true;
             }
         }
 
-        /// <summary>其余四条轨道的占位行。</summary>
-        private void BuildPlaceholder(RectTransform track)
+        private static string SkillName(BeastDef b, int slot)
         {
-            ClearChildren(track);
-            var row = new GameObject("Pending", typeof(RectTransform)).GetComponent<RectTransform>();
-            row.SetParent(track, false);
-            row.anchorMin = new Vector2(0f, 1f);
-            row.anchorMax = new Vector2(1f, 1f);
-            row.pivot = new Vector2(0.5f, 1f);
-            row.anchoredPosition = new Vector2(0f, -30f);
-            row.sizeDelta = new Vector2(-16f, 44f);
-            var t = NewTmp(row, "Tmp", new Vector2(14f, 0f), new Vector2(-14f, 0f), 20,
-                TextAlignmentOptions.MidlineLeft);
-            t.text = "该成长线将在孵蛋 / 图鉴 / 开局解锁系统落地后开放";
-            t.color = new Color(0.55f, 0.52f, 0.46f, 1f);
+            var arr = b.AllSkills;
+            if (arr == null || slot >= arr.Length) return "――";
+            var sk = arr[slot];
+            return sk == null ? "――" : sk.Name;
         }
 
-        private static void ClearChildren(RectTransform parent)
+        private static string EvolveConditionText(BeastDef b)
+            => "进化条件：材料 ×2 + 8 墨铊（材料在探索中随机掉落）";
+
+        private static string ElementCn(WanXiang.Battle.Core.Element e)
         {
-            for (int i = parent.childCount - 1; i >= 0; i--)
+            switch (e)
             {
-                var c = parent.GetChild(i).gameObject;
-                c.SetActive(false);
-                Object.Destroy(c);         // 先失活再销毁（同帧不重叠）
+                case WanXiang.Battle.Core.Element.Wood: return "木";
+                case WanXiang.Battle.Core.Element.Fire: return "火";
+                case WanXiang.Battle.Core.Element.Earth: return "土";
+                case WanXiang.Battle.Core.Element.Metal: return "金";
+                case WanXiang.Battle.Core.Element.Water: return "水";
+                default: return "无";
             }
         }
 
-        private static TMP_Text NewTmp(RectTransform parent, string name,
-                                       Vector2 offMin, Vector2 offMax, float size,
-                                       TextAlignmentOptions align)
+        private static string RoleCn(RoleType r) => r.ToString();
+
+        private static string RarityCn(WanXiang.Battle.Core.Rarity r)
         {
-            var rt = new GameObject(name, typeof(RectTransform)).GetComponent<RectTransform>();
-            rt.SetParent(parent, false);
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = offMin;
-            rt.offsetMax = offMax;
-            var t = rt.gameObject.AddComponent<TextMeshProUGUI>();
-            t.fontSize = size;
-            t.color = new Color(0.16f, 0.13f, 0.09f, 1f);
-            t.alignment = align;
-            t.raycastTarget = false;
-            return t;
+            switch (r)
+            {
+                case WanXiang.Battle.Core.Rarity.Legend: return "传说";
+                case WanXiang.Battle.Core.Rarity.Epic: return "史诗";
+                default: return "稀有";
+            }
         }
     }
 }

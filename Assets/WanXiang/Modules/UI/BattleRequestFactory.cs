@@ -112,16 +112,28 @@ namespace WanXiang.Modules.UI
             // ★ 触发条件也要看【局外祭坛】(metaA)：否则局内 altarSum=0 时整段被跳过，
             //   局外的永久加成永远不生效。
             var metaGate = WanXiang.Meta.MetaStore.Ensure();
-            bool hasMetaAltar = metaGate != null && metaGate.AltarBonusTotal > 0f;
+            bool hasMetaAltar = metaGate != null && metaGate.BeastIds.Count > 0;
+            // ⚠ 变量名沿用（内容已改为"是否有局外培养数据"）；祭坛已废弃。
 
             if (run.HealPending != 0 || run.PlayerBuffPct != 0 || run.EnemyBuffPct != 0 ||
                 altarSum > 0 || hasMetaAltar)
             {
-                // ★ 祭坛加成改为【局外】永久成长（GDD 8.3）：来自 MetaStore.AltarBonusTotal，
-                //   每级 +1.6%、五条封顶 +8%。原来的 run.MetaAltar 是局内字段（每局重置 = 养成无意义）。
-                var metaA = metaGate;
-                float altarBonus = metaA != null ? metaA.AltarBonusTotal : 0f;
-                req.PlayerMul = 1f + altarBonus + (run.HealPending + run.PlayerBuffPct) / 100f;
+                // ★ 局外成长改为【异兽培养】等级（替代原"祭坛"）：
+                //   队伍里每只兽按**各自**的局外等级给 +1.6%/级（5 级 = +8%），
+                //   取全队平均作为本场我方倍率 —— 培养哪只就强在哪只身上。
+                float beastBonus = 0f;
+                int counted = 0;
+                if (metaGate != null && metaGate.BeastIds.Count > 0)
+                {
+                    int sum = 0;
+                    foreach (var id in run.Team)
+                    {
+                        sum += metaGate.BeastLevelOf(id);
+                        counted++;
+                    }
+                    if (counted > 0) beastBonus = sum / (float)counted * 0.016f;
+                }
+                req.PlayerMul = 1f + beastBonus + (run.HealPending + run.PlayerBuffPct) / 100f;
                 if (req.EnemyEntries != null)
                     foreach (var en in req.EnemyEntries)
                         en.WithMul(en.StatMul * (1f + run.EnemyBuffPct / 100f));
