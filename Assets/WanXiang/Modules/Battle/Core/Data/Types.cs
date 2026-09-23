@@ -55,6 +55,7 @@ namespace WanXiang.Battle.Core
         Basic = 0,     // 普攻：无 CD，普通攻击
         Active = 1,    // 战技：短 CD
         Ultimate = 2,  // 绝技：长 CD，玩家的"手动干预点"
+        Awaken = 3,    // 觉醒技：异兽进化后解锁的【第 4 技能】，只能装备终结技类技能
     }
 
     /// <summary>阵营。</summary>

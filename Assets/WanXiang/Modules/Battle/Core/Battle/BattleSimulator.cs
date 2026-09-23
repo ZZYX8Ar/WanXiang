@@ -449,6 +449,8 @@ namespace WanXiang.Battle.Core
 
             if (skill.Type == SkillType.Basic) actor.AddRage(cfg.RagePerBasicAttack);
             if (skill.Type == SkillType.Ultimate) actor.SpendRage(cfg.UltimateRageCost);
+            // ★ 觉醒技：同样耗满额元气（用户定案），且伤害额外 ×1.4（"觉醒技就是厉害"）
+            if (skill.Type == SkillType.Awaken) actor.SpendRage(cfg.UltimateRageCost);
 
             st.Log.Add(st.Turn, BattleEventKind.ActionEnd, actorId: actor.RuntimeId);
         }

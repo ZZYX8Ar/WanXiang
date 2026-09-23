@@ -67,7 +67,7 @@ namespace WanXiang.Battle.Core
         // ---- 怒气与冷却 ----
         public float Rage;
         /// <summary>三个技能的剩余冷却，下标与 SkillType 对应（0=普攻 1=战技 2=绝技）。</summary>
-        public readonly int[] Cooldowns = new int[3];
+        public readonly int[] Cooldowns = new int[4];   // 0普攻/1战技/2终结技/3觉醒技
 
         /// <summary>怒气的加成乘数（相克相冲会给 -10%）。</summary>
         public float RageGainMultiplier = 1f;
@@ -513,7 +513,8 @@ namespace WanXiang.Battle.Core
             int idx = (int)type;
             // ★ CD 改为可开关：默认关（资源本身即限制）。见 BattleConfig.UseCooldown 的说明。
             if (cfg.UseCooldown && Cooldowns[idx] > 0) return false;
-            if (type == SkillType.Ultimate && cfg.UltimateNeedsRage && Rage < cfg.RageMax) return false;
+            if ((type == SkillType.Ultimate || type == SkillType.Awaken)
+                && cfg.UltimateNeedsRage && Rage < cfg.RageMax) return false;
             return true;
         }
 
@@ -539,6 +540,7 @@ namespace WanXiang.Battle.Core
                 case SkillType.Basic: return Def.Basic;
                 case SkillType.Active: return Def.Active;
                 case SkillType.Ultimate: return Def.Ultimate;
+                case SkillType.Awaken: return Def.Awaken;
                 default: return null;
             }
         }

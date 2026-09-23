@@ -233,6 +233,8 @@ namespace WanXiang.Battle.Core
         public SkillDef Basic;
         public SkillDef Active;
         public SkillDef Ultimate;
+        /// <summary>觉醒技（第 4 槽）：异兽进化后由局外装备的终结技类技能。未装备时为空。</summary>
+        public SkillDef Awaken;
 
         public PaletteHex Palette;
 
@@ -245,7 +247,7 @@ namespace WanXiang.Battle.Core
         public float CritRate;
         public float CritDamage;
 
-        public SkillDef[] AllSkills => new[] { Basic, Active, Ultimate };
+        public SkillDef[] AllSkills => new SkillDef[] { Basic, Active, Ultimate, Awaken };
 
         /// <summary>
         /// 深一层的副本。**上阵时每个单位拿一份**，不是共享同一份定义 ——
@@ -259,7 +261,7 @@ namespace WanXiang.Battle.Core
                 Id = Id, DisplayName = DisplayName, Element = Element,
                 Role = Role, Rarity = Rarity,
                 Source = Source, Quote = Quote, Lore = Lore, Codex = Codex, Trait = Trait,
-                Basic = Basic?.Clone(), Active = Active?.Clone(), Ultimate = Ultimate?.Clone(),
+                Basic = Basic?.Clone(), Active = Active?.Clone(), Ultimate = Ultimate?.Clone(), Awaken = Awaken?.Clone(),
                 Palette = Palette,
                 BaseHp = BaseHp, BaseAtk = BaseAtk, BaseDef = BaseDef, BaseSpeed = BaseSpeed,
                 CritRate = CritRate, CritDamage = CritDamage,
