@@ -228,13 +228,6 @@ namespace WanXiang.Modules.UI
             }
             if (_btnAwakenPick != null) _btnAwakenPick.gameObject.SetActive(evolved);
 
-            if (_tmpSkill4 != null)
-            {
-                string eq = meta != null ? meta.AwakenOf(b.Id) : "";
-                _tmpSkill4.text = "④ 觉醒技：" + (string.IsNullOrEmpty(eq)
-                    ? "――（觉醒后可装备，仅限终结技）"
-                    : (eq + "（" + SkillNameById(eq) + "）"));
-            }
             if (_btnAwakenPick != null) _btnAwakenPick.gameObject.SetActive(evolved);
 
             if (_tmpTrait != null)
