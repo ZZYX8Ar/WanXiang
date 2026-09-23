@@ -43,6 +43,7 @@ namespace WanXiang.Meta
                     if (MetaSaveCode.TryDecode(code, out var decoded))
                     {
                         Current = decoded;
+                        LoadHistory();
                         Debug.Log("[MetaStore] 已载入局外存档：墨铊 " + Current.Ink +
                                   "｜局数 " + Current.RunsPlayed + "｜最远第 " + Current.BestActReached + " 幕" +
                                   "｜解锁宿主 " + Current.UnlockedHosts.Count + " 灵魂 " + Current.UnlockedSouls.Count);
@@ -61,6 +62,53 @@ namespace WanXiang.Meta
                       " 灵魂 " + Current.UnlockedSouls.Count);
             Save();
             return Current;
+        }
+
+        /// <summary>历程文件的路径（独立于 MetaSaveCode，避免二进制布局越改越复杂）。</summary>
+        private static string HistoryPath
+            => Path.Combine(Application.persistentDataPath, "wanxiang_history.sav");
+
+        /// <summary>把 History 写盘（每行一条：act|power|beasts|code|time）。</summary>
+        public static void SaveHistory()
+        {
+            if (Current == null) return;
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < Current.HistActs.Count; i++)
+                {
+                    sb.Append(Current.HistActs[i]).Append('|')
+                      .Append(i < Current.HistPowers.Count ? Current.HistPowers[i] : 0).Append('|')
+                      .Append(i < Current.HistBeasts.Count ? Current.HistBeasts[i] : "").Append('|')
+                      .Append(i < Current.HistCodes.Count ? Current.HistCodes[i] : "").Append('|')
+                      .Append(i < Current.HistTimes.Count ? Current.HistTimes[i] : "")
+                      .Append('\n');
+                }
+                File.WriteAllText(HistoryPath, sb.ToString());
+            }
+            catch (System.Exception e) { Debug.LogWarning("[MetaStore] 历程写入失败：" + e.Message); }
+        }
+
+        /// <summary>读历程（读档时调用一次）。</summary>
+        public static void LoadHistory()
+        {
+            if (Current == null) return;
+            if (!File.Exists(HistoryPath)) return;
+            try
+            {
+                foreach (var line in File.ReadAllLines(HistoryPath))
+                {
+                    if (string.IsNullOrEmpty(line)) continue;
+                    var parts = line.Split('|');
+                    if (parts.Length < 5) continue;
+                    int act, power;
+                    if (!int.TryParse(parts[0], out act)) continue;
+                    if (!int.TryParse(parts[1], out power)) power = 0;
+                    Current.PushHistory(act, power, parts[2], parts[3], parts[4]);
+                }
+                Debug.Log("[MetaStore] 已载入历程 " + Current.HistActs.Count + " 条");
+            }
+            catch (System.Exception e) { Debug.LogWarning("[MetaStore] 历程读入失败：" + e.Message); }
         }
 
         /// <summary>写回磁盘。任何改动局外存档后都应调用一次。</summary>

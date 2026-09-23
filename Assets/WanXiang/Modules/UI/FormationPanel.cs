@@ -676,6 +676,12 @@ namespace WanXiang.Modules.UI
                 req.PlayerCells.Add(cell);      // ★ 记录真实格号，战斗按它站位
             }
 
+            // ★ 记录本场【我方】上场 id（结算生成编队码用）
+            WanXiang.Modules.UI.SceneFlow.LastAllyIds.Clear();
+            if (req.Player != null)
+                foreach (var pb in req.Player)
+                    if (pb != null) WanXiang.Modules.UI.SceneFlow.LastAllyIds.Add(pb.Id);
+
             // ★ 记录本场敌方异兽 id（结算掉魂用）
             WanXiang.Modules.UI.SceneFlow.LastFoeIds.Clear();
             if (req.EnemyEntries != null && req.EnemyEntries.Count > 0)

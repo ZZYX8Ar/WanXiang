@@ -88,6 +88,29 @@ namespace WanXiang.Meta
         /// </summary>
         public int Essence;
 
+        // ---- 历程（最近 50 局）：只记最远幕数 / 上场异兽 / 综合战力 / 编队码 ----
+        public const int HistoryCap = 50;
+        public readonly List<int> HistActs = new List<int>(HistoryCap);
+        public readonly List<int> HistPowers = new List<int>(HistoryCap);
+        public readonly List<string> HistBeasts = new List<string>(HistoryCap);
+        public readonly List<string> HistCodes = new List<string>(HistoryCap);   // ShareCode 编队码
+        public readonly List<string> HistTimes = new List<string>(HistoryCap);
+
+        /// <summary>追加一条历程（超出上限时丢最旧的）。</summary>
+        public void PushHistory(int act, int power, string beasts, string code, string time)
+        {
+            HistActs.Add(act);
+            HistPowers.Add(power);
+            HistBeasts.Add(beasts ?? "");
+            HistCodes.Add(code ?? "");
+            HistTimes.Add(time ?? "");
+            while (HistActs.Count > HistoryCap)
+            {
+                HistActs.RemoveAt(0); HistPowers.RemoveAt(0);
+                HistBeasts.RemoveAt(0); HistCodes.RemoveAt(0); HistTimes.RemoveAt(0);
+            }
+        }
+
         // ---- 觉醒技（批次B）：觉醒后可装备的【终结技】 ----
         //   来源：① 已解锁异兽的终结技（图鉴已有）② 探索掉落
         public readonly List<string> AwakenSkills = new List<string>(32);      // 已收集的技能 id（如 jumang_u）
