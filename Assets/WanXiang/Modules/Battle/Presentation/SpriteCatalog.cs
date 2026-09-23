@@ -36,7 +36,17 @@ namespace WanXiang.Battle.Presentation
                     if (!string.IsNullOrEmpty(e.Id) && e.Body != null)
                         _map[e.Id] = e.Body;
             }
-            return id != null && _map.TryGetValue(id, out var s) ? s : null;
+            if (id != null && _map.TryGetValue(id, out var s)) return s;
+            // ★ 融合体 Id =「宿主Id+灵魂Id」（FusionRules.Fuse），目录里只有宿主 Id。
+            //   截取 "+" 前的宿主 Id 再查一次 —— 否则所有融合体都掉进 BattleStage2D
+            //   的「按序号分配」兜底（Player 取前5张/Enemy 取后5张），
+            //   表现就是：名字对、立绘错、两侧立绘还不一样（用户实测）。
+            if (id != null)
+            {
+                int plus = id.IndexOf('+');
+                if (plus > 0 && _map.TryGetValue(id.Substring(0, plus), out s)) return s;
+            }
+            return null;
         }
 
         /// <summary>
@@ -56,7 +66,14 @@ namespace WanXiang.Battle.Presentation
                     _headMap[e.Id] = e.Head != null ? e.Head : e.Body;
                 }
             }
-            return id != null && _headMap.TryGetValue(id, out var s) ? s : null;
+            if (id != null && _headMap.TryGetValue(id, out var s)) return s;
+            // ★ 同 Get：融合体 Id 带「+」，按宿主 Id 再查（头像同理）。
+            if (id != null)
+            {
+                int plus = id.IndexOf('+');
+                if (plus > 0 && _headMap.TryGetValue(id.Substring(0, plus), out s)) return s;
+            }
+            return null;
         }
 
         public void Rebuild()

@@ -64,9 +64,20 @@ namespace WanXiang.Meta
             return Current;
         }
 
-        /// <summary>历程文件的路径（独立于 MetaSaveCode，避免二进制布局越改越复杂）。</summary>
+        /// <summary>
+        /// 历程文件的路径（独立于 MetaSaveCode，避免二进制布局越改越复杂）。
+        /// ★ 按【存档槽位】隔离：每个存档一份历程（用户要求：每个存档都是独立的）。
+        ///   ActiveSlot 0 = 尚未选档 → 归入 1 号档。
+        ///   旧的 wanxiang_history.sav 是全局共用文件（已污染），不再读取 —— 等于自然清空。
+        /// </summary>
         private static string HistoryPath
-            => Path.Combine(Application.persistentDataPath, "wanxiang_history.sav");
+        {
+            get
+            {
+                int slot = WanXiang.Run.RunSave.ActiveSlot > 0 ? WanXiang.Run.RunSave.ActiveSlot : 1;
+                return Path.Combine(Application.persistentDataPath, "wanxiang_history_s" + slot + ".sav");
+            }
+        }
 
         /// <summary>把 History 写盘（每行一条：act|power|beasts|code|time）。</summary>
         public static void SaveHistory()
@@ -189,6 +200,8 @@ namespace WanXiang.Meta
         {
             try { if (File.Exists(FilePath)) File.Delete(FilePath); }
             catch (System.Exception e) { Debug.LogWarning("[MetaStore] 删档失败：" + e.Message); }
+            try { if (File.Exists(HistoryPath)) File.Delete(HistoryPath); }   // 历程跟着本槽位档一起清
+            catch (System.Exception e) { Debug.LogWarning("[MetaStore] 删历程失败：" + e.Message); }
             Current = null;
             LoadOrCreate(content, seed);
         }
