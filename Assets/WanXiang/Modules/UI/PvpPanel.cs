@@ -53,11 +53,12 @@ namespace WanXiang.Modules.UI
             }
             if (_inputMine != null) _inputMine.interactable = true;
 
-            RenderMine();
             // ★ 默认永远是最新一局的码（面板是 Cached 的，旧逻辑「只在为空时填」
             //   会留下上一局的旧码 —— 用户实测「对战码保存的异兽和最后一次战斗的不一样」
             //   就是拿旧码在打）。要打其他阵容：用「修改」弹窗或直接改输入框。
+            //   ⚠ 必须先刷输入框再 RenderMine()：标签优先显示输入框当前值，两处才一致。
             if (_inputMine != null) _inputMine.text = MyLatestCode();
+            RenderMine();
             if (_tmpResult != null) _tmpResult.text = "确认/修改上方两个配对码，然后点「开始对战」。";
             return UniTask.CompletedTask;
         }
@@ -67,7 +68,11 @@ namespace WanXiang.Modules.UI
         private void RenderMine()
         {
             if (_tmpMyCode == null) return;
-            var mine = MyLatestCode();
+            // ★ 优先显示输入框当前值（用户可能用「修改」弹窗改过）；
+            //   空则回落到历程最新一条。保证标签与实际参战的码一致 ——
+            //   否则「弹窗里改了，外面标签还是旧码」（用户实测）。
+            var mine = _inputMine != null ? (_inputMine.text ?? "").Trim() : "";
+            if (string.IsNullOrEmpty(mine)) mine = MyLatestCode();
             _tmpMyCode.text = string.IsNullOrEmpty(mine)
                 ? "（还没有可分享的编队 —— 先打一局）"
                 : ("我的配对码：\n" + mine);
@@ -278,6 +283,7 @@ namespace WanXiang.Modules.UI
             MakeDlgBtn(box, "Btn_Ok", "确定", new Vector2(0f, -100f), () =>
             {
                 if (_inputMine != null) _inputMine.text = (_editInput.text ?? "").Trim();
+                RenderMine();   // ★ 同步刷新外面的标签，否则「改了但显示的还是旧码」（用户实测）
                 _editRoot.gameObject.SetActive(false);
                 Debug.Log("[PvpPanel][调试] 我的码已改为：" + (_inputMine != null ? _inputMine.text : ""));
             });
