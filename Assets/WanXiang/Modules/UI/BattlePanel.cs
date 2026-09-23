@@ -763,7 +763,7 @@ namespace WanXiang.Modules.UI
             _tmpActor.alignment = TextAlignmentOptions.Center;
             _tmpActor.raycastTarget = false;
 
-            string[] names = { "普攻", "战记", "终结技" };   // 下标 = SkillType 枚举值
+            string[] names = { "普攻", "战记", "终结技", "觉醒技" };   // 下标 = SkillType 枚举值（3=Awaken）
             _skillBtns = new Button[names.Length];
             for (int i = 0; i < names.Length; i++)
             {
