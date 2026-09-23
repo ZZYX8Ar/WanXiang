@@ -56,7 +56,9 @@ namespace WanXiang.Meta
                 beastBytes += 1 + raw.Length + 1 + 1;       // idLen + id + level + evolved
             }
 
-            int size = 21 + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count + 1;
+            // ⚠ 必须算准：写入的是  BeastCount(1) + beastBytes + HostCount(1) + hosts + SoulCount(1) + souls
+            //   ⇒ 固定头 21 + beastBytes + hosts + souls + 2（曾少算 2 字节 → IndexOutOfRange，存档写不进去）
+            int size = 21 + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count + 2;
             var b = new byte[size];
             b[0] = CurrentVersion;
             WriteU64(b, 1, st.Seed);

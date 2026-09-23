@@ -68,9 +68,10 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
-            // 结构验证版：灵卵/墨锭是占位数值，等 RunState / MetaState 接进来后替换
-            if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + RunEggs;
-            if (_tmpInk != null) _tmpInk.text = "墨锭 " + RunInk;
+            // ★ 左上角的灵卵/墨锭已按用户要求隐藏（信息重复：灵卵在编阵/灵市里看，
+            //   墨铊在局外成长面板看）。prefab 里的节点保留，需要时可再打开。
+            if (_tmpEggs != null) _tmpEggs.gameObject.SetActive(false);
+            if (_tmpInk != null) _tmpInk.gameObject.SetActive(false);
 
             // 主立绘取队伍第一只
             if (_imgHero != null && _sprites != null && _contentCatalog != null)
