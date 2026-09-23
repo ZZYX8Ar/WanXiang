@@ -174,76 +174,6 @@ namespace WanXiang.Modules.UI
 
                 // ★ 胜利掉魂（B 来源）：按幕数给概率，掉"本场敌方某只"的魂。
                 //   魂本体不落盘，只记主人 id —— 取用时 SoulForge.Derive 重建。
-                // ★ 推一条历程（最远幕数 / 上场异兽 / 综合战力 / 编队码）
-                try
-                {
-                    var metaH = WanXiang.Meta.MetaStore.Ensure();
-                    if (metaH != null)
-                    {
-                        var allies = WanXiang.Modules.UI.SceneFlow.LastAllyIds;
-                        var names = new System.Text.StringBuilder();
-                        int power = 0;
-                        var allBeasts = WanXiang.Fusion.ContentLibrary.BuildBeasts(
-                            UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>()[0]);
-                        var byId = new System.Collections.Generic.Dictionary<string, WanXiang.Battle.Core.BeastDef>();
-                        if (allBeasts != null)
-                            foreach (var b in allBeasts) byId[b.Id] = b;
-
-                        if (allies != null)
-                        {
-                            foreach (var id in allies)
-                            {
-                                if (string.IsNullOrEmpty(id)) continue;
-                                if (names.Length > 0) names.Append('、');
-                                WanXiang.Battle.Core.BeastDef bd;
-                                if (byId.TryGetValue(id, out bd))
-                                {
-                                    names.Append(bd.DisplayName);
-                                    var st = bd.Clone();
-                                    WanXiang.Battle.Core.BattleConfig.Default.ApplyPlaceholderStats(st);
-                                    power += st.BaseHp + st.BaseAtk * 3 + st.BaseDef * 2 + st.BaseSpeed;
-                                }
-                            }
-                        }
-
-                        // 编队码（ShareCode 用内容目录下标）
-                        string code = "";
-                        try
-                        {
-                            if (allBeasts != null && allies != null && allies.Count > 0)
-                            {
-                                int n = System.Math.Min(WanXiang.Fusion.ShareCode.MaxUnits, allies.Count);
-                                var payload = new WanXiang.Fusion.SharePayload
-                                {
-                                    Version = 1,
-                                    BeastIndices = new int[n],
-                                    SoulIndices = new int[n],
-                                    BoardSlots = new int[n],
-                                    Seed = (ulong)cur.RunSeed,
-                                };
-                                for (int i = 0; i < n; i++)
-                                {
-                                    int idx = -1;
-                                    for (int k = 0; k < allBeasts.Length; k++)
-                                        if (allBeasts[k].Id == allies[i]) { idx = k; break; }
-                                    payload.BeastIndices[i] = idx < 0 ? 0 : idx;
-                                    payload.SoulIndices[i] = 0;   // ⚠ 不能为 -1（Encode 会拒绝负下标）
-                                    payload.BoardSlots[i] = i;
-                                }
-                                code = WanXiang.Fusion.ShareCode.Encode(payload) ?? "";
-                            }
-                        }
-                        catch (System.Exception ex2) { Debug.LogWarning("[ResultPanel] 编队码生成失败：" + ex2.Message); }
-
-                        metaH.PushHistory(cur.Act, power, names.ToString(), code,
-                                          System.DateTime.Now.ToString("MM-dd HH:mm"));
-                        WanXiang.Meta.MetaStore.SaveHistory();
-                        Debug.Log("[ResultPanel] 历程+1：第 " + cur.Act + " 幕 · 战力 " + power +
-                                  " · " + names + " · 码" + (code.Length > 0 ? code.Substring(0, System.Math.Min(12, code.Length)) + "…" : "无"));
-                    }
-                }
-                catch (System.Exception ex) { Debug.LogWarning("[ResultPanel] 历程记录异常：" + ex.Message); }
-
                 // ★ 掉觉醒技（只掉【终结技】，因为觉醒技槽只能装终结技）：
                 //   8% + 幕数×4%（比精魄更稀有 —— 它直接改变战斗手段）
                 {
@@ -306,6 +236,7 @@ namespace WanXiang.Modules.UI
                 if (SceneFlow.IsFinaleBattle)
                 {
                     SceneFlow.IsFinaleBattle = false;
+                    PushRunHistory(cur);      // ★ 历程：一局结束（通关）
                     // ★ 局外结算：通关（cleared=true）
                     try { WanXiang.Meta.MetaStore.SettleRun(cur, true); }
                     catch (System.Exception ex) { Debug.LogWarning("[ResultPanel] 局外结算异常：" + ex.Message); }
@@ -333,6 +264,7 @@ namespace WanXiang.Modules.UI
                 // ★ 失败 = **这一局直接结束**（用户规则）。旧实现只给 2 灵卵保底、节点照样推进
                 //   ⇒ 失败没有代价（结构验证版占位）。现在清空本局进度，只保留胜败统计。
                 cur.Losses++;
+                PushRunHistory(cur);      // ★ 历程：一局结束（失败）
                 // ★ 局外结算：本局失败（cleared=false，但走过的路也算收益）
                 //    必须在下面的"清空进度"**之前**。
                 try { WanXiang.Meta.MetaStore.SettleRun(cur, false); }
@@ -418,5 +350,81 @@ namespace WanXiang.Modules.UI
             WanXiang.Run.RunSave.SaveCurrent();
         }
 
-    }
+    
+        /// <summary>
+        /// 推一条历程（最远幕数 / 上场异兽 / 综合战力 / 编队码）。
+        /// ★ 只在【一局结束】时调用（归元 / 通关 / 失败）—— 不是每场胜利，
+        ///   否则一局 12~17 场会把历程刷屏（用户指出）。
+        /// </summary>
+        public static void PushRunHistory(WanXiang.Run.RunState run)
+        {
+            if (run == null) return;
+            try
+            {
+                var metaH = WanXiang.Meta.MetaStore.Ensure();
+                if (metaH == null) return;
+                var allies = WanXiang.Modules.UI.SceneFlow.LastAllyIds;
+                var names = new System.Text.StringBuilder();
+                int power = 0;
+                var allBeasts = WanXiang.Fusion.ContentLibrary.BuildBeasts(
+                    UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>()[0]);
+                var byId = new System.Collections.Generic.Dictionary<string, WanXiang.Battle.Core.BeastDef>();
+                if (allBeasts != null)
+                    foreach (var b in allBeasts) byId[b.Id] = b;
+
+                if (allies != null)
+                {
+                    foreach (var id in allies)
+                    {
+                        if (string.IsNullOrEmpty(id)) continue;
+                        if (names.Length > 0) names.Append('、');
+                        WanXiang.Battle.Core.BeastDef bd;
+                        if (byId.TryGetValue(id, out bd))
+                        {
+                            names.Append(bd.DisplayName);
+                            var st = bd.Clone();
+                            WanXiang.Battle.Core.BattleConfig.Default.ApplyPlaceholderStats(st);
+                            power += st.BaseHp + st.BaseAtk * 3 + st.BaseDef * 2 + st.BaseSpeed;
+                        }
+                    }
+                }
+
+                string code = "";
+                try
+                {
+                    if (allBeasts != null && allies != null && allies.Count > 0)
+                    {
+                        int n = System.Math.Min(WanXiang.Fusion.ShareCode.MaxUnits, allies.Count);
+                        var payload = new WanXiang.Fusion.SharePayload
+                        {
+                            Version = 1,
+                            BeastIndices = new int[n],
+                            SoulIndices = new int[n],
+                            BoardSlots = new int[n],
+                            Seed = (ulong)run.RunSeed,
+                        };
+                        for (int i = 0; i < n; i++)
+                        {
+                            int idx = -1;
+                            for (int k = 0; k < allBeasts.Length; k++)
+                                if (allBeasts[k].Id == allies[i]) { idx = k; break; }
+                            payload.BeastIndices[i] = idx < 0 ? 0 : idx;
+                            payload.SoulIndices[i] = 0;   // ⚠ 不能为 -1（Encode 拒绝负下标）
+                            payload.BoardSlots[i] = i;
+                        }
+                        code = WanXiang.Fusion.ShareCode.Encode(payload) ?? "";
+                    }
+                }
+                catch (System.Exception ex2) { Debug.LogWarning("[ResultPanel] 编队码生成失败：" + ex2.Message); }
+
+                metaH.PushHistory(run.Act, power, names.ToString(), code,
+                                  System.DateTime.Now.ToString("MM-dd HH:mm"));
+                WanXiang.Meta.MetaStore.SaveHistory();
+                Debug.Log("[ResultPanel] 历程+1（局结束）：第 " + run.Act + " 幕 · 战力 " + power +
+                          " · " + names + " · 码" + (code.Length > 0 ? (code.Length + "字符") : "无"));
+            }
+            catch (System.Exception ex) { Debug.LogWarning("[ResultPanel] 历程记录异常：" + ex.Message); }
+        }
+
+}
 }

@@ -222,6 +222,8 @@ namespace WanXiang.Modules.UI
                         //      玩家再出征又进天阙图（用户实测："归元还是直接进入第5幕"）。
                         //   ② 保留图鉴/魂/灵卵（它们属于跨局资产），清掉本局路线与进度。
                         var runEnd = WanXiang.Run.RunSave.Current;
+                        // ★ 历程：一局结束（归元）—— 同样在重置进度之前
+                        ResultPanel.PushRunHistory(runEnd);
                         // ★★ 局外结算（必须在重置进度**之前**，否则统计就没了）
                         //    归元 = 主动收尾，本局成果兑现为局外灵卵/墨铊。
                         try { WanXiang.Meta.MetaStore.SettleRun(runEnd, false); }
