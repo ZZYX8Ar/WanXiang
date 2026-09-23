@@ -109,9 +109,19 @@ namespace WanXiang.Modules.UI
                 foreach (var lv in run.MetaAltar) altarSum += lv;
 
             // 挂起修正（孵穴回复 / 天象异闻）：进本场后清零
-            if (run.HealPending != 0 || run.PlayerBuffPct != 0 || run.EnemyBuffPct != 0 || altarSum > 0)
+            // ★ 触发条件也要看【局外祭坛】(metaA)：否则局内 altarSum=0 时整段被跳过，
+            //   局外的永久加成永远不生效。
+            var metaGate = WanXiang.Meta.MetaStore.Ensure();
+            bool hasMetaAltar = metaGate != null && metaGate.AltarBonusTotal > 0f;
+
+            if (run.HealPending != 0 || run.PlayerBuffPct != 0 || run.EnemyBuffPct != 0 ||
+                altarSum > 0 || hasMetaAltar)
             {
-                req.PlayerMul = 1f + altarSum * 0.016f + (run.HealPending + run.PlayerBuffPct) / 100f;
+                // ★ 祭坛加成改为【局外】永久成长（GDD 8.3）：来自 MetaStore.AltarBonusTotal，
+                //   每级 +1.6%、五条封顶 +8%。原来的 run.MetaAltar 是局内字段（每局重置 = 养成无意义）。
+                var metaA = metaGate;
+                float altarBonus = metaA != null ? metaA.AltarBonusTotal : 0f;
+                req.PlayerMul = 1f + altarBonus + (run.HealPending + run.PlayerBuffPct) / 100f;
                 if (req.EnemyEntries != null)
                     foreach (var en in req.EnemyEntries)
                         en.WithMul(en.StatMul * (1f + run.EnemyBuffPct / 100f));

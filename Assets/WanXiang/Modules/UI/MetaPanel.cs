@@ -53,8 +53,23 @@ namespace WanXiang.Modules.UI
         private void Render()
         {
             var run = WanXiang.Run.RunSave.Current;
-            if (_tmpRealm != null) _tmpRealm.text = run != null ? run.RealmText : "第一境 · 第一劫";
-            if (_tmpCap != null) _tmpCap.text = "数值类局外增益封顶 +8% —— 真正的变强在局内构筑";
+
+            // ★★ 局外养成走 MetaStore（跨局持久），不再读 run 的局内字段：
+            //    run.RealmText 是废弃字段；run.MetaAltar/run.Eggs 都是局内的，每局重置 = 养成无意义。
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+
+            if (_tmpRealm != null)
+            {
+                _tmpRealm.text = meta == null
+                    ? "局外修行"
+                    : ("局外修行 · 累计 " + meta.RunsPlayed + " 局 · 最远第 " +
+                       meta.BestActReached + " 幕 · 通关 " + meta.RunsCompleted + " 次");
+            }
+            if (_tmpCap != null)
+            {
+                _tmpCap.text = (meta != null ? ("墨铊 " + meta.Ink + "　｜　") : "")
+                    + "数值类局外增益封顶 +8% —— 真正的变强在局内构筑";
+            }
 
             if (_tmpTrackNames != null && _trackNodes != null)
             {
@@ -62,14 +77,13 @@ namespace WanXiang.Modules.UI
                 {
                     if (_tmpTrackNames[i] == null) continue;
 
-                    // L4 祭坛（第 4 条）：可升级
+                    // L4 祭坛（第 4 条）：可升级 —— 花【墨铊】升【局外】祭坛
                     if (i == 3)
                     {
-                        int total = 0;
-                        if (run != null && run.MetaAltar != null)
-                            foreach (var lv in run.MetaAltar) total += lv;
-                        _tmpTrackNames[i].text = TrackDesc[i] + "　当前 +" + (total * 1.6f).ToString("0.0") + "%";
-                        BuildAltar(_trackNodes[i], run);
+                        float bonus = meta != null ? meta.AltarBonusTotal : 0f;
+                        _tmpTrackNames[i].text = TrackDesc[i] + "　当前 +" +
+                                                 (bonus * 100f).ToString("0.0") + "%";
+                        BuildAltar(_trackNodes[i], meta);
                         continue;
                     }
 
@@ -80,16 +94,21 @@ namespace WanXiang.Modules.UI
             }
         }
 
-        /// <summary>祭坛轨道：五行各一行（等级点 + 升级按钮，代码生成）。</summary>
-        private void BuildAltar(RectTransform track, WanXiang.Run.RunState run)
+        /// <summary>
+        /// 祭坛轨道：五行各一行（等级 + 升级按钮）。
+        /// ★ 数据全部来自局外存档（MetaStore）：等级 AltarLevels、货币 Ink（墨铊）。
+        ///   升级 = 花墨铊永久 +1.6%/级，跨局生效（GDD 8.3：五条全点封顶 +8%）。
+        /// </summary>
+        private void BuildAltar(RectTransform track, WanXiang.Meta.MetaState meta)
         {
             ClearChildren(track);
+            if (meta == null) return;
 
             string[] elems = { "木", "火", "土", "金", "水" };
             for (int i = 0; i < 5; i++)
             {
-                int lv = run != null && run.MetaAltar != null && i < run.MetaAltar.Length ? run.MetaAltar[i] : 0;
-                int cost = lv < 5 ? AltarCostBase[lv] : 0;
+                int lv = i < meta.AltarLevels.Length ? meta.AltarLevels[i] : 0;
+                int cost = lv < AltarCostBase.Length ? AltarCostBase[lv] : 0;
 
                 var row = new GameObject("Altar_" + i, typeof(RectTransform)).GetComponent<RectTransform>();
                 row.SetParent(track, false);
@@ -111,29 +130,32 @@ namespace WanXiang.Modules.UI
                 btn.anchorMin = btn.anchorMax = new Vector2(1f, 0.5f);
                 btn.pivot = new Vector2(1f, 0.5f);
                 btn.anchoredPosition = new Vector2(-12f, 0f);
-                btn.sizeDelta = new Vector2(170f, 44f);
+                btn.sizeDelta = new Vector2(180f, 44f);
                 var bImg = btn.gameObject.AddComponent<Image>();
                 bImg.color = lv >= 5 ? new Color(0.8f, 0.8f, 0.78f, 0.6f) : new Color(0.79f, 0.63f, 0.39f, 1f);
                 var bBtn = btn.gameObject.AddComponent<Button>();
                 bBtn.targetGraphic = bImg;
                 var bTxt = NewTmp(btn, "Tmp", Vector2.zero, Vector2.one, 20, TextAlignmentOptions.Center);
                 bTxt.color = new Color(0.16f, 0.13f, 0.09f, 1f);
-                bTxt.text = lv >= 5 ? "已满级" : "升级（" + cost + " 卵）";
-                bBtn.interactable = lv < 5 && run != null && run.Eggs >= cost;
+                bTxt.text = lv >= 5 ? "已满级" : ("升级（" + cost + " 墨铊）");
+                bBtn.interactable = lv < 5 && meta.Ink >= cost;
 
                 int slot = i;
                 bBtn.onClick.AddListener(() =>
                 {
-                    var r = WanXiang.Run.RunSave.Current;
-                    if (r == null) return;
-                    if (r.MetaAltar == null || r.MetaAltar.Length < 5) r.MetaAltar = new int[5];
-                    int cur = r.MetaAltar[slot];
-                    int c = cur < 5 ? AltarCostBase[cur] : 0;
-                    if (cur >= 5 || r.Eggs < c) return;
-                    r.Eggs -= c;
-                    r.MetaAltar[slot] = cur + 1;
-                    WanXiang.Run.RunSave.SaveCurrent();
-                    Render();      // 重画（花费与显示联动）
+                    var m = WanXiang.Meta.MetaStore.Ensure();
+                    if (m == null) return;
+                    int cur = slot < m.AltarLevels.Length ? m.AltarLevels[slot] : 0;
+                    int c = cur < AltarCostBase.Length ? AltarCostBase[cur] : 0;
+                    if (cur >= 5 || m.Ink < c) return;
+                    if (m.UpgradeAltar(slot, m.Ink))     // 内部扣墨铊并 +1 级
+                    {
+                        WanXiang.Meta.MetaStore.Save();
+                        UnityEngine.Debug.Log("[MetaPanel] 祭坛升级：" + elems[slot] +
+                                              " → " + m.AltarLevels[slot] + " 级（墨铊剩 " + m.Ink +
+                                              "，总加成 " + (m.AltarBonusTotal * 100f).ToString("0.0") + "%）");
+                        Render();
+                    }
                 });
             }
         }
