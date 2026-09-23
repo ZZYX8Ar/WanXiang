@@ -147,10 +147,34 @@ namespace WanXiang.Modules.UI
             foreach (var b in all) byId[b.Id] = b;
 
             if (run.Team != null)
+            {
+                // ★ 局外觉醒技注入：队伍里每只兽带上【它装备的觉醒技】（第 4 技能）。
+                var metaAw = WanXiang.Meta.MetaStore.Ensure();
                 foreach (var id in run.Team)
-                    if (!string.IsNullOrEmpty(id) && byId.TryGetValue(id, out var def) &&
-                        req.Player.Count < 5 && !req.Player.Contains(def))
-                        req.Player.Add(def);
+                {
+                    if (string.IsNullOrEmpty(id) || !byId.TryGetValue(id, out var def)) continue;
+                    if (req.Player.Count >= 5 || req.Player.Contains(def)) continue;
+
+                    // ⚠ 必须 Clone：byId[id] 是内容目录的共享引用，
+                    //   直接改会污染全局（之后每场战斗都带着觉醒技）。
+                    var d = def.Clone();
+                    if (metaAw != null)
+                    {
+                        string aid = metaAw.AwakenOf(id);
+                        if (!string.IsNullOrEmpty(aid))
+                        {
+                            var sk = FindSkillById(all, aid);
+                            if (sk != null)
+                            {
+                                d.Awaken = sk;
+                                UnityEngine.Debug.Log("[BattleRequestFactory] 觉醒技注入：" +
+                                                      d.DisplayName + " ← " + sk.Name);
+                            }
+                        }
+                    }
+                    req.Player.Add(d);
+                }
+            }
 
             if (req.Player.Count == 0)
                 for (int i = 0; i < 5 && i < all.Length; i++) req.Player.Add(all[i]);
@@ -215,5 +239,18 @@ namespace WanXiang.Modules.UI
                 default: return n.ToString();
             }
         }
-    }
+    
+        /// <summary>按技能 id 在全部异兽的技能里找（觉醒技池来源：90 个技能）。</summary>
+        private static WanXiang.Battle.Core.SkillDef FindSkillById(BeastDef[] all, string skillId)
+        {
+            if (all == null || string.IsNullOrEmpty(skillId)) return null;
+            for (int i = 0; i < all.Length; i++)
+            {
+                var arr = all[i].AllSkills;
+                for (int k = 0; k < arr.Length; k++)
+                    if (arr[k] != null && arr[k].Id == skillId) return arr[k];
+            }
+            return null;
+        }
+}
 }
