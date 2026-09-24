@@ -20,11 +20,39 @@ namespace WanXiang.Meta
 {
     public static class MetaStore
     {
-        /// <summary>全局唯一的局外存档（跨场景保持）。未初始化时为 null。</summary>
-        public static MetaState Current { get; private set; }
+        private static MetaState _current;
+        private static int _loadedSlot = -1;   // _current 属于哪个槽位（-1=尚未加载）
 
-        /// <summary>存档路径（每台机器一个，与槽位存档分开）。</summary>
-        private static string FilePath
+        /// <summary>当前槽位编号（0=尚未选档 → 归入 1 号档）。</summary>
+        private static int SlotNow
+            => WanXiang.Run.RunSave.ActiveSlot > 0 ? WanXiang.Run.RunSave.ActiveSlot : 1;
+
+        /// <summary>
+        /// 当前槽位的局外存档。
+        /// ★★ 按【存档槽位】完全隔离（2026-09-23 用户定案：局外一切数据每个存档独立）——
+        ///     墨铊 / 精魄 / 异兽等级与进化 / 觉醒技收集与装备 / 图鉴 …每槽一份，互不相关。
+        ///   getter 自愈：槽位与内存不匹配时自动重载对应槽位文件，
+        ///   任何地方直接读 Current 拿到的永远是"当前槽位"的数据。
+        /// </summary>
+        public static MetaState Current
+        {
+            get
+            {
+                if (_current == null || _loadedSlot != SlotNow)
+                    LoadOrCreate(BuildContentFromCatalog());
+                return _current;
+            }
+            private set { _current = value; }
+        }
+
+        /// <summary>当前槽位的局外存档路径：wanxiang_meta_s{slot}.sav（每槽一份）。</summary>
+        private static string FilePath => SlotFilePath(SlotNow);
+
+        private static string SlotFilePath(int slot)
+            => Path.Combine(Application.persistentDataPath, "wanxiang_meta_s" + slot + ".sav");
+
+        /// <summary>旧的全局局外档（所有槽共用 = 跨档污染源头）。迁移一次后即删除。</summary>
+        private static string LegacyPath
             => Path.Combine(Application.persistentDataPath, "wanxiang_meta.sav");
 
         /// <summary>
@@ -33,23 +61,51 @@ namespace WanXiang.Meta
         /// <param name="content">内容目录的规模信息（决定初始解锁池）。</param>
         public static MetaState LoadOrCreate(MetaContent content, ulong seed = 20260922UL)
         {
-            if (Current != null) return Current;
+            int slot = SlotNow;
+            if (_current != null && _loadedSlot == slot) return _current;
+            _loadedSlot = slot;
+
+            string path = SlotFilePath(slot);
+
+            // ★ 旧全局档迁移（只此一次）：首个被加载的槽位继承旧 wanxiang_meta.sav，
+            //   迁移后立刻删除旧文件 —— 其它槽位从零开始，不会再被旧数据污染。
+            if (!File.Exists(path) && File.Exists(LegacyPath))
+            {
+                try
+                {
+                    var legacyCode = File.ReadAllText(LegacyPath);
+                    if (MetaSaveCode.TryDecode(legacyCode, out var legacy))
+                    {
+                        Current = legacy;
+                        Save();
+                        LoadHistory();
+                        try { File.Delete(LegacyPath); }
+                        catch (System.Exception e) { Debug.LogWarning("[MetaStore] 删旧全局档失败：" + e.Message); }
+                        Debug.Log("[MetaStore] 已把旧全局局外档迁移到槽位 " + slot + "（旧文件已删除，只迁一次）");
+                        return Current;
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning("[MetaStore] 旧档迁移失败：" + e.Message);
+                }
+            }
 
             try
             {
-                if (File.Exists(FilePath))
+                if (File.Exists(path))
                 {
-                    var code = File.ReadAllText(FilePath);
+                    var code = File.ReadAllText(path);
                     if (MetaSaveCode.TryDecode(code, out var decoded))
                     {
                         Current = decoded;
                         LoadHistory();
-                        Debug.Log("[MetaStore] 已载入局外存档：墨铊 " + Current.Ink +
+                        Debug.Log("[MetaStore] 已载入槽位 " + slot + " 局外存档：墨铊 " + Current.Ink +
                                   "｜局数 " + Current.RunsPlayed + "｜最远第 " + Current.BestActReached + " 幕" +
                                   "｜解锁宿主 " + Current.UnlockedHosts.Count + " 灵魂 " + Current.UnlockedSouls.Count);
                         return Current;
                     }
-                    Debug.LogWarning("[MetaStore] 存档解码失败（版本不匹配？），将新建");
+                    Debug.LogWarning("[MetaStore] 槽位 " + slot + " 存档解码失败（版本不匹配？），将新建");
                 }
             }
             catch (System.Exception e)
@@ -58,7 +114,7 @@ namespace WanXiang.Meta
             }
 
             Current = MetaState.NewGame(seed, content);
-            Debug.Log("[MetaStore] 已新建局外存档：解锁宿主 " + Current.UnlockedHosts.Count +
+            Debug.Log("[MetaStore] 已新建槽位 " + slot + " 局外存档：解锁宿主 " + Current.UnlockedHosts.Count +
                       " 灵魂 " + Current.UnlockedSouls.Count);
             Save();
             return Current;
@@ -74,8 +130,7 @@ namespace WanXiang.Meta
         {
             get
             {
-                int slot = WanXiang.Run.RunSave.ActiveSlot > 0 ? WanXiang.Run.RunSave.ActiveSlot : 1;
-                return Path.Combine(Application.persistentDataPath, "wanxiang_history_s" + slot + ".sav");
+                return Path.Combine(Application.persistentDataPath, "wanxiang_history_s" + SlotNow + ".sav");
             }
         }
 
@@ -153,13 +208,15 @@ namespace WanXiang.Meta
             for (int slot = 1; slot <= WanXiang.Run.RunSave.SlotCount; slot++) DeleteHistory(slot);
         }
 
-        /// <summary>写回磁盘。任何改动局外存档后都应调用一次。</summary>
+        /// <summary>写回磁盘。任何改动局外存档后都应调用一次。
+        /// ★ 经 Current getter 自愈：槽位不匹配会先重载，绝不把 A 槽数据写进 B 槽文件。</summary>
         public static void Save()
         {
-            if (Current == null) return;
+            var meta = Current;
+            if (meta == null) return;
             try
             {
-                File.WriteAllText(FilePath, MetaSaveCode.Encode(Current));
+                File.WriteAllText(FilePath, MetaSaveCode.Encode(meta));
             }
             catch (System.Exception e)
             {
@@ -225,14 +282,42 @@ namespace WanXiang.Meta
             return income;
         }
 
-        /// <summary>清档（调试用：删掉文件并重建）。</summary>
+        /// <summary>切档后重载当前槽位的局外存档（含历程）。
+        /// ★ 与 ReloadHistory 一样，在每个切档入口调用；Current getter 也会自愈，这里显式调一次更确定。</summary>
+        public static void ReloadMeta()
+        {
+            _current = null;
+            _loadedSlot = -1;
+            LoadOrCreate(BuildContentFromCatalog());
+        }
+
+        /// <summary>删除指定槽位的局外存档文件（重置该档时用）。</summary>
+        public static void DeleteMeta(int slot)
+        {
+            try
+            {
+                var p = SlotFilePath(slot);
+                if (File.Exists(p)) File.Delete(p);
+            }
+            catch (System.Exception e) { Debug.LogWarning("[MetaStore] 删局外档失败 slot=" + slot + "：" + e.Message); }
+        }
+
+        /// <summary>删除全部槽位的局外存档文件（清空全部存档时用）。</summary>
+        public static void DeleteAllMeta()
+        {
+            for (int slot = 1; slot <= WanXiang.Run.RunSave.SlotCount; slot++) DeleteMeta(slot);
+        }
+
+        /// <summary>清档（调试用：删掉当前槽位文件并重建）。</summary>
         public static void Reset(MetaContent content, ulong seed = 20260922UL)
         {
-            try { if (File.Exists(FilePath)) File.Delete(FilePath); }
+            int slot = SlotNow;
+            try { if (File.Exists(SlotFilePath(slot))) File.Delete(SlotFilePath(slot)); }
             catch (System.Exception e) { Debug.LogWarning("[MetaStore] 删档失败：" + e.Message); }
             try { if (File.Exists(HistoryPath)) File.Delete(HistoryPath); }   // 历程跟着本槽位档一起清
             catch (System.Exception e) { Debug.LogWarning("[MetaStore] 删历程失败：" + e.Message); }
-            Current = null;
+            _current = null;
+            _loadedSlot = -1;
             LoadOrCreate(content, seed);
         }
     }

@@ -97,6 +97,7 @@ namespace WanXiang.Modules.UI
             if (state == null) RunSave.StartNew(slot);
             else RunSave.ContinueWith(state);
             WanXiang.Meta.MetaStore.ReloadHistory();   // ★ 切档后按新槽位重读历程，避免跨档污染
+            WanXiang.Meta.MetaStore.ReloadMeta();      // ★ 局外数据（墨铊/精魄/等级/觉醒技/图鉴）同样按槽隔离
             CloseSelf();
             SceneFlow.EnterMain();
         }
@@ -144,6 +145,8 @@ namespace WanXiang.Modules.UI
             if (!ok) return;
             WanXiang.Run.RunSave.ClearSlot(slot);
             WanXiang.Meta.MetaStore.DeleteHistory(slot);   // ★ 顺手删该档历程，否则重进还会显示旧历程
+            WanXiang.Meta.MetaStore.DeleteMeta(slot);      // ★ 该档局外数据一并清空（每槽独立）
+            WanXiang.Meta.MetaStore.ReloadMeta();          // ★ 内存立即回到"新档"状态（含历程重读）
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
             if (ui != null) await ui.OpenAsync<SavePanel>();
         }
@@ -157,6 +160,7 @@ namespace WanXiang.Modules.UI
                 {
                     RunSave.StartNew(slot);
                     WanXiang.Meta.MetaStore.ReloadHistory();   // ★ 新档：内存历程应为空
+                    WanXiang.Meta.MetaStore.ReloadMeta();      // ★ 新档：局外数据也应是该槽自己的（全新或已有）
                     CloseSelf();
                     SceneFlow.EnterMain();
                     return;
@@ -215,6 +219,8 @@ namespace WanXiang.Modules.UI
                 if (!ok) return;
                 WanXiang.Run.RunSave.ClearAll();
                 WanXiang.Meta.MetaStore.DeleteAllHistory();   // ★ 连历程一起清
+                WanXiang.Meta.MetaStore.DeleteAllMeta();      // ★ 全部槽位的局外数据一并清
+                WanXiang.Meta.MetaStore.ReloadMeta();         // ★ 内存回到全新状态
                 // 刷新列表显示
                 OpenPanelAsync<SavePanel>().Forget();
             });
@@ -239,6 +245,8 @@ namespace WanXiang.Modules.UI
                 if (!ok) return;
                 WanXiang.Run.RunSave.ClearAll();
                 WanXiang.Meta.MetaStore.DeleteAllHistory();   // ★ 连历程一起清
+                WanXiang.Meta.MetaStore.DeleteAllMeta();      // ★ 全部槽位的局外数据一并清
+                WanXiang.Meta.MetaStore.ReloadMeta();         // ★ 内存回到全新状态
                 var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
                 if (ui != null) await ui.OpenAsync<SavePanel>();
             }

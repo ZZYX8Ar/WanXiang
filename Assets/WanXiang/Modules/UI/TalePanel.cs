@@ -130,20 +130,25 @@ namespace WanXiang.Modules.UI
             }
             _picked = index;
             Apply(index);
-            BackToMap();
+            BackToMap(true);   // ★ 做出选择 = 异闻完成 ⇒ 保留 PendingCommit 让节点推进
         }
 
         private void OnDeclineClicked()
         {
             var run = WanXiang.Run.RunSave.Current;
             if (run != null) { run.Eggs += 1; WanXiang.Run.RunSave.SaveCurrent(); }   // GDD：拒绝换 1 灵卵
-            BackToMap();
+            BackToMap(true);   // ★ 拒绝也是"完成"（GDD §4.7：拒绝拿 1 灵卵）⇒ 节点推进
         }
 
         /// <summary>异闻是节点图的子面板：返回 = 回节点地图继续探索，不是回主城。</summary>
-        private void BackToMap()
+        /// <param name="completed">
+        /// ★ true = 玩家已做出选择/拒绝（异闻完成，拒绝换 1 灵卵也是完成）⇒ 保留 PendingCommit，
+        ///   CampaignPanel.OnOpenAsync 会落地"通过"并推进；false = 左上角「返回」中途退出 ⇒ 节点不通过。
+        ///   ⚠ 之前无条件清 -1，把选完/拒绝也算"未完成"⇒ 异闻节点永远不推进、后续全锁（用户实测）。
+        /// </param>
+        private void BackToMap(bool completed)
         {
-            CampaignPanel.PendingCommit = -1;          // 返回 = 未完成，节点不通过
+            if (!completed) CampaignPanel.PendingCommit = -1;   // 中途返回 = 未完成，节点不通过
             CloseSelf();
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
             if (ui != null) Cysharp.Threading.Tasks.UniTask.Void(async () =>
@@ -186,7 +191,7 @@ namespace WanXiang.Modules.UI
             _btnBack = btn;
             btn.onClick.AddListener(() =>
             {
-                BackToMap();
+                BackToMap(false);   // ★ 左上角「返回」= 中途退出，不算完成（节点不推进）
             });
         }
 
