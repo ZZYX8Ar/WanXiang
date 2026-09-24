@@ -37,6 +37,7 @@ namespace WanXiang.Modules.UI
 
         [SerializeField] private GameObject _rootDetail;     // Root_Detail
         [SerializeField] private Image _imgBig;              // Img_BeastBig
+        [SerializeField] private WanXiang.Battle.Presentation.SpriteCatalog _sprites; // 立绘目录（可不绑，运行时 FindCatalog 兜底）
         [SerializeField] private TMP_Text _tmpName;          // Tmp_Name
         [SerializeField] private TMP_Text _tmpClass;         // Tmp_Class
         [SerializeField] private TMP_Text _tmpStats;         // Tmp_Stats
@@ -180,6 +181,20 @@ namespace WanXiang.Modules.UI
             bool evolved = IsEvolved(b.Id);
 
             if (_tmpName != null) _tmpName.text = b.DisplayName + (evolved ? " · 觉醒" : "");
+
+            // ★ 立绘：之前只声明了 _imgBig 却从没赋过图 ⇒ 详情永远白块（用户实测反馈）。
+            //   与图鉴 CodexPanel 同源：SpriteCatalog.GetHead(id)（256 头像图集，缺 Head 回退 Body）。
+            if (_imgBig != null)
+            {
+                var cat = FindCatalog();
+                var sp = cat != null ? cat.GetHead(b.Id) : null;
+                _imgBig.sprite = sp;
+                _imgBig.color = Color.white;
+                _imgBig.preserveAspect = true;
+                if (sp == null)
+                    Debug.LogWarning("[MetaPanel] 立绘缺失：id=" + b.Id +
+                                     (cat == null ? "（SpriteCatalog 没找到）" : "（目录里没有该 id）"));
+            }
             if (_tmpClass != null)
                 _tmpClass.text = ElementCn(b.Element) + " · " + RoleCn(b.Role) + " · " + RarityCn(b.Rarity);
 
@@ -465,6 +480,21 @@ namespace WanXiang.Modules.UI
 
         /// <summary>按技能 id 取名字（从内容目录里扫全部技能）。</summary>
                 // ---------------------------------------------------------------- 小工具
+
+        private WanXiang.Battle.Presentation.SpriteCatalog _catalogCache;
+        /// <summary>
+        /// 立绘目录：先取 prefab 上绑的 _sprites，没绑就 FindObjectsOfTypeAll 兜底
+        /// （与 BattleStage2D.FindCatalog 同一模式；编辑器下也能找到未进场景的 SO 资产）。
+        /// </summary>
+        private WanXiang.Battle.Presentation.SpriteCatalog FindCatalog()
+        {
+            if (_sprites != null) return _sprites;
+            if (_catalogCache != null) return _catalogCache;
+            var all = Resources.FindObjectsOfTypeAll<WanXiang.Battle.Presentation.SpriteCatalog>();
+            foreach (var c in all)
+                if (c != null && c.Entries.Count > 0) { _catalogCache = c; break; }
+            return _catalogCache;
+        }
 
         private static BeastDef[] AllBeasts()
         {
