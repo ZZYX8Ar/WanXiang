@@ -164,7 +164,8 @@ namespace WanXiang.Modules.UI
                         // ★ 诊断日志：觉醒技按钮不显示时，看这里就知道断在哪一环
                         //   （没装备记录 / 装备了但技能 id 在目录里查不到）。
                         UnityEngine.Debug.Log("[BattleRequestFactory][调试] 觉醒技检查：" + d.DisplayName +
-                                  " id=" + id + " → 装备记录=" + (string.IsNullOrEmpty(aid) ? "（无）" : aid));                        if (!string.IsNullOrEmpty(aid))
+                                  " id=" + id + " → 装备记录=" + (string.IsNullOrEmpty(aid) ? "（无）" : aid));
+                        if (!string.IsNullOrEmpty(aid))
                         {
                             var sk = FindSkillById(all, aid);
                             if (sk != null)
