@@ -230,6 +230,8 @@ namespace WanXiang.Modules.UI
                 string eq = meta != null ? meta.AwakenOf(b.Id) : "";
                 if (string.IsNullOrEmpty(eq))
                 {
+                    // 专属材料已在**进化**那步卡住（见 EvolveConditionText）⇒ 这里只说"可装备"，
+                    // 不重复提示材料，避免玩家以为有两道门。
                     _tmpSkill4.text = "④ 觉醒技：――（觉醒后可装备，仅限终结技）";
                 }
                 else
@@ -254,21 +256,22 @@ namespace WanXiang.Modules.UI
             int cost = UpgradeCost(lv);
             if (_btnUpgrade != null)
             {
-                _btnUpgrade.interactable = lv < MaxLevel && meta != null && meta.Ink >= cost;
+                // ★ 不再按"资源是否够"禁用按钮 —— 禁用后点不动、玩家得不到任何解释。
+                //   现在只要没满级就可点，资源不够时由 OnUpgradeClicked 弹窗说明缺多少、去哪补。
+                _btnUpgrade.interactable = lv < MaxLevel;
                 var l = _btnUpgrade.transform.Find("Tmp_Label") != null
                         ? _btnUpgrade.transform.Find("Tmp_Label").GetComponent<TMP_Text>() : null;
                 if (l != null) l.text = lv >= MaxLevel ? "已满级" : ("升级 · " + cost + " 墨铊");
             }
             if (_btnEvolve != null)
             {
-                bool canEv = !evolved && meta != null &&
-                             meta.Essence >= EvolveEssenceCost && meta.Ink >= EvolveInkCost;
-                _btnEvolve.interactable = canEv;
+                // ★ 同理：只有"已进化"才禁用；材料/精魄/墨铊不足一律可点 ⇒ 弹窗告知。
+                _btnEvolve.interactable = !evolved;
                 var l = _btnEvolve.transform.Find("Tmp_Label") != null
                         ? _btnEvolve.transform.Find("Tmp_Label").GetComponent<TMP_Text>() : null;
                 if (l != null)
                     l.text = evolved ? "已觉醒"
-                           : ("进化 · 精魄" + EvolveEssenceCost + " + 墨铊" + EvolveInkCost);
+                           : ("进化 · 精魄" + EvolveEssenceCost + "+墨铊" + EvolveInkCost + "+材料");
             }
         }
 
@@ -283,7 +286,19 @@ namespace WanXiang.Modules.UI
 
             int lv = LevelOf(b.Id);
             int cost = UpgradeCost(lv);
-            if (lv >= MaxLevel || meta.Ink < cost) return;
+            if (lv >= MaxLevel)
+            {
+                Dialog.Tip("已经满级",
+                    "「" + b.DisplayName + "」已经是 Lv." + MaxLevel + "，无法再升级。").Forget();
+                return;
+            }
+            if (meta.Ink < cost)
+            {
+                Dialog.Tip("墨铊不足",
+                    "升级「" + b.DisplayName + "」需要 " + cost + " 墨铊，你现在只有 " + meta.Ink + "。\n" +
+                    "墨铊来自每局结算与战斗胜利。").Forget();
+                return;
+            }
 
             meta.Ink -= cost;
             SetLevel(b.Id, lv + 1);
@@ -300,14 +315,40 @@ namespace WanXiang.Modules.UI
 
             var meta = WanXiang.Meta.MetaStore.Ensure();
             if (meta == null) return;
+
+            // ★ v6：进化 = 精魄 + 墨铊 + **该异兽专属材料**（在残卷阁集齐剧情碎片后领取）。
+            //   材料是"一次性钥匙"，领取后永久持有、**不消耗** —— 所以不会和觉醒装备形成双门槛：
+            //   觉醒技槽本就只有进化后才开放，进化已要求材料 ⇒ 装备时不必再查一遍。
+            if (!meta.HasAwakenSoul(b.Id))
+            {
+                int fragNow = meta.FragmentCountOf(b.Id);
+                int need = WanXiang.Meta.MetaState.AwakenSoulThreshold;
+                string mat = BeastLore.MaterialName(b.Id);
+                Debug.LogWarning("[MetaPanel] 进化「" + b.DisplayName + "」缺专属材料（剧情碎片 " + fragNow + "/" + need + "）");
+                string prog = fragNow >= need
+                    ? "它的剧情碎片已经集齐（" + fragNow + "/" + need + "），去残卷阁领取即可。"
+                    : "现在剧情碎片 " + fragNow + "/" + need + "，还差 " + (need - fragNow) + " 片。\n" +
+                      "碎片来源：完成相关异闻，或击败含该异兽的敌方阵容。";
+                Dialog.Tip("专属材料未领取",
+                    "进化「" + b.DisplayName + "」需要它的专属材料「" + mat + "」。\n" + prog +
+                    "\n集齐后到主城「残卷阁」领取。").Forget();
+                return;
+            }
+
             if (meta.Essence < EvolveEssenceCost)
             {
                 Debug.LogWarning("[MetaPanel] 精魄不足：进化需 " + EvolveEssenceCost + "（现有 " + meta.Essence + "）");
+                Dialog.Tip("精魄不足",
+                    "进化「" + b.DisplayName + "」需要 " + EvolveEssenceCost + " 精魄，你现在只有 " + meta.Essence + "。\n" +
+                    "精魄来自战斗胜利掉落（每局胜场有概率获得）。").Forget();
                 return;
             }
             if (meta.Ink < EvolveInkCost)
             {
                 Debug.LogWarning("[MetaPanel] 墨铊不足：进化需 " + EvolveInkCost + "（现有 " + meta.Ink + "）");
+                Dialog.Tip("墨铊不足",
+                    "进化「" + b.DisplayName + "」需要 " + EvolveInkCost + " 墨铊，你现在只有 " + meta.Ink + "。\n" +
+                    "墨铊来自每局结算与战斗胜利。").Forget();
                 return;
             }
 
@@ -316,7 +357,7 @@ namespace WanXiang.Modules.UI
             SetEvolved(b.Id);
             WanXiang.Meta.MetaStore.Save();
             Debug.Log("[MetaPanel] ★ 进化「" + b.DisplayName + "」（-精魄" + EvolveEssenceCost +
-                      " -墨铊" + EvolveInkCost + "）⇒ 觉醒，开放第 3 技能槽；剩精魄 " + meta.Essence);
+                      " -墨铊" + EvolveInkCost + "，专属材料已持有不消耗）⇒ 觉醒，开放第 3 技能槽；剩精魄 " + meta.Essence);
             Refresh();
         }
 
@@ -380,6 +421,10 @@ namespace WanXiang.Modules.UI
             if (all == null) return;
 
             string beastId = _shown[_selected].Id;
+
+            // ⚠ v6 起**不在这里**校验专属材料：材料是**进化**的前置（OnEvolveClicked 已卡）。
+            //   而本弹层只有进化后才够得着（_btnAwakenPick 仅在 evolved 时显示）⇒
+            //   在这里再查一遍就成了重复门（用户明确反对双门槛）。
 
             // 候选 = ① 已解锁异兽的终结技  ② 探索收集到的技能
             var entries = new System.Collections.Generic.List<string>();
@@ -539,8 +584,16 @@ namespace WanXiang.Modules.UI
         }
 
         private static string EvolveConditionText(BeastDef b)
-            => "进化条件：精魄 ×" + EvolveEssenceCost + " + 墨铊 ×" + EvolveInkCost +
-               "（精魄在探索中随机掉落，每局胜场有概率获得）";
+        {
+            var m = WanXiang.Meta.MetaStore.Ensure();
+            int fc = m != null ? m.FragmentCountOf(b.Id) : 0;
+            bool hasSoul = m != null && m.HasAwakenSoul(b.Id);
+            string mat = hasSoul
+                ? "专属材料 ✓"
+                : ("专属材料 " + fc + "/" + WanXiang.Meta.MetaState.AwakenSoulThreshold + "（残卷阁领取）");
+            return "进化条件：精魄 ×" + EvolveEssenceCost + " + 墨铊 ×" + EvolveInkCost + " + " + mat
+                 + "（精魄/剧情碎片在探索与战斗胜场随机掉落）";
+        }
 
         private static string ElementCn(WanXiang.Battle.Core.Element e)
         {

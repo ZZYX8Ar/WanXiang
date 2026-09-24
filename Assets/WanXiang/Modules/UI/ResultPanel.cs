@@ -50,6 +50,13 @@ namespace WanXiang.Modules.UI
         private int _selectedDraft = -1;
         private bool _win;      // 本场胜负（结算奖励用）
 
+        // ★ 掉落展示（用户要求结算面板必须体现"碎片到底掉没掉 + 精魄 + 墨铊"）：
+        //   随机掉落必须在**面板打开时**就 roll 一次，否则等确认时面板已经要关了，来不及显示。
+        private bool _dropsRolled;
+        private string _dropFragment = "";   // 剧情碎片掉落描述（"" = 未掉落）
+        private int _dropEssence;            // 精魄掉落数（0 = 未掉落）
+        [SerializeField] private TMP_Text _tmpDrops;   // Tmp_Drops（prefab 节点，两个按钮之间的空档）
+
         protected override void OnCreate()
         {
             for (int i = 0; i < _draftBtns.Length; i++)
@@ -97,6 +104,14 @@ namespace WanXiang.Modules.UI
                 ? "灵卵 +1"
                 : "本局结束 —— 进度已清空，再次出征将从第一幕重新开始");
 
+            // ★ 掉落（剧情碎片 / 精魄 / 墨铊）：胜利时在打开面板这一刻就 roll 定
+            if (win && !_dropsRolled)
+            {
+                _dropsRolled = true;
+                RollDrops();
+            }
+            RenderDrops(win);
+
             // ★ 奖励区整块开关（方案 B）：prefab 里所有奖励控件都在 Root_Rewards 下，
             //   这里一行控制 —— 胜利显示奖励、失败隐藏（不再逐个 SetActive，避免遗漏）。
             var rewardsRoot = transform.Find("Root_Rewards");
@@ -118,6 +133,125 @@ namespace WanXiang.Modules.UI
         {
             if (_tmpLines != null && i < _tmpLines.Length && _tmpLines[i] != null)
                 _tmpLines[i].text = text;
+        }
+
+        // ================================================================
+        //  掉落（打开面板时 roll 一次，并把结果展示出来）
+        // ================================================================
+
+        /// <summary>
+        /// 胜利掉落：觉醒技 / 精魄 / 魂 / 剧情碎片。
+        /// ⚠ 必须在**打开结算面板时**就 roll 并写盘 —— 否则玩家看到的面板无法体现"掉没掉"。
+        /// </summary>
+        private void RollDrops()
+        {
+            var cur = WanXiang.Run.RunSave.Current;
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            if (meta == null) return;
+            int act = cur != null ? cur.Act : 1;
+
+            // ① 觉醒技（只掉【终结技】：觉醒技槽只能装终结技）—— 8% + 幕数×4%
+            {
+                int chanceS = 8 + act * 4;
+                if (UnityEngine.Random.Range(0, 100) < chanceS)
+                {
+                    var allB = AllBeasts();
+                    if (allB != null && allB.Length > 0)
+                    {
+                        var pick = allB[UnityEngine.Random.Range(0, allB.Length)];
+                        var ult = pick.Ultimate;
+                        if (ult != null && !string.IsNullOrEmpty(ult.Id))
+                        {
+                            bool isNew = meta.AddAwakenSkill(ult.Id);
+                            WanXiang.Meta.MetaStore.Save();
+                            Debug.Log("[ResultPanel] 掉技能：" + ult.Name + "（" + ult.Id + "）" +
+                                      (isNew ? " ✓ 新收集" : "（已有）") + "，共 " + meta.AwakenSkills.Count + " 个");
+                        }
+                    }
+                }
+            }
+
+            // ② 精魄（进化材料）—— 15% + 幕数×8%
+            {
+                int chanceE = 15 + act * 8;
+                if (UnityEngine.Random.Range(0, 100) < chanceE)
+                {
+                    meta.Essence += 1;
+                    _dropEssence += 1;
+                    WanXiang.Meta.MetaStore.Save();
+                    Debug.Log("[ResultPanel] 掉精魄 +1（现有 " + meta.Essence + "）—— 可用于异兽进化");
+                }
+            }
+
+            var foeIds = WanXiang.Modules.UI.SceneFlow.LastFoeIds;
+
+            // ③ 魂（本场敌方某只）—— 25% + 幕数×10%
+            if (cur != null && foeIds != null && foeIds.Count > 0)
+            {
+                int chance = 25 + act * 10;
+                if (UnityEngine.Random.Range(0, 100) < chance)
+                {
+                    var pick = foeIds[UnityEngine.Random.Range(0, foeIds.Count)];
+                    if (cur.Souls == null) cur.Souls = new System.Collections.Generic.List<string>();
+                    cur.Souls.Add(pick);
+                    Debug.Log("[ResultPanel] 掉魂：" + pick + "（现有 " + cur.Souls.Count + " 个）");
+                }
+            }
+
+            // ④ 剧情碎片（专属材料来源）—— 本场敌方有谁，就有机会掉谁的一 40% + 幕数×8%
+            if (foeIds != null && foeIds.Count > 0)
+            {
+                int chance = 40 + act * 8;
+                if (UnityEngine.Random.Range(0, 100) < chance)
+                {
+                    var pick = foeIds[UnityEngine.Random.Range(0, foeIds.Count)];
+                    int before = meta.FragmentCountOf(pick);
+                    meta.AddFragment(pick);
+                    WanXiang.Meta.MetaStore.Save();
+                    int after = meta.FragmentCountOf(pick);
+
+                    string dn = DisplayNameOf(pick);
+                    if (after > before)
+                        _dropFragment = BeastLore.FragmentName(dn, after - 1)
+                                      + "（" + after + "/" + WanXiang.Meta.MetaState.FragmentTotal + "）";
+                    else
+                        _dropFragment = dn + " 的剧情碎片（已集满）";
+
+                    Debug.Log("[ResultPanel] 掉剧情碎片：" + pick + "（" + after + "/" +
+                              WanXiang.Meta.MetaState.FragmentTotal + "）—— 集齐 " +
+                              WanXiang.Meta.MetaState.AwakenSoulThreshold + " 片可在残卷阁领取专属材料");
+                }
+            }
+        }
+
+        /// <summary>把掉落结果填进 prefab 里的 Tmp_Drops（节点由生成器/补丁建在跳过与确认之间）。</summary>
+        private void RenderDrops(bool win)
+        {
+            if (_tmpDrops == null) return;
+            _tmpDrops.gameObject.SetActive(win);
+            if (!win) return;
+
+            var cur = WanXiang.Run.RunSave.Current;
+            string frag = string.IsNullOrEmpty(_dropFragment) ? "本场未掉落" : _dropFragment;
+            string ess = _dropEssence > 0 ? ("+" + _dropEssence) : "本场未掉落";
+            string ink = cur != null ? "+1" : "—";
+            _tmpDrops.text = "剧情碎片：" + frag + "\n精魄：" + ess + "　墨铊：" + ink;
+        }
+
+        private static WanXiang.Battle.Core.BeastDef[] AllBeasts()
+        {
+            var cats = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
+            if (cats == null || cats.Length == 0) return null;
+            return WanXiang.Fusion.ContentLibrary.BuildBeasts(cats[0]);
+        }
+
+        private static string DisplayNameOf(string beastId)
+        {
+            var all = AllBeasts();
+            if (all != null)
+                for (int i = 0; i < all.Length; i++)
+                    if (all[i] != null && all[i].Id == beastId) return all[i].DisplayName;
+            return beastId;
         }
 
         private void OnDraftClicked(int index)
@@ -178,64 +312,10 @@ namespace WanXiang.Modules.UI
                 cur.Eggs += 1;
                 cur.Ink += 1;
 
-                // ★ 胜利掉魂（B 来源）：按幕数给概率，掉"本场敌方某只"的魂。
-                //   魂本体不落盘，只记主人 id —— 取用时 SoulForge.Derive 重建。
-                // ★ 掉觉醒技（只掉【终结技】，因为觉醒技槽只能装终结技）：
-                //   8% + 幕数×4%（比精魄更稀有 —— 它直接改变战斗手段）
-                {
-                    var metaS = WanXiang.Meta.MetaStore.Ensure();
-                    if (metaS != null)
-                    {
-                        int chanceS = 8 + cur.Act * 4;       // 第1幕 12% → 第4幕 24%
-                        if (UnityEngine.Random.Range(0, 100) < chanceS)
-                        {
-                            var allB = WanXiang.Fusion.ContentLibrary.BuildBeasts(
-                                UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>()[0]);
-                            if (allB != null && allB.Length > 0)
-                            {
-                                var pick = allB[UnityEngine.Random.Range(0, allB.Length)];
-                                var ult = pick.Ultimate;
-                                if (ult != null && !string.IsNullOrEmpty(ult.Id))
-                                {
-                                    bool isNew = metaS.AddAwakenSkill(ult.Id);
-                                    WanXiang.Meta.MetaStore.Save();
-                                    Debug.Log("[ResultPanel] 掉技能：" + ult.Name + "（" + ult.Id + "）" +
-                                              (isNew ? " ✓ 新收集" : "（已有）") + "，共 " + metaS.AwakenSkills.Count + " 个");
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // ★ 掉精魄（进化材料，比魂稀有）：15% + 幕数×8%
-                {
-                    var metaE = WanXiang.Meta.MetaStore.Ensure();
-                    if (metaE != null)
-                    {
-                        int chanceE = 15 + cur.Act * 8;      // 第1幕 23% → 第4幕 47%
-                        if (UnityEngine.Random.Range(0, 100) < chanceE)
-                        {
-                            metaE.Essence += 1;
-                            WanXiang.Meta.MetaStore.Save();
-                            Debug.Log("[ResultPanel] 掉精魄 +1（现有 " + metaE.Essence + "）—— 可用于异兽进化");
-                        }
-                    }
-                }
-
-                {
-                    var foeIds = WanXiang.Modules.UI.SceneFlow.LastFoeIds;
-                    if (foeIds != null && foeIds.Count > 0)
-                    {
-                        int chance = 25 + cur.Act * 10;          // 第1幕 35% → 第4幕 65%
-                        if (UnityEngine.Random.Range(0, 100) < chance)
-                        {
-                            var pick = foeIds[UnityEngine.Random.Range(0, foeIds.Count)];
-                            if (cur.Souls == null) cur.Souls = new System.Collections.Generic.List<string>();
-                            cur.Souls.Add(pick);
-                            Debug.Log("[ResultPanel] 掉魂：" + pick + "（现有 " + cur.Souls.Count + " 个）");
-                        }
-                    }
-                }
+                // ★ 掉落（觉醒技 / 精魄 / 魂 / 剧情碎片）已移到 RollDrops()。
+                //   原因：它们必须在**打开结算面板时**就 roll 定，才能把「掉没掉」显示在面板上；
+                //   留在这里 = 点确认时才 roll，面板已经要关了，来不及展示（用户反馈的问题）。
+                //   本方法只保留**确定的**记账（胜场 / 灵卵 / 墨铊 / 局外结算 / 历程）。
 
                 // ★★ 终局战（登天阙）胜利 = **真通关**：写入 BeatFinale。
                 //    这是"通关一次后解锁无尽模式 / 难度"的唯一依据。

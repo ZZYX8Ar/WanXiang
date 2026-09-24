@@ -74,13 +74,14 @@ namespace WanXiang.EditorTools
             BuildForge();
             BuildCodex();
             BuildMeta();
+            BuildArchive();
             BuildTrial();
             BuildSettings();
             BuildDialog();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[PrefabBuilder] " + "16 个面板预制体生成完毕 → Assets/Resources/UI/");
+            Debug.Log("[PrefabBuilder] " + "17 个面板预制体生成完毕 → Assets/Resources/UI/");
         }
 
         // ==================================================================
@@ -568,20 +569,8 @@ namespace WanXiang.EditorTools
             var hpNum = UIBuild.Tmp(UIBuild.Stretch(hpTpl, "Tmp_HpNum", 8, 4, 8, 4),
                 "999", 22, UIBuild.Paper, TextAlignmentOptions.Center);
 
-            var ult = UIBuild.Right(rt, "Root_Ultimate", 440, 24, 300, 200);
-            var rageBgRt = UIBuild.Center(ult, "Img_RageRingBg", new Vector2(250, 250));
-            UIBuild.Img(rageBgRt, UIBuild.Night);
-            var rageRt = UIBuild.Center(ult, "Img_RageRing", new Vector2(250, 250));
-            var rage = UIBuild.Img(rageRt, UIBuild.Gold);
-            rage.type = Image.Type.Filled;
-            rage.fillMethod = Image.FillMethod.Radial360;
-            rage.fillOrigin = (int)Image.Origin360.Bottom;
-            rage.fillAmount = 0.4f;
-            rage.raycastTarget = false;
-            var bUlt = UIBuild.MakeBtn(ult, "Btn_Ultimate", new Vector2(0.5f, 0.5f),
-                new Vector2(180, 180), Vector2.zero, "绝技", UIBuild.Red, 34f);
-            var tmpRage = UIBuild.Tmp(UIBuild.Fixed(ult, "Tmp_RageValue", new Vector2(0.5f, 0f),
-                new Vector2(220, 44), new Vector2(0, 30)), "怒气 0", 26, UIBuild.Ink, TextAlignmentOptions.Center);
+            // （Root_Ultimate 已移除：绝技按钮与元气显示改由 Root_Action / Btn_Skill_2 / _tmpActor 接管，
+            //   见 BattlePanel.RefreshActionBar。下方绑定一并删除。）
 
             var ctl = UIBuild.Bottom(rt, "Root_BattleCtl", 120, 24, 24, 340);
             var bSpeed = UIBuild.MakeBtn(ctl, "Btn_Speed", new Vector2(0f, 0.5f),
@@ -602,9 +591,6 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_rootStage", stage);
             UIBuild.Bind(comp, "_rootUnits", units);
             UIBuild.Bind(comp, "_hpBarTemplate", hpTpl);
-            UIBuild.Bind(comp, "_btnUltimate", bUlt.GetComponent<Button>());
-            UIBuild.Bind(comp, "_imgRage", rage);
-            UIBuild.Bind(comp, "_tmpRage", tmpRage);
             UIBuild.Bind(comp, "_btnSpeed", bSpeed.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnAuto", bAuto.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnLeave", bLeave.GetComponent<Button>());
@@ -756,7 +742,23 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_btnConfirm", bConfirm.GetComponent<Button>());
             UIBuild.Bind(comp, "_spriteWin", LoadAsset<Sprite>(ArtParts + "banner_win.png"));
             UIBuild.Bind(comp, "_spriteLose", LoadAsset<Sprite>(ArtParts + "banner_lose.png"));
+            EnsureResultDropsNode(rt, comp);
             UIBuild.SavePrefab(root, "Panel_Result");
+        }
+
+        /// <summary>结算面板的「掉落明细」行（放在【跳过】与【确认】之间的空档）。Ensure 语义。</summary>
+        internal static void EnsureResultDropsNode(RectTransform rt, ResultPanel comp)
+        {
+            // 实测几何：跳过 x 140..500、确认 x 850..1310 ⇒ 中间 500..850 是空的
+            var r = EnsureNode(rt, "Tmp_Drops", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                Vector2.zero, Vector2.zero);
+            r.pivot = new Vector2(0.5f, 0f);
+            r.anchoredPosition = new Vector2(-25f, 6f);
+            r.sizeDelta = new Vector2(340f, 92f);
+            var tmp = EnsureText(r, "剧情碎片：本场未掉落\n精魄：本场未掉落　墨铊：+1", 18f,
+                UIBuild.Gold, TextAlignmentOptions.Bottom);
+            tmp.enableWordWrapping = true;
+            UIBuild.Bind(comp, "_tmpDrops", tmp);
         }
 
         // ==================================================================
@@ -1135,7 +1137,249 @@ namespace WanXiang.EditorTools
         }
 
         // ==================================================================
-        // 12 Panel_Trial —— 天阙抉择
+        // 12 Panel_Archive —— 残卷阁（剧情面板）
+        // ------------------------------------------------------------------
+        //  形态（用户定案）：五行分类 tab + 网格卡片（左立绘 / 右 6 个碎片格）
+        //  + 点击点亮的碎片弹剧情面板 + 卡片上「领取专属材料」。
+        //  ⚠ 铁律：**所有节点都做进 prefab**，不做运行时构建 UI（否则美术改不了）。
+        //  ⚠ EnsureArchiveNodes 同时服务「新建」与「增量补丁」——Ensure 语义：只补缺，不重建。
+        // ==================================================================
+
+        private static void BuildArchive()
+        {
+            var root = NewPanelRoot("Panel_Archive", false, new Vector2(1240, 900));
+            var comp = root.AddComponent<ArchivePanel>();
+            var rt = (RectTransform)root.transform;
+            UIBuild.Img(rt, UIBuild.Card, false);
+
+            EnsureArchiveNodes(rt, comp);
+            UIBuild.SavePrefab(root, "Panel_Archive");
+        }
+
+        /// <summary>残卷阁完整节点树 + 字段绑定（幂等：已存在的节点保留其布局与配色，只补缺失的）。</summary>
+        internal static void EnsureArchiveNodes(RectTransform rt, ArchivePanel comp)
+        {
+            // ---------- 标题栏 ----------
+            var titleBar = EnsureNode(rt, "Img_TitleBar", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(40f, -134f), new Vector2(-40f, -24f));
+            EnsureImg(titleBar, UIBuild.Silk);
+            var tmpTitle = EnsureText(EnsureChild(titleBar, "Tmp_Title", 24, 10, 20, 10),
+                "残卷阁 · 异兽剧情", 34, UIBuild.Ink, TextAlignmentOptions.Left);
+
+            // ---------- 关闭 ----------
+            var bClose = EnsureBtn(rt, "Btn_Close", new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(-116f, -116f), new Vector2(-44f, -44f), "×", UIBuild.Dim, 34f);
+
+            // ---------- 五行 tab（全部/木/火/土/金/水）----------
+            var tabs = EnsureNode(rt, "Root_Tabs", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(40f, -212f), new Vector2(-40f, -140f));
+            var hl = EnsureComp<HorizontalLayoutGroup>(tabs.gameObject);
+            hl.childAlignment = TextAnchor.MiddleLeft;
+            hl.spacing = 12f;
+            hl.childControlWidth = false; hl.childControlHeight = false;
+            hl.childForceExpandWidth = false; hl.childForceExpandHeight = false;
+
+            string[] tabNames = { "全部", "木", "火", "土", "金", "水" };
+            var tabBtns = new Button[tabNames.Length];
+            for (int i = 0; i < tabNames.Length; i++)
+            {
+                var t = EnsureBtn(tabs, "Tab_" + i, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                    new Vector2(0f, -33f), new Vector2(140f, 33f), tabNames[i], UIBuild.Silk, 28f);
+                var le = EnsureComp<LayoutElement>(t.gameObject);
+                le.preferredWidth = 140f; le.preferredHeight = 66f;
+                tabBtns[i] = t;
+            }
+
+            // ---------- 滚动网格区 ----------
+            var scrollRt = EnsureNode(rt, "Scroll_Archive", Vector2.zero, Vector2.one,
+                new Vector2(40f, 96f), new Vector2(-40f, -212f));
+            scrollRt.offsetMin = new Vector2(40f, 96f);
+            scrollRt.offsetMax = new Vector2(-40f, -212f);
+            var viewport = EnsureNode(scrollRt, "Viewport", Vector2.zero, Vector2.one,
+                Vector2.zero, Vector2.zero);
+            EnsureComp<RectMask2D>(viewport.gameObject);
+            var content = EnsureNode(viewport, "Content", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                Vector2.zero, Vector2.zero);
+            content.pivot = new Vector2(0.5f, 1f);
+            var oldVlg = content.GetComponent<VerticalLayoutGroup>();
+            if (oldVlg != null) Object.DestroyImmediate(oldVlg);       // 列表 → 网格
+            var grid = EnsureComp<GridLayoutGroup>(content.gameObject);
+            grid.cellSize = new Vector2(368f, 250f);
+            grid.spacing = new Vector2(16f, 16f);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 3;
+            grid.childAlignment = TextAnchor.UpperCenter;
+            grid.padding = new RectOffset(12, 12, 12, 12);
+            var fitter = EnsureComp<ContentSizeFitter>(content.gameObject);
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var sr = EnsureComp<ScrollRect>(scrollRt.gameObject);
+            sr.content = content; sr.viewport = viewport;
+            sr.horizontal = false; sr.vertical = true;
+            sr.movementType = ScrollRect.MovementType.Clamped;
+            sr.scrollSensitivity = 24f;
+
+            // ---------- 卡片模板（左立绘 / 右 6 碎片格 / 领取材料）----------
+            var card = EnsureNode(content, "Item_BeastCard", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                Vector2.zero, Vector2.zero);
+            card.sizeDelta = new Vector2(368f, 250f);
+            EnsureImg(card, UIBuild.Card);
+
+            var portrait = EnsureNode(card, "Img_Portrait", new Vector2(0f, 0f), new Vector2(0f, 1f),
+                new Vector2(10f, 10f), new Vector2(142f, -10f));
+            EnsureImg(portrait, UIBuild.Dim);
+
+            var nmCard = EnsureText(EnsureNode(card, "Tmp_Name", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(152f, -40f), new Vector2(-10f, -6f)), "异兽名", 26, UIBuild.Ink,
+                TextAlignmentOptions.MidlineLeft);
+            var matCard = EnsureText(EnsureNode(card, "Tmp_Material", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(152f, -68f), new Vector2(-10f, -40f)), "专属材料", 17, UIBuild.Ink2,
+                TextAlignmentOptions.MidlineLeft);
+            var progCard = EnsureText(EnsureNode(card, "Tmp_Progress", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(152f, -196f), new Vector2(292f, -172f)), "剧情碎片 0/6", 18, UIBuild.Ink2,
+                TextAlignmentOptions.MidlineLeft);
+            nmCard.enableWordWrapping = false;
+            matCard.enableWordWrapping = false;
+            progCard.enableWordWrapping = false;
+
+            // 6 个碎片格：3 列 × 2 行
+            const float slotW = 62f, slotH = 52f, gap = 8f;
+            for (int i = 0; i < WanXiang.Meta.MetaState.FragmentTotal; i++)
+            {
+                int col = i % 3, row = i / 3;
+                float x = 152f + col * (slotW + gap);
+                float yTop = 72f + row * (slotH + gap);
+                var slot = EnsureNode(card, "Frag_" + i, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                    new Vector2(x, -yTop - slotH), new Vector2(x + slotW, -yTop));
+                var simg = EnsureImg(slot, new Color(0.90f, 0.89f, 0.87f, 1f), true);
+                var sbtn = EnsureComp<Button>(slot.gameObject);      // 已收集才可点（运行时切 interactable）
+                sbtn.targetGraphic = simg;
+                EnsureText(EnsureChild(slot, "Tmp_Num", 0f, 0f, 0f, 0f), (i + 1).ToString(), 22,
+                    UIBuild.Ink2, TextAlignmentOptions.Center);
+            }
+
+            EnsureBtn(card, "Btn_Claim", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(292f, -240f), new Vector2(356f, -172f), "领取材料", UIBuild.Gold, 19f);
+
+            card.gameObject.SetActive(false);   // 模板默认隐藏
+
+            // ---------- 底部提示 ----------
+            var hint = EnsureText(EnsureNode(rt, "Tmp_Hint", new Vector2(0f, 0f), new Vector2(1f, 0f),
+                new Vector2(60f, 24f), new Vector2(-60f, 84f)),
+                "集齐某异兽的剧情碎片后可在此领取它的专属材料（进化所需）。"
+                + "碎片来源：完成相关异闻，或击败含该异兽的敌方阵容。",
+                22, UIBuild.Ink2, TextAlignmentOptions.Center);
+            hint.enableWordWrapping = true;
+
+            // ---------- 剧情弹层（默认隐藏）----------
+            var overlay = EnsureNode(rt, "StoryOverlay", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var maskImg = EnsureImg(overlay, new Color(0f, 0f, 0f, 0.55f), true);
+            var maskBtn = EnsureComp<Button>(overlay.gameObject);
+            maskBtn.targetGraphic = maskImg;
+
+            var storyCard = EnsureNode(overlay, "Card", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, Vector2.zero);
+            storyCard.sizeDelta = new Vector2(860f, 620f);
+            storyCard.anchoredPosition = Vector2.zero;
+            EnsureImg(storyCard, UIBuild.Card, true);
+
+            var band = EnsureNode(storyCard, "Band", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(24f, -104f), new Vector2(-24f, -24f));
+            EnsureImg(band, UIBuild.Silk);
+            var storyTitle = EnsureText(EnsureChild(band, "Tmp_StoryTitle", 12, 8, 12, 8), "（章节）", 34,
+                UIBuild.Ink, TextAlignmentOptions.Center);
+            var storyBody = EnsureText(EnsureNode(storyCard, "Tmp_StoryBody", new Vector2(0f, 1f),
+                new Vector2(1f, 1f), new Vector2(44f, -520f), new Vector2(-44f, -124f)),
+                "（正文）", 28, UIBuild.Ink, TextAlignmentOptions.TopLeft);
+            storyBody.enableWordWrapping = true;
+            var storyPage = EnsureText(EnsureNode(storyCard, "Tmp_StoryPage", new Vector2(0f, 0f),
+                new Vector2(1f, 0f), new Vector2(44f, 92f), new Vector2(-44f, 132f)),
+                "", 22, UIBuild.Ink2, TextAlignmentOptions.Center);
+            var bStoryClose = EnsureBtn(storyCard, "Btn_StoryClose", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(-110f, 24f), new Vector2(110f, 84f), "合 上", UIBuild.Gold, 28f);
+
+            overlay.gameObject.SetActive(false);
+
+            // ---------- 绑定（卡片内的控件在运行时按名字取，与图鉴同款做法）----------
+            UIBuild.Bind(comp, "_tmpTitle", tmpTitle);
+            UIBuild.Bind(comp, "_scrollContent", content);
+            UIBuild.Bind(comp, "_btnClose", bClose);
+            UIBuild.BindArr(comp, "_tabBtns", tabBtns);
+            UIBuild.Bind(comp, "_cardTemplate", card);
+            UIBuild.Bind(comp, "_storyOverlay", overlay.gameObject);
+            UIBuild.Bind(comp, "_storyTitle", storyTitle);
+            UIBuild.Bind(comp, "_storyBody", storyBody);
+            UIBuild.Bind(comp, "_storyPage", storyPage);
+            UIBuild.Bind(comp, "_btnStoryClose", bStoryClose);
+            UIBuild.Bind(comp, "_tmpHint", hint);
+        }
+
+        // ---------------- Ensure 构件（幂等：已存在则原样返回，不动其布局/配色）----------------
+
+        private static RectTransform EnsureNode(Transform parent, string name,
+            Vector2 aMin, Vector2 aMax, Vector2 offMin, Vector2 offMax)
+        {
+            var found = parent.Find(name) as RectTransform;
+            if (found != null) return found;
+            return UIBuild.Node(parent, name, aMin, aMax, offMin, offMax);
+        }
+
+        /// <summary>满铺子节点（四向边距 l/t/r/b）。</summary>
+        private static RectTransform EnsureChild(Transform parent, string name, float l, float t, float r, float b)
+        {
+            var found = parent.Find(name) as RectTransform;
+            if (found != null) return found;
+            return UIBuild.Stretch(parent, name, l, t, r, b);
+        }
+
+        private static T EnsureComp<T>(GameObject go) where T : Component
+        {
+            var c = go.GetComponent<T>();
+            return c != null ? c : go.AddComponent<T>();
+        }
+
+        /// <summary>只在新建时上色 —— 已存在的保留用户配色。</summary>
+        private static Image EnsureImg(RectTransform rt, Color c, bool raycast = false)
+        {
+            var img = rt.GetComponent<Image>();
+            if (img == null) { img = rt.gameObject.AddComponent<Image>(); img.color = c; }
+            img.raycastTarget = raycast;
+            return img;
+        }
+
+        private static TMP_Text EnsureText(RectTransform rt, string text, float size, Color c,
+            TextAlignmentOptions align)
+        {
+            var t = rt.GetComponent<TextMeshProUGUI>();
+            if (t == null) t = rt.gameObject.AddComponent<TextMeshProUGUI>();
+            t.text = text;
+            t.fontSize = size;
+            t.color = c;
+            t.alignment = align;
+            t.raycastTarget = false;
+            if (UIBuild.Font != null) t.font = UIBuild.Font;
+            return t;
+        }
+
+        private static TMP_Text EnsureText(Transform parent, string name,
+            Vector2 aMin, Vector2 aMax, Vector2 offMin, Vector2 offMax,
+            string text, float size, Color c, TextAlignmentOptions align)
+            => EnsureText(EnsureNode(parent, name, aMin, aMax, offMin, offMax), text, size, c, align);
+
+        private static Button EnsureBtn(Transform parent, string name,
+            Vector2 aMin, Vector2 aMax, Vector2 offMin, Vector2 offMax,
+            string label, Color bg, float fontSize)
+        {
+            var rt = EnsureNode(parent, name, aMin, aMax, offMin, offMax);
+            var img = EnsureImg(rt, bg, true);
+            var btn = EnsureComp<Button>(rt.gameObject);
+            btn.targetGraphic = img;
+            EnsureText(EnsureChild(rt, "Tmp_Label", 0f, 0f, 0f, 0f), label, fontSize, UIBuild.Ink,
+                TextAlignmentOptions.Center);
+            return btn;
+        }
+
+        // ==================================================================
+        // 13 Panel_Trial —— 天阙抉择
         // ==================================================================
 
         private static void BuildTrial()

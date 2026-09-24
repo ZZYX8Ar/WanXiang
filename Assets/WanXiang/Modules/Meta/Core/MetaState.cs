@@ -158,6 +158,46 @@ namespace WanXiang.Meta
             return true;
         }
 
+        // ---- 觉醒材料（剧情碎片兑换，v6 新增）----
+        //   探索中完成「相关异兽的异闻」掉落该异兽的剧情碎片；集齐 AwakenSoulThreshold 张后，
+        //   在残卷阁（剧情面板）领取该异兽的专属觉醒材料 ⇒ 解锁觉醒技装备。
+        //   与 AwakenSkills/BeastEvolved 同属 per-slot（MetaStore 每槽一份）。
+        public const int AwakenSoulThreshold = 3;            // 相关碎片集齐数 ⇒ 可领取
+        public const int FragmentTotal = 6;                  // ★ 每只异兽的剧情碎片总数（与 BeastLore 内容表 6 片/兽 一致）
+        public readonly List<string> FragmentBeastIds = new List<string>(32);   // 哪只异兽
+        public readonly List<int>    FragmentCounts   = new List<int>(32);       // 已得碎片数
+        public readonly List<string> AwakenSouls      = new List<string>(32);    // 已领取觉醒材料的异兽 id
+
+        /// <summary>某异兽已得剧情碎片数。</summary>
+        public int FragmentCountOf(string beastId)
+        {
+            int i = FragmentBeastIds.IndexOf(beastId);
+            return i >= 0 && i < FragmentCounts.Count ? FragmentCounts[i] : 0;
+        }
+
+        /// <summary>掉落一张该异兽的剧情碎片（每兽上限 FragmentTotal 张，满了不再涨）。</summary>
+        public void AddFragment(string beastId)
+        {
+            if (string.IsNullOrEmpty(beastId)) return;
+            int i = FragmentBeastIds.IndexOf(beastId);
+            if (i < 0) { FragmentBeastIds.Add(beastId); FragmentCounts.Add(1); return; }
+            if (FragmentCounts[i] >= FragmentTotal) return;      // ★ 已集满：丢弃多余掉落
+            FragmentCounts[i]++;
+        }
+
+        /// <summary>是否已领取该异兽的专属觉醒材料。</summary>
+        public bool HasAwakenSoul(string beastId) => AwakenSouls.Contains(beastId);
+
+        /// <summary>碎片是否集齐、可领取（未领过才 true）。</summary>
+        public bool CanClaimAwakenSoul(string beastId)
+            => !HasAwakenSoul(beastId) && FragmentCountOf(beastId) >= AwakenSoulThreshold;
+
+        /// <summary>领取该异兽的专属觉醒材料（集齐且未领才生效）。</summary>
+        public void ClaimAwakenSoul(string beastId)
+        {
+            if (CanClaimAwakenSoul(beastId) && !AwakenSouls.Contains(beastId)) AwakenSouls.Add(beastId);
+        }
+
         // ---- 异兽培养（阶段③）：局外永久成长，替代原"祭坛" ----
         //   ⚠ 用"下标对齐的三个 List"而不是 Dictionary：静态序列化更简单。
         //   ⚠ 当前暂未写入存档（MetaSaveCode 仍是 v2）—— 见 TODO(存档)。

@@ -30,6 +30,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button  _btnDeploy;       // Btn_Deploy    出征
         [SerializeField] private Button  _btnCodex;        // Btn_Codex     图鉴
         [SerializeField] private Button  _btnMeta;         // Btn_Meta      局外成长
+        [SerializeField] private Button  _btnArchive;      // Btn_Archive   残卷阁（剧情面板：领觉醒材料）
         [SerializeField] private Button  _btnMarket;       // Btn_Market    灵市（底排布袋图标）
         [SerializeField] private Button  _btnTale;         // Hot_Tale      异闻（底排亭子图标）
         [SerializeField] private Button  _btnTrial;        // Hot_Trial     试炼（底排刀剑图标，直进战斗场景）
@@ -60,6 +61,7 @@ namespace WanXiang.Modules.UI
             if (_btnCodex != null) _btnCodex.onClick.AddListener(OnCodexClicked);
             if (_btnMeta != null) _btnMeta.onClick.AddListener(OnMetaClicked);
             if (_btnHistory != null) _btnHistory.onClick.AddListener(() => OpenPanelAsync<HistoryPanel>().Forget());
+            if (_btnArchive != null) _btnArchive.onClick.AddListener(OnArchiveClicked);
             if (_btnMarket != null) _btnMarket.onClick.AddListener(OnMarketClicked);
             if (_btnTale != null) _btnTale.onClick.AddListener(OnTaleClicked);
             if (_btnTrial != null) _btnTrial.onClick.AddListener(OnTrialClicked);
@@ -202,6 +204,12 @@ namespace WanXiang.Modules.UI
         private void OnCodexClicked()
         {
             OpenPanelAsync<CodexPanel>().Forget();
+        }
+
+        /// <summary>残卷阁：局外主城入口 —— 查看各异兽的剧情碎片进度并领取觉醒材料。</summary>
+        private void OnArchiveClicked()
+        {
+            OpenPanelAsync<ArchivePanel>().Forget();
         }
 
         private void OnMetaClicked()

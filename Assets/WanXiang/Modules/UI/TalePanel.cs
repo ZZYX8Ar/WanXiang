@@ -33,6 +33,7 @@ namespace WanXiang.Modules.UI
             public string Title, Quote, Story;
             public string[] OptText, OptCost;
             public int[] PlayerBuff, EnemyBuff, EggCost, EggGain;   // 每选项一组
+            public string FragmentBeast;   // ★ v6：做完此异闻掉落的「相关异兽剧情碎片」所属异兽 id（"" = 不掉）
         }
 
         private static readonly Tale[] Pool =
@@ -48,6 +49,7 @@ namespace WanXiang.Modules.UI
                 EnemyBuff  = new [] { 0, 0, 20 },
                 EggCost    = new [] { 3, 0, 0 },
                 EggGain    = new [] { 0, 4, 0 },
+                FragmentBeast = "jumang",   // 精卫填海 → 句芒的剧情碎片
             },
             new Tale
             {
@@ -60,6 +62,7 @@ namespace WanXiang.Modules.UI
                 EnemyBuff  = new [] { 15, 0, -15 },
                 EggCost    = new [] { 0, 2, 2 },
                 EggGain    = new [] { 3, 0, 0 },
+                FragmentBeast = "houtu",    // 夸父逐日 → 后土的剧情碎片
             },
             new Tale
             {
@@ -72,6 +75,7 @@ namespace WanXiang.Modules.UI
                 EnemyBuff  = new [] { 0, 10, 0 },
                 EggCost    = new [] { 4, 0, 0 },
                 EggGain    = new [] { 0, 2, 0 },
+                FragmentBeast = "zhulong",  // 烛龙衔烛 → 烛龙的剧情碎片
             },
         };
 
@@ -118,6 +122,18 @@ namespace WanXiang.Modules.UI
             WanXiang.Run.RunSave.SaveCurrent();
         }
 
+        /// <summary>★ v6：做完异闻掉落「相关异兽的剧情碎片」到局外存档；集齐后在残卷阁领取觉醒材料。</summary>
+        private void DropFragment(string beastId)
+        {
+            if (string.IsNullOrEmpty(beastId)) return;
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            if (meta == null) return;
+            meta.AddFragment(beastId);
+            WanXiang.Meta.MetaStore.Save();
+            Debug.Log("[TalePanel] 异闻掉落剧情碎片：" + beastId +
+                      "（" + meta.FragmentCountOf(beastId) + "/" + WanXiang.Meta.MetaState.AwakenSoulThreshold + "）");
+        }
+
         private void OnOptionClicked(int index)
         {
             if (_picked >= 0) return;      // 只能选一次
@@ -130,6 +146,7 @@ namespace WanXiang.Modules.UI
             }
             _picked = index;
             Apply(index);
+            DropFragment(_current.FragmentBeast);   // ★ v6：做完异闻掉落相关异兽的剧情碎片
             BackToMap(true);   // ★ 做出选择 = 异闻完成 ⇒ 保留 PendingCommit 让节点推进
         }
 

@@ -190,14 +190,24 @@ namespace WanXiang.Editor.MetaTool
                   $"⑥ 图鉴孵满：{st.UnlockedHosts.Count}/{content.HostCount} 全解锁，池空不扣灵卵（余 {st.Eggs}）");
 
             // ---- ⑦ 存档码：往返 + 防呆 ----
+            // ★ v6：把「剧情碎片 + 觉醒材料」也塞进这份档，一起验往返（否则新字段永远没被覆盖）
+            string fragA = beasts[0].Id;                 // 集齐 3 片 ⇒ 已领材料
+            st.AddFragment(fragA); st.AddFragment(fragA); st.AddFragment(fragA);
+            st.ClaimAwakenSoul(fragA);
+            string fragB = beasts[1].Id;                 // 只 1 片 ⇒ 未集齐、未领
+            st.AddFragment(fragB);
+
             var code = MetaSaveCode.Encode(st);
             bool roundTrip = MetaSaveCode.TryDecode(code, out var back);
             Check(lines, code != null && roundTrip
                        && back.Seed == st.Seed && back.Eggs == st.Eggs
                        && back.HatchCount == st.HatchCount && back.RunsPlayed == st.RunsPlayed
                        && back.UnlockedHosts.Count == st.UnlockedHosts.Count
-                       && back.UnlockedSouls.Count == st.UnlockedSouls.Count,
-                  $"⑦ 存档码往返：{code?.Length ?? 0} 字符，字段全等");
+                       && back.UnlockedSouls.Count == st.UnlockedSouls.Count
+                       && back.FragmentCountOf(fragA) == 3 && back.HasAwakenSoul(fragA)
+                       && back.FragmentCountOf(fragB) == 1 && !back.HasAwakenSoul(fragB),
+                  $"⑦ 存档码往返（v6）：{code?.Length ?? 0} 字符，碎片/觉醒材料字段全等"
+                  + $"（{fragA} 3/3 已领，{fragB} 1/3 未领）");
 
             bool tamper = !MetaSaveCode.TryDecode(code.Substring(0, code.Length - 3), out _)
                        && !MetaSaveCode.TryDecode("这不是存档码", out _);
@@ -207,6 +217,20 @@ namespace WanXiang.Editor.MetaTool
             tamper &= !MetaSaveCode.TryDecode(ToB64Url(bad), out _);
             Check(lines, tamper, "⑦ 存档码防呆：截断 / 非法字符 / 重复解锁 一律拒绝");
 
+            // ---- ⑦c 专属材料门槛（进化门的前置契约）----
+            //   进化 = 精魄 + 墨铊 + 专属材料；材料 = 残卷阁集齐剧情碎片后领取。
+            //   这里验的是"门槛本身"：碎片不够 ⇒ 不能领（也就不能进化）；领过 ⇒ 不重复发。
+            string fragC = beasts[2].Id;
+            st.AddFragment(fragC);                                  // 仅 1 片
+            bool gateBefore = !st.CanClaimAwakenSoul(fragC) && st.FragmentCountOf(fragC) == 1;
+            st.AddFragment(fragC); st.AddFragment(fragC);           // 凑满 3 片
+            bool gateAtFull = st.CanClaimAwakenSoul(fragC);
+            st.ClaimAwakenSoul(fragC);
+            bool gateAfter = st.HasAwakenSoul(fragC) && !st.CanClaimAwakenSoul(fragC);
+            Check(lines, gateBefore && gateAtFull && gateAfter
+                       && !st.CanClaimAwakenSoul(beasts[3].Id),      // 0 片也领不到
+                  $"⑦c 专属材料门槛：碎片 1/{MetaState.AwakenSoulThreshold} 不可领 ⇒ 集齐可领 ⇒ 领后不重复");
+
             // ---- ⑧ 孵出的宿主能进下一局阵容 ----
             var squad2 = st.BuildSquadHosts(content, 5);
             bool usesHatched = false;
@@ -214,6 +238,30 @@ namespace WanXiang.Editor.MetaTool
             Check(lines, squad2.Length == 5 && squad2[0] == st.UnlockedHosts[0],
                   $"⑧ 阵容取自局外：5 只（{string.Join(",", squad2)}）"
                   + (usesHatched ? "，含本次孵出的宿主" : "（本次孵出的宿主在替补位）"));
+
+            // ---- ⑨ 剧情内容表（BeastLore）：每兽 6 片齐备 + 专属材料名互不相同 ----
+            {
+                int badSeg = 0, badMat = 0;
+                var mats = new HashSet<string>();
+                for (int i = 0; i < beasts.Length; i++)
+                {
+                    string id = beasts[i].Id;
+                    if (!WanXiang.Modules.UI.BeastLore.HasEntry(id)) { badSeg++; continue; }
+                    string mm = WanXiang.Modules.UI.BeastLore.MaterialName(id);
+                    if (string.IsNullOrEmpty(mm) || !mats.Add(mm)) badMat++;
+                    for (int k = 0; k < WanXiang.Modules.UI.BeastLore.FragmentTotal; k++)
+                    {
+                        var fr = WanXiang.Modules.UI.BeastLore.Fragment(id, k);
+                        if (string.IsNullOrEmpty(fr.Title) || string.IsNullOrEmpty(fr.Text)) badSeg++;
+                    }
+                }
+                Check(lines,
+                      badSeg == 0 && badMat == 0
+                      && WanXiang.Modules.UI.BeastLore.Count == beasts.Length,
+                      $"⑨ 剧情内容表：{WanXiang.Modules.UI.BeastLore.Count}/{beasts.Length} 兽 × "
+                      + $"{WanXiang.Modules.UI.BeastLore.FragmentTotal} 片，标题/正文齐备，"
+                      + $"专属材料 {mats.Count} 个互不相同（缺片 {badSeg}，空/重名材料 {badMat}）");
+            }
 
             return Finish(lines);
         }
