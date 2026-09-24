@@ -660,9 +660,12 @@ namespace WanXiang.Modules.UI
                 return;
             }
 
-            // ⚠⚠ 临时调试用战力倍率（验证通关链路时用）—— 数值调到 5 倍，
-            //   验证完这一项请与开发者一起改回 1f（或直接删掉这两行）。
-            req.PlayerMul = 5f;
+            // ⚠ 必须保留 TryBuildFromRun 注入的觉醒技：工厂把觉醒技装进 req.Player 的克隆上，
+            //   下面替换默认队形时若直接加 _all[idx]（内容目录原兽，无觉醒技），觉醒技会被丢掉，
+            //   导致战斗中觉醒技按钮不显示（hasAwaken=False）。先按 Id 建"注入了觉醒技的克隆"查表。
+            var injectedById = new System.Collections.Generic.Dictionary<string, WanXiang.Battle.Core.BeastDef>();
+            if (req.Player != null)
+                foreach (var injected in req.Player) if (injected != null) injectedById[injected.Id] = injected;
 
             // 用玩家真实布阵替换工厂给的默认队形
             req.Player.Clear();
@@ -672,7 +675,10 @@ namespace WanXiang.Modules.UI
             {
                 int idx = _deployed[cell];
                 if (idx < 0 || _all == null || idx >= _all.Length) continue;
-                req.Player.Add(_all[idx]);
+                var catalogBeast = _all[idx];
+                // 优先用注入了觉醒技的克隆；目录里查不到对应克隆时退回原兽
+                var beast = (catalogBeast != null && injectedById.TryGetValue(catalogBeast.Id, out var inj)) ? inj : catalogBeast;
+                req.Player.Add(beast);
                 req.PlayerCells.Add(cell);      // ★ 记录真实格号，战斗按它站位
             }
 

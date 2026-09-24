@@ -69,7 +69,6 @@ namespace WanXiang.Modules.UI
             //   符合用户诉求：一进来就自动打。
             bool pvpManual = _manualBattle && !req.IsPvpMatch;
             var play = new BattlePlayback(req, pvpManual);
-            Debug.Log("[BattleSceneDriver][调试] 建回放 manual=" + pvpManual + " (PvP=" + req.IsPvpMatch + ") → PvP 应为全自动回放");
 
             if (_stage == null) _stage = FindObjectOfType<BattleStage2D>();
             if (_stage != null)

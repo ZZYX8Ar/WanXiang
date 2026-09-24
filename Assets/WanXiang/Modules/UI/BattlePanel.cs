@@ -40,9 +40,6 @@ namespace WanXiang.Modules.UI
         [SerializeField] private RectTransform _rootStage;      // Root_Stage
         [SerializeField] private RectTransform _rootUnits;      // Root_Units（单位容器，运行时填充）
         [SerializeField] private RectTransform _hpBarTemplate;  // Item_HpBar（模板，默认隐藏）
-        [SerializeField] private Button _btnUltimate;           // Btn_Ultimate
-        [SerializeField] private Image _imgRage;                // Img_RageRing
-        [SerializeField] private TMP_Text _tmpRage;             // Tmp_RageValue
         [SerializeField] private Button _btnSpeed;              // Btn_Speed
         [SerializeField] private Button _btnAuto;               // Btn_Auto
         [SerializeField] private Button _btnLeave;              // Btn_Leave
@@ -121,7 +118,6 @@ namespace WanXiang.Modules.UI
 
             BuildOrderList();   // 右上角"行动顺序"，让玩家看清轮到谁（v2.1 P4 前置）
             if (_rootWeather != null) _rootWeather.SetActive(false);
-            if (_btnUltimate != null) _btnUltimate.onClick.AddListener(OnUltimateClicked);
             if (_btnSpeed != null) _btnSpeed.onClick.AddListener(OnSpeedClicked);
             if (_btnAuto != null) _btnAuto.onClick.AddListener(OnAutoClicked);
             if (_btnLeave != null) _btnLeave.onClick.AddListener(OnLeaveClicked);
@@ -529,21 +525,9 @@ namespace WanXiang.Modules.UI
                     if (view.Body != null && !snap.Alive)
                         view.Body.color = new Color(0.45f, 0.45f, 0.45f, 0.35f);
                 }
-                if (_tmpRound != null && f.Turn > 0) _tmpRound.text = "第 " + f.Turn + " 回合";
-            }
-
-            // 元气环取我方第一个单位，作为这一局的手感指示器
-            if (_imgRage != null && _play != null)
-            {
-                var mine = _play.State.UnitsOf(TeamSide.Player);
-                if (mine.Count > 0)
-                {
-                    var u = mine[0];
-                    _imgRage.fillAmount = u.RageCap > 0f ? Mathf.Clamp01(u.Rage / u.RageCap) : 0f;
-                    if (_tmpRage != null) _tmpRage.text = "元气 " + (int)u.Rage;
-                }
-            }
+            if (_tmpRound != null && f.Turn > 0) _tmpRound.text = "第 " + f.Turn + " 回合";
         }
+    }
 
         private void ApplyEvent(BattleEvent e)
         {
@@ -675,12 +659,6 @@ namespace WanXiang.Modules.UI
         //  按钮
         // ================================================================
 
-        private void OnUltimateClicked()
-        {
-            // 结构验证版：战斗核心暂不开放"本回合指定绝技"，这里先反馈状态
-            if (_tmpLog != null) _tmpLog.text = _autoCast ? "绝技：自动释放中" : "绝技：手动（待接战斗核心）";
-        }
-
         private void OnSpeedClicked()
         {
             _speed = _speed >= 3.9f ? 1f : (_speed >= 1.9f ? 4f : 2f);
@@ -734,7 +712,7 @@ namespace WanXiang.Modules.UI
             if (_actionBar != null)
             {
                 if (_skillBtns != null)
-                    for (int i = 0; i < _skillBtns.Length && i < 3; i++)
+                    for (int i = 0; i < _skillBtns.Length; i++)
                     {
                         int idx = i;
                         if (_skillBtns[i] != null) _skillBtns[i].onClick.AddListener(() => OnSkillClicked(idx));
@@ -1326,10 +1304,6 @@ namespace WanXiang.Modules.UI
             if (before != show)
             {
                 _actionBar.gameObject.SetActive(show);
-                bool s0 = _skillBtns != null && _skillBtns.Length > 0 && _skillBtns[0] != null && _skillBtns[0].gameObject.activeSelf;
-                Debug.Log("[BattlePanel][调试] RefreshActionBar 可见性: " + before + "→" + show
-                    + " | AwaitingCommand=" + _play.AwaitingCommand + " auto=" + _autoBattle
-                    + " | 技能键[0]active=" + s0);
             }
             if (!show) return;
 
@@ -1381,7 +1355,8 @@ namespace WanXiang.Modules.UI
                 if (_skillBtns.Length > 3 && _skillBtns[3] != null)
                 {
                     bool hasAwaken = u.GetSkill(SkillType.Awaken) != null;
-                    if (_skillBtns[3].gameObject.activeSelf != hasAwaken)
+                    bool before3 = _skillBtns[3].gameObject.activeSelf;
+                    if (before3 != hasAwaken)
                         _skillBtns[3].gameObject.SetActive(hasAwaken);
                     if (hasAwaken)
                         _skillBtns[3].interactable = cfg != null && u.CanCast(SkillType.Awaken, cfg);
