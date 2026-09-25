@@ -76,6 +76,14 @@ namespace WanXiang.Battle.Core
         /// <summary>灵力上限。超出部分丢失 —— 这是"必须花掉"的节奏压力来源。</summary>
         public int TeamMpMax = 12;
 
+        /// <summary>
+        /// 敌方灵力池（2026-09-25 起与玩家**分开**）。
+        /// ⚠ 曾经双方共用 <see cref="TeamMp"/> ⇒ 敌方 AI 放战记花的是玩家的灵力，
+        ///   玩家一直普攻也攒不起来（用户实测报障）。初值/上限/回复节奏与玩家一致。
+        /// </summary>
+        public int EnemyMp = 6;
+        public int EnemyMpMax = 12;
+
         /// <summary>每回合开回合时自然回复的灵力。</summary>
         public const int MpRegenPerTurn = 2;
 

@@ -104,6 +104,9 @@ namespace WanXiang.Battle.Core
                 // 灵力自然回复（v2.1 §3）：超出上限的部分丢失 —— 逼玩家在回合内花掉
                 if (st.TeamMp < st.TeamMpMax)
                     st.TeamMp = System.Math.Min(st.TeamMpMax, st.TeamMp + BattleState.MpRegenPerTurn);
+                // 敌方独立池同节奏回复（双方的灵力互相不干扰）
+                if (st.EnemyMp < st.EnemyMpMax)
+                    st.EnemyMp = System.Math.Min(st.EnemyMpMax, st.EnemyMp + BattleState.MpRegenPerTurn);
 
                 // ---- 劫律 20「万相归一」：敌方每回合获得 1 层「劫」（攻击 +1%，无上限）。
                 //      ⚠ 只涨攻击不涨生命 —— 与 GDD"全属性"有偏差，血量同步牵扯
@@ -419,6 +422,12 @@ namespace WanXiang.Battle.Core
             //    与实际打的"最前排"不一致（用户实测报障：高亮在一格、伤害飘在另一格）。
             skill = EffectiveSkill(skill);
 
+            // ★ 普攻回灵（2026-09-25 用户定案）：我方每次普攻额外 +1 灵力 ——
+            //   让"一直普攻"也能攒出战记（原来只有每回合 +2 的自然回复）。
+            //   ⚠ 只给我方：敌方若同样回灵等于顺手加强敌人；要对称改这一行即可。
+            if (actor.Side == TeamSide.Player && skill.Cd == 0)
+                st.TeamMp = System.Math.Min(st.TeamMpMax, st.TeamMp + 1);
+
             st.Log.Add(st.Turn, BattleEventKind.SkillCast, actorId: actor.RuntimeId,
                        skillName: skill.Name, element: ResolveElement(Element.None, skill, actor),
                        note: $"{actor.DisplayName}·{Cn.Of(skill.Type)}", skill: skill.Type);
@@ -451,9 +460,15 @@ namespace WanXiang.Battle.Core
                 if (chosen != null)
                 {
                     int cost = BattleState.MpCostOf(slot);
-                    if (cost <= st.TeamMp)
+                    // ★ 灵力**按阵营各自结算**（2026-09-25 用户定案）：
+                    //   以前双方共用 st.TeamMp ⇒ 敌方 AI 放战记花的是**玩家的**灵力
+                    //   ⇒ 玩家一直普攻也攒不出战记（用户实测报障）。
+                    bool mine = u.Side == TeamSide.Player;
+                    int pool = mine ? st.TeamMp : st.EnemyMp;
+                    if (cost <= pool)
                     {
-                        st.TeamMp -= cost;
+                        if (mine) st.TeamMp -= cost;
+                        else st.EnemyMp -= cost;
                         return chosen;
                     }
                 }
@@ -1463,11 +1478,13 @@ namespace WanXiang.Battle.Core
             int rb = b.Pos.IsValid ? b.Pos.FrontRankFor(b.Side) : int.MaxValue;
             if (ra != rb) return frontMost ? ra < rb : ra > rb;   // 前排 = 列小；后排 = 列大
 
-            // 同列：行小的先（上→下，稳定），再取生命比例高的（更像"挡在前面"的）
+            // 同列：行小的先（上→下，稳定）—— 一个格子只能站一只，
+            // 所以"同排同行"不可能出现；同列的目标因此**不会随血量变化而跳**。
+            // ⚠ 原先这里还有一条「同列同排时取生命比例高的」，但它是不可达的死分支，
+            //   留着会让人误以为"目标会随血量跳"（用户曾据此报障）。已删。
             int ca = a.Pos.IsValid ? a.Pos.Row : int.MaxValue;
             int cb = b.Pos.IsValid ? b.Pos.Row : int.MaxValue;
             if (ca != cb) return ca < cb;
-            if (a.HpPercent != b.HpPercent) return a.HpPercent > b.HpPercent;
             return true;
         }
 
