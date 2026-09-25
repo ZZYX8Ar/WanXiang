@@ -100,6 +100,14 @@ namespace WanXiang.Modules.UI
         /// <summary>等待下令的单位（AwaitingCommand 为 true 时非空）。</summary>
         public BattleUnit PendingUnit => State != null ? State.PendingUnit : null;
 
+        /// <summary>
+        /// 决策点序号：**每产生一个新的"等待下令"就自增**。
+        /// ⚠ UI 必须用它判断"要不要刷新操作区"，不要用"待令单位 id"：
+        ///   同一单位连续两次决策（先手连击 / 追击）时 id 不变，
+        ///   用 id 判断会漏刷 ⇒ 操作区停在上一次被隐藏的状态 ⇒ 玩家点不到技能，看起来是卡死（实测踩过）。
+        /// </summary>
+        public int DecisionSeq { get; private set; }
+
         /// <param name="manual">true = 回合制手动模式（我方每个单位行动前暂停等下令）。</param>
         public BattlePlayback(BattleRequest req, bool manual = false)
         {
@@ -260,6 +268,7 @@ namespace WanXiang.Modules.UI
             else
             {
                 _awaiting = true;     // 有单位等待下令
+                DecisionSeq++;        // ★ 新决策点 ⇒ 序号自增（UI 据此刷新操作区，见 DecisionSeq 注释）
             }
         }
 

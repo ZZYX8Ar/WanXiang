@@ -415,26 +415,9 @@ namespace WanXiang.Battle.Core
             }
 
             // ---- v2.1 P4：普攻（无冷却）默认打「最前排」----
-            //  棋盘的"前排/后排"必须决定谁先承伤，站位才有策略意义；
-            //  否则人人都能随手切后排，站位就只是摆着好看。
-            //  特殊技能保留各自的目标规则（如刺客类打"生命最低"/后排）。
-            //  ⚠ Clone() 是深拷贝 Effects（已确认），改副本不会污染技能定义；
-            //     但每次普攻都 Clone 一次有分配开销 —— 普攻频率不高，先做对再做快。
-            if (skill.Cd == 0)
-            {
-                var patched = skill.Clone();
-                patched.PrimaryTarget = TargetSelector.SingleFrontMost;
-                for (int i = 0; i < patched.Effects.Length; i++)
-                {
-                    var a = patched.Effects[i];
-                    if (a.Kind == EffectAtomKind.Damage)
-                    {
-                        a.Target = TargetSelector.SingleFrontMost;
-                        patched.Effects[i] = a;
-                    }
-                }
-                skill = patched;
-            }
+            //  ⚠ 抽成 EffectiveSkill 并与预览共用：否则面板高亮会按"原始技能"算（如生命最低者），
+            //    与实际打的"最前排"不一致（用户实测报障：高亮在一格、伤害飘在另一格）。
+            skill = EffectiveSkill(skill);
 
             st.Log.Add(st.Turn, BattleEventKind.SkillCast, actorId: actor.RuntimeId,
                        skillName: skill.Name, element: ResolveElement(Element.None, skill, actor),
@@ -1299,12 +1282,46 @@ namespace WanXiang.Battle.Core
         /// ⚠ 这里**绝不能掷骰**：那会推进战斗随机流、改掉后续每一次结算
         ///   （同 ComputeDamage 的 forPreview 教训）。
         /// </summary>
+        /// <summary>
+        /// 普攻（Cd==0）的**有效技能**：把伤害效果的目标强制为「最前排」
+        /// （v2.1 P4：棋盘的"前排/后排"必须决定谁先承伤，站位才有策略意义；
+        ///  特殊技能保留各自规则，如刺客类打"生命最低"/后排）。
+        ///
+        /// ⚠ 结算与预览（<see cref="PreviewTargets"/> ⇒ 面板九宫格高亮）**必须共用这一份**。
+        ///   曾经结算改了、预览没改 ⇒ 高亮按原始技能算（生命最低者）、实际打最前排，
+        ///   玩家看到"高亮在一格、伤害飘在另一格，而且目标会随血量跳"（用户实测报障）。
+        /// ⚠ Clone() 是深拷贝 Effects（已确认），改副本不会污染技能定义。
+        /// </summary>
+        public static SkillDef EffectiveSkill(SkillDef skill)
+        {
+            if (skill == null || skill.Cd != 0) return skill;
+
+            var patched = skill.Clone();
+            patched.PrimaryTarget = TargetSelector.SingleFrontMost;
+            if (patched.Effects != null)
+            {
+                for (int i = 0; i < patched.Effects.Length; i++)
+                {
+                    var a = patched.Effects[i];
+                    if (a.Kind == EffectAtomKind.Damage)
+                    {
+                        a.Target = TargetSelector.SingleFrontMost;
+                        patched.Effects[i] = a;
+                    }
+                }
+            }
+            return patched;
+        }
+
         public static void PreviewTargets(BattleState st, BattleUnit src, SkillDef sk,
                                           List<BattleUnit> into, out bool isRandom)
         {
             into.Clear();
             isRandom = false;
             if (st == null || src == null || sk == null || sk.Effects == null) return;
+
+            // ★ 必须套用与结算**同一份**的"普攻→最前排"改写，否则高亮与实际打的不是同一格
+            sk = EffectiveSkill(sk);
 
             var tmp = new List<BattleUnit>(8);
             for (int a = 0; a < sk.Effects.Length; a++)
