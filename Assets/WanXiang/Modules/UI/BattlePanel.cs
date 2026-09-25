@@ -1021,7 +1021,6 @@ namespace WanXiang.Modules.UI
             var u = _play.PendingUnit;
 
             string title, body;
-            string descHint = "（描述里的百分比是攻击力系数，不是生命百分比）";
             if (slot == 0) { title = "普攻"; body = CostLine(0); }
             else if (slot == 1) { title = "战记 · 主动"; body = CostLine(1); }
             else if (slot == 2) { title = "终结技"; body = CostLine(2); }
@@ -1033,7 +1032,25 @@ namespace WanXiang.Modules.UI
                 if (sk != null)
                 {
                     if (!string.IsNullOrEmpty(sk.Name)) title = sk.Name;
-                    string desc = string.IsNullOrEmpty(sk.Description) ? "（暂无描述）" : sk.Description;
+                    // ★ 用户要求：别只写百分比，直接写明白"造成多少点伤害 / 多少护盾 / 回多少血"。
+                    //   这里用**该单位实时属性**（含增益/减益）换算，比战前预览更准；
+                    //   换算口径与「异兽培养」面板共用 SkillMath 同一份实现（避免两处漂移）。
+                    string desc;
+                    if (WanXiang.Battle.Core.SkillMath.TryDescribe(
+                            sk, (int)u.Attack, u.MaxHp, false, out string nums))
+                    {
+                        desc = nums + (WanXiang.Battle.Core.SkillMath.HasDamage(sk)
+                                     ? "（" + WanXiang.Battle.Core.SkillMath.DamageNote + "）" : "");
+                    }
+                    else
+                    {
+                        // 全是状态/驱散这类算不出点数的效果 ⇒ 退回内容原文
+                        desc = string.IsNullOrEmpty(sk.Description) ? "（暂无描述）" : sk.Description;
+                        // 原文里可能出现百分比，此时才需要那句解释
+                        if (desc.Contains("%"))
+                            desc += "\n（描述里的百分比是攻击力系数，不是生命百分比）";
+                    }
+
                     // 目标规则：与核心的"普攻打最前排"特判保持一致（否则界面会误导布阵）。
                     //  ⚠ 取**效果 atom** 的目标而不是 PrimaryTarget —— 后者是"主目标"语义，
                     //    对"给自己人加盾"这类技能会显示成"生命最低的敌人"（实测踩到）。
@@ -1045,7 +1062,7 @@ namespace WanXiang.Modules.UI
                     string targetName = sk.Cd == 0
                         ? "最前排（普攻默认打前排，站位决定谁先承伤）"
                         : TargetNameOf(target);
-                    body = desc + "\n目标：" + targetName + "\n" + descHint + "\n\n" + body;
+                    body = desc + "\n目标：" + targetName + "\n\n" + body;
                     if ((slot == 2 || slot == 3) && u.Rage < u.RageCap)
                         body += "\n当前元气 " + (int)u.Rage + "/" + (int)u.RageCap + "（满值才可释放）";
                 }
