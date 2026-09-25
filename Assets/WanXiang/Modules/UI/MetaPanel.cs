@@ -270,8 +270,17 @@ namespace WanXiang.Modules.UI
                 var l = _btnEvolve.transform.Find("Tmp_Label") != null
                         ? _btnEvolve.transform.Find("Tmp_Label").GetComponent<TMP_Text>() : null;
                 if (l != null)
+                {
+                    // ★ 按钮上要出现**该异兽专属材料名**（两行：上=消耗，下=材料），
+                    //   不能再只写"材料"两个字（用户明确指出）。
+                    bool soulOk = meta != null && meta.HasAwakenSoul(b.Id);
+                    int fc = meta != null ? meta.FragmentCountOf(b.Id) : 0;
+                    l.fontSize = evolved ? 28f : 20f;
                     l.text = evolved ? "已觉醒"
-                           : ("进化 · 精魄" + EvolveEssenceCost + "+墨铊" + EvolveInkCost + "+材料");
+                           : ("进化 · 精魄" + EvolveEssenceCost + " + 墨铊" + EvolveInkCost
+                              + "\n专属材料「" + BeastLore.MaterialName(b.Id) + "」"
+                              + (soulOk ? "✓" : (fc + "/" + WanXiang.Meta.MetaState.FragmentTotal)));
+                }
             }
         }
 
@@ -579,11 +588,13 @@ namespace WanXiang.Modules.UI
             var m = WanXiang.Meta.MetaStore.Ensure();
             int fc = m != null ? m.FragmentCountOf(b.Id) : 0;
             bool hasSoul = m != null && m.HasAwakenSoul(b.Id);
+            // ★ 必须带**该异兽的专属材料名**（BeastLore），不能只写"专属材料"四个字
+            string matName = BeastLore.MaterialName(b.Id);
             string mat = hasSoul
-                ? "专属材料 ✓"
-                : ("专属材料 " + fc + "/" + WanXiang.Meta.MetaState.AwakenSoulThreshold + "（残卷阁领取）");
-            return "进化条件：精魄 ×" + EvolveEssenceCost + " + 墨铊 ×" + EvolveInkCost + " + " + mat
-                 + "（精魄/剧情碎片在探索与战斗胜场随机掉落）";
+                ? ("专属材料「" + matName + "」✓ 已领取")
+                : ("专属材料「" + matName + "」（碎片 " + fc + "/" + WanXiang.Meta.MetaState.FragmentTotal
+                   + " · 残卷阁领取）");
+            return "进化条件：精魄 ×" + EvolveEssenceCost + " + 墨铊 ×" + EvolveInkCost + " + " + mat;
         }
 
         private static string ElementCn(WanXiang.Battle.Core.Element e)
