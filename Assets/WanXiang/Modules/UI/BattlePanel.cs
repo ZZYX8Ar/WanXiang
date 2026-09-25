@@ -1032,13 +1032,20 @@ namespace WanXiang.Modules.UI
                 if (sk != null)
                 {
                     if (!string.IsNullOrEmpty(sk.Name)) title = sk.Name;
-                    // ★ 用户要求：别只写百分比，直接写明白"造成多少点伤害 / 多少护盾 / 回多少血"。
-                    //   这里用**该单位实时属性**（含增益/减益）换算，比战前预览更准；
-                    //   换算口径与「异兽培养」面板共用 SkillMath 同一份实现（避免两处漂移）。
+                    // ★ 用户要求：面板数字要与实战**对得上** ⇒ 伤害走**战斗公式实算**：
+                    //   对场上每个存活敌人用 BattleSimulator.ComputeDamage 各算一遍
+                    //   （含五行克制 / 目标防御 / 天时），显示**区间**；暴击是随机的，单独标出。
+                    //   ⚠ 公式与战斗同源（同一个 ComputeDamage），不产生第二份实现。
                     string desc;
-                    if (WanXiang.Battle.Core.SkillMath.TryDescribe(
-                            sk, (int)u.Attack, u.MaxHp, false, out string nums))
+                    if (WanXiang.Battle.Core.SkillMath.TryDescribeInBattle(
+                            _play.State, u, sk, out string battleNums))
                     {
+                        desc = battleNums;
+                    }
+                    else if (WanXiang.Battle.Core.SkillMath.TryDescribe(
+                                 sk, (int)u.Attack, u.MaxHp, false, out string nums))
+                    {
+                        // 场上没有存活敌人等算不了实算的情形 ⇒ 退回战前预览口径（基础值 + 免责说明）
                         desc = nums + (WanXiang.Battle.Core.SkillMath.HasDamage(sk)
                                      ? "（" + WanXiang.Battle.Core.SkillMath.DamageNote + "）" : "");
                     }

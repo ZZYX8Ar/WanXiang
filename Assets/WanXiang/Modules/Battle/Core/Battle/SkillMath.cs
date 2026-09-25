@@ -119,5 +119,124 @@ namespace WanXiang.Battle.Core
                 default: return "";
             }
         }
+
+        // ====================================================================
+        //  战斗内的"实算"版本
+        //  --------------------------------------------------------------------
+        //  用户 2026-09-25 反馈：战前预览的"基础值"与实战打出来的**对不上**，看着别扭。
+        //  但实战伤害取决于**打谁**（五行克制 + 目标防御 + 天时），同一个技能对不同目标本来就不同。
+        //  所以战斗中改为：**用战斗公式对场上每个存活敌人实算一遍，给区间** ——
+        //  面板与实战同源（只有暴击是随机，单独标出），且不产生第二份公式。
+        // ====================================================================
+
+        /// <summary>
+        /// 用**战斗公式**（<see cref="BattleSimulator.ComputeDamage"/>）实算技能对场上存活敌方的伤害区间。
+        /// 逐敌 × 逐伤害效果取 min/max；暴击另给一组（暴击是随机的，只能给范围）。
+        /// </summary>
+        /// <returns>true = 至少算出一个值（false 时调用方退回战前预览口径）</returns>
+        public static bool TryDamageRange(BattleState st, BattleUnit src, SkillDef sk,
+                                          out int minNormal, out int maxNormal,
+                                          out int minCrit, out int maxCrit)
+        {
+            minNormal = maxNormal = minCrit = maxCrit = 0;
+            if (st == null || src == null || sk == null || sk.Effects == null) return false;
+
+            var foes = st.UnitsOf(TeamSide.Enemy);
+            if (foes == null) return false;
+
+            bool any = false;
+            for (int a = 0; a < sk.Effects.Length; a++)
+            {
+                var atom = sk.Effects[a];
+                if (atom.Kind != EffectAtomKind.Damage) continue;
+
+                var el = BattleSimulator.ResolveElement(atom.ElementOverride, sk, src);
+                bool aoe = BattleSimulator.IsAoeTarget(atom.Target);
+
+                for (int i = 0; i < foes.Count; i++)
+                {
+                    var dst = foes[i];
+                    if (dst == null || !dst.IsAlive) continue;
+
+                    int n = BattleSimulator.ComputeDamage(st, src, dst, el, atom.Power,
+                                                          atom.TrueDamage, false, aoe);
+                    int c = BattleSimulator.ComputeDamage(st, src, dst, el, atom.Power,
+                                                          atom.TrueDamage, true, aoe);
+                    if (!any)
+                    {
+                        minNormal = maxNormal = n; minCrit = maxCrit = c; any = true;
+                    }
+                    else
+                    {
+                        if (n < minNormal) minNormal = n;
+                        if (n > maxNormal) maxNormal = n;
+                        if (c < minCrit) minCrit = c;
+                        if (c > maxCrit) maxCrit = c;
+                    }
+                }
+            }
+            return any;
+        }
+
+        /// <summary>
+        /// 战斗悬浮提示用：伤害走**实算区间**（含五行克制/目标防御/天时），
+        /// 治疗与护盾按施法者属性算；算不出的效果返回 false，调用方退回内容原文。
+        /// </summary>
+        public static bool TryDescribeInBattle(BattleState st, BattleUnit src, SkillDef sk,
+                                               out string text)
+        {
+            text = null;
+            if (src == null || sk == null) return false;
+
+            var sb = new System.Text.StringBuilder();
+
+            if (TryDamageRange(st, src, sk, out int nMin, out int nMax, out int cMin, out int cMax))
+            {
+                int hits = 1;
+                if (sk.Effects != null)
+                    for (int i = 0; i < sk.Effects.Length; i++)
+                        if (sk.Effects[i].Kind == EffectAtomKind.Damage) { hits = CoreMath.Max(1, sk.Effects[i].Hits); break; }
+
+                sb.Append(nMin == nMax
+                          ? ("造成 " + nMin + " 点伤害")
+                          : ("造成 " + nMin + "~" + nMax + " 点伤害"));
+                if (hits > 1) sb.Append("×" + hits + " 段");
+
+                // 五行克制与目标防御都已经算进去了 —— 这行让玩家知道数字为什么是区间
+                string note = "含五行克制与目标防御";
+                if (cMax > nMax || cMin > nMin)
+                    note += "；暴击 " + cMin + "~" + cMax;
+                sb.Append("（").Append(note).Append("）");
+            }
+
+            // 治疗 / 护盾：按施法者属性算（与战前预览同口径）
+            if (sk.Effects != null)
+            {
+                for (int i = 0; i < sk.Effects.Length; i++)
+                {
+                    var a = sk.Effects[i];
+                    string part = null;
+                    switch (a.Kind)
+                    {
+                        case EffectAtomKind.Heal:
+                            part = "回复 " + HealShield((int)src.Attack, a.Power, src.MaxHp, a.PercentOfMaxHp) + " 点生命";
+                            break;
+                        case EffectAtomKind.Shield:
+                            part = "获得 " + HealShield((int)src.Attack, a.Power, src.MaxHp, a.PercentOfMaxHp) + " 点护盾";
+                            break;
+                        default:
+                            part = null;
+                            break;
+                    }
+                    if (part == null) continue;
+                    if (sb.Length > 0) sb.Append("；");
+                    sb.Append(part);
+                }
+            }
+
+            if (sb.Length == 0) return false;
+            text = sb.ToString();
+            return true;
+        }
     }
 }
