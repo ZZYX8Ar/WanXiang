@@ -49,10 +49,7 @@ namespace WanXiang.Modules.UI
             get { return WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Eggs : 12; }
         }
 
-        private int RunInk
-        {
-            get { return WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Ink : 3; }
-        }
+        // ⚠ 2026-09-25 删掉了 RunInk 属性：局内墨锭（RunState.Ink）全项目无人消费，已一并删除。
 
         protected override void OnCreate()
         {
@@ -152,7 +149,6 @@ namespace WanXiang.Modules.UI
             run.NodeOffset = -1;
             run.Wins = 0;
             run.Eggs = 0;
-            run.Ink = 0;
             run.RunSeed = UnityEngine.Random.Range(1, int.MaxValue);   // 重开 = 全新路线图
             if (run.Path != null) run.Path.Clear();
             if (run.VisitedNodes != null) run.VisitedNodes.Clear();

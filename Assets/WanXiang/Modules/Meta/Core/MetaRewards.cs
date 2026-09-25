@@ -30,6 +30,9 @@ namespace WanXiang.Meta
             public int NewActBonus;   // 首次抵达新幕
             public int Total;
             public int RunEggsCarried;   // 局内剩余灵卵结转（v1.1 灵卵双用途）
+            /// <summary>局末结算的**墨铊**。★ 2026-09-25 用户定案：墨铊改为"每场胜利立即 +1"
+            /// （在 ResultPanel 发放），所以这里只结算**守关 / 通关 / 首达新幕**那部分，避免重复计数。</summary>
+            public int InkGain;
             public bool Cleared;
             public int ActReached;
             public int Battles;
@@ -63,6 +66,8 @@ namespace WanXiang.Meta
                 income.NewActBonus = (actReached - state.BestActReached) * MetaDefaults.EggsPerNewAct;
 
             income.Total = income.NodeEggs + income.BossEggs + income.ClearBonus + income.NewActBonus;
+            // ★ 墨铊只结算"守关 + 通关 + 首达新幕"（每场胜利的 +1 已在结算面板即时发放）
+            income.InkGain = income.BossEggs + income.ClearBonus + income.NewActBonus;
             return income;
         }
 
@@ -88,8 +93,10 @@ namespace WanXiang.Meta
             state.RunsPlayed++;
             if (cleared) state.RunsCompleted++;
             if (actReached > state.BestActReached) state.BestActReached = actReached;
-            // ★ 局外养成的收益进【墨铊】（用户明确：灵卵是局内货币，局外不掺和）
-            state.Ink += income.Total;
+            // ★ 墨铊：这里只给「守关 / 通关 / 首达新幕」那部分；
+            //   每场胜利的 +1 由 ResultPanel 即时发放（用户定案：打完立刻可见）。
+            //   灵卵是局内货币，局外不掺和（用户明确）。
+            state.Ink += income.InkGain;
             return income;
         }
 

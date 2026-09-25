@@ -126,9 +126,16 @@ namespace WanXiang.Editor.MetaTool
                                        enemies, 20260914UL, RunChoosers.Seeded(20260914UL));
             var outcome = driver.Play(squad.ToArray());
             var income = MetaRewards.Settle(driver, st);
-            Check(lines, income.Total > 0 && st.Eggs == income.Total && st.RunsPlayed == 1
-                       && st.BestActReached == income.ActReached,
-                  $"③ 一局结算：{income.Describe()}｜局数 {st.RunsPlayed}（{outcome}）");
+            // ⚠ 口径（2026-09-25 校正）：局外收益进**墨铊**，灵卵只把**局内剩余**结转进钱包。
+            //   本断言原来写的是 `st.Eggs == income.Total`（早期"局外收益进灵卵"的旧口径）⇒ 长期恒红。
+            //   现在按现行口径验：Eggs 只等于结转的 RunEggsCarried；Ink 等于局末结算的 InkGain
+            //   （每场胜利的 +1 由 ResultPanel 即时发放，不在 MetaRewards 里）。
+            Check(lines, income.Total > 0 && st.RunsPlayed == 1
+                       && st.BestActReached == income.ActReached
+                       && st.Eggs == income.RunEggsCarried
+                       && st.Ink == income.InkGain,
+                  $"③ 一局结算：{income.Describe()}｜局末墨铊 +{income.InkGain}"
+                  + $"（每胜另 +1）｜灵卵结转 {income.RunEggsCarried}｜局数 {st.RunsPlayed}（{outcome}）");
 
             // 结算口径：同一份记录再算一次，**节点/守关/通关三项必须一模一样**，
             // 而"首达新幕"奖励是一次性的（此刻 BestAct 已经推进）⇒ 第二次应当为 0。

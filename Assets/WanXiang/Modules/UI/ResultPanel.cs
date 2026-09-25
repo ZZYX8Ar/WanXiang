@@ -234,7 +234,7 @@ namespace WanXiang.Modules.UI
             var cur = WanXiang.Run.RunSave.Current;
             string frag = string.IsNullOrEmpty(_dropFragment) ? "本场未掉落" : _dropFragment;
             string ess = _dropEssence > 0 ? ("+" + _dropEssence) : "本场未掉落";
-            string ink = cur != null ? "+1" : "—";
+            string ink = cur != null ? "+1" : "—";      // 每胜即时到账的局外墨铊
             _tmpDrops.text = "剧情碎片：" + frag + "\n精魄：" + ess + "　墨铊：" + ink;
         }
 
@@ -310,7 +310,21 @@ namespace WanXiang.Modules.UI
                 //   （"灵卵 +1"）完全不符。现已改为与 GDD 一致：胜利固定 +1。
                 //   Jie/Realm 的递进不再执行（幕推进已由 Act 承担），字段保留以兼容旧存档。
                 cur.Eggs += 1;
-                cur.Ink += 1;
+
+                // ★ 墨铊改为**每场胜利立即到账（局外）** —— 用户 2026-09-25 定案：
+                //   原来每胜 +1 给的是局内 `RunState.Ink`，而那个字段全项目**无人消费**（死数据），
+                //   局外墨铊却只在整局结束时一次性结算 ⇒ 玩家打到第 4 层看「异兽培养」永远是 0。
+                //   现在：每胜立刻 +1 到 MetaState.Ink（打完就能看到涨），
+                //   局末只再结算"守关/通关/新幕"那部分（MetaRewards.InkGain），不重复计数。
+                {
+                    var metaInk = WanXiang.Meta.MetaStore.Ensure();
+                    if (metaInk != null)
+                    {
+                        metaInk.Ink += 1;
+                        WanXiang.Meta.MetaStore.Save();
+                        Debug.Log("[ResultPanel] 墨铊 +1（每胜即时，现有 " + metaInk.Ink + "）");
+                    }
+                }
 
                 // ★ 掉落（觉醒技 / 精魄 / 魂 / 剧情碎片）已移到 RollDrops()。
                 //   原因：它们必须在**打开结算面板时**就 roll 定，才能把「掉没掉」显示在面板上；
@@ -356,7 +370,6 @@ namespace WanXiang.Modules.UI
                 try { WanXiang.Meta.MetaStore.SettleRun(cur, false); }
                 catch (System.Exception ex) { Debug.LogWarning("[ResultPanel] 局外结算异常：" + ex.Message); }
                 cur.Eggs = 0;
-                cur.Ink = 0;
                 cur.Act = 1;
                 cur.NodeOffset = -1;
                 cur.Jie = 1;

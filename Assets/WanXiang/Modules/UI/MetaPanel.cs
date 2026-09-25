@@ -579,8 +579,86 @@ namespace WanXiang.Modules.UI
             }
             // CD 已废弃（资源即限制）：不再显示，见 BattleConfig.UseCooldown
             string cd = "";
-            string desc = string.IsNullOrEmpty(sk.Description) ? "" : ("　" + sk.Description);
-            return index + " " + sk.Name + "（" + typeCn + cd + "）" + desc;
+
+            // ★ 用户要求：不要只写百分比（"造成 69% 攻击伤害"看不懂也难算），
+            //   直接按**该异兽当前等级的实际属性**换算成**具体点数**。
+            //   属性算法与上面 RenderDetail 完全一致（同一套 BattleConfig 占位公式 + 等级加成）。
+            var statDef = b.Clone();
+            WanXiang.Battle.Core.BattleConfig.Default.ApplyPlaceholderStats(statDef);
+            float statMul = 1f + LevelOf(b.Id) * PerLevelBonus;
+            int atk = Mathf.RoundToInt(statDef.BaseAtk * statMul);
+            int hp = Mathf.RoundToInt(statDef.BaseHp * statMul);
+
+            return index + " " + sk.Name + "（" + typeCn + cd + "）" + DescribeEffects(sk, atk, hp);
+        }
+
+        /// <summary>把技能效果换算成"具体点数"文案；算不出的效果用内容原文兜底。</summary>
+        private static string DescribeEffects(SkillDef sk, int atk, int maxHp)
+        {
+            string fallback = string.IsNullOrEmpty(sk.Description) ? "" : ("　" + sk.Description);
+            if (sk.Effects == null || sk.Effects.Length == 0) return fallback;
+
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < sk.Effects.Length; i++)
+            {
+                var a = sk.Effects[i];
+                int hits = CoreMath.Max(1, a.Hits);
+                string part = null;
+
+                switch (a.Kind)
+                {
+                    case EffectAtomKind.Damage:
+                        part = "造成 " + SkillMath.BaseDamage(atk, a.Power) + " 点伤害"
+                             + (a.TrueDamage ? "（真实伤害·无视护盾）" : "")
+                             + (hits > 1 ? "×" + hits + " 段" : "")
+                             + TargetCn(a.Target);
+                        break;
+                    case EffectAtomKind.Heal:
+                        part = "回复 " + SkillMath.HealShield(atk, a.Power, maxHp, a.PercentOfMaxHp) + " 点生命"
+                             + TargetCn(a.Target);
+                        break;
+                    case EffectAtomKind.Shield:
+                        part = "获得 " + SkillMath.HealShield(atk, a.Power, maxHp, a.PercentOfMaxHp) + " 点护盾"
+                             + TargetCn(a.Target);
+                        break;
+                    default:
+                        part = null;    // 状态/驱散/属性增减等：文案由内容表描述，这里不硬凑
+                        break;
+                }
+
+                if (part == null) continue;
+                if (sb.Length > 0) sb.Append("；");
+                sb.Append(part);
+            }
+
+            if (sb.Length == 0) return fallback;
+
+            // 伤害是"基础值"—— 实战还要乘五行克制与敌方减伤，这行必须说清，免得玩家以为面板骗人
+            bool hasDamage = false;
+            for (int i = 0; i < sk.Effects.Length; i++)
+                if (sk.Effects[i].Kind == EffectAtomKind.Damage) hasDamage = true;
+
+            return "　" + sb + (hasDamage ? "（基础值·未计敌方防御与五行克制）" : "");
+        }
+
+        private static string TargetCn(TargetSelector t)
+        {
+            switch (t)
+            {
+                case TargetSelector.Self: return "（自身）";
+                case TargetSelector.SingleLowestHp: return "（生命最低者）";
+                case TargetSelector.SingleHighestHp: return "（生命最高者）";
+                case TargetSelector.SingleHighestAtk: return "（攻击最高者）";
+                case TargetSelector.AllEnemies: return "（全体敌方）";
+                case TargetSelector.AllAllies: return "（全体友方）";
+                case TargetSelector.RandomEnemy: return "（随机敌方）";
+                case TargetSelector.RandomEnemyMultiHit: return "（随机敌方·多段）";
+                case TargetSelector.AdjacentToSelf: return "（自身相邻）";
+                case TargetSelector.AllOthers: return "（除自己外全场）";
+                case TargetSelector.SingleFrontMost: return "（最前排）";
+                case TargetSelector.SingleBackMost: return "（最后排）";
+                default: return "";
+            }
         }
 
         private static string EvolveConditionText(BeastDef b)

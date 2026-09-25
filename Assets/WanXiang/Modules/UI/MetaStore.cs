@@ -277,8 +277,8 @@ namespace WanXiang.Meta
 
             Debug.Log("[MetaStore] 局外结算：节点 " + nodes + " · 击破 " + bosses +
                       " · 最远第 " + actReached + " 幕 · 通关=" + cleared +
-                      " ⇒ 墨铊 +" + income.Total + "（局外墨铊共 " + meta.Ink +
-                      "，累计 " + meta.RunsPlayed + " 局）");
+                      " ⇒ 墨铊 +" + income.InkGain + "（守关/通关/新幕部分；每胜的 +1 已在结算面板发放）" +
+                      "，局外墨铊共 " + meta.Ink + "，累计 " + meta.RunsPlayed + " 局");
             return income;
         }
 
