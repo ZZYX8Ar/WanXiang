@@ -27,7 +27,7 @@ namespace WanXiang.Battle.Core
     public static class SkillMath
     {
         /// <summary>伤害文案的免责标注 —— 两个面板共用同一句话，别各写一份。</summary>
-        public const string DamageNote = "基础值·未计敌方防御与五行克制";
+        public const string DamageNote = "基础值·未计敌方防御/五行克制/浮动";
 
         /// <summary>伤害基础值（未计五行克制 / 暴击 / 敌方减伤 / 天时）。</summary>
         public static int BaseDamage(int attack, float power)
@@ -132,6 +132,10 @@ namespace WanXiang.Battle.Core
         /// <summary>
         /// 用**战斗公式**（<see cref="BattleSimulator.ComputeDamage"/>）实算技能对场上存活敌方的伤害区间。
         /// 逐敌 × 逐伤害效果取 min/max；暴击另给一组（暴击是随机的，只能给范围）。
+        ///
+        /// ⚠⚠ 全程以 <c>forPreview: true</c> 调用 —— **绝不消费战斗随机数**。
+        ///   `ComputeDamage` 末尾会掷"±5% 抖动"，预览若掷骰就会推进随机流、改掉后续所有结算。
+        ///   代价是预览值不带抖动 ⇒ 这里按 `Config.DamageJitter` 把区间**撑开**，实战结果必落在区间内。
         /// </summary>
         /// <returns>true = 至少算出一个值（false 时调用方退回战前预览口径）</returns>
         public static bool TryDamageRange(BattleState st, BattleUnit src, SkillDef sk,
@@ -158,10 +162,11 @@ namespace WanXiang.Battle.Core
                     var dst = foes[i];
                     if (dst == null || !dst.IsAlive) continue;
 
+                    // forPreview: true —— 只读状态、不掷骰（见方法注释）
                     int n = BattleSimulator.ComputeDamage(st, src, dst, el, atom.Power,
-                                                          atom.TrueDamage, false, aoe);
+                                                          atom.TrueDamage, false, aoe, true);
                     int c = BattleSimulator.ComputeDamage(st, src, dst, el, atom.Power,
-                                                          atom.TrueDamage, true, aoe);
+                                                          atom.TrueDamage, true, aoe, true);
                     if (!any)
                     {
                         minNormal = maxNormal = n; minCrit = maxCrit = c; any = true;
@@ -175,8 +180,22 @@ namespace WanXiang.Battle.Core
                     }
                 }
             }
-            return any;
+            if (!any) return false;
+
+            // 把 ±抖动撑进区间：这样"面板区间"一定能兜住实战打出来的数
+            float j = st.Config.DamageJitter;
+            if (j > 0f)
+            {
+                minNormal = JitterLo(minNormal, j);
+                maxNormal = JitterHi(maxNormal, j);
+                minCrit = JitterLo(minCrit, j);
+                maxCrit = JitterHi(maxCrit, j);
+            }
+            return true;
         }
+
+        private static int JitterLo(int v, float j) => CoreMath.RoundDamage(v * (1f - j));
+        private static int JitterHi(int v, float j) => CoreMath.RoundDamage(v * (1f + j));
 
         /// <summary>
         /// 战斗悬浮提示用：伤害走**实算区间**（含五行克制/目标防御/天时），
@@ -202,8 +221,8 @@ namespace WanXiang.Battle.Core
                           : ("造成 " + nMin + "~" + nMax + " 点伤害"));
                 if (hits > 1) sb.Append("×" + hits + " 段");
 
-                // 五行克制与目标防御都已经算进去了 —— 这行让玩家知道数字为什么是区间
-                string note = "含五行克制与目标防御";
+                // 数字为什么是区间：打谁不同（五行克制 / 目标防御）+ ±5% 抖动
+                string note = "对当前敌方，含五行克制/防御/浮动";
                 if (cMax > nMax || cMin > nMin)
                     note += "；暴击 " + cMin + "~" + cMax;
                 sb.Append("（").Append(note).Append("）");

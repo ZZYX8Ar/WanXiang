@@ -1171,7 +1171,7 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public static int ComputeDamage(BattleState st, BattleUnit src, BattleUnit dst,
                                         Element el, float power, bool trueDamage, bool crit,
-                                        bool aoeSkill = false)
+                                        bool aoeSkill = false, bool forPreview = false)
         {
             var cfg = st.Config;
             float raw = src.Attack * power * (1f + src.QiSkillBonus(cfg.QiEffectPerStack));
@@ -1225,8 +1225,12 @@ namespace WanXiang.Battle.Core
             // 抖动（GDD v1.1 §3.1：Rand ∈ [0.95, 1.05]）。
             // 只在这里消费一次随机数 ⇒ 同种子逐位可复现；DamageJitter=0 时完全不掷骰
             //（对照实验用：证明其他结算路径没有被抖动污染）。
+            //
+            // ⚠⚠ forPreview = true 时**绝不掷骰** —— 面板/悬浮提示这类"只是看看"的调用
+            //     若消费了战斗随机数，会推进随机流、把后续每一次结算都改掉
+            //     （踩过：UI 预览让同种子战斗结果漂移）。预览侧要自己把 ±jitter 作为区间撑开。
             float jitter = st.Config.DamageJitter;
-            if (jitter > 0f)
+            if (!forPreview && jitter > 0f)
                 v *= 1f + (st.Random.NextFloat() - 0.5f) * 2f * jitter;
 
             return CoreMath.RoundDamage(v);
