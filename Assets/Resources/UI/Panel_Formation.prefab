@@ -4166,6 +4166,8 @@ GameObject:
   m_Component:
   - component: {fileID: 3362529960646768730}
   - component: {fileID: 4135207427915847878}
+  - component: {fileID: 7319709116716281476}
+  - component: {fileID: 8768848045537563893}
   m_Layer: 0
   m_Name: Viewport
   m_TagString: Untagged
@@ -4207,6 +4209,44 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Padding: {x: 0, y: 0, z: 0, w: 0}
   m_Softness: {x: 0, y: 0}
+--- !u!222 &7319709116716281476
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5543923799550219867}
+  m_CullTransparentMesh: 1
+--- !u!114 &8768848045537563893
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5543923799550219867}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 0}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
 --- !u!1 &5661534345661906004
 GameObject:
   m_ObjectHideFlags: 0
@@ -5407,6 +5447,7 @@ MonoBehaviour:
   _rosterItemTemplate: {fileID: 3255106368145874810}
   _tmpPower: {fileID: 4261322028348919786}
   _btnAutoFill: {fileID: 499390987680610027}
+  _btnBack: {fileID: 0}
   _btnClear: {fileID: 8898268668183548441}
   _btnDeploy: {fileID: 7906419683979253818}
   _contentCatalog: {fileID: 11400000, guid: 60369f2fff5459b478abab98f70a9251, type: 2}

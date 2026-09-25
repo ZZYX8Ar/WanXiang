@@ -1203,6 +1203,7 @@ namespace WanXiang.EditorTools
             var viewport = EnsureNode(scrollRt, "Viewport", Vector2.zero, Vector2.one,
                 Vector2.zero, Vector2.zero);
             EnsureComp<RectMask2D>(viewport.gameObject);
+            UIBuild.MakeViewportRaycastTarget(viewport);   // ★ 受击层：缺了列表就划不动
             var content = EnsureNode(viewport, "Content", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 Vector2.zero, Vector2.zero);
             content.pivot = new Vector2(0.5f, 1f);

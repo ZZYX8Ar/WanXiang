@@ -170,6 +170,27 @@ namespace WanXiang.EditorTools
             return MakeBtn(parent, name, anchor, size, new Vector2(x, y), label, c, fontSize);
         }
 
+        /// <summary>
+        /// 给滚动区 Viewport 铺一层**全透明但可受击**的 Image。
+        /// ------------------------------------------------------------------
+        /// ⚠ 没有这层，拖拽/滚轮落在卡片空白处、行间隙、面板底色上时**完全收不到事件**
+        ///   （ScrollRect 自己不画任何 Graphic，能力在于"往上冒泡"，
+        ///    而冒泡的前提是射线**先命中某个 raycastTarget**）。
+        ///   症状就是用户说的"划不动"。全工程 9 个面板 10 个滚动区一度全中招。
+        /// ⚠ alpha = 0 不影响受击：Unity 只看 raycastTarget（不看透明度）。
+        /// </summary>
+        internal static Image MakeViewportRaycastTarget(RectTransform viewport)
+        {
+            var img = viewport.GetComponent<Image>();
+            if (img == null)
+            {
+                img = viewport.gameObject.AddComponent<Image>();
+                img.color = new Color(1f, 1f, 1f, 0f);
+            }
+            img.raycastTarget = true;
+            return img;
+        }
+
         /// <summary>滚动区：ScrollRect + Viewport(RectMask2D) + Content(VerticalLayoutGroup)。
         /// 返回 Content —— 列表项由代码生成；模板放 rt 外部。</summary>
         internal static RectTransform ScrollVertical(Transform parent, string name,
@@ -178,6 +199,7 @@ namespace WanXiang.EditorTools
             var rt = Node(parent, name, aMin, aMax, offMin, offMax);
             var viewport = Node(rt, "Viewport", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             viewport.gameObject.AddComponent<RectMask2D>();
+            MakeViewportRaycastTarget(viewport);       // ★ 必须有受击层，否则拖不动（见方法注释）
             var content = Node(viewport, "Content", new Vector2(0, 1), new Vector2(1, 1),
                 Vector2.zero, Vector2.zero);
             content.pivot = new Vector2(0.5f, 1f);
@@ -255,6 +277,7 @@ namespace WanXiang.EditorTools
             var rt = Node(parent, name, aMin, aMax, offMin, offMax);
             var viewport = Node(rt, "Viewport", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             viewport.gameObject.AddComponent<RectMask2D>();
+            MakeViewportRaycastTarget(viewport);       // ★ 必须有受击层，否则拖不动（见方法注释）
             var content = Node(viewport, "Content", new Vector2(0, 1), new Vector2(1, 1),
                 Vector2.zero, Vector2.zero);
             content.pivot = new Vector2(0.5f, 1f);
