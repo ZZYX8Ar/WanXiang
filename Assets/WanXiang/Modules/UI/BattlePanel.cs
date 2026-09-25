@@ -99,6 +99,12 @@ namespace WanXiang.Modules.UI
         // ---- 战斗场景模式（单位由 BattleStage2D 渲染，本面板只当 HUD）----
         private bool _sceneMode;
         private BattleStage2D _stage;
+
+        // 技能预览的格位高亮用的复用列表（避免每次悬浮都分配）
+        private readonly System.Collections.Generic.List<WanXiang.Battle.Core.BattleUnit> _previewTargets
+            = new System.Collections.Generic.List<WanXiang.Battle.Core.BattleUnit>(10);
+        private readonly System.Collections.Generic.List<int> _previewAllyCells = new System.Collections.Generic.List<int>(9);
+        private readonly System.Collections.Generic.List<int> _previewFoeCells = new System.Collections.Generic.List<int>(9);
         private int _eventIndex = -1;
 
         // ================================================================
@@ -1058,6 +1064,9 @@ namespace WanXiang.Modules.UI
                             desc += "\n（描述里的百分比是攻击力系数，不是生命百分比）";
                     }
 
+                    // ★ 九宫格高亮：一眼看出"打谁 / 给谁加盾"（用户诉求）
+                    HighlightPreviewTargets(u, sk);
+
                     // 目标规则：与核心的"普攻打最前排"特判保持一致（否则界面会误导布阵）。
                     //  ⚠ 取**效果 atom** 的目标而不是 PrimaryTarget —— 后者是"主目标"语义，
                     //    对"给自己人加盾"这类技能会显示成"生命最低的敌人"（实测踩到）。
@@ -1094,6 +1103,33 @@ namespace WanXiang.Modules.UI
                 .Join(_tipGroup.DOFade(1f, 0.18f));
         }
 
+        /// <summary>
+        /// 技能预览：把"会被作用到的九宫格格子"点亮 —— 解决"打谁 / 给谁治盾"看不见的问题。
+        /// 敌方格暖红、"我方格柔绿；随机类目标（RandomEnemy）无法预测 ⇒ 点亮该侧全部存活格。
+        /// ⚠ 目标预测走 <see cref="WanXiang.Battle.Core.BattleSimulator.PreviewTargets"/>
+        ///   （只读、不掷骰），**不在这里另写一套目标选择逻辑**（否则必然与实战漂移）。
+        /// </summary>
+        private void HighlightPreviewTargets(WanXiang.Battle.Core.BattleUnit u,
+                                             WanXiang.Battle.Core.SkillDef sk)
+        {
+            if (_stage == null || _play == null || _play.State == null) return;
+
+            bool isRandom;
+            WanXiang.Battle.Core.BattleSimulator.PreviewTargets(
+                _play.State, u, sk, _previewTargets, out isRandom);
+
+            _previewAllyCells.Clear();
+            _previewFoeCells.Clear();
+            for (int i = 0; i < _previewTargets.Count; i++)
+            {
+                var t = _previewTargets[i];
+                if (t == null || !t.Pos.IsValid) continue;
+                if (t.Side == WanXiang.Battle.Core.TeamSide.Player) _previewAllyCells.Add(t.Pos.Index);
+                else _previewFoeCells.Add(t.Pos.Index);
+            }
+            _stage.HighlightCells(_previewAllyCells, _previewFoeCells);
+        }
+
         private string CostLine(int slot)
         {
             switch (slot)
@@ -1108,6 +1144,8 @@ namespace WanXiang.Modules.UI
         /// <summary>淡出并收起。</summary>
         private void HideSkillTip()
         {
+            // 收起提示 = 同时取消九宫格高亮
+            if (_stage != null) _stage.HighlightCells(null, null);
             if (_tipPanel == null || !_tipPanel.gameObject.activeSelf) return;
             _tipShowingSlot = -1;
             _tipTween?.Kill();

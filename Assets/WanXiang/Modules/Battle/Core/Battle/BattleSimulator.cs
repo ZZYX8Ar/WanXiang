@@ -611,10 +611,7 @@ namespace WanXiang.Battle.Core
             // 目标池口径：伤害类打对面，其余（治疗/护盾/增益）打自己这边。
             // 这是最不容易出错的默认值 —— 真要跨阵营（如"给敌方上减益"），
             // 用 ApplyStatus 的减益状态也一样落在对面，见下面的分支。
-            bool debuffLike = atom.Kind == EffectAtomKind.Damage
-                           || (atom.Kind == EffectAtomKind.ApplyStatus
-                               && StatusCatalog.Get(atom.StatusId).IsDebuff);
-            TeamSide pool = debuffLike ? BattleState.Opponent(src.Side) : src.Side;
+            TeamSide pool = PoolFor(atom, src);
 
             ResolveTargets(st, src, atom.Target, pool, buf.Targets);
             if (buf.Targets.Count == 0) return;
@@ -1280,6 +1277,57 @@ namespace WanXiang.Battle.Core
         private const int PickLowestHp = 1;
         private const int PickHighestHp = 2;
         private const int PickHighestAtk = 3;
+
+        /// <summary>
+        /// 效果的"目标池"：伤害类 / 减益类打**对面**，其余（治疗/护盾/增益）打**自己这边**。
+        /// ⚠ 结算是与预览（<see cref="PreviewTargets"/>）**共用这一份**口径，别在两处各写一遍。
+        /// </summary>
+        private static TeamSide PoolFor(in EffectAtom atom, BattleUnit src)
+        {
+            bool debuffLike = atom.Kind == EffectAtomKind.Damage
+                           || (atom.Kind == EffectAtomKind.ApplyStatus
+                               && StatusCatalog.Get(atom.StatusId).IsDebuff);
+            return debuffLike ? BattleState.Opponent(src.Side) : src.Side;
+        }
+
+        /// <summary>
+        /// 【预览】该技能会作用于哪些单位 —— **只读、不消费随机数、不改任何状态**
+        /// （供战斗面板做九宫格高亮："打谁 / 给谁加盾"一眼可见）。
+        /// 确定性选择器直接复用 <see cref="ResolveTargets"/>；
+        /// 随机类（RandomEnemy / RandomEnemyMultiHit）无法预测 ⇒ 返回该池**全部存活单位**
+        /// 并把 <paramref name="isRandom"/> 置 true，由调用方提示"随机"。
+        /// ⚠ 这里**绝不能掷骰**：那会推进战斗随机流、改掉后续每一次结算
+        ///   （同 ComputeDamage 的 forPreview 教训）。
+        /// </summary>
+        public static void PreviewTargets(BattleState st, BattleUnit src, SkillDef sk,
+                                          List<BattleUnit> into, out bool isRandom)
+        {
+            into.Clear();
+            isRandom = false;
+            if (st == null || src == null || sk == null || sk.Effects == null) return;
+
+            var tmp = new List<BattleUnit>(8);
+            for (int a = 0; a < sk.Effects.Length; a++)
+            {
+                var atom = sk.Effects[a];
+                var pool = PoolFor(atom, src);
+
+                if (atom.Target == TargetSelector.RandomEnemy
+                    || atom.Target == TargetSelector.RandomEnemyMultiHit)
+                {
+                    isRandom = true;
+                    st.CollectAlive(pool, tmp);
+                }
+                else
+                {
+                    // 确定性选择器（"生命最低/最前排/全体/自身"等）—— 纯比较，不掷骰
+                    ResolveTargets(st, src, atom.Target, pool, tmp);
+                }
+
+                for (int i = 0; i < tmp.Count; i++)
+                    if (!into.Contains(tmp[i])) into.Add(tmp[i]);
+            }
+        }
 
         private static void ResolveTargets(BattleState st, BattleUnit src, TargetSelector sel,
                                            TeamSide pool, List<BattleUnit> into)

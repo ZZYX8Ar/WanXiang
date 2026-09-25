@@ -59,6 +59,14 @@ namespace WanXiang.Battle.Presentation
 
         /// <summary>立绘显示高度（世界单位）。格子 1.75 —— 立绘略高于格，气势更足。</summary>
         private const float UnitHeight = Cell * 0.60f;   // ★ 与行距(0.66×Cell)匹配：既在美术网格内，又不会上下排重叠
+
+        // ---- 技能预览的格位高亮（只给已有格子换配色，不新建对象）----
+        private static readonly Color TintEnemyCell = new Color(0.95f, 0.52f, 0.42f, 1f);   // 会被打到的敌方格
+        private static readonly Color TintAllyCell = new Color(0.55f, 0.85f, 0.62f, 1f);    // 会被治疗/加盾的我方格
+        private readonly SpriteRenderer[] _cellsPlayer = new SpriteRenderer[9];
+        private readonly SpriteRenderer[] _cellsEnemy = new SpriteRenderer[9];
+        private readonly Color[] _cellBasePlayer = new Color[9];
+        private readonly Color[] _cellBaseEnemy = new Color[9];
                                                         //   （原来写死 1.9 > 行距 1.155 ⇒ 视觉挤在一起）
 
         /// <summary>血条相对立绘容器的高度（立绘高 1.9，浮在头顶上沿）。</summary>
@@ -142,11 +150,34 @@ namespace WanXiang.Battle.Presentation
                     (int)(Cell * 100), (int)(Cell * 100), 3,
                     center ? new Color(0.79f, 0.63f, 0.39f) : new Color(0.16f, 0.13f, 0.09f));
                 sr.sortingOrder = -5;
+
+                // 缓存格子渲染器与底色：技能预览高亮用（还原时用缓存值，不硬编码颜色）
+                if (player) { _cellsPlayer[i] = sr; _cellBasePlayer[i] = sr.color; }
+                else { _cellsEnemy[i] = sr; _cellBaseEnemy[i] = sr.color; }
                 int col = i % 3;
                 if (!player) col = 2 - col;   // 敌方列镜像，与我方对称
                 int row = i / 3;
                 cell.transform.localPosition = new Vector3(
                     cx + (col - 1) * Cell, cy + (1 - row) * Cell * 0.72f, 0f);
+            }
+        }
+
+        /// <summary>
+        /// 技能预览：把"会被作用到的九宫格格子"点亮。cell = 0..8（与 Pos.Index 同一套编号）。
+        /// 敌方格 → 暖红（要挨打）；我方格 → 柔绿（吃治疗/护盾/增益）。传 null = 该侧不亮。
+        /// 两侧都传 null/空 = 全部还原。
+        /// ⚠ 只给**已有格子**换配色（数据填充），不新建任何对象；格子的美术仍可在场景里换。
+        /// </summary>
+        public void HighlightCells(List<int> playerCells, List<int> enemyCells)
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                bool onP = playerCells != null && playerCells.Contains(i);
+                bool onE = enemyCells != null && enemyCells.Contains(i);
+                if (_cellsPlayer[i] != null)
+                    _cellsPlayer[i].color = onP ? TintAllyCell : _cellBasePlayer[i];
+                if (_cellsEnemy[i] != null)
+                    _cellsEnemy[i].color = onE ? TintEnemyCell : _cellBaseEnemy[i];
             }
         }
 
