@@ -103,37 +103,12 @@ namespace WanXiang.Modules.UI
                 AiProfile = profile,
             };
 
-            // L4 祭坛：五行等级和 × 1.6% —— 局外永久数值线，每场都生效（总封顶 +8%）
-            int altarSum = 0;
-            if (run.MetaAltar != null)
-                foreach (var lv in run.MetaAltar) altarSum += lv;
-
-            // 挂起修正（孵穴回复 / 天象异闻）：进本场后清零
-            // ★ 触发条件也要看【局外祭坛】(metaA)：否则局内 altarSum=0 时整段被跳过，
-            //   局外的永久加成永远不生效。
-            var metaGate = WanXiang.Meta.MetaStore.Ensure();
-            bool hasMetaAltar = metaGate != null && metaGate.BeastIds.Count > 0;
-            // ⚠ 变量名沿用（内容已改为"是否有局外培养数据"）；祭坛已废弃。
-
-            if (run.HealPending != 0 || run.PlayerBuffPct != 0 || run.EnemyBuffPct != 0 ||
-                altarSum > 0 || hasMetaAltar)
+            // ★ 2026-09-25：局外养成（等级/进化/觉醒技）已全部改为读**本局快照**，
+            //   这里只处理"本场挂起修正"（孵穴回复 / 天象异闻）—— 与局外养成无关，
+            //   所以**不再需要**去读 MetaStore（原来那处现读是漏进本局的根源之一）。
+            if (run.HealPending != 0 || run.PlayerBuffPct != 0 || run.EnemyBuffPct != 0)
             {
-                // ★ 局外成长改为【异兽培养】等级（替代原"祭坛"）：
-                //   队伍里每只兽按**各自**的局外等级给 +1.6%/级（5 级 = +8%），
-                //   取全队平均作为本场我方倍率 —— 培养哪只就强在哪只身上。
-                float beastBonus = 0f;
-                int counted = 0;
-                if (metaGate != null && metaGate.BeastIds.Count > 0)
-                {
-                    int sum = 0;
-                    foreach (var id in run.Team)
-                    {
-                        sum += metaGate.BeastLevelOf(id);
-                        counted++;
-                    }
-                    if (counted > 0) beastBonus = sum / (float)counted * 0.016f;
-                }
-                req.PlayerMul = 1f + beastBonus + (run.HealPending + run.PlayerBuffPct) / 100f;
+                req.PlayerMul = 1f + (run.HealPending + run.PlayerBuffPct) / 100f;
                 if (req.EnemyEntries != null)
                     foreach (var en in req.EnemyEntries)
                         en.WithMul(en.StatMul * (1f + run.EnemyBuffPct / 100f));
@@ -148,8 +123,10 @@ namespace WanXiang.Modules.UI
 
             if (run.Team != null)
             {
-                // ★ 局外觉醒技注入：队伍里每只兽带上【它装备的觉醒技】（第 4 技能）。
-                var metaAw = WanXiang.Meta.MetaStore.Ensure();
+                // ★ 本局快照：等级 / 进化 / 觉醒技 都在**开局那一刻**锁定（用户 2026-09-25 定案），
+                //   局内中途回主城在「异兽培养」里怎么升级/进化/换觉醒技，都不影响这一局。
+                run.EnsureMetaSnapshot();
+
                 foreach (var id in run.Team)
                 {
                     if (string.IsNullOrEmpty(id) || !byId.TryGetValue(id, out var def)) continue;
@@ -158,31 +135,41 @@ namespace WanXiang.Modules.UI
                     // ⚠ 必须 Clone：byId[id] 是内容目录的共享引用，
                     //   直接改会污染全局（之后每场战斗都带着觉醒技）。
                     var d = def.Clone();
-                    if (metaAw != null)
+
+                    // 觉醒技：取**快照**，不再读现档
+                    string aid = run.SnapAwakenOf(id);
+                    if (!string.IsNullOrEmpty(aid))
                     {
-                        string aid = metaAw.AwakenOf(id);
-                        if (!string.IsNullOrEmpty(aid))
+                        var sk = FindSkillById(all, aid);
+                        if (sk != null)
                         {
-                            var sk = FindSkillById(all, aid);
-                            if (sk != null)
-                            {
-                                d.Awaken = sk;
-                                UnityEngine.Debug.Log("[BattleRequestFactory] 觉醒技注入：" +
-                                                      d.DisplayName + " ← " + sk.Name);
-                            }
-                            else
-                            {
-                                UnityEngine.Debug.LogWarning("[BattleRequestFactory] 觉醒技 " + aid +
-                                    " 在内容目录里查不到（FindSkillById 失败）——检查该技能是否在异兽的 AllSkills 里");
-                            }
+                            d.Awaken = sk;
+                            UnityEngine.Debug.Log("[BattleRequestFactory] 觉醒技注入（本局快照）：" +
+                                                  d.DisplayName + " ← " + sk.Name);
+                        }
+                        else
+                        {
+                            UnityEngine.Debug.LogWarning("[BattleRequestFactory] 觉醒技 " + aid +
+                                " 在内容目录里查不到（FindSkillById 失败）——检查该技能是否在异兽的 AllSkills 里");
                         }
                     }
+
                     req.Player.Add(d);
+                    // 每只**各自**的战力倍率 = 等级（+1.6%/级）× 进化（+15%），同样取快照。
+                    // ⚠ 与面板显示同一套公式（MetaDefaults.CombatBonusMul），别在两处各推一份。
+                    req.PlayerMulPer.Add(WanXiang.Meta.MetaDefaults.CombatBonusMul(
+                        run.SnapLevelOf(id), run.SnapEvolvedOf(id)));
                 }
             }
 
             if (req.Player.Count == 0)
-                for (int i = 0; i < 5 && i < all.Length; i++) req.Player.Add(all[i]);
+            {
+                for (int i = 0; i < 5 && i < all.Length; i++)
+                {
+                    req.Player.Add(all[i]);
+                    req.PlayerMulPer.Add(1f);
+                }
+            }
 
             // ---- 敌方：走正式内容供给（Campaign.SeededEnemyProvider）----
             // 它按 GDD §5.1/§5.5 的规模表定阵容大小、算属性倍率，

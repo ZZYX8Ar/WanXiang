@@ -59,8 +59,8 @@ namespace WanXiang.Modules.UI
         [SerializeField] private RectTransform _awakenItemTemplate; // Item_Awaken
         [SerializeField] private Button _btnAwakenClose;         // Btn_AwakenClose
 
-        private const int MaxLevel = 5;
-        private const float PerLevelBonus = 0.016f;   // 每级 +1.6%（5 级 = +8%，与 GDD 数值封顶一致）
+        // ⚠ 等级/进化的数值口径**唯一来源**是 MetaDefaults（UI 与战斗都读它，别各推一份）
+        private const int MaxLevel = WanXiang.Meta.MetaDefaults.BeastMaxLevel;
 
         /// <summary>进化消耗：精魄（探索掉落）+ 墨铊。</summary>
         private const int EvolveEssenceCost = 2;
@@ -177,8 +177,9 @@ namespace WanXiang.Modules.UI
             var b = _shown[_selected];
             var meta = WanXiang.Meta.MetaStore.Ensure();
             int lv = LevelOf(b.Id);
-            float mul = 1f + lv * PerLevelBonus;
             bool evolved = IsEvolved(b.Id);
+            // ★ 属性倍率与战斗用**同一个**公式（等级 × 进化），否则面板显示的和打出来的不是一个数。
+            float mul = WanXiang.Meta.MetaDefaults.CombatBonusMul(lv, evolved);
 
             if (_tmpName != null) _tmpName.text = b.DisplayName + (evolved ? " · 觉醒" : "");
 
@@ -208,8 +209,8 @@ namespace WanXiang.Modules.UI
                 int hp = Mathf.RoundToInt(statDef.BaseHp * mul);
                 int atk = Mathf.RoundToInt(statDef.BaseAtk * mul);
                 int nextLv = Mathf.Min(MaxLevel, lv + 1);
-                int hpNext = Mathf.RoundToInt(statDef.BaseHp * (1f + nextLv * PerLevelBonus));
-                int atkNext = Mathf.RoundToInt(statDef.BaseAtk * (1f + nextLv * PerLevelBonus));
+                int hpNext = Mathf.RoundToInt(statDef.BaseHp * WanXiang.Meta.MetaDefaults.CombatBonusMul(nextLv, evolved));
+                int atkNext = Mathf.RoundToInt(statDef.BaseAtk * WanXiang.Meta.MetaDefaults.CombatBonusMul(nextLv, evolved));
                 string head = "生命 " + hp + "　攻击 " + atk +
                               "　防御 " + statDef.BaseDef + "　速度 " + statDef.BaseSpeed + "\n";
                 _tmpStats.text = lv >= MaxLevel
@@ -416,8 +417,9 @@ namespace WanXiang.Modules.UI
             return i >= 0 && i < m.BeastEvolved.Count && m.BeastEvolved[i];
         }
 
-        /// <summary>该异兽的局外等级加成（供战斗读取）。</summary>
-        public static float LevelBonusOf(string id) => LevelOf(id) * PerLevelBonus;
+        // ⚠ 原 `LevelBonusOf(id) = LevelOf(id) * PerLevelBonus` 已删：它声明后全项目无人调用，
+        //   而真正生效的是 BattleRequestFactory 里的口径 ⇒ 留着就是第二份公式，迟早漂移。
+        //   现在统一走 MetaDefaults.CombatBonusMul（UI 与战斗共用）。
 
         // --------------------------------------------------- 觉醒技选择（批次B）
 
@@ -585,7 +587,8 @@ namespace WanXiang.Modules.UI
             //   属性算法与上面 RenderDetail 完全一致（同一套 BattleConfig 占位公式 + 等级加成）。
             var statDef = b.Clone();
             WanXiang.Battle.Core.BattleConfig.Default.ApplyPlaceholderStats(statDef);
-            float statMul = 1f + LevelOf(b.Id) * PerLevelBonus;
+            // ★ 技能点数要与战斗同一口径：含等级与进化加成
+            float statMul = WanXiang.Meta.MetaDefaults.CombatBonusMul(LevelOf(b.Id), IsEvolved(b.Id));
             int atk = Mathf.RoundToInt(statDef.BaseAtk * statMul);
             int hp = Mathf.RoundToInt(statDef.BaseHp * statMul);
 

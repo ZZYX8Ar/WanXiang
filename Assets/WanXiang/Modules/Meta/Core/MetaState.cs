@@ -65,6 +65,22 @@ namespace WanXiang.Meta
         public const float AltarStep = 0.016f;   // 每条 +1.6%，5 条 = +8%
         public const int AltarCost = 6;          // 升级单价（占位；GDD 没给，待策划）
         public const float MetaGainCap = 0.08f;  // 数值类局外增益总上限（MetaGainCap）
+
+        // ---- 异兽培养（2026-09-25 起为**唯一来源**，UI 与战斗都读这里）----
+        /// <summary>异兽等级：每级 +1.6%（5 级封顶 = +8%），作用于生命/攻击/防御。</summary>
+        public const float BeastLevelStep = 0.016f;
+        public const int BeastMaxLevel = 5;
+        /// <summary>进化加成：生命/攻击/防御 +15%（剧情文档口径；占位，待策划给正式表）。</summary>
+        public const float EvolveStatBonus = 0.15f;
+
+        /// <summary>某只异兽在本局战斗里的**战力倍率**（等级 + 进化）。
+        /// ⚠ UI 与战斗必须都调这一个，别在两处各推一套公式。</summary>
+        public static float CombatBonusMul(int level, bool evolved)
+        {
+            float m = 1f + level * BeastLevelStep;
+            if (evolved) m *= (1f + EvolveStatBonus);
+            return m;
+        }
     }
 
     /// <summary>

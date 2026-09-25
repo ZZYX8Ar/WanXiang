@@ -33,6 +33,13 @@ namespace WanXiang.Modules.UI
         /// <summary>我方全体属性倍率（孵穴「回复」的载体：下一场战斗 ×1.4）。</summary>
         public float PlayerMul = 1f;
 
+        /// <summary>
+        /// 与 <see cref="Player"/> 一一对应的**每只异兽**战力倍率（局外等级 + 进化，
+        /// 取自**本局快照**，见 RunState.EnsureMetaSnapshot）。最终倍率 = PlayerMul × 本值。
+        /// 缺省（列表比 Player 短）按 1 处理。
+        /// </summary>
+        public List<float> PlayerMulPer = new List<float>();
+
         public List<BeastDef> Enemy = new List<BeastDef>();
 
         /// <summary>
@@ -111,7 +118,9 @@ namespace WanXiang.Modules.UI
                 int cell = (req.PlayerCells != null && i < req.PlayerCells.Count)
                     ? req.PlayerCells[i]
                     : BattleRequest.Cells[i % BattleRequest.Cells.Length];
-                p[i] = DeployEntry.Player(req.Player[i], cell).WithMul(req.PlayerMul);
+                float perMul = (req.PlayerMulPer != null && i < req.PlayerMulPer.Count)
+                    ? req.PlayerMulPer[i] : 1f;
+                p[i] = DeployEntry.Player(req.Player[i], cell).WithMul(req.PlayerMul * perMul);
             }
 
             DeployEntry[] e;

@@ -59,6 +59,68 @@ namespace WanXiang.Run
         /// </summary>
         public int[] MetaAltar = new int[5];
 
+        // ====================================================================
+        //  本局快照：局外养成（异兽等级 / 进化 / 已装备觉醒技）
+        //  --------------------------------------------------------------------
+        //  用户 2026-09-25 定案：**开局那一刻锁定**。局内中途回主城在「异兽培养」里
+        //  升级 / 进化 / 换觉醒技，**都不影响进行中的这一局**，要下一局才吃到。
+        //  ⚠ 之前是"每次出征都现读 MetaStore" ⇒ 局内换觉醒技、升级都会立刻漏进本局。
+        // ====================================================================
+
+        /// <summary>快照对应的 RunSeed。换局（重开/失败重来/新档）时 RunSeed 会变 ⇒ 自动重拍。</summary>
+        public int SnapshotSeed = 0;
+        public List<string> SnapBeastIds = new List<string>();
+        public List<int>    SnapLevels   = new List<int>();
+        public List<bool>   SnapEvolved  = new List<bool>();
+        public List<string> SnapAwaken   = new List<string>();   // 已装备的觉醒技 id（"" = 未装备）
+
+        /// <summary>
+        /// 若本局还没拍过快照（或已经换了一局）⇒ 按当前局外存档拍一份；**整局不再更新**。
+        /// 以 RunSeed 为界：任何"新一局"都会换 RunSeed，所以不必在每个重开点手动调用。
+        /// </summary>
+        public void EnsureMetaSnapshot()
+        {
+            if (SnapshotSeed == RunSeed && SnapBeastIds.Count > 0) return;
+
+            var m = WanXiang.Meta.MetaStore.Ensure();
+            SnapshotSeed = RunSeed;
+            SnapBeastIds.Clear(); SnapLevels.Clear(); SnapEvolved.Clear(); SnapAwaken.Clear();
+            if (m == null) return;
+
+            int n = System.Math.Min(m.BeastIds.Count, m.BeastLevels.Count);
+            for (int i = 0; i < n; i++)
+            {
+                string id = m.BeastIds[i];
+                if (string.IsNullOrEmpty(id)) continue;
+                SnapBeastIds.Add(id);
+                SnapLevels.Add(i < m.BeastLevels.Count ? m.BeastLevels[i] : 0);
+                SnapEvolved.Add(i < m.BeastEvolved.Count && m.BeastEvolved[i]);
+                SnapAwaken.Add(m.AwakenOf(id));
+            }
+
+            RunSave.Save(this);   // ★ 快照必须落盘：否则退出再进会重拍（等于没锁）
+            UnityEngine.Debug.Log("[RunState] 已锁定本局快照：" + SnapBeastIds.Count + " 只异兽的等级/进化/觉醒技" +
+                                  "（局内再升级/进化/换觉醒技，下一局才生效）");
+        }
+
+        public int SnapLevelOf(string id)
+        {
+            int i = SnapBeastIds.IndexOf(id);
+            return i >= 0 && i < SnapLevels.Count ? SnapLevels[i] : 0;
+        }
+
+        public bool SnapEvolvedOf(string id)
+        {
+            int i = SnapBeastIds.IndexOf(id);
+            return i >= 0 && i < SnapEvolved.Count && SnapEvolved[i];
+        }
+
+        public string SnapAwakenOf(string id)
+        {
+            int i = SnapBeastIds.IndexOf(id);
+            return i >= 0 && i < SnapAwaken.Count ? (SnapAwaken[i] ?? "") : "";
+        }
+
         /// <summary>天象/异闻挂起：下一场战斗我方修正 %（可负，用后清零）。</summary>
         public int PlayerBuffPct = 0;
 
