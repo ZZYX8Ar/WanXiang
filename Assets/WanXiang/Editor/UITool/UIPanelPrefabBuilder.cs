@@ -26,6 +26,10 @@ namespace WanXiang.EditorTools
         private const string SpriteCatalogPath = "Assets/WanXiang/Config/SpriteCatalog.asset";
         private const string ArtParts = "Assets/ArtRes/UI/Parts/";
 
+        // 残卷阁卡片尺寸（要同时给 GridLayoutGroup.cellSize 与卡片模板，必须一致）
+        private const float CardW = 368f;
+        private const float CardH = 268f;
+
         /// <summary>缺资产时返回 null（面板仍能生成，只是那项引用为空）。</summary>
         private static T LoadAsset<T>(string path) where T : Object
         {
@@ -1179,7 +1183,8 @@ namespace WanXiang.EditorTools
             hl.childControlWidth = false; hl.childControlHeight = false;
             hl.childForceExpandWidth = false; hl.childForceExpandHeight = false;
 
-            string[] tabNames = { "全部", "木", "火", "土", "金", "水" };
+            // tab 名称与顺序统一走 ElementTabs（唯一口径，避免再出现下标错位）
+            string[] tabNames = ElementTabs.Names;
             var tabBtns = new Button[tabNames.Length];
             for (int i = 0; i < tabNames.Length; i++)
             {
@@ -1204,7 +1209,7 @@ namespace WanXiang.EditorTools
             var oldVlg = content.GetComponent<VerticalLayoutGroup>();
             if (oldVlg != null) Object.DestroyImmediate(oldVlg);       // 列表 → 网格
             var grid = EnsureComp<GridLayoutGroup>(content.gameObject);
-            grid.cellSize = new Vector2(368f, 250f);
+            grid.cellSize = new Vector2(CardW, CardH);
             grid.spacing = new Vector2(16f, 16f);
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             grid.constraintCount = 3;
@@ -1219,36 +1224,38 @@ namespace WanXiang.EditorTools
             sr.scrollSensitivity = 24f;
 
             // ---------- 卡片模板（左立绘 / 右 6 碎片格 / 领取材料）----------
-            var card = EnsureNode(content, "Item_BeastCard", new Vector2(0f, 1f), new Vector2(0f, 1f),
+            //  ⚠ 卡片内几何按行排开、**不许重叠**（上一版「4/5/6」那行压住了进度文字与领取按钮）：
+            //      名字 6..40 ｜ 材料 40..66 ｜ 碎片两行 70..180 ｜ 进度 + 按钮 186..258 ｜ 卡高 268
+            var card = EnsureRect(content, "Item_BeastCard", new Vector2(0f, 1f), new Vector2(0f, 1f),
                 Vector2.zero, Vector2.zero);
-            card.sizeDelta = new Vector2(368f, 250f);
+            card.sizeDelta = new Vector2(CardW, CardH);
             EnsureImg(card, UIBuild.Card);
 
-            var portrait = EnsureNode(card, "Img_Portrait", new Vector2(0f, 0f), new Vector2(0f, 1f),
+            var portrait = EnsureRect(card, "Img_Portrait", new Vector2(0f, 0f), new Vector2(0f, 1f),
                 new Vector2(10f, 10f), new Vector2(142f, -10f));
             EnsureImg(portrait, UIBuild.Dim);
 
-            var nmCard = EnsureText(EnsureNode(card, "Tmp_Name", new Vector2(0f, 1f), new Vector2(1f, 1f),
+            var nmCard = EnsureText(EnsureRect(card, "Tmp_Name", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(152f, -40f), new Vector2(-10f, -6f)), "异兽名", 26, UIBuild.Ink,
                 TextAlignmentOptions.MidlineLeft);
-            var matCard = EnsureText(EnsureNode(card, "Tmp_Material", new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(152f, -68f), new Vector2(-10f, -40f)), "专属材料", 17, UIBuild.Ink2,
+            var matCard = EnsureText(EnsureRect(card, "Tmp_Material", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(152f, -66f), new Vector2(-10f, -40f)), "专属材料", 17, UIBuild.Ink2,
                 TextAlignmentOptions.MidlineLeft);
-            var progCard = EnsureText(EnsureNode(card, "Tmp_Progress", new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(152f, -196f), new Vector2(292f, -172f)), "剧情碎片 0/6", 18, UIBuild.Ink2,
+            var progCard = EnsureText(EnsureRect(card, "Tmp_Progress", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(152f, -214f), new Vector2(252f, -186f)), "剧情碎片 0/6", 18, UIBuild.Ink2,
                 TextAlignmentOptions.MidlineLeft);
             nmCard.enableWordWrapping = false;
             matCard.enableWordWrapping = false;
             progCard.enableWordWrapping = false;
 
-            // 6 个碎片格：3 列 × 2 行
-            const float slotW = 62f, slotH = 52f, gap = 8f;
+            // 6 个碎片格：3 列 × 2 行（列距 70、行距 58；两行占 70..180）
+            const float slotW = 62f, slotH = 52f;
             for (int i = 0; i < WanXiang.Meta.MetaState.FragmentTotal; i++)
             {
                 int col = i % 3, row = i / 3;
-                float x = 152f + col * (slotW + gap);
-                float yTop = 72f + row * (slotH + gap);
-                var slot = EnsureNode(card, "Frag_" + i, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                float x = 152f + col * (slotW + 8f);
+                float yTop = 70f + row * (slotH + 6f);
+                var slot = EnsureRect(card, "Frag_" + i, new Vector2(0f, 1f), new Vector2(0f, 1f),
                     new Vector2(x, -yTop - slotH), new Vector2(x + slotW, -yTop));
                 var simg = EnsureImg(slot, new Color(0.90f, 0.89f, 0.87f, 1f), true);
                 var sbtn = EnsureComp<Button>(slot.gameObject);      // 已收集才可点（运行时切 interactable）
@@ -1257,8 +1264,10 @@ namespace WanXiang.EditorTools
                     UIBuild.Ink2, TextAlignmentOptions.Center);
             }
 
-            EnsureBtn(card, "Btn_Claim", new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(292f, -240f), new Vector2(356f, -172f), "领取材料", UIBuild.Gold, 19f);
+            var claimBtn = EnsureBtn(card, "Btn_Claim", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(258f, -258f), new Vector2(356f, -186f), "领取材料", UIBuild.Gold, 19f);
+            SetRect((RectTransform)claimBtn.transform, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(258f, -258f), new Vector2(356f, -186f));
 
             card.gameObject.SetActive(false);   // 模板默认隐藏
 
@@ -1322,6 +1331,20 @@ namespace WanXiang.EditorTools
             if (found != null) return found;
             return UIBuild.Node(parent, name, aMin, aMax, offMin, offMax);
         }
+
+        /// <summary>显式写矩形 —— 用于**生成器自己拥有**的节点：可随版本更新几何（覆盖旧值）。</summary>
+        private static RectTransform SetRect(RectTransform rt, Vector2 aMin, Vector2 aMax,
+            Vector2 offMin, Vector2 offMax)
+        {
+            rt.anchorMin = aMin; rt.anchorMax = aMax;
+            rt.offsetMin = offMin; rt.offsetMax = offMax;
+            return rt;
+        }
+
+        /// <summary>找或建 + 强制写矩形（幂等，且能把旧版本的重叠几何纠正过来）。</summary>
+        private static RectTransform EnsureRect(Transform parent, string name,
+            Vector2 aMin, Vector2 aMax, Vector2 offMin, Vector2 offMax)
+            => SetRect(EnsureNode(parent, name, aMin, aMax, offMin, offMax), aMin, aMax, offMin, offMax);
 
         /// <summary>满铺子节点（四向边距 l/t/r/b）。</summary>
         private static RectTransform EnsureChild(Transform parent, string name, float l, float t, float r, float b)

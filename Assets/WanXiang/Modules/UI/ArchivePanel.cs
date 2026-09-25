@@ -113,7 +113,9 @@ namespace WanXiang.Modules.UI
             {
                 var b = all[i];
                 if (b == null) continue;
-                if (_tab > 0 && (int)b.Element != _tab - 1) continue;   // tab 1..5 = 木/火/土/金/水
+                // ⚠ 五行筛选必须走 ElementTabs（Element 枚举是 None=0/Wood=1/…，
+                //   自己推 `tab - 1` 会把「木」映射到 None ⇒ 列表空白，踩过）。
+                if (!ElementTabs.Matches(b.Element, _tab)) continue;
                 BuildCard(b, meta);
             }
         }

@@ -263,6 +263,30 @@ namespace WanXiang.Editor.MetaTool
                       + $"专属材料 {mats.Count} 个互不相同（缺片 {badSeg}，空/重名材料 {badMat}）");
             }
 
+            // ---- ⑩ 五行 tab 口径（唯一来源 ElementTabs）----
+            //   ⚠ 这里锁住一个真实踩过的 bug：用 `(int)Element == tab - 1` 会把「木」映射到 None=0
+            //     ⇒ 该页签恒空、点「火」显示木系（图鉴与残卷阁都栽过）。
+            {
+                int[] hit = new int[WanXiang.Modules.UI.ElementTabs.Count];
+                for (int tab = 0; tab < hit.Length; tab++)
+                    for (int i = 0; i < beasts.Length; i++)
+                        if (WanXiang.Modules.UI.ElementTabs.Matches(beasts[i].Element, tab)) hit[tab]++;
+
+                bool woodOnly = true;                      // tab「木」必须且只能命中木系
+                for (int i = 0; i < beasts.Length; i++)
+                {
+                    bool m = WanXiang.Modules.UI.ElementTabs.Matches(beasts[i].Element, 1);
+                    if (m != (beasts[i].Element == Element.Wood)) woodOnly = false;
+                }
+
+                bool countsOk = hit[0] == beasts.Length;
+                for (int tab = 1; tab < hit.Length; tab++) if (hit[tab] != 6) countsOk = false;
+
+                Check(lines, countsOk && woodOnly,
+                      $"⑩ 五行 tab 口径：全部 {hit[0]}；木/火/土/金/水 = "
+                      + $"{hit[1]}/{hit[2]}/{hit[3]}/{hit[4]}/{hit[5]}（各应 6）；「木」只命中木系 = {woodOnly}");
+            }
+
             return Finish(lines);
         }
 

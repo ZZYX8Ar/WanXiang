@@ -548,18 +548,9 @@ namespace WanXiang.Modules.UI
             return WanXiang.Fusion.ContentLibrary.BuildBeasts(cats[0]);
         }
 
+        /// <summary>五行 tab 过滤 —— 统一走 ElementTabs（唯一口径，别在这里再抄一份）。</summary>
         private static bool ElementMatches(WanXiang.Battle.Core.Element e, int tab)
-        {
-            switch (tab)
-            {
-                case 1: return e == WanXiang.Battle.Core.Element.Wood;
-                case 2: return e == WanXiang.Battle.Core.Element.Fire;
-                case 3: return e == WanXiang.Battle.Core.Element.Earth;
-                case 4: return e == WanXiang.Battle.Core.Element.Metal;
-                case 5: return e == WanXiang.Battle.Core.Element.Water;
-                default: return true;
-            }
-        }
+            => ElementTabs.Matches(e, tab);
 
         /// <summary>技能一行：① 名称（类型·冷却）—— 描述。</summary>
         private static string SkillText(BeastDef b, int slot, string index)

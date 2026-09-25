@@ -131,8 +131,9 @@ namespace WanXiang.Modules.UI
                 var b = all[i];
                 if (b == null) continue;
                 ownedTotal++;
-                // 页签过滤：0 = 全部；1..5 对应 Element 的枚举值 +1（木/火/土/金/水）
-                if (_tab > 0 && (int)b.Element != _tab - 1) continue;
+                // 页签过滤：统一走 ElementTabs（⚠ 别用 `(int)Element == tab - 1`：
+                //   Element 枚举是 None=0 起算，那样会把「木」映射到 None ⇒ 该页签恒空）。
+                if (!ElementTabs.Matches(b.Element, _tab)) continue;
                 shown++;
                 bool has = WanXiang.Run.CodexUnlock.IsUnlocked(b.Id);
                 if (has) unlocked++;
