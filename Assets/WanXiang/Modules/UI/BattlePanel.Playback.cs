@@ -98,6 +98,21 @@ namespace WanXiang.Modules.UI
                 //      · 新版：DrainRest 立刻退出 ⇒ FinishAndLeave ⇒ **没死却判负**（用户实测报障）
                 //   实测日志："主循环步数触顶(20000) 但战斗未结束 —— awaiting=True seq=57"。
                 //   触顶只告警并清零，**绝不中途结算**。
+                // ★ 等令 ⇒ **立刻**亮出操作区，不等"开局那一串棋盘结算"播完。
+                //   以前这段放在"播事件"分支之后 ⇒ 玩家要干等约 1.5 秒（TurnStart + 相生回复 + 出手序列）
+                //   才看到面板，观感是"异兽自动打了一下才轮到我"（用户实测报障；
+                //   实测出手次数其实是 0/0，那串只是棋盘结算没有攻击）。
+                // ⚠ 这里**不 continue**：事件必须继续往下播，否则会出现"第一次攻击没效果"（旧踩坑）。
+                if (_play.AwaitingCommand && _play.DecisionSeq != _lastDecisionSeq)
+                {
+                    _lastDecisionSeq = _play.DecisionSeq;
+                    LogActionBarState("新决策点 seq=" + _play.DecisionSeq);   // ★ 临时诊断
+                    RefreshActionBar();                   // 亮出操作区
+                    RefreshComboButton();                 // 连携按钮同步刷一次
+                    RefreshOrderList();                   // ⚠ 行动条也要刷 —— 等令期间没有事件推进，
+                                                          //   不刷的话高亮还停在"上一个异兽"（用户实测）
+                }
+
                 if (HasPendingEvent())
                 {
                     if (!StepOnce()) break;
@@ -115,22 +130,9 @@ namespace WanXiang.Modules.UI
 
                 // ⚠ 回合制：等玩家下令时必须**原地等**，绝不能 break ——
                 //    break 会被下方收尾逻辑当成"播完"，导致一进战斗就直接结算（踩过）。
+                //  （"亮出操作区"已提到循环开头，见上方注释：要立刻亮、但事件继续播）
                 if (_play.AwaitingCommand)
                 {
-                    // ⚠ 只在"**决策序号**变化"时刷一次 UI —— 绝不要每帧刷：
-                    //    每帧 SetActive/interactable/SetText 会持续触发 UI 重建，导致卡死（用户实测）。
-                    // ⚠⚠ 判据必须用 DecisionSeq 而**不是**待令单位 id：同一单位连续两次决策
-                    //    （先手连击 / 追击）时 id 不变，用 id 会漏刷 ⇒ 操作区停在上次被隐藏的状态
-                    //    ⇒ 面板不出现、玩家点不到技能，看起来就是"卡着不动"（用户实测报障）。
-                    if (_play.DecisionSeq != _lastDecisionSeq)
-                    {
-                        _lastDecisionSeq = _play.DecisionSeq;
-                        LogActionBarState("新决策点 seq=" + _play.DecisionSeq);   // ★ 临时诊断
-                        RefreshActionBar();                   // 亮出操作区
-                        RefreshComboButton();                 // 连携按钮同步刷一次
-                        RefreshOrderList();                   // ⚠ 行动条也要刷 —— 等令期间没有事件推进，
-                                                              //   不刷的话高亮还停在"上一个异兽"（用户实测）
-                    }
                     if (_autoBattle)
                     {
                         _play.SubmitCommand(-1, -1);          // 自动战斗：AI 代下令

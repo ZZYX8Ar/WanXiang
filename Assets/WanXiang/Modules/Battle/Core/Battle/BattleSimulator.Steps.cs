@@ -33,11 +33,18 @@ namespace WanXiang.Battle.Core
                 st.Log.Add(turn, BattleEventKind.TurnStart);
 
                 // 灵力自然回复（v2.1 §3）：超出上限的部分丢失 —— 逼玩家在回合内花掉
-                if (st.TeamMp < st.TeamMpMax)
-                    st.TeamMp = System.Math.Min(st.TeamMpMax, st.TeamMp + BattleState.MpRegenPerTurn);
-                // 敌方独立池同节奏回复（双方的灵力互相不干扰）
-                if (st.EnemyMp < st.EnemyMpMax)
-                    st.EnemyMp = System.Math.Min(st.EnemyMpMax, st.EnemyMp + BattleState.MpRegenPerTurn);
+                // ★ 第 1 回合**不回灵**（2026-09-26 用户定案）：
+                //   否则玩家一进战斗、还没动手就看见"灵力 2/12"，与"从 0 开始攒"的观感冲突
+                //   （实测：初值确实是 0，但 TurnStart 先回灵再等令 ⇒ 玩家第一眼看到 2）。
+                //   双方同规则，保持对称。
+                if (turn > 1)
+                {
+                    if (st.TeamMp < st.TeamMpMax)
+                        st.TeamMp = System.Math.Min(st.TeamMpMax, st.TeamMp + BattleState.MpRegenPerTurn);
+                    // 敌方独立池同节奏回复（双方的灵力互相不干扰）
+                    if (st.EnemyMp < st.EnemyMpMax)
+                        st.EnemyMp = System.Math.Min(st.EnemyMpMax, st.EnemyMp + BattleState.MpRegenPerTurn);
+                }
 
                 // ---- 劫律 20「万相归一」：敌方每回合获得 1 层「劫」（攻击 +1%，无上限）。
                 //      ⚠ 只涨攻击不涨生命 —— 与 GDD"全属性"有偏差，血量同步牵扯

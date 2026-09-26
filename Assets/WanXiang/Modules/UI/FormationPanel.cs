@@ -313,9 +313,14 @@ namespace WanXiang.Modules.UI
             for (int i = 0; i < _deployed.Length; i++)
             {
                 int idx = _deployed[i];
-                if (idx < 0 || _all == null) continue;
+                // ⚠ 必须**同时挡上界**：`_all` 可能只是"已拥有"的子集（owned.ToArray()），
+                //   而 _deployed 里的索引来自存档/上一次布局 ⇒ 可能超出当前 _all.Length。
+                //   这里原来只挡了 idx < 0，于是 `_all[idx]` 直接抛 IndexOutOfRange
+                //   （实测：从战役点"下一关"打开编成面板必崩在 318 行）。
+                if (_all == null || idx < 0 || idx >= _all.Length) continue;
                 deployedCount++;
-                sameElement[(int)_all[idx].Element]++;
+                int el = (int)_all[idx].Element;
+                if (el >= 0 && el < sameElement.Length) sameElement[el]++;
             }
 
             int maxSame = 0;
@@ -368,7 +373,8 @@ namespace WanXiang.Modules.UI
                 for (int i = 0; i < _deployed.Length; i++)
                 {
                     int idx = _deployed[i];
-                    if (idx < 0 || _all == null) continue;
+                    // 与上面同一条不变量：索引可能超出当前 _all.Length（这里不解引用，但仍跳过更一致）
+                    if (_all == null || idx < 0 || idx >= _all.Length) continue;
                     power += 1100 + idx * 37;      // 结构验证版的假战力，接真实面板后替换
                 }
                 _tmpPower.text = "总战力 " + power;
