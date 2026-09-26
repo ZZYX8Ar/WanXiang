@@ -2417,7 +2417,6 @@ MonoBehaviour:
   _tglVsync: {fileID: 1066064836243158863}
   _scrollKeys: {fileID: 0}
   _keyItemTemplate: {fileID: 4454596329723155144}
-  _inputShare: {fileID: 0}
   _btnImport: {fileID: 256624917606148809}
   _btnExport: {fileID: 6407321567992993919}
   _btnClose: {fileID: 9165781940574026898}
