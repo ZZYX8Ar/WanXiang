@@ -22,15 +22,19 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Toggle _tglVsync;             // Tgl_Vsync
         [SerializeField] private ScrollRect _scrollKeys;       // Scroll_Keys   按键重绑定
         [SerializeField] private RectTransform _keyItemTemplate;  // Item_Key（模板，默认隐藏）
-        [SerializeField] private TMP_InputField _inputShare;   // Tmp_InputShare 分享码导入
-        [SerializeField] private Button _btnImport;            // Btn_Import
-        [SerializeField] private Button _btnExport;            // Btn_Export
+        // ⚠ 原 _inputShare（Tmp_InputShare 分享码导入）已删：分享码由 Panel_Pvp 取代，
+        //   设置面板不再承担导入/导出队伍码的职责（2026-09-26 用户定案）。
+        [SerializeField] private Button _btnImport;            // Btn_Import  → 重新读取存档
+        [SerializeField] private Button _btnExport;            // Btn_Export  → 保存旅程
         [SerializeField] private Button _btnClose;             // Btn_Close
-        [SerializeField] private Button _btnBackToStart;  // Btn_BackToStart 返回开始界面
+        [SerializeField] private Button _btnBackToStart;  // Btn_BackToStart 返回开始界面（prefab 里那个，已接线）
 
         protected override void OnCreate()
         {
-            EnsureBackToStart();
+            // ⚠ 这里**不再**做任何"兜底建 UI"（原 EnsureBackToStart 已删）。
+            //   项目铁律：UI 一律在 prefab 里可见可改，禁止运行时 new GameObject 搭界面。
+            //   那个兜底正是"面板里出现两个 Btn_BackToStart"的原因：
+            //   prefab 里本来就有按钮，只是字段没接线 ⇒ 兜底又建了一个（用户实测报障）。
             if (_sldBgm != null) _sldBgm.onValueChanged.AddListener(OnBgmChanged);
             if (_sldSfx != null) _sldSfx.onValueChanged.AddListener(OnSfxChanged);
             if (_tglFullscreen != null) _tglFullscreen.onValueChanged.AddListener(OnFullscreenChanged);
@@ -102,38 +106,15 @@ namespace WanXiang.Modules.UI
             Debug.Log("[Settings] 已返回开始界面（旅程存档保留）");
         }
 
-        /// <summary>返回开始界面按钮的兜底创建：prefab 里没有这个按钮时也要能返回，
-        /// 否则玩家点不到（用户实测"返回开始界面"没反应）。同 EnsureBackButton 模式。</summary>
-        private void EnsureBackToStart()
-        {
-            if (_btnBackToStart != null) return;
-
-            var go = new GameObject("Btn_BackToStart", typeof(RectTransform));
-            go.transform.SetParent(transform, false);
-            var img = go.AddComponent<Image>();
-            img.color = new Color(0.94f, 0.92f, 0.88f, 1f);
-            var btn = go.AddComponent<Button>();
-            btn.targetGraphic = img;
-            var r = (RectTransform)go.transform;
-            r.anchorMin = r.anchorMax = new Vector2(0.5f, 0f);
-            r.anchoredPosition = new Vector2(0f, 60f);
-            r.sizeDelta = new Vector2(240f, 72f);
-
-            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
-            tgo.transform.SetParent(go.transform, false);
-            var tmp = tgo.AddComponent<TextMeshProUGUI>();
-            tmp.text = "返回开始界面";
-            tmp.fontSize = 26;
-            tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
-            tmp.alignment = TextAlignmentOptions.Center;
-            var tr = (RectTransform)tgo.transform;
-            tr.anchorMin = Vector2.zero;
-            tr.anchorMax = Vector2.one;
-            tr.sizeDelta = Vector2.zero;
-
-            _btnBackToStart = btn;
-            btn.onClick.AddListener(OnBackToStartClicked);
-        }
+        /// <summary>
+        /// 原 EnsureBackToStart（运行时兜底创建 Btn_BackToStart）**已删除**。
+        /// 删它的两个理由：
+        ///   ① 违反项目铁律「UI 一律做成 prefab」—— 运行时建的按钮在 prefab 里看不见、改不了；
+        ///   ② 它就是"面板里出现两个 Btn_BackToStart"的直接原因：
+        ///      prefab 里本来就有这个按钮，只是 `_btnBackToStart` 没接线 ⇒ 兜底又建了一个。
+        /// 现在接线已修（prefab 里 Btn_BackToStart → 字段），运行时会走到上面 OnCreate 的绑定。
+        /// </summary>
+        // （原方法体已删，留此说明避免日后有人"顺手加回兜底"）
 
     }
 }
