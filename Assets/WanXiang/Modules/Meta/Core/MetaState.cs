@@ -216,7 +216,8 @@ namespace WanXiang.Meta
 
         // ---- 异兽培养（阶段③）：局外永久成长，替代原"祭坛" ----
         //   ⚠ 用"下标对齐的三个 List"而不是 Dictionary：静态序列化更简单。
-        //   ⚠ 当前暂未写入存档（MetaSaveCode 仍是 v2）—— 见 TODO(存档)。
+        //   ✅ 存档：MetaSaveCode v6 **已打包**这三个表（写完/读回都在 v6 段里），
+        //      这里原来那句"暂未写入存档（仍是 v2）"是过时注释，已纠正。
         public readonly List<string> BeastIds = new List<string>(32);
         public readonly List<int> BeastLevels = new List<int>(32);
         public readonly List<bool> BeastEvolved = new List<bool>(32);

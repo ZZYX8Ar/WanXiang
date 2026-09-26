@@ -354,6 +354,7 @@ namespace WanXiang.Modules.UI
                     if (_play.DecisionSeq != _lastDecisionSeq)
                     {
                         _lastDecisionSeq = _play.DecisionSeq;
+                        LogActionBarState("新决策点 seq=" + _play.DecisionSeq);   // ★ 临时诊断
                         RefreshActionBar();                   // 亮出操作区
                         RefreshComboButton();                 // 连携按钮同步刷一次
                         RefreshOrderList();                   // ⚠ 行动条也要刷 —— 等令期间没有事件推进，
@@ -1357,6 +1358,35 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>按"是否在等下令"刷新操作区（StepPlayback 每帧调）。</summary>
+        /// <summary>
+        /// ★ 临时诊断（定位"操作区/技能按钮消失"用；定位后删）：
+        /// 打印操作区与四个技能按钮的显隐/可点状态。**只在状态变化时调用**，避免刷屏。
+        /// </summary>
+        private void LogActionBarState(string why)
+        {
+            if (_play == null && _actionBar == null) return;
+            var u = _play != null ? _play.PendingUnit : null;
+            var sb = new System.Text.StringBuilder();
+            sb.Append("[战斗诊断] ").Append(why);
+            if (_play != null)
+                sb.Append("｜awaiting=").Append(_play.AwaitingCommand)
+                  .Append(" auto=").Append(_autoBattle)
+                  .Append(" seq=").Append(_play.DecisionSeq);
+            sb.Append(" 待令=").Append(u != null ? (u.DisplayName + "/" + u.Side) : "null");
+            sb.Append(" 操作区=").Append(_actionBar != null ? (_actionBar.gameObject.activeSelf ? "亮" : "隐") : "null");
+            if (_skillBtns != null)
+            {
+                sb.Append(" 技能按钮[");
+                for (int i = 0; i < _skillBtns.Length; i++)
+                    sb.Append(_skillBtns[i] == null
+                              ? "null"
+                              : ((_skillBtns[i].gameObject.activeSelf ? "亮" : "隐") +
+                                 (_skillBtns[i].interactable ? "/可点" : "/灰"))).Append(' ');
+                sb.Append(']');
+            }
+            Debug.Log(sb.ToString());
+        }
+
         private void RefreshActionBar()
         {
             if (_actionBar == null || _play == null) return;
@@ -1367,6 +1397,7 @@ namespace WanXiang.Modules.UI
             if (before != show)
             {
                 _actionBar.gameObject.SetActive(show);
+                LogActionBarState(show ? "操作区亮出" : "操作区隐藏");   // ★ 临时诊断
             }
             if (!show) return;
 
@@ -1443,7 +1474,9 @@ namespace WanXiang.Modules.UI
             }
 
             _autoBattle = false;                        // 手动下令即视为关自动
+            LogActionBarState("点了技能槽 " + skillIndex);   // ★ 临时诊断
             _play.SubmitCommand(skillIndex, -1);        // 下标 = SkillType；目标暂交 AI
+            LogActionBarState("提交指令后");             // ★ 临时诊断
             RefreshActionBar();
         }
 

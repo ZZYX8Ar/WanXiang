@@ -70,8 +70,9 @@ namespace WanXiang.Battle.Core
 
         // ---- 回合制 v2.1 P2：灵力（全队共享一条槽）----
 
-        /// <summary>全队灵力（MP）。战记消耗它，普攻不耗；终结技耗元气不耗灵力。</summary>
-        public int TeamMp = 6;
+        /// <summary>全队灵力（MP）。战记消耗它，普攻不耗；终结技耗元气不耗灵力。
+        /// ★ 2026-09-26 用户定案：**从 0 开始攒**（原为 6），靠"每回合 +2 + 我方普攻 +1"涨上来。</summary>
+        public int TeamMp = 0;
 
         /// <summary>灵力上限。超出部分丢失 —— 这是"必须花掉"的节奏压力来源。</summary>
         public int TeamMpMax = 12;
@@ -79,9 +80,9 @@ namespace WanXiang.Battle.Core
         /// <summary>
         /// 敌方灵力池（2026-09-25 起与玩家**分开**）。
         /// ⚠ 曾经双方共用 <see cref="TeamMp"/> ⇒ 敌方 AI 放战记花的是玩家的灵力，
-        ///   玩家一直普攻也攒不起来（用户实测报障）。初值/上限/回复节奏与玩家一致。
+        ///   玩家一直普攻也攒不起来（用户实测报障）。与玩家同规则（从 0 起、同上限与回复节奏）。
         /// </summary>
-        public int EnemyMp = 6;
+        public int EnemyMp = 0;
         public int EnemyMpMax = 12;
 
         /// <summary>每回合开回合时自然回复的灵力。</summary>
