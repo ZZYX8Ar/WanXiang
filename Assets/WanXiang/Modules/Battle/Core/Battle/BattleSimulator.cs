@@ -81,7 +81,9 @@ namespace WanXiang.Battle.Core
         //  目标选择
         // ================================================================
 
-        private const int PickLowestHp = 1;        private const int PickHighestHp = 2;        private const int PickHighestAtk = 3;
+        private const int PickLowestHp = 1;
+        private const int PickHighestHp = 2;
+        private const int PickHighestAtk = 3;
         /// <summary>每趟战斗复用的缓冲，避免在热路径里反复分配小 List。</summary>
         private sealed class Buffers
         {

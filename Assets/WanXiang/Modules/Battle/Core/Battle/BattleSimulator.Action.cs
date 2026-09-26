@@ -178,7 +178,10 @@ namespace WanXiang.Battle.Core
         //    连击资格会凭空出现，规则变得不可预测、也无法在回合开始时预告给玩家。
         // ================================================================
 
-        private static BattleUnit _initiativePlayer;        private static BattleUnit _initiativeEnemy;        private static bool _initiativePlayerUsed;        private static bool _initiativeEnemyUsed;
+        private static BattleUnit _initiativePlayer;
+        private static BattleUnit _initiativeEnemy;
+        private static bool _initiativePlayerUsed;
+        private static bool _initiativeEnemyUsed;
         private static void ResolveInitiativeChain(BattleState st, Buffers buf)
         {
             float ratio = st.Weather != null
