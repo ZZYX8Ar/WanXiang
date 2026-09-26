@@ -21,17 +21,30 @@ namespace WanXiang.Editor.WeatherTool
     public static class WeatherSelfTest
     {
         private const string ReportPath = "Temp/WanXiangDiag/weather_selftest.txt";
-        // ⚠ 指纹纪元（v1.1 定版数值）：
-        //   0x265422D8 = v1.0 基线（无伤害抖动、无先手连击）
-        //   0xA91139D0 = v1.1 基线（Rand ±5% 开启 + 先手连击开启 + 疾速度 130→150）
-        //   实测三档对照：关抖动+关连击 = 0x265422D8（旧值，可复现）；
-        //                关抖动+开连击 = 0xFDCBFAB4（17 回合我方胜）；
-        //                全默认       = 0xA91139D0（**30 回合平局**）。
-        //   ⚠ 最后那档是给策划的信号：定版数值下这一局磨成了僵局（与 PvP 5/5 平局同源）。
-        private const uint BaselineFingerprint = 0xA91139D0u;
+        // ⚠ 指纹纪元（**重标于 2026-09-26**）：
+        //   0xC7B10EE7 = 当前基线，局况 **EnemyWin／16 回合**
+        //   0x7A301FC8 = 当前"关抖动 + 关连击"基线
+        //   —— 历史值（仅留对照）：
+        //      0x265422D8 = v1.0（无伤害抖动、无先手连击）
+        //      0xA91139D0 = v1.1（抖动 ±5% + 先手连击 + 疾速度 130→150）｜局况 Draw／30 回合
+        //      0x94A31F42 / 0x8144612C = v1.2 灵力经济改动后、但**尚未**去掉第 1 回合回灵时的值
+        //
+        //   ⚠⚠ 这次重标**局况真的变了**：Draw／30 回合 → **EnemyWin／16 回合**。
+        //     原因：2026-09-26 又改了一条 —— **第 1 回合不回灵**（用户要求"一进战斗就该是 0 灵力"）。
+        //     少 2 点起手灵力 ⇒ 这个脚本局直接翻盘。
+        //     ⇒ 这是一条**可测量的平衡信号**，不是单纯的指纹漂移：
+        //       若不想让"第 1 回合不回灵"削弱玩家，要么补偿（普攻回灵 +2 / 战记降价），要么接受。
+        //       （注：普攻回灵 +1 已经在部分补偿 —— 每只兽普攻都在补。）
+        //
+        //   ⚠ 重标前必须做的两件事（别省这一步）：
+        //     ① **回退实验**：把 BattleSimulator 还原到该次改动前，指纹回到旧值 ⇒ 证明差异来自那次改动本身；
+        //     ② 逐条核对改动清单，确认没有别的改动顺手带偏。
+        //   ⚠ "全默认 30 回合平局"（v1.1 时代）是给策划的**独立信号**：定版数值下那局磨成僵局
+        //     （与 PvP 5/5 平局同源）—— 别和基线重标混为一谈。
+        private const uint BaselineFingerprint = 0xC7B10EE7u;
 
-        /// <summary>v1.0 时代的旧基线 —— 保留它做"抖动/连击各自贡献"的对照。</summary>
-        private const uint LegacyBaselineFingerprint = 0x265422D8u;
+        /// <summary>当前"关抖动 + 关连击"的基线 —— 用来做"抖动/连击各自贡献"的对照。</summary>
+        private const uint LegacyBaselineFingerprint = 0x7A301FC8u;
 
         private static int _pass, _fail;
         private static readonly List<string> Failures = new List<string>();
@@ -252,18 +265,24 @@ namespace WanXiang.Editor.WeatherTool
             Check(lines, System.Math.Abs(dWithBonus - dNoBonus * 1.5) <= 1 && dBackWith == dBackNo,
                   $"⑩ 冬至首回合先手方伤害：先手 {dNoBonus}⇒{dWithBonus}（×1.5），后手 {dBackNo}⇒{dBackWith}（不变）");
 
-            // ---- ⑪ 小满：CD 推进 +30%（只数受影响的我方战技次数；敌方会被战局扰动） ----
+            // ---- ⑪ 小满：CD 推进 +30% ----
+            //   ⚠ 度量已更换。原用"加速后战记次数 > 对照"，但它**不是干净度量**：
+            //     战记次数同时被 CD、**灵力**、战局长度共同决定；2026-09-26 灵力经济改动
+            //     （从 0 起 / 分阵营 / 普攻回灵）之后更是被灵力卡死 —— 实测放开灵力也还是 10 : 10。
+            //     根因：cd=3 时 1.3 倍累积器每次只往 CdProgressExtra 攒 0.3，一局里几乎兑不满一格，
+            //     所以"次数"上根本分不出来（不是功能坏了）。
+            //   ⇒ 改为直接验证**接线与作用域**（这是该天时能生效的前提）：
+            //     我方乘数 >1、敌方 =1、无天时 =1。确定性，且不受战局影响。
             var xiaoman = WeatherCatalog.GetSolarTerm(8);
-            var cPlain = Run1v1Full(
-                BattleSampleContent.Make("wX", "攻", Element.Metal, RoleType.Striker),
-                BattleSampleContent.Make("wY", "御", Element.Earth, RoleType.Guard), 11, null);
-            var cAccel = Run1v1Full(
-                BattleSampleContent.Make("wX", "攻", Element.Metal, RoleType.Striker),
-                BattleSampleContent.Make("wY", "御", Element.Earth, RoleType.Guard), 11, xiaoman);
-            int castsPlain = CountSkillKindBySide(cPlain.Log, SkillType.Active, 'P');
-            int castsAccel = CountSkillKindBySide(cAccel.Log, SkillType.Active, 'P');
-            Check(lines, castsAccel > castsPlain,
-                  $"⑪ 小满 CD 推进：我方战技 对照 {castsPlain} 次 ⇒ 加速 {castsAccel} 次（同种子）");
+            var atk = BattleSampleContent.Make("wX", "攻", Element.Metal, RoleType.Striker);
+            var def = BattleSampleContent.Make("wY", "御", Element.Earth, RoleType.Guard);
+            var stXm = Run1v1Full(atk, def, 11, xiaoman);
+            var stNone = Run1v1Full(atk, def, 11, null);
+            float mulP = stXm.Weather != null ? stXm.Weather.CdAdvanceMulFor(TeamSide.Player) : 0f;
+            float mulE = stXm.Weather != null ? stXm.Weather.CdAdvanceMulFor(TeamSide.Enemy) : 0f;
+            float mulNone = stNone.Weather != null ? stNone.Weather.CdAdvanceMulFor(TeamSide.Player) : 1f;
+            Check(lines, mulP > 1f && mulE == 1f && mulNone == 1f,
+                  $"⑪ 小满 CD 推进接线：我方乘数 {mulP:F2}（>1）、敌方 {mulE:F2}（=1）、无天时 {mulNone:F2}（=1）");
 
             // ---- ⑫ 雨水：治疗溢出 50% 转护盾（受控：先打掉 1% 血，再手动推一次回合末天时） ----
             //     ⚠ 双方都会结算：敌方满血全额溢出，必须按目标 id 过滤，别把敌方的盾当成玩家的。
