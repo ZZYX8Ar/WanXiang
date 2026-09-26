@@ -328,14 +328,26 @@ namespace WanXiang.Modules.UI
             _speed = 1f;
 
             int guard = 0;
-            while (!_play.Finished && guard++ < 20000)
+            while (!_play.Finished)
             {
                 // ★ 顺序铁律：**先把已产生的事件全部播完，再考虑等令**。
                 //   模拟推进是"跑一段"（可能一次性产生多个事件），若一看到 AwaitingCommand
                 //   就停住等令，那段事件会被跳过 —— 表现就是"第一次攻击没效果、之后才补播"（实测）。
+                // ⚠⚠ guard 只统计"**推进事件**"的步数，**绝不能把等玩家下令的帧算进去**。
+                //   以前写成 `while (... && guard++ < 20000)` ⇒ 每轮都 ++（含 await Yield 的等令帧）
+                //   ⇒ 一场长仗 + 玩家思考时间就把 20000 用完 ⇒ 主循环**中途退出**：
+                //      · 旧版：掉进 DrainRest 的 while(StepOnce()) ⇒ 死循环 = 卡死
+                //      · 新版：DrainRest 立刻退出 ⇒ FinishAndLeave ⇒ **没死却判负**（用户实测报障）
+                //   实测日志："主循环步数触顶(20000) 但战斗未结束 —— awaiting=True seq=57"。
+                //   触顶只告警并清零，**绝不中途结算**。
                 if (HasPendingEvent())
                 {
                     if (!StepOnce()) break;
+                    if (++guard > GuardLimit)
+                    {
+                        Debug.LogWarning("[BattlePanel] 事件步数异常(>" + GuardLimit + ") —— 已清零继续");
+                        guard = 0;
+                    }
                     var k2 = _play.Current.Kind;
                     float w2 = IntervalOf(k2) / Mathf.Max(1f, _speed);
                     if (MustSee(k2)) w2 = Mathf.Max(w2, 0.36f / Mathf.Max(1f, _speed));
@@ -367,11 +379,17 @@ namespace WanXiang.Modules.UI
                         _lastDecisionSeq = -1;                // 自动推进：下一轮必然重刷
                         RefreshActionBar();
                     }
+                    guard = 0;                                // ★ 等玩家下令：合法且时长不可控 ⇒ 计数清零
                     await UniTask.Yield(PlayerLoopTiming.Update, ct);
                     continue;                                 // 不推进事件、不退出循环
                 }
 
                 if (!StepOnce()) break;
+                if (++guard > GuardLimit)
+                {
+                    Debug.LogWarning("[BattlePanel] 事件步数异常(>" + GuardLimit + ") —— 已清零继续");
+                    guard = 0;
+                }
 
                 // 节奏由事件语义决定；速度倍率只缩放间隔
                 float wait = IntervalOf(_play.Current.Kind) / Mathf.Max(1f, _speed);
@@ -384,12 +402,8 @@ namespace WanXiang.Modules.UI
                 await UniTask.Delay(TimeSpan.FromSeconds(wait), cancellationToken: ct);
             }
 
-            // ★ 走到这里说明主循环退出：要么战斗真的结束了，要么步数触顶（异常）。
-            //   触顶时打一条警告 —— 以前这里静默退出，接着掉进 DrainRest 死循环、没有任何线索。
-            if (!_play.Finished)
-                Debug.LogWarning("[BattlePanel] 主循环步数触顶(20000) 但战斗未结束 —— awaiting="
-                                 + _play.AwaitingCommand + " seq=" + _play.DecisionSeq);
-
+            // ★ 走到这里 = 战斗真的打完了（`!_play.Finished` 才会离开循环；
+            //   guard 触顶只告警+清零，**不再中途退出** —— 那会把没打完的仗判成结束）。
             await DrainRest(ct);                     // 收尾：分帧走完剩余事件（见 DrainRest 注释）
             _playing = false;
             FinishAndLeave(0.8f, ct);
@@ -735,8 +749,8 @@ namespace WanXiang.Modules.UI
                     }
                 if (_btnAutoBattle != null) _btnAutoBattle.onClick.AddListener(OnAutoBattleClicked);
                 if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
-                if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
-                if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
+                // ⚠ 这里**只能注册一次**！原来连着写了 3 行 AddListener(OnComboClicked)
+                //   ⇒ 点一次连携触发 3 次 SubmitCombo（灵力多扣 / 效果重复，用户实测报障）。
                 HookTipCombo();
                 EnsureAutoSpin();
                 _actionBar.gameObject.SetActive(false);
@@ -958,6 +972,10 @@ namespace WanXiang.Modules.UI
         private void ShowComboTip()
         {
             if (_tipPanel == null || _tipText == null) return;
+            // ★ 防抖（与 ShowSkillTip 同款）：同一槽位且面板已显示 ⇒ 直接返回。
+            //   反复 PointerEnter 会 Kill+重建 DOTween Sequence（1 容器 + 3 Tweener），
+            //   淡入永远走不完 ⇒ 表现就是"连携悬浮提示有时候不显示"（用户报障）。
+            if (_tipShowingSlot == 90 && _tipPanel.gameObject.activeSelf) return;
             _tipShowingSlot = 90;          // 连携（不复用战记槽位）
             var combos = _play != null ? _play.AvailableCombos : null;
             string title, body;
@@ -966,6 +984,9 @@ namespace WanXiang.Modules.UI
                 var c = combos[0];
                 title = "连携·" + c.Name;
                 body = c.Note + "\n\n消耗：双方各 2 灵力（合计 4）\n限制：每场每种连携限用一次\n条件：主兽在场 + 对应元素伙伴在场\n\n点按钮立即发动";
+                // ★ 连携也要九宫格高亮（用户报障：放连携没有高亮提示）。
+                //   目标口径走核心的 PreviewComboTargets（只读、与 ExecuteCombo 同源）。
+                HighlightComboTargets(_play != null ? _play.PendingUnit : null, c);
             }
             else
             {
@@ -1140,6 +1161,27 @@ namespace WanXiang.Modules.UI
             _stage.HighlightCells(_previewAllyCells, _previewFoeCells);
         }
 
+        /// <summary>连携的九宫格高亮（与 <see cref="HighlightPreviewTargets"/> 同一套格子配色）。</summary>
+        private void HighlightComboTargets(WanXiang.Battle.Core.BattleUnit host,
+                                           WanXiang.Battle.Core.ComboDef combo)
+        {
+            if (_stage == null || _play == null || _play.State == null || host == null || combo == null) return;
+
+            WanXiang.Battle.Core.BattleSimulator.PreviewComboTargets(
+                _play.State, host, combo, _previewTargets);
+
+            _previewAllyCells.Clear();
+            _previewFoeCells.Clear();
+            for (int i = 0; i < _previewTargets.Count; i++)
+            {
+                var t = _previewTargets[i];
+                if (t == null || !t.Pos.IsValid) continue;
+                if (t.Side == WanXiang.Battle.Core.TeamSide.Player) _previewAllyCells.Add(t.Pos.Index);
+                else _previewFoeCells.Add(t.Pos.Index);
+            }
+            _stage.HighlightCells(_previewAllyCells, _previewFoeCells);
+        }
+
         private string CostLine(int slot)
         {
             switch (slot)
@@ -1183,6 +1225,10 @@ namespace WanXiang.Modules.UI
         private int _lastOrderStamp = -1;
         private string _lastActorId;
         private int _lastDecisionSeq = -1;   // 上次已刷新的决策序号（替代原"待令单位 id"，见 PlayLoop 注释）
+
+        /// <summary>主循环"推进事件"步数的看门狗上限。**只统计事件步**，等令帧不计、且每轮等令清零。
+        /// 触顶只告警并清零，绝不中途退出循环（退出会把没打完的仗当成打完 ⇒ 没死却判负）。</summary>
+        private const int GuardLimit = 20000;
         private string _lastActorLine;
 
         private void BuildOrderList()
