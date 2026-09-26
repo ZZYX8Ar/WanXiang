@@ -84,6 +84,14 @@ namespace WanXiang.Modules.UI
         public int EventCount => State != null ? State.Log.Count : 0;
         // 手动模式下事件流会在决策点"暂时播完"，不能据此判定结束 —— 必须两个条件都满足
         public bool Finished => State != null && _simDone && _eventIndex + 1 >= State.Log.Count;
+        /// <summary>
+        /// 当前已播到的事件下标（权威游标）。
+        /// ⚠ 表现层**必须**读它来判断"还有没有事件要播"，不要自己再维护一个计数器 ——
+        ///   两个计数器会漂移（Step() 在"等令"时返回 true 却不推进），
+        ///   表现为 `HasPendingEvent()` 长期为真、循环卡在播事件分支走不到等令检查（实测踩过）。
+        /// </summary>
+        public int EventIndex => _eventIndex;
+
         public BattleEvent Current { get; private set; }
 
         // ---- 回合制 v2.1 P1-3：手动模式的状态 ----

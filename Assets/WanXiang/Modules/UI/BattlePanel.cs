@@ -105,7 +105,8 @@ namespace WanXiang.Modules.UI
             = new System.Collections.Generic.List<WanXiang.Battle.Core.BattleUnit>(10);
         private readonly System.Collections.Generic.List<int> _previewAllyCells = new System.Collections.Generic.List<int>(9);
         private readonly System.Collections.Generic.List<int> _previewFoeCells = new System.Collections.Generic.List<int>(9);
-        private int _eventIndex = -1;
+        // ⚠ 原 `private int _eventIndex` 已删：事件游标的真值只有 BattlePlayback.EventIndex 一份。
+        //   两份计数器必然漂移（Step() 等令时返回 true 却不推进）⇒ 循环卡死（实测：涨到 46 万）。
 
         // ================================================================
         //  生命周期
@@ -383,6 +384,12 @@ namespace WanXiang.Modules.UI
                 await UniTask.Delay(TimeSpan.FromSeconds(wait), cancellationToken: ct);
             }
 
+            // ★ 走到这里说明主循环退出：要么战斗真的结束了，要么步数触顶（异常）。
+            //   触顶时打一条警告 —— 以前这里静默退出，接着掉进 DrainRest 死循环、没有任何线索。
+            if (!_play.Finished)
+                Debug.LogWarning("[BattlePanel] 主循环步数触顶(20000) 但战斗未结束 —— awaiting="
+                                 + _play.AwaitingCommand + " seq=" + _play.DecisionSeq);
+
             await DrainRest(ct);                     // 收尾：分帧走完剩余事件（见 DrainRest 注释）
             _playing = false;
             FinishAndLeave(0.8f, ct);
@@ -479,7 +486,8 @@ namespace WanXiang.Modules.UI
         /// <summary>是否还有"已产生但未播放"的事件。</summary>
         private bool HasPendingEvent()
         {
-            return _play != null && _play.State != null && _eventIndex + 1 < _play.State.Log.Count;
+            // ⚠ 必须用 BattlePlayback 的**权威游标**，本面板不再自己维护计数（见 EventIndex 注释）
+            return _play != null && _play.State != null && _play.EventIndex + 1 < _play.State.Log.Count;
         }
 
         /// <summary>这些事件必须让玩家看清（保底演出时长）。</summary>
@@ -501,12 +509,12 @@ namespace WanXiang.Modules.UI
             //   曾因提前返回把"第一次攻击"整段跳过（用户实测）。由 PlayLoop 决定何时等令。
             if (!_play.Step()) return false;
 
-            _eventIndex++;
+            // ⚠ 不要在这里自增任何本地游标：真值只有 _play.EventIndex 一份（见其注释）。
             ApplyFrames();
 
             var e = _play.Current;
             ApplyEvent(e);
-            if (_stage != null) _stage.ApplyEvent(_eventIndex, e);
+            if (_stage != null) _stage.ApplyEvent(_play.EventIndex, e);
 
             // ⚠ 行动条必须**随事件推进刷新**，不能只在"等玩家下令"时刷 ——
             //   否则敌方行动期间高亮不动，玩家看到的是"敌人打完了指针还停在我方/敌人身上"
@@ -1507,9 +1515,13 @@ namespace WanXiang.Modules.UI
         private async UniTask DrainRest(CancellationToken ct)
         {
             int n = 0;
-            while (StepOnce())
+            // ⚠⚠ 必须同时判"不在等令"：`BattlePlayback.Step()` 在等令状态下会**返回 true 却不推进**
+            //   （它把"在等玩家下令"也当作"还有事没做完"）⇒ 只看 StepOnce() 会**无限空转**，
+            //   表现就是"操作区再也不出现、战斗冻结"（实测：面板游标涨到 463667，核心一步没走）。
+            while (!_play.AwaitingCommand && StepOnce())
             {
                 if (++n % 8 == 0) await UniTask.Yield(PlayerLoopTiming.Update, ct);
+                if (n > 200000) { Debug.LogWarning("[BattlePanel] DrainRest 步数异常，强制退出"); break; }
             }
         }
 
