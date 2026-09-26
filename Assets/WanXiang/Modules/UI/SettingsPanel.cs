@@ -22,10 +22,9 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Toggle _tglVsync;             // Tgl_Vsync
         [SerializeField] private ScrollRect _scrollKeys;       // Scroll_Keys   按键重绑定
         [SerializeField] private RectTransform _keyItemTemplate;  // Item_Key（模板，默认隐藏）
-        // ⚠ 原 _inputShare（Tmp_InputShare 分享码导入）已删：分享码由 Panel_Pvp 取代，
-        //   设置面板不再承担导入/导出队伍码的职责（2026-09-26 用户定案）。
-        [SerializeField] private Button _btnImport;            // Btn_Import  → 重新读取存档
-        [SerializeField] private Button _btnExport;            // Btn_Export  → 保存旅程
+        // ⚠ 原 _inputShare（分享码导入）与 _btnImport / _btnExport（挂在同一块 Root_SaveLoad 里）
+        //   已全部删除：分享码由 Panel_Pvp 取代；"保存/读取旅程"在存档面板（Panel_Save）里做，
+        //   设置面板放这两个按钮是冗余的（2026-09-26 用户定案：这块没用，删掉）。
         [SerializeField] private Button _btnClose;             // Btn_Close
         [SerializeField] private Button _btnBackToStart;  // Btn_BackToStart 返回开始界面（prefab 里那个，已接线）
 
@@ -39,8 +38,6 @@ namespace WanXiang.Modules.UI
             if (_sldSfx != null) _sldSfx.onValueChanged.AddListener(OnSfxChanged);
             if (_tglFullscreen != null) _tglFullscreen.onValueChanged.AddListener(OnFullscreenChanged);
             if (_tglVsync != null) _tglVsync.onValueChanged.AddListener(OnVsyncChanged);
-            if (_btnImport != null) _btnImport.onClick.AddListener(OnImportClicked);
-            if (_btnExport != null) _btnExport.onClick.AddListener(OnExportClicked);
             if (_btnClose != null) _btnClose.onClick.AddListener(CloseSelf);
             if (_btnBackToStart != null) _btnBackToStart.onClick.AddListener(OnBackToStartClicked);
         }
@@ -65,31 +62,10 @@ namespace WanXiang.Modules.UI
             // TODO(交互): 切换垂直同步
         }
 
-        private void OnImportClicked()
-        {
-            // 重读磁盘上当前槽位的存档（另一台机器拷过来的档也能这样接上）
-            var slot = WanXiang.Run.RunSave.ActiveSlot;
-            if (slot <= 0) { Debug.Log("[Settings] 还没有进行中的旅程，先去存档面板选一档。"); return; }
-            var state = WanXiang.Run.RunSave.Load(slot);
-            if (state == null) { Debug.LogWarning("[Settings] 槽位 " + slot + " 在磁盘上不存在。"); return; }
-            WanXiang.Run.RunSave.ContinueWith(state);
-            WanXiang.Meta.MetaStore.ReloadHistory();   // ★ 重读该槽位历程，避免显示其它档的记录
-            WanXiang.Meta.MetaStore.ReloadMeta();      // ★ 局外数据同样按槽重载（墨铊/精魄/等级/觉醒技/图鉴）
-            Debug.Log("[Settings] 已重新读取槽位 " + slot + "：" + state.RealmText + " 灵卵 " + state.Eggs);
-        }
-
-        private void OnExportClicked()
-        {
-            // 导出按钮 = 保存旅程（旅程数据本身是 JSON，无需 TeamCodec）
-            if (WanXiang.Run.RunSave.Current == null)
-            {
-                Debug.Log("[Settings] 没有进行中的旅程可保存。");
-                return;
-            }
-            WanXiang.Run.RunSave.SaveCurrent();
-            var cur = WanXiang.Run.RunSave.Current;
-            Debug.Log("[Settings] 旅程已保存：槽位 " + cur.Slot + " " + cur.RealmText + " 灵卵 " + cur.Eggs);
-        }
+        // ⚠ 原 OnImportClicked（重读槽位存档 + ReloadHistory/ReloadMeta）与 OnExportClicked（保存旅程）
+        //   已随 Root_SaveLoad 一起删除 —— 这两件事属于**存档面板 Panel_Save** 的职责，
+        //   设置面板里是冗余入口（用户定案"这块没用"）。
+        //   若日后要恢复"从磁盘重读存档"，去存档面板接，别在设置面板重开一个入口。
 
         /// <summary>
         /// 返回开始界面：关掉当前所有界面，回到最初的开始面板。

@@ -493,9 +493,8 @@ namespace WanXiang.Modules.UI
                         if (byId.TryGetValue(id, out bd))
                         {
                             names.Append(bd.DisplayName);
-                            var st = bd.Clone();
-                            WanXiang.Battle.Core.BattleConfig.Default.ApplyPlaceholderStats(st);
-                            power += st.BaseHp + st.BaseAtk * 3 + st.BaseDef * 2 + st.BaseSpeed;
+                            // ★ 战力口径统一到 BattlePower（编队面板/结算/历程共用一份，别各处再写）
+                            power += WanXiang.Battle.Core.BattlePower.Of(bd);
                         }
                     }
                 }

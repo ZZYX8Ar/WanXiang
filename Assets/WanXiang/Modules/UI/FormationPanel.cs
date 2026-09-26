@@ -169,18 +169,12 @@ namespace WanXiang.Modules.UI
                     _imgEnemies[i].preserveAspect = true;
                 }
             }
-            // 敌方强度 BP：用 EnemyBudget 的计价口径（稀有度 × 定位 × 属性倍率）——
-            // 与"敌方预算"同源，不是拍脑袋的常量（旧实现写死 5.35 是占位）。
-            float bp = 0f;
-            for (int i = 0; i < enemies.Count; i++)
-            {
-                if (enemies[i] == null) continue;
-                float mul = (req.EnemyMul != null && i < req.EnemyMul.Count) ? req.EnemyMul[i] : 1f;
-                bp += WanXiang.Campaign.EnemyBudget.RarityCost(enemies[i].Rarity)
-                    * WanXiang.Campaign.EnemyBudget.RoleCost(enemies[i].Role) * mul;
-            }
+            // 敌方总战力：与**我方/结算/历程共用同一份口径**（BattlePower）。
+            // ⚠ 原来是 "敌方强度 BP 7.01"（EnemyBudget 的计价口径，是个"预算价格"不是战力）
+            //   ⇒ 玩家看不懂（用户实测报障）。改用战力：与上方我方数字同一把尺，可比。
             if (_tmpEnemyPower != null)
-                _tmpEnemyPower.text = "敌方强度 BP " + bp.ToString("0.00") + "（" + enemies.Count + " 只）";
+                _tmpEnemyPower.text = "敌方总战力 " + WanXiang.Battle.Core.BattlePower.Sum(enemies, req.EnemyMul)
+                                    + "（" + enemies.Count + " 只）";
         }
 
         // ================================================================
@@ -373,11 +367,12 @@ namespace WanXiang.Modules.UI
                 for (int i = 0; i < _deployed.Length; i++)
                 {
                     int idx = _deployed[i];
-                    // 与上面同一条不变量：索引可能超出当前 _all.Length（这里不解引用，但仍跳过更一致）
+                    // 与上面同一条不变量：索引可能超出当前 _all.Length
                     if (_all == null || idx < 0 || idx >= _all.Length) continue;
-                    power += 1100 + idx * 37;      // 结构验证版的假战力，接真实面板后替换
+                    // ★ 真实战力（原来是 `1100 + idx*37` 的占位假值 ⇒ 与敌方那串不可比，用户看不懂）
+                    power += WanXiang.Battle.Core.BattlePower.Of(_all[idx]);
                 }
-                _tmpPower.text = "总战力 " + power;
+                _tmpPower.text = "我方总战力 " + power;
             }
         }
 

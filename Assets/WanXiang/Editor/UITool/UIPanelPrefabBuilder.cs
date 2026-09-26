@@ -1541,14 +1541,9 @@ namespace WanXiang.EditorTools
             var bRebind = UIBuild.MakeBtn(keyTpl, "Btn_Rebind", new Vector2(1f, 0.5f),
                 new Vector2(240, 70), new Vector2(-40, 0), "改键", UIBuild.Gold, 24f);
 
-            // ⚠ 原 Root_Share（含 Tmp_InputShare 分享码输入框）已改名 Root_SaveLoad 并去掉输入框：
-            //   分享码由 Panel_Pvp 取代，这里只剩"重新读取存档 / 保存旅程"两个按钮（2026-09-26 用户定案）。
-            var share = UIBuild.Stretch(rt, "Root_SaveLoad", 40, 860, 40, 60);
-            UIBuild.Img(share, UIBuild.Card);
-            var bImport = UIBuild.MakeBtn(share, "Btn_Import", new Vector2(1f, 0.5f),
-                new Vector2(300, 90), new Vector2(-340, 0), "重新读取存档", UIBuild.Gold, 26f);
-            var bExport = UIBuild.MakeBtn(share, "Btn_Export", new Vector2(1f, 0.5f),
-                new Vector2(300, 90), new Vector2(-30, 0), "保存旅程", UIBuild.Card, 26f);
+            // ⚠ 原 Root_Share / Root_SaveLoad 整块已删（2026-09-26 用户定案"没用"）：
+            //   分享码由 Panel_Pvp 取代；保存/读取旅程归存档面板 Panel_Save。
+            //   不要再往设置面板加"导入/导出/分享"按钮。
 
             var bClose = UIBuild.MakeBtn(rt, "Btn_Close", new Vector2(1f, 1f),
                 new Vector2(96, 96), new Vector2(-50, -50), "返回", UIBuild.Card, 26f);
@@ -1559,9 +1554,7 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_tglVsync", tglVs.GetComponent<Toggle>());
             UIBuild.Bind(comp, "_scrollKeys", scrollKeys);
             UIBuild.Bind(comp, "_keyItemTemplate", keyTpl);
-            // ⚠ 不再绑定 _inputShare（字段已删）：分享码导入已由 Panel_Pvp 取代
-            UIBuild.Bind(comp, "_btnImport", bImport.GetComponent<Button>());
-            UIBuild.Bind(comp, "_btnExport", bExport.GetComponent<Button>());
+            // ⚠ 不再绑定 _inputShare / _btnImport / _btnExport（字段与节点均已删，见上方注释）
             UIBuild.Bind(comp, "_btnClose", bClose.GetComponent<Button>());
             // 「返回开始界面」：回到最初的开始界面（回菜单，不弃档）
             var bBackToStart = UIBuild.MakeBtn(rt, "Btn_BackToStart", new Vector2(0.5f, 0f),

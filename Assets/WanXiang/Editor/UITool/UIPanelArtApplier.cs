@@ -75,7 +75,7 @@ namespace WanXiang.EditorTools
             { "Root_Audio", "panel_dialog" },
             { "Root_Video", "panel_dialog" },
             { "Root_Keybinds", "panel_dialog" },
-            { "Root_SaveLoad", "panel_dialog" },   // 原 Root_Share：分享码已由 Panel_Pvp 取代，改名同步
+            // 原 Root_Share / Root_SaveLoad 已删（分享码归 Panel_Pvp、存取档归 Panel_Save）⇒ 映射一并去掉
             { "Root_Log", "toast" },
             { "Root_Tracks", "panel_dialog" },
             { "Img_TrackLine", "divider" },
