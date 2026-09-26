@@ -779,18 +779,25 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             }
 
             // ---- 问号节点：走上去这一刻揭晓（v1.2 核心）----
-            // 揭晓池 = 休整类五种（绝不揭晓成精英，保底见《节点地图设计 v1.2》第 4 节）
+            // 揭晓池（用户定案 2026-09-26）：纳入 普通遭遇 + 精英 —— ？也要能开出战斗。
+            //   休整类权重高（惊喜为主）、战斗类权重低（惩罚为辅）：精英只占 1/12≈8%，
+            //   避免 ？变成「常遇精英战」。揭晓结果写存档（QuestionRevealed），
+            //   否则玩家靠「退出重进」无限重抽（这类机制的头号坑）。
             if (kind == WanXiang.Campaign.NodeKind.Question)
             {
-                var pool = new[]
-                {
-                    WanXiang.Campaign.NodeKind.Shop, WanXiang.Campaign.NodeKind.Nest,
-                    WanXiang.Campaign.NodeKind.Tale, WanXiang.Campaign.NodeKind.Forge,
-                    WanXiang.Campaign.NodeKind.Omen,
-                };
+                var weighted = new System.Collections.Generic.List<WanXiang.Campaign.NodeKind>();
+                System.Action<WanXiang.Campaign.NodeKind, int> addW = (k, w) =>
+                    { for (int i = 0; i < w; i++) weighted.Add(k); };
+                addW(WanXiang.Campaign.NodeKind.Shop, 2);
+                addW(WanXiang.Campaign.NodeKind.Nest, 2);
+                addW(WanXiang.Campaign.NodeKind.Tale, 2);
+                addW(WanXiang.Campaign.NodeKind.Omen, 2);
+                addW(WanXiang.Campaign.NodeKind.Forge, 1);
+                addW(WanXiang.Campaign.NodeKind.Encounter, 2);
+                addW(WanXiang.Campaign.NodeKind.Elite, 1);
                 var rng = new WanXiang.Battle.Core.DeterministicRandom(
                     CoreMath.Fnv1a("reveal:" + (run != null ? run.RunSeed : 0) + ":" + _selected));
-                var revealed = pool[rng.NextInt(0, pool.Length)];
+                var revealed = weighted[rng.NextInt(0, weighted.Count)];
                 if (run != null)
                 {
                     if (run.QuestionRevealed == null) run.QuestionRevealed = new System.Collections.Generic.List<string>();
@@ -798,6 +805,11 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                     WanXiang.Run.RunSave.SaveCurrent();
                 }
                 kind = revealed;
+                // ★ 揭晓成战斗类（遭遇/精英）时，必须把真实 kind 写回 _current，
+                //   否则 FormationPanel 仍按 Question 建敌 ⇒ 精英缩放失效、战斗甚至不触发。
+                //   （图里的原始 kind 仍是 Question，揭晓结果只存在 QuestionRevealed 存档里，
+                //     所以这里必须显式用揭晓后的值覆盖。）
+                _current.Kind = kind;
                 // ★ 不再弹揭晓弹窗（用户要求）：这个 Dialog 在实战里关不掉，索性不弹。
                 //   揭晓结果通过节点图本身呈现——该节点会按 RevealedKind 显示成真实类型（见 RefreshNodes）。
                 Debug.Log("[Campaign] ？节点揭晓 → " + WanXiang.Campaign.NodeKinds.Cn(revealed));

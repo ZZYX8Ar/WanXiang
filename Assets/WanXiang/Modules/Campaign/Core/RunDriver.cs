@@ -252,6 +252,12 @@ namespace WanXiang.Campaign
                     : _chooser(State.CurrentGraph, layer);
                 if (!State.EnterNode(offset)) return null;      // 选路非法 = 编排 bug，别静默转圈
                 kind = State.CurrentGraph.KindOf(offset);
+                // ⚠ ？节点揭晓：图的原始 kind 仍是 Question，真实类型存在
+                //   UI.RunState.QuestionRevealed（"offset:kind"）里。RunDriver 接入实时流程时，
+                //   这里必须改读「揭晓后的 kind」（参照 CampaignPanel.RevealedKind），
+                //   否则 ？→精英 会被当成非战斗节点、精英缩放与天气残留全部失效。
+                //   当前（2026-09-26）RunDriver 尚未接入实时流程，战斗由
+                //   CampaignPanel→FormationPanel 直接拉起，那边已用 _current.Kind=revealed 修正。
                 // 劫律 17「兽王当立」：每幕的第一个节点强制精英（RunDriver 层覆写，
                 // 图数据不动 —— 别的读图方（窗口预览）不受本局劫律影响）
                 if (_tuning.ForceEliteFirst && firstNodeOfAct)

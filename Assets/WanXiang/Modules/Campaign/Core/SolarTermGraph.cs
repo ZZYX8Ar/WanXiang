@@ -263,7 +263,7 @@ namespace WanXiang.Campaign
                     //   之前写 (layer*2+k)%24 会让第一幕冒出"大暑/霜降"，四季节气混在一起（用户抓到）。
                     int termStart = (act - 1) * 6 + 1;
                     terms.Add(termStart + ((layer + k) % 6));
-                    kinds.Add(isBoss ? NodeKind.Elite : PickKind(rng, isFirst));
+                    kinds.Add(isBoss ? NodeKind.Elite : PickKind(rng, isFirst, act));
                 }
                 layerIndex.Add(row);
             }
@@ -326,22 +326,52 @@ namespace WanXiang.Campaign
             return g;
         }
 
-        /// <summary>按权重抽一个节点类型。首层只出战斗 —— 开局第一脚不该是盲盒或商店。</summary>
-        private static NodeKind PickKind(DeterministicRandom rng, bool firstLayer)
+        /// <summary>本幕解锁的节点类型（解禁幕表，v2.0）。
+        /// 铸魂台（Forge）第 2 幕才解禁——第 1 幕就出熔炼会让难度曲线崩。
+        /// ？是「随机/神奇」节点，不参与配额（否则不再有惊喜），故不在表里。
+        /// 第 5 幕（天阙）走固定图、不调用本生成器，故无需列出。</summary>
+        private static System.Collections.Generic.HashSet<NodeKind> UnlockKinds(int act)
+        {
+            switch (act)
+            {
+                case 1: return new System.Collections.Generic.HashSet<NodeKind>
+                    { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop,
+                      NodeKind.Nest, NodeKind.Tale, NodeKind.Omen };
+                default: return new System.Collections.Generic.HashSet<NodeKind>
+                    { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop, NodeKind.Nest,
+                      NodeKind.Tale, NodeKind.Forge, NodeKind.Omen };
+            }
+        }
+
+        /// <summary>统一的抽取权重（v1.2 第 3 节口径；问号 4%→14% 是用户要求）。</summary>
+        private static readonly (NodeKind kind, int weight)[] KindWeights =
+        {
+            (NodeKind.Encounter, 32), (NodeKind.Elite, 12), (NodeKind.Shop, 9),
+            (NodeKind.Nest, 8), (NodeKind.Tale, 7), (NodeKind.Forge, 6),
+            (NodeKind.Omen, 12), (NodeKind.Question, 14),
+        };
+
+        /// <summary>按权重抽一个节点类型。首层只出战斗 —— 开局第一脚不该是盲盒或商店。
+        /// 只从 <paramref name="act"/> 已解锁的类型里抽（见 <see cref="UnlockKinds"/>）。</summary>
+        private static NodeKind PickKind(DeterministicRandom rng, bool firstLayer, int act)
         {
             if (firstLayer) return NodeKind.Encounter;
 
-            // 权重表见《节点地图设计 v1.2》第 3 节：战斗约四成、休整约六成、问号另计
-            // 权重表对应《节点地图设计 v1.2》第 3 节；问号从 4% 提到 14%（用户要求增加）
-            int roll = rng.NextInt(0, 100);
-            if (roll < 32) return NodeKind.Encounter;
-            if (roll < 44) return NodeKind.Elite;
-            if (roll < 53) return NodeKind.Shop;
-            if (roll < 61) return NodeKind.Nest;
-            if (roll < 68) return NodeKind.Tale;
-            if (roll < 74) return NodeKind.Forge;
-            if (roll < 86) return NodeKind.Omen;
-            return NodeKind.Question;   // 14%
+            var allowed = UnlockKinds(act);
+            // ？始终可抽：约束要求每图 2~5 个 ？节点，但它不参与「配额」
+            // （配额只考核计划类节点，见 MeetsV12Constraints）。若从解锁表排除 ？，
+            // 会与 ？数量约束自相矛盾 ⇒ 64 次重试全失败、回退缺省图（自检 ⑳ 抓到的真 bug）。
+            allowed.Add(NodeKind.Question);
+            int total = 0;
+            foreach (var kv in KindWeights) if (allowed.Contains(kv.kind)) total += kv.weight;
+            int roll = rng.NextInt(0, total);
+            foreach (var kv in KindWeights)
+            {
+                if (!allowed.Contains(kv.kind)) continue;
+                if (roll < kv.weight) return kv.kind;
+                roll -= kv.weight;
+            }
+            return NodeKind.Encounter;   // 兜底（理论不可达）
         }
 
         /// <summary>
@@ -372,6 +402,15 @@ namespace WanXiang.Campaign
                 foreach (var o in g.Layers[l]) if (g.Kinds[o] == NodeKind.Question) cur++;
                 if (prev > 0 && cur > 0) return false;
             }
+
+            // 配额（v2.0）：本幕解锁的每种节点至少出现一次
+            // —— 保证「每一幕不同的节点都至少出现一次」（用户要求）。
+            // ？是惊喜节点、不参与配额（由上面的 2~5 区间约束）。
+            var unlocked = UnlockKinds(g.Act);
+            var seen = new System.Collections.Generic.HashSet<NodeKind>();
+            foreach (var k in g.Kinds) seen.Add(k);
+            foreach (var k in unlocked) if (!seen.Contains(k)) return false;
+
             return true;
         }
 

@@ -422,6 +422,41 @@ namespace WanXiang.Editor.CampaignTool
             Check(lines, runA.RunEggs > 0,
                   $"⑲ 局内灵卵：这一局攒了 {runA.RunEggs} 枚（遭遇/精英/孵穴/异闻的产出口径）");
 
+            // ---- ⑳ 配额（v2.0）：每幕解锁的每种节点至少出现一次 ----
+            //    跑 200 种子 × 幕 1~4，断言 BuildRoute 既生成 12 层合规图、又满足
+            //    「本幕解锁类型全覆盖」。这条能真的失败——若解锁表/权重配错导致某种节点
+            //    抽不到，64 次重试后回退到 6 节点缺省图，这里立刻红（Layers!=12 或配额缺）。
+            int seedN = 200;
+            bool quotaOk = true;
+            int fallbackHits = 0;
+            var whyQuota = "";
+            for (int act = 1; act <= 4; act++)
+            {
+                // 与 SolarTermGraph.UnlockKinds 同口径：幕 1 无铸魂台，幕 2~4 全 7 种
+                var expect = act == 1
+                    ? new HashSet<NodeKind> { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop,
+                                              NodeKind.Nest, NodeKind.Tale, NodeKind.Omen }
+                    : new HashSet<NodeKind> { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop,
+                                              NodeKind.Nest, NodeKind.Tale, NodeKind.Forge, NodeKind.Omen };
+                for (int s = 0; s < seedN; s++)
+                {
+                    var g = SolarTermGraph.BuildRoute(act, 1000u + (uint)(act * 100000 + s));
+                    if (g == null || g.Layers.Length != 12)
+                        { quotaOk = false; whyQuota = $"幕{act} 种子{s} 回退/层数异常"; fallbackHits++; break; }
+                    if (!SolarTermGraph.MeetsV12Constraints(g))
+                        { quotaOk = false; whyQuota = $"幕{act} 种子{s} 不满足 v1.2 约束"; break; }
+                    var seenKinds = new HashSet<NodeKind>();
+                    foreach (var k in g.Kinds) seenKinds.Add(k);
+                    foreach (var k in expect)
+                        if (!seenKinds.Contains(k)) { quotaOk = false; whyQuota = $"幕{act} 种子{s} 缺节点 {NodeKinds.Cn(k)}"; break; }
+                    if (!quotaOk) break;
+                }
+                if (!quotaOk) break;
+            }
+            Check(lines, quotaOk,
+                  $"⑳ 配额：200 种子 × 幕1~4 全部生成 12 层合规图且本幕解锁类型全覆盖"
+                  + (quotaOk ? "" : $"（{whyQuota}，回退次数={fallbackHits}）"));
+
             lines.Add("========================================================================");
             lines.Add($"结论：{_pass} 项通过，{_fail} 项失败");
             if (_fail > 0)
