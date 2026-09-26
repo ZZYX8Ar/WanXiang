@@ -49,6 +49,12 @@ namespace WanXiang.Meta
             if (state == null) return HatchResult.Fail("没有局外存档");
             if (!content.IsValid) return HatchResult.Fail("内容目录无效（宿主/灵魂数量或稀有度表不匹配）");
 
+            // ★ 2026-09-26 用户定案：**魂魄只能从灵市购买**，其余路径暂时关闭。
+            //   把这条写成显式拒绝，而不是"悄悄还能孵出来" —— 否则它就是个隐形入口，
+            //   与策略冲突（且日后无人记得）。宿主蛋不受影响。
+            if (kind == EggKind.Soul)
+                return HatchResult.Fail("魂魄只能从灵市购买（孵蛋获取已暂时关闭）");
+
             var unlocked = kind == EggKind.Host ? state.UnlockedHosts : state.UnlockedSouls;
             int total = kind == EggKind.Host ? content.HostCount : content.SoulCount;
             var rarities = kind == EggKind.Host ? content.HostRarities : content.SoulRarities;

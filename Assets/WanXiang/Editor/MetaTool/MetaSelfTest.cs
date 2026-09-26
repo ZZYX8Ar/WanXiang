@@ -165,11 +165,11 @@ namespace WanXiang.Editor.MetaTool
             Check(lines, hatchMirror.Ok && hatchMirror.Index == hatch.Index,
                   $"④ 孵蛋确定性：同种子同操作序列 ⇒ 同结果（[{hatch.Index}]）");
 
-            // 灵魂池独立
+            // 灵魂：2026-09-26 起**只能从灵市购买** ⇒ 孵蛋应被显式拒绝，且不消耗任何状态
             var soulHatch = EggForge.Hatch(st, content, EggKind.Soul);
-            Check(lines, soulHatch.Ok && st.UnlockedSouls.Count == MetaDefaults.StarterSouls + 1
+            Check(lines, !soulHatch.Ok && st.UnlockedSouls.Count == MetaDefaults.StarterSouls
                        && st.UnlockedHosts.Count == hostsBefore + 1,
-                  $"④ 孵蛋（灵魂）：只动灵魂池（{soulHatch.Note}）");
+                  $"④ 孵蛋（灵魂）已关闭、且不动状态：{soulHatch.Note}");
 
             // ---- ⑤ 权重方向：反复整池重开不现实 ⇒ 用多个种子各孵一次做统计 ----
             int rare = 0, epic = 0, legend = 0;

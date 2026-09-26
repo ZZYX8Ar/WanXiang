@@ -94,7 +94,7 @@ namespace WanXiang.Campaign
                 Id = "qingqiu", Story = "雾里有婴儿的哭声。灌灌在你肩头低鸣，像是在提醒什么。",
                 Options = new[]
                 {
-                    new TaleOption { Label = "循声而去", Result = "获得 1 个随机神品灵魂，但队伍中生命最低者失去 30% 当前生命" },
+                    new TaleOption { Label = "循声而去", Result = "获得 1 个灵卵，但队伍中生命最低者失去 30% 当前生命" },
                     new TaleOption { Label = "闭目不听", Result = "获得 1 个技能草稿三选一，且本幕免疫混乱" },
                     new TaleOption { Label = "退回原路", Result = "获得 1 枚灵卵，本幕路径上多显示一个节点信息" },
                 },

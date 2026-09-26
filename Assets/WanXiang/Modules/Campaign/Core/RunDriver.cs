@@ -343,7 +343,7 @@ namespace WanXiang.Campaign
                     return "灵市：货架 3 异兽 + 2 灵魂 + 1 次重铸（局内消费待 P4）";
 
                 case NodeKind.Forge:
-                    return "铸魂台：免费融合 ×1 + 赠 1 随机灵魂（融合管线就绪，入口待 UI）";
+                    return "铸魂台：免费融合 ×1（灵魂需自行到灵市购买，融合管线就绪、入口待 UI）";
 
                 case NodeKind.Omen:
                 {

@@ -38,7 +38,14 @@ namespace WanXiang.Meta
     public static class MetaDefaults
     {
         public const int StarterHosts = 5;
-        public const int StarterSouls = 5;
+
+        /// <summary>
+        /// 新档赠送的灵魂数。**2026-09-26 用户定案：魂魄只能从灵市购买** ⇒ 开局不再赠送（0）。
+        /// ⚠ 可预期的副作用：新档 0 魂 ⇒ **熔炼暂时用不了**，要等灵市买到第一个魂。
+        ///    这是用户明确选择的结果（"连开局赠送也去掉"），不是 bug。
+        /// ⚠ 别再往别处加魂：孵蛋（<see cref="EggForge"/>）那条路已同步关闭。
+        /// </summary>
+        public const int StarterSouls = 0;
 
         /// <summary>孵蛋的稀有度权重（GDD 没给数值 ⇒ 占位；待策划给表后改这一处）。</summary>
         public static int WeightOf(Rarity r)

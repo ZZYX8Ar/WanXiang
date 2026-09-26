@@ -647,7 +647,7 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                 case WanXiang.Campaign.NodeKind.Shop: return "灵市：用灵卵换异兽 / 灵魂 / 重铸";
                 case WanXiang.Campaign.NodeKind.Nest: return "孵穴：回复全队 40% 生命 或 取 2 枚灵卵";
                 case WanXiang.Campaign.NodeKind.Tale: return "异闻：典籍轶事，三选一（可拒绝换灵卵）";
-                case WanXiang.Campaign.NodeKind.Forge: return "铸魂台：免费融合一次，另赠 1 个随机灵魂";
+                case WanXiang.Campaign.NodeKind.Forge: return "铸魂台：免费融合一次（灵魂需在灵市购买）";
                 case WanXiang.Campaign.NodeKind.Omen: return "天象：三选一，增益都配一条明确代价";
                 default: return "遭遇：常规战斗，敌方按幕数规模成队";
             }

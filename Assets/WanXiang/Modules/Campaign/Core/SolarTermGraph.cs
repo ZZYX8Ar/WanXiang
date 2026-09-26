@@ -47,7 +47,7 @@ namespace WanXiang.Campaign
         /// <summary>异闻：非战斗。典籍轶事 + 三选一（选项有代价，可拒绝换 1 灵卵）。</summary>
         Tale = 4,
 
-        /// <summary>铸魂台：非战斗。免费融合一次（宿主 + 灵魂）+ 赠 1 个随机灵魂。</summary>
+        /// <summary>铸魂台：非战斗。免费融合一次（宿主 + 灵魂）。灵魂需从灵市购买（2026-09-26 定案）。</summary>
         Forge = 5,
 
         /// <summary>天象：非战斗。三选一，每个增益都配一条明确的负面。</summary>
