@@ -108,6 +108,10 @@ namespace WanXiang.Modules.UI
                 if (prun != null)
                 {
                     prun.NodeOffset = PendingCommit;
+                    // ★ 节点真正「通过」（离开事件/战斗面板回地图落地）⇒ 所有星移余气 -1（扣到负移除）。
+                    //   推迟到此处而非「出征」点击，保证「进编队又返回」不算通过、星移仍可撤销
+                    //   （用户实测：出征→编队→返回后星移撤销不了，根因就是出征时就把余气 -1 了）。
+                    WanXiang.Campaign.LiveWeather.OnNodeCommitted();
                     if (prun.VisitedNodes != null && !prun.VisitedNodes.Contains(PendingCommit))
                         prun.VisitedNodes.Add(PendingCommit);
 
@@ -830,7 +834,6 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
         {
             ComposeLiveWeatherFor(_selected);
             var wLinger = WanXiang.Campaign.LiveWeather.Current;
-            int n = WanXiang.Campaign.LiveWeather.Lingers.Count;
             var run = WanXiang.Run.RunSave.Current;
             int key = XingyiKey(_graph != null ? _graph.Act : 1, _selected);
 
@@ -840,9 +843,8 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                 if (_current != null) _current.Weather = title;
                 if (_tmpWeather != null)
                 {
-                    string text = title + "\n" + wLinger.Describe();
-                    if (n > 0) text += "\n· 星移余气 " + n + " 条：节点天时减半带入后续 " + XINGYI_NODES +
-                                       " 节（耗 " + XINGYI_COST + " 灵卵，未出发可撤销）";
+                string text = title + "\n" + wLinger.Describe();
+                text += BuildXingyiLingerSummary();
                     _tmpWeather.text = text;
                 }
             }
@@ -854,6 +856,23 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             }
 
             UpdateXingyiButton(run, key, wLinger != null);
+        }
+
+        /// <summary>星移余气明细：列出每条仍在生效的星移注入（来源天时名 + 剩余节点数），
+        /// 让玩家一眼看出「哪些是星移带来的、还剩几节」。无则空串。</summary>
+        private string BuildXingyiLingerSummary()
+        {
+            var lingers = WanXiang.Campaign.LiveWeather.Lingers;
+            if (lingers == null || lingers.Count == 0) return "";
+            var sb = new System.Text.StringBuilder();
+            sb.Append("\n· 星移余气 ").Append(lingers.Count).Append(" 条（减半·耗 ")
+              .Append(XINGYI_COST).Append(" 灵卵·未出发可撤销）");
+            foreach (var l in lingers)
+            {
+                string nm = (l.Weather != null && !string.IsNullOrEmpty(l.Weather.BuffName)) ? l.Weather.BuffName : "？";
+                sb.Append("\n   - ").Append(nm).Append(" 剩 ").Append(l.NodesLeft).Append(" 节");
+            }
+            return sb.ToString();
         }
 
         private void UpdateXingyiButton(WanXiang.Run.RunState run, int key, bool hasWeather)
@@ -993,8 +1012,10 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                 if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                     run.VisitedNodes.Add(_selected);
                 if (run.Path != null) run.Path.Add(_selected);
-                // ★ 玩家通过一节节点 ⇒ 所有星移余气 -1（与 RunState 余气同口径；扣到负移除）
-                WanXiang.Campaign.LiveWeather.OnNodeCommitted();
+                // ★ 注意：星移余气（Lingers）的「-1」不再在此处扣减！
+                //   出征只是「进入节点」，战斗/事件尚未结算；若此刻就扣，玩家进了编队又返回
+                //   会被当成「已通过」，导致星移无法撤销（用户实测）。余气扣减统一推迟到
+                //   节点真正通过时（见 OnOpenAsync 里对 PendingCommit 的落地）。
                 WanXiang.Run.RunSave.SaveCurrent();
             }
 

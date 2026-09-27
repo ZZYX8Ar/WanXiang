@@ -25,7 +25,8 @@ namespace WanXiang.Campaign
     public sealed class RunState
     {
         /// <summary>一条余气：来源天时（已减半）+ 还剩几个节点生效。
-        /// 计数在**进入节点时**消耗、扣到负数才移除 ⇒ 2 表示未来 2 个节点都生效。</summary>
+        /// 计数在**通过节点时**消耗（出征/事件结算回地图才落地，进编队又返回不算通过）、
+        /// 扣到负数才移除 ⇒ 2 表示未来 2 个节点都生效。</summary>
         public struct LingerEntry
         {
             public WanXiang.Battle.Core.WeatherDef Weather;
