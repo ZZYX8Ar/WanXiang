@@ -35,7 +35,7 @@ namespace WanXiang.Run
         /// </summary>
         public int Realm = 1;                   // 境 1..3（旧）
         public int Jie = 1;                     // 劫 1..3（旧）
-        public int Eggs = 12;                   // 灵卵
+        public int Eggs = 0;                    // 灵卵（每局从 0 开始；局末结转 MetaState.Eggs）
         // ⚠ 2026-09-25 删掉了 `Ink`（局内墨锭）字段：全项目**无人消费**（HomePanel.RunInk 声明未用、
         //   灵市花的是灵卵），每场胜利给它 +1 只是死数据。局外墨铊是 MetaState.Ink，与此无关。
         public int Wins;                        // 本程胜场
@@ -361,7 +361,7 @@ namespace WanXiang.Run
         /// <summary>在指定槽位开一段全新旅程（覆盖该槽位）。</summary>
         public static RunState StartNew(int slot)
         {
-            Current = new RunState { Slot = Mathf.Clamp(slot, 1, SlotCount) };
+            Current = new RunState { Slot = Mathf.Clamp(slot, 1, SlotCount), Eggs = 0 };
             Save(Current);
             Debug.Log("[RunSave] 新的旅程 → 槽位 " + Current.Slot);
             return Current;

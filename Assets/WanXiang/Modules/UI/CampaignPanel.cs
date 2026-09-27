@@ -199,7 +199,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private static readonly Color NodeLocked = new Color(0.61f, 0.58f, 0.53f);    // 灰
 
         // 路线图尺寸常量（连线的节点坐标必须与排布公式一致，所以提出来共用）
-        private const int Layers = 12;
+        private const int Layers = WanXiang.Campaign.SolarTermGraph.DefaultLayers;   // 路线图层数（每幕节点数；连线的节点坐标必须与排布公式一致）
         private const float NodeW = 380f, NodeH = 110f, GapX = 40f, GapY = 90f;
         private static readonly Color EdgeInk = new Color(0.72f, 0.68f, 0.60f, 0.9f);
         private static readonly Color PathGold = new Color(0.79f, 0.63f, 0.39f, 1f);
@@ -237,7 +237,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             //    第一次进天阙图 content 高 2480、多出 1440 空白区）。
             int lc = Layers;
 
-            // ---- 数据源：v1.2 路线图（12 层、层内 2~3、种子稳定）----
+            // ---- 数据源：v1.2 路线图（Layers 层、层内 2~3、种子稳定）----
             var run = WanXiang.Run.RunSave.Current;
             // ★★ 存档自愈：早期幕推进判据用过 `>=`，可能把 Act 反复推到上限、
             //   或让 NodeOffset 越界，导致存档与节点图错位（用户实测"全部存档不能推进"）。
@@ -631,9 +631,18 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             //   WeatherDef 存入 LiveWeather.Current，供 BattleRequestFactory / FormationPanel 取用
             //   （取代原来只给占位的 WeatherHint）。可复现性红线：算不出 = null（旧行为逐位一致）。
             ComposeLiveWeatherFor(offset);
-            _current.Weather = WanXiang.Campaign.LiveWeather.Current != null
-                ? "天时 " + WanXiang.Campaign.LiveWeather.Current.BuffName
-                : WeatherHint(kind);
+            var liveW = WanXiang.Campaign.LiveWeather.Current;
+            if (liveW != null)
+            {
+                string wtitle = "天时 " + liveW.BuffName + "（" + ElementCn(liveW.Element) + "）";
+                _current.Weather = wtitle;
+                if (_tmpWeather != null) _tmpWeather.text = wtitle + "\n" + liveW.Describe();
+            }
+            else
+            {
+                _current.Weather = WeatherHint(kind);
+                if (_tmpWeather != null) _tmpWeather.text = WeatherHint(kind);
+            }
 
             // 星移按钮：仅当本节点确实带天时（否则无物可移）；每次选新节点重置可点一次
             if (_btnXingyi != null)
@@ -678,6 +687,20 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                 case WanXiang.Campaign.NodeKind.Forge: return "铸魂台：免费融合一次（灵魂需在灵市购买）";
                 case WanXiang.Campaign.NodeKind.Omen: return "天象：三选一，增益都配一条明确代价";
                 default: return "遭遇：常规战斗，敌方按幕数规模成队";
+            }
+        }
+
+        /// <summary>五行 → 中文（用于天时标题里标注属性）。</summary>
+        private static string ElementCn(WanXiang.Battle.Core.Element e)
+        {
+            switch (e)
+            {
+                case WanXiang.Battle.Core.Element.Wood: return "木";
+                case WanXiang.Battle.Core.Element.Fire: return "火";
+                case WanXiang.Battle.Core.Element.Earth: return "土";
+                case WanXiang.Battle.Core.Element.Metal: return "金";
+                case WanXiang.Battle.Core.Element.Water: return "水";
+                default: return "";
             }
         }
 
@@ -749,8 +772,9 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
 
             // 重算当前节点天时（已含新注入的星移余气）并刷新信息卡
             ComposeLiveWeatherFor(_selected);
-            string label = "天时 " + WanXiang.Campaign.LiveWeather.Current.BuffName + "（含星移余气）";
-            if (_tmpWeather != null) _tmpWeather.text = label;
+            var wLinger = WanXiang.Campaign.LiveWeather.Current;
+            string label = wLinger != null ? "天时 " + wLinger.BuffName + "（含星移余气）" : "天时（含星移余气）";
+            if (_tmpWeather != null) _tmpWeather.text = wLinger != null ? label + "\n" + wLinger.Describe() : label;
             if (_current != null) _current.Weather = label;
 
             Debug.Log("[Campaign] 星移已注入：持续 " + XINGYI_NODES + " 节，当前星移余气数=" +

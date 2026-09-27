@@ -46,7 +46,7 @@ namespace WanXiang.Modules.UI
         // ---- 旅程状态（选档后有值；没选档给默认首程值）----
         private int RunEggs
         {
-            get { return WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Eggs : 12; }
+            get { return WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Eggs : 0; }
         }
 
         // ⚠ 2026-09-25 删掉了 RunInk 属性：局内墨锭（RunState.Ink）全项目无人消费，已一并删除。

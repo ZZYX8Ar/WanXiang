@@ -201,14 +201,18 @@ namespace WanXiang.Campaign
     /// </summary>
     public static class SolarTermGraph
     {
+        /// <summary>路线图层数（每幕节点深度）。改这个数 = 改每幕节点总数与单局场次；
+        /// 校验 MeetsV12Constraints 与 CampaignPanel 布局、CampaignSelfTest 都用它，别再各处写死 12。</summary>
+        public const int DefaultLayers = 14;
+
         /// <summary>
-        /// v1.2 路线图：每幕 <paramref name="layers"/> 层（默认 12），层内 2~3 个候选，
+        /// v1.2 路线图：每幕 <paramref name="layers"/> 层（默认 <see cref="DefaultLayers"/>），层内 2~3 个候选，
         /// 自下而上爬；最后一层是本幕守关。同一 (act, seed) 结果完全一致 —— 可背版、可复盘。
         ///
         /// 生成后立刻跑三条保底校验（战斗 ≥4、问号 1~3 且不连续、末层唯一），
         /// 不通过就换盐重采样，最多 8 次；仍失败则退回 BuildDefault 的缺省图（保证一定能玩）。
         /// </summary>
-        public static ActGraph BuildRoute(int act, ulong seed, int layers = 12)
+        public static ActGraph BuildRoute(int act, ulong seed, int layers = DefaultLayers)
         {
             // ★★ 第 5 幕 = 天阙：**固定 5 节点线性图**（休整 → 商店 → 熔炼 → 看护关 → 后土）。
             //    不走随机生成：这是通关前的最后一段"登天"流程，形态必须确定（用户设计）。
@@ -223,7 +227,7 @@ namespace WanXiang.Campaign
             for (int attempt = 0; attempt < 64; attempt++)
             {
                 var g = TryBuild(act, seed + (ulong)attempt * 7919UL, layers);
-                if (g != null && MeetsV12Constraints(g)) return g;
+                if (g != null && MeetsV12Constraints(g, layers)) return g;
             }
 
             // 兜底：缺省图（层数不足 12 时按 4 层用，至少能玩）。
@@ -378,10 +382,10 @@ namespace WanXiang.Campaign
         /// v1.2 三条保底校验（与 v1.1 的 MeetsV11Constraints 同思路，
         /// 但 12 层随机之后「恰好一个」这种断言不再成立，只能用区间护栏）。
         /// </summary>
-        public static bool MeetsV12Constraints(ActGraph g)
+        public static bool MeetsV12Constraints(ActGraph g, int expectLayers = DefaultLayers)
         {
             if (g == null || g.IsEmpty) return false;
-            if (g.Layers.Length != 12) return false;
+            if (g.Layers.Length != expectLayers) return false;
 
             int battles = 0, questions = 0;
             for (int i = 0; i < g.Kinds.Length; i++)
@@ -391,8 +395,9 @@ namespace WanXiang.Campaign
             }
 
             if (battles < 4) return false;                       // 战斗保底
-            if (questions < 2 || questions > 5) return false;    // 问号数量（用户要求增加：2~5）
-            if (g.Layers[11].Length != 1) return false;          // 末层唯一（守关）
+            int qMax = expectLayers <= 12 ? 5 : expectLayers / 2;   // 问号数量（用户要求 2~5；层数更多时按比例放宽）
+            if (questions < 2 || questions > qMax) return false;
+            if (g.Layers[expectLayers - 1].Length != 1) return false;   // 末层唯一（守关）
 
             // 问号不连续：相邻两层最多一个问号
             for (int l = 1; l < g.Layers.Length; l++)

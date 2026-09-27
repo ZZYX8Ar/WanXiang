@@ -441,7 +441,7 @@ namespace WanXiang.Editor.CampaignTool
                 for (int s = 0; s < seedN; s++)
                 {
                     var g = SolarTermGraph.BuildRoute(act, 1000u + (uint)(act * 100000 + s));
-                    if (g == null || g.Layers.Length != 12)
+                    if (g == null || g.Layers.Length != SolarTermGraph.DefaultLayers)
                         { quotaOk = false; whyQuota = $"幕{act} 种子{s} 回退/层数异常"; fallbackHits++; break; }
                     if (!SolarTermGraph.MeetsV12Constraints(g))
                         { quotaOk = false; whyQuota = $"幕{act} 种子{s} 不满足 v1.2 约束"; break; }
@@ -454,7 +454,7 @@ namespace WanXiang.Editor.CampaignTool
                 if (!quotaOk) break;
             }
             Check(lines, quotaOk,
-                  $"⑳ 配额：200 种子 × 幕1~4 全部生成 12 层合规图且本幕解锁类型全覆盖"
+                  $"⑳ 配额：200 种子 × 幕1~4 全部生成 {SolarTermGraph.DefaultLayers} 层合规图且本幕解锁类型全覆盖"
                   + (quotaOk ? "" : $"（{whyQuota}，回退次数={fallbackHits}）"));
 
             lines.Add("========================================================================");

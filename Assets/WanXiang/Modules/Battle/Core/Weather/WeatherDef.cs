@@ -234,6 +234,107 @@ namespace WanXiang.Battle.Core
         /// <summary>乘数向 1 收敛一半：1 + (m-1)/2。×1.25 ⇒ ×1.125；×0.8 ⇒ ×0.9。</summary>
         private static float HalfToward1(float m) => 1f + (m - 1f) * 0.5f;
 
+        /// <summary>
+        /// 给 UI 用的「天时作用效果」中文描述（多行，每行一条）。
+        /// 只列非中性字段，方便玩家在节点信息卡里直接看到这局天时在战斗里具体改了什么。
+        /// 纯字符串逻辑，不引用 UnityEngine，可在 Battle.Core（纯战斗核心）里安全调用。
+        /// </summary>
+        public string Describe()
+        {
+            var sb = new System.Text.StringBuilder();
+
+            // ---- 回合开始 / 结束的原子型效果 ----
+            if (TurnStart != null)
+                foreach (var e in TurnStart) AppendAtom(sb, e, "回合开始时");
+            if (TurnEnd != null)
+                foreach (var e in TurnEnd) AppendAtom(sb, e, "回合结束时");
+
+            // ---- 规则修正型 ----
+            if (BanHeal) sb.AppendLine("· 全场禁止治疗（护盾不受影响）");
+            if (DamageAllMultiplier != 1f) sb.AppendLine("· 全场造成伤害 " + FmtMul(DamageAllMultiplier) + "（双方）");
+            if (DamageTakenMul != 1f) sb.AppendLine("· 受到的伤害 " + FmtMul(DamageTakenMul) + "（双方）");
+            if (SpeedMulPlayer != 1f) sb.AppendLine("· 我方速度 " + FmtMul(SpeedMulPlayer));
+            if (SpeedMulEnemy != 1f) sb.AppendLine("· 敌方速度 " + FmtMul(SpeedMulEnemy));
+            if (CdAdvanceMulPlayer != 1f) sb.AppendLine("· 我方技能 CD 推进 " + FmtMul(CdAdvanceMulPlayer));
+            if (CdAdvanceMulEnemy != 1f) sb.AppendLine("· 敌方技能 CD 推进 " + FmtMul(CdAdvanceMulEnemy));
+            if (CritDamageBonusPlayer != 0f) sb.AppendLine("· 我方暴击伤害 " + FmtPct(CritDamageBonusPlayer));
+            if (CritDamageBonusEnemy != 0f) sb.AppendLine("· 敌方暴击伤害 " + FmtPct(CritDamageBonusEnemy));
+            if (AoeDamageMul != 1f) sb.AppendLine("· AOE 伤害 " + FmtMul(AoeDamageMul));
+            if (SingleDamageMul != 1f) sb.AppendLine("· 单体伤害 " + FmtMul(SingleDamageMul));
+            if (WoodDamageMul != 1f) sb.AppendLine("· 木属性伤害 " + FmtMul(WoodDamageMul));
+            if (FireDamageMul != 1f) sb.AppendLine("· 火属性伤害 " + FmtMul(FireDamageMul));
+            if (EarthDamageMul != 1f) sb.AppendLine("· 土属性伤害 " + FmtMul(EarthDamageMul));
+            if (MetalDamageMul != 1f) sb.AppendLine("· 金属性伤害 " + FmtMul(MetalDamageMul));
+            if (WaterDamageMul != 1f) sb.AppendLine("· 水属性伤害 " + FmtMul(WaterDamageMul));
+            if (FirstTurnDamageMul != 1f) sb.AppendLine("· 首回合先手方伤害 " + FmtMul(FirstTurnDamageMul));
+            if (ShieldGainMul != 1f) sb.AppendLine("· 护盾获取 " + FmtMul(ShieldGainMul));
+            if (HealOverflowShieldRatio != 0f) sb.AppendLine("· 治疗溢出 " + FmtPct(HealOverflowShieldRatio) + " 转护盾");
+            if (FireUnitDotTakenMul != 1f) sb.AppendLine("· 火属性单位受到持续伤害 " + FmtMul(FireUnitDotTakenMul));
+
+            // ---- 事件钩子型 ----
+            if (AttackBurnOn) sb.AppendLine("· 我方攻击附带灼烧（" + FmtPct(AttackBurnPower) + " 攻击/层，" + AttackBurnTurns + " 回合）");
+            if (PursuitOnCrit) sb.AppendLine("· 我方暴击时追加追击（" + FmtPct(PursuitPower) + " 攻击）");
+            if (KillOverflowShield) sb.AppendLine("· 击杀溢出伤害 " + FmtPct(KillOverflowShieldRatio) + " 转全队护盾");
+            if (ReviveEggOn) sb.AppendLine("· 我方阵亡留虫卵，" + ReviveEggDelayTurns + " 回合后以 " + FmtPct(ReviveEggHpPercent) + " 生命复活（每单位每场 1 次）");
+            if (HasteEveryNTurns > 0) sb.AppendLine("· 每 " + HasteEveryNTurns + " 回合我方全体凝神（CD -" + HasteCdReduction + "）");
+            if (FreezeOnHitChance > 0f) sb.AppendLine("· 受击时 " + FmtPct(FreezeOnHitChance) + " 概率冻结 " + FreezeOnHitTurns + " 回合（全场）");
+            if (DebuffDurationMinusOne) sb.AppendLine("· 我方减益持续 -1 回合");
+            if (ImmuneConfuseSilence) sb.AppendLine("· 我方免疫混乱与沉默");
+            if (ExtraBasicAttackOnTurnEnd) sb.AppendLine("· 每回合结束我方最快单位额外普攻 1 次");
+            if (IceMeltOnFireSkill) sb.AppendLine("· 火属性技能命中融冰（额外 5% 最大生命伤害）");
+            if (InitiativeRatioOverride > 0f) sb.AppendLine("· 先手连击门槛调整");
+
+            if (sb.Length == 0) sb.Append("（无特殊规则，仅常规战斗）");
+            return sb.ToString().TrimEnd('\n', '\r');
+        }
+
+        private static void AppendAtom(System.Text.StringBuilder sb, WeatherEffect e, string timing)
+        {
+            string side = e.Scope == WeatherScope.PlayerSide ? "我方" : e.Scope == WeatherScope.EnemySide ? "敌方" : "全场";
+            var a = e.Atom;
+            string body;
+            switch (a.Kind)
+            {
+                case EffectAtomKind.Heal:
+                    body = side + "回复 " + FmtPct(a.PercentOfMaxHp) + " 最大生命";
+                    break;
+                case EffectAtomKind.Shield:
+                    body = side + "获得 " + FmtPct(a.PercentOfMaxHp) + " 最大生命护盾";
+                    break;
+                case EffectAtomKind.ApplyStatus:
+                {
+                    string nm = StatusCatalog.Get(a.StatusId).Name;
+                    body = side + "获得 " + a.StatusStacks + " 层「" + nm + "」(" + a.StatusTurns + " 回合)";
+                    break;
+                }
+                case EffectAtomKind.Damage:
+                    body = side + "受到 " + FmtPct(a.PercentOfMaxHp) + (a.TrueDamage ? " 最大生命真实伤害" : " 最大生命伤害");
+                    break;
+                case EffectAtomKind.StatModifier:
+                    body = side + a.StatKey + " " + FmtPct(a.StatDelta);
+                    break;
+                default:
+                    body = side + a.Kind.ToString();
+                    break;
+            }
+            sb.Append("· ");
+            if (e.Once) sb.Append("（仅首回合）");
+            sb.Append(timing + "：" + body + "\n");
+        }
+
+        private static string FmtMul(float m)
+        {
+            if (System.Math.Abs(m - 1f) < 0.0001f) return "×1";
+            int pct = (int)(System.Math.Round((m - 1f) * 100f));
+            return pct > 0 ? "×" + m.ToString("F2") + "（+" + pct + "%）" : "×" + m.ToString("F2") + "（" + pct + "%）";
+        }
+
+        private static string FmtPct(float p)
+        {
+            int pct = (int)(System.Math.Round(p * 100f));
+            return pct > 0 ? "+" + pct + "%" : (pct == 0 ? "0%" : pct + "%");
+        }
+
         private static WeatherEffect[] ScaleAtoms(WeatherEffect[] list)
         {
             if (list == null) return null;
