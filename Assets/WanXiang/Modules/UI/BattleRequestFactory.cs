@@ -109,6 +109,16 @@ namespace WanXiang.Modules.UI
                 AiProfile = profile,
             };
 
+            // ★ 真机验证用：本场实际带入战斗的天时。id 由 WeatherComposer.BuildId 拼出，
+            //   含节点天时 id + 各余气 id（xingyi_* = 星移、linger_* = 幕间），
+            //   一眼可辨"这场到底带没带天时、星移/余气有没有真正进战斗"（null = 旧行为）。
+            var liveW = WanXiang.Campaign.LiveWeather.Current;
+            if (liveW != null)
+                UnityEngine.Debug.Log("[Weather] 本场天时注入战斗请求：" + liveW.BuffName +
+                    "（属性 " + liveW.Element + "，id=" + liveW.Id + "）");
+            else
+                UnityEngine.Debug.Log("[Weather] 本场无天时（旧行为）");
+
             // ★ 2026-09-25：局外养成（等级/进化/觉醒技）已全部改为读**本局快照**，
             //   这里只处理"本场挂起修正"（孵穴回复 / 天象异闻）—— 与局外养成无关，
             //   所以**不再需要**去读 MetaStore（原来那处现读是漏进本局的根源之一）。
