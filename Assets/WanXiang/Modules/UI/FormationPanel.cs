@@ -62,6 +62,11 @@ namespace WanXiang.Modules.UI
         private readonly int[] _deployed = new int[9];   // cell → beast index（-1 = 空）
 
         // ---- 拖拽状态 ----
+        // ---- 羁绊 / 中宫 悬浮说明（用户要"给一个说明"：共鸣、五行、中宫）----
+        private RectTransform _bondTipPanel;
+        private CanvasGroup _bondTipGroup;
+        private TMP_Text _bondTipText;
+        private int _bondTipSlot = -1;
         private GameObject _ghost;          // 拖拽幽灵（跟随指针的立绘）
         private int _dragBeast = -1;        // 从卡池拖出来的异兽序号（-1 = 不是）
         private int _dragFromCell = -1;     // 从哪个格子拖出来的（-1 = 不是）
@@ -74,6 +79,9 @@ namespace WanXiang.Modules.UI
             if (_btnDeploy != null) _btnDeploy.onClick.AddListener(OnDeployClicked);
             ClearSlots();
             WireCells();
+            BuildBondTip();      // 羁绊/中宫悬浮说明
+            WireBondTips();
+            WireCenterTip();
         }
 
         protected override UniTask OnOpenAsync(object payload)
@@ -382,6 +390,139 @@ namespace WanXiang.Modules.UI
             int idx = _deployed[cell];
             if (idx < 0 || _all == null || idx >= _all.Length) return false;
             return (int)_all[idx].Element == element;
+        }
+
+        // ================================================================
+        //  羁绊 / 中宫 悬浮说明（自我解释，用户 2026-09-27 要求）
+        // ================================================================
+
+        private void BuildBondTip()
+        {
+            if (_bondTipPanel != null)
+            {
+                _bondTipGroup = _bondTipPanel.GetComponent<CanvasGroup>();
+                if (_bondTipGroup == null) _bondTipGroup = _bondTipPanel.gameObject.AddComponent<CanvasGroup>();
+                _bondTipPanel.gameObject.SetActive(false);
+                return;
+            }
+            var go = new GameObject("Root_BondTip", typeof(RectTransform));
+            _bondTipPanel = (RectTransform)go.transform;
+            _bondTipPanel.SetParent(transform, false);
+            _bondTipPanel.anchorMin = _bondTipPanel.anchorMax = new Vector2(0f, 0.5f);
+            _bondTipPanel.pivot = new Vector2(0f, 0.5f);
+            _bondTipPanel.sizeDelta = new Vector2(430f, 230f);
+            _bondTipPanel.anchoredPosition = new Vector2(30f, 0f);
+
+            var bg = go.AddComponent<Image>();
+            bg.color = new Color(0.11f, 0.09f, 0.07f, 0.95f);
+
+            _bondTipGroup = go.AddComponent<CanvasGroup>();
+            _bondTipGroup.alpha = 0f;
+            _bondTipGroup.blocksRaycasts = false;
+
+            var trt = new GameObject("Tmp_BondTip", typeof(RectTransform)).GetComponent<RectTransform>();
+            trt.SetParent(_bondTipPanel, false);
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = new Vector2(16f, 12f); trt.offsetMax = new Vector2(-16f, -12f);
+            _bondTipText = trt.gameObject.AddComponent<TMP_Text>();
+            _bondTipText.fontSize = 20;
+            _bondTipText.color = new Color(0.97f, 0.94f, 0.88f, 1f);
+            _bondTipText.alignment = TextAlignmentOptions.TopLeft;
+            _bondTipText.raycastTarget = false;
+
+            _bondTipPanel.gameObject.SetActive(false);
+        }
+
+        /// <summary>给 8 个羁绊徽章挂悬浮说明（共鸣 / 五行相生）。</summary>
+        private void WireBondTips()
+        {
+            if (_imgBonds == null) return;
+            for (int i = 0; i < _imgBonds.Length; i++)
+            {
+                var img = _imgBonds[i];
+                if (img == null) continue;
+                img.raycastTarget = true;     // 保证悬浮能命中
+                var trg = img.gameObject.GetComponent<EventTrigger>();
+                if (trg == null) trg = img.gameObject.AddComponent<EventTrigger>();
+                int slot = i;
+                var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+                enter.callback.AddListener(_ => ShowBondTip(slot));
+                trg.triggers.Add(enter);
+                var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+                exit.callback.AddListener(_ => HideBondTip());
+                trg.triggers.Add(exit);
+            }
+        }
+
+        /// <summary>给中宫（中间格，cell 4）挂悬浮说明：中宫土德 / 平息相冲 / 连携须站中宫。</summary>
+        private void WireCenterTip()
+        {
+            if (_cells == null || _cells.Length <= 4 || _cells[4] == null) return;
+            var trg = _cells[4].gameObject.GetComponent<EventTrigger>();
+            if (trg == null) trg = _cells[4].gameObject.AddComponent<EventTrigger>();
+            var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+            enter.callback.AddListener(_ => ShowCenterTip());
+            trg.triggers.Add(enter);
+            var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+            exit.callback.AddListener(_ => HideBondTip());
+            trg.triggers.Add(exit);
+        }
+
+        private void ShowBondTip(int i)
+        {
+            if (_bondTipPanel == null || _bondTipText == null) return;
+            if (_bondTipSlot == i && _bondTipPanel.gameObject.activeSelf) return;
+            _bondTipSlot = i;
+
+            string title, body;
+            if (i >= 0 && i < 5)
+            {
+                var g = WanXiang.Battle.Core.ElementMatrix.GenerateRing;
+                string a = Cn.Of(g[i]), c = Cn.Of(g[(i + 1) % 5]);
+                title = "五行相生 · " + a + "→" + c;
+                body = "五行：木火土金水。相生 = 前者生后者（" + a + "生" + c + "）。\n" +
+                       "这一格亮起 ⇒ 你场上有相邻的「" + a + "属性 + " + c + "属性」一对异兽，触发相生羁绊增益。\n" +
+                       "相生链：木→火→土→金→水→木。";
+            }
+            else
+            {
+                int tier = i - 5;
+                int need = tier == 0 ? 2 : (tier == 1 ? 4 : 5);
+                title = "同属共鸣 · " + need + " 只";
+                body = "上阵同属性异兽达 " + need + " 只 ⇒ 全队攻击提升：\n" +
+                       "2 只 +8%、4 只 +16%（并解锁共鸣技）、5 只 +25%（共鸣技冷却 -2）。\n" +
+                       "每回合开局自动结算，数值实时显示在面板右侧。";
+            }
+            PresentBondTip("<size=24><b>" + title + "</b></size>\n" + body);
+        }
+
+        private void ShowCenterTip()
+        {
+            if (_bondTipPanel == null || _bondTipText == null) return;
+            if (_bondTipSlot == 90 && _bondTipPanel.gameObject.activeSelf) return;
+            _bondTipSlot = 90;
+            const string title = "九宫格中宫（中间格）";
+            const string body = "中宫有特殊效果：\n" +
+                "· 中宫土德：站中间的异兽受到伤害 -8%（全属性减伤）。\n" +
+                "· 平息相冲：若相冲（相克）涉及中宫，该次相冲被化解。\n" +
+                "· 连携技必须由站中宫的主兽发动（句芒/祝融/蓐收）。\n" +
+                "所以把主兽放进中间格收益最大。";
+            PresentBondTip("<size=24><b>" + title + "</b></size>\n" + body);
+        }
+
+        private void PresentBondTip(string text)
+        {
+            _bondTipText.text = text;
+            _bondTipPanel.gameObject.SetActive(true);
+            _bondTipGroup.alpha = 1f;
+        }
+
+        private void HideBondTip()
+        {
+            if (_bondTipPanel == null || !_bondTipPanel.gameObject.activeSelf) return;
+            _bondTipSlot = -1;
+            _bondTipPanel.gameObject.SetActive(false);
+            _bondTipGroup.alpha = 0f;
         }
 
         // ================================================================

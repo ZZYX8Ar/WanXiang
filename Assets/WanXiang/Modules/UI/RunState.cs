@@ -79,6 +79,24 @@ namespace WanXiang.Run
         public List<int> XingyiUsed = new List<int>();
 
         /// <summary>
+        /// 星移注入余气的【持久化镜像】。WeatherDef / LingerEntry 不可 Json 序列化，故存档只存
+        /// 「来源幕 + 节点 offset + 剩余生效节点数 + 来源节气序号」，重进游戏时由 CampaignPanel
+        /// 重新拉取 WeatherCatalog 重建会话级 LiveWeather.Lingers —— 让星移跨存档保留
+        /// （之前只存了 XingyiUsed 标记、天气本身随会话丢失，等于白花灵卵）。
+        /// </summary>
+        public List<XingyiLingerSave> XingyiLingers = new List<XingyiLingerSave>();
+
+        /// <summary>星移余气的单条存档（见 <see cref="XingyiLingers"/>）。</summary>
+        [Serializable]
+        public sealed class XingyiLingerSave
+        {
+            public int Act;          // 来源幕
+            public int Offset;       // 来源节点 offset（act*1000+offset = OwnerKey）
+            public int NodesLeft;    // 剩余生效节点数
+            public int Term;         // 来源节气序号（重取天气用 WeatherCatalog.GetSolarTerm）
+        }
+
+        /// <summary>
         /// 若本局还没拍过快照（或已经换了一局）⇒ 按当前局外存档拍一份；**整局不再更新**。
         /// 以 RunSeed 为界：任何"新一局"都会换 RunSeed，所以不必在每个重开点手动调用。
         /// </summary>

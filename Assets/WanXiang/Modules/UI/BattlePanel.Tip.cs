@@ -95,7 +95,7 @@ namespace WanXiang.Modules.UI
             {
                 var c = combos[0];
                 title = "连携·" + c.Name;
-                body = c.Note + "\n\n消耗：双方各 2 灵力（合计 4）\n限制：每场每种连携限用一次\n条件：主兽在场 + 对应元素伙伴在场\n\n点按钮立即发动";
+                body = c.Note + "\n\n消耗：双方各 2 灵力（合计 4）\n限制：每场每种连携限用一次\n条件：主兽须站【九宫格中宫·中间格】 + 对应元素伙伴在场\n\n点按钮立即发动";
                 // ★ 连携也要九宫格高亮（用户报障：放连携没有高亮提示）。
                 //   目标口径走核心的 PreviewComboTargets（只读、与 ExecuteCombo 同源）。
                 HighlightComboTargets(_play != null ? _play.PendingUnit : null, c);
@@ -107,7 +107,7 @@ namespace WanXiang.Modules.UI
                 var why = pending != null && _play.State != null
                     ? ComboRules.WhyNot(_play.State, pending)
                     : "没有待令单位";
-                body = "两只特定异兽同场时解锁的双人合击（例如：句芒+任何木属性伙伴 ⇒ 青阳共鸣）。\n\n当前："
+                body = "两只特定异兽同场时解锁的双人合击（例如：句芒+任何木属性伙伴 ⇒ 青阳共鸣）。\n主兽【必须站在九宫格中宫（中间格）】才能发动。\n\n当前："
                      + (why ?? "可以发动")
                      + "\n\n发动时机：连携占用主兽本次行动。";
 

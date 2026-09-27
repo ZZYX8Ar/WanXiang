@@ -3,6 +3,7 @@
 //  ---------------------------------------------------------------------------
 //  设计（v2.1 §5 表）：两只特定异兽同时在场上 → 解锁双人合击。
 //  消耗：双方各出 2 点灵力（合计 4，"贵但值"的选项）；每场每条限用一次。
+//  ★ 发动约束（用户 2026-09-27 定案）：连携主兽【必须站在九宫格中宫（中间格）】才能发动。
 //
 //  本轮实现前 3 条（纯伤害/治疗，不需要新机制）：
 //    青阳共鸣  句芒 + 木系   → 全体敌方木伤 + 我方全体回血 15%
@@ -64,7 +65,7 @@ namespace WanXiang.Battle.Core
         }
 
         /// <summary>
-        /// 该单位此刻可以发动的连携（他是主兽 + 场上有对应元素的友方 + 双方灵力够）。
+        /// 该单位此刻可以发动的连携（他是主兽 + 主兽站中宫 + 场上有对应元素的友方 + 双方灵力够）。
         /// </summary>
         public static System.Collections.Generic.List<ComboDef> AvailableFor(BattleState st, BattleUnit actor)
         {
@@ -75,6 +76,7 @@ namespace WanXiang.Battle.Core
             {
                 var c = Table[i];
                 if (actor.Def == null || actor.Def.Id != c.HostId) continue;      // 必须主兽发动
+                if (!actor.Pos.IsCenter) continue;                                // ★ 主兽须站中宫（2026-09-27 定案）
                 if (st.TeamMp < c.MpCost) continue;                               // 自己的灵力要够
 
                 BattleUnit partner = FindPartner(st, actor, c);
@@ -98,6 +100,9 @@ namespace WanXiang.Battle.Core
                 if (actor.Def.Id == Table[i].HostId) { matched = Table[i]; break; }
             if (matched == null)
                 return actor.DisplayName + " 不是任何连携的主兽（连携由句芒/祝融/蓐收发动）";
+
+            if (!actor.Pos.IsCenter)
+                return actor.DisplayName + " 是「" + matched.Name + "」主兽，但须站在九宫格中宫（中间格）才能发动连携";
 
             if (st.UsedCombos.Contains(matched.Id)) return "本场已发动过「" + matched.Name + "」";
             var partner = FindPartner(st, actor, matched);

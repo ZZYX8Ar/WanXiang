@@ -99,6 +99,10 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
+            // ★ 跨存档恢复星移余气：把持久化的 XingyiLingers 重建为会话级 LiveWeather.Lingers，
+            //   保证「用了星移→关游戏→重进」星移天气仍在（之前天气随会话丢失，等于白花灵卵）。
+            RehydrateXingyi();
+
             // ★ 待推进落地：从事件面板（灵市/孵穴/铸魂台/异闻/天象）返回节点图时，
             //   把之前未完成的节点记为通过 —— 玩家没处理完就关游戏的话，_pendingCommit 是内存变量、
             //   不会持久化，节点也不会推进 ⇒ 下次进来还能重做（奖励不丢）。
@@ -112,6 +116,7 @@ namespace WanXiang.Modules.UI
                     //   推迟到此处而非「出征」点击，保证「进编队又返回」不算通过、星移仍可撤销
                     //   （用户实测：出征→编队→返回后星移撤销不了，根因就是出征时就把余气 -1 了）。
                     WanXiang.Campaign.LiveWeather.OnNodeCommitted();
+                    SyncXingyiSaveFromLive();   // ★ 把星移余气剩余节点数同步回存档镜像
                     if (prun.VisitedNodes != null && !prun.VisitedNodes.Contains(PendingCommit))
                         prun.VisitedNodes.Add(PendingCommit);
 
@@ -559,6 +564,8 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             _visited.Clear();
             // ★ 跨局清空星移余气（会话级、非存档），避免上一局的余气污染新局天气
             WanXiang.Campaign.LiveWeather.Reset();
+            var _run = WanXiang.Run.RunSave.Current;
+            if (_run != null && _run.XingyiLingers != null) _run.XingyiLingers.Clear();   // 持久化镜像一并清，防跨局残留
             Debug.Log("[Campaign] 视图状态已重置（_currentOffset=-1, visited 清空）");
         }
 
@@ -756,6 +763,11 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                 for (int i = L.Count - 1; i >= 0; i--)
                     if (L[i].OwnerKey == key) L.RemoveAt(i);
                 run.XingyiUsed.Remove(key);
+                // ★ 同步移除持久化镜像（跨存档也不残留）
+                if (run.XingyiLingers != null)
+                    for (int i = run.XingyiLingers.Count - 1; i >= 0; i--)
+                        if (XingyiKey(run.XingyiLingers[i].Act, run.XingyiLingers[i].Offset) == key)
+                            run.XingyiLingers.RemoveAt(i);
                 run.Eggs += XINGYI_COST;
                 WanXiang.Run.RunSave.SaveCurrent();
                 RefreshEggsLabel();
@@ -780,15 +792,31 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                 return;
             }
 
+            // ★ 星移 = 把「本节点天时」减半带走。用节点本身的节气天气（确定性、可序列化），
+            //   与重进游戏后 RehydrateXingyi 重建的是同一条公式，保证跨存档一致。
+            int term = (_graph != null && _graph.Terms != null && _selected >= 0 && _selected < _graph.Terms.Length)
+                ? _graph.Terms[_selected] : 0;
+            var baseW = WanXiang.Battle.Core.WeatherCatalog.GetSolarTerm(term);
+            if (baseW == null) { Debug.Log("[Campaign] 星移：本节点节气无天气可移。"); return; }
+
             run.Eggs -= XINGYI_COST;
             if (run.XingyiUsed == null) run.XingyiUsed = new System.Collections.Generic.List<int>();
             run.XingyiUsed.Add(key);
             WanXiang.Campaign.LiveWeather.Lingers.Add(new WanXiang.Campaign.RunState.LingerEntry
             {
-                Weather = w.ScaledHalf("xingyi_" + w.Id + "_" + key),
+                Weather = baseW.ScaledHalf("xingyi_" + baseW.Id + "_" + key),
                 NodesLeft = XINGYI_NODES,
-                FromTerm = 0,
+                FromTerm = term,
                 OwnerKey = key,
+            });
+            // ★ 持久化镜像：跨存档恢复用（重进游戏按 term 重建上面的 LingerEntry）
+            if (run.XingyiLingers == null) run.XingyiLingers = new System.Collections.Generic.List<WanXiang.Run.RunState.XingyiLingerSave>();
+            run.XingyiLingers.Add(new WanXiang.Run.RunState.XingyiLingerSave
+            {
+                Act = _graph != null ? _graph.Act : 1,
+                Offset = _selected,
+                NodesLeft = XINGYI_NODES,
+                Term = term,
             });
             WanXiang.Run.RunSave.SaveCurrent();
 
@@ -796,6 +824,49 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             RefreshXingyiUI();
             Debug.Log("[Campaign] 星移已注入：-" + XINGYI_COST + " 灵卵，持续 " + XINGYI_NODES +
                       " 节，星移余气数=" + WanXiang.Campaign.LiveWeather.Lingers.Count);
+        }
+
+        /// <summary>
+        /// 跨存档恢复星移余气：把持久化的 RunState.XingyiLingers 重建为会话级 LiveWeather.Lingers。
+        /// WeatherDef 不可 Json 序列化，故存档只存来源节气 + 剩余节点数；这里重拉天气并减半，
+        /// 与注入时同一公式（baseW.ScaledHalf），保证「关游戏→重进」星移天气仍在、不白花灵卵。
+        /// </summary>
+        private void RehydrateXingyi()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            WanXiang.Campaign.LiveWeather.Lingers.Clear();
+            if (run == null || run.XingyiLingers == null) return;
+            foreach (var s in run.XingyiLingers)
+            {
+                var w = WanXiang.Battle.Core.WeatherCatalog.GetSolarTerm(s.Term);
+                if (w == null) continue;
+                int key = XingyiKey(s.Act, s.Offset);
+                WanXiang.Campaign.LiveWeather.Lingers.Add(new WanXiang.Campaign.RunState.LingerEntry
+                {
+                    Weather = w.ScaledHalf("xingyi_" + w.Id + "_" + key),
+                    NodesLeft = s.NodesLeft,
+                    FromTerm = s.Term,
+                    OwnerKey = key,
+                });
+            }
+        }
+
+        /// <summary>把会话级 LiveWeather.Lingers（含星移余气，已随节点通过 -1）写回存档镜像。</summary>
+        private void SyncXingyiSaveFromLive()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return;
+            if (run.XingyiLingers == null) run.XingyiLingers = new System.Collections.Generic.List<WanXiang.Run.RunState.XingyiLingerSave>();
+            run.XingyiLingers.Clear();
+            foreach (var l in WanXiang.Campaign.LiveWeather.Lingers)
+            {
+                int act = l.OwnerKey / 1000;
+                int off = l.OwnerKey % 1000;
+                run.XingyiLingers.Add(new WanXiang.Run.RunState.XingyiLingerSave
+                {
+                    Act = act, Offset = off, NodesLeft = l.NodesLeft, Term = l.FromTerm,
+                });
+            }
         }
 
         /// <summary>星移节点 key：act*1000+offset（跨幕不撞号）。</summary>

@@ -55,6 +55,7 @@ namespace WanXiang.Battle.Core
         {
             var combo = ComboRules.For(comboId);
             if (combo == null || host == null || !host.IsAlive) return false;
+            if (!host.Pos.IsCenter) return false;                                // ★ 连携须主兽站中宫（2026-09-27 定案）
             if (st.UsedCombos.Contains(comboId)) return false;
             var partner = ComboRules.FindPartner(st, host, combo);
             if (partner == null) return false;

@@ -154,6 +154,7 @@ namespace WanXiang.Modules.UI
             if (run.VisitedNodes != null) run.VisitedNodes.Clear();
             if (run.QuestionRevealed != null) run.QuestionRevealed.Clear();
             if (run.XingyiUsed != null) run.XingyiUsed.Clear();        // 星移次数随重开清零
+            if (run.XingyiLingers != null) run.XingyiLingers.Clear();  // 星移余气持久化镜像随重开清零
             WanXiang.Campaign.LiveWeather.Reset();                     // 会话级星移余气一并清空，防跨局污染
             WanXiang.Run.RunSave.SaveCurrent();
 
