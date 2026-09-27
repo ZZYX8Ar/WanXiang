@@ -315,8 +315,13 @@ namespace WanXiang.Battle.Core
                     break;
                 case EffectAtomKind.ApplyStatus:
                 {
-                    string nm = StatusCatalog.Get(a.StatusId).Name;
+                    // 状态名后带上 StatusCatalog 的一句话说明（用户反馈「生机/谷是啥看不懂」）：
+                    // 例「我方获得 2 层「生机」(2 回合)——每层每回合回复 2% 最大生命」。
+                    // 说明来自 StatusDef.Description（内容数据一处维护）；为空则不加。
+                    var sd = StatusCatalog.Get(a.StatusId);
+                    string nm = sd.Name;
                     body = side + "获得 " + a.StatusStacks + " 层「" + nm + "」(" + a.StatusTurns + " 回合)";
+                    if (!string.IsNullOrEmpty(sd.Description)) body += "——" + sd.Description;
                     break;
                 }
                 case EffectAtomKind.Damage:
