@@ -31,6 +31,7 @@ namespace WanXiang.Campaign
             public WanXiang.Battle.Core.WeatherDef Weather;
             public int NodesLeft;
             public int FromTerm;      // 来源节气序号（记账/展示用）
+            public int OwnerKey;      // 星移来源节点 key（act*1000+offset）；0 = 幕间自然余气（撤销时按它过滤）
         }
 
         private readonly ActGraph[] _acts;

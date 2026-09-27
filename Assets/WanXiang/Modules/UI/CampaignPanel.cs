@@ -75,6 +75,8 @@ namespace WanXiang.Modules.UI
 
         /// <summary>星移余气持续节点数（Batch 3 星移）。每次星移把当前天时减半带入后续 N 节。</summary>
         private const int XINGYI_NODES = 3;
+        /// <summary>星移消耗的灵卵数（2026-09-27 定案：不再免费，防无限制白嫖；一处调参）。</summary>
+        private const int XINGYI_COST = 3;
 
         [Header("数据引用（由生成器自动绑定）")]
         [SerializeField] private ContentCatalogSO _contentCatalog;
@@ -630,27 +632,9 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             // ★ 活链路天气：选节点时算好「节点天时 + 重放 run.Path 还原的余气」合成一份
             //   WeatherDef 存入 LiveWeather.Current，供 BattleRequestFactory / FormationPanel 取用
             //   （取代原来只给占位的 WeatherHint）。可复现性红线：算不出 = null（旧行为逐位一致）。
-            ComposeLiveWeatherFor(offset);
-            var liveW = WanXiang.Campaign.LiveWeather.Current;
-            if (liveW != null)
-            {
-                string wtitle = "天时 " + liveW.BuffName + "（" + ElementCn(liveW.Element) + "）";
-                _current.Weather = wtitle;
-                if (_tmpWeather != null) _tmpWeather.text = wtitle + "\n" + liveW.Describe();
-            }
-            else
-            {
-                _current.Weather = WeatherHint(kind);
-                if (_tmpWeather != null) _tmpWeather.text = WeatherHint(kind);
-            }
-
-            // 星移按钮：仅当本节点确实带天时（否则无物可移）；每次选新节点重置可点一次
-            if (_btnXingyi != null)
-            {
-                bool hasWeather = WanXiang.Campaign.LiveWeather.Current != null;
-                _btnXingyi.gameObject.SetActive(hasWeather);
-                _btnXingyi.interactable = hasWeather;
-            }
+            // ★ 星移区统一刷新：合成天时 → 信息卡（标题 + 去重后的效果行 + 星移摘要）→ 按钮状态。
+            //   每节点限一次（写存档：换节点/进出编队/重启都不重置）；未出发可撤销；灵卵不足置灰。
+            RefreshXingyiUI();
 
             // 选中反馈：节点本身要有变化 —— 只看右侧信息卡不够明显（玩家会以为没点到）
             for (int i = 0; i < _nodeItems.Count; i++)
@@ -750,35 +734,137 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
         /// 星移（Batch 3 玩家注入余气）：把「当前节点天时」减半，作为一条余气注入
         /// <see cref="WanXiang.Campaign.LiveWeather.Lingers"/>，带入后续 <see cref="XINGYI_NODES"/> 节。
         /// 与幕间余气（rs.Lingers）同一套合成口径（WeatherComposer.Compose），叠加生效。
-        /// <para>每次选节点只可星移一次（按钮提交后变灰，选新节点恢复）；无天时节点按钮本身隐藏。</para>
+        /// <para>规则（用户 2026-09-27 定案）：消耗 <see cref="XINGYI_COST"/> 灵卵；**每节点限一次**
+        /// （写存档：换节点/进出编队/重启都不重置）；**未出发前再点一次 = 撤销**（退还灵卵、
+        /// 移除本节点注入的余气；出发扣减 NodesLeft 后锁定不可撤）。</para>
         /// </summary>
         private void OnXingyiClicked()
         {
-            if (_btnXingyi != null) _btnXingyi.interactable = false;   // 防连点：本节点只此一次
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || _selected < 0) return;
+            int key = XingyiKey(_graph != null ? _graph.Act : 1, _selected);
+            bool used = run.XingyiUsed != null && run.XingyiUsed.Contains(key);
 
-            var w = WanXiang.Campaign.LiveWeather.Current;
-            if (w == null)
+            // ---- 撤销：本节点已星移且尚未出发（NodesLeft 未被扣 = 仍 == XINGYI_NODES）----
+            if (used && HasCancellableXingyi(key))
             {
-                Debug.Log("[Campaign] 星移：当前节点无天时可移。");
+                var L = WanXiang.Campaign.LiveWeather.Lingers;
+                for (int i = L.Count - 1; i >= 0; i--)
+                    if (L[i].OwnerKey == key) L.RemoveAt(i);
+                run.XingyiUsed.Remove(key);
+                run.Eggs += XINGYI_COST;
+                WanXiang.Run.RunSave.SaveCurrent();
+                RefreshEggsLabel();
+                RefreshXingyiUI();
+                Debug.Log("[Campaign] 星移已撤销：退还灵卵 " + XINGYI_COST + "，星移余气数=" + L.Count);
                 return;
             }
 
+            // ---- 注入 ----
+            var w = WanXiang.Campaign.LiveWeather.Current;
+            if (w == null) { Debug.Log("[Campaign] 星移：当前节点无天时可移。"); return; }
+            if (used)
+            {
+                Debug.Log("[Campaign] 星移：本节点已用过（每节点限一次，换个节点才能再移）。");
+                UpdateXingyiButton(run, key, true);
+                return;
+            }
+            if (run.Eggs < XINGYI_COST)
+            {
+                Debug.Log("[Campaign] 星移：灵卵不足（需 " + XINGYI_COST + "，现有 " + run.Eggs + "）。");
+                UpdateXingyiButton(run, key, true);
+                return;
+            }
+
+            run.Eggs -= XINGYI_COST;
+            if (run.XingyiUsed == null) run.XingyiUsed = new System.Collections.Generic.List<int>();
+            run.XingyiUsed.Add(key);
             WanXiang.Campaign.LiveWeather.Lingers.Add(new WanXiang.Campaign.RunState.LingerEntry
             {
-                Weather = w.ScaledHalf("xingyi_" + w.Id + "_" + (WanXiang.Campaign.LiveWeather.Lingers.Count + 1)),
+                Weather = w.ScaledHalf("xingyi_" + w.Id + "_" + key),
                 NodesLeft = XINGYI_NODES,
                 FromTerm = 0,
+                OwnerKey = key,
             });
+            WanXiang.Run.RunSave.SaveCurrent();
 
-            // 重算当前节点天时（已含新注入的星移余气）并刷新信息卡
+            RefreshEggsLabel();
+            RefreshXingyiUI();
+            Debug.Log("[Campaign] 星移已注入：-" + XINGYI_COST + " 灵卵，持续 " + XINGYI_NODES +
+                      " 节，星移余气数=" + WanXiang.Campaign.LiveWeather.Lingers.Count);
+        }
+
+        /// <summary>星移节点 key：act*1000+offset（跨幕不撞号）。</summary>
+        private static int XingyiKey(int act, int offset) { return act * 1000 + offset; }
+
+        /// <summary>本节点注入的星移余气还可撤销 = 存在 OwnerKey 匹配且没被出发扣过（NodesLeft 仍 == XINGYI_NODES）。</summary>
+        private static bool HasCancellableXingyi(int key)
+        {
+            foreach (var l in WanXiang.Campaign.LiveWeather.Lingers)
+                if (l.OwnerKey == key && l.NodesLeft == XINGYI_NODES) return true;
+            return false;
+        }
+
+        private void SetXingyiLabel(string text)
+        {
+            var label = _btnXingyi != null ? _btnXingyi.transform.Find("Tmp_Label") : null;
+            var t = label != null ? label.GetComponent<TMP_Text>() : null;
+            if (t != null) t.text = text;
+        }
+
+        /// <summary>星移扣/退灵卵后同步顶栏「灵卵 N 枚」（拼装式与 BuildNodeMap 同口径）。</summary>
+        private void RefreshEggsLabel()
+        {
+            if (_tmpActTitle == null || _graph == null) return;
+            var run = WanXiang.Run.RunSave.Current;
+            _tmpActTitle.text = "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn +
+                                " · 守关 " + _graph.BossName +
+                                "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
+        }
+
+        /// <summary>
+        /// 星移区统一刷新：合成当前天时 → 写信息卡（标题 + 效果行 + 星移摘要）→ 按钮状态。
+        /// 无天时节点回落到节点类型说明（WeatherHint）；按钮只在有天时或可撤销时显示。
+        /// </summary>
+        private void RefreshXingyiUI()
+        {
             ComposeLiveWeatherFor(_selected);
             var wLinger = WanXiang.Campaign.LiveWeather.Current;
-            string label = wLinger != null ? "天时 " + wLinger.BuffName + "（含星移余气）" : "天时（含星移余气）";
-            if (_tmpWeather != null) _tmpWeather.text = wLinger != null ? label + "\n" + wLinger.Describe() : label;
-            if (_current != null) _current.Weather = label;
+            int n = WanXiang.Campaign.LiveWeather.Lingers.Count;
+            var run = WanXiang.Run.RunSave.Current;
+            int key = XingyiKey(_graph != null ? _graph.Act : 1, _selected);
 
-            Debug.Log("[Campaign] 星移已注入：持续 " + XINGYI_NODES + " 节，当前星移余气数=" +
-                      WanXiang.Campaign.LiveWeather.Lingers.Count);
+            if (wLinger != null)
+            {
+                string title = "天时 " + wLinger.BuffName + "（" + ElementCn(wLinger.Element) + "）";
+                if (_current != null) _current.Weather = title;
+                if (_tmpWeather != null)
+                {
+                    string text = title + "\n" + wLinger.Describe();
+                    if (n > 0) text += "\n· 星移余气 " + n + " 条：节点天时减半带入后续 " + XINGYI_NODES +
+                                       " 节（耗 " + XINGYI_COST + " 灵卵，未出发可撤销）";
+                    _tmpWeather.text = text;
+                }
+            }
+            else
+            {
+                var fb = WeatherHint(_graph != null ? _graph.KindOf(_selected) : WanXiang.Campaign.NodeKind.Encounter);
+                if (_current != null) _current.Weather = fb;
+                if (_tmpWeather != null) _tmpWeather.text = fb;
+            }
+
+            UpdateXingyiButton(run, key, wLinger != null);
+        }
+
+        private void UpdateXingyiButton(WanXiang.Run.RunState run, int key, bool hasWeather)
+        {
+            if (_btnXingyi == null) return;
+            bool used = run != null && run.XingyiUsed != null && run.XingyiUsed.Contains(key);
+            bool canCancel = used && HasCancellableXingyi(key);
+            bool afford = run != null && run.Eggs >= XINGYI_COST;
+            _btnXingyi.gameObject.SetActive(hasWeather || canCancel);
+            SetXingyiLabel(canCancel ? "撤销星移" : "星移");
+            _btnXingyi.interactable = canCancel || (hasWeather && !used && afford);
         }
 
         /// <summary>

@@ -73,6 +73,12 @@ namespace WanXiang.Run
         public List<string> SnapAwaken   = new List<string>();   // 已装备的觉醒技 id（"" = 未装备）
 
         /// <summary>
+        /// 已星移的节点 key（act*1000+offset）。**每节点限星移一次，写存档**：
+        /// 换节点 / 进出编队界面 / 重启游戏都不会重置（防反复白嫖）；「重开一局」时清零。
+        /// </summary>
+        public List<int> XingyiUsed = new List<int>();
+
+        /// <summary>
         /// 若本局还没拍过快照（或已经换了一局）⇒ 按当前局外存档拍一份；**整局不再更新**。
         /// 以 RunSeed 为界：任何"新一局"都会换 RunSeed，所以不必在每个重开点手动调用。
         /// </summary>
