@@ -79,9 +79,10 @@ namespace WanXiang.Modules.UI
             if (_btnDeploy != null) _btnDeploy.onClick.AddListener(OnDeployClicked);
             ClearSlots();
             WireCells();
-            BuildBondTip();      // 羁绊/中宫悬浮说明
+            BuildBondTip();      // 羁绊/中宫悬浮说明（prefab Root_BondTip）
             WireBondTips();
             WireCenterTip();
+            WireWeatherTip();    // 右上角天时（含谷/生机等状态）说明
         }
 
         protected override UniTask OnOpenAsync(object payload)
@@ -396,15 +397,30 @@ namespace WanXiang.Modules.UI
         //  羁绊 / 中宫 悬浮说明（自我解释，用户 2026-09-27 要求）
         // ================================================================
 
+        /// <summary>
+        /// 取悬浮说明面板：**优先用 prefab 里的 Root_BondTip**（铁律：UI 必须在 prefab 里看得见改得着），
+        /// 找不到才运行时兜底并打日志提醒补 prefab。
+        /// ⛔ 之前踩坑：运行时创建时用了 `AddComponent<TMP_Text>()` —— TMP_Text 是抽象类，
+        ///   添加必失败返回 null ⇒ 下一行 NRE 打断 OnCreate ⇒ WireBondTips 没跑 ⇒ 悬浮全灭（用户实测）。
+        ///   兜底路径也必须用具体类 TextMeshProUGUI。
+        /// </summary>
         private void BuildBondTip()
         {
-            if (_bondTipPanel != null)
+            var found = transform.Find("Root_BondTip");
+            if (found != null)
             {
-                _bondTipGroup = _bondTipPanel.GetComponent<CanvasGroup>();
-                if (_bondTipGroup == null) _bondTipGroup = _bondTipPanel.gameObject.AddComponent<CanvasGroup>();
-                _bondTipPanel.gameObject.SetActive(false);
+                _bondTipPanel = (RectTransform)found;
+                _bondTipGroup = found.GetComponent<CanvasGroup>();
+                if (_bondTipGroup == null) _bondTipGroup = found.gameObject.AddComponent<CanvasGroup>();
+                _bondTipText = found.GetComponentInChildren<TMP_Text>(true);
+                found.gameObject.SetActive(false);
+                Debug.Log("[Formation] 悬浮说明面板已接入 prefab（Root_BondTip） text=" + (_bondTipText != null) +
+                          " group=" + (_bondTipGroup != null));
                 return;
             }
+
+            // ---- 兜底：prefab 里没有该控件时才运行时建（正常不应走到；打日志提醒补 prefab）----
+            Debug.LogWarning("[Formation] Panel_Formation.prefab 缺 Root_BondTip，运行时兜底创建（请在 prefab 补上）");
             var go = new GameObject("Root_BondTip", typeof(RectTransform));
             _bondTipPanel = (RectTransform)go.transform;
             _bondTipPanel.SetParent(transform, false);
@@ -424,7 +440,7 @@ namespace WanXiang.Modules.UI
             trt.SetParent(_bondTipPanel, false);
             trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
             trt.offsetMin = new Vector2(16f, 12f); trt.offsetMax = new Vector2(-16f, -12f);
-            _bondTipText = trt.gameObject.AddComponent<TMP_Text>();
+            _bondTipText = trt.gameObject.AddComponent<TextMeshProUGUI>();
             _bondTipText.fontSize = 20;
             _bondTipText.color = new Color(0.97f, 0.94f, 0.88f, 1f);
             _bondTipText.alignment = TextAlignmentOptions.TopLeft;
@@ -437,11 +453,15 @@ namespace WanXiang.Modules.UI
         private void WireBondTips()
         {
             if (_imgBonds == null) return;
+            int wired = 0;
             for (int i = 0; i < _imgBonds.Length; i++)
             {
                 var img = _imgBonds[i];
                 if (img == null) continue;
                 img.raycastTarget = true;     // 保证悬浮能命中
+                // ★ 名字文本浮在图标上方、TMP 默认 raycastTarget=true，会抢走射线 ⇒ 图标收不到悬浮
+                if (_tmpBonds != null && i < _tmpBonds.Length && _tmpBonds[i] != null)
+                    _tmpBonds[i].raycastTarget = false;
                 var trg = img.gameObject.GetComponent<EventTrigger>();
                 if (trg == null) trg = img.gameObject.AddComponent<EventTrigger>();
                 int slot = i;
@@ -451,13 +471,17 @@ namespace WanXiang.Modules.UI
                 var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
                 exit.callback.AddListener(_ => HideBondTip());
                 trg.triggers.Add(exit);
+                wired++;
             }
+            Debug.Log("[Formation] 羁绊悬浮已挂接 " + wired + "/" + _imgBonds.Length + " 个徽章");
         }
 
         /// <summary>给中宫（中间格，cell 4）挂悬浮说明：中宫土德 / 平息相冲 / 连携须站中宫。</summary>
         private void WireCenterTip()
         {
             if (_cells == null || _cells.Length <= 4 || _cells[4] == null) return;
+            var cellImg = _cells[4].GetComponent<Image>();
+            if (cellImg != null) cellImg.raycastTarget = true;   // 格子必须有可命中 Graphic 才能收到悬浮
             var trg = _cells[4].gameObject.GetComponent<EventTrigger>();
             if (trg == null) trg = _cells[4].gameObject.AddComponent<EventTrigger>();
             var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
@@ -466,6 +490,46 @@ namespace WanXiang.Modules.UI
             var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
             exit.callback.AddListener(_ => HideBondTip());
             trg.triggers.Add(exit);
+        }
+
+        /// <summary>给右上角天时行（Tmp_WeatherWarn）挂悬浮：本场天时效果 + 状态（谷/生机等）说明。</summary>
+        private void WireWeatherTip()
+        {
+            if (_tmpWeatherWarn == null) return;
+            _tmpWeatherWarn.raycastTarget = true;
+            var trg = _tmpWeatherWarn.gameObject.GetComponent<EventTrigger>();
+            if (trg == null) trg = _tmpWeatherWarn.gameObject.AddComponent<EventTrigger>();
+            var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+            enter.callback.AddListener(_ => ShowWeatherTip());
+            trg.triggers.Add(enter);
+            var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+            exit.callback.AddListener(_ => HideBondTip());
+            trg.triggers.Add(exit);
+        }
+
+        /// <summary>
+        /// 天时说明（含「谷/生机」等状态——状态说明拼在 WeatherDef.Describe 对应行后，56042ff 起）。
+        /// </summary>
+        private void ShowWeatherTip()
+        {
+            if (_bondTipPanel == null || _bondTipText == null) return;
+            if (_bondTipSlot == 91 && _bondTipPanel.gameObject.activeSelf) return;
+            _bondTipSlot = 91;
+            string title, body;
+            var w = WanXiang.Campaign.LiveWeather.Current;
+            if (w != null)
+            {
+                title = "天时 · " + w.BuffName;
+                body = w.Describe();
+                if (string.IsNullOrEmpty(body)) body = "（本条天时没有数值效果）";
+                body += "\n\n行内「——」后面是状态说明（谷=每层+1%全属性、生机=每层回血2%等）。\n星移余气也一并计入本场天时。";
+            }
+            else
+            {
+                title = "天时";
+                body = "本场无天时（节点不在节气上或天气未翻译）。";
+            }
+            PresentBondTip("<size=24><b>" + title + "</b></size>\n" + body);
         }
 
         private void ShowBondTip(int i)
