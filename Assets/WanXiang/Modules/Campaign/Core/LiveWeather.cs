@@ -23,6 +23,29 @@ namespace WanXiang.Campaign
     {
         /// <summary>本场真实天时（WeatherDef）。null = 无天时（旧行为）。</summary>
         public static WeatherDef Current;
+
+        /// <summary>
+        /// 玩家「星移」注入的余气（Batch 3 星移）。会话级、非存档：跨节点选择持续，
+        /// 不写入存档（LingerEntry 含 WeatherDef，不可 Json 序列化）。
+        /// 切档/新局由 <see cref="Reset"/> 清空，避免跨局污染。
+        /// </summary>
+        public static readonly System.Collections.Generic.List<RunState.LingerEntry> Lingers
+            = new System.Collections.Generic.List<RunState.LingerEntry>();
+
+        /// <summary>玩家通过一节节点 ⇒ 所有星移余气 -1，扣到负数移除（与 RunState 余气同口径）。</summary>
+        public static void OnNodeCommitted()
+        {
+            for (int i = Lingers.Count - 1; i >= 0; i--)
+            {
+                var l = Lingers[i];
+                l.NodesLeft--;
+                if (l.NodesLeft < 0) Lingers.RemoveAt(i);
+                else Lingers[i] = l;
+            }
+        }
+
+        /// <summary>新局/切档：清空会话级余气，避免跨局污染。</summary>
+        public static void Reset() => Lingers.Clear();
     }
 
     /// <summary>

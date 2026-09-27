@@ -71,6 +71,10 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Image[] _imgAvatars;          // 队伍预览 5 个头像
         [SerializeField] private Button _btnNext;              // Btn_Next
         [SerializeField] private Button _btnBack;              // Btn_Back
+        [SerializeField] private Button _btnXingyi;            // Btn_Xingyi  星移（注入余气）
+
+        /// <summary>星移余气持续节点数（Batch 3 星移）。每次星移把当前天时减半带入后续 N 节。</summary>
+        private const int XINGYI_NODES = 3;
 
         [Header("数据引用（由生成器自动绑定）")]
         [SerializeField] private ContentCatalogSO _contentCatalog;
@@ -83,6 +87,12 @@ namespace WanXiang.Modules.UI
             if (_rootNodeInfo != null) _rootNodeInfo.SetActive(true);
             if (_btnNext != null) _btnNext.onClick.AddListener(OnNextClicked);
             if (_btnBack != null) _btnBack.onClick.AddListener(OnBackToHome);
+            // 星移：把当前节点天时减半、注入为余气带入后续节点（仅在有时天时可见）
+            if (_btnXingyi != null)
+            {
+                _btnXingyi.onClick.AddListener(OnXingyiClicked);
+                _btnXingyi.gameObject.SetActive(false);   // 默认隐藏，选中有天时的节点才显示
+            }
         }
 
         protected override UniTask OnOpenAsync(object payload)
@@ -541,6 +551,8 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
         {
             _currentOffset = -1;
             _visited.Clear();
+            // ★ 跨局清空星移余气（会话级、非存档），避免上一局的余气污染新局天气
+            WanXiang.Campaign.LiveWeather.Reset();
             Debug.Log("[Campaign] 视图状态已重置（_currentOffset=-1, visited 清空）");
         }
 
@@ -623,6 +635,14 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                 ? "天时 " + WanXiang.Campaign.LiveWeather.Current.BuffName
                 : WeatherHint(kind);
 
+            // 星移按钮：仅当本节点确实带天时（否则无物可移）；每次选新节点重置可点一次
+            if (_btnXingyi != null)
+            {
+                bool hasWeather = WanXiang.Campaign.LiveWeather.Current != null;
+                _btnXingyi.gameObject.SetActive(hasWeather);
+                _btnXingyi.interactable = hasWeather;
+            }
+
             // 选中反馈：节点本身要有变化 —— 只看右侧信息卡不够明显（玩家会以为没点到）
             for (int i = 0; i < _nodeItems.Count; i++)
             {
@@ -691,7 +711,50 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             // 先把可能跨幕的点推进，再进入；仍失败 = 异常（如还没通过的守关后续幕节点）⇒ 落到安全兜底。
             if (!rs.EnterNode(offset) && rs.AtBoss) { rs.DefeatBoss(); rs.EnterNode(offset); }
 
-            WanXiang.Campaign.LiveWeather.Current = rs.CurrentOffset >= 0 ? rs.ComposeCurrentWeather() : null;
+            // ★ 合成「节点天时 + 幕间余气（rs.Lingers）+ 玩家星移余气（LiveWeather.Lingers）」。
+            //   星移余气是会话级、玩家主动注入，与幕间余气叠加（都减半强度、各自计节点）。
+            var nodeW = rs.CurrentOffset >= 0
+                ? WanXiang.Battle.Core.WeatherCatalog.GetSolarTerm(rs.CurrentGraph.Terms[rs.CurrentOffset])
+                : null;
+            var ext = new System.Collections.Generic.List<WanXiang.Battle.Core.WeatherDef>();
+            foreach (var l in rs.Lingers) ext.Add(l.Weather);
+            foreach (var l in WanXiang.Campaign.LiveWeather.Lingers) ext.Add(l.Weather);
+            WanXiang.Campaign.LiveWeather.Current = ext.Count == 0 ? nodeW
+                : WanXiang.Campaign.WeatherComposer.Compose(nodeW, ext);
+        }
+
+        /// <summary>
+        /// 星移（Batch 3 玩家注入余气）：把「当前节点天时」减半，作为一条余气注入
+        /// <see cref="WanXiang.Campaign.LiveWeather.Lingers"/>，带入后续 <see cref="XINGYI_NODES"/> 节。
+        /// 与幕间余气（rs.Lingers）同一套合成口径（WeatherComposer.Compose），叠加生效。
+        /// <para>每次选节点只可星移一次（按钮提交后变灰，选新节点恢复）；无天时节点按钮本身隐藏。</para>
+        /// </summary>
+        private void OnXingyiClicked()
+        {
+            if (_btnXingyi != null) _btnXingyi.interactable = false;   // 防连点：本节点只此一次
+
+            var w = WanXiang.Campaign.LiveWeather.Current;
+            if (w == null)
+            {
+                Debug.Log("[Campaign] 星移：当前节点无天时可移。");
+                return;
+            }
+
+            WanXiang.Campaign.LiveWeather.Lingers.Add(new WanXiang.Campaign.RunState.LingerEntry
+            {
+                Weather = w.ScaledHalf("xingyi_" + w.Id + "_" + (WanXiang.Campaign.LiveWeather.Lingers.Count + 1)),
+                NodesLeft = XINGYI_NODES,
+                FromTerm = 0,
+            });
+
+            // 重算当前节点天时（已含新注入的星移余气）并刷新信息卡
+            ComposeLiveWeatherFor(_selected);
+            string label = "天时 " + WanXiang.Campaign.LiveWeather.Current.BuffName + "（含星移余气）";
+            if (_tmpWeather != null) _tmpWeather.text = label;
+            if (_current != null) _current.Weather = label;
+
+            Debug.Log("[Campaign] 星移已注入：持续 " + XINGYI_NODES + " 节，当前星移余气数=" +
+                      WanXiang.Campaign.LiveWeather.Lingers.Count);
         }
 
         /// <summary>
@@ -820,6 +883,8 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                 if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                     run.VisitedNodes.Add(_selected);
                 if (run.Path != null) run.Path.Add(_selected);
+                // ★ 玩家通过一节节点 ⇒ 所有星移余气 -1（与 RunState 余气同口径；扣到负移除）
+                WanXiang.Campaign.LiveWeather.OnNodeCommitted();
                 WanXiang.Run.RunSave.SaveCurrent();
             }
 
