@@ -31,8 +31,11 @@ namespace WanXiang.Modules.UI
             {
                 Title = string.IsNullOrEmpty(title) ? "遭遇战" : title,
                 WeatherName = weather ?? "",
+                // 非战役战斗：本场无天时（同时清掉可能残留的战役天气，避免串场）。
+                Weather = null,
                 Seed = seed,
             };
+            WanXiang.Campaign.LiveWeather.Current = null;
 
             int half = all.Length / 2;
             for (int i = 0; i < 5 && i < all.Length; i++) req.Player.Add(all[i]);
@@ -99,6 +102,9 @@ namespace WanXiang.Modules.UI
                 Title = "第" + Cn(act) + "幕 · 第 " + (term + 1) + " 节 · " +
                         (elite ? "精英战" : "遭遇战"),
                 WeatherName = weather ?? "",
+                // ★ 真实天时：从活链路容器取（CampaignPanel 选节点时算好的 WeatherDef）。
+                //   为 null = 本场无天时，战斗行为与旧版逐位一致（可复现性红线）。
+                Weather = WanXiang.Campaign.LiveWeather.Current,
                 Seed = seed,
                 AiProfile = profile,
             };

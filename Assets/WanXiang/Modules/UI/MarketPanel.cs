@@ -140,18 +140,25 @@ namespace WanXiang.Modules.UI
 
             _goods.Clear();
             var used = new HashSet<string>();
+            // ★ 商店只卖你"还没有"的异兽：排除已拥有（图鉴/队伍），
+            //   阵亡失去的异兽自然重新出现在货架上，可花钱买回（异兽唯一、可重购）。
+            var owned = new HashSet<string>();
+            if (run.Collection != null) foreach (var id in run.Collection) owned.Add(id);
+            if (run.Team != null) foreach (var id in run.Team) owned.Add(id);
             int guard = 0;
             while (_goods.Count < 4 && guard++ < 40)
             {
                 var b = all[rng.NextInt(0, all.Length)];
-                if (used.Contains(b.Id)) continue;
+                if (used.Contains(b.Id) || owned.Contains(b.Id)) continue;
                 used.Add(b.Id);
                 // 价格随稀有度与幕数上浮（GDD：价格随幕数与劫数上浮）
                 int baseP = b.Rarity == Rarity.Rare ? 8 : (b.Rarity == Rarity.Epic ? 12 : 5);
+                // ★ 天气地图效果层：当前节点天时影响物价（LiveWeather.Current 为 null ⇒ ×1，旧行为）。
+                float priceMul = WanXiang.Campaign.WeatherMapEffects.Current.PriceMul;
                 _goods.Add(new Good
                 {
                     Beast = b,
-                    Price = System.Math.Max(2, (int)(baseP * (1f + (run.Act - 1) * 0.3f))),
+                    Price = System.Math.Max(2, (int)(baseP * (1f + (run.Act - 1) * 0.3f) * priceMul)),
                 });
             }
 
@@ -437,7 +444,8 @@ namespace WanXiang.Modules.UI
             if (run.Collection == null) run.Collection = new System.Collections.Generic.List<string>();
 
             run.Eggs -= g.Price;
-            run.Collection.Add(g.Beast.Id);
+            if (run.Collection == null) run.Collection = new System.Collections.Generic.List<string>();
+            if (!run.Collection.Contains(g.Beast.Id)) run.Collection.Add(g.Beast.Id);  // ★ 异兽唯一，不重复购买
             g.Sold = true;
             WanXiang.Run.RunSave.SaveCurrent();
 

@@ -322,8 +322,43 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>真正交接：场景模式回主城（弹结算），否则就地开结算面板。</summary>
+        /// <summary>
+        /// 阵亡处理：把本场战斗阵亡的我方异兽从「上阵队伍」与「拥有」中直接移除，
+        /// 整局（这一趟旅程）失去该异兽，直到从灵市重新购买。
+        /// 设计：异兽唯一且可重新购买 ⇒ 阵亡=本局失去，编阵界面自然选不到（无需额外禁用名单）。
+        /// 商店只卖你"还没有"的异兽，故阵亡兽会自动重新出现在货架上。
+        /// PvP 是独立玩法、不消耗本局阵容；无战斗状态/无当前旅程时跳过。
+        /// </summary>
+        private void RecordDeaths()
+        {
+            if (SceneFlow.LastWasPvp) return;                 // PvP：不影响本局阵容
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || _play == null || _play.State == null) return;
+
+            if (run.Team == null) run.Team = new System.Collections.Generic.List<string>();
+            if (run.Collection == null) run.Collection = new System.Collections.Generic.List<string>();
+            var deadIds = new System.Collections.Generic.List<string>();
+            foreach (var u in _play.State.UnitsOf(WanXiang.Battle.Core.TeamSide.Player))
+            {
+                if (u == null || u.IsAlive) continue;
+                string id = u.Def != null ? u.Def.Id : null;
+                if (string.IsNullOrEmpty(id)) continue;
+                // ★ 直接从拥有/队伍里移除：阵亡 = 本局失去，编阵自然选不到
+                bool removed = run.Team.Remove(id);
+                removed = run.Collection.Remove(id) || removed;
+                if (removed) deadIds.Add(id);
+            }
+            if (deadIds.Count > 0)
+            {
+                WanXiang.Run.RunSave.SaveCurrent();
+                UnityEngine.Debug.Log("[BattlePanel][阵亡] 本局阵亡 " + deadIds.Count + " 只，已从队伍/拥有移除（灵市可重新购买）：" +
+                    string.Join(",", deadIds));
+            }
+        }
+
         private void HandOff(ResultRequest result)
         {
+            RecordDeaths();   // ★ 结算前先处理阵亡：把死兽从队伍/拥有移除
             if (_sceneMode)
             {
                 // 先关自己再切场景：UI 根节点是 DontDestroyOnLoad 的，

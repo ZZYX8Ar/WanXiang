@@ -615,6 +615,14 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             _current.Offset = offset;
             _current.Kind = kind;
 
+            // ★ 活链路天气：选节点时算好「节点天时 + 重放 run.Path 还原的余气」合成一份
+            //   WeatherDef 存入 LiveWeather.Current，供 BattleRequestFactory / FormationPanel 取用
+            //   （取代原来只给占位的 WeatherHint）。可复现性红线：算不出 = null（旧行为逐位一致）。
+            ComposeLiveWeatherFor(offset);
+            _current.Weather = WanXiang.Campaign.LiveWeather.Current != null
+                ? "天时 " + WanXiang.Campaign.LiveWeather.Current.BuffName
+                : WeatherHint(kind);
+
             // 选中反馈：节点本身要有变化 —— 只看右侧信息卡不够明显（玩家会以为没点到）
             for (int i = 0; i < _nodeItems.Count; i++)
             {
@@ -654,6 +662,39 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
         }
 
         /// <summary>
+        /// 选节点时合成「本场真实天时」：节点天时 + 重放 run.Path 还原的上一幕余气，
+        /// 结果存进 <see cref="WanXiang.Campaign.LiveWeather.Current"/>（非存档容器，工厂读取）。
+        /// 重放用与活链路**完全相同**的 <c>BuildRoute(act, Fnv1a("route:"+RunSeed+":"+act), Layers)</c>，
+        /// 保证天气/余气与玩家实际走过的图逐位一致（可背版、可复盘）。
+        /// <para>可复现性红线：算不出（run 空 / offset 非法）→ 存 null，战斗退回旧行为。</para>
+        /// </summary>
+        private void ComposeLiveWeatherFor(int offset)
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || offset < 0) { WanXiang.Campaign.LiveWeather.Current = null; return; }
+
+            // 五幕图：与 RebuildGraphFor 同一公式重建（act≥5 走 BuildFinale 固定图）。
+            var acts = new WanXiang.Campaign.ActGraph[5];
+            for (int a = 1; a <= 5; a++)
+                acts[a - 1] = WanXiang.Campaign.SolarTermGraph.BuildRoute(
+                    a, CoreMath.Fnv1a("route:" + run.RunSeed + ":" + a), Layers);
+
+            var rs = new WanXiang.Campaign.RunState(acts, WanXiang.Battle.Core.WeatherCatalog.GetSolarTerm);
+
+            // 重放历史走过的节点（run.Path 存的是各幕节点 offset）。
+            // 遇到非法移动（重复/越界）跳过不崩；到达守关点则推进幕再继续重放。
+            if (run.Path != null)
+                foreach (var off in run.Path)
+                    if (!rs.EnterNode(off) && rs.AtBoss) { rs.DefeatBoss(); rs.EnterNode(off); }
+
+            // 预览当前选中的节点（只算天气、不写回 run.Path）：
+            // 先把可能跨幕的点推进，再进入；仍失败 = 异常（如还没通过的守关后续幕节点）⇒ 落到安全兜底。
+            if (!rs.EnterNode(offset) && rs.AtBoss) { rs.DefeatBoss(); rs.EnterNode(offset); }
+
+            WanXiang.Campaign.LiveWeather.Current = rs.CurrentOffset >= 0 ? rs.ComposeCurrentWeather() : null;
+        }
+
+        /// <summary>
         /// 孵穴二选一（GDD §4.3）：回复全队 40% 生命 ／ 取 2 枚灵卵。
         /// 「回复」在每场满血开局的架构下的表现 = 下一场战斗我方全体 ×1.4（用后清零）；
         /// 等 HP 跨场持续化后再改回真·回复。
@@ -661,11 +702,15 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
         private async Cysharp.Threading.Tasks.UniTaskVoid NestChoose(WanXiang.Run.RunState run)
         {
             if (run == null) return;
+            // ★ 天气地图效果层：孵穴受当前节点天时影响（LiveWeather.Current 为 null ⇒ 中性）。
+            var wx = WanXiang.Campaign.WeatherMapEffects.Current;
+            int healPct = System.Math.Max(0, 40 + wx.HealBonusPct);
+            int eggGain = System.Math.Max(0, (int)System.Math.Round(2f * wx.EggRewardMul));
             int pick = await Dialog.Choose("孵穴",
-                "二选一：\nA. 下一场战斗全队状态回复，能力 ×1.4\nB. 取 2 枚灵卵",
-                "状态回复", "取 2 灵卵");
-            if (pick == 0) run.HealPending = 40;
-            else run.Eggs += 2;
+                "二选一（受当前天时影响）：\nA. 下一场战斗全队状态回复，能力 ×1.4（回复 " + healPct + "%）\nB. 取 " + eggGain + " 枚灵卵",
+                "状态回复", "取 " + eggGain + " 灵卵");
+            if (pick == 0) run.HealPending = healPct;
+            else run.Eggs += eggGain;
 
             // 二选一完成 ⇒ 这时才把节点记为通过（未完成前不推进）
             // ★ 同上：孵穴也只记"已处理"，推进交给 OnOpenAsync 的落地（PendingCommit）。
@@ -673,8 +718,8 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                 run.VisitedNodes.Add(_selected);
             WanXiang.Run.RunSave.SaveCurrent();
             await Dialog.Tip("孵穴", pick == 0
-                ? "全队状态回复！下一场战斗能力 ×1.4"
-                : "获得 2 枚灵卵（当前 " + run.Eggs + "）");
+                ? "全队状态回复！下一场战斗能力 ×1.4（回复 " + healPct + "%）"
+                : "获得 " + eggGain + " 枚灵卵（当前 " + run.Eggs + "）");
 
             // ★ 处理完回节点地图继续探索（之前什么都不做 ⇒ 玩家以为被踢回主城界面）
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;

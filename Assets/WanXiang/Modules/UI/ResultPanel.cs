@@ -49,6 +49,7 @@ namespace WanXiang.Modules.UI
 
         private int _selectedDraft = -1;
         private bool _win;      // 本场胜负（结算奖励用）
+        private int _eggGain = 1;   // 胜利灵卵奖励（受当前节点天时影响，默认 +1）
 
         // ★ 掉落展示（用户要求结算面板必须体现"碎片到底掉没掉 + 精魄 + 墨铊"）：
         //   随机掉落必须在**面板打开时**就 roll 一次，否则等确认时面板已经要关了，来不及显示。
@@ -74,6 +75,10 @@ namespace WanXiang.Modules.UI
             bool win = req != null && req.Win;
             _win = win;
             _selectedDraft = -1;
+            // ★ 天气地图效果层：胜利灵卵奖励受当前节点天时影响（LiveWeather.Current 为 null ⇒ ×1 ⇒ +1）。
+            _eggGain = win
+                ? System.Math.Max(0, (int)System.Math.Round(WanXiang.Campaign.WeatherMapEffects.Current.EggRewardMul))
+                : 0;
             // ★★ 这里原本有一行 `_win = false;` —— 它把上面刚算好的胜负又覆盖成"失败"，
             //    导致"明明赢了却判失败/奖励不显示/确认可直接点/回主界面/节点不解锁"五个症状。
             //    已删除，胜负只认 ResultRequest.Win。
@@ -101,7 +106,7 @@ namespace WanXiang.Modules.UI
                 ? "本局进度：第 " + act + " 幕 · 第 " + layer + " 层"
                 : "倒在：第 " + act + " 幕 · 第 " + layer + " 层（本局胜 " + wins + " 场）");
             SetLine(3, win
-                ? "灵卵 +1"
+                ? "灵卵 +" + _eggGain
                 : "本局结束 —— 进度已清空，再次出征将从第一幕重新开始");
 
             // ★ 掉落（剧情碎片 / 精魄 / 墨铊）：胜利时在打开面板这一刻就 roll 定
@@ -304,12 +309,12 @@ namespace WanXiang.Modules.UI
             if (_win)
             {
                 cur.Wins++;
-                // ★ 战斗胜利固定送 1 枚灵卵。
+                // ★ 战斗胜利送灵卵：基础 +1，受当前节点天时影响（_eggGain 已在 OnOpenAsync 算好）。
                 //   原来是 `8 + Jie * 2` —— 那是早期"劫/境"体系的遗留公式，
                 //   会导致打两场就涨到 26+（用户实测"才两场就 27 了"），且与界面文案
-                //   （"灵卵 +1"）完全不符。现已改为与 GDD 一致：胜利固定 +1。
+                //   （"灵卵 +1"）完全不符。现已改为与 GDD 一致：胜利基础 +1。
                 //   Jie/Realm 的递进不再执行（幕推进已由 Act 承担），字段保留以兼容旧存档。
-                cur.Eggs += 1;
+                cur.Eggs += _eggGain;
 
                 // ★ 墨铊改为**每场胜利立即到账（局外）** —— 用户 2026-09-25 定案：
                 //   原来每胜 +1 给的是局内 `RunState.Ink`，而那个字段全项目**无人消费**（死数据），

@@ -25,6 +25,9 @@ namespace WanXiang.Modules.UI
         /// <summary>这队敌人的 AI 打法（v2.1 P4：节点/遭遇决定，精英更凶）。</summary>
         public AiProfile AiProfile = AiProfile.Balanced;
         public string WeatherName = "";
+        /// <summary>真正的天时（WeatherDef）。为 null = 本场无天时，战斗行为与旧版逐位一致（可复现性红线）。
+        /// 由 BattleRequestFactory 从活 RunState.ComposeCurrentWeather() 填入；UI 占位串只进 WeatherName（显示用）。</summary>
+        public WanXiang.Battle.Core.WeatherDef Weather;
         public ulong Seed = 20260914UL;
         public List<BeastDef> Player = new List<BeastDef>();
 
@@ -156,7 +159,7 @@ namespace WanXiang.Modules.UI
                 }
             }
 
-            State = BattleFactory.Create(cfg, req.Seed, p, e);
+            State = BattleFactory.Create(cfg, req.Seed, p, e, req.Weather);
 
             _manualMode = manual;
             State.PlayerControlled = manual;

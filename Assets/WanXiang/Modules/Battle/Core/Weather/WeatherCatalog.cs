@@ -1,5 +1,5 @@
 // ============================================================================
-//  万相 · 天时内容目录（编辑器侧，STEP 3）
+//  万相 · 天时内容目录（运行期 + 编辑器共用，STEP 3）
 //  ---------------------------------------------------------------------------
 //  把 GDD 3.3 的 fieldBuff 自然语言逐条翻译成 WeatherDef。**24 条节气 + 4 条
 //  天气技已全部落地**，最后 8 条"事件钩子型"（复活卵/附烧/追击/溢出盾/凝神/
@@ -30,7 +30,7 @@
 using System.Collections.Generic;
 using WanXiang.Battle.Core;
 
-namespace WanXiang.Editor.WeatherTool
+namespace WanXiang.Battle.Core
 {
     public static class WeatherCatalog
     {
