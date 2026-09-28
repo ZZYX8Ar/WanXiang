@@ -307,6 +307,8 @@ namespace WanXiang.Modules.UI
             var result = new ResultRequest
             {
                 Win = _play.PlayerWin,
+                // ★ 平局标记（打满 MaxTurns 上限）—— ResultPanel 按撤退处理，不再当"战斗失败"清整局
+                Draw = _play.State != null && _play.State.Outcome == BattleOutcome.Draw,
                 Turns = _play.State.Turn,
                 Fingerprint = _play.State.Log.Fingerprint,
                 Summary = _play.Summary(),

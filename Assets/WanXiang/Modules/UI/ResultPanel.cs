@@ -18,6 +18,8 @@ namespace WanXiang.Modules.UI
     {
         public bool Win;
         public bool Retreated;
+        /// <summary>★ 平局（打到回合上限 MaxTurns 仍未分胜负）。按撤退处理：不清进度、不计败。</summary>
+        public bool Draw;
         public int Turns;
         public uint Fingerprint;
         public string Summary = "";
@@ -49,6 +51,7 @@ namespace WanXiang.Modules.UI
 
         private int _selectedDraft = -1;
         private bool _win;      // 本场胜负（结算奖励用）
+        private bool _isDraw;   // ★ 平局（回合上限打满）—— 按"撤退"处理：本局继续、节点不推进
         private int _eggGain = 1;   // 胜利灵卵奖励（受当前节点天时影响，默认 +1）
 
         // ★ 掉落展示（用户要求结算面板必须体现"碎片到底掉没掉 + 精魄 + 墨铊"）：
@@ -74,6 +77,7 @@ namespace WanXiang.Modules.UI
             var req = payload as ResultRequest;
             bool win = req != null && req.Win;
             _win = win;
+            _isDraw = req != null && req.Draw;   // ★ 平局（回合上限打满）
             _selectedDraft = -1;
             // ★ 天气地图效果层：胜利灵卵奖励受当前节点天时影响（LiveWeather.Current 为 null ⇒ ×1 ⇒ +1）。
             _eggGain = win
@@ -92,7 +96,10 @@ namespace WanXiang.Modules.UI
             }
 
             // 明细行：回合 / 事件指纹 / 结果
-            SetLine(0, win ? "战斗胜利" : (req != null && req.Retreated ? "撤退" : "战斗失败"));
+            // ★ 平局单独文案（用户 2026-09-28：打到 30 回合上限"没人死却失败"看不懂）
+            SetLine(0, win ? "战斗胜利"
+                : (_isDraw ? "平局 —— " + (req != null ? req.Turns : 0) + " 回合未分胜负"
+                : (req != null && req.Retreated ? "撤退" : "战斗失败")));
             SetLine(1, "回合数：" + (req != null ? req.Turns : 0));
 
             // ★ 结算信息改为"本局探索回顾"（用户要求）：过程指纹对玩家无意义，去掉；
@@ -104,10 +111,13 @@ namespace WanXiang.Modules.UI
             int losses = look != null ? look.Losses : 0;
             SetLine(2, win
                 ? "本局进度：第 " + act + " 幕 · 第 " + layer + " 层"
-                : "倒在：第 " + act + " 幕 · 第 " + layer + " 层（本局胜 " + wins + " 场）");
+                : (_isDraw ? "战至：第 " + act + " 幕 · 第 " + layer + " 层（本局胜 " + wins + " 场）"
+                           : "倒在：第 " + act + " 幕 · 第 " + layer + " 层（本局胜 " + wins + " 场）"));
             SetLine(3, win
                 ? "灵卵 +" + _eggGain
-                : "本局结束 —— 进度已清空，再次出征将从第一幕重新开始");
+                : (_isDraw
+                    ? "按撤退处理：节点不推进，本局继续（战斗有 " + (req != null ? req.Turns : 0) + " 回合上限，可在战斗界面看到进度）"
+                    : "本局结束 —— 进度已清空，再次出征将从第一幕重新开始"));
 
             // ★ 掉落（剧情碎片 / 精魄 / 墨铊）：胜利时在打开面板这一刻就 roll 定
             if (win && !_dropsRolled)
@@ -306,6 +316,17 @@ namespace WanXiang.Modules.UI
                 return;
             }
 
+            // ★ 平局 = 打满回合上限（BattleConfig.MaxTurns=30）仍无人阵亡（用户 2026-09-28）。
+            //   按**撤退**处理：不清进度、不计败场、节点不推进、本局继续。
+            //   旧实现落进"失败"分支 ⇒ 整局被清空，玩家"没人死却全没了"一头雾水。
+            if (_isDraw)
+            {
+                CampaignPanel.PendingCommit = -1;      // 节点不通过（与撤退同口径，星移余气也不消耗）
+                Debug.Log("[ResultPanel] 平局（回合上限）⇒ 按撤退处理：本局继续，节点不推进");
+                WanXiang.Run.RunSave.Save(cur);
+                return;
+            }
+
             if (_win)
             {
                 cur.Wins++;
@@ -397,10 +418,10 @@ namespace WanXiang.Modules.UI
         {
             CloseSelf();
             // ★ 按结果分流（用户规则）：
-            //   胜利 → 回节点地图继续探索
+            //   胜利 / 平局 → 回节点地图继续探索（平局=按撤退处理，本局继续）
             //   失败 → 本局已结束，回**主界面**（让玩家在主界面决定"继续/新局"），
             //          以前无条件回节点图，看起来像"进度被清还留在游戏里"（用户实测）。
-            if (_win)
+            if (_win || _isDraw)
             {
                 // ★★ 终局战胜利 = 通关 ⇒ 回【主界面】，不能回节点图：
                 //    通关后 Act=5（天阙），那张图没有可走的节点 ⇒ 回节点图会是一片空白
