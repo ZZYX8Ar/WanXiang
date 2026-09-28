@@ -91,26 +91,36 @@ namespace WanXiang.Modules.UI
             _tipShowingSlot = 90;          // 连携（不复用战记槽位）
             var combos = _play != null ? _play.AvailableCombos : null;
             string title, body;
+            var pendingUnit = _play != null ? _play.PendingUnit : null;
             if (combos != null && combos.Count > 0)
             {
                 var c = combos[0];
                 title = "连携·" + c.Name;
-                body = c.Note + "\n\n消耗：双方各 2 灵力（合计 4）\n限制：每场每种连携限用一次\n条件：主兽须站【九宫格中宫·中间格】 + 对应元素伙伴在场\n\n点按钮立即发动";
+                body = c.Note;
+                // ★ 伤害实算（用户 2026-09-28：可发动时"没看见描述伤害"）：连携是**固定系数、无随机**，
+                //   与 ExecuteCombo 完全同公式 RoundDamage(攻击 × Power) ⇒ 面板数字 = 实战数字。
+                if (pendingUnit != null)
+                    body += "\n伤害实算：每个目标 " + WanXiang.Battle.Core.CoreMath.RoundDamage(pendingUnit.Attack * c.Power)
+                          + " 点（主兽攻击 " + (int)pendingUnit.Attack + " × " + (c.Power * 100f).ToString("0") + "%）";
+                body += "\n\n消耗：双方各 2 灵力（合计 4）\n限制：每场每种连携限用一次\n条件：主兽站【九宫格中宫·中间格】 + 对应元素伙伴在场\n\n点按钮立即发动";
                 // ★ 连携也要九宫格高亮（用户报障：放连携没有高亮提示）。
                 //   目标口径走核心的 PreviewComboTargets（只读、与 ExecuteCombo 同源）。
-                HighlightComboTargets(_play != null ? _play.PendingUnit : null, c);
+                HighlightComboTargets(pendingUnit, c);
             }
             else
             {
                 title = "连携技";
-                var pending = _play != null ? _play.PendingUnit : null;
-                var why = pending != null && _play.State != null
-                    ? ComboRules.WhyNot(_play.State, pending)
+                var why = pendingUnit != null && _play.State != null
+                    ? ComboRules.WhyNot(_play.State, pendingUnit)
                     : "没有待令单位";
                 body = "两只特定异兽同场时解锁的双人合击（例如：句芒+任何木属性伙伴 ⇒ 青阳共鸣）。\n主兽【必须站在九宫格中宫（中间格）】才能发动。\n\n当前："
                      + (why ?? "可以发动")
                      + "\n\n发动时机：连携占用主兽本次行动。";
+            }
 
+            // ★ 修复（用户 2026-09-28 报障："连携可以释放时悬浮提示就没了"）：
+            //   原来填字+显示+淡入这段被缩进了 else 分支 ⇒ 可发动分支只赋值 title/body 就结束，
+            //   面板根本没显示。两个分支都必须走到这里。
             _tipText.text = "<size=26><b>" + title + "</b></size>\n" + body;
 
             _tipPanel.gameObject.SetActive(true);
@@ -120,7 +130,6 @@ namespace WanXiang.Modules.UI
             _tipTween = DOTween.Sequence()
                 .Join(_tipPanel.DOAnchorPos(new Vector2(52f, 40f), 0.18f).SetEase(Ease.OutQuad))
                 .Join(_tipGroup.DOFade(1f, 0.18f));
-            }
         }
 
         /// <summary>

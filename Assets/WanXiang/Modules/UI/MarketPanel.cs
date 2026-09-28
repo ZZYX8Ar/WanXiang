@@ -60,6 +60,10 @@ namespace WanXiang.Modules.UI
             public BeastDef Beast;
             public int Price;
             public bool Sold;
+            /// <summary>★ 魂商品（用户 2026-09-28：买魂别单独按钮+弹窗，要像异兽一样摆货架）。</summary>
+            public bool IsSoul;
+            /// <summary>魄名稳定序号（= 来源异兽在内容表中的下标），同一只魂每次导出同一个魄名。</summary>
+            public int SoulOrdinal;
         }
 
         private readonly List<Good> _goods = new List<Good>();
@@ -69,9 +73,10 @@ namespace WanXiang.Modules.UI
         protected override void OnCreate()
         {
             if (_btnRefresh != null) _btnRefresh.onClick.AddListener(OnRefreshClicked);
-            // 详情卡与买魂按钮现在来自 Panel_Market.prefab（见 Editor/UITool/UIBuildMarketPatch.cs）
-            // ——代码只负责绑事件与填数据，不再运行时建 UI。
-            if (_btnBuySoul != null) _btnBuySoul.onClick.AddListener(ShowSoulPicker);
+            // ★ 魂改走货架（用户 2026-09-28：单独「买魂」按钮+选单太奇怪）——
+            //   旧入口隐藏、不再接事件；prefab 控件保留，想回退删掉这两行即可。
+            if (_btnBuySoul != null) _btnBuySoul.gameObject.SetActive(false);
+            if (_soulPickerRoot != null) _soulPickerRoot.gameObject.SetActive(false);
             if (_soulPickerClose != null) _soulPickerClose.onClick.AddListener(HideSoulPicker);
             if (_soulPickerRoot != null) _soulPickerRoot.gameObject.SetActive(false);
             if (_soulRowBtns != null)
@@ -162,6 +167,25 @@ namespace WanXiang.Modules.UI
                 });
             }
 
+            // ★ 魂上架（用户 2026-09-28）：货架共 6 格、异兽占 4，剩余格摆魂。
+            //   与异兽同一套 货架→详情卡→购买→售罄印 流程；同一次摇货不重复同一来源。
+            float soulMul = WanXiang.Campaign.WeatherMapEffects.Current.PriceMul;
+            int soulGuard = 0;
+            var soulUsed = new HashSet<string>();
+            while (_goods.Count < _goodsBtns.Length && soulGuard++ < 40)
+            {
+                var b = all[rng.NextInt(0, all.Length)];
+                if (soulUsed.Contains(b.Id)) continue;
+                soulUsed.Add(b.Id);
+                _goods.Add(new Good
+                {
+                    Beast = b,
+                    Price = System.Math.Max(2, (int)(SoulPrice * (1f + (run.Act - 1) * 0.3f) * soulMul)),
+                    IsSoul = true,
+                    SoulOrdinal = System.Array.IndexOf(all, b),
+                });
+            }
+
             if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
             if (_tmpRefreshCost != null) _tmpRefreshCost.text = "刷新（1 灵卵）";
             Paint();
@@ -183,10 +207,15 @@ namespace WanXiang.Modules.UI
                 if (_imgGoodsHead != null && i < _imgGoodsHead.Length && _imgGoodsHead[i] != null && _sprites != null)
                 {
                     var head = _sprites.GetHead(g.Beast.Id);
-                    if (head != null) { _imgGoodsHead[i].sprite = head; _imgGoodsHead[i].color = Color.white; }
+                    if (head != null)
+                    {
+                        _imgGoodsHead[i].sprite = head;
+                        // 魂用淡青色调与异兽区分（同一个头像底图）
+                        _imgGoodsHead[i].color = g.IsSoul ? new Color(0.78f, 0.9f, 1f, 1f) : Color.white;
+                    }
                 }
                 if (_tmpGoodsPrice != null && i < _tmpGoodsPrice.Length && _tmpGoodsPrice[i] != null)
-                    _tmpGoodsPrice[i].text = g.Sold ? "已售出" : g.Price + " 灵卵";
+                    _tmpGoodsPrice[i].text = g.Sold ? "已售出" : (g.IsSoul ? "魂 " : "") + g.Price + " 灵卵";
                 if (_imgGoodsSold != null && i < _imgGoodsSold.Length && _imgGoodsSold[i] != null)
                     _imgGoodsSold[i].gameObject.SetActive(g.Sold);
             }
@@ -197,7 +226,7 @@ namespace WanXiang.Modules.UI
                 _tmpHint.text = (run != null && run.Team != null && run.Team.Count >= 5)
                     ? "当前拥有 " + (run.Collection != null ? run.Collection.Count : 0) +
                       " 只（不设上限）｜出战时最多上阵 5 只 —— 在编阵界面调整阵容"
-                    : "点商品用灵卵购买，买到的异兽直接加入队伍";
+                    : "点商品购买：异兽直接入队 · 魂进背包（铸魂台融合用）";
         }
 
         // ================================================================
@@ -348,6 +377,7 @@ namespace WanXiang.Modules.UI
         {
             var g = _goods[index];
             _detailIndex = index;
+            if (g.IsSoul) { ShowSoulDetail(g); return; }
 
             if (_detailBig != null)
             {
@@ -372,6 +402,48 @@ namespace WanXiang.Modules.UI
                 if (g.Beast.Ultimate != null) b.Append("　").Append(g.Beast.Ultimate.Name).Append("（奥义）");
                 if (!string.IsNullOrEmpty(g.Beast.Trait.Name))
                     b.Append("\n特性：").Append(g.Beast.Trait.Name);
+                _detailSource.text = b.ToString();
+            }
+            if (_detailPrice != null) _detailPrice.text = "价格：" + g.Price + " 灵卵";
+            if (_detailBuy != null)
+            {
+                var run = WanXiang.Run.RunSave.Current;
+                bool afford = run != null && run.Eggs >= g.Price;
+                _detailBuy.interactable = afford;
+                var l = _detailBuy.GetComponentInChildren<TMP_Text>();
+                if (l != null) l.text = afford ? "购买" : "灵卵不足";
+            }
+            if (_detailRoot != null)
+            {
+                _detailRoot.gameObject.SetActive(true);
+                _detailRoot.SetAsLastSibling();
+            }
+        }
+
+        /// <summary>魂商品的详情卡：与异兽共用同一张卡（用户 2026-09-28：别单独弹窗）。</summary>
+        private void ShowSoulDetail(Good g)
+        {
+            var soul = WanXiang.Fusion.SoulForge.Derive(g.Beast, g.SoulOrdinal);
+            if (_detailBig != null)
+            {
+                _detailBig.sprite = _sprites != null ? _sprites.Get(g.Beast.Id) : null;
+                _detailBig.color = _detailBig.sprite != null
+                    ? new Color(0.78f, 0.9f, 1f, 1f)          // 与货架一致：魂=淡青色调
+                    : new Color(0.86f, 0.82f, 0.74f, 1f);
+            }
+            if (_detailName != null)
+                _detailName.text = soul.DisplayName + " ·「" + soul.Epithet + "」";
+            if (_detailInfo != null)
+                _detailInfo.text = "魂 · " + Cn.Of(g.Beast.Element) + " · " + RarityCn(g.Beast.Rarity) + " · 融合材料";
+            if (_detailSource != null)
+            {
+                var b = new System.Text.StringBuilder();
+                b.Append("来源：").Append(g.Beast.DisplayName).Append("之魂（铸魂台融合用）");
+                b.Append("\n融合时改写宿主外观与特性");
+                // ⚠ TraitDef 是 struct（同 StatusDef 的坑）：不能 != null，直接取字段
+                if (!string.IsNullOrEmpty(soul.TraitInjection.Name))
+                    b.Append("\n注入特性：").Append(soul.TraitInjection.Name)
+                     .Append("（").Append(soul.TraitInjection.Description).Append("）");
                 _detailSource.text = b.ToString();
             }
             if (_detailPrice != null) _detailPrice.text = "价格：" + g.Price + " 灵卵";
@@ -438,6 +510,24 @@ namespace WanXiang.Modules.UI
             if (run.Eggs < g.Price)
             {
                 if (_tmpHint != null) _tmpHint.text = "灵卵不够（需要 " + g.Price + "）";
+                return;
+            }
+
+            // ★ 魂购买（用户 2026-09-28）：与异兽同一入口，买成功盖「已售出」印 + 底部提示。
+            if (g.IsSoul)
+            {
+                run.Eggs -= g.Price;
+                if (run.Souls == null) run.Souls = new System.Collections.Generic.List<string>();
+                run.Souls.Add(g.Beast.Id);
+                g.Sold = true;
+                WanXiang.Run.RunSave.SaveCurrent();
+                if (_tmpHint != null)
+                    _tmpHint.text = "已购入 " + g.Beast.DisplayName + " 之魂（现有 " + run.Souls.Count +
+                                    " 个）—— 铸魂台可用";
+                if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
+                HideDetail();
+                Paint();
+                UnityEngine.Debug.Log("[Market] 货架买魂 " + g.Beast.Id + "（现有 " + run.Souls.Count + "）");
                 return;
             }
 
