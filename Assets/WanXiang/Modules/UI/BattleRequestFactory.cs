@@ -274,6 +274,27 @@ namespace WanXiang.Modules.UI
                 else if (mods.ReviveForbidden) req.PlayerReviveOn = false;
                 req.PlayerStartMana += mods.StartMana;
 
+                // ⑤ 机制类遗物（v1.2）：改技能 / 授予劫象 / 改规则 —— 改的是**克隆兽**，不污染内容表
+                if (req.PlayerTrait == null) req.PlayerTrait = new System.Collections.Generic.List<string>();
+                req.PlayerTrait.Clear();
+                int mechCount = 0;
+                for (int i = 0; i < req.Player.Count; i++)
+                {
+                    var b = req.Player[i];
+                    string traitId = b != null
+                        ? WanXiang.Campaign.RelicCatalog.ApplyBeastMechanics(b, run.Relics) : null;
+                    if (!string.IsNullOrEmpty(traitId)) mechCount++;
+                    req.PlayerTrait.Add(traitId ?? "");
+                }
+                int turnsDelta = WanXiang.Campaign.RelicCatalog.RuleTurnsDelta(run.Relics);
+                req.MaxTurnsDelta += turnsDelta;
+                if (WanXiang.Campaign.RelicCatalog.HasMechanic(run.Relics, WanXiang.Campaign.RelicMechanic.UltimateNoRage))
+                    req.UltimateNoRage = true;
+                if (WanXiang.Campaign.RelicCatalog.HasMechanic(run.Relics, WanXiang.Campaign.RelicMechanic.NoHitChance))
+                    req.NoHitChance = true;
+                if (WanXiang.Campaign.RelicCatalog.HasMechanic(run.Relics, WanXiang.Campaign.RelicMechanic.EnemyCautious))
+                    req.AiProfile = AiProfile.Cautious;
+
                 UnityEngine.Debug.Log("[BattleRequestFactory] 遗物生效：" + run.Relics.Count +
                     " 件（全队x" + mods.PlayerMul.ToString("0.000") + " 敌x" + mods.EnemyMul.ToString("0.000") +
                     " 复活" + req.PlayerReviveOn + " 灵力+" + mods.StartMana +

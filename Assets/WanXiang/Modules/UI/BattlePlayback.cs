@@ -53,6 +53,22 @@ namespace WanXiang.Modules.UI
         /// </summary>
         public List<float> PlayerMulPer = new List<float>();
 
+        /// <summary>
+        /// 与 <see cref="Player"/> 一一对应的**每只异兽**的劫象 id（遗物「授予劫象」用）。
+        /// 空串 / 列表比 Player 短 ⇒ 该单位不额外挂劫象（仍可能吃 PlayerReviveOn 的「复苏」）。
+        /// ⚠ DeployEntry 只有一个劫象槽 ⇒ 被授予劫象的单位**不再**挂「复苏」（打算给玩家的取舍）。
+        /// </summary>
+        public List<string> PlayerTrait = new List<string>();
+
+        /// <summary>遗物对「本场回合上限」的修正（正=更从容，负=更紧张）。BattlePlayback 用 cfg.MaxTurns + 本值。</summary>
+        public int MaxTurnsDelta = 0;
+
+        /// <summary>遗物「无相」：奥义不再需要元气。</summary>
+        public bool UltimateNoRage = false;
+
+        /// <summary>遗物「澄明」：本场关闭命中率判定（全队必中）。</summary>
+        public bool NoHitChance = false;
+
         public List<BeastDef> Enemy = new List<BeastDef>();
 
         /// <summary>
@@ -137,7 +153,10 @@ namespace WanXiang.Modules.UI
             // 回合制 v2.1 P3：**手动模式下 AI 不抢放终结技**，把它留给玩家决定时机；
             // 自动模式（manual=false）保持自动放 —— 两种模式的差别只在"谁来做决定"。
             cfg.AutoCastUltimate = !manual;
-            cfg.MaxTurns = 48;     // ★ 单场回合上限（用户 2026-09-29 要求 48；原 24）
+            cfg.MaxTurns = 48 + req.MaxTurnsDelta;   // ★ 单场回合上限（用户要求 48；遗物「延时/速决符」可修正）
+            // ★ 遗物机制（v1.2）：改规则而不改数值
+            cfg.UltimateNeedsRage = !req.UltimateNoRage;   // 「无相」：奥义免元气
+            cfg.EnableHitChance = !req.NoHitChance;        // 「澄明」：关闭命中率（必中）
 
             var p = new DeployEntry[req.Player.Count];
             for (int i = 0; i < p.Length; i++)
@@ -150,8 +169,11 @@ namespace WanXiang.Modules.UI
                 float perMul = (req.PlayerMulPer != null && i < req.PlayerMulPer.Count)
                     ? req.PlayerMulPer[i] : 1f;
                 var pe = DeployEntry.Player(req.Player[i], cell).WithMul(req.PlayerMul * perMul);
-                // ★ 遗物「复活 1 次」：挂「复苏」劫象（BattleFactory.Deploy 会据此设虫卵复活）。
-                if (req.PlayerReviveOn) pe = pe.WithTrait(WanXiang.Battle.Core.BattleTraits.Revive);
+                // ★ 遗物劫象：该单位被授予的劫象优先（只有一个槽 ⇒ 就不再挂「复苏」）；
+                //   否则吃全局的「复活 1 次」（BattleFactory.Deploy 会据此设虫卵复活）。
+                string granted = (req.PlayerTrait != null && i < req.PlayerTrait.Count) ? req.PlayerTrait[i] : null;
+                if (!string.IsNullOrEmpty(granted)) pe = pe.WithTrait(granted);
+                else if (req.PlayerReviveOn) pe = pe.WithTrait(WanXiang.Battle.Core.BattleTraits.Revive);
                 p[i] = pe;
             }
 

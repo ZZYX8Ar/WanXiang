@@ -37,6 +37,8 @@ namespace WanXiang.Campaign
     /// <summary>遗物效果类型（决定挂到战斗管线的哪一处）。</summary>
     public enum RelicEffect
     {
+        None = 0,               // 无数值效果（纯机制遗物，只靠 Mechanic 生效）
+
         // ---- 全局 ----
         PlayerStatPct,          // 全队 生命/攻击/防御 +Value%
         EnemyWeakPct,           // 敌方全属性 -Value%
@@ -57,6 +59,39 @@ namespace WanXiang.Campaign
         EarlyWinStatPct,        // 限时：本局前 Value2 场战斗内 +Value%（之后失效）
     }
 
+    /// <summary>
+    /// 遗物机制（v1.2）：**改变行为**而不是加数值。
+    /// 作用于 ScopeId 指定的异兽（ScopeId 为空 = 全队所有兽）。
+    /// 技能改写靠「克隆兽」—— req.Player 里的 BeastDef 是深拷贝，改它不会污染内容表（已实测）。
+    /// </summary>
+    public enum RelicMechanic
+    {
+        None = 0,
+
+        // ---- 技能改写 ----
+        BasicHitsAll,      // 普攻改为攻击【全体敌人】
+        BasicExtraHit,     // 普攻段数 +1（Hits 2）
+        BasicBurn,         // 普攻额外附带【灼烧】
+        BasicPierce,       // 普攻无视护盾
+        BasicTrue,         // 普攻改为【真实伤害】（无视护盾与减伤）
+        ActiveHealAll,     // 战记改为【治疗全体我方】
+        UltimatePierce,    // 奥义无视护盾
+
+        // ---- 授予劫象（BattleTraits）----
+        GrantTenacity,
+        GrantSharpedge,
+        GrantSwiftshadow,
+        GrantThickwall,
+        GrantDevour,
+
+        // ---- 规则改写（全场）----
+        TurnsPlus,         // 回合上限 +Value
+        TurnsMinus,        // 回合上限 -Value（高风险高回报）
+        UltimateNoRage,    // 奥义不需要元气
+        NoHitChance,       // 关闭命中率（全队必中）
+        EnemyCautious,     // 敌方 AI 变保守
+    }
+
     /// <summary>单条遗物定义（纯数据）。</summary>
     public sealed class RelicDef
     {
@@ -68,12 +103,14 @@ namespace WanXiang.Campaign
         public float Value;        // 主数值（百分数或点数）
         public float Value2;       // 副数值：代价点数 / 条件阈值 / 封顶值
         public string ScopeId;     // 作用域：五行名 / 定位名 / 异兽 id
+        public RelicMechanic Mechanic;   // 行为改变（None = 纯数值遗物）
 
         public RelicDef(string id, string name, string desc, RelicRarity r, RelicEffect e,
-                        float v, float v2 = 0f, string scope = null)
+                        float v, float v2 = 0f, string scope = null,
+                        RelicMechanic mech = RelicMechanic.None)
         {
             Id = id; Name = name; Desc = desc; Rarity = r; Effect = e;
-            Value = v; Value2 = v2; ScopeId = scope;
+            Value = v; Value2 = v2; ScopeId = scope; Mechanic = mech;
         }
     }
 
@@ -140,11 +177,230 @@ namespace WanXiang.Campaign
         private static readonly string[] ElemGlyph = { "青木", "赤焰", "厚土", "素金", "玄水" };
         private static readonly RoleType[] Roles = { RoleType.Guard, RoleType.Striker, RoleType.Swift, RoleType.Caster, RoleType.Support };
         private static readonly string[] RoleCn = { "御", "攻", "疾", "术", "辅" };
-        // 五个守关异兽（专属契印用真 id）
-        private static readonly string[][] GuardBeasts = {
-            new[]{ "jumang", "句芒" }, new[]{ "zhurong", "祝融" }, new[]{ "rushou", "蓐收" },
-            new[]{ "yuqiang", "禺强" }, new[]{ "houtu", "后土" },
+        // 全部 30 只异兽（每只都有专属遗物）。{ id, 中文名, 五行, 定位 }
+        private static readonly string[][] Beasts = {
+            new[]{ "jumang","句芒","Wood","Support" },   new[]{ "jiuweihu","九尾狐","Wood","Striker" },
+            new[]{ "guanguan","灌灌","Wood","Support" }, new[]{ "migu","迷榖","Wood","Guard" },
+            new[]{ "lushu","鹿蜀","Wood","Support" },     new[]{ "xingxing","狌狌","Wood","Swift" },
+            new[]{ "zhurong","祝融","Fire","Caster" },    new[]{ "zhulong","烛龙","Fire","Striker" },
+            new[]{ "bifang","毕方","Fire","Caster" },     new[]{ "feiyi","肥遗","Fire","Striker" },
+            new[]{ "hanba","旱魃","Fire","Caster" },      new[]{ "chongming","重明鸟","Fire","Support" },
+            new[]{ "houtu","后土","Earth","Guard" },      new[]{ "dijiang","帝江","Earth","Support" },
+            new[]{ "taotie","饕餮","Earth","Striker" },   new[]{ "hundun","混沌","Earth","Caster" },
+            new[]{ "dangkang","当康","Earth","Support" }, new[]{ "luwu","陆吾","Earth","Guard" },
+            new[]{ "rushou","蓐收","Metal","Striker" },   new[]{ "qiongqi","穷奇","Metal","Striker" },
+            new[]{ "zheng","狰","Metal","Swift" },        new[]{ "tiangou","天狗","Metal","Guard" },
+            new[]{ "qiuyu","犰狳","Metal","Guard" },      new[]{ "baize","白泽","Metal","Support" },
+            new[]{ "yuqiang","禺强","Water","Caster" },   new[]{ "yinglong","应龙","Water","Striker" },
+            new[]{ "xiangliu","相柳","Water","Striker" }, new[]{ "bashe","巴蛇","Water","Swift" },
+            new[]{ "fuzhu","夫诸","Water","Caster" },     new[]{ "xuangui","旋龟","Water","Support" },
         };
+
+        // 按定位轮换的机制（每只异兽的专属印记机制）
+        private static readonly RelicMechanic[] MechGuard = { RelicMechanic.GrantThickwall, RelicMechanic.GrantTenacity, RelicMechanic.GrantDevour };
+        private static readonly RelicMechanic[] MechStriker = { RelicMechanic.BasicPierce, RelicMechanic.BasicExtraHit, RelicMechanic.BasicTrue };
+        private static readonly RelicMechanic[] MechCaster = { RelicMechanic.BasicBurn, RelicMechanic.UltimatePierce, RelicMechanic.BasicHitsAll };
+        private static readonly RelicMechanic[] MechSupport = { RelicMechanic.ActiveHealAll, RelicMechanic.BasicHitsAll, RelicMechanic.GrantTenacity };
+        private static readonly RelicMechanic[] MechSwift = { RelicMechanic.GrantSwiftshadow, RelicMechanic.BasicExtraHit, RelicMechanic.BasicPierce };
+
+        private static RelicMechanic MechanicFor(string role, int idx)
+        {
+            RelicMechanic[] pool;
+            switch (role)
+            {
+                case "Guard": pool = MechGuard; break;
+                case "Striker": pool = MechStriker; break;
+                case "Caster": pool = MechCaster; break;
+                case "Support": pool = MechSupport; break;
+                default: pool = MechSwift; break;
+            }
+            return pool[idx % pool.Length];
+        }
+
+        private static string MechanicCn(RelicMechanic m)
+        {
+            switch (m)
+            {
+                case RelicMechanic.BasicHitsAll: return "群击";
+                case RelicMechanic.BasicExtraHit: return "叠击";
+                case RelicMechanic.BasicBurn: return "燎原";
+                case RelicMechanic.BasicPierce: return "破甲";
+                case RelicMechanic.BasicTrue: return "真刃";
+                case RelicMechanic.ActiveHealAll: return "春回";
+                case RelicMechanic.UltimatePierce: return "贯绝";
+                case RelicMechanic.GrantTenacity: return "坚忍";
+                case RelicMechanic.GrantSharpedge: return "锋锐";
+                case RelicMechanic.GrantSwiftshadow: return "疾踪";
+                case RelicMechanic.GrantThickwall: return "厚载";
+                case RelicMechanic.GrantDevour: return "吞噬";
+                default: return "异术";
+            }
+        }
+
+        private static string MechanicDesc(RelicMechanic m)
+        {
+            switch (m)
+            {
+                case RelicMechanic.BasicHitsAll: return "普攻改为攻击【全体敌人】";
+                case RelicMechanic.BasicExtraHit: return "普攻段数 +1";
+                case RelicMechanic.BasicBurn: return "普攻额外附带【灼烧】";
+                case RelicMechanic.BasicPierce: return "普攻无视护盾";
+                case RelicMechanic.BasicTrue: return "普攻改为【真实伤害】（无视护盾与减伤）";
+                case RelicMechanic.ActiveHealAll: return "战记改为【治疗全体我方】";
+                case RelicMechanic.UltimatePierce: return "奥义无视护盾";
+                case RelicMechanic.GrantTenacity: return "获得【坚韧】劫象";
+                case RelicMechanic.GrantSharpedge: return "获得【锋锐】劫象";
+                case RelicMechanic.GrantSwiftshadow: return "获得【疾影】劫象";
+                case RelicMechanic.GrantThickwall: return "获得【厚墙】劫象";
+                case RelicMechanic.GrantDevour: return "获得【吞噬】劫象";
+                default: return "获得特殊机制";
+            }
+        }
+
+        // ==================================================================
+        //  机制应用（v1.2：改变行为，而不是加数值）
+        // ==================================================================
+
+        /// <summary>本局遗物带来的「回合上限」变化（TurnsPlus 加 / TurnsMinus 减）。</summary>
+        public static int RuleTurnsDelta(ICollection<string> ownedIds)
+        {
+            int d = 0;
+            if (ownedIds == null) return 0;
+            foreach (var id in ownedIds)
+            {
+                var r = Get(id);
+                if (r == null) continue;
+                if (r.Mechanic == RelicMechanic.TurnsPlus) d += (int)System.Math.Round(r.Value2);
+                else if (r.Mechanic == RelicMechanic.TurnsMinus) d -= (int)System.Math.Round(r.Value2);
+            }
+            return d;
+        }
+
+        /// <summary>本局是否持有某个「全场规则」机制。</summary>
+        public static bool HasMechanic(ICollection<string> ownedIds, RelicMechanic m)
+        {
+            if (ownedIds == null) return false;
+            foreach (var id in ownedIds)
+            {
+                var r = Get(id);
+                if (r != null && r.Mechanic == m) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 把机制作用到一只【克隆兽】上（改它的技能）。返回被授予的劫象 id（无则 null）。
+        /// ⚠ 必须传 req.Player 里的克隆体：BeastDef.Clone 是**深拷贝**，改它不会污染内容表（已实测）。
+        /// </summary>
+        public static string ApplyBeastMechanics(BeastDef b, ICollection<string> ownedIds)
+        {
+            if (b == null || ownedIds == null) return null;
+            string trait = null;
+            foreach (var id in ownedIds)
+            {
+                var d = Get(id);
+                if (d == null || d.Mechanic == RelicMechanic.None) continue;
+                if (!string.IsNullOrEmpty(d.ScopeId) && d.ScopeId != b.Id) continue;   // 专属：只作用该兽
+                switch (d.Mechanic)
+                {
+                    case RelicMechanic.BasicHitsAll: Retarget(b.Basic, TargetSelector.AllEnemies); break;
+                    case RelicMechanic.BasicExtraHit: ExtraHit(b.Basic); break;
+                    case RelicMechanic.BasicBurn: AddBurn(b.Basic); break;
+                    case RelicMechanic.BasicPierce: Pierce(b.Basic, false); break;
+                    case RelicMechanic.BasicTrue: Pierce(b.Basic, true); break;
+                    case RelicMechanic.ActiveHealAll: ToHealAll(b.Active); break;
+                    case RelicMechanic.UltimatePierce: Pierce(b.Ultimate, false); break;
+                    case RelicMechanic.GrantTenacity: trait = BattleTraits.Tenacity; break;
+                    case RelicMechanic.GrantSharpedge: trait = BattleTraits.Sharpedge; break;
+                    case RelicMechanic.GrantSwiftshadow: trait = BattleTraits.Swiftshadow; break;
+                    case RelicMechanic.GrantThickwall: trait = BattleTraits.Thickwall; break;
+                    case RelicMechanic.GrantDevour: trait = BattleTraits.Devour; break;
+                        // 规则类（回合/元气/命中/AI）不在这里，由 BattleRequestFactory 统一处理
+                }
+            }
+            return trait;
+        }
+
+        // ---- 技能改写小工具（EffectAtom 是 struct ⇒ 改了必须写回数组，别只改副本）----
+
+        private static void Retarget(SkillDef sk, TargetSelector t)
+        {
+            if (sk == null) return;
+            sk.PrimaryTarget = t;
+            if (sk.Effects == null) return;
+            for (int i = 0; i < sk.Effects.Length; i++)
+            {
+                if (sk.Effects[i].Kind != EffectAtomKind.Damage) continue;
+                var a = sk.Effects[i];
+                a.Target = t;
+                sk.Effects[i] = a;
+            }
+        }
+
+        private static void ExtraHit(SkillDef sk)
+        {
+            if (sk == null || sk.Effects == null) return;
+            for (int i = 0; i < sk.Effects.Length; i++)
+            {
+                if (sk.Effects[i].Kind != EffectAtomKind.Damage) continue;
+                var a = sk.Effects[i];
+                a.Hits = (a.Hits <= 0 ? 1 : a.Hits) + 1;
+                sk.Effects[i] = a;
+            }
+        }
+
+        private static void Pierce(SkillDef sk, bool trueDamage)
+        {
+            if (sk == null || sk.Effects == null) return;
+            for (int i = 0; i < sk.Effects.Length; i++)
+            {
+                if (sk.Effects[i].Kind != EffectAtomKind.Damage) continue;
+                var a = sk.Effects[i];
+                a.IgnoreShield = true;
+                if (trueDamage) a.TrueDamage = true;
+                sk.Effects[i] = a;
+            }
+        }
+
+        private static void AddBurn(SkillDef sk)
+        {
+            if (sk == null) return;
+            var old = sk.Effects ?? new EffectAtom[0];
+            for (int i = 0; i < old.Length; i++)
+                if (old[i].Kind == EffectAtomKind.ApplyStatus && old[i].StatusId == StatusCatalog.Burn) return;
+            var nw = new EffectAtom[old.Length + 1];
+            System.Array.Copy(old, nw, old.Length);
+            nw[old.Length] = EffectAtom.Dot(
+                sk.PrimaryTarget == TargetSelector.Self ? TargetSelector.SingleFrontMost : sk.PrimaryTarget,
+                StatusCatalog.Burn, 0.30f, 1, 2);
+            sk.Effects = nw;
+        }
+
+        /// <summary>
+        /// 把战记整体改写成【治疗全体我方】。
+        /// ⚠ 必须处理**所有**原子：战记不一定是伤害技（实测句芒的战记是 Shield 原子），
+        ///   只转 Damage 会让「战记改治疗」对辅助/防御型战记完全失效。
+        /// 同时清掉伤害/状态/属性字段，避免留下「Heal 却还挂灼烧」这种怪组合。
+        /// </summary>
+        private static void ToHealAll(SkillDef sk)
+        {
+            if (sk == null) return;
+            sk.PrimaryTarget = TargetSelector.AllAllies;
+            if (sk.Effects == null) return;
+            for (int i = 0; i < sk.Effects.Length; i++)
+            {
+                var a = sk.Effects[i];
+                bool hadAmount = a.Power > 0f || a.PercentOfMaxHp > 0f;
+                a.Kind = EffectAtomKind.Heal;
+                a.Target = TargetSelector.AllAllies;
+                a.TrueDamage = false;
+                a.IgnoreShield = false;
+                a.StatusId = null;
+                a.StatKey = null;
+                if (!hadAmount) a.PercentOfMaxHp = 0.15f;   // 原本无威力（纯状态/护盾）⇒ 给个基础治疗量
+                sk.Effects[i] = a;
+            }
+        }
 
         private static RelicDef[] Build()
         {
@@ -203,18 +459,48 @@ namespace WanXiang.Campaign
                             rs[t], RelicEffect.RoleStatPct, vs[t], 0f, Roles[r].ToString()));
             }
 
-            // ---- 族 5：异兽契印（5 守关兽 × 3 档 = 15）—— 指定异兽 +V% ----
+            // ---- 族 5：异兽契印（30 只 × 1 = 30）—— 指定异兽 +18%（纯数值）----
+            for (int b = 0; b < Beasts.Length; b++)
+                L.Add(new RelicDef("r_beast_" + Beasts[b][0], Beasts[b][1] + "之契",
+                    "【" + Beasts[b][1] + "】生命/攻击/防御 +18%",
+                    RelicRarity.Rare, RelicEffect.BeastStatPct, 18f, 0f, Beasts[b][0]));
+
+            // ---- 族 11：异兽印记（30 只 × 1 = 30）—— 只改该兽的【行为】，不加数值 ----
             {
-                float[] vs = { 12, 18, 26 };
-                RelicRarity[] rs = { RelicRarity.Rare, RelicRarity.Rare, RelicRarity.Boss };
-                string[] suff = { "之契", "宝契", "神契" };
-                for (int b = 0; b < GuardBeasts.Length; b++)
-                    for (int t = 0; t < 3; t++)
-                        L.Add(new RelicDef("r_beast_" + GuardBeasts[b][0] + "_" + (t + 1),
-                            GuardBeasts[b][1] + suff[t],
-                            "【" + GuardBeasts[b][1] + "】生命/攻击/防御 +" + vs[t] + "%",
-                            rs[t], RelicEffect.BeastStatPct, vs[t], 0f, GuardBeasts[b][0]));
+                var roleIdx = new Dictionary<string, int>();
+                for (int b = 0; b < Beasts.Length; b++)
+                {
+                    string id = Beasts[b][0], cn = Beasts[b][1], role = Beasts[b][3];
+                    int k; roleIdx.TryGetValue(role, out k); roleIdx[role] = k + 1;
+                    var mech = MechanicFor(role, k);
+                    L.Add(new RelicDef("r_mark_" + id, cn + "·" + MechanicCn(mech),
+                        "【" + cn + "】" + MechanicDesc(mech),
+                        k == 0 ? RelicRarity.Rare : RelicRarity.Boss,
+                        RelicEffect.None, 0f, 0f, id, mech));
+                }
             }
+
+            // ---- 族 12：通用机制（17 件）—— 改技能 / 授劫象 / 改规则 ----
+            //   规则类需要的数值一律放 Value2（Value 留给可选的数值收益，实现双面效果）
+            L.Add(new RelicDef("r_mech_all_hits", "兵无常势", "全队普攻改为攻击【全体敌人】", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.BasicHitsAll));
+            L.Add(new RelicDef("r_mech_extra_hit", "连环击", "全队普攻段数 +1（更易触发连携/破盾）", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.BasicExtraHit));
+            L.Add(new RelicDef("r_mech_burn", "火种", "全队普攻额外附带【灼烧】", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.BasicBurn));
+            L.Add(new RelicDef("r_mech_pierce", "破甲锥", "全队普攻无视护盾", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.BasicPierce));
+            L.Add(new RelicDef("r_mech_true", "真实之刃", "全队普攻改为【真实伤害】（无视护盾与减伤）", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.BasicTrue));
+            L.Add(new RelicDef("r_mech_heal", "仁心", "全队战记改为【治疗全体我方】", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.ActiveHealAll));
+            L.Add(new RelicDef("r_mech_ult_pierce", "贯绝", "全队奥义无视护盾", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.UltimatePierce));
+
+            L.Add(new RelicDef("r_trait_tenacity", "不动印", "全队获得【坚韧】劫象", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantTenacity));
+            L.Add(new RelicDef("r_trait_sharpedge", "利刃符", "全队获得【锋锐】劫象", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantSharpedge));
+            L.Add(new RelicDef("r_trait_swiftshadow", "风踪符", "全队获得【疾影】劫象", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantSwiftshadow));
+            L.Add(new RelicDef("r_trait_thickwall", "磐石印", "全队获得【厚墙】劫象", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantThickwall));
+            L.Add(new RelicDef("r_trait_devour", "饕餮纹", "全队获得【吞噬】劫象", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantDevour));
+
+            L.Add(new RelicDef("r_rule_turns_plus", "延时符", "本场回合上限 +4（更从容，但也不是纯赚）", RelicRarity.Common, RelicEffect.None, 0f, 4f, null, RelicMechanic.TurnsPlus));
+            L.Add(new RelicDef("r_rule_turns_minus", "速决符", "全队 生命/攻击/防御 +25%，但本场回合上限 -4（打不完就输）", RelicRarity.Rare, RelicEffect.PlayerStatPct, 25f, 4f, null, RelicMechanic.TurnsMinus));
+            L.Add(new RelicDef("r_rule_no_rage", "无相", "全队奥义【不再需要元气】", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.UltimateNoRage));
+            L.Add(new RelicDef("r_rule_no_hit", "澄明", "本场关闭命中率判定 —— 全队必定命中", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.NoHitChance));
+            L.Add(new RelicDef("r_rule_enemy_cautious", "乱其心", "敌方打法变为【保守】（不抢放奥义、不激进）", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.EnemyCautious));
 
             // ---- 族 6：战意累积（6）—— 本局每胜 1 场 +V%，封顶 Value2% ----
             {
