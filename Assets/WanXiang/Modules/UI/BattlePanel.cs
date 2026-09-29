@@ -401,8 +401,18 @@ namespace WanXiang.Modules.UI
             }
         }
 
-        private void OnLeaveClicked()
+        private async void OnLeaveClicked()
         {
+            // ★ 重新挑战前先确认（用户 2026-09-29 要求）：避免误触直接退出本场。
+            bool ok = await Dialog.Confirm("重新挑战",
+                "放弃本场战斗，回到编队界面重新布阵重新打？\n（不结算、不记败、不处理阵亡）");
+            if (!ok) return;   // 取消 = 留在战斗里继续打
+
+            // ★ 对话框停留期间战斗可能已自动结束（自动战斗 / 平局）→ 交给正常结算流程，
+            //   不再重复切场景（重复 ExitBattle 会触发 MainSceneEntry 重入的栈重算坑）。
+            if (_play != null && _play.State != null && _play.State.Outcome != BattleOutcome.Ongoing)
+                return;
+
             // ★ 重新挑战（用户 2026-09-29 要求）：放弃本场，回编队界面重新布阵重新打。
             //   不结算、不记败、不处理阵亡（RunState.Team 本就未被本场修改，死兽仍在队伍里）。
             if (_tmpLog != null) _tmpLog.text = "重新挑战";
