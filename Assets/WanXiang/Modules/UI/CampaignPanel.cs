@@ -681,6 +681,8 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                 case WanXiang.Campaign.NodeKind.Tale: return "异闻：典籍轶事，三选一（可拒绝换灵卵）";
                 case WanXiang.Campaign.NodeKind.Forge: return "铸魂台：免费融合一次（灵魂需在灵市购买）";
                 case WanXiang.Campaign.NodeKind.Omen: return "天象：三选一，增益都配一条明确代价";
+                case WanXiang.Campaign.NodeKind.Recruit: return "招募：免费挑选异兽入队（每属性随机 2 选，可刷新）";
+                case WanXiang.Campaign.NodeKind.Relic: return "遗物：从遗物池随机 3 选 1，局内变强";
                 default: return "遭遇：常规战斗，敌方按幕数规模成队";
             }
         }
@@ -1144,6 +1146,12 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                     return;
                 case WanXiang.Campaign.NodeKind.Omen:
                     OpenPanelAsync<OmenPanel>().Forget();
+                    return;
+                case WanXiang.Campaign.NodeKind.Recruit:
+                    OpenPanelAsync<RecruitPanel>(_current).Forget();
+                    return;
+                case WanXiang.Campaign.NodeKind.Relic:
+                    OpenPanelAsync<RelicPanel>(_current).Forget();
                     return;
                 case WanXiang.Campaign.NodeKind.Nest:
                     NestChoose(run).Forget();

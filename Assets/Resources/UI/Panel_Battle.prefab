@@ -4570,7 +4570,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: 510, y: 0}
+  m_AnchoredPosition: {x: 337, y: 0}
   m_SizeDelta: {x: 180, y: 90}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1608720200012457570
@@ -5528,7 +5528,6 @@ MonoBehaviour:
   _rootUnits: {fileID: 6810609894273101610}
   _hpBarTemplate: {fileID: 137755587486838709}
   _btnSpeed: {fileID: 2281028496046454391}
-  _btnAuto: {fileID: 0}
   _btnLeave: {fileID: 1663018867445481903}
   _tmpLog: {fileID: 3014737496339414671}
   _contentCatalog: {fileID: 11400000, guid: 60369f2fff5459b478abab98f70a9251, type: 2}

@@ -189,6 +189,13 @@ namespace WanXiang.Run
         public string LastSaved = "";           // 最后保存时间（展示用）
 
         /// <summary>
+        /// 本局已获得的【遗物】（杀戮尖塔式局内成长）。存遗物 id 列表；
+        /// 出战前由 <c>BattleRequestFactory</c> 读它折叠成战斗增益（玩家侧属性/复活/开局灵力等）。
+        /// 重开一局时清空（与 Team/Collection 同口径）。
+        /// </summary>
+        public System.Collections.Generic.List<string> Relics = new System.Collections.Generic.List<string>();
+
+        /// <summary>
         /// 进战斗用的强度系数：随【幕】缓涨，给敌人与奖励一个共同标尺。
         /// ⚠ 原实现用 Realm/Jie（旧"境/劫"体系）—— 那套在幕推进后已不再递增，
         ///   会导致难度永远停在 1.0（数值标尺失效）。现改为以 Act 为唯一主轴。

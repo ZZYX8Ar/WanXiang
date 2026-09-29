@@ -234,6 +234,23 @@ namespace WanXiang.Modules.UI
                                       " ⇒ 敌人额外 +" + extra + " 只");
             }
 
+            // ★★ 遗物（杀戮尖塔式局内成长）：把本局已持有遗物折叠成战斗增益。
+            //   玩家属性% 折进 req.PlayerMul（与孵穴/天象挂起加成叠加）；
+            //   敌方弱化% 折进每个 EnemyEntries.StatMul；复活/开局灵力置开关。
+            //   纯映射现有管线，不引入战斗核心改动。
+            WanXiang.Modules.UI.SceneFlow.LastBattleKind = kind;   // 结算面板据此定遗物权重
+            if (run.Relics != null && run.Relics.Count > 0)
+            {
+                var mods = WanXiang.Campaign.RelicCatalog.Accumulate(run.Relics);
+                req.PlayerMul *= mods.PlayerMul;
+                if (req.EnemyEntries != null)
+                    for (int i = 0; i < req.EnemyEntries.Count; i++)
+                        req.EnemyEntries[i] = req.EnemyEntries[i].WithMul(req.EnemyEntries[i].StatMul * mods.EnemyMul);
+                if (mods.ReviveOn) { req.PlayerReviveOn = true; req.PlayerReviveHpPercent = mods.ReviveHpPercent; }
+                req.PlayerStartMana += mods.StartMana;
+                UnityEngine.Debug.Log("[BattleRequestFactory] 遗物生效：" + run.Relics.Count + " 件（玩家x" + mods.PlayerMul.ToString("0.00") + " 敌x" + mods.EnemyMul.ToString("0.00") + " 复活" + mods.ReviveOn + " 灵力+" + mods.StartMana + "）");
+            }
+
             return req.Player.Count > 0 && req.EnemyEntries.Count > 0;
         }
 

@@ -70,6 +70,9 @@ namespace WanXiang.Modules.UI
         /// <summary>「重新挑战」挂起标记：战斗里点「重新挑战」置位，主城入口消费并直接打开编队界面（叠在节点地图之上）。</summary>
         public static NodeRequest PendingRechallengeNode;
 
+        /// <summary>刚打完那场的节点类型（结算面板据此决定遗物掉落权重：精英/Boss 更高稀有度）。</summary>
+        public static WanXiang.Campaign.NodeKind LastBattleKind = WanXiang.Campaign.NodeKind.Encounter;
+
         /// <summary>开始游戏：进主城。</summary>
         public static void EnterMain()
         {

@@ -33,8 +33,18 @@ namespace WanXiang.Modules.UI
 
         /// <summary>与 Player 一一对应的【九宫格格号】(0..8)。为空则回退到默认 Cells。</summary>
         public List<int> PlayerCells = new List<int>();
-        /// <summary>我方全体属性倍率（孵穴「回复」的载体：下一场战斗 ×1.4）。</summary>
+        /// <summary>我方全体属性倍率（孵穴「回复」的载体：下一场战斗 ×1.4）。遗物也折进这里。</summary>
         public float PlayerMul = 1f;
+
+        /// <summary>遗物「复活 1 次」：为真时我方全体单位挂载「复苏」虫卵（阵亡以 PlayerReviveHpPercent 生命复活 1 次）。
+        /// 复用 BattleFactory 已有的惊蛰/复苏机制，不引入战斗核心改动。</summary>
+        public bool PlayerReviveOn = false;
+
+        /// <summary>复活时恢复的血量比例（0~1）。默认 0.3（与「复苏」劫象一致）。</summary>
+        public float PlayerReviveHpPercent = 0.3f;
+
+        /// <summary>遗物「开局灵力」：战斗开始时 TeamMp 额外 +N（更早放出战记/连携）。</summary>
+        public int PlayerStartMana = 0;
 
         /// <summary>
         /// 与 <see cref="Player"/> 一一对应的**每只异兽**战力倍率（局外等级 + 进化，
@@ -139,7 +149,10 @@ namespace WanXiang.Modules.UI
                     : BattleRequest.Cells[i % BattleRequest.Cells.Length];
                 float perMul = (req.PlayerMulPer != null && i < req.PlayerMulPer.Count)
                     ? req.PlayerMulPer[i] : 1f;
-                p[i] = DeployEntry.Player(req.Player[i], cell).WithMul(req.PlayerMul * perMul);
+                var pe = DeployEntry.Player(req.Player[i], cell).WithMul(req.PlayerMul * perMul);
+                // ★ 遗物「复活 1 次」：挂「复苏」劫象（BattleFactory.Deploy 会据此设虫卵复活）。
+                if (req.PlayerReviveOn) pe = pe.WithTrait(WanXiang.Battle.Core.BattleTraits.Revive);
+                p[i] = pe;
             }
 
             DeployEntry[] e;
@@ -160,6 +173,10 @@ namespace WanXiang.Modules.UI
             }
 
             State = BattleFactory.Create(cfg, req.Seed, p, e, req.Weather);
+
+            // ★ 遗物「开局灵力」：战斗开始即把 TeamMp 抬上去（更早放出战记/连携）。
+            if (req.PlayerStartMana > 0)
+                State.TeamMp = System.Math.Min(State.TeamMpMax, State.TeamMp + req.PlayerStartMana);
 
             _manualMode = manual;
             State.PlayerControlled = manual;

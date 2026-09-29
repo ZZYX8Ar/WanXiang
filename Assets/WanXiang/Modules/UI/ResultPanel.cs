@@ -10,6 +10,8 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using WanXiang.Framework.UI;
+using WanXiang.Campaign;
+using WanXiang.Battle.Core;
 
 namespace WanXiang.Modules.UI
 {
@@ -60,6 +62,9 @@ namespace WanXiang.Modules.UI
         private string _dropFragment = "";   // 剧情碎片掉落描述（"" = 未掉落）
         private int _dropEssence;            // 精魄掉落数（0 = 未掉落）
         [SerializeField] private TMP_Text _tmpDrops;   // Tmp_Drops（prefab 节点，两个按钮之间的空档）
+
+        /// <summary>本场胜利随机抽出的 3 个遗物（三选一）。null = 非胜利（无奖励）。</summary>
+        private System.Collections.Generic.List<RelicDef> _offered;
 
         protected override void OnCreate()
         {
@@ -132,7 +137,20 @@ namespace WanXiang.Modules.UI
             var rewardsRoot = transform.Find("Root_Rewards");
             if (rewardsRoot != null) rewardsRoot.gameObject.SetActive(win);
 
-            // 三选一奖励（v2.1）：不再是无内容的占位草稿，走 RunState 已有字段立即生效。
+            // 三选一奖励（重设计 v2026-09-29）：胜利时从遗物池**随机抽 3 个**让玩家挑 1 个，
+            // 精英/Boss 节点提高稀有/传说权重。遗物是局内「变强」载体（参考杀戮尖塔）。
+            // 写死的三选一（灵卵+2/疗愈/威慑）已废弃 —— 见 OfferedRelics 与 ApplyDraft。
+            _offered = null;
+            if (win && look != null)
+            {
+                int actR = look.Act;
+                bool bossLike = SceneFlow.LastBattleKind == NodeKind.Elite;
+                var rng = new DeterministicRandom((ulong)System.DateTime.Now.Ticks ^ (uint)(actR * 2654435761));
+                _offered = RelicCatalog.Roll(3, actR, bossLike, rng, look.Relics);
+                Debug.Log("[ResultPanel] 抽出遗物 " + _offered.Count + " 个（act=" + actR +
+                          " bossLike=" + bossLike + "）");
+            }
+
             for (int i = 0; i < _tmpDraftNames.Length; i++)
                 if (_tmpDraftNames[i] != null) _tmpDraftNames[i].text = DraftTitle(i);
             for (int i = 0; i < _tmpDraftDescs.Length; i++)
@@ -434,43 +452,38 @@ namespace WanXiang.Modules.UI
         }
 
         // ================================================================
-        //  三选一奖励（用 RunState 已有字段，美术/内容接入后可换成图鉴奖励）
+        //  三选一奖励（重设计：遗物三选一，随机、含变强类）
         // ================================================================
-        private static string DraftTitle(int i)
+        private string DraftTitle(int i)
         {
-            switch (i)
-            {
-                case 0: return "灵卵 +2";
-                case 1: return "全队疗愈";
-                default: return "威慑";
-            }
+            if (_offered != null && i < _offered.Count) return _offered[i].Name;
+            // 兜底（非胜利不应走到这里）：旧文案保留以不崩 UI
+            return i == 0 ? "灵卵 +2" : (i == 1 ? "全队疗愈" : "威慑");
         }
 
-        private static string DraftDesc(int i)
+        private string DraftDesc(int i)
         {
-            switch (i)
-            {
-                case 0: return "立刻获得 2 枚灵卵，可在灵市换取异兽。";
-                case 1: return "全队回复 15% 生命（下一场开打前生效）。";
-                default: return "下一场战斗敌方属性 -5%（士气受挫）。";
-            }
+            if (_offered != null && i < _offered.Count) return _offered[i].Desc;
+            return i == 0 ? "立刻获得 2 枚灵卵。" : (i == 1 ? "全队回复 15% 生命。" : "下一场敌方 -5%。");
         }
 
-        private static void ApplyDraft(int i)
+        private void ApplyDraft(int i)
         {
             var run = WanXiang.Run.RunSave.Current;
             if (run == null) return;
-            switch (i)
+            // ★ 遗物：把选中的遗物 id 加进本局 Relics（出战前由 BattleRequestFactory 折叠成战斗增益）。
+            if (_offered != null && i >= 0 && i < _offered.Count)
             {
-                case 0:
-                    run.Eggs += 2;
-                    break;
-                case 1:
-                    run.HealPending += 15;          // 回到节点图后由孵穴/下一场结算
-                    break;
-                default:
-                    run.EnemyBuffPct -= 5;
-                    break;
+                var relic = _offered[i];
+                if (run.Relics == null) run.Relics = new System.Collections.Generic.List<string>();
+                if (!run.Relics.Contains(relic.Id)) run.Relics.Add(relic.Id);
+                Debug.Log("[ResultPanel] 获得遗物：" + relic.Name + "（" + relic.Id +
+                          "）｜本局遗物 " + run.Relics.Count + " 件");
+            }
+            else
+            {
+                // 兜底（理论上不会触发）：给 2 灵卵
+                run.Eggs += 2;
             }
             WanXiang.Run.RunSave.SaveCurrent();
         }
