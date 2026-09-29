@@ -248,11 +248,11 @@ namespace WanXiang.Campaign
                 case RelicMechanic.BasicTrue: return "普攻改为【真实伤害】（无视护盾与减伤）";
                 case RelicMechanic.ActiveHealAll: return "战记改为【治疗全体我方】";
                 case RelicMechanic.UltimatePierce: return "奥义无视护盾";
-                case RelicMechanic.GrantTenacity: return "获得【坚韧】劫象";
-                case RelicMechanic.GrantSharpedge: return "获得【锋锐】劫象";
-                case RelicMechanic.GrantSwiftshadow: return "获得【疾影】劫象";
-                case RelicMechanic.GrantThickwall: return "获得【厚墙】劫象";
-                case RelicMechanic.GrantDevour: return "获得【吞噬】劫象";
+                case RelicMechanic.GrantTenacity: return "获得【坚韧】劫象（生命 +25%、速度 -15%）";
+                case RelicMechanic.GrantSharpedge: return "获得【锐锋】劫象（攻击 +25%，但受真实伤害 +20%）";
+                case RelicMechanic.GrantSwiftshadow: return "获得【疾影】劫象（速度 +25%，但受控制时长 +1）";
+                case RelicMechanic.GrantThickwall: return "获得【厚壁】劫象（防御 +25%，但【无法被治疗】）";
+                case RelicMechanic.GrantDevour: return "获得【吞噬】劫象（行动剥离目标 1 个增益，自身每回合 -4% 生命）";
                 default: return "获得特殊机制";
             }
         }
@@ -490,11 +490,12 @@ namespace WanXiang.Campaign
             L.Add(new RelicDef("r_mech_heal", "仁心", "全队战记改为【治疗全体我方】", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.ActiveHealAll));
             L.Add(new RelicDef("r_mech_ult_pierce", "贯绝", "全队奥义无视护盾", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.UltimatePierce));
 
-            L.Add(new RelicDef("r_trait_tenacity", "不动印", "全队获得【坚韧】劫象", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantTenacity));
-            L.Add(new RelicDef("r_trait_sharpedge", "利刃符", "全队获得【锋锐】劫象", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantSharpedge));
-            L.Add(new RelicDef("r_trait_swiftshadow", "风踪符", "全队获得【疾影】劫象", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantSwiftshadow));
-            L.Add(new RelicDef("r_trait_thickwall", "磐石印", "全队获得【厚墙】劫象", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantThickwall));
-            L.Add(new RelicDef("r_trait_devour", "饕餮纹", "全队获得【吞噬】劫象", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantDevour));
+            //   劫象是「体制」不是「无脑增益」—— 6 条全部带代价，描述里必须写清，别只写名字。
+            L.Add(new RelicDef("r_trait_tenacity", "不动印", "全队获得【坚韧】劫象：生命 +25%、速度 -15%（厚血队专用）", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantTenacity));
+            L.Add(new RelicDef("r_trait_sharpedge", "利刃符", "全队获得【锐锋】劫象：攻击 +25%，但受真实伤害 +20%", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantSharpedge));
+            L.Add(new RelicDef("r_trait_swiftshadow", "风踪符", "全队获得【疾影】劫象：速度 +25%，但受控制时长 +1", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantSwiftshadow));
+            L.Add(new RelicDef("r_trait_thickwall", "磐石印", "全队获得【厚壁】劫象：防御 +25%，但【无法被治疗】（高风险，慎选）", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantThickwall));
+            L.Add(new RelicDef("r_trait_devour", "饕餮纹", "全队获得【吞噬】劫象：行动时剥离目标 1 个增益，但自身每回合损失 4% 生命", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantDevour));
 
             L.Add(new RelicDef("r_rule_turns_plus", "延时符", "本场回合上限 +4（更从容，但也不是纯赚）", RelicRarity.Common, RelicEffect.None, 0f, 4f, null, RelicMechanic.TurnsPlus));
             L.Add(new RelicDef("r_rule_turns_minus", "速决符", "全队 生命/攻击/防御 +25%，但本场回合上限 -4（打不完就输）", RelicRarity.Rare, RelicEffect.PlayerStatPct, 25f, 4f, null, RelicMechanic.TurnsMinus));
