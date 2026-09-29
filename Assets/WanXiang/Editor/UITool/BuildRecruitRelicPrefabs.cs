@@ -92,6 +92,8 @@ namespace WanXiang.EditorTools
         }
 
         // ---------------------------------------------------------------- 招募
+        //  布局参考【灵市】：左侧候选格子（五行各 2 ⇒ 最多 10 格，2 列自动排），
+        //  点格子看右侧详情，双击格子（或点详情里的【选择】）入队。
         private static void BuildRecruit()
         {
             SafeDelete("Panel_Recruit");
@@ -100,49 +102,78 @@ namespace WanXiang.EditorTools
             var comp = root.AddComponent<RecruitPanel>();
             var rt = (RectTransform)root.transform;
 
-            var title = UIBuild.Tmp(UIBuild.Top(rt, "Tmp_Title", 56, 30, 30, 14),
-                "招募异兽", 34, UIBuild.Ink, TextAlignmentOptions.Center);
-            var hint = UIBuild.Tmp(UIBuild.Top(rt, "Tmp_Hint", 40, 30, 30, 66),
-                "每属性随机 2 选；免费刷新 1 次，之后刷新消耗灵卵。", 20, UIBuild.Ink2, TextAlignmentOptions.Center);
+            var title = UIBuild.Tmp(UIBuild.Top(rt, "Tmp_Title", 52, 30, 30, 14),
+                "招募 · 挑选至多 3 只异兽", 32, UIBuild.Ink, TextAlignmentOptions.Center);
+            var hint = UIBuild.Tmp(UIBuild.Top(rt, "Tmp_Hint", 40, 30, 30, 62),
+                "本幕可选至多 3 只（可少选）· 已选 0 / 3　—— 点格子看详情，双击入队",
+                20, UIBuild.Ink2, TextAlignmentOptions.Center);
 
-            // 候选卡滚动区（Content 带 VerticalLayoutGroup；Viewport 已内置受击层）
-            var content = UIBuild.ScrollVertical(rt, "Scroll_Candidates",
-                Vector2.zero, Vector2.one, new Vector2(30f, 100f), new Vector2(-30f, -120f), 10f);
+            // 左：候选格子滚动区（Content 带 GridLayoutGroup，2 列；Viewport 已内置受击层）
+            var content = UIBuild.ScrollGrid(rt, "Scroll_Candidates",
+                Vector2.zero, Vector2.one, new Vector2(30f, 104f), new Vector2(-460f, -116f),
+                new Vector2(190f, 104f), new Vector2(12f, 12f), 2, out var _sr);
 
-            // 卡模板（失活，运行时 Instantiate(_cardTemplate, _scrollContent) 克隆）
-            var cardTpl = UIBuild.Fixed(content, "Item_CardTemplate", new Vector2(0.5f, 1f),
-                new Vector2(800f, 96f), Vector2.zero);
-            var le = cardTpl.gameObject.AddComponent<LayoutElement>();
-            le.preferredWidth = 780f; le.preferredHeight = 96f;
+            // 格子模板（失活，运行时 Instantiate(_cardTemplate, _gridContent) 克隆）
+            var cardTpl = UIBuild.Fixed(content, "Item_CardTemplate", new Vector2(0f, 1f),
+                new Vector2(190f, 104f), Vector2.zero);
             UIBuild.Img(cardTpl, UIBuild.Card, true);
-            UIBuild.Tmp(UIBuild.Stretch(cardTpl, "Tmp_CardName", 18, 8, 360, 8),
-                "异兽名", 24, UIBuild.Ink, TextAlignmentOptions.Left);
+            var cardHead = UIBuild.Img(UIBuild.Fixed(cardTpl, "Img_CardHead", new Vector2(0f, 0.5f),
+                new Vector2(76f, 76f), new Vector2(12f, 0f)), new Color(0.86f, 0.82f, 0.74f, 1f));
+            cardHead.preserveAspect = true;
+            UIBuild.Tmp(UIBuild.Fixed(cardTpl, "Tmp_CardName", new Vector2(0f, 0.5f),
+                new Vector2(96f, 40f), new Vector2(98f, 18f)), "异兽名", 24, UIBuild.Ink, TextAlignmentOptions.Left);
             UIBuild.Tmp(UIBuild.Fixed(cardTpl, "Tmp_CardElem", new Vector2(0f, 0.5f),
-                new Vector2(140f, 36f), new Vector2(400f, 0f)),
-                "属性", 20, UIBuild.Ink2, TextAlignmentOptions.Left);
-            UIBuild.MakeBtn(cardTpl, "Btn_CardPick", new Vector2(1f, 0.5f),
-                new Vector2(120f, 52f), new Vector2(-70f, 0f), "选择", UIBuild.Gold, 22f);
+                new Vector2(96f, 32f), new Vector2(98f, -22f)), "属性", 20, UIBuild.Ink2, TextAlignmentOptions.Left);
+            var cardSel = UIBuild.Img(UIBuild.Fixed(cardTpl, "Img_CardSel", new Vector2(1f, 0f),
+                new Vector2(30f, 30f), new Vector2(-10f, 10f)), UIBuild.Gold);
+            cardSel.raycastTarget = false;
             cardTpl.gameObject.SetActive(false);
 
-            // 底部信息 + 按钮
-            var sel = UIBuild.Tmp(UIBuild.Fixed(rt, "Tmp_Selected", new Vector2(0f, 0f),
-                new Vector2(240f, 36f), new Vector2(140f, 32f)),
-                "已选 0 / 3", 22, UIBuild.Ink, TextAlignmentOptions.Left);
-            var egg = UIBuild.Tmp(UIBuild.Fixed(rt, "Tmp_EggCost", new Vector2(0f, 0f),
-                new Vector2(260f, 36f), new Vector2(390f, 32f)),
-                "刷新：免费", 22, UIBuild.Ink2, TextAlignmentOptions.Left);
+            // 右：详情区（初始隐藏；点格子时由代码 SetActive(true) 并填数据）
+            var detail = UIBuild.Fixed(rt, "Root_Detail", new Vector2(1f, 1f),
+                new Vector2(400f, 430f), new Vector2(-30f, -116f));
+            detail.pivot = new Vector2(1f, 1f);
+            UIBuild.Img(detail, UIBuild.Card, true);
+            var dBig = UIBuild.Img(UIBuild.Fixed(detail, "Img_DetailBig", new Vector2(0f, 1f),
+                new Vector2(128f, 128f), new Vector2(20f, -20f)), new Color(0.86f, 0.82f, 0.74f, 1f));
+            dBig.preserveAspect = true;
+            var dName = UIBuild.Tmp(UIBuild.Fixed(detail, "Tmp_DetailName", new Vector2(0f, 1f),
+                new Vector2(230f, 44f), new Vector2(158f, -24f)), "异兽名", 28, UIBuild.Ink, TextAlignmentOptions.Left);
+            var dClass = UIBuild.Tmp(UIBuild.Fixed(detail, "Tmp_DetailClass", new Vector2(0f, 1f),
+                new Vector2(230f, 32f), new Vector2(158f, -70f)), "五行 · 定位 · 品阶", 20, UIBuild.Ink2, TextAlignmentOptions.Left);
+            var dStats = UIBuild.Tmp(UIBuild.Fixed(detail, "Tmp_DetailStats", new Vector2(0f, 1f),
+                new Vector2(230f, 74f), new Vector2(158f, -104f)), "生命 / 攻击…", 18, UIBuild.Ink2, TextAlignmentOptions.TopLeft);
+            dStats.enableWordWrapping = true;
+            var dSkills = UIBuild.Tmp(UIBuild.Fixed(detail, "Tmp_DetailSkills", new Vector2(0f, 1f),
+                new Vector2(360f, 190f), new Vector2(20f, -166f)), "技能…", 18, UIBuild.Ink, TextAlignmentOptions.TopLeft);
+            dSkills.enableWordWrapping = true;
+            var pickRt = UIBuild.Fixed(detail, "Btn_Pick", new Vector2(0.5f, 0f),
+                new Vector2(200f, 56f), new Vector2(0f, 18f));
+            UIBuild.Img(pickRt, UIBuild.Gold, true);
+            UIBuild.Tmp(UIBuild.Stretch(pickRt, "Tmp_Label", 8, 6, 8, 6), "选择", 24, UIBuild.Ink, TextAlignmentOptions.Center);
+            var pickBtn = UIBuild.Btn(pickRt);
+            detail.gameObject.SetActive(false);
 
+            // 底：刷新 / 确定
+            var egg = UIBuild.Tmp(UIBuild.Fixed(rt, "Tmp_EggCost", new Vector2(0f, 0f),
+                new Vector2(280f, 36f), new Vector2(140f, 34f)), "刷新：免费", 22, UIBuild.Ink2, TextAlignmentOptions.Left);
             var bRefresh = UIBuild.MakeBtn(rt, "Btn_Refresh", new Vector2(1f, 0f),
-                new Vector2(170f, 52f), new Vector2(-200f, 32f), "刷新", UIBuild.Card, 24f);
+                new Vector2(170f, 52f), new Vector2(-200f, 34f), "刷新", UIBuild.Card, 24f);
             var bConfirm = UIBuild.MakeBtn(rt, "Btn_Confirm", new Vector2(1f, 0f),
-                new Vector2(170f, 52f), new Vector2(-20f, 32f), "确定", UIBuild.Gold, 24f);
+                new Vector2(170f, 52f), new Vector2(-20f, 34f), "确定", UIBuild.Gold, 24f);
 
             UIBuild.Bind(comp, "_tmpTitle", title);
             UIBuild.Bind(comp, "_tmpHint", hint);
-            UIBuild.Bind(comp, "_tmpSelected", sel);
-            UIBuild.Bind(comp, "_tmpEggCost", egg);
-            UIBuild.Bind(comp, "_scrollContent", content);
+            UIBuild.Bind(comp, "_gridContent", content);
             UIBuild.Bind(comp, "_cardTemplate", cardTpl.gameObject);
+            UIBuild.Bind(comp, "_detailRoot", detail.gameObject);
+            UIBuild.Bind(comp, "_detailBig", dBig);
+            UIBuild.Bind(comp, "_detailName", dName);
+            UIBuild.Bind(comp, "_detailClass", dClass);
+            UIBuild.Bind(comp, "_detailStats", dStats);
+            UIBuild.Bind(comp, "_detailSkills", dSkills);
+            UIBuild.Bind(comp, "_btnPick", pickBtn);
+            UIBuild.Bind(comp, "_tmpEggCost", egg);
             UIBuild.Bind(comp, "_btnRefresh", bRefresh.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnConfirm", bConfirm.GetComponent<Button>());
 

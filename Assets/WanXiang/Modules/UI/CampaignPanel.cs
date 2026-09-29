@@ -73,6 +73,12 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button _btnBack;              // Btn_Back
         [SerializeField] private Button _btnXingyi;            // Btn_Xingyi  星移（注入余气）
 
+        // 遗物 HUD（左上角一排小牌 + 悬浮说明；见 RelicHud / Editor/UITool/BuildRelicHudPatch.cs）
+        [SerializeField] private RectTransform _rootRelics;    // Root_Relics
+        [SerializeField] private GameObject _relicTemplate;    // Item_Relic
+        [SerializeField] private GameObject _relicTipRoot;     // Root_RelicTip
+        [SerializeField] private TMP_Text _relicTipText;       // Tmp_RelicTip
+
         /// <summary>星移余气持续节点数（Batch 3 星移）。每次星移把当前天时减半带入后续 N 节。</summary>
         private const int XINGYI_NODES = 3;
         /// <summary>星移消耗的灵卵数（2026-09-27 定案：不再免费，防无限制白嫖；一处调参）。</summary>
@@ -102,6 +108,12 @@ namespace WanXiang.Modules.UI
             // ★ 跨存档恢复星移余气：把持久化的 XingyiLingers 重建为会话级 LiveWeather.Lingers，
             //   保证「用了星移→关游戏→重进」星移天气仍在（之前天气随会话丢失，等于白花灵卵）。
             RehydrateXingyi();
+
+            // 遗物 HUD（左上角一排小牌，悬浮看说明）
+            var hudRun = WanXiang.Run.RunSave.Current;
+            RelicHud.Populate(_rootRelics, _relicTemplate, hudRun != null ? hudRun.Relics : null,
+                def => RelicHud.ShowTip(_relicTipRoot, _relicTipText, def),
+                () => RelicHud.HideTip(_relicTipRoot));
 
             // ★ 待推进落地：从事件面板（灵市/孵穴/铸魂台/异闻/天象）返回节点图时，
             //   把之前未完成的节点记为通过 —— 玩家没处理完就关游戏的话，_pendingCommit 是内存变量、

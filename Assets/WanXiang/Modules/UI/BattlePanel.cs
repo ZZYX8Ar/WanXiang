@@ -88,6 +88,12 @@ namespace WanXiang.Modules.UI
             _speed = 1f;
             RefreshSpeedLabel();          // ★ 必须同步刷新按钮文案，否则仍显示上一场的 ×4（用户实测）
 
+            // 遗物 HUD（左上角一排小牌，悬浮看说明）
+            var hudRun = WanXiang.Run.RunSave.Current;
+            RelicHud.Populate(_rootRelics, _relicTemplate, hudRun != null ? hudRun.Relics : null,
+                def => RelicHud.ShowTip(_relicTipRoot, _relicTipText, def),
+                () => RelicHud.HideTip(_relicTipRoot));
+
             // 两条路径：战斗场景（单位交给 BattleStage2D，本面板只当 HUD）/
             // 主城内直接打（本面板自己画单位视图）
             var sceneCtx = payload as BattleSceneContext;
@@ -465,6 +471,12 @@ namespace WanXiang.Modules.UI
         // ================================================================
         private const int OrderRowCount = 8;
         [SerializeField] private RectTransform _orderPanel;     // Root_OrderList（生成器产物）
+
+        // 遗物 HUD（左上角一排小牌 + 悬浮说明；见 RelicHud / Editor/UITool/BuildRelicHudPatch.cs）
+        [SerializeField] private RectTransform _rootRelics;    // Root_Relics
+        [SerializeField] private GameObject _relicTemplate;    // Item_Relic
+        [SerializeField] private GameObject _relicTipRoot;     // Root_RelicTip
+        [SerializeField] private TMP_Text _relicTipText;       // Tmp_RelicTip
         [SerializeField] private RectTransform[] _orderRows;    // OrderRow_0..7
         private Image[] _orderHeads;                            // 行内引用：生成器产物里按名字取
         private TMP_Text[] _orderNames;
