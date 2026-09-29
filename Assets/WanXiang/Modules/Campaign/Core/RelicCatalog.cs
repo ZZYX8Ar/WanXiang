@@ -129,11 +129,36 @@ namespace WanXiang.Campaign
         public readonly Dictionary<string, float> BeastMul = new Dictionary<string, float>();
         public readonly Dictionary<Element, float> EnemyElemWeak = new Dictionary<Element, float>();
 
-        public float MulFor(Element e) { float v; return ElemMul.TryGetValue(e, out v) ? v : 1f; }
-        public float RoleFor(RoleType r) { float v; return RoleMul.TryGetValue(r, out v) ? v : 1f; }
+        // ---- 阻尼（2026-09-29 平衡自检后加）----
+        //   遗物是**纯累乘**：+8% 与 +6% ⇒ ×1.08×1.06。件数一多就指数爆炸
+        //   （自检实测：幕五 3 件 20% → 6 件 95%，等于一个 6 件的硬开关）。
+        //   软上限：前几件几乎全额生效，越叠收益越薄 ⇒ 把"碾压阈值"推到 8~10 件。
+        public const float MaxPlayerMul = 2.20f;   // 全队倍率软上限
+        public const float MinEnemyMul = 0.45f;    // 敌方倍率软下限
+        public const float MaxUnitMul = 2.00f;     // 单只（五行/定位/异兽）倍率软上限
+
+        /// <summary>v&gt;1 时向 cap 收敛：1→1，→∞→cap，中段近似线性。</summary>
+        public static float CapAbove(float v, float cap)
+        {
+            if (v <= 1f || cap <= 1f) return v;
+            float g = v - 1f, c = cap - 1f;
+            return 1f + c * g / (g + c);
+        }
+
+        /// <summary>v&lt;1 时向下限收敛（敌方弱化用）。</summary>
+        public static float CapBelow(float v, float floor)
+        {
+            if (v >= 1f || floor >= 1f) return v;
+            float g = 1f - v, c = 1f - floor;
+            return 1f - c * g / (g + c);
+        }
+
+        // 读的时候才上阻尼 —— 累加阶段保留真实累乘值，便于调试与显示
+        public float MulFor(Element e) { float v; return CapAbove(ElemMul.TryGetValue(e, out v) ? v : 1f, MaxUnitMul); }
+        public float RoleFor(RoleType r) { float v; return CapAbove(RoleMul.TryGetValue(r, out v) ? v : 1f, MaxUnitMul); }
         public float BeastFor(string id)
-        { float v; return !string.IsNullOrEmpty(id) && BeastMul.TryGetValue(id, out v) ? v : 1f; }
-        public float WeakFor(Element e) { float v; return EnemyElemWeak.TryGetValue(e, out v) ? v : 1f; }
+        { float v; return !string.IsNullOrEmpty(id) && BeastMul.TryGetValue(id, out v) ? CapAbove(v, MaxUnitMul) : 1f; }
+        public float WeakFor(Element e) { float v; return CapBelow(EnemyElemWeak.TryGetValue(e, out v) ? v : 1f, MinEnemyMul); }
 
         public void AddElem(Element e, float m)
         { float v; ElemMul.TryGetValue(e, out v); if (v <= 0f) v = 1f; ElemMul[e] = v * m; }
@@ -718,6 +743,10 @@ namespace WanXiang.Campaign
             // 代价结算：灵力不能为负；弃生契覆盖一切复活来源
             if (m.StartMana < 0) m.StartMana = 0;
             if (m.ReviveForbidden) m.ReviveOn = false;
+
+            // ★ 全局阻尼（见 RelicMods 里的注释）：给总量加软上限，避免件数一多就爆炸
+            m.PlayerMul = RelicMods.CapAbove(m.PlayerMul, RelicMods.MaxPlayerMul);
+            m.EnemyMul = RelicMods.CapBelow(m.EnemyMul, RelicMods.MinEnemyMul);
             return m;
         }
 

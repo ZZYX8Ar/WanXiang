@@ -34,17 +34,26 @@ namespace WanXiang.Campaign
         /// <summary>每道劫律的预算上限涨幅。</summary>
         public const float CapJieStep = 0.02f;
 
-        /// <summary>幕系数 A（§5.1）。</summary>
+        /// <summary>
+        /// 幕系数 A（§5.1）。
+        /// ⚠ 2026-09-29 按【平衡自检】（1760 局实跑）重标定：原来是 0.85~1.50，
+        ///   结果「前三幕 0 遗物就 98~100% 通关、四五幕无遗物只有 43%/10%」——
+        ///   坡度是阶梯断崖。现压缩为 0.98~1.36：前三幕加压力、四五幕压断崖，
+        ///   让「遗物成长」的收益落在中段而不是一个 6 件的硬开关。
+        ///   改这里的数值后，务必重跑《遗物系统设计文档 §11.5》的平衡自检。
+        /// </summary>
         public static float ActMul(int act)
         {
             switch (act)
             {
-                case 1: return 0.85f;   // 教学幕，容错高
-                case 2: return 1.00f;   // 基准幕
-                case 3: return 1.15f;   // 开始筛阵容
-                case 4: return 1.30f;   // 终局压力测试
-                case 5: return 1.50f;   // 天阙（后土 + 玩家镜像）
-                default: return 1.00f;
+                case 1: return 1.08f;   // 教学幕（原 0.85）—— 仍最软，但不再"闭眼过"
+                case 2: return 1.22f;   // 基准幕（原 1.00）
+                // ⚠ 幕 3 的系数**故意略高于幕 4**：幕 3 的敌方规模是 4（幕 4 是 5），
+                //   用系数补偿"少一个敌人"，难度才会平滑上升 —— 别按"系数必须单调"去改它。
+                case 3: return 1.34f;   // 开始筛阵容（原 1.15）
+                case 4: return 1.28f;   // 终局压力（原 1.30；真正的墙在"敌方规模 4→5"）
+                case 5: return 1.36f;   // 天阙（原 1.50，压低断崖）
+                default: return 1.22f;
             }
         }
 
