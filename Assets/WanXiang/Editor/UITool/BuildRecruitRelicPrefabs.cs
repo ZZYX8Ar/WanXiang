@@ -156,13 +156,15 @@ namespace WanXiang.EditorTools
             var pickBtn = UIBuild.Btn(pickRt);
             detail.gameObject.SetActive(false);
 
-            // 底：刷新 / 确定
+            // 底：刷新 / 确定 / 关闭（右对齐，pivot=(1,0)；MakeBtn 的 pivot 是 0.5 会把「确定」挤出面板）
             var egg = UIBuild.Tmp(Place(rt, "Tmp_EggCost", new Vector2(0f, 0f), new Vector2(0f, 0f),
                 new Vector2(300f, 36f), new Vector2(30f, 26f)), "刷新：免费", 22, UIBuild.Ink2, TextAlignmentOptions.Left);
-            var bRefresh = UIBuild.MakeBtn(rt, "Btn_Refresh", new Vector2(1f, 0f),
-                new Vector2(170f, 52f), new Vector2(-200f, 34f), "刷新", UIBuild.Card, 24f);
-            var bConfirm = UIBuild.MakeBtn(rt, "Btn_Confirm", new Vector2(1f, 0f),
-                new Vector2(170f, 52f), new Vector2(-20f, 34f), "确定", UIBuild.Gold, 24f);
+            var bRefresh = PlaceBtn(rt, "Btn_Refresh", new Vector2(1f, 0f), new Vector2(1f, 0f),
+                new Vector2(150f, 52f), new Vector2(-344f, 30f), "刷新", UIBuild.Card, 24f);
+            var bConfirm = PlaceBtn(rt, "Btn_Confirm", new Vector2(1f, 0f), new Vector2(1f, 0f),
+                new Vector2(150f, 52f), new Vector2(-184f, 30f), "确定", UIBuild.Gold, 24f);
+            var bClose = PlaceBtn(rt, "Btn_Close", new Vector2(1f, 0f), new Vector2(1f, 0f),
+                new Vector2(150f, 52f), new Vector2(-24f, 30f), "关闭", UIBuild.Silk, 24f);
 
             UIBuild.Bind(comp, "_tmpTitle", title);
             UIBuild.Bind(comp, "_tmpHint", hint);
@@ -178,6 +180,7 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_tmpEggCost", egg);
             UIBuild.Bind(comp, "_btnRefresh", bRefresh.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnConfirm", bConfirm.GetComponent<Button>());
+            UIBuild.Bind(comp, "_btnClose", bClose.GetComponent<Button>());
 
             UIBuild.SavePrefab(root, "Panel_Recruit");
         }
@@ -190,6 +193,17 @@ namespace WanXiang.EditorTools
         {
             var rt = UIBuild.Fixed(parent, name, anchor, size, pos);
             rt.pivot = pivot;
+            return rt;
+        }
+
+        /// <summary>角对齐的按钮：Place + Image + Tmp_Label + Button。</summary>
+        private static RectTransform PlaceBtn(Transform parent, string name, Vector2 anchor, Vector2 pivot,
+                                              Vector2 size, Vector2 pos, string label, Color color, float fontSize)
+        {
+            var rt = Place(parent, name, anchor, pivot, size, pos);
+            UIBuild.Img(rt, color, true);
+            UIBuild.Tmp(UIBuild.Stretch(rt, "Tmp_Label", 8, 6, 8, 6), label, fontSize, UIBuild.Ink, TextAlignmentOptions.Center);
+            UIBuild.Btn(rt);
             return rt;
         }
 

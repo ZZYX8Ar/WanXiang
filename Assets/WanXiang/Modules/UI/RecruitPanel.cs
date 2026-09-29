@@ -40,6 +40,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text _tmpEggCost;         // Tmp_EggCost
         [SerializeField] private Button _btnRefresh;           // Btn_Refresh
         [SerializeField] private Button _btnConfirm;           // Btn_Confirm
+        [SerializeField] private Button _btnClose;             // Btn_Close（只回地图、不通过该节点）
 
         private const int RefreshEggCost = 2;
         private const float DoubleClickWindow = 0.32f;
@@ -58,6 +59,7 @@ namespace WanXiang.Modules.UI
             if (_btnRefresh != null) _btnRefresh.onClick.AddListener(OnRefreshClicked);
             if (_btnConfirm != null) _btnConfirm.onClick.AddListener(OnConfirmClicked);
             if (_btnPick != null) _btnPick.onClick.AddListener(OnPickClicked);
+            if (_btnClose != null) _btnClose.onClick.AddListener(OnCloseClicked);
             if (_cardTemplate != null) _cardTemplate.SetActive(false);
             if (_detailRoot != null) _detailRoot.SetActive(false);
         }
@@ -315,6 +317,15 @@ namespace WanXiang.Modules.UI
             {
                 _tmpHint.text = "灵卵不足，无法刷新（需 " + RefreshEggCost + " 灵卵）。";
             }
+        }
+
+        /// <summary>关闭：只回节点地图，**不通过该节点**（玩家想先看看地图、稍后再来招募）。
+        ///  与灵市/铸魂台的「返回」同口径：PendingCommit = -1 ⇒ 节点不推进、可再进。</summary>
+        private void OnCloseClicked()
+        {
+            CampaignPanel.PendingCommit = -1;
+            CloseSelf();
+            OpenPanelAsync<CampaignPanel>().Forget();
         }
 
         private void OnConfirmClicked()
