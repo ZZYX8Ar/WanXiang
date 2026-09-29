@@ -44,7 +44,6 @@ namespace WanXiang.Modules.UI
         private BattlePlayback _play;
         private BattleRequest _req;
         private float _speed = 1f;   // 默认 1x：先能看清，再谈加速
-        private bool _autoCast = true;
         private bool _playing;      // 回放中（控制舞台是否逐帧推进）
 
         // ---- 战斗场景模式（单位由 BattleStage2D 渲染，本面板只当 HUD）----
@@ -77,7 +76,6 @@ namespace WanXiang.Modules.UI
             BuildOrderList();   // 右上角"行动顺序"，让玩家看清轮到谁（v2.1 P4 前置）
             if (_rootWeather != null) _rootWeather.SetActive(false);
             if (_btnSpeed != null) _btnSpeed.onClick.AddListener(OnSpeedClicked);
-            if (_btnAuto != null) _btnAuto.onClick.AddListener(OnAutoClicked);
             if (_btnLeave != null) _btnLeave.onClick.AddListener(OnLeaveClicked);
         }
 
@@ -403,24 +401,24 @@ namespace WanXiang.Modules.UI
             }
         }
 
-        private void OnAutoClicked()
-        {
-            _autoCast = !_autoCast;
-            if (_tmpLog != null) _tmpLog.text = _autoCast ? "托管：开" : "托管：关";
-        }
-
         private void OnLeaveClicked()
         {
-            // 中途退出按失败结算
-            if (_tmpLog != null) _tmpLog.text = "撤退（按失败结算）";
-            HandOff(new ResultRequest
+            // ★ 重新挑战（用户 2026-09-29 要求）：放弃本场，回编队界面重新布阵重新打。
+            //   不结算、不记败、不处理阵亡（RunState.Team 本就未被本场修改，死兽仍在队伍里）。
+            if (_tmpLog != null) _tmpLog.text = "重新挑战";
+            CloseSelf();
+            var node = SceneFlow.PendingBattleNode;
+            if (node != null && !SceneFlow.LastWasPvp)
             {
-                Win = false,
-                Turns = _play != null ? _play.State.Turn : 0,
-                Fingerprint = _play != null ? _play.State.Log.Fingerprint : 0u,
-                Summary = "撤退",
-                Retreated = true,
-            });
+                // 标记重挑战：主城入口（MainSceneEntry）会直接打开编队界面（叠在节点地图之上）
+                SceneFlow.PendingRechallengeNode = node;
+                SceneFlow.ExitBattle(null);   // 回主城（不带结算）→ MainSceneEntry 接管
+            }
+            else
+            {
+                // PvP / 试炼等无节点战斗：直接回主城
+                SceneFlow.ExitBattle(null);
+            }
         }
 
         // ================================================================

@@ -32,8 +32,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private RectTransform _rootUnits;      // Root_Units（单位容器，运行时填充）
         [SerializeField] private RectTransform _hpBarTemplate;  // Item_HpBar（模板，默认隐藏）
         [SerializeField] private Button _btnSpeed;              // Btn_Speed
-        [SerializeField] private Button _btnAuto;               // Btn_Auto
-        [SerializeField] private Button _btnLeave;              // Btn_Leave
+        [SerializeField] private Button _btnLeave;              // Btn_Leave（重新挑战）
         [SerializeField] private TMP_Text _tmpLog;              // Tmp_LogLine
 
         [Header("数据引用（由生成器自动绑定）")]

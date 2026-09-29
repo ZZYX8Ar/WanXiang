@@ -64,6 +64,12 @@ namespace WanXiang.Modules.UI
         /// </summary>
         public static bool EnterFinaleMap;
 
+        /// <summary>当前战斗对应的节点（出征时在编队界面写入）：重新挑战时据此回到同一节点的编队界面。</summary>
+        public static NodeRequest PendingBattleNode;
+
+        /// <summary>「重新挑战」挂起标记：战斗里点「重新挑战」置位，主城入口消费并直接打开编队界面（叠在节点地图之上）。</summary>
+        public static NodeRequest PendingRechallengeNode;
+
         /// <summary>开始游戏：进主城。</summary>
         public static void EnterMain()
         {

@@ -42,6 +42,21 @@ namespace WanXiang.Modules.Boot
                 return;
             }
 
+            // ★ 重新挑战：战斗里点「重新挑战」→ 回同一节点的编队界面重新布阵重新打。
+            //   放在 ConsumeResult 之前：重新挑战不带回结算（result 本来就是 null）。
+            if (SceneFlow.PendingRechallengeNode != null)
+            {
+                var node = SceneFlow.PendingRechallengeNode;
+                SceneFlow.PendingRechallengeNode = null;
+                SceneFlow.PendingBattleNode = node;   // 重新出征时还能再回到这个节点
+                ui.Close<StartPanel>();
+                await ui.OpenAsync<CampaignPanel>();       // 底下垫节点地图
+                await ui.OpenAsync<FormationPanel>(node);  // 再叠编队界面（带节点上下文）
+                Debug.Log("[MainSceneEntry][调试] 重新挑战 ⇒ 已回到编队界面（节点：" +
+                          (node != null ? node.Title : "null") + "）");
+                return;
+            }
+
             if (SceneFlow.ConsumeResult(out var result))
             {
                 // ⚠ 旧的天阙触发条件（Act==4 && NodeOffset==11）已废弃并删除：

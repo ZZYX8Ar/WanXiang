@@ -566,12 +566,20 @@ namespace WanXiang.Modules.UI
             if (_bondTipSlot == 90 && _bondTipPanel.gameObject.activeSelf) return;
             _bondTipSlot = 90;
             const string title = "九宫格中宫（中间格）";
-            const string body = "中宫有特殊效果：\n" +
-                "· 中宫土德：站中间的异兽受到伤害 -8%（全属性减伤）。\n" +
-                "· 平息相冲：若相冲（相克）涉及中宫，该次相冲被化解。\n" +
-                "· 连携技必须由站中宫的主兽发动（句芒/祝融/蓐收）。\n" +
-                "所以把主兽放进中间格收益最大。";
-            PresentBondTip("<size=24><b>" + title + "</b></size>\n" + body);
+            var sb = new System.Text.StringBuilder();
+            sb.Append("中宫有特殊效果：\n");
+            sb.Append("· 中宫土德：站中间的异兽受到伤害 -8%（全属性减伤）。\n");
+            sb.Append("· 平息相冲：若相冲（相克）涉及中宫，该次相冲被化解。\n");
+            sb.Append("· 连携技必须由站中宫的主兽发动（句芒/祝融/蓐收）。\n");
+            sb.Append("所以把主兽放进中间格收益最大。\n\n");
+            sb.Append("【连携技一览】（主兽须站中宫，双方各耗 2 灵力，每场每条限一次）\n");
+            // ★ 直接读 ComboRules.All，保证说明与实战效果永远一致（用户 2026-09-29 要求写进中宫说明）
+            foreach (var c in WanXiang.Battle.Core.ComboRules.All)
+            {
+                sb.Append("· ").Append(c.Name).Append("：")
+                  .Append(c.Note).Append("（倍率 ").Append((c.Power * 100f).ToString("0")).Append("%）\n");
+            }
+            PresentBondTip("<size=24><b>" + title + "</b></size>\n" + sb);
         }
 
         private void PresentBondTip(string text)
@@ -923,6 +931,8 @@ namespace WanXiang.Modules.UI
             SaveTeamToRun();
             // 出征 = 切到战斗场景。关掉布阵界面：布阵是 Normal 层，
             // 战斗 HUD 在 Main 层，留着会被布阵的遮罩压住。
+            // ★ 记录当前节点：战斗里点「重新挑战」时要回到同一个节点的编队界面（2026-09-29）。
+            SceneFlow.PendingBattleNode = _node;
             CloseSelf();
             SceneFlow.EnterBattle(req);
         }

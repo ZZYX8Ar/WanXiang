@@ -579,10 +579,10 @@ namespace WanXiang.EditorTools
             var ctl = UIBuild.Bottom(rt, "Root_BattleCtl", 120, 24, 24, 340);
             var bSpeed = UIBuild.MakeBtn(ctl, "Btn_Speed", new Vector2(0f, 0.5f),
                 new Vector2(180, 90), new Vector2(110, 0), "x1", UIBuild.Card, 28f);
-            var bAuto = UIBuild.MakeBtn(ctl, "Btn_Auto", new Vector2(0f, 0.5f),
-                new Vector2(180, 90), new Vector2(310, 0), "自动布阵", UIBuild.Card, 26f);
+            // ★ Btn_Auto（"自动布阵"）是遗留/重复的无效按钮，已从面板与代码清理（2026-09-29）。
+            //   真正的自动战斗按钮是操作区的 Btn_AutoBattle（绑定 _btnAutoBattle）。
             var bLeave = UIBuild.MakeBtn(ctl, "Btn_Leave", new Vector2(0f, 0.5f),
-                new Vector2(180, 90), new Vector2(510, 0), "撤退", UIBuild.Card, 28f);
+                new Vector2(180, 90), new Vector2(510, 0), "重新挑战", UIBuild.Card, 28f);
 
             var log = UIBuild.Bottom(rt, "Root_Log", 110, 500, 24, 24);
             UIBuild.Img(log, UIBuild.Night);
@@ -596,7 +596,6 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_rootUnits", units);
             UIBuild.Bind(comp, "_hpBarTemplate", hpTpl);
             UIBuild.Bind(comp, "_btnSpeed", bSpeed.GetComponent<Button>());
-            UIBuild.Bind(comp, "_btnAuto", bAuto.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnLeave", bLeave.GetComponent<Button>());
             UIBuild.Bind(comp, "_tmpLog", tmpLog);
             // ---- 回合制 v2.1 P1-3：战记操作区（底部，默认隐藏，等下令时亮出）----
