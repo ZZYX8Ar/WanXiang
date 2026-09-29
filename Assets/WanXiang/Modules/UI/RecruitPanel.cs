@@ -218,9 +218,10 @@ namespace WanXiang.Modules.UI
         private void RefreshHeader()
         {
             if (_tmpHint != null)
-                _tmpHint.text = "本幕可选至多 " + _limit + " 只（可少选）· 已选 " +
-                                _picked.Count + " / " + _limit + "　—— 点格子看详情，双击入队";
-            if (_btnConfirm != null) _btnConfirm.interactable = _picked.Count > 0;
+                _tmpHint.text = "本幕可选至多 " + _limit + " 只 · 已选 " + _picked.Count + " / " + _limit +
+                                "　（可少选：选好了点【确定】继续）—— 点格子看详情，双击入队";
+            // ★ 允许少选（0 ~ _limit 只都能确定）—— 用户明确要求"不能强制定死 3 只"。
+            if (_btnConfirm != null) _btnConfirm.interactable = true;
         }
 
         // ---- 右侧详情 ----

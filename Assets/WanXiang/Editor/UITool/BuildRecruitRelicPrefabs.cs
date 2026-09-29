@@ -109,23 +109,25 @@ namespace WanXiang.EditorTools
                 20, UIBuild.Ink2, TextAlignmentOptions.Center);
 
             // 左：候选格子滚动区（Content 带 GridLayoutGroup，2 列；Viewport 已内置受击层）
+            //   5 行 × 76 + 4×8 = 412 ≤ 区高 420 ⇒ 10 个候选一屏放下，不必滚动
             var content = UIBuild.ScrollGrid(rt, "Scroll_Candidates",
                 Vector2.zero, Vector2.one, new Vector2(30f, 104f), new Vector2(-460f, -116f),
-                new Vector2(190f, 104f), new Vector2(12f, 12f), 2, out var _sr);
+                new Vector2(180f, 76f), new Vector2(8f, 8f), 2, out var _sr);
 
             // 格子模板（失活，运行时 Instantiate(_cardTemplate, _gridContent) 克隆）
             var cardTpl = UIBuild.Fixed(content, "Item_CardTemplate", new Vector2(0f, 1f),
-                new Vector2(190f, 104f), Vector2.zero);
+                new Vector2(180f, 76f), Vector2.zero);
             UIBuild.Img(cardTpl, UIBuild.Card, true);
+            UIBuild.Btn(cardTpl);      // ★ 格子本身必须可点（单击看详情 / 双击入队）—— 少了它会"点了没反应"
             var cardHead = UIBuild.Img(UIBuild.Fixed(cardTpl, "Img_CardHead", new Vector2(0f, 0.5f),
-                new Vector2(76f, 76f), new Vector2(12f, 0f)), new Color(0.86f, 0.82f, 0.74f, 1f));
+                new Vector2(58f, 58f), new Vector2(8f, 0f)), new Color(0.86f, 0.82f, 0.74f, 1f));
             cardHead.preserveAspect = true;
             UIBuild.Tmp(UIBuild.Fixed(cardTpl, "Tmp_CardName", new Vector2(0f, 0.5f),
-                new Vector2(96f, 40f), new Vector2(98f, 18f)), "异兽名", 24, UIBuild.Ink, TextAlignmentOptions.Left);
+                new Vector2(104f, 30f), new Vector2(72f, 13f)), "异兽名", 22, UIBuild.Ink, TextAlignmentOptions.Left);
             UIBuild.Tmp(UIBuild.Fixed(cardTpl, "Tmp_CardElem", new Vector2(0f, 0.5f),
-                new Vector2(96f, 32f), new Vector2(98f, -22f)), "属性", 20, UIBuild.Ink2, TextAlignmentOptions.Left);
+                new Vector2(104f, 26f), new Vector2(72f, -14f)), "属性", 18, UIBuild.Ink2, TextAlignmentOptions.Left);
             var cardSel = UIBuild.Img(UIBuild.Fixed(cardTpl, "Img_CardSel", new Vector2(1f, 0f),
-                new Vector2(30f, 30f), new Vector2(-10f, 10f)), UIBuild.Gold);
+                new Vector2(24f, 24f), new Vector2(-8f, 8f)), UIBuild.Gold);
             cardSel.raycastTarget = false;
             cardTpl.gameObject.SetActive(false);
 
