@@ -46,7 +46,7 @@ namespace WanXiang.Modules.UI
 
         private int _limit = 3;                 // 本幕可挑数量（act1=3，其余=1）
         private bool _refreshUsed;
-        private readonly HashSet<string> _picked = new HashSet<string>();
+        private readonly List<string> _picked = new List<string>();   // 有序：满了顶掉「最早选的」那只
         private readonly List<BeastDef> _candidates = new List<BeastDef>();
         private readonly List<GameObject> _cards = new List<GameObject>();
         private int _detailIndex = -1;
@@ -73,7 +73,7 @@ namespace WanXiang.Modules.UI
             if (_detailRoot != null) _detailRoot.SetActive(false);
 
             if (_tmpTitle != null)
-                _tmpTitle.text = _limit == 3 ? "招募 · 挑选至多 3 只异兽" : "招募 · 挑选 1 只异兽";
+                _tmpTitle.text = _limit == 3 ? "招募 · 挑选 3 只异兽" : "招募 · 挑选 1 只异兽";
             if (_tmpEggCost != null) _tmpEggCost.text = "刷新：免费";
 
             Reroll();
@@ -186,13 +186,9 @@ namespace WanXiang.Modules.UI
             }
             else
             {
-                if (_picked.Count >= _limit)
-                {
-                    if (_tmpHint != null)
-                        _tmpHint.text = "本幕最多选 " + _limit + " 只 —— 已选满，先取消一只再选";
-                    RepaintSelection();
-                    return;
-                }
+                // ★ 已满（== _limit）：顶掉「最早选的」那只，把本次双击的放进来（用户要求：
+                //   双击超过上限 → 自动取消最开始选择的，被双击的选上）。选择数永不超 _limit。
+                if (_picked.Count >= _limit) _picked.RemoveAt(0);
                 _picked.Add(beast.Id);
             }
             RepaintSelection();
@@ -218,10 +214,14 @@ namespace WanXiang.Modules.UI
         private void RefreshHeader()
         {
             if (_tmpHint != null)
-                _tmpHint.text = "本幕可选至多 " + _limit + " 只 · 已选 " + _picked.Count + " / " + _limit +
-                                "　（可少选：选好了点【确定】继续）—— 点格子看详情，双击入队";
-            // ★ 允许少选（0 ~ _limit 只都能确定）—— 用户明确要求"不能强制定死 3 只"。
-            if (_btnConfirm != null) _btnConfirm.interactable = true;
+            {
+                int need = _limit - _picked.Count;
+                _tmpHint.text = "本幕必须选满 " + _limit + " 只才能开始 · 已选 " + _picked.Count + " / " + _limit +
+                                (need > 0 ? "（还需 " + need + " 只）" : "（已满，可以开始）") +
+                                "　—— 点格子看详情，双击入队";
+            }
+            // ★ 必须恰好选满 _limit 只才能确定（用户要求：多一个少一个都不行）。
+            if (_btnConfirm != null) _btnConfirm.interactable = _picked.Count == _limit;
         }
 
         // ---- 右侧详情 ----
@@ -319,8 +319,9 @@ namespace WanXiang.Modules.UI
 
         private void OnConfirmClicked()
         {
+            if (_picked.Count != _limit) return;   // 必须恰好选满 _limit 只才能开始（按钮已据此禁用）
             var run = WanXiang.Run.RunSave.Current;
-            if (run != null && _picked.Count > 0)
+            if (run != null)
             {
                 if (run.Collection == null) run.Collection = new List<string>();
                 if (run.Team == null) run.Team = new List<string>();

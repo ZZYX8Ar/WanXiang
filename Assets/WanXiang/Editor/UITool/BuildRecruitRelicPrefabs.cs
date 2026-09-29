@@ -94,6 +94,8 @@ namespace WanXiang.EditorTools
         // ---------------------------------------------------------------- 招募
         //  布局参考【灵市】：左侧候选格子（五行各 2 ⇒ 最多 10 格，2 列自动排），
         //  点格子看右侧详情，双击格子（或点详情里的【选择】）入队。
+        //  ⚠ 一律用 Place()（显式 pivot）而不是 UIBuild.Fixed：
+        //    Fixed 的 pivot 是 0.5（"偏移=元素中心"），做角对齐时头像/文字会溢出卡片与详情框（实测踩过）。
         private static void BuildRecruit()
         {
             SafeDelete("Panel_Recruit");
@@ -102,63 +104,61 @@ namespace WanXiang.EditorTools
             var comp = root.AddComponent<RecruitPanel>();
             var rt = (RectTransform)root.transform;
 
-            var title = UIBuild.Tmp(UIBuild.Top(rt, "Tmp_Title", 52, 30, 30, 14),
-                "招募 · 挑选至多 3 只异兽", 32, UIBuild.Ink, TextAlignmentOptions.Center);
-            var hint = UIBuild.Tmp(UIBuild.Top(rt, "Tmp_Hint", 40, 30, 30, 62),
-                "本幕可选至多 3 只（可少选）· 已选 0 / 3　—— 点格子看详情，双击入队",
-                20, UIBuild.Ink2, TextAlignmentOptions.Center);
+            var title = UIBuild.Tmp(UIBuild.Top(rt, "Tmp_Title", 46, 30, 30, 12),
+                "招募 · 挑选 3 只异兽", 30, UIBuild.Ink, TextAlignmentOptions.Center);
+            var hint = UIBuild.Tmp(UIBuild.Top(rt, "Tmp_Hint", 44, 30, 30, 58),
+                "本幕必须选满 3 只才能开始 · 已选 0 / 3", 19, UIBuild.Ink2, TextAlignmentOptions.Center);
 
             // 左：候选格子滚动区（Content 带 GridLayoutGroup，2 列；Viewport 已内置受击层）
-            //   5 行 × 76 + 4×8 = 412 ≤ 区高 420 ⇒ 10 个候选一屏放下，不必滚动
+            //   5 行 × 76 + 4×8 = 412 ≤ 区高 428 ⇒ 10 个候选一屏放下，不必滚动
             var content = UIBuild.ScrollGrid(rt, "Scroll_Candidates",
-                Vector2.zero, Vector2.one, new Vector2(30f, 104f), new Vector2(-460f, -116f),
-                new Vector2(180f, 76f), new Vector2(8f, 8f), 2, out var _sr);
+                Vector2.zero, Vector2.one, new Vector2(28f, 100f), new Vector2(-484f, -112f),
+                new Vector2(178f, 76f), new Vector2(8f, 8f), 2, out var _sr);
 
             // 格子模板（失活，运行时 Instantiate(_cardTemplate, _gridContent) 克隆）
-            var cardTpl = UIBuild.Fixed(content, "Item_CardTemplate", new Vector2(0f, 1f),
-                new Vector2(180f, 76f), Vector2.zero);
+            var cardTpl = Place(content, "Item_CardTemplate", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(178f, 76f), Vector2.zero);
             UIBuild.Img(cardTpl, UIBuild.Card, true);
             UIBuild.Btn(cardTpl);      // ★ 格子本身必须可点（单击看详情 / 双击入队）—— 少了它会"点了没反应"
-            var cardHead = UIBuild.Img(UIBuild.Fixed(cardTpl, "Img_CardHead", new Vector2(0f, 0.5f),
-                new Vector2(58f, 58f), new Vector2(8f, 0f)), new Color(0.86f, 0.82f, 0.74f, 1f));
+            var cardHead = UIBuild.Img(Place(cardTpl, "Img_CardHead", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(56f, 56f), new Vector2(8f, 0f)), new Color(0.86f, 0.82f, 0.74f, 1f));
             cardHead.preserveAspect = true;
-            UIBuild.Tmp(UIBuild.Fixed(cardTpl, "Tmp_CardName", new Vector2(0f, 0.5f),
-                new Vector2(104f, 30f), new Vector2(72f, 13f)), "异兽名", 22, UIBuild.Ink, TextAlignmentOptions.Left);
-            UIBuild.Tmp(UIBuild.Fixed(cardTpl, "Tmp_CardElem", new Vector2(0f, 0.5f),
-                new Vector2(104f, 26f), new Vector2(72f, -14f)), "属性", 18, UIBuild.Ink2, TextAlignmentOptions.Left);
-            var cardSel = UIBuild.Img(UIBuild.Fixed(cardTpl, "Img_CardSel", new Vector2(1f, 0f),
-                new Vector2(24f, 24f), new Vector2(-8f, 8f)), UIBuild.Gold);
+            UIBuild.Tmp(Place(cardTpl, "Tmp_CardName", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(104f, 28f), new Vector2(70f, 13f)), "异兽名", 21, UIBuild.Ink, TextAlignmentOptions.Left);
+            UIBuild.Tmp(Place(cardTpl, "Tmp_CardElem", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(104f, 24f), new Vector2(70f, -14f)), "属性", 17, UIBuild.Ink2, TextAlignmentOptions.Left);
+            var cardSel = UIBuild.Img(Place(cardTpl, "Img_CardSel", new Vector2(1f, 0f), new Vector2(1f, 0f),
+                new Vector2(22f, 22f), new Vector2(-6f, 6f)), UIBuild.Gold);
             cardSel.raycastTarget = false;
             cardTpl.gameObject.SetActive(false);
 
             // 右：详情区（初始隐藏；点格子时由代码 SetActive(true) 并填数据）
-            var detail = UIBuild.Fixed(rt, "Root_Detail", new Vector2(1f, 1f),
-                new Vector2(400f, 430f), new Vector2(-30f, -116f));
-            detail.pivot = new Vector2(1f, 1f);
+            var detail = Place(rt, "Root_Detail", new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(440f, 428f), new Vector2(-24f, -112f));
             UIBuild.Img(detail, UIBuild.Card, true);
-            var dBig = UIBuild.Img(UIBuild.Fixed(detail, "Img_DetailBig", new Vector2(0f, 1f),
-                new Vector2(128f, 128f), new Vector2(20f, -20f)), new Color(0.86f, 0.82f, 0.74f, 1f));
+            var dBig = UIBuild.Img(Place(detail, "Img_DetailBig", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(110f, 110f), new Vector2(18f, -18f)), new Color(0.86f, 0.82f, 0.74f, 1f));
             dBig.preserveAspect = true;
-            var dName = UIBuild.Tmp(UIBuild.Fixed(detail, "Tmp_DetailName", new Vector2(0f, 1f),
-                new Vector2(230f, 44f), new Vector2(158f, -24f)), "异兽名", 28, UIBuild.Ink, TextAlignmentOptions.Left);
-            var dClass = UIBuild.Tmp(UIBuild.Fixed(detail, "Tmp_DetailClass", new Vector2(0f, 1f),
-                new Vector2(230f, 32f), new Vector2(158f, -70f)), "五行 · 定位 · 品阶", 20, UIBuild.Ink2, TextAlignmentOptions.Left);
-            var dStats = UIBuild.Tmp(UIBuild.Fixed(detail, "Tmp_DetailStats", new Vector2(0f, 1f),
-                new Vector2(230f, 74f), new Vector2(158f, -104f)), "生命 / 攻击…", 18, UIBuild.Ink2, TextAlignmentOptions.TopLeft);
+            var dName = UIBuild.Tmp(Place(detail, "Tmp_DetailName", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(286f, 38f), new Vector2(140f, -22f)), "异兽名", 26, UIBuild.Ink, TextAlignmentOptions.Left);
+            var dClass = UIBuild.Tmp(Place(detail, "Tmp_DetailClass", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(286f, 26f), new Vector2(140f, -62f)), "五行 · 定位 · 品阶", 19, UIBuild.Ink2, TextAlignmentOptions.Left);
+            var dStats = UIBuild.Tmp(Place(detail, "Tmp_DetailStats", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(286f, 60f), new Vector2(140f, -92f)), "生命 / 攻击…", 17, UIBuild.Ink2, TextAlignmentOptions.TopLeft);
             dStats.enableWordWrapping = true;
-            var dSkills = UIBuild.Tmp(UIBuild.Fixed(detail, "Tmp_DetailSkills", new Vector2(0f, 1f),
-                new Vector2(360f, 190f), new Vector2(20f, -166f)), "技能…", 18, UIBuild.Ink, TextAlignmentOptions.TopLeft);
+            var dSkills = UIBuild.Tmp(Place(detail, "Tmp_DetailSkills", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(408f, 190f), new Vector2(16f, -160f)), "技能…", 17, UIBuild.Ink, TextAlignmentOptions.TopLeft);
             dSkills.enableWordWrapping = true;
-            var pickRt = UIBuild.Fixed(detail, "Btn_Pick", new Vector2(0.5f, 0f),
-                new Vector2(200f, 56f), new Vector2(0f, 18f));
+            var pickRt = Place(detail, "Btn_Pick", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(200f, 52f), new Vector2(0f, 18f));
             UIBuild.Img(pickRt, UIBuild.Gold, true);
             UIBuild.Tmp(UIBuild.Stretch(pickRt, "Tmp_Label", 8, 6, 8, 6), "选择", 24, UIBuild.Ink, TextAlignmentOptions.Center);
             var pickBtn = UIBuild.Btn(pickRt);
             detail.gameObject.SetActive(false);
 
             // 底：刷新 / 确定
-            var egg = UIBuild.Tmp(UIBuild.Fixed(rt, "Tmp_EggCost", new Vector2(0f, 0f),
-                new Vector2(280f, 36f), new Vector2(140f, 34f)), "刷新：免费", 22, UIBuild.Ink2, TextAlignmentOptions.Left);
+            var egg = UIBuild.Tmp(Place(rt, "Tmp_EggCost", new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(300f, 36f), new Vector2(30f, 26f)), "刷新：免费", 22, UIBuild.Ink2, TextAlignmentOptions.Left);
             var bRefresh = UIBuild.MakeBtn(rt, "Btn_Refresh", new Vector2(1f, 0f),
                 new Vector2(170f, 52f), new Vector2(-200f, 34f), "刷新", UIBuild.Card, 24f);
             var bConfirm = UIBuild.MakeBtn(rt, "Btn_Confirm", new Vector2(1f, 0f),
@@ -183,6 +183,16 @@ namespace WanXiang.EditorTools
         }
 
         // ---------------------------------------------------------------- 工具
+        /// <summary>UIBuild.Fixed 的 pivot 固定是 0.5（"偏移 = 元素中心"）；做角对齐时元素会溢出容器。
+        ///  本函数显式指定 pivot，让 <paramref name="pos"/> 就是"pivot 那个角"相对锚点的位置。</summary>
+        private static RectTransform Place(Transform parent, string name, Vector2 anchor, Vector2 pivot,
+                                           Vector2 size, Vector2 pos)
+        {
+            var rt = UIBuild.Fixed(parent, name, anchor, size, pos);
+            rt.pivot = pivot;
+            return rt;
+        }
+
         /// <summary>删除本生成器上一次产出的占位 prefab（这两个面板允许覆盖）。</summary>
         private static void SafeDelete(string file)
         {
