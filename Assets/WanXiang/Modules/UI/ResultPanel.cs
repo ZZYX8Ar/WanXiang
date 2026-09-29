@@ -316,7 +316,7 @@ namespace WanXiang.Modules.UI
                 return;
             }
 
-            // ★ 平局 = 打满回合上限（BattleConfig.MaxTurns=30）仍无人阵亡（用户 2026-09-28）。
+            // ★ 平局 = 打满回合上限（BattleConfig.MaxTurns=48，以 BattlePlayback 构造时写入为准）仍无人阵亡（用户 2026-09-29）。
             //   按**撤退**处理：不清进度、不计败场、节点不推进、本局继续。
             //   旧实现落进"失败"分支 ⇒ 整局被清空，玩家"没人死却全没了"一头雾水。
             if (_isDraw)

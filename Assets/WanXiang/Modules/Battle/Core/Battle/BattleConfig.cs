@@ -179,9 +179,10 @@ namespace WanXiang.Battle.Core
         /// <summary>暴击伤害基准。GDD 秋幕节点写"暴击伤害 +40%"，说明暴伤是可被天时改的乘区。</summary>
         public float CritDamageDefault = 0.50f;   // 即 150% 伤害
 
-        /// <summary>单场回合上限。到上限仍未分胜负记为 Draw —— 对应 GDD 春分节点"超过 12 回合"的措辞，
-        /// 取 30 是给长线阵容留空间，同时保证跑不飞的沙盒能收敛。</summary>
-        public int MaxTurns = 30;
+        /// <summary>单场回合上限。到上限仍未分胜负记为 Draw —— 对应 GDD 春分节点"超过 12 回合"的措辞。
+        /// 默认 48（用户 2026-09-29 要求；原 30）。注意：BattlePlayback 构造时会再写一次该值（当前 =48），
+        /// 改上限以 BattlePlayback 里的为准。</summary>
+        public int MaxTurns = 48;
 
         /// <summary>回合之间的语义间隔（秒）。STEP 1 逻辑不 sleep，这个值只供表现层读。</summary>
         public float TurnIntervalSeconds = 0.30f;

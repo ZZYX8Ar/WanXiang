@@ -282,7 +282,7 @@ namespace WanXiang.Modules.UI
                 // ★ 带回合数（用户 2026-09-28：30 回合上限打满会平局，必须让玩家看见进度）
                 var stAuto = _play.State;
                 if (_tmpActor != null) _tmpActor.text = "自动战斗中…… 第 " + (stAuto != null ? stAuto.Turn : 0) + "/" +
-                    (stAuto != null && stAuto.Config != null ? stAuto.Config.MaxTurns : 30) + " 回合（点任意战记即可接管）";
+                    (stAuto != null && stAuto.Config != null ? stAuto.Config.MaxTurns : 48) + " 回合（点任意战记即可接管）";
                 return;
             }
             var stt = _play.State;
@@ -294,10 +294,10 @@ namespace WanXiang.Modules.UI
             var cfg = stt != null ? stt.Config : null;
             if (_tmpActor != null && u != null)
             {
-                // ★ 回合数常驻显示（用户 2026-09-28）：打到 MaxTurns(30) 上限会判平局，
+                // ★ 回合数常驻显示（用户 2026-09-28）：打到 MaxTurns(48) 上限会判平局，
                 //   之前界面完全没提示，玩家"没人死却输了"一头雾水。
                 string line = "第 " + (stt != null ? stt.Turn : 0) + "/" +
-                              (cfg != null ? cfg.MaxTurns : 30) + " 回合　轮到「" + u.DisplayName + "」　灵力 " + mp + "/" + mpMax +
+                              (cfg != null ? cfg.MaxTurns : 48) + " 回合　轮到「" + u.DisplayName + "」　灵力 " + mp + "/" + mpMax +
                               "（战记 " + WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active) + " 点）";
                 if (u.GetSkill(SkillType.Ultimate) != null)
                     line += "　元气 " + (int)u.Rage + "/" + (int)u.RageCap;
