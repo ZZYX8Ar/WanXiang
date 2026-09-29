@@ -241,14 +241,43 @@ namespace WanXiang.Modules.UI
             WanXiang.Modules.UI.SceneFlow.LastBattleKind = kind;   // 结算面板据此定遗物权重
             if (run.Relics != null && run.Relics.Count > 0)
             {
-                var mods = WanXiang.Campaign.RelicCatalog.Accumulate(run.Relics);
+                int teamCount = req.Player.Count;
+                var mods = WanXiang.Campaign.RelicCatalog.Accumulate(run.Relics, teamCount, run.Wins);
+
+                // ① 全队倍率（基础数值 / 双面收益 / 累计 / 限时 / 众寡术）
                 req.PlayerMul *= mods.PlayerMul;
+
+                // ② 逐单位倍率：五行专属 / 定位专属 / 异兽专属遗物（落在 PlayerMulPer[i]）
+                for (int i = 0; i < req.Player.Count && i < req.PlayerMulPer.Count; i++)
+                {
+                    var b = req.Player[i];
+                    if (b == null) continue;
+                    float per = req.PlayerMulPer[i];
+                    per *= mods.MulFor(b.Element);   // 五行灵符
+                    per *= mods.RoleFor(b.Role);     // 定位契印
+                    per *= mods.BeastFor(b.Id);      // 异兽契印
+                    req.PlayerMulPer[i] = per;
+                }
+
+                // ③ 敌方：全属性弱化 × 指定五行弱化
                 if (req.EnemyEntries != null)
                     for (int i = 0; i < req.EnemyEntries.Count; i++)
-                        req.EnemyEntries[i] = req.EnemyEntries[i].WithMul(req.EnemyEntries[i].StatMul * mods.EnemyMul);
+                    {
+                        var en = req.EnemyEntries[i];
+                        float mul = en.StatMul * mods.EnemyMul;
+                        if (en.Def != null) mul *= mods.WeakFor(en.Def.Element);
+                        req.EnemyEntries[i] = en.WithMul(mul);
+                    }
+
+                // ④ 复活 / 开局灵力（弃生契会强制关掉复活）
                 if (mods.ReviveOn) { req.PlayerReviveOn = true; req.PlayerReviveHpPercent = mods.ReviveHpPercent; }
+                else if (mods.ReviveForbidden) req.PlayerReviveOn = false;
                 req.PlayerStartMana += mods.StartMana;
-                UnityEngine.Debug.Log("[BattleRequestFactory] 遗物生效：" + run.Relics.Count + " 件（玩家x" + mods.PlayerMul.ToString("0.00") + " 敌x" + mods.EnemyMul.ToString("0.00") + " 复活" + mods.ReviveOn + " 灵力+" + mods.StartMana + "）");
+
+                UnityEngine.Debug.Log("[BattleRequestFactory] 遗物生效：" + run.Relics.Count +
+                    " 件（全队x" + mods.PlayerMul.ToString("0.000") + " 敌x" + mods.EnemyMul.ToString("0.000") +
+                    " 复活" + req.PlayerReviveOn + " 灵力+" + mods.StartMana +
+                    " 队" + teamCount + " 胜" + run.Wins + "）");
             }
 
             return req.Player.Count > 0 && req.EnemyEntries.Count > 0;
