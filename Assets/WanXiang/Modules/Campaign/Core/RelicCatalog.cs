@@ -194,6 +194,17 @@ namespace WanXiang.Campaign
             new[]{ "yuqiang","禺强","Water","Caster" },   new[]{ "yinglong","应龙","Water","Striker" },
             new[]{ "xiangliu","相柳","Water","Striker" }, new[]{ "bashe","巴蛇","Water","Swift" },
             new[]{ "fuzhu","夫诸","Water","Caster" },     new[]{ "xuangui","旋龟","Water","Support" },
+            // ---- v1.3 新增 20 只（见《新增异兽设计文档 v1.0》：木/火/土/金/水 各 +4）----
+            new[]{ "mengji","孟极","Wood","Swift" },      new[]{ "zhuhuai","诸怀","Wood","Striker" },
+            new[]{ "tianma","天马","Wood","Support" },    new[]{ "xiegou","絜钩","Wood","Caster" },
+            new[]{ "jiuying","九婴","Fire","Caster" },    new[]{ "zhen","鸩","Fire","Swift" },
+            new[]{ "huoshu","火鼠","Fire","Guard" },      new[]{ "chiwen","鸱吻","Fire","Striker" },
+            new[]{ "tulou","土蝼","Earth","Striker" },    new[]{ "changyou","长右","Earth","Swift" },
+            new[]{ "haozhi","豪彘","Earth","Guard" },     new[]{ "shangao","山膏","Earth","Support" },
+            new[]{ "xiezhi","獬豸","Metal","Caster" },    new[]{ "pixiu","貔貅","Metal","Striker" },
+            new[]{ "baiyuan","白猿","Metal","Swift" },    new[]{ "suanni","狻猊","Metal","Guard" },
+            new[]{ "chiru","赤鱬","Water","Caster" },     new[]{ "shen","蜃","Water","Support" },
+            new[]{ "lingli","陵鲤","Water","Guard" },     new[]{ "jiaoren","鲛人","Water","Swift" },
         };
 
         // 按定位轮换的机制（每只异兽的专属印记机制）
