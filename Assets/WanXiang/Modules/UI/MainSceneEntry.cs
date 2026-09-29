@@ -49,6 +49,10 @@ namespace WanXiang.Modules.Boot
                 var node = SceneFlow.PendingRechallengeNode;
                 SceneFlow.PendingRechallengeNode = null;
                 SceneFlow.PendingBattleNode = node;   // 重新出征时还能再回到这个节点
+                // ★ 重新挑战修复（2026-09-29）：清掉"点节点时写的 PendingCommit"，
+                //   否则下面打开 CampaignPanel 会把它当成"已通过"落地 ⇒ 节点被误判通关。
+                //   真正的通过要等【重新出征打赢】后回地图才落地（见 FormationPanel.OnDeployClicked 重写 PendingCommit）。
+                CampaignPanel.PendingCommit = -1;
                 ui.Close<StartPanel>();
                 await ui.OpenAsync<CampaignPanel>();       // 底下垫节点地图
                 await ui.OpenAsync<FormationPanel>(node);  // 再叠编队界面（带节点上下文）

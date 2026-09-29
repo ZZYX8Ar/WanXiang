@@ -933,6 +933,11 @@ namespace WanXiang.Modules.UI
             // 战斗 HUD 在 Main 层，留着会被布阵的遮罩压住。
             // ★ 记录当前节点：战斗里点「重新挑战」时要回到同一个节点的编队界面（2026-09-29）。
             SceneFlow.PendingBattleNode = _node;
+            // ★ 重新挑战修复（2026-09-29）：把"待推进节点"在【出征】这一刻重新写回。
+            //   点节点时 CampaignPanel 已写过一次 PendingCommit，但重新挑战会先把 PendingCommit 清 -1
+            //   （避免回地图时把"放弃的本场"误判为通过）；这里再次写入，保证【真正打赢】回到地图时
+            //   才落地通过。正常出征时这行是幂等的（本就是同一个 NodeIndex）。
+            if (_node != null) CampaignPanel.PendingCommit = _node.NodeIndex;
             CloseSelf();
             SceneFlow.EnterBattle(req);
         }
