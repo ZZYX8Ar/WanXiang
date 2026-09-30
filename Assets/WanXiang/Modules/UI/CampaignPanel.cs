@@ -35,6 +35,13 @@ namespace WanXiang.Modules.UI
 
         /// <summary>节点类型（决定要不要打仗、带不带劫象）。</summary>
         public WanXiang.Campaign.NodeKind Kind = WanXiang.Campaign.NodeKind.Encounter;
+
+        /// <summary>
+        /// 是否**守关**节点（幕末最后一格）。图里这一格复用 <see cref="WanXiang.Campaign.NodeKind.Elite"/>
+        /// 作类型占位，光看 Kind 分不出「普通精英」与「守关」—— 所以由 CampaignPanel 显式置位。
+        /// 战斗工厂据此调 SeededEnemyProvider.BossSquadFor（Boss + 随从），而不是普通精英抽签。
+        /// </summary>
+        public bool IsBoss;
     }
 
     [UIPanel("Panel_Campaign", Layer = UILayer.Normal, CachePolicy = UICachePolicy.Cached,
@@ -651,6 +658,12 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             _current.Act = _graph.Act;
             _current.Offset = offset;
             _current.Kind = kind;
+            // ★ 守关 = 幕末最后一格（图里它是【精英】占位，靠这个标志与"普通精英"区分）。
+            //   只对**四季幕（1~4）**置位：这些幕的守关抽 BossCatalog 首领（BossSquadFor）。
+            //   天阙（第 5 幕）最后一格是终局战（后土），由 TrialPanel.BuildFinaleBattle 处理，
+            //   不走这里，故排除，避免"双重首领"。
+            _current.IsBoss = _graph.Act >= 1 && _graph.Act <= 4 &&
+                              _graph.NodeCount > 0 && offset == _graph.NodeCount - 1;
 
             // ★ 活链路天气：选节点时算好「节点天时 + 重放 run.Path 还原的余气」合成一份
             //   WeatherDef 存入 LiveWeather.Current，供 BattleRequestFactory / FormationPanel 取用

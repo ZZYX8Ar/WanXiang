@@ -154,7 +154,7 @@ namespace WanXiang.Modules.UI
             if (run != null) { hp = run.HealPending; pb = run.PlayerBuffPct; eb = run.EnemyBuffPct; }
 
             ok = (run != null)
-                ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req, _node.Kind)
+                ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req, _node.Kind, -1, _node.IsBoss)
                 : BattleRequestFactory.TryBuild(_contentCatalog, _node.Title, _node.Weather,
                                                 _node.Seed, out req);
             if (run != null) { run.HealPending = hp; run.PlayerBuffPct = pb; run.EnemyBuffPct = eb; }
@@ -865,7 +865,7 @@ namespace WanXiang.Modules.UI
             BattleRequest req;
             var run = WanXiang.Run.RunSave.Current;
             bool ok = (run != null)
-                ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req, _node.Kind)
+                ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req, _node.Kind, -1, _node.IsBoss)
                 : BattleRequestFactory.TryBuild(_contentCatalog, _node.Title, _node.Weather,
                                                 _node.Seed, out req);
             if (!ok)

@@ -73,7 +73,7 @@ namespace WanXiang.Modules.UI
         public static bool TryBuildFromRun(ContentCatalogSO catalog, WanXiang.Run.RunState run,
                                            string weather, out BattleRequest req,
                                            WanXiang.Campaign.NodeKind kind = WanXiang.Campaign.NodeKind.Encounter,
-                                           int termIndex = -1)
+                                           int termIndex = -1, bool isBoss = false)
         {
             req = null;
             if (catalog == null || run == null) return false;
@@ -84,14 +84,16 @@ namespace WanXiang.Modules.UI
             int act = System.Math.Max(1, System.Math.Min(run.Act, 5));
             int term = termIndex >= 0 ? termIndex : System.Math.Max(0, run.NodeOffset);
             bool elite = kind == WanXiang.Campaign.NodeKind.Elite;
+            // ★ 守关：图里最后一格复用 【精英】占位，靠 isBoss 标志区分（普通精英 vs 首领）。
+            bool boss = isBoss && kind == WanXiang.Campaign.NodeKind.Elite;
 
             // 种子：同存档同幕同节点 → 同一套敌人（可背版、可复盘）
             ulong seed = CoreMath.Fnv1a("run:" + run.Slot + ":" + act + ":" + term + ":" + run.Wins);
 
-            // AI 打法（v2.1 P4）：精英必激进；普通遭遇按节点种子轮换 ——
+            // AI 打法（v2.1 P4）：精英/守关必激进；普通遭遇按节点种子轮换 ——
             // 同存档同节点永远同一打法（可背版、可复盘），不同节点之间有差异。
             var roll = (int)(seed % 3);
-            var profile = elite
+            var profile = (elite || boss)
                 ? AiProfile.Aggressive
                 : (roll == 0 ? AiProfile.Balanced
                  : roll == 1 ? AiProfile.Cautious
@@ -100,7 +102,7 @@ namespace WanXiang.Modules.UI
             req = new BattleRequest
             {
                 Title = "第" + Cn(act) + "幕 · 第 " + (term + 1) + " 节 · " +
-                        (elite ? "精英战" : "遭遇战"),
+                        (boss ? "守关（首领）" : elite ? "精英战" : "遭遇战"),
                 WeatherName = weather ?? "",
                 // ★ 真实天时：从活链路容器取（CampaignPanel 选节点时算好的 WeatherDef）。
                 //   为 null = 本场无天时，战斗行为与旧版逐位一致（可复现性红线）。
@@ -191,8 +193,21 @@ namespace WanXiang.Modules.UI
             // 它按 GDD §5.1/§5.5 的规模表定阵容大小、算属性倍率，
             // 并给精英战的 1 只挂「劫象」—— 这些是"兽 + 倍率"那种简版表达不了的。
             // 池子暂用全图鉴（后续按幕/季节过滤，接口已经留好）。
-            var provider = new WanXiang.Campaign.SeededEnemyProvider(actIdx => all);
-            var entries = provider.EnemiesFor(act, term, kind, seed);
+            //
+            // ★ 首领战接入（P0 收尾）：把 BossCatalog 的确定性抽首领工厂塞给 provider ——
+            //   同局同幕固定抽到同一个首领（可复盘），换局换人。
+            //   守关节点走 BossSquadFor（首领 + 随从），普通节点仍走 EnemiesFor。
+            var provider = new WanXiang.Campaign.SeededEnemyProvider(
+                actIdx => all, BossCatalog.BossForActFunc(seed));
+            var entries = boss
+                ? provider.BossSquadFor(act, seed)
+                : provider.EnemiesFor(act, term, kind, seed);
+            if (boss)
+            {
+                string bossId = entries.Length > 0 && entries[0].Def != null ? entries[0].Def.Id : "(无)";
+                UnityEngine.Debug.Log("[BattleRequestFactory] 守关首领战：第" + act +
+                    "幕 抽出 " + bossId + "（BossFor(seed) 确定性）");
+            }
 
             // ★★ 轮回难度（"续劫"次数）：每轮回敌人属性 +15%
             //    —— 之前的"敌强 +3%"只写在注释里，实际没有任何代码读取（Jie/Realm 已废弃）。
