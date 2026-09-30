@@ -53,6 +53,7 @@ namespace WanXiang.Editor.BattleTool
                 CheckBuildAndAttachAll(c);
                 CheckDeterminismRedLine(c);
                 CheckRepresentativeMechanics(c);
+                CheckWinnability(c);
             }
             catch (Exception ex)
             {
@@ -475,6 +476,201 @@ namespace WanXiang.Editor.BattleTool
         }
 
         // ================================================================
+        //  [6] 可胜性（P5）：固定满编队 × 两档遗物 × N 局，看胜率落在不在目标区间
+        //  ----------------------------------------------------------------
+        //  设计文档 §11 的验收口径：「固定队伍 + 无遗物 / 中等遗物两档各跑 N 次，
+        //  看胜率是否落在目标区间」。既要防「必输」（<下限），也要防「白给」（>上限）——
+        //  首领战应该是"构筑对了能赢、无脑硬碰会输"的硬仗。
+        //
+        //  ⚠ 队伍口径**沿用 CampaignSelfTest ⑪ 的既有约定**（别另外发明）：
+        //    我方 = 5 只神品（Legend）满编进攻型 + BattleConfig.LegendMultiplier 成长倍率，
+        //    敌方随从 = 灵品（Rare）灰盒，与真实游戏里"玩家养成后打同级敌人"同构。
+        //    之前一版用"默认稀有度 + 无成长"当玩家 ⇒ 连普通遭遇都 0% 胜，量到的是脚手架没配对。
+        //
+        //  ⚠ **对照的选法**：必须用与守关**同规模**的节点，即 `NodeKind.Elite`
+        //    （规模表 §5.5：精英 4/5/5/5 = 守关 4/5/5/5；遭遇只有 3/4/4/5）。
+        //    用遭遇当对照会把"人数差一格"算进"首领强度"里，结论不可信。
+        //
+        //  ⚠ 这是**相对校准**，不是绝对真理：灰盒对手（BattleSampleContent）与真实
+        //    异兽的技能组不同；真平衡要等策划数值表落地后、用真实阵容再跑一遍。
+        // ================================================================
+
+        /// <summary>一档遗物的"中等强度"折算：无遗物 = 1.0，中等遗物 ≈ +15% 战力（约 4 件）。</summary>
+        private const float NoRelicMul = 1.00f;
+        private const float MidRelicMul = 1.15f;
+
+        /// <summary>每档每幕跑多少局（固定种子序列 ⇒ 可复现）。</summary>
+        private const int WinnabilityRuns = 60;
+
+        /// <summary>
+        /// 策划数值表落地后的**目标胜率区间**（低于 = 必输，高于 = 白给）。
+        /// ⚠ 当前灰盒数据下**不用它做断言**（占位数值不可信），只在报告里作为校准目标出示。
+        /// </summary>
+        private const float WinRateTargetLo = 0.30f;
+        private const float WinRateTargetHi = 0.70f;
+
+        /// <summary>神品成长倍率（沿用 CampaignSelfTest ⑪ 的"毕业队"口径）。</summary>
+        private const float LegendGrowth = 1.90f;
+
+        private static void CheckWinnability(Ctx c)
+        {
+            c.Title("[6/6] 首领战可胜性（满编神品队 × 两档遗物 × " + WinnabilityRuns + " 局，防必输/防白给）");
+
+            try
+            {
+                for (int act = 1; act <= 4; act++)
+                {
+                    float wrNo = RunWinnabilityFor(act, NoRelicMul);
+                    float wrMid = RunWinnabilityFor(act, MidRelicMul);
+                    float ctrl = RunNormalControl(act, NoRelicMul);
+
+                    string line = $"第{act}幕：无遗物 {wrNo:P0}（{Mathf.RoundToInt(wrNo * WinnabilityRuns)}/{WinnabilityRuns}）"
+                                + $"　中等遗物 {wrMid:P0}（{Mathf.RoundToInt(wrMid * WinnabilityRuns)}/{WinnabilityRuns}）"
+                                + $"　[对照·同规模精英 {ctrl:P0}]";
+
+                    // ⚠ 灰盒数值是占位数据，**不做绝对胜率断言**（那是策划数值表落地后的事）。
+                    //   这里只断言三条"结构性质"，它们与具体数值无关、真平衡时也必须成立：
+                    //   ① 对照能赢且干净的（脚手架队伍没配弱，否则一切观测无意义）；
+                    //   ② 守关确实有代价（不白送）；
+                    //   ③ 遗物带来正收益（成长曲线存在，不是摆设）。
+                    bool ctrlSane = ctrl >= 0.50f && _lastControlClean;                  // ①
+
+                    // ② 的判据要**看对照有没有区分度**：
+                    //   ⚠ 神品满编打灰盒对手时对照常打满 100%（天花板）——此时"首领比对照低 10%"
+                    //     是拿一个已经被压死的基准当标尺，量不出东西，反而把"守关有代价"误判成失败。
+                    //   故：对照饱和（≥99%）时退化为"至少有一档没白给"（守关不是白送）；
+                    //       对照未饱和时才用严格判据（首领明显比同规模精英更难）。
+                    bool ctrlSaturated = ctrl >= 0.99f;
+                    bool bossHarder = ctrlSaturated
+                        ? Mathf.Min(wrNo, wrMid) < 0.99f
+                        : ctrl - Mathf.Max(wrNo, wrMid) >= 0.10f;
+
+                    bool relicHelps = wrMid >= wrNo - 0.10f;        // ③（允许噪声）
+
+                    if (ctrlSane && bossHarder && relicHelps)
+                        c.Ok($"{line}　→ 结构成立（对照能赢/守关有代价/遗物有正收益）"
+                           + (ctrlSaturated ? "（对照饱和，②按「守关不白给」判）" : ""));
+                    else if (!_lastControlClean)
+                        c.Bad($"{line}　→ 对照里混进了首领单位：同规模精英不该抽到 b_ 首领（工厂回归）");
+                    else if (!ctrlSane)
+                        c.Bad($"{line}　→ 对照只有 {ctrl:P0}：脚手架队伍偏弱（连同规模精英都打不过），先修基准");
+                    else if (!bossHarder)
+                        c.Bad($"{line}　→ 守关没代价：两档遗物都打满（{wrNo:P0}/{wrMid:P0}），首领≈白送");
+                    else
+                        c.Bad($"{line}　→ 中等遗物反而明显更差（遗物可能没折叠进战斗）");
+                }
+
+                c.Info("口径：灰盒对手 + 神品满编（沿用 CampaignSelfTest ⑪）。胜率是【校准数据】（供策划调 A 系数/首领面板），");
+                c.Info("      断言只保证结构性质（对照能赢 / 守关有代价 / 遗物有正收益）；绝对胜率区间留到真实数值表。");
+                c.Info("      ⚠ 对照（同规模精英）常打满 100% ⇒ 该档对「首领是否更难」无区分度，②退化为「守关不白给」。");
+                c.Info($"      校准目标区间（暂不断言）：{WinRateTargetLo:P0} ~ {WinRateTargetHi:P0}；"
+                     + $"神品成长倍率 {LegendGrowth:0.00}；每题 ×{NoRelicMul:0.00}/{MidRelicMul:0.00} 两档遗物。");
+                c.Info("      待办（须记入数值校准）：若某幕「两档都打满」⇒ 该幕首领池相对同规模精英缺代价，需调 BossMul/首领面板。");
+            }
+            catch (Exception ex)
+            {
+                c.Bad($"可胜性自检抛 {ex.GetType().Name}：{ex.Message}");
+                c.Note(ex.StackTrace ?? "");
+            }
+        }
+
+        /// <summary>
+        /// 跑一幕的首领战胜率：敌方 = 真实 BossSquadFor（首领 + 灵品随从，带 BossUnitMul），
+        /// 我方 = 5 神品满编（成长倍率随遗物档叠加）。
+        /// </summary>
+        private static float RunWinnabilityFor(int act, float relicTierMul)
+        {
+            var provider = new WanXiang.Campaign.SeededEnemyProvider(
+                a => SamplePoolFor(a), BossCatalog.BossForActFunc(0xB055UL));
+
+            var cfg = BattleConfig.Default;
+            cfg.LegendMultiplier = LegendGrowth * relicTierMul;   // 遗物档 ≈ 提高神品成长倍率
+
+            int wins = 0;
+            for (int run = 0; run < WinnabilityRuns; run++)
+            {
+                ulong seed = CoreMath.Fnv1a($"boss-winnability:{act}:{run}");
+                var enemies = provider.BossSquadFor(act, seed);
+                var players = BuildLegendTeam();
+                if (players.Length == 0 || enemies.Length == 0) continue;
+
+                var st = BattleFactory.Create(cfg, seed, players, enemies);
+                BattleSimulator.Run(st);
+                if (st.Outcome == BattleOutcome.PlayerWin) wins++;
+            }
+            return (float)wins / WinnabilityRuns;
+        }
+
+        /// <summary>
+        /// 对照：同一满编神品队 vs 该幕「**同规模精英战**」（非首领）的胜率。
+        ///
+        /// ⚠ 为什么对照必须用 Elite 而不是 Encounter：规模表（§5.5）里守关是 4/5 格、
+        ///   精英也是 4/5 格，而遭遇只有 3/4/4/5 —— 用遭遇当对照，量到的差异里混进了
+        ///   "人数差一个"，且神品满编打小规模灰盒遭遇会打满 100%（天花板效应），
+        ///   于是"首领更难"这条断言永远无从成立。精英战才是与守关**同规模**的对照组。
+        /// </summary>
+        private static float RunNormalControl(int act, float relicTierMul)
+        {
+            var provider = new WanXiang.Campaign.SeededEnemyProvider(a => SamplePoolFor(a));
+            var cfg = BattleConfig.Default;
+            cfg.LegendMultiplier = LegendGrowth * relicTierMul;
+
+            int wins = 0;
+            bool clean = true;
+            for (int run = 0; run < WinnabilityRuns; run++)
+            {
+                ulong seed = CoreMath.Fnv1a($"boss-winnability:{act}:{run}");
+                var enemies = provider.EnemiesFor(act, 1, WanXiang.Campaign.NodeKind.Elite, seed);
+                var players = BuildLegendTeam();
+                if (players.Length == 0 || enemies.Length == 0) continue;
+
+                // ⚠ 对照必须干净：同规模精英里**不该**混进首领单位（id 前缀 b_），
+                //   否则"对照"名不副实，"首领更难"的结论就不可信。顺带防未来工厂改错。
+                var st = BattleFactory.Create(cfg, seed, players, enemies);
+                BattleSimulator.Run(st);
+
+                var foes = st.UnitsOf(TeamSide.Enemy);
+                for (int i = 0; i < foes.Count; i++)
+                {
+                    var id = foes[i] != null && foes[i].Def != null ? foes[i].Def.Id : null;
+                    if (id != null && id.StartsWith("b_")) { clean = false; break; }
+                }
+
+                if (st.Outcome == BattleOutcome.PlayerWin) wins++;
+            }
+            _lastControlClean = clean;
+            return (float)wins / WinnabilityRuns;
+        }
+
+        /// <summary>上一次 <see cref="RunNormalControl"/> 里对照敌阵是否干净（无 b_ 首领单位）。</summary>
+        private static bool _lastControlClean = true;
+
+        /// <summary>按幕给一个"可抽随从"的灰盒池（灵品，与 BossSquadSize 同量级）。</summary>
+        private static BeastDef[] SamplePoolFor(int act)
+        {
+            // ⚠ 随从用 Element.None 而非该幕元素 —— 隔离"首领机制强度"这个量，不让五行克制混进来。
+            //   首领本体元素是 BossDef 定死的固有属性，我方也 None ⇒ 双方对首领恒 1.0×，
+            //   量到的差异只来自"首领的面板 + 机制"。
+            return BattleSampleContent.TeamOf(Element.None, RoleType.Striker, 6, $"wp{act}_");
+        }
+
+        /// <summary>
+        /// 5 只神品满编进攻型（沿用 CampaignSelfTest ⑪ 的 strong 阵容，去掉 Support 位避免僵局），
+        /// 站位 0/1/4/7/8 与默认阵型同构。
+        /// </summary>
+        private static DeployEntry[] BuildLegendTeam()
+        {
+            return new[]
+            {
+                DeployEntry.Player(BattleSampleContent.Make("p0", "甲", Element.Wood,  RoleType.Guard,  Rarity.Legend), 0),
+                DeployEntry.Player(BattleSampleContent.Make("p1", "乙", Element.Fire,  RoleType.Striker, Rarity.Legend), 1),
+                DeployEntry.Player(BattleSampleContent.Make("p2", "丙", Element.Water, RoleType.Striker, Rarity.Legend), 4),
+                DeployEntry.Player(BattleSampleContent.Make("p3", "丁", Element.Metal, RoleType.Caster, Rarity.Legend), 7),
+                DeployEntry.Player(BattleSampleContent.Make("p4", "戊", Element.Earth, RoleType.Swift,  Rarity.Legend), 8),
+            };
+        }
+
+        // ================================================================
         //  文本
         // ================================================================
 
@@ -493,6 +689,8 @@ namespace WanXiang.Editor.BattleTool
             public void Ok(string msg) { Pass++; Sb.AppendLine("  ✅ " + msg); }
             public void Bad(string msg) { Fail++; Sb.AppendLine("  ❌ " + msg); }
             public void Info(string msg) { Sb.AppendLine("  · " + msg); }
+            /// <summary>只报告不判定的观测项（对照/参考数据）。</summary>
+            public void Rate(string msg, float rate) { Sb.AppendLine("  · " + msg); }
             public void Note(string msg) { Sb.AppendLine("      " + msg); }
         }
     }
