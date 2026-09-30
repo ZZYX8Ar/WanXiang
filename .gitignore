@@ -175,3 +175,11 @@ mcp-for-unity*.log
 Assets/ArtRes/Fonts/*.ttf
 Assets/ArtRes/Fonts/*.otf
 Assets/ArtRes/Fonts/*.ttc
+
+# ---------- 本地备份目录（不入库）----------
+# 照抄兄弟目录 _prefab备份_* / _RspCheck_*.csproj 的做法：
+# 改 prefab 前把原文件带时间戳备份到这里（工程内，方便随时对比回滚）。
+# 它们是**快照**，进库只会让 diff 被复制品淹没，且每次改动都新增一份。
+/_prefab_手改备份/
+/_prefab*备份*/
+_*备份*/

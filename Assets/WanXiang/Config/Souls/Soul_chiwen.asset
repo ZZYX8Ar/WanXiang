@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_chiwen
+  m_EditorClassIdentifier: 
+  SoulId: chiwen_soul
+  DisplayName: "\u9E31\u543B\u4E4B\u9B42"
+  Epithet: "\u70BD\u7FBD"
+  SourceBeastId: chiwen
+  Rarity: 2
+  ElementOverride: 2
+  HueShiftDegrees: -20
+  GlowHex: '#F0B040'
+  EyeHex: '#FFE060'
+  TraitName: "\u9B42\xB7\u566C\u7130\u53CD\u566C"
+  TraitDescription: "\u81EA\u8EAB\u6BCF\u6B21\u627F\u53D7\u706B\u5C5E\u6027\u4F24\u5BB3\u540E\u653B\u51FB
+    +8%\uFF08\u53EF\u53E0\uFF0C\u6301\u7EED\u5230\u6218\u6597\u7ED3\u675F\uFF09\uFF1B\u88AB\u541E\u6389\u7684\u707C\u70E7\u5C42\u6570\u8F6C\u4E3A\u6211\u65B9\u4F24\u5BB3\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: 2fa315850ad26cd46bea109d29c32e6a, type: 2}

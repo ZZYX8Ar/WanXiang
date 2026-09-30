@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_zhuhuai
+  m_EditorClassIdentifier: 
+  SoulId: zhuhuai_soul
+  DisplayName: "\u8BF8\u6000\u4E4B\u9B42"
+  Epithet: "\u62C2\u67F3"
+  SourceBeastId: zhuhuai
+  Rarity: 2
+  ElementOverride: 1
+  HueShiftDegrees: -20
+  GlowHex: '#9BD06A'
+  EyeHex: '#F2C94C'
+  TraitName: "\u9B42\xB7\u7360\u7259\u8D2F\u6728"
+  TraitDescription: "\u5965\u4E49\u5BF9\u5355\u4F53\u76EE\u6807\u989D\u5916\u89E6\u53D1\u4E00\u6B21
+    80% \u7684\u91CD\u51FB\uFF1B\u88AB\u91CD\u51FB\u547D\u4E2D\u7684\u76EE\u6807\u9632\u5FA1
+    -15%\uFF082 \u56DE\u5408\uFF09\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: a3ecb12019920fc4ca4d61fdb5e1f805, type: 2}

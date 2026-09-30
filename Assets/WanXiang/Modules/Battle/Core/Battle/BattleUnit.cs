@@ -494,6 +494,23 @@ namespace WanXiang.Battle.Core
             Hp = CoreMath.Max(1, (int)(MaxHp * ratio));
         }
 
+        // ================================================================
+        //  行动条（v1.3 连携技用）
+        //  ------------------------------------------------------------------
+        //  项目**没有**独立的"行动进度条"字段：出手序列每回合按速度重排（BuildActionOrderInto）。
+        //  连携描述里的"行动条前进 X%"因此落成**速度的临时修正**：
+        //  速度 +X%，等价于"本回合排位前移"，且随回合自然衰减（turns=1）。
+        //  ⚠ 这是与文档措辞的一处**有意偏差**（文档写"行动条"），已记录；
+        //    若日后真做进度条，只需把这里换成对接进度条字段即可，调用点不用动。
+        // ================================================================
+
+        /// <summary>行动条前进（按百分比折成速度临时加成）。<paramref name="pct"/> = 0.20 表示前进 20%。</summary>
+        public void AdvanceActionGauge(float pct)
+        {
+            if (pct <= 0f) return;
+            AddModifier(StatKeys.Speed, pct, 1);
+        }
+
         public void AddRage(float amount)
         {
             if (amount == 0f) return;

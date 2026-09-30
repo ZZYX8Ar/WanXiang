@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_huoshu
+  m_EditorClassIdentifier: 
+  SoulId: huoshu_soul
+  DisplayName: "\u706B\u9F20\u4E4B\u9B42"
+  Epithet: "\u71CE\u539F"
+  SourceBeastId: huoshu
+  Rarity: 2
+  ElementOverride: 2
+  HueShiftDegrees: -20
+  GlowHex: '#F0A040'
+  EyeHex: '#FFD060'
+  TraitName: "\u9B42\xB7\u7194\u58F3\u4E0D\u711A"
+  TraitDescription: "\u81EA\u8EAB\u53D7\u5230\u7684\u9996\u6B21\u4F24\u5BB3 -60%\uFF1B\u88AB\u62A4\u76FE\u4FDD\u62A4\u7684\u961F\u53CB\u53D7\u51FB\u65F6\uFF0C\u7ED9\u653B\u51FB\u8005\u53E0\u52A0
+    1 \u5C42\u707C\u70E7\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: ed4e23f1d784d0a47bc36aa3ecb92444, type: 2}

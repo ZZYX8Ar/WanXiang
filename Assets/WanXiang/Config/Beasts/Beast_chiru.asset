@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_chiru
+  m_EditorClassIdentifier: 
+  BeastId: chiru
+  DisplayName: "\u8D64\u9C6C"
+  Element: 5
+  Role: 3
+  Rarity: 2
+  Source: "\u300A\u5C71\u6D77\u7ECF\xB7\u5357\u5C71\u7ECF\u300B"
+  Quote: "\u53C8\u4E1C\u4E09\u767E\u91CC\uFF0C\u66F0\u9752\u4E18\u4E4B\u5C71\u2026\u2026\u82F1\u6C34\u51FA\u7109\uFF0C\u5357\u6D41\u6CE8\u4E8E\u5373\u7FFC\u4E4B\u6CFD\u3002\u5176\u4E2D\u591A\u8D64\u9C6C\uFF0C\u5176\u72B6\u5982\u9C7C\u800C\u4EBA\u9762\uFF0C\u5176\u97F3\u5982\u9E33\u9E2F\uFF0C\u98DF\u4E4B\u4E0D\u75A5\u3002"
+  Lore: "\u82F1\u6C34\u7684\u6C34\u9762\u4E00\u5230\u591C\u91CC\u5C31\u6CDB\u8D77\u7EA2\u5149\uFF0C\u90A3\u662F\u8D64\u9C6C\u7FA4\u5728\u6E38\u3002\u5B83\u4EEC\u957F\u7740\u4EBA\u7684\u9762\u5B54\uFF0C\u5374\u4E0D\u53D1\u4EBA\u58F0\uFF0C\u53EA\u53D1\u9E33\u9E2F\u7684\u9E23\u53EB\u2014\u2014\u8FC7\u8DEF\u4EBA\u5FAA\u58F0\u4E0B\u6C34\uFF0C\u5F80\u5F80\u5C31\u518D\u6CA1\u4E0A\u6765\u3002"
+  Codex: "\u9752\u4E18\u7684\u6E14\u592B\u53EA\u5728\u767D\u5929\u6492\u7F51\u3002\u4ED6\u4EEC\u8BF4\u4E0D\u6E05\u662F\u56E0\u4E3A\u591C\u91CC\u770B\u4E0D\u6E05\uFF0C\u8FD8\u662F\u56E0\u4E3A\u591C\u91CC\u90A3\u4E9B\u300C\u4EBA\u300D\u770B\u5F97\u89C1\u4ED6\u4EEC\u3002"
+  TraitName: "\u6DF1\u6D41\u593A\u7075"
+  TraitDescription: "\u5965\u4E49\u547D\u4E2D\u7684\u76EE\u6807\u5404\u6263 2 \u70B9\u7075\u529B\u5E76\u5F52\u6211\u65B9\u6240\u6709\uFF1B\u82E5\u6211\u65B9\u7075\u529B\u5DF2\u8FBE\u4E0A\u9650\uFF0C\u6539\u4E3A\u7ED9\u5168\u961F\u9644\u52A0\u7B49\u91CF\u62A4\u76FE\u3002"
+  Basic: {fileID: 11400000, guid: 9cdb19437748d2d458496983c10d68bb, type: 2}
+  Active: {fileID: 11400000, guid: 11f9816946e00914ba79dd74aa4f2f4a, type: 2}
+  Ultimate: {fileID: 11400000, guid: acc863009bdf3704eb5a02681088d65d, type: 2}
+  BodyMainHex: '#C24A4A'
+  BodyAccentHex: '#E07A70'
+  EnergyGlowHex: '#E05A60'
+  EyeCoreHex: '#F0D060'
+  OutlineHex: '#2A2118'

@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ccad7ac8c9eb1c4385ca4609153d7e6, type: 3}
+  m_Name: Skill_jiaoren_u
+  m_EditorClassIdentifier: 
+  SkillId: jiaoren_u
+  SkillName: "\u9C9B\u4EBA\xB7\u6CE3\u73E0"
+  Type: 2
+  Cd: 6
+  Element: 5
+  PrimaryTarget: 1
+  Effects:
+  - Kind: 1
+    Target: 6
+    Power: 1.4
+    PercentOfMaxHp: 0
+    ElementOverride: 0
+    Hits: 1
+    StatusId: 
+    StatusStacks: 0
+    StatusTurns: 0
+    StatKey: 
+    StatDelta: 0
+    StatTurns: 0
+    TrueDamage: 0
+    IgnoreShield: 0
+  - Kind: 4
+    Target: 6
+    Power: 0
+    PercentOfMaxHp: 0
+    ElementOverride: 0
+    Hits: 0
+    StatusId: frost
+    StatusStacks: 2
+    StatusTurns: 3
+    StatKey: 
+    StatDelta: 0
+    StatTurns: 0
+    TrueDamage: 0
+    IgnoreShield: 0
+  Description: "\u5BF9\u968F\u673A\u654C\u4EBA\u9020\u6210 168% \u653B\u51FB\u529B\u4F24\u5BB3\u5E76\u9644\u52A0\u3010\u971C\u3011"

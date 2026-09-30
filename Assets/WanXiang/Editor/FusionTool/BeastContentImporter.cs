@@ -32,6 +32,16 @@ namespace WanXiang.Editor.FusionTool
     {
         // 与工程根平级的 GDD 数据（D:/Unity_Project/MYRIAD/WanXiang/Docs/...）。
         private const string JsonRelPath = "Docs/Design/data/beasts.json";
+        /// <summary>
+        /// 扩充数据（v1.3）：新增 20 只异兽的补充表。与主表**同 schema**，
+        /// 在主表之后追加导入 —— 这样 GDD 主表保持"只读快照"的定位，
+        /// 新增内容走增量文件，且两个文件都可各自被策划编辑。
+        /// ⚠ 相对工程根解析，不在 Assets 下（不会被打包）。
+        /// </summary>
+        private static readonly string[] ExtraJsonRelPaths =
+        {
+            "../万相_新异兽设计文档/beasts_new20.json",
+        };
         private const string SkillsDir = "Assets/WanXiang/Config/Skills";
         private const string BeastsDir = "Assets/WanXiang/Config/Beasts";
         private const string SoulsDir = "Assets/WanXiang/Config/Souls";
@@ -49,6 +59,26 @@ namespace WanXiang.Editor.FusionTool
 
         private static int _skillCount, _beastCount, _soulCount;
 
+        /// <summary>读一个 beasts JSON 文件，把 beasts 数组追加进 <paramref name="into"/>。</summary>
+        private static bool AppendBeasts(string path, List<object> into, List<string> report)
+        {
+            object root;
+            try { root = MiniJson.Parse(File.ReadAllText(path, Encoding.UTF8)); }
+            catch (System.FormatException e)
+            {
+                report.Add($"❌ JSON 解析失败（{Path.GetFileName(path)}）：{e.Message}");
+                return false;
+            }
+            var arr = MiniJson.Arr(MiniJson.Obj(root)?["beasts"]);
+            if (arr == null || arr.Count == 0)
+            {
+                report.Add($"❌ {Path.GetFileName(path)} 里没有 beasts 数组");
+                return false;
+            }
+            into.AddRange(arr);
+            return true;
+        }
+
         /// <summary>执行导入，返回逐行报告（自检 / 批处理也用它）。</summary>
         public static string[] Import()
         {
@@ -62,18 +92,22 @@ namespace WanXiang.Editor.FusionTool
                 return report.ToArray();
             }
 
-            object root;
-            try { root = MiniJson.Parse(File.ReadAllText(jsonPath, Encoding.UTF8)); }
-            catch (System.FormatException e)
+            var beastsJson = new List<object>();
+            if (!AppendBeasts(jsonPath, beastsJson, report)) return report.ToArray();
+
+            // ---- 扩充表（新增异兽）----
+            for (int e = 0; e < ExtraJsonRelPaths.Length; e++)
             {
-                report.Add($"❌ JSON 解析失败：{e.Message}");
-                return report.ToArray();
+                string ex = Path.GetFullPath(Path.Combine(Application.dataPath, "..", ExtraJsonRelPaths[e]));
+                if (!File.Exists(ex)) { report.Add($"ℹ 扩充表不存在（跳过）：{ex}"); continue; }
+                int before = beastsJson.Count;
+                if (AppendBeasts(ex, beastsJson, report))
+                    report.Add($"＋ 扩充表 {Path.GetFileName(ex)}：+{beastsJson.Count - before} 只");
             }
 
-            var beastsJson = MiniJson.Arr(MiniJson.Obj(root)?["beasts"]);
-            if (beastsJson == null || beastsJson.Count == 0)
+            if (beastsJson.Count == 0)
             {
-                report.Add("❌ beasts.json 里没有 beasts 数组");
+                report.Add("❌ 合并后没有任何异兽数据");
                 return report.ToArray();
             }
 

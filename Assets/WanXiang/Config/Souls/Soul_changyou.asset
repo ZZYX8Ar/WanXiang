@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_changyou
+  m_EditorClassIdentifier: 
+  SoulId: changyou_soul
+  DisplayName: "\u957F\u53F3\u4E4B\u9B42"
+  Epithet: "\u4E2D\u5CB3"
+  SourceBeastId: changyou
+  Rarity: 2
+  ElementOverride: 3
+  HueShiftDegrees: -20
+  GlowHex: '#C0A868'
+  EyeHex: '#E8C860'
+  TraitName: "\u9B42\xB7\u5148\u89C9\u56DB\u8033"
+  TraitDescription: "\u6218\u6597\u7B2C 1 \u56DE\u5408\u8D77\uFF0C\u81EA\u8EAB\u884C\u52A8\u987A\u5E8F\u59CB\u7EC8\u4F18\u5148\u4E8E\u654C\u65B9\u540C\u901F\u5355\u4F4D\uFF1B\u9884\u611F\u5230\u5371\u9669\u65F6\uFF0C\u672C\u56DE\u5408\u884C\u52A8\u6761\u524D\u8FDB
+    20%\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: 45037ae5622cb794890c5e5fd3babe01, type: 2}

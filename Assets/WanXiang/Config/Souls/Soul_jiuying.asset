@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 944407b6364088948977de3fcae53307, type: 3}
+  m_Name: Soul_jiuying
+  m_EditorClassIdentifier: 
+  SoulId: jiuying_soul
+  DisplayName: "\u4E5D\u5A74\u4E4B\u9B42"
+  Epithet: "\u8D64\u9704"
+  SourceBeastId: jiuying
+  Rarity: 3
+  ElementOverride: 2
+  HueShiftDegrees: 30
+  GlowHex: '#F0A040'
+  EyeHex: '#FFD24A'
+  TraitName: "\u9B42\xB7\u4E5D\u9996\u540C\u5578"
+  TraitDescription: "\u5965\u4E49\u6309\u5B58\u6D3B\u654C\u4EBA\u6570\u8FFD\u52A0\u7B49\u91CF\u7684\u707C\u70E7\u5C42\u6570\uFF08\u76EE\u6807\u8D8A\u591A\u94FA\u5F97\u8D8A\u5E7F\uFF09\uFF1B\u81EA\u8EAB\u6BCF\u6B21\u65BD\u6CD5\u540E\uFF0C\u4E3A\u6211\u65B9\u5168\u4F53\u56DE\u590D
+    3% \u751F\u547D\u3002"
+  SkillOverrides:
+  - Slot: 1
+    Skill: {fileID: 11400000, guid: 42c044e95c6aff640a631c33d1f5f29e, type: 2}

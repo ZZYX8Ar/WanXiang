@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59a17b12db500740b7b5b9eea26ba8a, type: 3}
+  m_Name: Beast_chiwen
+  m_EditorClassIdentifier: 
+  BeastId: chiwen
+  DisplayName: "\u9E31\u543B"
+  Element: 2
+  Role: 2
+  Rarity: 2
+  Source: "\u300A\u5C71\u6D77\u7ECF\u300B\u9F99\u5B50\u4E5D\u5B50\u4E4B\u4E00"
+  Quote: "\u9F99\u751F\u4E5D\u5B50\uFF0C\u5176\u4E00\u66F0\u9E31\u543B\uFF0C\u597D\u541E\u706B\uFF0C\u6545\u7ACB\u4E8E\u6BBF\u810A\u4E4B\u4E0A\uFF0C\u5F20\u53E3\u5411\u7A7A\uFF0C\u4EE5\u5907\u706B\u707E\u3002"
+  Lore: "\u9E31\u543B\u4ECE\u4E0D\u613F\u4E0B\u6C34\uFF0C\u53EA\u80AF\u5F85\u5728\u6BBF\u810A\u6700\u9AD8\u7684\u90A3\u4E00\u89D2\u3002\u5B83\u5DE8\u53E3\u5E38\u5F20\uFF0C\u5C3E\u7EC6\u5982\u9C7C\u2014\u2014\u5DE5\u5320\u8BF4\uFF0C\u5B83\u541E\u7684\u662F\u5929\u4E0A\u843D\u4E0B\u6765\u7684\u706B\uFF0C\u4E0D\u662F\u4EBA\u95F4\u7684\u706B\uFF1B\u4EBA\u95F4\u7684\u706B\u5B83\u7BA1\u4E0D\u4E86\uFF0C\u4E5F\u4E0D\u5C51\u7BA1\u3002"
+  Codex: "\u53E4\u6BBF\u7684\u810A\u517D\u91CC\uFF0C\u9E31\u543B\u603B\u662F\u9762\u671D\u7684\u65B9\u5411\u6700\u9669\uFF1A\u82E5\u662F\u671D\u5317\uFF0C\u8BF4\u660E\u8FD9\u6BBF\u66FE\u7ECF\u5931\u8FC7\u706B\uFF1B\u82E5\u662F\u671D\u4E1C\uFF0C\u8BF4\u660E\u5B83\u8FD8\u60F3\u518D\u541E\u4E00\u6B21\u3002"
+  TraitName: "\u566C\u7130\u53CD\u566C"
+  TraitDescription: "\u81EA\u8EAB\u6BCF\u6B21\u627F\u53D7\u706B\u5C5E\u6027\u4F24\u5BB3\u540E\u653B\u51FB
+    +8%\uFF08\u53EF\u53E0\uFF0C\u6301\u7EED\u5230\u6218\u6597\u7ED3\u675F\uFF09\uFF1B\u88AB\u541E\u6389\u7684\u707C\u70E7\u5C42\u6570\u8F6C\u4E3A\u6211\u65B9\u4F24\u5BB3\u3002"
+  Basic: {fileID: 11400000, guid: 5d7c9443c0f21e7499be57a806a4ac66, type: 2}
+  Active: {fileID: 11400000, guid: 2fa315850ad26cd46bea109d29c32e6a, type: 2}
+  Ultimate: {fileID: 11400000, guid: 97bd00f5783473c498b1d5a5cd4be488, type: 2}
+  BodyMainHex: '#C77A3A'
+  BodyAccentHex: '#E09A50'
+  EnergyGlowHex: '#F0B040'
+  EyeCoreHex: '#FFE060'
+  OutlineHex: '#2A2118'
