@@ -78,6 +78,9 @@ namespace WanXiang.Battle.Core
             Deploy(st, player, "P");
             Deploy(st, enemy, "E");
             st.FinishSetup();
+            // 首领战：扫描敌方阵容里带 b_ 前缀的单位，按 id 自动挂上对应机制钩子。
+            // 空列表短路 —— 普通战斗没有任何钩子，逐位不变。
+            BossCatalog.AttachAllBossHooks(st);
             return st;
         }
 

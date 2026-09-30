@@ -48,6 +48,14 @@ namespace WanXiang.Battle.Core
         public readonly System.Collections.Generic.List<string> UsedCombos =
             new System.Collections.Generic.List<string>(4);
 
+        /// <summary>
+        /// 首领机制钩子（v1.x 首领战）。战斗核心只在生命周期点**空列表短路**地分发，
+        /// 没有钩子时逐位不变（可复现性红线）。钩子由 <see cref="BattleFactory.Create"/>
+        /// 在部署后按敌方 b_ id 自动挂上（见 BossCatalog.AttachHooks）。
+        /// </summary>
+        public readonly System.Collections.Generic.List<BattleHook> Hooks =
+            new System.Collections.Generic.List<BattleHook>(4);
+
         public readonly System.Collections.Generic.List<BattleUnit> TurnOrder =
             new System.Collections.Generic.List<BattleUnit>(16);
 

@@ -114,6 +114,13 @@ namespace WanXiang.Battle.Core
 
         public bool HasEgg => EggTurnsLeft > 0;
 
+        // ---- 首领机制用的单位级开关（Battle.Core 通用钩子驱动，不污染既有逻辑） ----
+        /// <summary>无敌：受到的任何伤害都归 0（"碎冰重生"化冰核那一回合用）。</summary>
+        public bool Invulnerable;
+
+        /// <summary>免疫五行克制：计算伤害系数时把相克/相生系数强制为 1（混沌之母·鸿蒙"混元"用）。</summary>
+        public bool IgnoreElementCounter;
+
         // ---- 状态与修正 ----
         public readonly System.Collections.Generic.List<StatusInstance> Statuses
             = new System.Collections.Generic.List<StatusInstance>(8);
@@ -421,6 +428,7 @@ namespace WanXiang.Battle.Core
         public int TakeDamage(int amount, bool ignoreShield = false)
         {
             if (amount <= 0 || !IsAlive) return 0;
+            if (Invulnerable) return 0;                 // 冰核无敌：这一回合打在护罩上
 
             int toShield = ignoreShield ? 0 : CoreMath.Min(Shield, amount);
             Shield -= toShield;
@@ -448,6 +456,7 @@ namespace WanXiang.Battle.Core
         public int TakeTrueDamage(int amount)
         {
             if (amount <= 0 || !IsAlive) return 0;
+            if (Invulnerable) return 0;
             // 「锐锋」副效应：受到的真实伤害 +20%（在数值面上乘，伤害来源不用关心）
             if (TraitSharpedge) amount = CoreMath.RoundDamage(amount * 1.20f);
             int toHp = amount > Hp ? Hp : amount;
@@ -492,6 +501,15 @@ namespace WanXiang.Battle.Core
             float ratio = HpPercent;
             MaxHp = CoreMath.Max(1, MaxHp + delta);
             Hp = CoreMath.Max(1, (int)(MaxHp * ratio));
+        }
+
+        /// <summary>
+        /// 直接设置当前生命（首领机制钩子用：碎冰重生 / 吞噬 / 击碎冰核等需要**绕过护盾与无敌**
+        /// 精确改血）。Hp 私有 set，故用这个方法在类外改血；IsAlive 由 Hp>0 派生，置 0 即死亡。
+        /// </summary>
+        public void SetHp(int hp)
+        {
+            Hp = CoreMath.Clamp(hp, 0, MaxHp);
         }
 
         // ================================================================

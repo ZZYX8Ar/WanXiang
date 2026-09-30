@@ -269,6 +269,11 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public void ApplyPlaceholderStats(BeastDef def)
         {
+            // ★ 首领（b_）/ 召唤物（summon_）自带数值与技能，占位公式会覆盖掉它们刻意写低的面板，
+            //   所以这两类直接跳过、保留内容表给的数值。普通异兽（含我方队伍）照旧走占位公式。
+            if (def.Id != null && (def.Id.StartsWith("b_") || def.Id.StartsWith("summon_")))
+                return;
+
             var b = BaselineFor(def.Role);
             float m = RarityMultiplier(def.Rarity);
             def.BaseHp = (int)(b.Hp * m);

@@ -187,6 +187,10 @@ namespace WanXiang.Battle.Core
             int dmg = ComputeDamage(st, src, dst, el, atom.Power, atom.TrueDamage, crit,
                                     IsAoeTarget(atom.Target));
 
+            // ---- 首领战：结算前改写 incoming（首击减伤 / 冰核无敌由 BattleUnit.Invulnerable 处理） ----
+            // 空列表短路：普通战斗不进函数体，逐位不变。
+            if (st.Hooks.Count > 0) BattleHooks.ModifyIncoming(st, src, dst, ref dmg, el);
+
             int dealt;
             if (atom.TrueDamage) dealt = dst.TakeTrueDamage(dmg);
             else dealt = dst.TakeDamage(dmg, atom.IgnoreShield);
@@ -203,6 +207,16 @@ namespace WanXiang.Battle.Core
             {
                 st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
                            note: $"{dst.DisplayName} 阵亡");
+            }
+
+            // ---- 首领战：结算后钩子（伤害反弹 / 分摊 / 击杀成长 / 假死 / 双杀记录） ----
+            // ★ 必须在死亡判定之后、UnitKilled 之前调 OnDamageDealt（反弹/分摊要读 dealt，
+            //   假死在 UnitKilled 里把单位救活）。空列表短路。
+            if (st.Hooks.Count > 0)
+            {
+                BattleHooks.DamageDealt(st, src, dst, dmg, dealt, atom.TrueDamage);
+                if (dealt > 0 && !dst.IsAlive)
+                    BattleHooks.UnitKilled(st, src, dst);
             }
 
             // ---- 天时钩子（GDD 3.3 剩余 8 条）：命中/暴击/击杀/受击四条通路 ----
@@ -435,6 +449,10 @@ namespace WanXiang.Battle.Core
             if (trueDamage) return CoreMath.RoundDamage(raw);
 
             float v = raw * ElementMatrix.Coefficient(el, dst.Element, cfg.Elements);
+            // 免疫克制（混沌之母·鸿蒙"混元"）：让相克/相生系数强制为 1，
+            // 攻防双方都不吃五行加成。判定放在系数之后、暴击之前，只动这一项。
+            if (dst.IgnoreElementCounter || (src != null && src.IgnoreElementCounter))
+                v = raw;
             if (crit) v *= (1f + src.Def.CritDamage);
 
             float defense = dst.Def.BaseDef;

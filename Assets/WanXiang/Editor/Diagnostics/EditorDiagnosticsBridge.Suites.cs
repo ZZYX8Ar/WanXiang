@@ -112,6 +112,18 @@ namespace WanXiang.EditorTools.Diagnostics
                 + "② 它的 asmdef 里缺 WanXiang.Battle.Core 引用。");
         }
 
+        /// <summary>首领战自检工具的类型名（与诊断通道同程序集）。</summary>
+        private const string BossToolTypeName =
+            "WanXiang.Editor.BattleTool.BossSelfTest, WanXiang.Editor";
+
+        /// <summary>首领战自检（命令 boss.selftest）。Edit 模式同步跑，不进 Play。</summary>
+        private static void RunBossSelfTest(Report report)
+        {
+            RunEditorTool(report, "boss.selftest", BossToolTypeName,
+                "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里缺 WanXiang.Battle.Core 引用。");
+        }
+
         /// <summary>天时系统自检（GDD STEP 3；含基准局指纹回归保护）。Edit 模式同步跑。</summary>
         private static void RunWeatherSelfTest(Report report)
         {

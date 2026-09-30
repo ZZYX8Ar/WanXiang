@@ -839,6 +839,7 @@ namespace WanXiang.EditorTools.Diagnostics
                 case "hot.smoke": RequestHotUpdateSmoke(report); break;
                 case "battle.selftest": RunBattleSelfTest(report); break;
                 case "combo.selftest": RunComboSelfTest(report); break;
+                case "boss.selftest": RunBossSelfTest(report); break;
                 case "battle.graybox": RunBattleTool(report, "battle.graybox"); break;
                 case "fusion.selftest": RunFusionSelfTest(report); break;
                 case "share.selftest": RunShareSelfTest(report); break;

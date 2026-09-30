@@ -23,7 +23,8 @@ namespace WanXiang.Battle.Core
 
             st.Log.Add(0, BattleEventKind.BattleStart, note: $"种子 {st.Random.Seed}｜回合上限 {cfg.MaxTurns}");
             BoardRules.ApplyResonance(st);
-            PassiveHooks.ApplyBattleStart(st);   // v2.1 P3b：开场被动（攻击加成 / 开场回复）   // 开局先算一次，让"上阵即共鸣"在第一回合就成立
+            PassiveHooks.ApplyBattleStart(st);   // v2.1 P3b：开场被动（攻击加成 / 开场回复）
+            BattleHooks.RunStart(st);            // 首领战：开场机制（免疫克制 / 双子部署等）// 开局先算一次，让"上阵即共鸣"在第一回合就成立
 
             int limit = CoreMath.Max(1, cfg.MaxTurns);
             int turn = 1;
@@ -31,6 +32,7 @@ namespace WanXiang.Battle.Core
             {
                 st.Turn = turn;
                 st.Log.Add(turn, BattleEventKind.TurnStart);
+                BattleHooks.TurnStart(st);            // 首领战：回合始机制（首击标记清零 / 属性轮转 / 召唤计时）
 
                 // 灵力自然回复（v2.1 §3）：超出上限的部分丢失 —— 逼玩家在回合内花掉
                 // ★ 第 1 回合**不回灵**（2026-09-26 用户定案）：
@@ -101,6 +103,7 @@ namespace WanXiang.Battle.Core
                 // ---- 4) 回合末（天时·回合末在 EndOfTurn 之后、TurnEnd 事件之前） ----
                 EndOfTurn(st);
                 PassiveHooks.ApplyTurnEnd(st);     // v2.1 P3b：回合末被动（回复类）
+                BattleHooks.TurnEnd(st);           // 首领战：回合末机制（硬性DPS灭团 / 双子复活判定 / 组装成长）
                 WeatherEndExtraActions(st, buf);   // 23 小寒：速度最高者额外普攻（判空短路）
                 WeatherResolver.ResolveTurnEnd(st);
                 st.Log.Add(turn, BattleEventKind.TurnEnd);
