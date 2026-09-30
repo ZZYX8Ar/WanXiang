@@ -7,6 +7,10 @@
 //        首领是专属内容（id 以 b_ 开头），绝不进玩家图鉴/招募/灵市；
 //        这条红线靠 IsBoss 前缀 + ApplyPlaceholderStats 跳过 b_ 来守，这里只核对结构。
 //
+//   【一b】轮回解锁池 —— 低轮回（Ascension < UnlockAscension）每幕只开池子前 2 个，
+//        高轮回才全开（12 只 → 先见 8 只）。守三条：开数正确 / 解锁后是超集 /
+//        低轮回实摇不越界。解锁依据是**局内 Ascension**（见 BattleRequestFactory）。
+//
 //   【二】机制真的会挂、真的会触发 —— 每个首领在 BattleFactory.Create 时自动
 //        挂上对应钩子（BossCatalog.AttachAllBossHooks），空列表短路保证普通
 //        战斗逐位不变。这里挑了 8 类代表机制，各造一局扫战斗日志 Note 验证：
@@ -42,7 +46,7 @@ namespace WanXiang.Editor.BattleTool
             c.Sb.AppendLine("万相 · 首领战自检（boss.selftest）");
             c.Sb.AppendLine(new string('=', 72));
             c.Sb.AppendLine($"时间　　{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            c.Sb.AppendLine("范围　　14 首领内容表 + 确定性抽首领 + 机制钩子挂接与触发");
+            c.Sb.AppendLine("范围　　14 首领内容表 + 确定性抽首领 + 轮回解锁池 + 机制钩子挂接与触发 + 可胜性");
             c.Sb.AppendLine("程序集　WanXiang.Battle.Core（noEngineReferences = true）");
             c.Sb.AppendLine();
 
@@ -50,6 +54,7 @@ namespace WanXiang.Editor.BattleTool
             {
                 CheckContentShape(c);
                 CheckDeterministicPick(c);
+                CheckAscensionPool(c);
                 CheckBuildAndAttachAll(c);
                 CheckDeterminismRedLine(c);
                 CheckRepresentativeMechanics(c);
@@ -106,7 +111,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckContentShape(Ctx c)
         {
-            c.Title("[1/5] 14 首领内容表结构");
+            c.Title("[1/6] 14 首领内容表结构");
 
             if (BossCatalog.All.Count == 14)
                 c.Ok("共 14 个首领（幕一~四各 3 + 幕五 2）");
@@ -167,7 +172,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckDeterministicPick(Ctx c)
         {
-            c.Title("[2/5] 确定性抽首领（同局同幕固定）");
+            c.Title("[2/6] 确定性抽首领（同局同幕固定）");
 
             bool stable = true;
             for (int act = 1; act <= 5; act++)
@@ -197,12 +202,85 @@ namespace WanXiang.Editor.BattleTool
         }
 
         // ================================================================
+        //  2b) 轮回解锁池（低轮回开 2 个、高轮回全开）
+        // ================================================================
+
+        private static void CheckAscensionPool(Ctx c)
+        {
+            c.Title("[3/6] 轮回解锁池（低轮回每幕只开前 2 个，Ascension≥" +
+                    BossCatalog.UnlockAscension + " 全开）");
+
+            int U = BossCatalog.UnlockAscension;
+            bool countOk = true, subsetOk = true, capOk = true;
+            var lines = new List<string>();
+
+            for (int act = 1; act <= 5; act++)
+            {
+                int total = BossCatalog.Pool[act - 1].Length;
+                int low = BossCatalog.UnlockedCount(act, 0);
+                int mid = BossCatalog.UnlockedCount(act, U - 1);   // 仍低于门槛
+                int hi = BossCatalog.UnlockedCount(act, U);        // 达门槛
+
+                // ① 低于门槛恒 ≤2；达门槛 = 全池
+                if (low != Mathf.Min(2, total)) countOk = false;
+                if (mid != Mathf.Min(2, total)) countOk = false;
+                if (hi != total) countOk = false;
+
+                // ② 低轮回可抽集合 ⊆ 高轮回可抽集合（内容只增不减）
+                var lo = BossCatalog.UnlockedPool(act, 0);
+                var hiPool = BossCatalog.UnlockedPool(act, U);
+                for (int i = 0; i < lo.Length; i++)
+                    if (Array.IndexOf(hiPool, lo[i]) < 0) subsetOk = false;
+
+                lines.Add($"幕{act}：低轮回 {low}/{total}　高轮回 {hi}/{total}");
+            }
+
+            // ③ 真摇一轮：低轮回抽出的首领必须落在「前 2 个」里（多组种子扫一遍）
+            for (int act = 1; act <= 4; act++)
+            {
+                var allowed = BossCatalog.UnlockedPool(act, 0);
+                for (ulong s = 1; s <= 64; s++)
+                {
+                    var id = BossCatalog.BossFor(act, s, 0);
+                    if (id == null || Array.IndexOf(allowed, id) < 0) { capOk = false; break; }
+                }
+                // 高轮回下，只要种子扫得够，应能摇到被锁的那只（证明"解锁"真的扩了池）
+                var allowedHi = BossCatalog.UnlockedPool(act, U);
+                bool sawLocked = false;
+                for (ulong s = 1; s <= 256 && !sawLocked; s++)
+                {
+                    var id = BossCatalog.BossFor(act, s, U);
+                    if (id != null && Array.IndexOf(allowed, id) < 0 &&
+                        Array.IndexOf(allowedHi, id) >= 0) sawLocked = true;
+                }
+                if (!sawLocked && allowed.Length < allowedHi.Length)
+                    c.Info($"幕{act}：256 个种子没摇到被锁的第 3 只（概率性，非失败）");
+            }
+
+            bool unlockBoundary = BossCatalog.UnlockAscension == 2;
+            if (!unlockBoundary)
+                c.Bad($"UnlockAscension 应是 2（当前 {BossCatalog.UnlockAscension}）与「低轮回开 2 个」口径不符");
+            else if (countOk && subsetOk && capOk)
+                c.Ok("低轮开 2/幕、达门槛全开；低轮回抽出 ⊆ 高轮回抽出；实摇 64 种子全落在前 2 个");
+            else if (!countOk)
+                c.Bad("池子开数不符：低轮回应 Min(2,池)、达门槛应=池长");
+            else if (!subsetOk)
+                c.Bad("解锁后池子不是超集 —— 内容被「解锁」弄丢了");
+            else
+                c.Bad("低轮回实摇越界：抽到了没解锁的第 3 只首领");
+
+            for (int i = 0; i < lines.Count; i++) c.Info(lines[i]);
+            c.Info($"口径：Ascension<{U} 时每幕只在池子前 2 个里摇（12 只 → 先见 8 只）；"
+                 + "由 BattleRequestFactory 把 RunSave.Current.Ascension 传进 BossForActFunc。");
+        }
+
+        // ================================================================
         //  3) 14 首领全部可构建 + 自动挂钩不抛异常
         // ================================================================
 
         private static void CheckBuildAndAttachAll(Ctx c)
         {
-            c.Title("[3/5] 14 首领全部可构建 + 自动挂钩（BattleFactory.Create 内 AttachAllBossHooks）");
+            c.Title("[4/6] 14 首领全部可构建 + 自动挂钩（BattleFactory.Create 内 AttachAllBossHooks）");
 
             int built = 0, attached = 0;
             var fails = new List<string>();
@@ -240,7 +318,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckDeterminismRedLine(Ctx c)
         {
-            c.Title("[4/5] 首领战可复现（钩子不引入额外随机流）");
+            c.Title("[5/6] 首领战可复现（钩子不引入额外随机流）");
 
             var st1 = BuildBossBattle("b_manman", 3, RoleType.Striker, 400f, 4000, 20261130UL);
             var r1 = BattleSimulator.Run(st1);
@@ -269,7 +347,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckRepresentativeMechanics(Ctx c)
         {
-            c.Title("[5/5] 代表机制触发（扫战斗日志 Note）");
+            c.Title("[6/7] 代表机制触发（扫战斗日志 Note）");
 
             // 反弹（蔓娘荆棘） —— 玩家打 boss 即触发
             ExpectNote(c, "反弹", "b_manman", "伤害反弹", 400f, 4000, 3, RoleType.Striker, 20261201UL);
@@ -514,19 +592,29 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckWinnability(Ctx c)
         {
-            c.Title("[6/6] 首领战可胜性（满编神品队 × 两档遗物 × " + WinnabilityRuns + " 局，防必输/防白给）");
+            c.Title("[7/7] 首领战可胜性（满编神品队 × 两档遗物 × " + WinnabilityRuns + " 局，防必输/防白给）");
 
             try
             {
+                // ⚠ 轮回解锁池会让"低轮回"与"全开"**抽到不同首领**（低轮回只开前 2 个），
+                //   所以两档都测：任何一档白给/必输都要报出来（只测一档会漏掉另一半内容）。
                 for (int act = 1; act <= 4; act++)
                 {
-                    float wrNo = RunWinnabilityFor(act, NoRelicMul);
-                    float wrMid = RunWinnabilityFor(act, MidRelicMul);
+                    int U = BossCatalog.UnlockAscension;
+
+                    float loNo = RunWinnabilityFor(act, NoRelicMul, 0);
+                    float loMid = RunWinnabilityFor(act, MidRelicMul, 0);
+                    float hiNo = RunWinnabilityFor(act, NoRelicMul, U);
+                    float hiMid = RunWinnabilityFor(act, MidRelicMul, U);
                     float ctrl = RunNormalControl(act, NoRelicMul);
 
-                    string line = $"第{act}幕：无遗物 {wrNo:P0}（{Mathf.RoundToInt(wrNo * WinnabilityRuns)}/{WinnabilityRuns}）"
-                                + $"　中等遗物 {wrMid:P0}（{Mathf.RoundToInt(wrMid * WinnabilityRuns)}/{WinnabilityRuns}）"
-                                + $"　[对照·同规模精英 {ctrl:P0}]";
+                    // 结构性质要对**两档池子都成立**（取各自最差/最好档综合判定）
+                    float wrNo = Mathf.Min(loNo, hiNo);
+                    float wrMid = Mathf.Min(loMid, hiMid);
+
+                    string line = $"第{act}幕　[对照·同规模精英 {ctrl:P0}]"
+                                + $"\n        低轮回(2只): 无遗物 {loNo:P0}　中等遗物 {loMid:P0}"
+                                + $"\n        全开(3只):   无遗物 {hiNo:P0}　中等遗物 {hiMid:P0}";
 
                     // ⚠ 灰盒数值是占位数据，**不做绝对胜率断言**（那是策划数值表落地后的事）。
                     //   这里只断言三条"结构性质"，它们与具体数值无关、真平衡时也必须成立：
@@ -555,13 +643,14 @@ namespace WanXiang.Editor.BattleTool
                     else if (!ctrlSane)
                         c.Bad($"{line}　→ 对照只有 {ctrl:P0}：脚手架队伍偏弱（连同规模精英都打不过），先修基准");
                     else if (!bossHarder)
-                        c.Bad($"{line}　→ 守关没代价：两档遗物都打满（{wrNo:P0}/{wrMid:P0}），首领≈白送");
+                        c.Bad($"{line}　→ 守关没代价：某档两档遗物都打满，首领≈白送（取两档池子最差）");
                     else
                         c.Bad($"{line}　→ 中等遗物反而明显更差（遗物可能没折叠进战斗）");
                 }
 
                 c.Info("口径：灰盒对手 + 神品满编（沿用 CampaignSelfTest ⑪）。胜率是【校准数据】（供策划调 A 系数/首领面板），");
                 c.Info("      断言只保证结构性质（对照能赢 / 守关有代价 / 遗物有正收益）；绝对胜率区间留到真实数值表。");
+                c.Info("      ⚠ 轮回解锁池 ⇒ 低轮回（2 只）/全开（3 只）**抽到不同首领**，两档都测（②取两档最差）。");
                 c.Info("      ⚠ 对照（同规模精英）常打满 100% ⇒ 该档对「首领是否更难」无区分度，②退化为「守关不白给」。");
                 c.Info($"      校准目标区间（暂不断言）：{WinRateTargetLo:P0} ~ {WinRateTargetHi:P0}；"
                      + $"神品成长倍率 {LegendGrowth:0.00}；每题 ×{NoRelicMul:0.00}/{MidRelicMul:0.00} 两档遗物。");
@@ -577,11 +666,13 @@ namespace WanXiang.Editor.BattleTool
         /// <summary>
         /// 跑一幕的首领战胜率：敌方 = 真实 BossSquadFor（首领 + 灵品随从，带 BossUnitMul），
         /// 我方 = 5 神品满编（成长倍率随遗物档叠加）。
+        /// <paramref name="ascensionTier"/>：测哪个轮回档的池子（0 = 低轮回只开 2 个；
+        /// <see cref="BossCatalog.UnlockAscension"/> = 全开）。两档抽到的首领可能不同。
         /// </summary>
-        private static float RunWinnabilityFor(int act, float relicTierMul)
+        private static float RunWinnabilityFor(int act, float relicTierMul, int ascensionTier)
         {
             var provider = new WanXiang.Campaign.SeededEnemyProvider(
-                a => SamplePoolFor(a), BossCatalog.BossForActFunc(0xB055UL));
+                a => SamplePoolFor(a), BossCatalog.BossForActFunc(0xB055UL, ascensionTier));
 
             var cfg = BattleConfig.Default;
             cfg.LegendMultiplier = LegendGrowth * relicTierMul;   // 遗物档 ≈ 提高神品成长倍率
@@ -589,7 +680,7 @@ namespace WanXiang.Editor.BattleTool
             int wins = 0;
             for (int run = 0; run < WinnabilityRuns; run++)
             {
-                ulong seed = CoreMath.Fnv1a($"boss-winnability:{act}:{run}");
+                ulong seed = CoreMath.Fnv1a($"boss-winnability:{act}:{ascensionTier}:{run}");
                 var enemies = provider.BossSquadFor(act, seed);
                 var players = BuildLegendTeam();
                 if (players.Length == 0 || enemies.Length == 0) continue;

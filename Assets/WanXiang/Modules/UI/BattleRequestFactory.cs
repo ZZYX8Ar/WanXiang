@@ -197,22 +197,31 @@ namespace WanXiang.Modules.UI
             // ★ 首领战接入（P0 收尾）：把 BossCatalog 的确定性抽首领工厂塞给 provider ——
             //   同局同幕固定抽到同一个首领（可复盘），换局换人。
             //   守关节点走 BossSquadFor（首领 + 随从），普通节点仍走 EnemiesFor。
+            //
+            // ★ 轮回解锁池（低轮回开 2 个、高轮回全开）：把本局轮回数带进抽取 ——
+            //   Ascension < UnlockAscension 时每幕只在池子前 2 个里摇，第 3 个留到高轮回。
+            //   （须在构造 provider 之前读出 Ascension，故提到此处；下面的难度倍率复用同一变量。）
+            var runAsc = WanXiang.Run.RunSave.Current;
+            int ascension = runAsc != null ? runAsc.Ascension : 0;
+
             var provider = new WanXiang.Campaign.SeededEnemyProvider(
-                actIdx => all, BossCatalog.BossForActFunc(seed));
+                actIdx => all, BossCatalog.BossForActFunc(seed, ascension));
             var entries = boss
                 ? provider.BossSquadFor(act, seed)
                 : provider.EnemiesFor(act, term, kind, seed);
             if (boss)
             {
                 string bossId = entries.Length > 0 && entries[0].Def != null ? entries[0].Def.Id : "(无)";
+                int actIdx = System.Math.Max(0, System.Math.Min(BossCatalog.Pool.Length - 1, act - 1));
                 UnityEngine.Debug.Log("[BattleRequestFactory] 守关首领战：第" + act +
-                    "幕 抽出 " + bossId + "（BossFor(seed) 确定性）");
+                    "幕 抽出 " + bossId + "（BossFor(seed) 确定性；轮回 " + ascension +
+                    " ⇒ 池开 " + BossCatalog.UnlockedCount(act, ascension) + "/" +
+                    BossCatalog.Pool[actIdx].Length + "）");
             }
 
             // ★★ 轮回难度（"续劫"次数）：每轮回敌人属性 +15%
             //    —— 之前的"敌强 +3%"只写在注释里，实际没有任何代码读取（Jie/Realm 已废弃）。
-            var runAsc = WanXiang.Run.RunSave.Current;
-            float ascMul = 1f + 0.15f * (runAsc != null ? runAsc.Ascension : 0);
+            float ascMul = 1f + 0.15f * ascension;
 
             req.EnemyEntries.Clear();
             req.Enemy.Clear();

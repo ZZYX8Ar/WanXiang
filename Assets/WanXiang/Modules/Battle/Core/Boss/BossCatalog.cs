@@ -143,25 +143,70 @@ namespace WanXiang.Battle.Core
             return null;
         }
 
-        /// <summary>确定性抽首领：同局（同 seed）同幕固定，换局/换轮回变化。</summary>
-        public static string BossFor(int act, ulong seed)
+        /// <summary>
+        /// 轮回解锁：<paramref name="ascension"/> 低于这个数时，每幕**只开池子前 2 个**首领，
+        /// 第 3 个留到更高轮回才出现（12 只 → 先见 8 只）。
+        /// ⚠ 幕五只有 2 个，本来就 ≤ 2，不受影响。
+        /// </summary>
+        public const int UnlockAscension = 2;
+
+        /// <summary>
+        /// 该幕在当前轮回下**实际可抽**的首领数（低轮回收窄内容，避免第一轮就见完）。
+        /// <paramref name="ascension"/>：当前轮回数（局内 Ascension）；&lt;2 = 只开前 2 个。
+        /// </summary>
+        public static int UnlockedCount(int act, int ascension)
+        {
+            int a = CoreMath.Max(1, CoreMath.Min(Pool.Length, act)) - 1;
+            var pool = Pool[a];
+            if (pool == null) return 0;
+            return ascension < UnlockAscension ? CoreMath.Min(2, pool.Length) : pool.Length;
+        }
+
+        /// <summary>
+        /// 该幕在当前轮回下可抽的首领 id 集合（顺序 = 池序，稳定）。
+        /// 自检据此断言「低轮回抽出 ⊆ 高轮回抽出」。
+        /// </summary>
+        public static string[] UnlockedPool(int act, int ascension)
+        {
+            int a = CoreMath.Max(1, CoreMath.Min(Pool.Length, act)) - 1;
+            var pool = Pool[a];
+            if (pool == null) return new string[0];
+            int n = UnlockedCount(act, ascension);
+            var result = new string[n];
+            for (int i = 0; i < n; i++) result[i] = pool[i];
+            return result;
+        }
+
+        /// <summary>
+        /// 确定性抽首领：同局（同 seed）同幕固定，换局变化。
+        /// <paramref name="ascension"/>：当前轮回数 —— 低于 <see cref="UnlockAscension"/> 时
+        /// 只在池子前 2 个里摇（内容随轮回逐步放出）。默认 0 = 低轮回口径；
+        /// 要显式"全开"请传 <see cref="UnlockAscension"/> 或更大。
+        /// </summary>
+        public static string BossFor(int act, ulong seed, int ascension = 0)
         {
             int a = CoreMath.Max(1, CoreMath.Min(Pool.Length, act)) - 1;
             var pool = Pool[a];
             if (pool == null || pool.Length == 0) return null;
+            int n = UnlockedCount(act, ascension);
+            if (n <= 0) return null;
             var rng = new DeterministicRandom(CoreMath.Fnv1a("boss:" + seed.ToString() + ":" + act));
-            return pool[rng.NextInt(0, pool.Length)];
+            return pool[rng.NextInt(0, n)];
         }
 
         /// <summary>抽到的首领直接构造成可上阵的 BeastDef。</summary>
-        public static BeastDef BossForBeastDef(int act, ulong seed)
+        public static BeastDef BossForBeastDef(int act, ulong seed, int ascension = 0)
         {
-            var id = BossFor(act, seed);
+            var id = BossFor(act, seed, ascension);
             return id == null ? null : BuildBoss(id);
         }
 
-        /// <summary>给 SeededEnemyProvider 用的 bossForAct 工厂（捕获本局种子，保证同局确定性）。</summary>
-        public static Func<int, BeastDef> BossForActFunc(ulong seed) => a => BossForBeastDef(a, seed);
+        /// <summary>
+        /// 给 SeededEnemyProvider 用的 bossForAct 工厂（捕获本局种子，保证同局确定性）。
+        /// <paramref name="ascension"/>：当前轮回数（决定池子开几个）。
+        /// </summary>
+        public static Func<int, BeastDef> BossForActFunc(ulong seed, int ascension = 0)
+            => a => BossForBeastDef(a, seed, ascension);
 
         public static BeastDef BuildBoss(string id)
         {
