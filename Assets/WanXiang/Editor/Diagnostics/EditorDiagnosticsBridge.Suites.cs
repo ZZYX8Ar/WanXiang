@@ -96,6 +96,22 @@ namespace WanXiang.EditorTools.Diagnostics
         private const string WeatherToolTypeName =
             "WanXiang.Editor.WeatherTool.WeatherSelfTest, WanXiang.Editor";
 
+        /// <summary>连携技自检工具的类型名（与诊断通道同程序集）。</summary>
+        private const string ComboToolTypeName =
+            "WanXiang.Editor.BattleTool.ComboSelfTest, WanXiang.Editor";
+
+        /// <remarks>
+        /// 守的是两件编译期查不出的事：
+        ///   ① 手写的 50 条连携技表（主兽写重 / 指向不存在的兽 / 某只兽没有连携技）；
+        ///   ② ExecuteCombo 与 PreviewComboTargets 两个 switch 必须成对（漏一支 = 高亮与实际打到的目标不一致）。
+        /// </remarks>
+        private static void RunComboSelfTest(Report report)
+        {
+            RunEditorTool(report, "combo.selftest", ComboToolTypeName,
+                "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里缺 WanXiang.Battle.Core 引用。");
+        }
+
         /// <summary>天时系统自检（GDD STEP 3；含基准局指纹回归保护）。Edit 模式同步跑。</summary>
         private static void RunWeatherSelfTest(Report report)
         {
