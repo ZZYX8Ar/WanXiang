@@ -495,6 +495,10 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                     name = "？ 未知";
                 else if (kind == WanXiang.Campaign.NodeKind.Question)
                     name = WanXiang.Campaign.NodeKinds.Cn(RevealedKind(offset));   // 揭晓后显示真实类型
+                else if (IsSeasonBossNode(offset))
+                    // ★ 守关格在图里是【精英】占位，但显示上必须讲明是首领战 ——
+                    //   否则玩家看到"【精英】"会以为是普通精英，最后一格的首首战毫无提示。
+                    name = "守关 · " + (_graph.BossName ?? "首领");
                 else
                     name = WanXiang.Campaign.NodeKinds.Cn(kind);
                 label.text = (offset + 1) + ". " + TermName(_graph.Terms[offset]) + "　【" + name + "】" +
@@ -641,18 +645,25 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             string term = TermName(_graph.Terms[offset]);
 
             if (_tmpNodeName != null) _tmpNodeName.text = "第 " + (offset + 1) + " 节 · " + term;
-            // ★ 天阙最后一格 = 终局战（后土）：类型显示为"守关·后土"，而不是占位用的【精英】
+            // ★ 天阙最后一格 = 终局战（后土）：类型显示为"终局·后土"，而不是占位用的【精英】
             bool isFinaleBoss = _graph != null && _graph.Act >= 5 && offset == _graph.NodeCount - 1;
             if (isFinaleBoss && _tmpNodeName != null)
                 _tmpNodeName.text = "终局 · " + (_graph.BossName ?? "后土");
-            if (_tmpNodeType != null && !isFinaleBoss)
+
+            // ★★ 守关（幕 1~4 的最后一格）也必须改类型标签：它在图里复用【精英】作占位，
+            //   光看 kind 会显示成"【精英】"——和"普通精英"完全看不出区别，玩家不知道下一格是首领。
+            //   isFinaleBoss（第 5 幕）走上面那行；这里只管四季幕的守关。
+            bool isSeasonBoss = IsSeasonBossNode(offset);
+            if (isSeasonBoss && _tmpNodeType != null)
+                _tmpNodeType.text = "守关 · " + (_graph.BossName ?? "首领") + "　（战斗）";
+            else if (_tmpNodeType != null && !isFinaleBoss)
                 _tmpNodeType.text = WanXiang.Campaign.NodeKinds.Cn(kind) +
                                     (WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "　（战斗）" : "　（休整）");
-            if (_tmpWeather != null) _tmpWeather.text = WeatherHint(kind);
+            if (_tmpWeather != null) _tmpWeather.text = WeatherHint(kind, isSeasonBoss, isFinaleBoss);
 
             // _current 是常驻实例（表单里被 Btn_Next 复用），逐字段赋值而不是换新对象
             _current.Title = term;
-            _current.Weather = WeatherHint(kind);
+            _current.Weather = WeatherHint(kind, isSeasonBoss, isFinaleBoss);
             _current.Seed = (ulong)(_graph.Act * 1000 + offset + 7);
             _current.NodeIndex = offset;
             _current.Act = _graph.Act;
@@ -695,9 +706,31 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             }
         }
 
-        /// <summary>节点的说明文案。天气/场地事件由 WeatherComposer / FieldEvents 决定，先给占位。</summary>
-        private static string WeatherHint(WanXiang.Campaign.NodeKind kind)
+        /// <summary>
+        /// 该格是不是**四季幕（1~4）的守关**（幕末最后一格）。
+        /// ⚠ 唯一口径：类型标签、说明文案、<c>NodeRequest.IsBoss</c> 三处都读它 ——
+        ///   守卫格在图里复用 NodeKind.Elite 作占位，判定公式散在一处就会漂移
+        ///   （曾漏掉类型标签，导致守关显示成"【精英】"）。改这里等于改全局。
+        /// 第 5 幕（天阙）**不算**：它最后一格是终局战（后土），走 TrialPanel.BuildFinaleBattle。
+        /// </summary>
+        private bool IsSeasonBossNode(int offset)
         {
+            return _graph != null && _graph.Act >= 1 && _graph.Act <= 4 &&
+                   _graph.NodeCount > 0 && offset == _graph.NodeCount - 1;
+        }
+
+        /// <summary>
+        /// 节点的说明文案。天气/场地事件由 WeatherComposer / FieldEvents 决定，先给占位。
+        /// <paramref name="isSeasonBoss"/>：幕 1~4 的守关格（幕末最后一格）—— 说明要写首领，
+        /// 不能沿用精英那句"规模 +1，旗舰携劫象"，否则玩家进战前以为只是精英战。
+        /// <paramref name="isFinaleBoss"/>：第 5 幕终局战（后土）。
+        /// </summary>
+        private static string WeatherHint(WanXiang.Campaign.NodeKind kind, bool isSeasonBoss = false,
+                                          bool isFinaleBoss = false)
+        {
+            // 守关优先：它与精英在图里同占位，但战斗内容完全不同（首领 + 随从，带 BossUnitMul）。
+            if (isFinaleBoss) return "终局战：后土镇守中宫，敌方还有你队伍前几只的镜像";
+            if (isSeasonBoss) return "守关：本幕首领亲自镇守（属性 ×1.35，另有随从）——硬仗";
             switch (kind)
             {
                 case WanXiang.Campaign.NodeKind.Elite: return "精英：敌方规模 +1，旗舰携劫象";
@@ -948,7 +981,11 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             }
             else
             {
-                var fb = WeatherHint(_graph != null ? _graph.KindOf(_selected) : WanXiang.Campaign.NodeKind.Encounter);
+                // ⚠ 回落文案也要带守关标志：否则选中守关格而本场无天时节点时，
+                //   又会退回"精英：规模 +1"那句（同一个坑，见 IsSeasonBossNode 注释）。
+                bool fbBoss = IsSeasonBossNode(_selected);
+                var fb = WeatherHint(_graph != null ? _graph.KindOf(_selected) : WanXiang.Campaign.NodeKind.Encounter,
+                                     fbBoss, false);
                 if (_current != null) _current.Weather = fb;
                 if (_tmpWeather != null) _tmpWeather.text = fb;
             }
