@@ -54,6 +54,14 @@ namespace WanXiang.Modules.UI
         private int _lastClickIndex = -1;
         private float _lastClickTime = -1f;
 
+        /// <summary>
+        /// 本局已拥有的异兽 id（Collection ∪ Team）—— 招募候选要排除它们。
+        /// ⚠ 异兽唯一是项目铁律：同一只不能既在玩家手里又出现在招募货架上。
+        ///   阵亡失兽（不在 Collection∪Team）**要能重新出现** —— 靠灵市重购找回，
+        ///   所以这里只看"当前拥有"，不做跨局永久排除。
+        /// </summary>
+        private readonly HashSet<string> _ownedIds = new HashSet<string>();
+
         protected override void OnCreate()
         {
             if (_btnRefresh != null) _btnRefresh.onClick.AddListener(OnRefreshClicked);
@@ -73,6 +81,18 @@ namespace WanXiang.Modules.UI
             _detailIndex = -1;
             _lastClickIndex = -1;
             if (_detailRoot != null) _detailRoot.SetActive(false);
+
+            // 先快照"已拥有"，Reroll 每次都按它过滤（刷新时玩家可能已选中/已入队）
+            _ownedIds.Clear();
+            if (run != null)
+            {
+                if (run.Collection != null)
+                    for (int i = 0; i < run.Collection.Count; i++)
+                        if (!string.IsNullOrEmpty(run.Collection[i])) _ownedIds.Add(run.Collection[i]);
+                if (run.Team != null)
+                    for (int i = 0; i < run.Team.Count; i++)
+                        if (!string.IsNullOrEmpty(run.Team[i])) _ownedIds.Add(run.Team[i]);
+            }
 
             if (_tmpTitle != null)
                 _tmpTitle.text = _limit == 3 ? "招募 · 挑选 3 只异兽" : "招募 · 挑选 1 只异兽";
@@ -102,6 +122,12 @@ namespace WanXiang.Modules.UI
             foreach (var b in all)
             {
                 if (b == null) continue;
+                // ⚠ 排除三類：① 已拥有的（异兽唯一，记忆铁律：Collection∪Team 里有的不能再出）
+                //   ② 首领（b_ 前缀是专属内容，绝不进招募/灵市/图鉴）
+                //   ③ null / 空 id（否则下面按 id 去重会误伤）
+                if (string.IsNullOrEmpty(b.Id)) continue;
+                if (b.Id.StartsWith("b_")) continue;
+                if (_ownedIds.Contains(b.Id)) continue;
                 if (!byElem.TryGetValue(b.Element, out var list))
                 { list = new List<BeastDef>(); byElem[b.Element] = list; }
                 list.Add(b);
@@ -109,11 +135,25 @@ namespace WanXiang.Modules.UI
 
             var rng = new System.Random((int)(System.DateTime.Now.Ticks & 0x7fffffff));
             _candidates.Clear();
+            // ⚠⛔ 每只异兽**全局只出现一次**（用户实测：土池只有帝江一只时，
+            //   旧写法"每五行独立抽 2 次、抽完不移除"会让 rng.Next(1) 两次都返回帝江
+            //   ⇒ 同一张卡出现 2~3 次，截图里"帝江×3"就是这么来的）。
+            //   修法：五行循环内维护 taken 集合，已选中的 id 不再重复抽；
+            //   池子抽空（n >= pool.Count）就少放一只，不硬凑 2 只。
+            var taken = new HashSet<string>();
             foreach (var kv in byElem)
             {
                 var pool = kv.Value;
-                for (int n = 0; n < 2 && pool.Count > 0; n++)
-                    _candidates.Add(pool[rng.Next(pool.Count)]);
+                int want = CoreMath.Min(2, pool.Count);
+                int got = 0;
+                // 每只最多试 2n 次（随机抽可能连续撞到已 taken 的），仍不够就放过这一只
+                for (int tries = 0; tries < pool.Count * 2 && got < want; tries++)
+                {
+                    var pick = pool[rng.Next(pool.Count)];
+                    if (!taken.Add(pick.Id)) continue;   // 已出现过 ⇒ 换一只
+                    _candidates.Add(pick);
+                    got++;
+                }
             }
             // 打乱顺序，避免五行扎堆
             for (int i = _candidates.Count - 1; i > 0; i--)
