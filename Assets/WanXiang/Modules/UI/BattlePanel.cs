@@ -121,8 +121,30 @@ namespace WanXiang.Modules.UI
             //   单机非场景战保持 _manualBattle。auto 模式整场已预模拟，无需 SubmitCommand。
             if (_play == null) _play = new BattlePlayback(_req, _manualBattle && !SceneFlow.LastWasPvp);
 
-            if (_tmpWeatherName != null) _tmpWeatherName.text = _req.WeatherName ?? "";
-            if (_rootWeather != null) _rootWeather.SetActive(!string.IsNullOrEmpty(_req.WeatherName));
+            // ★ 顶部横幅（用户 2026-10-03 要求）：
+            //   第一行 = **节点名称**（"第X幕 · 第 N 节 · 守关（首领）/精英战/遭遇战"），
+            //   第二行 = **天时名称 + 该节点天时的效果说明**（WeatherDef.Describe()）。
+            //   原来只显示一句天时名，玩家看不到"这个天时到底干嘛的"。
+            if (_tmpWeatherName != null)
+            {
+                var sb = new System.Text.StringBuilder(256);
+                if (!string.IsNullOrEmpty(_req.Title)) sb.Append(_req.Title);
+
+                string wx = _req.WeatherName ?? "";
+                string detail = (_req.Weather != null) ? _req.Weather.Describe() : null;
+                if (!string.IsNullOrEmpty(detail))
+                    wx = string.IsNullOrEmpty(wx) ? detail : wx + "：" + detail;
+
+                if (!string.IsNullOrEmpty(wx))
+                {
+                    if (sb.Length > 0) sb.Append('\n');
+                    sb.Append("<size=80%>").Append(wx).Append("</size>");   // 效果小一号，主次分明
+                }
+                _tmpWeatherName.text = sb.ToString();
+            }
+            if (_rootWeather != null)
+                _rootWeather.SetActive(!string.IsNullOrEmpty(_req.WeatherName) ||
+                                       !string.IsNullOrEmpty(_req.Title));
 
             // 场景模式下单位由舞台渲染，HUD 不再画一遍
             if (_sceneMode) ClearUnitViews();
