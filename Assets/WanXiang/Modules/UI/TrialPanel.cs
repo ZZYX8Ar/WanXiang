@@ -116,16 +116,23 @@ namespace WanXiang.Modules.UI
             var req = new BattleRequest
             {
                 Title = "天阙 · " + boss.DisplayName,
-                WeatherName = "终局：后土 + 我方镜像 ×3，倍率 ×1.5",
+                WeatherName = "终局：" + boss.DisplayName + " 镇守中宫 + 我方镜像 ×3，倍率 ×1.5",
                 Seed = (ulong)run.RunSeed + 9999,
             };
 
             var entries = new System.Collections.Generic.List<DeployEntry>();
-            entries.Add(DeployEntry.Enemy(boss, BattleRequest.Cells[4]).WithMul(1.5f));
+            // ★ 终局 Boss 站**中宫**（格 4）—— 用户 2026-10-03："boss 站在九宫格中间"。
+            //   ⚠ 旧写法用 `BattleRequest.Cells[4]`（那个数组是 {0,3,4,5,8}，索引4 ⇒ **格8**），
+            //     既不在中宫、又和下面镜像用的 `Cells[i]`(0/3/4) 撞格。
+            //   统一用 SeededEnemyProvider.BossCell（=4，守关同款口径）。
+            entries.Add(DeployEntry.Enemy(boss, WanXiang.Campaign.SeededEnemyProvider.BossCell).WithMul(1.5f));
+
+            // 镜像避开中宫：0/2/6/8/1（左右两翼 + 前后），保证中宫只有 Boss 一个
+            int[] mirrorCells = { 0, 2, 6, 8, 1 };
             int mirrors = System.Math.Min(3, run.Team != null ? run.Team.Count : 0);
             for (int i = 0; i < mirrors; i++)
                 if (byId.TryGetValue(run.Team[i], out var mirror))
-                    entries.Add(DeployEntry.Enemy(mirror, BattleRequest.Cells[i]).WithMul(1.2f));
+                    entries.Add(DeployEntry.Enemy(mirror, mirrorCells[i % mirrorCells.Length]).WithMul(1.2f));
             req.EnemyEntries.AddRange(entries);
 
             req.Player.Clear();

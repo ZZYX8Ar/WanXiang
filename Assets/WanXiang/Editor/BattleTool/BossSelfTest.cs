@@ -356,7 +356,7 @@ namespace WanXiang.Editor.BattleTool
             ExpectNote(c, "召唤", "b_fuman", "召唤物", 400f, 4000, 3, RoleType.Striker, 20261202UL);
 
             // 双子同命（白魍） —— OnBattleStart 部署双子
-            ExpectTwin(c, "b_baiwang");
+            ExpectTwin(c, "b_bairen");
 
             // 假死（玄溟碎冰重生） —— boss 被击杀瞬间化冰核
             ExpectNote(c, "碎冰重生", "b_xuanming", "假死(碎冰重生)", 5000f, 6000, 3, RoleType.Striker, 20261203UL);

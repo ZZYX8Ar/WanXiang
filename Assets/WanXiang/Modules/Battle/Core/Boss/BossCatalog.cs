@@ -119,7 +119,12 @@ namespace WanXiang.Battle.Core
             new BossDef { Id="b_jinjiao", DisplayName="焚天凶骸·烬蛟", Element=Element.Fire,  Role=RoleType.Striker,  BaseHp=2700, BaseAtk=360, BaseDef=115, BaseSpeed=110 },
             new BossDef { Id="b_jiaozhi", DisplayName="熔岩行尸·燋彘", Element=Element.Fire,  Role=RoleType.Guard,    BaseHp=3200, BaseAtk=320, BaseDef=160, BaseSpeed=80 },
             // 幕三 · 秋（金）
-            new BossDef { Id="b_baiwang", DisplayName="肃杀之君·白魍", Element=Element.Metal, Role=RoleType.Striker, BaseHp=2600, BaseAtk=380, BaseDef=120, BaseSpeed=110 },
+            // ⚠ 白魍的 id 用 **b_bairen**（白刃），不是 b_baiwang ——
+            //   设计上"肃杀之君·白魍"就是**双子本身**（白刃 + 素刃），没有第三个"白魍本体"立绘。
+            //   b_baiwang 从来不是立绘 CSV 里的 id（那份表只有 b_bairen / b_suren）。
+            //   历史坑：曾用 b_baiwang 当 id，SpriteCatalog 查不到图 ⇒ 表现层"按序号随便分配"
+            //   ⇒ 最后靠 cp b_bairen.png 补了个副本，结果两张立绘一模一样（用户发现）。
+            new BossDef { Id="b_bairen", DisplayName="白魍·白刃", Element=Element.Metal, Role=RoleType.Striker, BaseHp=2600, BaseAtk=380, BaseDef=120, BaseSpeed=110 },
             new BossDef { Id="b_shai",   DisplayName="千机傀儡·铩",   Element=Element.Metal, Role=RoleType.Guard,    BaseHp=3300, BaseAtk=340, BaseDef=170, BaseSpeed=80 },
             new BossDef { Id="b_shuangfeng", DisplayName="断刃游侠·霜锋", Element=Element.Metal, Role=RoleType.Swift, BaseHp=2500, BaseAtk=420, BaseDef=110, BaseSpeed=140 },
             // 幕四 · 冬（水）
@@ -136,7 +141,7 @@ namespace WanXiang.Battle.Core
         {
             new[]{ "b_fuman", "b_manman", "b_wangliang" },
             new[]{ "b_chiba", "b_jinjiao", "b_jiaozhi" },
-            new[]{ "b_baiwang", "b_shai", "b_shuangfeng" },
+            new[]{ "b_bairen", "b_shai", "b_shuangfeng" },
             new[]{ "b_xuanming", "b_mingkun", "b_shuangying" },
             new[]{ "b_guixu", "b_hongmeng" },
         };
@@ -295,10 +300,11 @@ namespace WanXiang.Battle.Core
                     break;
 
                 // ---- 幕三 · 金 ----
-                case "b_baiwang":  // 白魍：双子同命(同回合单杀复活) + 共鸣分摊 30%
-                    // ⚠ twinCell=1（中列后排 = "中宫正后方"，用户 2026-10-03 要求
-                    //   "一个在中间，一个在中间的后面"）。守关本体在中宫(4)，双子落 1 ⇒ 一前一后。
-                    //   召唤物原型 id 用 b_suren（真实立绘），否则 summon_ 前缀查不到图会乱分配。
+                // 白魍 = 双子本身：本体【白刃(b_bairen)】站中宫，开场召唤【素刃(b_suren)】到格 1
+                // （中列后排 = "中宫正后方"，用户 2026-10-03 要求"一个在中间，一个在中间的后面"）。
+                // ⚠ 双子原型 id 必须用 **b_suren**（真实立绘），不能用 summon_* —— 那前缀在
+                //   SpriteCatalog 查不到图，表现层会"按序号随便分配"⇒ 双子显示成别的兽。
+                case "b_bairen":   // 白魍：双子同命(同回合单杀复活) + 共鸣分摊 30%
                     st.Hooks.Add(new TwinSpawnHook(boss, SuBai, 1, 0.30f, 0.50f));
                     break;
 
