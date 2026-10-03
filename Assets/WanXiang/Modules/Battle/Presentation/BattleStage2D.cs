@@ -67,30 +67,41 @@ namespace WanXiang.Battle.Presentation
         private const float BossScaleMul = 2.5f;
 
         /// <summary>
-        /// 首领**召唤物/分身**的身量倍数（双子、镜像等）—— 用户："双子可以小一点"。
-        /// 取 1.15：比普通异兽略大（看得出是 boss 阵营），但绝不跟本体一样高。
+        /// 首领**召唤物/分身**的身量倍数（如镜影等，非双子）。
+        /// ⚠ 白魍双子**不走这里** —— 用户 2026-10-03 明确："他们两个都是 Boss 啊，
+        ///   不是召唤出来的，他们是一起出现的" ⇒ 双子按 <see cref="BossScaleMul"/> 同级放大。
+        /// 这里留给真正的"分身/小召唤物"（1.15 = 比普通异兽略大，表明是 boss 阵营）。
         /// </summary>
         private const float BossSidekickScaleMul = 1.15f;
 
         /// <summary>
-        /// 「守关本体」id 集合：这些才是要放大的真 Boss。
-        /// ⚠ 不能用 `IsBoss(id)`（b_ 前缀）当唯一判据 —— 白魍的双子复用 `b_suren`
-        ///   当立绘 id（否则 summon_ 查不到 SpriteCatalog 会乱分配图），它也是 b_ 前缀。
-        ///   集合 = BossCatalog.All 的全部 id（每个守关 boss 都可能成为本体）。
+        /// 「与首领同级放大」的 id 集合 = <c>BossCatalog.All</c>（14 个守关本体）
+        /// **+ 双子**（`b_bairen` 的搭档 `b_suren`）。
+        ///
+        /// ⚠ 不能用 `IsBoss(id)`（b_ 前缀）当唯一判据 —— 双子复用 `b_suren` 当立绘 id
+        ///   （否则 summon_ 前缀查不到 SpriteCatalog 会"乱分配"成别的异兽），它也是 b_ 前缀，
+        ///   必须显式区分"本体/双子（放大）"与"其他分身（不放大）"。
+        /// ⚠ 双子**不进** `BossCatalog.All` —— All 是"守关抽签池 + 图鉴/招募红线"，
+        ///   双子是白魍的搭档而不是独立守关，进 All 会被当成可抽首领。
         /// </summary>
-        private static readonly System.Collections.Generic.HashSet<string> BossBodyIds = BuildBossBodyIds();
+        private static readonly System.Collections.Generic.HashSet<string> BossScaleIds = BuildBossScaleIds();
 
-        /// <summary>召唤物/分身（复用 b_ 立绘 id，但不是守关本体的那一只）。</summary>
+        /// <summary>白魍双子（与本体一起出场、同为 Boss 级，但不在守关抽签池里）。</summary>
+        private static readonly string[] TwinIds = { "b_suren" };
+
+        /// <summary>召唤物/分身（复用 b_ 立绘 id，但既不是本体也不是双子）。</summary>
         private static bool IsBossSidekick(string id)
-            => BossCatalog.IsBoss(id) && !BossBodyIds.Contains(id);
+            => BossCatalog.IsBoss(id) && !BossScaleIds.Contains(id);
 
-        private static System.Collections.Generic.HashSet<string> BuildBossBodyIds()
+        private static System.Collections.Generic.HashSet<string> BuildBossScaleIds()
         {
             var set = new System.Collections.Generic.HashSet<string>();
             var all = WanXiang.Battle.Core.BossCatalog.All;
             if (all != null)
                 for (int i = 0; i < all.Count; i++)
                     if (all[i] != null && !string.IsNullOrEmpty(all[i].Id)) set.Add(all[i].Id);
+            // 双子与本体同级放大（用户："他们两个都是 Boss"）
+            for (int i = 0; i < TwinIds.Length; i++) set.Add(TwinIds[i]);
             return set;
         }
 
@@ -266,18 +277,17 @@ namespace WanXiang.Battle.Presentation
                     float h = sprite.bounds.size.y;
                     if (h > 0.001f)
                     {
-                        // ★ 首领（b_ 前缀）用 2.5 倍身量（用户 2026-10-03 定案："boss 整的大一点，
-                        //   起码是普通异兽的 2-3 倍"）。中宫站位 + 放大 = 一眼看出这是 boss 战。
+                        // ★ 首领 2.5 倍身量（用户 2026-10-03："boss 整的大一点，起码是普通异兽的 2-3 倍"）。
                         //   ⚠ 放大后可能超出单格视觉范围 —— 中宫（格 4）左右都有空档，正是给它腾的；
                         //   sortingOrder 用行号，中宫=row1 ⇒ 会盖住后排(row0)、被前排(row2)压，符合"大个子"直觉。
                         //
-                        // ⚠⚠ 判据必须用 `Id == 守关本体`，**不能**用 `IsBoss(id)`（b_ 前缀）：
-                        //   白魍的双子复用 `b_suren` 当立绘 id（否则 summon_ 查不到图会乱分配），
-                        //   它也是 b_ 前缀 ⇒ 会被一起放大成 2.5 倍，两个"boss"叠在相邻格很怪。
-                        //   用户要求："这个双子可以小一点如果看不到的话，一个在中间，一个在中间的后面"。
-                        bool isBossBody = u.Side == TeamSide.Enemy && BossCatalog.IsBoss(u.Def.Id)
-                                          && BossBodyIds.Contains(u.Def.Id);
-                        float unitH = isBossBody ? UnitHeight * BossScaleMul
+                        // ⚠⚠ 判据必须用 `BossScaleIds`（= 14 守关本体 + 双子），**不能**用 `IsBoss(id)`：
+                        //   白魍双子复用 `b_suren` 当立绘 id（否则 summon_ 前缀查不到图会"乱分配"），
+                        //   它也是 b_ 前缀 —— 用 IsBoss 会把**所有** b_ 前缀都放大（含真分身，太宽）。
+                        //   ★ 用户 2026-10-03 更正："他们两个都是 Boss 啊，不是召唤出来的，他们是一起出现的"
+                        //     ⇒ 双子（b_suren）与本体同级放大，不再用 1.15 的小尺寸。
+                        bool isBossTier = u.Side == TeamSide.Enemy && BossScaleIds.Contains(u.Def.Id);
+                        float unitH = isBossTier ? UnitHeight * BossScaleMul
                                   : IsBossSidekick(u.Def.Id) ? UnitHeight * BossSidekickScaleMul
                                   : UnitHeight;
                         float k = unitH / h;   // 统一按显示高度换算缩放

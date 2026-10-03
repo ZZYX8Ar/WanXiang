@@ -134,6 +134,18 @@ namespace WanXiang.Modules.UI
                 if (byId.TryGetValue(run.Team[i], out var mirror))
                     entries.Add(DeployEntry.Enemy(mirror, mirrorCells[i % mirrorCells.Length]).WithMul(1.2f));
             req.EnemyEntries.AddRange(entries);
+            // ⛔ `Enemy`（List<BeastDef>）与 `EnemyEntries`（List<DeployEntry>）是**两个独立字段**：
+            //   战斗走 EnemyEntries（BattlePlayback 优先用），但**编队预览读的是 Enemy**
+            //   （FormationPanel 预览：`var enemies = req.Enemy;` + `req.EnemyMul`）。
+            //   只填 EnemyEntries 会让编队界面显示「敌方总战力 0（0 只）」——
+            //   用户实测"编队的时候没有看到预览"就是这个。两条通道都要填，保持一一对应。
+            req.Enemy.Clear();
+            req.EnemyMul.Clear();
+            for (int i = 0; i < entries.Count; i++)
+            {
+                req.Enemy.Add(entries[i].Def);
+                req.EnemyMul.Add(entries[i].StatMul);
+            }
 
             req.Player.Clear();
             if (req.PlayerCells == null) req.PlayerCells = new System.Collections.Generic.List<int>();

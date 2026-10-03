@@ -150,6 +150,13 @@ namespace WanXiang.Battle.Core
 
         public static bool IsBoss(string id) => id != null && id.StartsWith("b_");
 
+        /// <summary>
+        /// 白魍双子的落位：**格 7（中宫正后方的后排中）**。
+        /// ⚠ 不要用格 1（中列前排）—— 它与中宫(4)同列相邻，两只 2.5× 立绘会叠在一起。
+        /// ⛔ 唯一口径：BossCatalog 挂钩子、BossSelfTest 断言都读这个常量，别各写一个数字。
+        /// </summary>
+        public const int TwinCell = 7;
+
         public static BossDef Get(string id)
         {
             for (int i = 0; i < AllBosses.Length; i++)
@@ -300,12 +307,16 @@ namespace WanXiang.Battle.Core
                     break;
 
                 // ---- 幕三 · 金 ----
-                // 白魍 = 双子本身：本体【白刃(b_bairen)】站中宫，开场召唤【素刃(b_suren)】到格 1
-                // （中列后排 = "中宫正后方"，用户 2026-10-03 要求"一个在中间，一个在中间的后面"）。
-                // ⚠ 双子原型 id 必须用 **b_suren**（真实立绘），不能用 summon_* —— 那前缀在
-                //   SpriteCatalog 查不到图，表现层会"按序号随便分配"⇒ 双子显示成别的兽。
-                case "b_bairen":   // 白魍：双子同命(同回合单杀复活) + 共鸣分摊 30%
-                    st.Hooks.Add(new TwinSpawnHook(boss, SuBai, 1, 0.30f, 0.50f));
+                case "b_bairen":   // 白魍双子：**两只一起出场**，各自独立 Boss 面板与技能
+                    // ★ 机制（用户 2026-10-03 明确口径）：
+                    //   · 白刃(b_bairen) 与素刃(b_suren) **开场同时在场**（不是"召唤物"）；
+                    //   · 两只都是 Boss 级（身量与本体同级放大，见 BattleStage2D.BossScaleIds）；
+                    //   · 其中一只倒下后，若 **2 回合内**未能击杀另一只 ⇒ 倒下的那只以 50% 血复活；
+                    //     双杀（窗口内两只都死）⇒ 真正陨落，战斗结束；
+                    //   · 另有共鸣分摊 30%（伤害在两只之间摊）。
+                    // 站位：白刃在中宫(4)，素刃落**格 7（中宫正后方的后排中）**——
+                    //   不要用格 1（中列前排）：它与中宫同列相邻，两只 2.5× 立绘会叠在一起。
+                    st.Hooks.Add(new TwinSpawnHook(boss, SuBai, TwinCell, 0.30f, 0.50f, 2));
                     break;
 
                 case "b_shai":     // 铩：机关护盾+破壳窗口(25%/+40%) + 组装(护盾未破攻+15%)

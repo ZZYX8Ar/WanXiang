@@ -240,30 +240,64 @@ namespace WanXiang.Battle.Core
     }
 
     /// <summary>同回合双杀：a/b 任一死亡记录，回合末若仅死一个且另一个存活 ⇒ 复活死者（白魍双子同命）。</summary>
+    /// <summary>
+    /// 双子同命（用户 2026-10-03 定案机制）：
+    /// 一只倒下后**不是立刻复活**，而是开启一个 <c>windowTurns</c> 回合的击杀窗口 ——
+    ///   · 窗口内把另一只也打倒 ⇒ 双杀成立，两只真正陨落（战斗结束）；
+    ///   · 窗口结束仍没杀掉另一只 ⇒ 倒下的那只以 <c>revivePct</c> 血复活。
+    /// 旧实现是"同回合单杀即复活"（窗口 0 回合），玩家几乎来不及反应，且不符合"几回合内"的口径。
+    /// </summary>
     public sealed class KillLinkHook : BattleHook
     {
         private readonly BattleUnit _a;
         private readonly BattleUnit _b;
         private readonly float _revivePct;
-        private readonly HashSet<string> _diedThisTurn = new HashSet<string>();
-        public KillLinkHook(BattleUnit a, BattleUnit b, float revivePct)
+        private readonly int _windowTurns;
+        private BattleUnit _pendingDead;    // 已倒下、等待窗口结算的那一只（null = 无挂起）
+        private int _deadTurn = -1;
+
+        public KillLinkHook(BattleUnit a, BattleUnit b, float revivePct, int windowTurns = 2)
         {
             _a = a; _b = b; _revivePct = revivePct;
+            _windowTurns = windowTurns < 0 ? 0 : windowTurns;
         }
-        public override void OnTurnStart(BattleState st) { _diedThisTurn.Clear(); }
+
         public override void OnUnitKilled(BattleState st, BattleUnit killer, BattleUnit victim)
         {
-            if (victim == _a || victim == _b) _diedThisTurn.Add(victim.RuntimeId);
+            if (victim != _a && victim != _b) return;
+
+            if (_pendingDead == null)
+            {
+                // 第一只倒下：开启击杀窗口，暂不复活
+                _pendingDead = victim;
+                _deadTurn = st.Turn;
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                           note: $"双子同命：{victim.DisplayName} 倒下 —— {_windowTurns} 回合内击杀另一只可双杀，否则复活");
+            }
+            else
+            {
+                // 窗口内另一只也倒下 ⇒ 双杀成立，两只都真死
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                           note: $"双子同命：双杀成立 —— {victim.DisplayName} 与 {_pendingDead.DisplayName} 同命陨落");
+                _pendingDead = null;
+                _deadTurn = -1;
+            }
         }
+
         public override void OnTurnEnd(BattleState st)
         {
-            if (_diedThisTurn.Count != 1) return;   // 同回合双双阵亡 = 真死；都没死不用管
-            BattleUnit dead = _a != null && _diedThisTurn.Contains(_a.RuntimeId) ? _a : _b;
-            BattleUnit other = dead == _a ? _b : _a;
-            if (dead == null || other == null || !other.IsAlive || dead.IsAlive) return;
-            dead.ReviveAtHp(CoreMath.Max(1, (int)(dead.MaxHp * _revivePct)));
-            st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                       note: $"双子同命：{dead.DisplayName} 以 {(_revivePct * 100f):F0}% 血复活");
+            if (_pendingDead == null) return;
+            if (st.Turn - _deadTurn < _windowTurns) return;   // 窗口尚未结束，继续等玩家双杀
+
+            var other = _pendingDead == _a ? _b : _a;
+            if (other != null && other.IsAlive && !_pendingDead.IsAlive)
+            {
+                _pendingDead.ReviveAtHp(CoreMath.Max(1, (int)(_pendingDead.MaxHp * _revivePct)));
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                           note: $"双子同命：{_pendingDead.DisplayName} 以 {(_revivePct * 100f):F0}% 血复活");
+            }
+            _pendingDead = null;
+            _deadTurn = -1;
         }
     }
 
@@ -422,7 +456,10 @@ namespace WanXiang.Battle.Core
         }
     }
 
-    /// <summary>双子部署：开场在 twinCell 放一只 twin（继承属性），并给两者挂 KillLink（双杀）+ 共鸣分摊（DamageSplit）。</summary>
+    /// <summary>
+    /// 双子部署：开场把 twin 放到 twinCell（**不是召唤物，是"一起出场"的第二只 Boss**），
+    /// 并给两者挂 KillLink（同命）+ 共鸣分摊（DamageSplit）。
+    /// </summary>
     public sealed class TwinSpawnHook : BattleHook
     {
         private readonly BattleUnit _boss;
@@ -430,11 +467,13 @@ namespace WanXiang.Battle.Core
         private readonly int _twinCell;
         private readonly float _linkRatio;
         private readonly float _revivePct;
+        private readonly int _windowTurns;
         private bool _done;
-        public TwinSpawnHook(BattleUnit boss, BeastDef twinProto, int twinCell, float linkRatio, float revivePct)
+        public TwinSpawnHook(BattleUnit boss, BeastDef twinProto, int twinCell, float linkRatio,
+                             float revivePct, int windowTurns = 2)
         {
             _boss = boss; _twinProto = twinProto; _twinCell = twinCell;
-            _linkRatio = linkRatio; _revivePct = revivePct;
+            _linkRatio = linkRatio; _revivePct = revivePct; _windowTurns = windowTurns;
         }
         public override void OnBattleStart(BattleState st)
         {
@@ -445,12 +484,12 @@ namespace WanXiang.Battle.Core
             SummonHook.DeploySummon(st, _twinProto, _twinCell);
             var twin = st.SlotAt(TeamSide.Enemy, _twinCell);
             if (twin == null) return;
-            // 共鸣：分摊 30%；双子同命：同回合单杀则 50% 复活
+            // 共鸣：分摊 30%；双子同命：一只倒下后 windowTurns 回合内未双杀则 50% 复活
             st.Hooks.Add(new DamageSplitHook(_boss, _linkRatio));
             st.Hooks.Add(new DamageSplitHook(twin, _linkRatio));
-            st.Hooks.Add(new KillLinkHook(_boss, twin, _revivePct));
+            st.Hooks.Add(new KillLinkHook(_boss, twin, _revivePct, _windowTurns));
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                       note: $"{_boss.DisplayName} 召出双子 {twin.DisplayName}（共鸣分摊 / 同命）");
+                       note: $"{_boss.DisplayName} 与双子 {twin.DisplayName} 同时入场（共鸣分摊 / 同命）");
         }
     }
 

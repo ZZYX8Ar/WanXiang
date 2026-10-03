@@ -488,24 +488,36 @@ namespace WanXiang.Editor.BattleTool
         {
             try
             {
-                // 只起战场 + 手动跑 OnBattleStart（双子部署在开场钩子里，不用打完）
+                // 只起战场 + 手动跑 OnBattleStart（双子是开场就位的第二只 Boss，不用打完）
                 var st = BuildBossBattle(bossId, 1, RoleType.Guard, 100f, 2000, 20261210UL);
-                BattleHooks.RunStart(st);   // 触发 TwinSpawnHook → 部署双子 + 记「召出双子」
+                BattleHooks.RunStart(st);   // 触发 TwinSpawnHook → 第二只 Boss 就位
 
-                // ⚠ 判据改成「twinCell(格1) 上多了一只敌单位」——**不要按 summon_ 前缀判**：
-                //   v1.4.1 起双子原型复用 `b_suren`（真实立绘 id），否则 summon_ 查不到
-                //   SpriteCatalog 会乱分配图（用户实测"双子只有一个"）。
+                // ⚠ 判据用「BossCatalog.TwinCell 上多了一只敌单位」——**不要按 summon_ 前缀判**：
+                //   双子原型复用 `b_suren`（真实立绘 id），否则 summon_ 查不到 SpriteCatalog 会乱分配图。
                 // ⚠ 也**不能**用 `!IsBoss(id)` 排除 —— b_suren 也是 b_ 前缀，会被误排除。
-                //   可靠判据：格 1 上有单位，且**不是本体那只**（本体在格 0）。
-                var twin = st.SlotAt(TeamSide.Enemy, 1);
+                //   可靠判据：该格上有单位，且**不是本体那只**（本体在 BuildBossBattle 里的格 0）。
+                var twin = st.SlotAt(TeamSide.Enemy, BossCatalog.TwinCell);
                 var body = st.SlotAt(TeamSide.Enemy, 0);
                 bool hasTwin = twin != null && twin.Def != null && !ReferenceEquals(twin, body);
 
-                bool note = HasNote(st, "召出双子");
-                if (hasTwin && note)
-                    c.Ok($"双子同命（{bossId}）：开场在格1 部署双子「{twin.Def.DisplayName}」+ 日志「召出双子」（共鸣分摊/同命钩子已加）");
+                bool note = HasNote(st, "同时入场");
+
+                // 机制断言：双子必须挂上「同命(KillLink)」+ 2 条「共鸣分摊(DamageSplit)」
+                int killLink = 0, split = 0;
+                for (int i = 0; i < st.Hooks.Count; i++)
+                {
+                    if (st.Hooks[i] is KillLinkHook) killLink++;
+                    if (st.Hooks[i] is DamageSplitHook) split++;
+                }
+                bool hooksOk = killLink >= 1 && split >= 2;
+
+                if (hasTwin && note && hooksOk)
+                    c.Ok($"双子同命（{bossId}）：第二只 Boss「{twin.Def.DisplayName}」就位于格{BossCatalog.TwinCell}"
+                        + $"　+ 同命钩子×{killLink} / 共鸣分摊×{split}"
+                        + $"（倒地后 2 回合内没双杀则 50% 复活）");
                 else
-                    c.Bad($"双子同命（{bossId}）：hasTwin={hasTwin} note={note} —— 双子没部署（格1 上应有第二只敌单位）");
+                    c.Bad($"双子同命（{bossId}）：hasTwin={hasTwin} note={note} hooksOk={hooksOk}"
+                        + $"（KillLink={killLink} DamageSplit={split}）—— 格{BossCatalog.TwinCell} 上应有第二只敌单位且挂同命钩子");
             }
             catch (Exception ex)
             {
