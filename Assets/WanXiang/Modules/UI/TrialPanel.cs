@@ -98,9 +98,17 @@ namespace WanXiang.Modules.UI
         /// </summary>
         public static BattleRequest BuildFinaleBattle(WanXiang.Run.RunState run, BeastDef[] all)
         {
-            BeastDef boss = all[0];
-            foreach (var b in all)
-                if ((int)b.Rarity > (int)boss.Rarity) boss = b;
+            // ⚠⚠ 终局 Boss 必须是 **BossCatalog 的幕五首领**（归墟之主/鸿蒙），不是"内容表里稀有度最高的"。
+            //   旧写法 `all[0]` 取 Rarity 最高 ⇒ 会挑到玩家侧的普通神品异兽（如后土/句芒），
+            //   于是终局战没有首领感、立绘也不放大（用户实测"第五幕的 Boss 还是小异兽"）。
+            //   后土/句芒这些是**玩家**用的异兽，不该出现在敌方终局位。
+            var finaleBoss = WanXiang.Battle.Core.BossCatalog.BossForBeastDef(5, (ulong)run.RunSeed, 2);
+            if (finaleBoss == null)
+            {
+                finaleBoss = WanXiang.Battle.Core.BossCatalog.BossForBeastDef(5, 20260914UL, 2);
+                UnityEngine.Debug.LogWarning("[TrialPanel] BossForBeastDef(5) 为空，回退固定种子");
+            }
+            BeastDef boss = finaleBoss;
 
             var byId = new System.Collections.Generic.Dictionary<string, BeastDef>();
             foreach (var b in all) byId[b.Id] = b;

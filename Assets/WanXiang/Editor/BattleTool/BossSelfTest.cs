@@ -492,18 +492,20 @@ namespace WanXiang.Editor.BattleTool
                 var st = BuildBossBattle(bossId, 1, RoleType.Guard, 100f, 2000, 20261210UL);
                 BattleHooks.RunStart(st);   // 触发 TwinSpawnHook → 部署双子 + 记「召出双子」
 
-                bool hasTwin = false;
-                var enemies = st.UnitsOf(TeamSide.Enemy);
-                for (int i = 0; i < enemies.Count; i++)
-                    if (enemies[i] != null && enemies[i].Def != null
-                        && enemies[i].Def.Id != null && enemies[i].Def.Id.StartsWith("summon_"))
-                    { hasTwin = true; break; }
+                // ⚠ 判据改成「twinCell(格1) 上多了一只敌单位」——**不要按 summon_ 前缀判**：
+                //   v1.4.1 起双子原型复用 `b_suren`（真实立绘 id），否则 summon_ 查不到
+                //   SpriteCatalog 会乱分配图（用户实测"双子只有一个"）。
+                // ⚠ 也**不能**用 `!IsBoss(id)` 排除 —— b_suren 也是 b_ 前缀，会被误排除。
+                //   可靠判据：格 1 上有单位，且**不是本体那只**（本体在格 0）。
+                var twin = st.SlotAt(TeamSide.Enemy, 1);
+                var body = st.SlotAt(TeamSide.Enemy, 0);
+                bool hasTwin = twin != null && twin.Def != null && !ReferenceEquals(twin, body);
 
                 bool note = HasNote(st, "召出双子");
                 if (hasTwin && note)
-                    c.Ok($"双子同命（{bossId}）：开场部署双子实例 + 日志「召出双子」（共鸣分摊/同命钩子已加）");
+                    c.Ok($"双子同命（{bossId}）：开场在格1 部署双子「{twin.Def.DisplayName}」+ 日志「召出双子」（共鸣分摊/同命钩子已加）");
                 else
-                    c.Bad($"双子同命（{bossId}）：hasTwin={hasTwin} note={note} —— 双子没部署");
+                    c.Bad($"双子同命（{bossId}）：hasTwin={hasTwin} note={note} —— 双子没部署（格1 上应有第二只敌单位）");
             }
             catch (Exception ex)
             {
@@ -644,7 +646,7 @@ namespace WanXiang.Editor.BattleTool
                     bool hooksIntact = BossHooksIntact(c, act, U);
 
                     if (ctrlSane && soloBoss && hooksIntact && relicHelps)
-                        c.Ok($"{line}　→ 结构成立（单Boss中宫/机制在/遗物正收益）"
+                        c.Ok($"{line}　→ 结构成立（单Boss中宫+随从≤2/机制在/遗物正收益）"
                            + (bossHarder ? "" : "　⚠白给 = 数值校准待办（非失败）"));
                     else if (!_lastControlClean)
                         c.Bad($"{line}　→ 对照里混进了首领单位：同规模精英不该抽到 b_ 首领（工厂回归）");
@@ -659,13 +661,13 @@ namespace WanXiang.Editor.BattleTool
                 }
 
                 c.Info("口径：灰盒对手 + 神品满编（沿用 CampaignSelfTest ⑪）。胜率是【校准数据】（供策划调 A 系数/首领面板），");
-                c.Info("      ⚠ v1.4 守关改「单 Boss 站中宫、不带随从」⇒ 难度大降，实测四幕对神品满编全打满 100%。");
+                c.Info("      ⚠ v1.4.1 守关口径：单 Boss 站中宫 + 2 随从(半倍率)。纯单 Boss 时四幕对神品满编全打满 100%。");
                 c.Info("        这是真实平衡信号（随从原本承担了大部分强度）⇒ 已降为校准待办；断言只机器守：");
-                c.Info("        ① 单 Boss 中宫　② 机制钩子仍在　③ 遗物有正收益。");
+                c.Info("        ① 单 Boss 中宫(随从≤2且不堵中列)　② 机制钩子仍在　③ 遗物有正收益。");
                 c.Info("      ⚠ 轮回解锁池 ⇒ 低轮回（2 只）/全开（3 只）抽到不同首领，两档都测。");
                 c.Info($"      校准目标区间（暂不断言）：{WinRateTargetLo:P0} ~ {WinRateTargetHi:P0}；"
                      + $"神品成长倍率 {LegendGrowth:0.00}；每题 ×{NoRelicMul:0.00}/{MidRelicMul:0.00} 两档遗物。");
-                c.Info("      ★ 待办（数值校准）：单 Boss 版需上调首领面板或 BossMul（现 1.35），否则守关是白给。");
+                c.Info("      ★ 待办（数值校准）：若仍偏简单，上调首领面板或 BossMul（现 1.35）。");
             }
             catch (Exception ex)
             {
@@ -748,11 +750,29 @@ namespace WanXiang.Editor.BattleTool
         private static bool _lastControlClean = true;
 
         /// <summary>
-        /// 断言「守关 = 单个 Boss 站中宫」（v1.4 改版）。
-        /// 开场后敌方棋盘里：恰好 1 个单位、id 以 b_ 开头、且在中宫格。
-        /// 机制召唤的单位（双子/熔核/终焉之卵）**不算**失败 —— 它们是 boss 技能产物，
-        /// 所以只数"开卡时就存在"的那一个（用 OnBattleStart 之后的快照判定，
-        /// 此时 TwinSpawnHook 已跑完，故要减去 summon_ 开头的）。
+        /// 「守关本体」id 集合 = <c>BossCatalog.All</c> 的全部 id。
+        /// ⚠ **不能**用 <c>BossCatalog.IsBoss(id)</c> 当判据：召唤物原型复用 <c>b_suren</c>
+        ///   （素刃的真实立绘 id，也是 b_ 前缀），会被误认成 Boss。
+        /// </summary>
+        private static readonly System.Collections.Generic.HashSet<string> BossBodyIdSet = BuildBossBodyIdSet();
+
+        private static System.Collections.Generic.HashSet<string> BuildBossBodyIdSet()
+        {
+            var set = new System.Collections.Generic.HashSet<string>();
+            var all = BossCatalog.All;
+            if (all != null)
+                for (int i = 0; i < all.Count; i++)
+                    if (all[i] != null && !string.IsNullOrEmpty(all[i].Id)) set.Add(all[i].Id);
+            return set;
+        }
+
+        /// <summary>
+        /// 断言「守关 = 单个 Boss 站中宫 + 至多 2 个随从」（v1.4.1）。
+        /// · 恰好 1 个 b_ 首领、且在**中宫（格 4）**；
+        /// · 随从至多 2 个（v1.4.1 定案，原 BossSquadSize 是 4/5 太挤）；
+        /// · 随从**不占中列**（格 1/4/7 留给机制：双子要格 1）。
+        /// 机制召唤的单位（双子/熔核/终焉之卵）**不算**随从 —— 它们是 boss 技能产物，
+        /// 所以只数"开卡时就存在"的那些。
         /// </summary>
         private static bool SoloBossHolds(Ctx c, int act, int ascension)
         {
@@ -762,17 +782,39 @@ namespace WanXiang.Editor.BattleTool
                     a => SamplePoolFor(a), BossCatalog.BossForActFunc(0xB055UL, ascension));
                 var foes = provider.BossSquadFor(act, 0xC0FFEEUL);
 
-                // 开卡时（未跑 RunStart）就该只有一个 Boss 在中宫
-                bool one = foes != null && foes.Length == 1;
-                bool isBoss = one && BossCatalog.IsBoss(foes[0].Def != null ? foes[0].Def.Id : null);
-                bool midCell = one && foes[0].PosIndex == WanXiang.Campaign.SeededEnemyProvider.BossCell;
+                int n = foes != null ? foes.Length : -1;   // ⚠ 三元不能直接放进字符串插值（CS8361）
+                if (foes == null || foes.Length == 0) { c.Info($"      [结构探针] 幕{act}：守关阵容为空"); return false; }
 
-                if (one && isBoss && midCell) return true;
+                int bossIdx = -1;
+                for (int i = 0; i < foes.Length; i++)
+                {
+                    var id = foes[i].Def != null ? foes[i].Def.Id : null;
+                    // ⚠ 用 BossCatalog.All 判"本体"，**不要**用 IsBoss(id)：
+                    //   召唤物原型复用 b_suren（真实立绘 id，也是 b_ 前缀），会被误认成第二个 Boss。
+                    if (id != null && BossBodyIdSet.Contains(id)) { bossIdx = i; break; }
+                }
+                bool oneBoss = bossIdx >= 0;
+                bool midCell = oneBoss && foes[bossIdx].PosIndex == WanXiang.Campaign.SeededEnemyProvider.BossCell;
+                int sidekicks = foes.Length - (oneBoss ? 1 : 0);
+                bool sideOk = sidekicks <= 2;
 
-                int n = foes != null ? foes.Length : -1;   // ⚠ 三元不能直接放进字符串插值（CS8361），先算出来
+                // 随从不占中列（1/4/7）
+                bool midClear = true;
+                int[] midCells = { 1, 4, 7 };
+                for (int i = 0; i < foes.Length; i++)
+                {
+                    if (i == bossIdx) continue;
+                    for (int m = 0; m < midCells.Length; m++)
+                        if (foes[i].PosIndex == midCells[m]) midClear = false;
+                }
+
+                if (oneBoss && midCell && sideOk && midClear) return true;
+
                 c.Info($"      [结构探针] 幕{act} 轮回{ascension}：守关阵容 = {n} 只"
-                    + (one ? "，首格=" + foes[0].Def.Id + "@格" + foes[0].PosIndex : "")
-                    + (isBoss ? "" : "（非 b_ 首领）") + (midCell ? "" : "（不在中宫）"));
+                    + (oneBoss ? "，Boss=" + foes[bossIdx].Def.Id + "@格" + foes[bossIdx].PosIndex : "（无 b_ 首领！）")
+                    + (midCell ? "" : "（Boss 不在中宫）")
+                    + (sideOk ? "" : "（随从>2）")
+                    + (midClear ? "" : "（随从占了中列，机制格被堵）"));
                 return false;
             }
             catch (Exception ex)
@@ -798,6 +840,7 @@ namespace WanXiang.Editor.BattleTool
                 if (boss == null) return false;
 
                 // 单 boss 阵容（与实战一致）：Boss 在中宫
+                // 与实战一致的阵容：Boss 在中宫（+ 不带随从，纯测机制钩子本身）
                 var foes = new[] { DeployEntry.Enemy(boss, WanXiang.Campaign.SeededEnemyProvider.BossCell) };
                 var mine = BuildLegendTeam();
 

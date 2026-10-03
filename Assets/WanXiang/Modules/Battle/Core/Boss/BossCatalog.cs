@@ -76,6 +76,13 @@ namespace WanXiang.Battle.Core
     public static class BossCatalog
     {
         // ---- 召唤物原型（id 以 summon_ 开头，ApplyPlaceholderStats 跳过、保留弱面板） ----
+        /// <summary>
+        /// 造一个召唤物原型。
+        /// ⚠ <paramref name="id"/> **要能查到立绘**，否则 `BattleStage2D` 会走"按 catalog 序号
+        ///   随便分配一张"的兜底 ⇒ 画面上显示成别的异兽（用户实测"双子只有一个"就是这个）。
+        ///   所以召唤物**直接复用首领的 b_ id**（如 b_suren 素刃），既能查到立绘、
+        ///   又因为不是 IsBoss 前缀判断的重点而不会跟着放大。
+        /// </summary>
         private static BeastDef Summon(string id, string name, Element el, RoleType role,
                                        int hp, int atk, int def, int spd)
         {
@@ -96,7 +103,9 @@ namespace WanXiang.Battle.Core
         private static readonly BeastDef JingYing = Summon("summon_jingying", "镜影", Element.Water, RoleType.Striker, 850, 130, 50, 105);
         private static readonly BeastDef ZaoHua   = Summon("summon_zaohua", "造化兽", Element.Wood, RoleType.Striker, 800, 140, 50, 100);
         private static readonly BeastDef ShouHu   = Summon("summon_shouhu", "守卫卵", Element.Earth, RoleType.Guard, 500, 40, 80, 60);
-        private static readonly BeastDef SuBai   = Summon("summon_subai", "素刃", Element.Metal, RoleType.Striker, 1820, 266, 84, 110); // 白魍双子（×0.7 基准）
+        // ⚠ id 用 **b_suren**（素刃的真实立绘 id），不是 summon_subai：
+        //   summon_ 前缀在 SpriteCatalog 里查不到图 ⇒ 表现层会"按序号随便分配"⇒ 双子看起来只有一个。
+        private static readonly BeastDef SuBai   = Summon("b_suren", "素刃", Element.Metal, RoleType.Striker, 1820, 266, 84, 110); // 白魍双子（×0.7 基准）
 
         // ---- 14 个首领定义 ----
         private static readonly BossDef[] AllBosses =
@@ -287,6 +296,9 @@ namespace WanXiang.Battle.Core
 
                 // ---- 幕三 · 金 ----
                 case "b_baiwang":  // 白魍：双子同命(同回合单杀复活) + 共鸣分摊 30%
+                    // ⚠ twinCell=1（中列后排 = "中宫正后方"，用户 2026-10-03 要求
+                    //   "一个在中间，一个在中间的后面"）。守关本体在中宫(4)，双子落 1 ⇒ 一前一后。
+                    //   召唤物原型 id 用 b_suren（真实立绘），否则 summon_ 前缀查不到图会乱分配。
                     st.Hooks.Add(new TwinSpawnHook(boss, SuBai, 1, 0.30f, 0.50f));
                     break;
 

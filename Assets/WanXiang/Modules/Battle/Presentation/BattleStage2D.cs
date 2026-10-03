@@ -66,6 +66,34 @@ namespace WanXiang.Battle.Presentation
         /// </summary>
         private const float BossScaleMul = 2.5f;
 
+        /// <summary>
+        /// 首领**召唤物/分身**的身量倍数（双子、镜像等）—— 用户："双子可以小一点"。
+        /// 取 1.15：比普通异兽略大（看得出是 boss 阵营），但绝不跟本体一样高。
+        /// </summary>
+        private const float BossSidekickScaleMul = 1.15f;
+
+        /// <summary>
+        /// 「守关本体」id 集合：这些才是要放大的真 Boss。
+        /// ⚠ 不能用 `IsBoss(id)`（b_ 前缀）当唯一判据 —— 白魍的双子复用 `b_suren`
+        ///   当立绘 id（否则 summon_ 查不到 SpriteCatalog 会乱分配图），它也是 b_ 前缀。
+        ///   集合 = BossCatalog.All 的全部 id（每个守关 boss 都可能成为本体）。
+        /// </summary>
+        private static readonly System.Collections.Generic.HashSet<string> BossBodyIds = BuildBossBodyIds();
+
+        /// <summary>召唤物/分身（复用 b_ 立绘 id，但不是守关本体的那一只）。</summary>
+        private static bool IsBossSidekick(string id)
+            => BossCatalog.IsBoss(id) && !BossBodyIds.Contains(id);
+
+        private static System.Collections.Generic.HashSet<string> BuildBossBodyIds()
+        {
+            var set = new System.Collections.Generic.HashSet<string>();
+            var all = WanXiang.Battle.Core.BossCatalog.All;
+            if (all != null)
+                for (int i = 0; i < all.Count; i++)
+                    if (all[i] != null && !string.IsNullOrEmpty(all[i].Id)) set.Add(all[i].Id);
+            return set;
+        }
+
         // ---- 技能预览的格位高亮（只给已有格子换配色，不新建对象）----
         private static readonly Color TintEnemyCell = new Color(0.95f, 0.52f, 0.42f, 1f);   // 会被打到的敌方格
         private static readonly Color TintAllyCell = new Color(0.55f, 0.85f, 0.62f, 1f);    // 会被治疗/加盾的我方格
@@ -235,7 +263,16 @@ namespace WanXiang.Battle.Presentation
                         //   起码是普通异兽的 2-3 倍"）。中宫站位 + 放大 = 一眼看出这是 boss 战。
                         //   ⚠ 放大后可能超出单格视觉范围 —— 中宫（格 4）左右都有空档，正是给它腾的；
                         //   sortingOrder 用行号，中宫=row1 ⇒ 会盖住后排(row0)、被前排(row2)压，符合"大个子"直觉。
-                        float unitH = BossCatalog.IsBoss(u.Def.Id) ? UnitHeight * BossScaleMul : UnitHeight;
+                        //
+                        // ⚠⚠ 判据必须用 `Id == 守关本体`，**不能**用 `IsBoss(id)`（b_ 前缀）：
+                        //   白魍的双子复用 `b_suren` 当立绘 id（否则 summon_ 查不到图会乱分配），
+                        //   它也是 b_ 前缀 ⇒ 会被一起放大成 2.5 倍，两个"boss"叠在相邻格很怪。
+                        //   用户要求："这个双子可以小一点如果看不到的话，一个在中间，一个在中间的后面"。
+                        bool isBossBody = u.Side == TeamSide.Enemy && BossCatalog.IsBoss(u.Def.Id)
+                                          && BossBodyIds.Contains(u.Def.Id);
+                        float unitH = isBossBody ? UnitHeight * BossScaleMul
+                                  : IsBossSidekick(u.Def.Id) ? UnitHeight * BossSidekickScaleMul
+                                  : UnitHeight;
                         float k = unitH / h;   // 统一按显示高度换算缩放
                         root.transform.localScale = new Vector3(k, k, 1f);
                     }
