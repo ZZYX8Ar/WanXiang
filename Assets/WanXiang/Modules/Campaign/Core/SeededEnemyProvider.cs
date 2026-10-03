@@ -29,6 +29,13 @@ namespace WanXiang.Campaign
         /// <summary>默认阵型：0/1 前排，4 中宫，7/8 后排。</summary>
         public static readonly int[] DefaultFormation = { 0, 1, 4, 7, 8 };
 
+        /// <summary>
+        /// 守关 Boss 站位：**中宫（格 4）**（用户 2026-10-03 定案"boss 站在九宫格中间"）。
+        /// ⚠ 别用 DefaultFormation[0]（=格 0 前排）：Boss 要在视觉与战术上都是"压阵点"，
+        ///   站前排会显得跟普通敌人一样大、且被前排遮挡。
+        /// </summary>
+        public const int BossCell = 4;
+
         private readonly Func<int, BeastDef[]> _poolForAct;
         private readonly Func<int, BeastDef> _bossForAct;
         private readonly int[] _formation;
@@ -100,44 +107,34 @@ namespace WanXiang.Campaign
             return result;
         }
 
-        /// <summary>守关：Boss（幕主将）+ 随从，规模 4（幕 1）/ 5（幕 2~4），倍率 ×1.35。</summary>
+        /// <summary>
+        /// 守关：**Boss 独自镇守中宫**（格 4），不配随从。
+        ///
+        /// ★ v1.4 改版（用户定案 2026-10-03）：守关战从"Boss + 3~4 随从"改为"**单 Boss**"。
+        ///   理由（用户原话）："Boss 关一般都是只有 boss 的吧，随从可以是 boss 技能召唤出来的，
+        ///   或者一开始就有两个，要么就没有"—— 随从从"战斗开始就站满一排"稀释了首领的存在感，
+        ///   也让 Boss 的机制钩子（召唤/双子/破壳）显得多余。真正的压力来自 Boss 面板 + 机制。
+        ///   随从改由 Boss 自己的机制产出（如白魍双子、燋彘熔核、归墟终焉之卵）。
+        ///
+        ///   ⚠ 连带修掉一个 bug：原实现把随从摆在 `_formation[1..]` = 格 1，正好占掉
+        ///   `TwinSpawnHook` 的 `twinCell=1` ⇒ 双子"只有一个"甚至一个都没有（用户实测）。
+        ///   现在 Boss 独占中宫，双子格 1 永远空出来给机制用。
+        /// </summary>
         public DeployEntry[] BossSquadFor(int act, ulong seed)
         {
-            var pool = _poolForAct(act);
             var boss = _bossForAct?.Invoke(act);
-            if (boss == null && (pool == null || pool.Length == 0)) return Array.Empty<DeployEntry>();
+            if (boss == null) return Array.Empty<DeployEntry>();
 
-            var rng = new DeterministicRandom(seed ^ CoreMath.Fnv1a($"boss:{act}"));
-            int slots = CoreMath.Min(_formation.Length, EnemyBudget.BossSquadSize(act));
+            // 守关只用 BossMul（无随从 ⇒ 不再叠加随从份数，但仍吃 ActMul ×1.35）
             float mul = EnemyBudget.BossUnitMul(act);
 
-            var picked = new List<BeastDef>(slots);
-            if (boss != null) picked.Add(boss);
-            if (pool != null)
-            {
-                var idx = new int[pool.Length];
-                for (int i = 0; i < idx.Length; i++) idx[i] = i;
-                int remaining = pool.Length;
-                while (picked.Count < slots && remaining > 0)
-                {
-                    int k = rng.NextInt(0, remaining);
-                    var pick = pool[idx[k]];
-                    if (pick != boss) picked.Add(pick);
-                    int tmp = idx[k];
-                    idx[k] = idx[remaining - 1];
-                    idx[remaining - 1] = tmp;
-                    remaining--;
-                }
-            }
-
-            var result = new DeployEntry[picked.Count];
-            for (int i = 0; i < picked.Count; i++)
-                result[i] = DeployEntry.Enemy(picked[i], _formation[i]).WithMul(mul);
+            var result = new[] { DeployEntry.Enemy(boss, BossCell).WithMul(mul) };
 
             // 劫律 14「守关加冠」：Boss 额外获得 1~2 条特性（从劫象池按种子抽，可重复）。
             // GDD：守关的强度来自 Boss 的特性与 ×1.35 倍率，不来自人数堆满预算。
-            if (boss != null && _bossTraitCount > 0)
+            if (_bossTraitCount > 0)
             {
+                var rng = new DeterministicRandom(seed ^ CoreMath.Fnv1a($"boss-trait:{act}"));
                 for (int k = 0; k < _bossTraitCount; k++)
                 {
                     int what = rng.NextInt(0, BattleTraits.Pool.Length);

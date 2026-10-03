@@ -60,6 +60,12 @@ namespace WanXiang.Battle.Presentation
         /// <summary>立绘显示高度（世界单位）。格子 1.75 —— 立绘略高于格，气势更足。</summary>
         private const float UnitHeight = Cell * 0.60f;   // ★ 与行距(0.66×Cell)匹配：既在美术网格内，又不会上下排重叠
 
+        /// <summary>
+        /// 首领立绘的额外身量倍数（用户 2026-10-03 定案："boss 整的大一点，起码是普通异兽的 2-3 倍"）。
+        /// 取 2.5：够醒目又不会溢出中宫格太多（2.5×0.60×1.75 ≈ 2.6 世界单位 ≈ 1.5 格高）。
+        /// </summary>
+        private const float BossScaleMul = 2.5f;
+
         // ---- 技能预览的格位高亮（只给已有格子换配色，不新建对象）----
         private static readonly Color TintEnemyCell = new Color(0.95f, 0.52f, 0.42f, 1f);   // 会被打到的敌方格
         private static readonly Color TintAllyCell = new Color(0.55f, 0.85f, 0.62f, 1f);    // 会被治疗/加盾的我方格
@@ -225,7 +231,12 @@ namespace WanXiang.Battle.Presentation
                     float h = sprite.bounds.size.y;
                     if (h > 0.001f)
                     {
-                        float k = UnitHeight / h;   // 统一按显示高度换算缩放
+                        // ★ 首领（b_ 前缀）用 2.5 倍身量（用户 2026-10-03 定案："boss 整的大一点，
+                        //   起码是普通异兽的 2-3 倍"）。中宫站位 + 放大 = 一眼看出这是 boss 战。
+                        //   ⚠ 放大后可能超出单格视觉范围 —— 中宫（格 4）左右都有空档，正是给它腾的；
+                        //   sortingOrder 用行号，中宫=row1 ⇒ 会盖住后排(row0)、被前排(row2)压，符合"大个子"直觉。
+                        float unitH = BossCatalog.IsBoss(u.Def.Id) ? UnitHeight * BossScaleMul : UnitHeight;
+                        float k = unitH / h;   // 统一按显示高度换算缩放
                         root.transform.localScale = new Vector3(k, k, 1f);
                     }
                 }

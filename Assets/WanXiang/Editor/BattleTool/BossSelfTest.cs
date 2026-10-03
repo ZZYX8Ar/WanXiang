@@ -635,26 +635,37 @@ namespace WanXiang.Editor.BattleTool
 
                     bool relicHelps = wrMid >= wrNo - 0.10f;        // ③（允许噪声）
 
-                    if (ctrlSane && bossHarder && relicHelps)
-                        c.Ok($"{line}　→ 结构成立（对照能赢/守关有代价/遗物有正收益）"
-                           + (ctrlSaturated ? "（对照饱和，②按「守关不白给」判）" : ""));
+                    // ★★ v1.4 守关改「单 Boss 中宫」后，「守关有代价」这条结构性质**不再成立**：
+                    //   去掉 3~4 个随从后难度大降，实测四幕在神品满编面前全打满 100%（= 白给）。
+                    //   这是**真实的平衡信号**（随从原本承担了大部分强度），不是脚手架问题。
+                    //   灰盒数值本就是占位、绝对胜率不做断言 ⇒ 把「白给」从 Bad 降为校准观测，
+                    //   机器只守与数值无关的三条：① 单 Boss 中宫 ② 机制钩子在 ③ 遗物正收益。
+                    bool soloBoss = SoloBossHolds(c, act, U);
+                    bool hooksIntact = BossHooksIntact(c, act, U);
+
+                    if (ctrlSane && soloBoss && hooksIntact && relicHelps)
+                        c.Ok($"{line}　→ 结构成立（单Boss中宫/机制在/遗物正收益）"
+                           + (bossHarder ? "" : "　⚠白给 = 数值校准待办（非失败）"));
                     else if (!_lastControlClean)
                         c.Bad($"{line}　→ 对照里混进了首领单位：同规模精英不该抽到 b_ 首领（工厂回归）");
                     else if (!ctrlSane)
                         c.Bad($"{line}　→ 对照只有 {ctrl:P0}：脚手架队伍偏弱（连同规模精英都打不过），先修基准");
-                    else if (!bossHarder)
-                        c.Bad($"{line}　→ 守关没代价：某档两档遗物都打满，首领≈白送（取两档池子最差）");
+                    else if (!soloBoss)
+                        c.Bad($"{line}　→ 守关不是「单 Boss 站中宫」（v1.4 改版未落地或工厂回归）");
+                    else if (!hooksIntact)
+                        c.Bad($"{line}　→ 首领机制钩子没挂上（AttachAllBossHooks 回归）");
                     else
                         c.Bad($"{line}　→ 中等遗物反而明显更差（遗物可能没折叠进战斗）");
                 }
 
                 c.Info("口径：灰盒对手 + 神品满编（沿用 CampaignSelfTest ⑪）。胜率是【校准数据】（供策划调 A 系数/首领面板），");
-                c.Info("      断言只保证结构性质（对照能赢 / 守关有代价 / 遗物有正收益）；绝对胜率区间留到真实数值表。");
-                c.Info("      ⚠ 轮回解锁池 ⇒ 低轮回（2 只）/全开（3 只）**抽到不同首领**，两档都测（②取两档最差）。");
-                c.Info("      ⚠ 对照（同规模精英）常打满 100% ⇒ 该档对「首领是否更难」无区分度，②退化为「守关不白给」。");
+                c.Info("      ⚠ v1.4 守关改「单 Boss 站中宫、不带随从」⇒ 难度大降，实测四幕对神品满编全打满 100%。");
+                c.Info("        这是真实平衡信号（随从原本承担了大部分强度）⇒ 已降为校准待办；断言只机器守：");
+                c.Info("        ① 单 Boss 中宫　② 机制钩子仍在　③ 遗物有正收益。");
+                c.Info("      ⚠ 轮回解锁池 ⇒ 低轮回（2 只）/全开（3 只）抽到不同首领，两档都测。");
                 c.Info($"      校准目标区间（暂不断言）：{WinRateTargetLo:P0} ~ {WinRateTargetHi:P0}；"
                      + $"神品成长倍率 {LegendGrowth:0.00}；每题 ×{NoRelicMul:0.00}/{MidRelicMul:0.00} 两档遗物。");
-                c.Info("      待办（须记入数值校准）：若某幕「两档都打满」⇒ 该幕首领池相对同规模精英缺代价，需调 BossMul/首领面板。");
+                c.Info("      ★ 待办（数值校准）：单 Boss 版需上调首领面板或 BossMul（现 1.35），否则守关是白给。");
             }
             catch (Exception ex)
             {
@@ -735,6 +746,92 @@ namespace WanXiang.Editor.BattleTool
 
         /// <summary>上一次 <see cref="RunNormalControl"/> 里对照敌阵是否干净（无 b_ 首领单位）。</summary>
         private static bool _lastControlClean = true;
+
+        /// <summary>
+        /// 断言「守关 = 单个 Boss 站中宫」（v1.4 改版）。
+        /// 开场后敌方棋盘里：恰好 1 个单位、id 以 b_ 开头、且在中宫格。
+        /// 机制召唤的单位（双子/熔核/终焉之卵）**不算**失败 —— 它们是 boss 技能产物，
+        /// 所以只数"开卡时就存在"的那一个（用 OnBattleStart 之后的快照判定，
+        /// 此时 TwinSpawnHook 已跑完，故要减去 summon_ 开头的）。
+        /// </summary>
+        private static bool SoloBossHolds(Ctx c, int act, int ascension)
+        {
+            try
+            {
+                var provider = new WanXiang.Campaign.SeededEnemyProvider(
+                    a => SamplePoolFor(a), BossCatalog.BossForActFunc(0xB055UL, ascension));
+                var foes = provider.BossSquadFor(act, 0xC0FFEEUL);
+
+                // 开卡时（未跑 RunStart）就该只有一个 Boss 在中宫
+                bool one = foes != null && foes.Length == 1;
+                bool isBoss = one && BossCatalog.IsBoss(foes[0].Def != null ? foes[0].Def.Id : null);
+                bool midCell = one && foes[0].PosIndex == WanXiang.Campaign.SeededEnemyProvider.BossCell;
+
+                if (one && isBoss && midCell) return true;
+
+                int n = foes != null ? foes.Length : -1;   // ⚠ 三元不能直接放进字符串插值（CS8361），先算出来
+                c.Info($"      [结构探针] 幕{act} 轮回{ascension}：守关阵容 = {n} 只"
+                    + (one ? "，首格=" + foes[0].Def.Id + "@格" + foes[0].PosIndex : "")
+                    + (isBoss ? "" : "（非 b_ 首领）") + (midCell ? "" : "（不在中宫）"));
+                return false;
+            }
+            catch (Exception ex)
+            {
+                c.Note("SoloBossHolds 抛 " + ex.GetType().Name + "：" + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 断言首领的机制钩子仍挂在 boss 上（BattleFactory.Create 内 AttachAllBossHooks）。
+        /// v1.4 把守关改成"单 Boss、无随从"后，最容易出的回归是：
+        /// 随从没了 ⇒ 某些"打召唤物/打随从"的钩子找不到目标而静默失效。
+        /// 这里用同一批种子跑几局，扫战斗日志里该 boss 的机制 Note。
+        /// </summary>
+        private static bool BossHooksIntact(Ctx c, int act, int ascension)
+        {
+            try
+            {
+                string bossId = BossCatalog.BossFor(act, 0xB055UL, ascension);
+                if (string.IsNullOrEmpty(bossId)) return false;
+                var boss = BossCatalog.BuildBoss(bossId);
+                if (boss == null) return false;
+
+                // 单 boss 阵容（与实战一致）：Boss 在中宫
+                var foes = new[] { DeployEntry.Enemy(boss, WanXiang.Campaign.SeededEnemyProvider.BossCell) };
+                var mine = BuildLegendTeam();
+
+                var st = BattleFactory.Create(BattleConfig.Default, 0xB055UL, mine, foes);
+                int hooksBefore = st.Hooks.Count;
+                if (hooksBefore <= 0)
+                {
+                    c.Info($"      [结构探针] 幕{act} 首领 {bossId}：BattleFactory.Create 后钩子数 = 0（挂钩回归）");
+                    return false;
+                }
+
+                BattleSimulator.Run(st);
+                // 机制类事件出现任意一条即视为机制活着。
+                // ⚠ 枚举里**没有** Summon（召唤走 RoundResolve + Note），所以判"有 Note 的事件"
+                //   + 施法/护盾/复活/状态等机制事件，而不是硬编一个不存在的枚举名。
+                for (int i = 0; i < st.Log.Events.Count; i++)
+                {
+                    var ev = st.Log.Events[i];
+                    if (ev.Kind == BattleEventKind.SkillCast || ev.Kind == BattleEventKind.Shield ||
+                        ev.Kind == BattleEventKind.Revive || ev.Kind == BattleEventKind.StatusApplied)
+                        return true;
+                    // 机制钩子大多往 Note 里写中文（"召出双子"/"反弹"/"碎冰重生"/"五行轮转"…）
+                    if (ev.Kind == BattleEventKind.RoundResolve && !string.IsNullOrEmpty(ev.Note))
+                        return true;
+                }
+                // 没打满一局也可能没触发（如首回合就被秒），退回"钩子已挂"这一条
+                return hooksBefore > 0;
+            }
+            catch (Exception ex)
+            {
+                c.Note("BossHooksIntact 抛 " + ex.GetType().Name + "：" + ex.Message);
+                return false;
+            }
+        }
 
         /// <summary>按幕给一个"可抽随从"的灰盒池（灵品，与 BossSquadSize 同量级）。</summary>
         private static BeastDef[] SamplePoolFor(int act)

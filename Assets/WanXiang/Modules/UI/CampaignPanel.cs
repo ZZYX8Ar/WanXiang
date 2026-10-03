@@ -490,14 +490,22 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                 ? item.Find("Tmp_NodeText").GetComponent<TMP_Text>() : null;
             if (label != null)
             {
+                // ★ 守卫格在图里都是【精英】占位（NodeKind 没有 Boss 类型），显示上必须讲明：
+                //   · 幕 1~4 守关  → 「守关 · <首领名>」，走 BossSquadFor 抽 BossCatalog 首领
+                //   · 幕 5 天阙末格 → 「终局 · 后土」，走 TrialPanel.BuildFinaleBattle
+                // ⚠ 两个分支都要在这里判：只判 IsSeasonBossNode 会让**天阙终局格漏成【精英】**
+                //   （实测截图：第 5 幕"小寒"格显示【精英】，玩家以为没有 boss 关）。
+                bool isSeasonBossCell = IsSeasonBossNode(offset);
+                bool isFinaleCell = _graph != null && _graph.Act >= 5 &&
+                                    _graph.NodeCount > 0 && offset == _graph.NodeCount - 1;
                 string name;
                 if (kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset))
                     name = "？ 未知";
                 else if (kind == WanXiang.Campaign.NodeKind.Question)
                     name = WanXiang.Campaign.NodeKinds.Cn(RevealedKind(offset));   // 揭晓后显示真实类型
-                else if (IsSeasonBossNode(offset))
-                    // ★ 守关格在图里是【精英】占位，但显示上必须讲明是首领战 ——
-                    //   否则玩家看到"【精英】"会以为是普通精英，最后一格的首首战毫无提示。
+                else if (isFinaleCell)
+                    name = "终局 · " + (_graph.BossName ?? "后土");
+                else if (isSeasonBossCell)
                     name = "守关 · " + (_graph.BossName ?? "首领");
                 else
                     name = WanXiang.Campaign.NodeKinds.Cn(kind);
