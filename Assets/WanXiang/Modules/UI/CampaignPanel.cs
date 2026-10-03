@@ -42,6 +42,16 @@ namespace WanXiang.Modules.UI
         /// 战斗工厂据此调 SeededEnemyProvider.BossSquadFor（Boss + 随从），而不是普通精英抽签。
         /// </summary>
         public bool IsBoss;
+
+        /// <summary>
+        /// 是否**终局战**节点（第 5 幕 / 天阙的最后一格）。
+        /// ★ 用户 2026-10-03 实测：点这一格出征，打出来的是**普通精英战**（诸怀/旱魃/毕方），
+        ///   不是归墟之主/鸿蒙。根因是 `IsBoss` 只覆盖幕 1~4，第 5 幕终局格 IsBoss=false
+        ///   ⇒ FormationPanel 按普通遭遇建敌。终局战的构建方式（Boss + 我方镜像×3）与守关
+        ///   完全不同，所以**单独立一个标志**，由 FormationPanel.OnDeployClicked 分派到
+        ///   TrialPanel.BuildFinaleBattle，而不是靠 IsBoss 兼管。
+        /// </summary>
+        public bool IsFinale;
     }
 
     [UIPanel("Panel_Campaign", Layer = UILayer.Normal, CachePolicy = UICachePolicy.Cached,
@@ -683,6 +693,13 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             //   不走这里，故排除，避免"双重首领"。
             _current.IsBoss = _graph.Act >= 1 && _graph.Act <= 4 &&
                               _graph.NodeCount > 0 && offset == _graph.NodeCount - 1;
+
+            // ★ 终局战格（第 5 幕末格）：走 TrialPanel.BuildFinaleBattle（Boss + 我方镜像×3），
+            //   与守关（BossSquadFor：Boss + 2 随从）是**两条不同的建敌路径**，必须分开标。
+            //   ⚠ 少了这个标志，第 5 幕最后一格会退回普通遭遇 —— 用户实测"第五幕 boss 关
+            //     还是小异兽（诸怀/旱魃/毕方），标题只写天时、没有 Boss 关字样"。
+            _current.IsFinale = _graph.Act >= 5 &&
+                                _graph.NodeCount > 0 && offset == _graph.NodeCount - 1;
 
             // ★ 活链路天气：选节点时算好「节点天时 + 重放 run.Path 还原的余气」合成一份
             //   WeatherDef 存入 LiveWeather.Current，供 BattleRequestFactory / FormationPanel 取用

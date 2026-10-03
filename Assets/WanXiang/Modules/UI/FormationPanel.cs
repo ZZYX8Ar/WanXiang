@@ -153,10 +153,7 @@ namespace WanXiang.Modules.UI
             int hp = 0, pb = 0, eb = 0;
             if (run != null) { hp = run.HealPending; pb = run.PlayerBuffPct; eb = run.EnemyBuffPct; }
 
-            ok = (run != null)
-                ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req, _node.Kind, -1, _node.IsBoss)
-                : BattleRequestFactory.TryBuild(_contentCatalog, _node.Title, _node.Weather,
-                                                _node.Seed, out req);
+            ok = BuildRequestForNode(run, out req);
             if (run != null) { run.HealPending = hp; run.PlayerBuffPct = pb; run.EnemyBuffPct = eb; }
             if (!ok || req == null) return;
 
@@ -852,6 +849,37 @@ namespace WanXiang.Modules.UI
         //  出征
         // ================================================================
 
+        /// <summary>
+        /// 按当前节点构建战斗请求 —— **预览与出征共用这一处**（曾经两处各写一份，
+        /// 改了一处漏另一处）。分派规则：
+        /// · 终局格（第 5 幕末格，<see cref="NodeRequest.IsFinale"/>）
+        ///   → <see cref="TrialPanel.BuildFinaleBattle"/>：Boss(中宫) + 我方镜像×3；
+        /// · 其余（含幕 1~4 守关，IsBoss=true）→ <c>BattleRequestFactory</c>（守关走 BossSquadFor）。
+        /// ⚠ 少了终局分支，第 5 幕末格会退回普通遭遇 —— 用户实测"第五幕 boss 关还是小异兽"。
+        /// </summary>
+        private bool BuildRequestForNode(WanXiang.Run.RunState run, out BattleRequest req)
+        {
+            req = null;
+            if (run != null && _node != null && _node.IsFinale)
+            {
+                var cat = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
+                var allBeasts = (cat != null && cat.Length > 0)
+                    ? WanXiang.Fusion.ContentLibrary.BuildBeasts(cat[0]) : null;
+                if (allBeasts == null || allBeasts.Length == 0)
+                {
+                    UnityEngine.Debug.LogError("[FormationPanel] 终局战：内容表为空，无法构建");
+                    return false;
+                }
+                req = TrialPanel.BuildFinaleBattle(run, allBeasts);
+                return req != null;
+            }
+            return (run != null)
+                ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req,
+                                                       _node.Kind, -1, _node.IsBoss)
+                : BattleRequestFactory.TryBuild(_contentCatalog, _node.Title, _node.Weather,
+                                                _node.Seed, out req);
+        }
+
         private void OnDeployClicked()
         {
             bool any = false;
@@ -864,10 +892,7 @@ namespace WanXiang.Modules.UI
 
             BattleRequest req;
             var run = WanXiang.Run.RunSave.Current;
-            bool ok = (run != null)
-                ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req, _node.Kind, -1, _node.IsBoss)
-                : BattleRequestFactory.TryBuild(_contentCatalog, _node.Title, _node.Weather,
-                                                _node.Seed, out req);
+            bool ok = BuildRequestForNode(run, out req);
             if (!ok)
             {
                 Debug.LogError("[FormationPanel] 组队失败，无法进入战斗。");

@@ -246,7 +246,14 @@ namespace WanXiang.Battle.Presentation
                 // ⚠ 测试阵容 Id（pw/eg 等）对不上 catalog 里的真实异兽 id ——
                 //   查不到就**按 catalog 序号分配**：Player 取前半、Enemy 取后半，
                 //   这样立绘立刻出现在棋盘上（后续真实内容接入后 Id 会对上）。
-                if (sprite == null && catalog != null && catalog.Entries.Count > 0)
+                //
+                // ⛔ 但**召唤物必须跳过这段兜底**（id 以 summon_ 开头，如熔岩幼体/镜影/
+                //   守卫卵/造化兽）：它们没有专属立绘，若走这里会被随机分配成**别的异兽** ——
+                //   玩家看到战场上凭空多出一只"某异兽"，会以为是第二个 boss / 敌人
+                //   （白魍双子"只有一个立绘"的实测就是这类症状）。
+                //   无专属立绘的召唤物统一走下面的五行色块，语义明确 = 临时召唤物。
+                bool isSummon = u.Def.Id != null && u.Def.Id.StartsWith("summon_");
+                if (sprite == null && !isSummon && catalog != null && catalog.Entries.Count > 0)
                 {
                     int idx = catalog.Entries.Count > 5 && !player
                         ? 5 + (unitIndex % (catalog.Entries.Count - 5))
