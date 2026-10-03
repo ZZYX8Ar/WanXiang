@@ -105,7 +105,9 @@ namespace WanXiang.Battle.Core
         private static readonly BeastDef ShouHu   = Summon("summon_shouhu", "守卫卵", Element.Earth, RoleType.Guard, 500, 40, 80, 60);
         // ⚠ id 用 **b_suren**（素刃的真实立绘 id），不是 summon_subai：
         //   summon_ 前缀在 SpriteCatalog 里查不到图 ⇒ 表现层会"按序号随便分配"⇒ 双子看起来只有一个。
-        private static readonly BeastDef SuBai   = Summon("b_suren", "素刃", Element.Metal, RoleType.Striker, 1820, 266, 84, 110); // 白魍双子（×0.7 基准）
+        // ⚠ id 用 **b_suren**（素刃的真实立绘 id，见 TwinBeastId），不是 summon_subai：
+        //   summon_ 前缀在 SpriteCatalog 里查不到图 ⇒ 表现层"按序号随便分配"⇒ 双子看起来只有一个。
+        private static readonly BeastDef SuBai   = Summon(TwinBeastId, "素刃", Element.Metal, RoleType.Striker, 1820, 266, 84, 110); // 白魍双子（×0.7 基准）
 
         // ---- 14 个首领定义 ----
         private static readonly BossDef[] AllBosses =
@@ -156,6 +158,20 @@ namespace WanXiang.Battle.Core
         /// ⛔ 唯一口径：BossCatalog 挂钩子、BossSelfTest 断言都读这个常量，别各写一个数字。
         /// </summary>
         public const int TwinCell = 7;
+
+        /// <summary>
+        /// 白魍双子的**单位 id**（= 立绘 id）。唯一口径：<see cref="SuBai"/> 原型、表现层放大集合、
+        /// 布阵（BossSquadFor 预放第二只）都读这个常量，别再各写一份字符串。
+        /// </summary>
+        public const string TwinBeastId = "b_suren";
+
+        /// <summary>
+        /// 该首领的**双子搭档**原型（与本体一起出场的第二只 Boss）；没有搭档返回 null。
+        /// ★ 用户 2026-10-03 口径："他们两个都是 Boss 啊，不是召唤出来的，他们是一起出现的"
+        ///   ⇒ 双子由布阵阶段（BossSquadFor）直接放进敌方阵容，
+        ///     这样**编队预览也能看到两只**（此前只在开场钩子里部署 ⇒ 预览只有 1 只，用户报障）。
+        /// </summary>
+        public static BeastDef TwinFor(string bossId) => bossId == "b_bairen" ? SuBai : null;
 
         public static BossDef Get(string id)
         {

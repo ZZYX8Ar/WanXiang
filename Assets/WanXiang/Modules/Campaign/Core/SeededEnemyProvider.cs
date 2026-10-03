@@ -139,7 +139,15 @@ namespace WanXiang.Campaign
             float bossMul = EnemyBudget.BossUnitMul(act);
             float sideMul = bossMul * BossSidekickMul;
 
-            var list = new List<DeployEntry>(3) { DeployEntry.Enemy(boss, BossCell).WithMul(bossMul) };
+            var list = new List<DeployEntry>(4) { DeployEntry.Enemy(boss, BossCell).WithMul(bossMul) };
+
+            // ★ 双子搭档（白魍）：**布阵阶段就放进敌方阵容**（不是开场钩子临时生成）——
+            //   用户 2026-10-03："他们两个都是 Boss 啊，不是召唤出来的，他们是一起出现的"。
+            //   放在这里的好处：编队预览也能看到两只（此前只在 OnBattleStart 部署 ⇒ 预览只有 1 只）。
+            //   钩子（同命/共鸣）仍由 BattleCatalog.AttachAllBossHooks 挂，职责不变。
+            var twin = WanXiang.Battle.Core.BossCatalog.TwinFor(boss.Id);
+            if (twin != null)
+                list.Add(DeployEntry.Enemy(twin, WanXiang.Battle.Core.BossCatalog.TwinCell).WithMul(bossMul));
 
             // 2 个随从：固定落中列前左(0)/前右(2)，**不占中列**(1/4/7) —— 双子机制要用格 1。
             if (pool != null && pool.Length > 0)

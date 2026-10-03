@@ -52,6 +52,7 @@ namespace WanXiang.Editor.BattleTool
 
             try
             {
+                CheckStaticInitSmoke(c);
                 CheckContentShape(c);
                 CheckDeterministicPick(c);
                 CheckAscensionPool(c);
@@ -102,6 +103,54 @@ namespace WanXiang.Editor.BattleTool
             catch (Exception ex)
             {
                 UnityEngine.Debug.LogWarning($"[boss.selftest] 报告写入失败：{ex.Message}");
+            }
+        }
+
+        // ================================================================
+        //  0) 静态初始化冒烟（防"类型初始化失败 ⇒ 整个战斗场景搭不起来"回归）
+        // ================================================================
+
+        /// <summary>
+        /// 关键类型的**静态字段初始化**必须成功。
+        ///
+        /// ⛔⛔ 血泪教训（2026-10-03）：`BattleStage2D` 里
+        ///   `BossScaleIds = BuildBossScaleIds()` 被声明在它内部要读的 `TwinIds` **之前**
+        ///   —— C# 静态字段按**声明顺序**初始化 ⇒ 执行 BuildBossScaleIds 时 TwinIds 还是 null
+        ///   ⇒ NullReferenceException ⇒ TypeInitializationException
+        ///   ⇒ `[BattleSceneDriver] 舞台搭建失败，本场只有 HUD` + 相机无内容
+        ///   （用户报障："现在看不到战斗场景了啊，你在干什么"）。
+        ///
+        /// ⚠ 这类错误**编译期不报、跑不到就发现不了**（自检原本也不实例化表现层），
+        ///   所以在这里显式冒烟。用反射按类型名找，避免 Editor 程序集缺引用的编译问题。
+        /// </summary>
+        private static void CheckStaticInitSmoke(Ctx c)
+        {
+            c.Title("0) 静态初始化冒烟（防 TypeInitializationException 回归）");
+            RunClassCtor(c, "WanXiang.Battle.Presentation.BattleStage2D", "BattleStage2D");
+            RunClassCtor(c, "WanXiang.Battle.Core.BossCatalog", "BossCatalog");
+            RunClassCtor(c, "WanXiang.Battle.Core.BattleConfig", "BattleConfig");
+        }
+
+        private static void RunClassCtor(Ctx c, string typeFullName, string label)
+        {
+            Type t = null;
+            var asms = AppDomain.CurrentDomain.GetAssemblies();
+            for (int i = 0; i < asms.Length; i++)
+            {
+                t = asms[i].GetType(typeFullName);
+                if (t != null) break;
+            }
+            if (t == null) { c.Info(label + "：未找到类型（跳过）"); return; }
+            try
+            {
+                System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(t.TypeHandle);
+                c.Ok(label + " 静态初始化：OK");
+            }
+            catch (Exception ex)
+            {
+                var inner = ex.InnerException != null ? " → " + ex.InnerException.Message : "";
+                c.Bad(label + " 静态初始化失败：" + ex.GetType().Name + inner
+                      + "（这类错误会让整个战斗场景搭不起来 —— 检查静态字段的声明顺序）");
             }
         }
 
@@ -797,36 +846,40 @@ namespace WanXiang.Editor.BattleTool
                 int n = foes != null ? foes.Length : -1;   // ⚠ 三元不能直接放进字符串插值（CS8361）
                 if (foes == null || foes.Length == 0) { c.Info($"      [结构探针] 幕{act}：守关阵容为空"); return false; }
 
-                int bossIdx = -1;
+                int bossIdx = -1, twinIdx = -1, sidekickCount = 0;
                 for (int i = 0; i < foes.Length; i++)
                 {
                     var id = foes[i].Def != null ? foes[i].Def.Id : null;
-                    // ⚠ 用 BossCatalog.All 判"本体"，**不要**用 IsBoss(id)：
-                    //   召唤物原型复用 b_suren（真实立绘 id，也是 b_ 前缀），会被误认成第二个 Boss。
-                    if (id != null && BossBodyIdSet.Contains(id)) { bossIdx = i; break; }
+                    // ⚠ 用 BossCatalog.All 判"本体"，**不要**只用 IsBoss(id)：
+                    //   双子（b_suren）也是 b_ 前缀，要单独归到 twinIdx。
+                    if (id != null && BossBodyIdSet.Contains(id)) bossIdx = i;
+                    else if (id == BossCatalog.TwinBeastId) twinIdx = i;
+                    else sidekickCount++;
                 }
                 bool oneBoss = bossIdx >= 0;
                 bool midCell = oneBoss && foes[bossIdx].PosIndex == WanXiang.Campaign.SeededEnemyProvider.BossCell;
-                int sidekicks = foes.Length - (oneBoss ? 1 : 0);
-                bool sideOk = sidekicks <= 2;
+                // 有双子时它必须落在约定格（BossCatalog.TwinCell），否则会跟中宫本体叠在一起
+                bool twinOk = twinIdx < 0 || foes[twinIdx].PosIndex == BossCatalog.TwinCell;
+                bool sideOk = sidekickCount <= 2;
 
-                // 随从不占中列（1/4/7）
+                // 中宫（格4）只能有本体一个 —— 双子/随从都不许占
                 bool midClear = true;
-                int[] midCells = { 1, 4, 7 };
                 for (int i = 0; i < foes.Length; i++)
                 {
                     if (i == bossIdx) continue;
-                    for (int m = 0; m < midCells.Length; m++)
-                        if (foes[i].PosIndex == midCells[m]) midClear = false;
+                    if (foes[i].PosIndex == WanXiang.Campaign.SeededEnemyProvider.BossCell) midClear = false;
                 }
 
-                if (oneBoss && midCell && sideOk && midClear) return true;
+                if (oneBoss && midCell && twinOk && sideOk && midClear) return true;
 
                 c.Info($"      [结构探针] 幕{act} 轮回{ascension}：守关阵容 = {n} 只"
                     + (oneBoss ? "，Boss=" + foes[bossIdx].Def.Id + "@格" + foes[bossIdx].PosIndex : "（无 b_ 首领！）")
+                    + (twinIdx >= 0 ? "，双子@" + foes[twinIdx].PosIndex : "，无双子")
+                    + "，随从 " + sidekickCount
                     + (midCell ? "" : "（Boss 不在中宫）")
+                    + (twinOk ? "" : "（双子不在约定格" + BossCatalog.TwinCell + "）")
                     + (sideOk ? "" : "（随从>2）")
-                    + (midClear ? "" : "（随从占了中列，机制格被堵）"));
+                    + (midClear ? "" : "（中宫被非本体占用）"));
                 return false;
             }
             catch (Exception ex)

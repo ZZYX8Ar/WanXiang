@@ -75,19 +75,20 @@ namespace WanXiang.Battle.Presentation
         private const float BossSidekickScaleMul = 1.15f;
 
         /// <summary>
-        /// 「与首领同级放大」的 id 集合 = <c>BossCatalog.All</c>（14 个守关本体）
-        /// **+ 双子**（`b_bairen` 的搭档 `b_suren`）。
-        ///
-        /// ⚠ 不能用 `IsBoss(id)`（b_ 前缀）当唯一判据 —— 双子复用 `b_suren` 当立绘 id
-        ///   （否则 summon_ 前缀查不到 SpriteCatalog 会"乱分配"成别的异兽），它也是 b_ 前缀，
-        ///   必须显式区分"本体/双子（放大）"与"其他分身（不放大）"。
-        /// ⚠ 双子**不进** `BossCatalog.All` —— All 是"守关抽签池 + 图鉴/招募红线"，
-        ///   双子是白魍的搭档而不是独立守关，进 All 会被当成可抽首领。
+        /// 白魍双子（与本体一起出场、同为 Boss 级，但不在守关抽签池里）。
+        /// ⛔⛔ **声明顺序不能挪到 BossScaleIds 后面**：C# 静态字段按声明顺序初始化，
+        ///   而 `BossScaleIds = BuildBossScaleIds()` 内部要读 `TwinIds` ——
+        ///   若 TwinIds 在后面，此刻还是 null ⇒ `TypeInitializationException`
+        ///   ⇒ BattleStage2D 整个类型初始化失败 ⇒ **舞台搭建失败、只有 HUD、看不到战斗场景**
+        ///   （用户实测"看不到战斗场景了 / No cameras rendering"）。
+        /// </summary>
+        private static readonly string[] TwinIds = { "b_suren" };
+
+        /// <summary>
+        /// 「与首领同级放大」的 id 集合 = <c>BossCatalog.All</c>（14 个守关本体）+ **双子**
+        /// （<see cref="TwinIds"/>）。⚠ 必须在 <see cref="TwinIds"/> **之后**声明。
         /// </summary>
         private static readonly System.Collections.Generic.HashSet<string> BossScaleIds = BuildBossScaleIds();
-
-        /// <summary>白魍双子（与本体一起出场、同为 Boss 级，但不在守关抽签池里）。</summary>
-        private static readonly string[] TwinIds = { "b_suren" };
 
         /// <summary>召唤物/分身（复用 b_ 立绘 id，但既不是本体也不是双子）。</summary>
         private static bool IsBossSidekick(string id)

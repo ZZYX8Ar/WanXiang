@@ -457,8 +457,11 @@ namespace WanXiang.Battle.Core
     }
 
     /// <summary>
-    /// 双子部署：开场把 twin 放到 twinCell（**不是召唤物，是"一起出场"的第二只 Boss**），
-    /// 并给两者挂 KillLink（同命）+ 共鸣分摊（DamageSplit）。
+    /// 双子同命钩子装配：确保 twinCell 上有第二只 Boss，并给两者挂 KillLink（同命）+ 共鸣分摊。
+    /// ★ 双子现在**由布阵阶段（SeededEnemyProvider.BossSquadFor）预放进阵容** —— 这样编队预览
+    ///   就能看到两只（用户 2026-10-03："他们两个都是 Boss，不是召唤出来的，他们是一起出现的"）。
+    ///   本钩子因此退化为"查场 + 挂钩子"，只在格子为空时兜底部署（兼容旧路径）。
+    /// ⚠ 别再把"格子已被占"直接当失败返回 —— 那会连钩子都不挂（曾经的真 bug）。
     /// </summary>
     public sealed class TwinSpawnHook : BattleHook
     {
@@ -479,11 +482,18 @@ namespace WanXiang.Battle.Core
         {
             if (_done || _boss == null || !_boss.IsAlive) return;
             _done = true;
-            if (_twinProto == null || _twinCell < 0 || _twinCell >= BoardLayout.CellCount) return;
-            if (st.SlotAt(TeamSide.Enemy, _twinCell) != null) return;
-            SummonHook.DeploySummon(st, _twinProto, _twinCell);
+            if (_twinCell < 0 || _twinCell >= BoardLayout.CellCount) return;
+
             var twin = st.SlotAt(TeamSide.Enemy, _twinCell);
+            if (twin == null)
+            {
+                // 兜底：布阵没预放时在此部署（旧路径 / 手工构造的测试战斗）
+                if (_twinProto == null) return;
+                SummonHook.DeploySummon(st, _twinProto, _twinCell);
+                twin = st.SlotAt(TeamSide.Enemy, _twinCell);
+            }
             if (twin == null) return;
+
             // 共鸣：分摊 30%；双子同命：一只倒下后 windowTurns 回合内未双杀则 50% 复活
             st.Hooks.Add(new DamageSplitHook(_boss, _linkRatio));
             st.Hooks.Add(new DamageSplitHook(twin, _linkRatio));
