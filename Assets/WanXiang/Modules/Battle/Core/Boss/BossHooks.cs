@@ -322,18 +322,24 @@ namespace WanXiang.Battle.Core
             _boss.SetHp(CoreMath.Max(1, (int)(_boss.MaxHp * 0.01f)));
             _phantom = true;
             _accum = 0;
+            // ★ HUD 持续提示：让玩家知道"没死透，要破核"（用户 2026-10-03 报"打死了又立马复活"）
+            _boss.StateHint = "冰核！本回合打出 " + NeedDmg() + " 伤害可击碎（否则 " + (_revivePct * 100f).ToString("F0") + "% 血复活）";
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                        note: $"{_boss.DisplayName} 碎冰重生：化为冰核（1 回合无敌）");
         }
         public override void OnDamageDealt(BattleState st, BattleUnit src, BattleUnit dst, int dmg, int dealt, bool trueDmg)
         {
-            if (_phantom && dst == _boss) _accum += dmg;   // 用"本应造成的伤害"累计（无敌已吸收）
+            if (!_phantom || dst != _boss) return;
+            _accum += dmg;   // 用"本应造成的伤害"累计（无敌已吸收）
+            int need = NeedDmg();
+            _boss.StateHint = "冰核 " + _accum + " / " + need + "（" + (_accum >= need ? "可击碎！" : "还差 " + (need - _accum)) + "）";
         }
         public override void OnTurnEnd(BattleState st)
         {
             if (!_phantom) return;
             _phantom = false;
             _boss.Invulnerable = false;
+            _boss.StateHint = null;   // 冰核期结束 ⇒ 清掉 HUD 提示
             if (_accum >= _boss.MaxHp * _dmgFrac)
             {
                 _used = true;
@@ -348,6 +354,9 @@ namespace WanXiang.Battle.Core
                            note: $"{_boss.DisplayName} 未被破核 ⇒ 以 {(_revivePct * 100f):F0}% 血复活");
             }
         }
+
+        /// <summary>破核所需累计伤害（= MaxHp × dmgFrac），提示与判定共用同一口径。</summary>
+        private int NeedDmg() => CoreMath.Max(1, (int)(_boss.MaxHp * _dmgFrac));
     }
 
     /// <summary>共享生命：首领死亡时若敌方还有存活的召唤物（id 以 summon_ 开头）⇒ 以 revivePct 复活（赤魃火种同源）。</summary>

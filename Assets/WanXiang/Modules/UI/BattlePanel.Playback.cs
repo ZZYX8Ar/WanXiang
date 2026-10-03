@@ -74,6 +74,31 @@ namespace WanXiang.Modules.UI
         //  回放
         // ================================================================
 
+        /// <summary>
+        /// 刷新 Boss 机制状态提示（目前只有玄溟"碎冰重生"的冰核期）。
+        /// 数据源：<c>BattleUnit.StateHint</c>（由 <c>PhantomDeathHook</c> 写入）。
+        /// 显示到 `Tmp_Tip`（<c>_tipText</c>）—— 该控件此前**已声明但从未被使用**，正好做提示位。
+        ///
+        /// 背景（用户 2026-10-03）：玄溟打死化冰核后若本回合没打出 25% 伤害就 70% 血复活，
+        /// 玩家看不到任何提示 ⇒ 观感是"打死了又立马复活、怎么打不死"。
+        /// 用户定案：**保留机制，补一个冰核提示**（不削弱难度）。
+        /// </summary>
+        private void RefreshStateHint()
+        {
+            if (_tipText == null || _play == null || _play.State == null) return;
+
+            string hint = null;
+            var foes = _play.State.UnitsOf(WanXiang.Battle.Core.TeamSide.Enemy);
+            for (int i = 0; i < foes.Count; i++)
+            {
+                var u = foes[i];
+                if (u == null || string.IsNullOrEmpty(u.StateHint)) continue;
+                hint = u.DisplayName + "：" + u.StateHint;
+                break;   // 同一时刻只会有一个 Boss 处于冰核期
+            }
+            if (_tipText.text != hint) _tipText.text = hint == null ? "" : hint;
+        }
+
         private async UniTask PlayLoop(CancellationToken ct)
         {
             ApplyFrames();
@@ -87,6 +112,7 @@ namespace WanXiang.Modules.UI
             int guard = 0;
             while (!_play.Finished)
             {
+                RefreshStateHint();   // ★ 每帧刷新 Boss 机制状态提示（冰核等）
                 // ★ 顺序铁律：**先把已产生的事件全部播完，再考虑等令**。
                 //   模拟推进是"跑一段"（可能一次性产生多个事件），若一看到 AwaitingCommand
                 //   就停住等令，那段事件会被跳过 —— 表现就是"第一次攻击没效果、之后才补播"（实测）。

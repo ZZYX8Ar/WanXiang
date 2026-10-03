@@ -118,6 +118,16 @@ namespace WanXiang.Battle.Core
         /// <summary>无敌：受到的任何伤害都归 0（"碎冰重生"化冰核那一回合用）。</summary>
         public bool Invulnerable;
 
+        /// <summary>
+        /// 单位级的**临时状态提示**（表现层 HUD 直接显示，如"冰核 850/850 破核即可真死"）。
+        /// 由机制钩子写入（目前只有 <c>PhantomDeathHook</c> 的碎冰重生），回合结束/状态解除时清空。
+        ///
+        /// 为什么放在 BattleUnit 而不是发事件：这是**持续状态**（整个冰核期都在变），
+        /// 走 BattleState.Log 会每帧刷屏；表现层每帧读一次字段最省。
+        /// ⚠ 纯 string，不引 UnityEngine（Battle.Core 的 noEngineReferences 红线）。
+        /// </summary>
+        public string StateHint;
+
         /// <summary>免疫五行克制：计算伤害系数时把相克/相生系数强制为 1（混沌之母·鸿蒙"混元"用）。</summary>
         public bool IgnoreElementCounter;
 
