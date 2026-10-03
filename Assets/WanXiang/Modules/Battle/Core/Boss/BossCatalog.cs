@@ -153,11 +153,14 @@ namespace WanXiang.Battle.Core
         public static bool IsBoss(string id) => id != null && id.StartsWith("b_");
 
         /// <summary>
-        /// 白魍双子的落位：**格 7（中宫正后方的后排中）**。
-        /// ⚠ 不要用格 1（中列前排）—— 它与中宫(4)同列相邻，两只 2.5× 立绘会叠在一起。
+        /// 白魍双子的落位：**格 1 = 后排中**（中宫格 4 的正后方）。
+        ///
+        /// ⛔ 格号行语义（别搞反）：`row = Pos.Index / 3`，**row0 = 后排（远离玩家）、
+        ///   row2 = 前排（贴近玩家）**（见 BattleStage2D 的 `sortingOrder = Pos.Index / 3; // row 0=后 1=中 2=前`）。
+        ///   ⇒ 后排中的格号是 **1**；**格 7 是前排中**（离玩家最近），别把它当后排。
         /// ⛔ 唯一口径：BossCatalog 挂钩子、BossSelfTest 断言都读这个常量，别各写一个数字。
         /// </summary>
-        public const int TwinCell = 7;
+        public const int TwinCell = 1;
 
         /// <summary>
         /// 白魍双子的**单位 id**（= 立绘 id）。唯一口径：<see cref="SuBai"/> 原型、表现层放大集合、
@@ -330,8 +333,9 @@ namespace WanXiang.Battle.Core
                     //   · 其中一只倒下后，若 **2 回合内**未能击杀另一只 ⇒ 倒下的那只以 50% 血复活；
                     //     双杀（窗口内两只都死）⇒ 真正陨落，战斗结束；
                     //   · 另有共鸣分摊 30%（伤害在两只之间摊）。
-                    // 站位：白刃在中宫(4)，素刃落**格 7（中宫正后方的后排中）**——
-                    //   不要用格 1（中列前排）：它与中宫同列相邻，两只 2.5× 立绘会叠在一起。
+                    // 站位：白刃在中宫(4)，素刃落 格1（**后排中** = 中宫正后方，用户口径
+                    //   "一个站中间就行，另外一个随便" → 放后排不至于挡住本体）。
+                    //   ⛔ 别用格7：那是前排（贴玩家），会被前排随从遮挡。
                     st.Hooks.Add(new TwinSpawnHook(boss, SuBai, TwinCell, 0.30f, 0.50f, 2));
                     break;
 

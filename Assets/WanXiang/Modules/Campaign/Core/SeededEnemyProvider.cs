@@ -36,9 +36,15 @@ namespace WanXiang.Campaign
         /// </summary>
         public const int BossCell = 4;
 
-        /// <summary>守关随从格位：中列前左(0) / 前右(2)。⚠ 刻意避开中列(1/4/7)——格 1 要留给双子机制。</summary>
-        public const int BossSideCellL = 0;
-        public const int BossSideCellR = 2;
+        /// <summary>
+        /// 守关随从格位：**前排左(6) / 前排右(8)**。
+        /// ⛔ 格号行语义：`row = Pos.Index / 3`，**row0=后排、row2=前排**（贴玩家）。
+        ///   ⚠ 随从放**前排**是为了给后排腾位置：双子（<c>BossCatalog.TwinCell</c>=格1 后排中）
+        ///   已经在后排 ⇒ 若随从也占后排两侧(0/2)，后排会挤满 3 只立绘互相遮挡。
+        ///   随从在前排还有个合理性：它们先挡在我方与本体之间。
+        /// </summary>
+        public const int BossSideCellL = 6;
+        public const int BossSideCellR = 8;
 
         /// <summary>
         /// 随从相对 Boss 的额外倍率（v1.4.1）：随从只吃 Boss 的 55%。
@@ -125,7 +131,7 @@ namespace WanXiang.Campaign
         ///   ② 实测单 Boss **太简单**（四幕对神品满编全 100% 白给）⇒ 用户定案"实在不行就是带两个随从"。
         ///   最终口径：**Boss（中宫）+ 2 个随从**。
         ///   · 随从**只给 2 个**（原 BossSquadSize 是 4/5，太挤且抢戏）；
-        ///   · 随从**不是凑数**：固定落两侧（格 0/2 = 中列前左/前右），不占中列 ⇒ 双子格 1 仍空出来；
+        ///   · 随从**不是凑数**：固定落**前排左/右**（格 6/8）—— 给后排腾位置（双子占格 1 后排中）；
         ///   · 随从用**半倍率**（BossUnitMul × 0.55）—— 压力主要来自 Boss 本体与机制，
         ///     随从只是让战场不空、给 Boss 机制提供目标。
         /// </summary>
@@ -149,7 +155,7 @@ namespace WanXiang.Campaign
             if (twin != null)
                 list.Add(DeployEntry.Enemy(twin, WanXiang.Battle.Core.BossCatalog.TwinCell).WithMul(bossMul));
 
-            // 2 个随从：固定落中列前左(0)/前右(2)，**不占中列**(1/4/7) —— 双子机制要用格 1。
+            // 2 个随从：固定落**前排**左/右（格 6/8）—— 后排让给双子（格 1），避免后排挤 3 只立绘。
             if (pool != null && pool.Length > 0)
             {
                 int[] sideCells = { BossSideCellL, BossSideCellR };

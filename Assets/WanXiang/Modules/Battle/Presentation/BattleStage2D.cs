@@ -302,8 +302,12 @@ namespace WanXiang.Battle.Presentation
                                                 new Color(0.16f, 0.13f, 0.09f));
                 }
                 bodySr.sortingOrder = u.Pos.Index / 3;   // row 0=后 1=中 2=前
-                // 敌方整体镜像：立绘原画朝一侧，敌阵要面向我方才自然
-                bodySr.flipX = !player;
+                // 敌方整体镜像：立绘原画统一朝右，敌阵镜像后朝左 ⇒ 面向我方，自然。
+                // ⛔ **例外：素刃（白魍双子）不镜像**。它的原画是**刻意朝左**画的
+                //   （早期为双子"背靠背"并排设计的），再统一镜像就变成朝右 ⇒ **背对玩家**
+                //   （用户实测："b_suren 这个的朝向反了"）。它现在站后排中(格7)，
+                //   与中宫本体是前后关系，本来就该朝前 ⇒ 跳过镜像即可与其它敌方朝向一致。
+                bodySr.flipX = !player && u.Def.Id != BossCatalog.TwinBeastId;
                 // 敌方压暗一档（§4.4 敌我同源 + 浊化的轻量版）
                 if (!player) bodySr.color = new Color(0.72f, 0.72f, 0.80f);
                 view.Body = bodySr;
