@@ -49,7 +49,23 @@ namespace WanXiang.Battle.Core
         }
     }
 
-    /// <summary>首领默认技组（让首领在自动战斗里会动）。元素随首领，伤害按攻击力倍率。</summary>
+    /// <summary>
+    /// 首领默认技组（让首领在自动战斗里会动）。元素随首领，伤害按攻击力倍率。
+    /// ★ 2026-10-04：**三招全部改群体攻击（AllEnemies）** —— 守关改「单 Boss 独占中宫」后，
+    ///   首领只剩自己一只，必须靠 AOE 才能压制玩家整队（用户定案："给首领技能加 AOE"）。
+    ///   单体技组下首领每回合只削一个目标 ⇒ 五只满编队可以无视它慢慢打。
+    ///
+    /// ⛔ **不能只改目标选择器而保留原倍率** —— 单体倍率 × 5 个目标 = 总输出直接翻 5 倍。
+    ///   实测（boss.selftest [7/7]）：1.00/0.80/2.00 全 AOE 后，四幕「无遗物」胜率全部掉到 **0%**。
+    ///   ⇒ 原则：**压低单体倍率换取群体形态**。实测三档（boss.selftest [7/7]，四幕「无遗物」胜率）：
+    ///     · 1.00/0.80/2.00 全 AOE（= 原倍率）⇒ 四幕全 0%（**必然过强**，总输出翻 5 倍）；
+    ///     · 0.20/0.80/0.40（只改形态/总输出守恒）⇒ 偏软（第2幕中等 100%、第3幕 98%）：
+    ///       **集火 > 分摊** —— 把致命伤害摊平，治疗奶得回来，反而杀不掉人；
+    ///     · 0.40/0.80/0.80（本档）⇒ 取中间值，兼顾"能压制全队"与"不秒全队"。
+    ///   ⚠ 第2幕（火 · 烬蛟「附烧」）偏难的原因**不是伤害**：附烧是**每命中一次**就叠一层，
+    ///     AOE 普攻 ⇒ 每回合给全队叠灼烧 ⇒ 被放大 5 倍。要治它得把"命中类钩子"改成每行动只触发一次，
+    ///     属独立任务（不在本次改动内）。
+    /// </summary>
     public static class BossSkills
     {
         public static SkillDef[] Default(Element element)
@@ -57,17 +73,17 @@ namespace WanXiang.Battle.Core
             return new[]
             {
                 new SkillDef { Id = "b_basic", Name = "普攻", Type = SkillType.Basic, Cd = 0,
-                    Element = element, PrimaryTarget = TargetSelector.SingleFrontMost,
-                    Effects = new[] { EffectAtom.Damage(TargetSelector.SingleFrontMost, 1.00f) },
-                    Description = "单体攻击" },
+                    Element = element, PrimaryTarget = TargetSelector.AllEnemies,
+                    Effects = new[] { EffectAtom.Damage(TargetSelector.AllEnemies, 0.40f) },
+                    Description = "全体攻击" },
                 new SkillDef { Id = "b_active", Name = "战技", Type = SkillType.Active, Cd = 2,
                     Element = element, PrimaryTarget = TargetSelector.AllEnemies,
                     Effects = new[] { EffectAtom.Damage(TargetSelector.AllEnemies, 0.80f) },
                     Description = "全体攻击" },
                 new SkillDef { Id = "b_ult", Name = "绝技", Type = SkillType.Ultimate, Cd = 3,
-                    Element = element, PrimaryTarget = TargetSelector.SingleLowestHp,
-                    Effects = new[] { EffectAtom.Damage(TargetSelector.SingleLowestHp, 2.00f) },
-                    Description = "重击生命最低者" },
+                    Element = element, PrimaryTarget = TargetSelector.AllEnemies,
+                    Effects = new[] { EffectAtom.Damage(TargetSelector.AllEnemies, 0.80f) },
+                    Description = "全体重击" },
             };
         }
     }
@@ -108,6 +124,12 @@ namespace WanXiang.Battle.Core
         // ⚠ id 用 **b_suren**（素刃的真实立绘 id，见 TwinBeastId），不是 summon_subai：
         //   summon_ 前缀在 SpriteCatalog 里查不到图 ⇒ 表现层"按序号随便分配"⇒ 双子看起来只有一个。
         private static readonly BeastDef SuBai   = Summon(TwinBeastId, "素刃", Element.Metal, RoleType.Striker, 1820, 266, 84, 110); // 白魍双子（×0.7 基准）
+
+        // 玄溟「冰晶重生」用的冰晶：**面板只是占位** —— 实际 HP 由
+        // IceCrystalRebirthHook 用 GrowMaxHp 对齐到「玄溟满血 × 25%」，
+        // 这样它在不同幕/劫数下的比例都是恒定的。
+        // id 用 summon_ 前缀 ⇒ 表现层走五行色块（无专属立绘时不做"乱分配"）。
+        private static readonly BeastDef IceCrystal = Summon("summon_icecrystal", "冰晶", Element.Water, RoleType.Guard, 800, 100, 60, 90);
 
         // ---- 14 个首领定义 ----
         private static readonly BossDef[] AllBosses =
@@ -161,6 +183,13 @@ namespace WanXiang.Battle.Core
         /// ⛔ 唯一口径：BossCatalog 挂钩子、BossSelfTest 断言都读这个常量，别各写一个数字。
         /// </summary>
         public const int TwinCell = 1;
+
+        /// <summary>
+        /// **十字格**（中宫格 4 的上下左右 = 1 / 7 / 3 / 5）。
+        /// ★ 玄溟「冰晶重生」的 4 枚冰晶落位 —— 围住中宫，玩家必须用 AOE 才清得干净。
+        /// ⚠ 格号行语义见 <see cref="TwinCell"/> 的注释（row0=后排）。
+        /// </summary>
+        public static readonly int[] CrossCells = { 1, 7, 3, 5 };
 
         /// <summary>
         /// 白魍双子的**单位 id**（= 立绘 id）。唯一口径：<see cref="SuBai"/> 原型、表现层放大集合、
@@ -352,9 +381,14 @@ namespace WanXiang.Battle.Core
                     break;
 
                 // ---- 幕四 · 水 ----
-                case "b_xuanming": // 玄溟：寒狱镜面(反弹30%) + 碎冰重生(假死，冰核期受≥25%真死否则70%复活)
+                case "b_xuanming": // 玄溟：寒狱镜面(反弹30%) + 冰晶重生
+                    //   冰晶重生（用户 2026-10-03 定案，**替代旧的碎冰/冰核假死**）：
+                    //   本体被打死 ⇒ 退场，同时在十字格(1/7/3/5)生成 4 枚冰晶（每枚 = 玄溟满血 ×25%）；
+                    //   玩家须在 3 回合内打光 ⇒ 真死；超时则按 50% → 25% → 0% 依次复活（第 3 次陨落）。
+                    //   ⇒ 4 枚散在中宫四周，**逼迫玩家拿出 AOE**，单体爆发清不干净。
                     st.Hooks.Add(new DamageReflectHook(0.30f));
-                    st.Hooks.Add(new PhantomDeathHook(boss, 0.25f, 0.70f));
+                    st.Hooks.Add(new IceCrystalRebirthHook(boss, IceCrystal, CrossCells,
+                                                          3, new float[] { 0.5f, 0.25f, 0f }, 0.25f));
                     break;
 
                 case "b_mingkun":  // 溟鲲：潮汐(-2灵力/回合) + 吞舟(每2回合斩最高血) + 鲸落(死亡AOE30%)

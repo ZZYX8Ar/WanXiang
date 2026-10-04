@@ -407,8 +407,8 @@ namespace WanXiang.Editor.BattleTool
             // 双子同命（白魍） —— OnBattleStart 部署双子
             ExpectTwin(c, "b_bairen");
 
-            // 假死（玄溟碎冰重生） —— boss 被击杀瞬间化冰核
-            ExpectNote(c, "碎冰重生", "b_xuanming", "假死(碎冰重生)", 5000f, 6000, 3, RoleType.Striker, 20261203UL);
+            // 冰晶重生（玄溟） —— boss 被击杀瞬间退场 + 十字格生成 4 枚冰晶
+            ExpectNote(c, "冰晶", "b_xuanming", "冰晶重生(本体退场→十字冰晶)", 5000f, 6000, 3, RoleType.Striker, 20261203UL);
 
             // 属性轮转 + 硬性DPS灭团（归墟之主） —— 第 3 回合轮转、第 12 回合灭团
             ExpectNotes(c, new[] { "五行轮转", "灭团" }, "b_guixu", "属性轮转 + 硬性DPS灭团",
@@ -728,7 +728,8 @@ namespace WanXiang.Editor.BattleTool
                 c.Info("      ⚠ 轮回解锁池 ⇒ 低轮回（2 只）/全开（3 只）抽到不同首领，两档都测。");
                 c.Info($"      校准目标区间（暂不断言）：{WinRateTargetLo:P0} ~ {WinRateTargetHi:P0}；"
                      + $"神品成长倍率 {LegendGrowth:0.00}；每题 ×{NoRelicMul:0.00}/{MidRelicMul:0.00} 两档遗物。");
-                c.Info("      ★ 待办（数值校准）：若仍偏简单，上调首领面板或 BossMul（现 1.35）。");
+                c.Info("      ★ 数值校准（Task #72）：BossMul 已由 1.35 上调至 1.75（单 Boss 独占中宫后随从消失，");
+                c.Info("        强度需补回本体）。若后续仍偏简单，继续上调首领面板或该系数。");
             }
             catch (Exception ex)
             {

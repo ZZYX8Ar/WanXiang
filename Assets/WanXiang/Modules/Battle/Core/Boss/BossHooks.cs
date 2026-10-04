@@ -512,6 +512,146 @@ namespace WanXiang.Battle.Core
         }
     }
 
+    /// <summary>
+    /// 冰晶重生（玄溟专属；用户 2026-10-03 定案，**替代旧的"碎冰重生"**）。
+    ///
+    /// 流程：
+    ///   ① 玄溟被打死 ⇒ **本体退场**（保持阵亡，不在棋盘上、不再是攻击目标），
+    ///      同时在**十字格**（中宫格 4 的上下左右 = 1 / 7 / 3 / 5）生成 4 枚**冰晶**；
+    ///   ② 冰晶是**可被攻击的独立单位**，每枚 HP = Boss 满血 × <c>crystalHpFrac</c>（默认 25%）
+    ///      ⇒ 4 枚合计 ≈ 1 个 Boss 的血量，必须拿出 AOE 才清得完；
+    ///   ③ 玩家须在 <c>windowTurns</c> 回合内打光全部冰晶 ⇒ Boss **真死**；
+    ///   ④ 超时未打光 ⇒ Boss 复活回归中宫，血量依次 <c>revivePcts</c>
+    ///      = **50% → 25% → 0%（第 3 次直接陨落，不再复活）**；
+    ///      冰晶**不消失**（继续留在场上），且 Boss 每次复活时**冰晶满血**。
+    ///
+    /// ⚠ 与旧 <see cref="PhantomDeathHook"/> 的关键区别：
+    ///   · 旧版"1 回合无敌 + 本回合打出 25% 伤害破核"，玩家**看不到目标**（用户报"打不死"）；
+    ///   · 旧版 `_used` 只在破核成功时置位 ⇒ **理论上可无限假死**。
+    ///     新版用 <c>revivePcts</c> 的长度封顶 ⇒ 第 3 次必定真死，**结构上不可能无限循环**。
+    /// </summary>
+    public sealed class IceCrystalRebirthHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly BeastDef _crystalProto;
+        private readonly int[] _cells;          // 冰晶格位（十字格）
+        private readonly int _windowTurns;      // 打光冰晶的回合窗口
+        private readonly float[] _revivePcts;   // 依次复活血量（<=0 表示直接陨落）
+        private readonly float _crystalHpFrac;  // 每枚冰晶 HP / Boss MaxHp
+        private readonly List<BattleUnit> _crystals = new List<BattleUnit>();
+
+        private int _cycle;        // 已超时复活次数（= 下次取 revivePcts 的下标）
+        private int _deadTurn = -1;
+        private bool _active;      // 是否处于「冰晶期」
+
+        public IceCrystalRebirthHook(BattleUnit boss, BeastDef crystalProto, int[] cells,
+                                    int windowTurns, float[] revivePcts, float crystalHpFrac = 0.25f)
+        {
+            _boss = boss; _crystalProto = crystalProto; _cells = cells;
+            _windowTurns = windowTurns < 1 ? 1 : windowTurns;
+            _revivePcts = revivePcts;
+            _crystalHpFrac = crystalHpFrac;
+        }
+
+        private void SetHint(string s) { if (_boss != null) _boss.StateHint = s; }
+
+        public override void OnUnitKilled(BattleState st, BattleUnit killer, BattleUnit victim)
+        {
+            if (_active || victim != _boss) return;
+            // 本体退场（保持阵亡）+ 生成满血冰晶，开始冰晶期
+            _active = true;
+            _deadTurn = st.Turn;
+            EnsureCrystals(st, fullHeal: true);
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                       note: $"{_boss.DisplayName} 碎成 {_crystals.Count} 枚冰晶（{_windowTurns} 回合内打光可破）");
+            SetHint($"冰晶期：{_windowTurns} 回合内打光 {_crystals.Count} 枚冰晶");
+        }
+
+        public override void OnTurnEnd(BattleState st)
+        {
+            if (!_active) return;
+
+            // ① 冰晶全灭 ⇒ 真死（Boss 保持阵亡）
+            if (AllCrystalsDead())
+            {
+                _active = false;
+                SetHint(null);
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                           note: $"冰晶尽碎 ⇒ {_boss.DisplayName} 真正陨落");
+                return;
+            }
+
+            // ② 窗口未满 ⇒ 继续等玩家清冰晶
+            int elapsed = st.Turn - _deadTurn;
+            if (elapsed < _windowTurns)
+            {
+                SetHint($"冰晶期：还剩 {_windowTurns - elapsed} 回合");
+                return;
+            }
+
+            // ③ 超时 ⇒ 按序列复活（<=0 则直接陨落）
+            float pct = (_revivePcts != null && _revivePcts.Length > 0)
+                ? _revivePcts[System.Math.Min(_cycle, _revivePcts.Length - 1)] : 0f;
+            _cycle++;
+            _active = false;
+            SetHint(null);
+
+            if (pct <= 0f)
+            {
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                           note: $"冰晶第 {_cycle} 次未被破 ⇒ {_boss.DisplayName} 力竭陨落（不再复活）");
+                return;   // Boss 保持阵亡
+            }
+
+            _boss.ReviveAtHp(CoreMath.Max(1, (int)(_boss.MaxHp * pct)));
+            EnsureCrystals(st, fullHeal: true);   // 冰晶不消失 + 全部满血
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                       note: $"{_boss.DisplayName} 以 {(pct * 100f):F0}% 血复活（冰晶已复原）");
+        }
+
+        /// <summary>冰晶是否全部阵亡（且确实生成过）。</summary>
+        private bool AllCrystalsDead()
+        {
+            if (_crystals.Count == 0) return false;
+            for (int i = 0; i < _crystals.Count; i++)
+                if (_crystals[i] != null && _crystals[i].IsAlive) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// 首次生成冰晶，或在 Boss 复活时把它们复原到满血。
+        /// ⚠ 冰晶血量用 <c>GrowMaxHp</c> 对齐到「Boss 满血 × crystalHpFrac」——
+        ///   proto 的 BaseHp 只是个占位（不然会随守关倍率走，比例就错了）。
+        /// </summary>
+        private void EnsureCrystals(BattleState st, bool fullHeal)
+        {
+            if (_crystals.Count == 0)
+            {
+                if (_cells == null || _crystalProto == null) return;
+                int targetHp = CoreMath.Max(1, (int)(_boss.MaxHp * _crystalHpFrac));
+                for (int i = 0; i < _cells.Length; i++)
+                {
+                    SummonHook.DeploySummon(st, _crystalProto, _cells[i]);
+                    var u = st.SlotAt(TeamSide.Enemy, _cells[i]);
+                    if (u == null) continue;
+                    u.GrowMaxHp(targetHp - u.MaxHp);
+                    u.SetHp(u.MaxHp);
+                    _crystals.Add(u);
+                }
+                return;
+            }
+
+            if (!fullHeal) return;
+            for (int i = 0; i < _crystals.Count; i++)
+            {
+                var u = _crystals[i];
+                if (u == null) continue;
+                if (u.IsAlive) u.SetHp(u.MaxHp);
+                else u.ReviveAtHp(u.MaxHp);
+            }
+        }
+    }
+
     // ============================================================================
     //  数值型 / 次要机制积木（首领专属，不走通用属性系统）
     // ============================================================================

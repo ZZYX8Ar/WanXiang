@@ -68,8 +68,13 @@ namespace WanXiang.Campaign
             }
         }
 
-        /// <summary>守关节点系数（Boss + 额外特性）。</summary>
-        public const float BossMul = 1.35f;
+        /// <summary>
+        /// 守关节点系数（Boss + 额外特性）。
+        /// ⚠ 2026-10-04 由 1.35 → 1.75：守关改「单 Boss 独占中宫」后随从没了（原是随从承担大部分强度），
+        ///   实测四幕对神品满编 100% 通关 = 白给（见 Task #72）。上调系数把强度补回 Boss 本体。
+        ///   改这里后守关难度整体 +30%，务必重跑 boss.selftest 的平衡观测节。
+        /// </summary>
+        public const float BossMul = 1.75f;
 
         /// <summary>劫系数 K（P3 劫循环接入前恒为 1）。</summary>
         public static float JieMul(int jie) => 1f + JieStep * System.Math.Max(0, jie - 1);

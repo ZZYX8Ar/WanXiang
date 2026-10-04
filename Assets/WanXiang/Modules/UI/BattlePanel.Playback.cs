@@ -75,13 +75,12 @@ namespace WanXiang.Modules.UI
         // ================================================================
 
         /// <summary>
-        /// 刷新 Boss 机制状态提示（目前只有玄溟"碎冰重生"的冰核期）。
-        /// 数据源：<c>BattleUnit.StateHint</c>（由 <c>PhantomDeathHook</c> 写入）。
-        /// 显示到 `Tmp_Tip`（<c>_tipText</c>）—— 该控件此前**已声明但从未被使用**，正好做提示位。
+        /// 刷新 Boss 机制状态提示（玄溟「冰晶重生」的冰晶窗口倒计时等）。
+        /// 数据源：<c>BattleUnit.StateHint</c>（由 <c>IceCrystalRebirthHook</c> 写入）。
         ///
-        /// 背景（用户 2026-10-03）：玄溟打死化冰核后若本回合没打出 25% 伤害就 70% 血复活，
-        /// 玩家看不到任何提示 ⇒ 观感是"打死了又立马复活、怎么打不死"。
-        /// 用户定案：**保留机制，补一个冰核提示**（不削弱难度）。
+        /// ⛔ **当前无调用者（已知缺口，另立任务）**：原先写进 `_tipText`，但那是【技能/连携 tooltip】
+        ///   的控件 ⇒ 会互相覆盖。需要一个**专用显示标签**（prefab 上加）再调本方法。
+        /// 背景（用户 2026-10-03）：玄溟死亡进冰晶期若没提示，玩家观感是"打死了又复活、怎么打不死"。
         /// </summary>
         private void RefreshStateHint()
         {
@@ -112,7 +111,12 @@ namespace WanXiang.Modules.UI
             int guard = 0;
             while (!_play.Finished)
             {
-                RefreshStateHint();   // ★ 每帧刷新 Boss 机制状态提示（冰核等）
+                // ⛔ 此处曾有 `RefreshStateHint();`（把 Boss 机制提示写进 _tipText）—— **已移除**：
+                //   核实发现 `_tipText` 是【技能/连携 tooltip】的文本控件（在 _tipPanel 里），
+                //   写机制提示会把它**覆盖掉**，而且 _tipPanel 默认 SetActive(false) ⇒ 提示根本看不见。
+                //   ⇒ 冰晶"还剩 N 回合"这类 Boss 提示需要有**自己的显示位**（另立任务：在 prefab 上加
+                //     一个专用标签并接线）。`RefreshStateHint` 方法暂留（当前无调用者）供该任务复用。
+                //
                 // ★ 顺序铁律：**先把已产生的事件全部播完，再考虑等令**。
                 //   模拟推进是"跑一段"（可能一次性产生多个事件），若一看到 AwaitingCommand
                 //   就停住等令，那段事件会被跳过 —— 表现就是"第一次攻击没效果、之后才补播"（实测）。
