@@ -35,6 +35,9 @@ namespace WanXiang.Battle.Presentation
         public SpriteRenderer HpBg;
         public SpriteRenderer HpFill;
         public TextMesh NameText;
+        /// <summary>Boss 机制提示（冰晶期「还剩 N 回合」等，来源 <c>BattleUnit.StateHint</c>，
+        /// 由帧流携带 —— 见 <c>UnitSnapshot.StateHint</c>）。空串 = 不显示。</summary>
+        public TextMesh Hint;
         public int Hp, MaxHp;
         public bool Alive = true;
         public Vector2 HomePos;        // 站位（未加浮动）
@@ -227,16 +230,22 @@ namespace WanXiang.Battle.Presentation
             }
         }
 
-        private void BuildUnits()
+        private void BuildUnits() { BuildUnitsFor(_state.AllUnitsEver); }
+
+        /// <summary>
+        /// 按名册建 view。<paramref name="units"/> 平时传 <c>AllUnitsEver</c>（开场名册 + 中途增员）；
+        /// 中途增员也可以只传**单个单位**（见 <see cref="EnsureView"/>）。
+        ///
+        /// ★ 中途增员（召唤 / 分身）的 view **先建好、但先隐藏**，等它在帧流里第一次出现
+        ///   （= 真的入场那一刻）再显示，见 <see cref="ApplyFrame"/>。
+        /// ⚠⚠ **但只靠"开演时预建"是不够的**：手动模式（非 PvP 的正常战斗）下
+        ///   <c>BattlePlayback</c> 构造函数只 <c>AdvanceSim()</c> 跑到**第一个决策点**，
+        ///   开演那一刻冰晶还不在名册里 ⇒ 预建无从谈起（用户 2026-10-04 报"还是什么都没有"就是这个原因）。
+        ///   ⇒ 所以 <see cref="ApplyFrame"/> 里还有一条 <see cref="EnsureView"/> 惰性补建兜底。
+        /// </summary>
+        private void BuildUnitsFor(IReadOnlyList<BattleUnit> units)
         {
             var catalog = FindCatalog();
-            // ★ 用**表现层名册**（AllUnitsEver = 开场名册 + 中途增员）建 view。
-            //   ⛔ 原实现用 AllUnits（开场名册）⇒ 冰晶 / 分身这类"中途才出现"的单位**永远没有 view**：
-            //      战场上看不见它们，而它们的伤害事件（RuntimeId 又和 Boss 撞号）会落到 Boss 的 view 上
-            //      ⇒ 表现就是"没有冰晶 + 伤害数字全飘在 Boss 头上"（用户 2026-10-04 报障）。
-            //   ⇒ 现在：中途增员的 view 也**先建好**，但**先隐藏**，等它在帧流里第一次出现（= 真的入场）再显示。
-            //     （BattlePlayback 会在开演前一次跑完整场，所以"未来才出现的单位"此刻已在名册里。）
-            var units = _state.AllUnitsEver;
             bool hasFrame0 = _state.Frames.Count > 0 && _state.Frames[0].Changed != null;
             var bornAtStart = new HashSet<string>();
             if (hasFrame0)
@@ -347,6 +356,31 @@ namespace WanXiang.Battle.Presentation
                 view.NameText.alignment = TextAlignment.Center;
                 view.NameText.color = new Color(0.16f, 0.13f, 0.09f);
 
+                // ---- Boss 机制提示（玄溟冰晶期"还剩 N 回合"等）----
+                //  做法与 NameText 同一套（世界空间 TextMesh，美术换字体/字号/描边改这里即可）。
+                //  ⛔ 内容一律来自**帧流**（UnitSnapshot.StateHint），不要在这里读 _state 里的单位：
+                //     自动模式 state 是整场跑完的终局态（终局提示会从第 1 帧就贴上）；
+                //     手动模式又是分片推进的（读到的"当前值"与回放进度对不上）。
+                var hintGo = new GameObject("Hint");
+                hintGo.transform.SetParent(root.transform, false);
+                // 文字**世界尺寸恒定**（Boss 放大 2.5× 时不被一起拉飞），位置贴在立绘上沿之上。
+                float rsHint = Mathf.Max(0.001f, root.transform.localScale.y);
+                float spriteWorldH = bodySr.sprite != null ? bodySr.sprite.bounds.size.y * rsHint : 1f;
+                hintGo.transform.localScale = Vector3.one / rsHint;
+                hintGo.transform.localPosition = new Vector3(0f, (spriteWorldH * 0.5f + 1.05f) / rsHint, 0f);
+                view.Hint = hintGo.AddComponent<TextMesh>();
+                if (f != null)
+                {
+                    view.Hint.font = f;
+                    hintGo.GetComponent<MeshRenderer>().sharedMaterial = f.material;
+                }
+                view.Hint.text = "";
+                view.Hint.characterSize = 0.075f;
+                view.Hint.fontSize = 48;
+                view.Hint.anchor = TextAnchor.LowerCenter;
+                view.Hint.alignment = TextAlignment.Center;
+                view.Hint.color = new Color(0.80f, 0.24f, 0.15f);   // 朱红：机制提示要一眼看见
+
                 int h2 = u.RuntimeId != null ? u.RuntimeId.GetHashCode() : i * 7919;
                 view.Phase = (Mathf.Abs(h2) % 1000) / 1000f * Mathf.PI * 2f;
 
@@ -379,14 +413,48 @@ namespace WanXiang.Battle.Presentation
             for (int i = 0; i < frame.Changed.Length; i++)
             {
                 var s = frame.Changed[i];
-                if (!_views.TryGetValue(s.UnitId, out var v)) continue;
-                // ★ 中途增员唤醒：该单位第一次出现在帧流里 = 真的入场了 ⇒ 显示 Build 时预建但隐藏的 view。
+                if (!_views.TryGetValue(s.UnitId, out var v))
+                {
+                    // ★ 中途增员（召唤 / 分身）**惰性补建**：它「此刻」才进入名册。
+                    //   ⚠ 不能只靠开演时的预建：手动模式下 BattlePlayback 是**分片推进**的，
+                    //     开演那一刻还没跑到"冰晶出现"的回合（用户 2026-10-04 报"还是什么都没有"的真因）。
+                    v = EnsureView(s.UnitId);
+                    if (v == null) continue;
+                }
+                // 该单位第一次出现在帧流里 = 真的入场了 ⇒ 把（预建但隐藏 / 刚补建的）view 显出来。
                 if (v.Root != null && !v.Root.activeSelf) v.Root.SetActive(true);
+                // Boss 机制提示（冰晶期倒数等）：随帧流更新（空串 = 隐藏）
+                if (v.Hint != null)
+                {
+                    string hint = s.StateHint ?? "";
+                    if (v.Hint.text != hint) v.Hint.text = hint;
+                }
                 v.Hp = s.Hp; v.MaxHp = s.MaxHp;
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 if (v.Alive && !s.Alive) v.DeadBlend = 0f;
                 v.Alive = s.Alive;
             }
+        }
+
+        /// <summary>
+        /// 中途增员的**惰性补建**：按 UnitId 到表现层名册（AllUnitsEver）里找到它，就地建一个 view。
+        /// 找不到（已下场 / id 不对）返回 null。用法与原因见 <see cref="BuildUnitsFor"/> 的注释。
+        /// </summary>
+        private UnitView2D EnsureView(string unitId)
+        {
+            if (_state == null || string.IsNullOrEmpty(unitId)) return null;
+            var all = _state.AllUnitsEver;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var u = all[i];
+                if (u == null || u.RuntimeId != unitId) continue;
+                if (!u.Pos.IsValid) return null;
+                BuildUnitsFor(new BattleUnit[] { u });
+                UnitView2D v;
+                _views.TryGetValue(unitId, out v);
+                return v;
+            }
+            return null;
         }
 
         // ================================================================

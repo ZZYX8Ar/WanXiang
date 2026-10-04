@@ -74,30 +74,6 @@ namespace WanXiang.Modules.UI
         //  回放
         // ================================================================
 
-        /// <summary>
-        /// 刷新 Boss 机制状态提示（玄溟「冰晶重生」的冰晶窗口倒计时等）。
-        /// 数据源：<c>BattleUnit.StateHint</c>（由 <c>IceCrystalRebirthHook</c> 写入）。
-        ///
-        /// ⛔ **当前无调用者（已知缺口，另立任务）**：原先写进 `_tipText`，但那是【技能/连携 tooltip】
-        ///   的控件 ⇒ 会互相覆盖。需要一个**专用显示标签**（prefab 上加）再调本方法。
-        /// 背景（用户 2026-10-03）：玄溟死亡进冰晶期若没提示，玩家观感是"打死了又复活、怎么打不死"。
-        /// </summary>
-        private void RefreshStateHint()
-        {
-            if (_tipText == null || _play == null || _play.State == null) return;
-
-            string hint = null;
-            var foes = _play.State.UnitsOf(WanXiang.Battle.Core.TeamSide.Enemy);
-            for (int i = 0; i < foes.Count; i++)
-            {
-                var u = foes[i];
-                if (u == null || string.IsNullOrEmpty(u.StateHint)) continue;
-                hint = u.DisplayName + "：" + u.StateHint;
-                break;   // 同一时刻只会有一个 Boss 处于冰核期
-            }
-            if (_tipText.text != hint) _tipText.text = hint == null ? "" : hint;
-        }
-
         private async UniTask PlayLoop(CancellationToken ct)
         {
             ApplyFrames();
@@ -111,11 +87,11 @@ namespace WanXiang.Modules.UI
             int guard = 0;
             while (!_play.Finished)
             {
-                // ⛔ 此处曾有 `RefreshStateHint();`（把 Boss 机制提示写进 _tipText）—— **已移除**：
-                //   核实发现 `_tipText` 是【技能/连携 tooltip】的文本控件（在 _tipPanel 里），
-                //   写机制提示会把它**覆盖掉**，而且 _tipPanel 默认 SetActive(false) ⇒ 提示根本看不见。
-                //   ⇒ 冰晶"还剩 N 回合"这类 Boss 提示需要有**自己的显示位**（另立任务：在 prefab 上加
-                //     一个专用标签并接线）。`RefreshStateHint` 方法暂留（当前无调用者）供该任务复用。
+                // ⛔ 此处**不再**有任何 Boss 机制提示的刷新逻辑：提示已改由战场表现层
+                //   （BattleStage2D）画成单位头顶的**世界空间文字**，内容随帧流（UnitSnapshot.StateHint）更新。
+                //   历次踩坑：① 曾写进 _tipText —— 那是【技能/连携 tooltip】的控件，会互相覆盖，
+                //   且 _tipPanel 默认隐藏 ⇒ 根本看不见；② 曾想每帧读 _play.State 的单位取 StateHint ——
+                //   自动模式下 state 是整场跑完的终局态（终局提示会从第 1 帧就贴上）。
                 //
                 // ★ 顺序铁律：**先把已产生的事件全部播完，再考虑等令**。
                 //   模拟推进是"跑一段"（可能一次性产生多个事件），若一看到 AwaitingCommand

@@ -45,6 +45,14 @@ namespace WanXiang.Battle.Core
         /// 做成文本而不是结构化列表，是因为灰盒阶段不需要点状态图标看详情。</summary>
         public string Statuses;
 
+        /// <summary>
+        /// Boss 机制提示（玄溟冰晶期的「还剩 N 回合」等，来源 <c>BattleUnit.StateHint</c>）。
+        /// ⚠ 必须跟帧流走，**不能让表现层直接读 state 里的单位**：
+        ///   自动模式下 state 是"整场跑完"的终局态（会把终局提示从第 1 帧就贴上）；
+        ///   手动模式下模拟又是分片推进的（读到的"当前值"与回放进度对不上）。
+        /// </summary>
+        public string StateHint;
+
         /// <summary>同属共鸣的攻击加成（0 / 0.08 / 0.16 / 0.25）。GDD 要求共鸣是玩家看得见的收益，
         /// 灰盒至少得把它标出来，否则"凑属性"这件事在画面上完全无迹可寻。</summary>
         public float ResonanceBonus;
@@ -59,6 +67,7 @@ namespace WanXiang.Battle.Core
                 && Rage == o.Rage
                 && Cd0 == o.Cd0 && Cd1 == o.Cd1 && Cd2 == o.Cd2
                 && Statuses == o.Statuses
+                && StateHint == o.StateHint
                 && ResonanceBonus == o.ResonanceBonus
                 && Element == o.Element;
         }
@@ -74,6 +83,7 @@ namespace WanXiang.Battle.Core
                 h = h * 31 + (int)Rage;
                 h = h * 31 + Cd0; h = h * 31 + Cd1; h = h * 31 + Cd2;
                 h = h * 31 + (int)Element;
+                h = h * 31 + (StateHint != null ? StateHint.Length : 0);
                 return h;
             }
         }
@@ -112,6 +122,7 @@ namespace WanXiang.Battle.Core
                 Cd1 = u.Cooldowns[1],
                 Cd2 = u.Cooldowns[2],
                 Statuses = DescribeStatuses(u),
+                StateHint = u.StateHint,
                 ResonanceBonus = u.ResonanceAttackBonus,
             };
             return s;
