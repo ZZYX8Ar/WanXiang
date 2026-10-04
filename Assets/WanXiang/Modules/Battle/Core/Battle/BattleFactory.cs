@@ -111,6 +111,20 @@ namespace WanXiang.Battle.Core
         }
 
         /// <summary>
+        /// **中途增员**（召唤 / 分身）：每只都用 <see cref="BattleState.NextRuntimeId"/> 拿一个
+        /// **全战场唯一**的 RuntimeId。
+        ///
+        /// ⛔ 绝不能拿上面那个重载传 "E"：它的计数器**每次调用都从 0 起** ⇒ 召唤物会拿到 "E0"，
+        ///   与开场第一个敌人撞号。而 RuntimeId 是表现层 `_views` 的键 + 日志的 actorId/targetId ⇒
+        ///   撞号 = 召唤物**没有 view（看不见）** + 它的伤害数字/血条**错位到撞号那个单位身上**。
+        /// </summary>
+        public static int DeploySpawn(BattleState st, DeployEntry[] entries)
+        {
+            int n = 0;
+            return Deploy(st, entries, null, ref n);
+        }
+
+        /// <summary>
         /// 敌方属性倍率（§5.1）。只动 生命/攻击/防御；速度与暴击率**不缩放**（见 DeployEntry.StatMul）。
         /// </summary>
         private static void ApplyStatMul(BeastDef def, float mul)
@@ -142,7 +156,9 @@ namespace WanXiang.Battle.Core
                 if (!string.IsNullOrEmpty(entries[i].TraitId))
                     BattleTraits.Apply(copy, entries[i].TraitId);
 
-                var unit = new BattleUnit(entries[i].Side, copy, $"{idPrefix}{counter}");
+                // idPrefix 为空 = 中途增员：走"全战场唯一"的序号，避免与开场 P0../E0.. 撞号。
+                string runtimeId = string.IsNullOrEmpty(idPrefix) ? st.NextRuntimeId() : idPrefix + counter;
+                var unit = new BattleUnit(entries[i].Side, copy, runtimeId);
                 // 「复苏」劫象：阵亡时以 30% 生命复活 1 次（复用惊蛰虫卵的孵化机制）
                 switch (entries[i].TraitId)
                 {

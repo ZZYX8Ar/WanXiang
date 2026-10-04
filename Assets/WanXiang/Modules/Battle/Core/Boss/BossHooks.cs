@@ -170,7 +170,9 @@ namespace WanXiang.Battle.Core
         }
         private static void BattleFactoryDeploy(BattleState st, DeployEntry e)
         {
-            BattleFactory.Deploy(st, new[] { e }, "E");
+            // ⛔ 必须用 DeploySpawn（唯一 id）：用 "E" 前缀会让召唤物拿到 "E0" 与开场第一个敌人撞号，
+            //   表现层按 RuntimeId 建 view ⇒ 召唤物不可见、伤害数字/血条错位到 Boss 身上。
+            BattleFactory.DeploySpawn(st, new[] { e });
         }
     }
 

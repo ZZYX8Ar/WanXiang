@@ -230,7 +230,18 @@ namespace WanXiang.Battle.Presentation
         private void BuildUnits()
         {
             var catalog = FindCatalog();
-            var units = _state.AllUnits;
+            // ★ 用**表现层名册**（AllUnitsEver = 开场名册 + 中途增员）建 view。
+            //   ⛔ 原实现用 AllUnits（开场名册）⇒ 冰晶 / 分身这类"中途才出现"的单位**永远没有 view**：
+            //      战场上看不见它们，而它们的伤害事件（RuntimeId 又和 Boss 撞号）会落到 Boss 的 view 上
+            //      ⇒ 表现就是"没有冰晶 + 伤害数字全飘在 Boss 头上"（用户 2026-10-04 报障）。
+            //   ⇒ 现在：中途增员的 view 也**先建好**，但**先隐藏**，等它在帧流里第一次出现（= 真的入场）再显示。
+            //     （BattlePlayback 会在开演前一次跑完整场，所以"未来才出现的单位"此刻已在名册里。）
+            var units = _state.AllUnitsEver;
+            bool hasFrame0 = _state.Frames.Count > 0 && _state.Frames[0].Changed != null;
+            var bornAtStart = new HashSet<string>();
+            if (hasFrame0)
+                for (int k = 0; k < _state.Frames[0].Changed.Length; k++)
+                    bornAtStart.Add(_state.Frames[0].Changed[k].UnitId);
             int unitIndex = 0;
             for (int i = 0; i < units.Count; i++)
             {
@@ -340,6 +351,8 @@ namespace WanXiang.Battle.Presentation
                 view.Phase = (Mathf.Abs(h2) % 1000) / 1000f * Mathf.PI * 2f;
 
                 _views[u.RuntimeId] = view;
+                // 开场就有的单位立刻可见；中途增员先隐藏 —— 由 ApplyFrame 在它第一次出现在帧流里时唤起。
+                if (hasFrame0 && !bornAtStart.Contains(u.RuntimeId)) root.SetActive(false);
                 unitIndex++;
             }
         }
@@ -367,6 +380,8 @@ namespace WanXiang.Battle.Presentation
             {
                 var s = frame.Changed[i];
                 if (!_views.TryGetValue(s.UnitId, out var v)) continue;
+                // ★ 中途增员唤醒：该单位第一次出现在帧流里 = 真的入场了 ⇒ 显示 Build 时预建但隐藏的 view。
+                if (v.Root != null && !v.Root.activeSelf) v.Root.SetActive(true);
                 v.Hp = s.Hp; v.MaxHp = s.MaxHp;
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 if (v.Alive && !s.Alive) v.DeadBlend = 0f;

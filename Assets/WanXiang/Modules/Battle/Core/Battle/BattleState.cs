@@ -110,6 +110,22 @@ namespace WanXiang.Battle.Core
         private readonly BattleUnit[][] _slots = new BattleUnit[2][];
         private readonly List<BattleUnit>[] _units = new List<BattleUnit>[2];
         private readonly List<BattleUnit> _all = new List<BattleUnit>(BoardLayout.MaxDeployed * 2);
+
+        /// <summary>
+        /// **表现层名册** = 开场名册 + 中途增员（召唤 / 分身）。
+        ///
+        /// ⛔ 与 <see cref="_all"/> 的分工必须守住：`_all` 是**战斗规则**的名单 ——
+        ///   DoT 结算（Steps）、目标选择（Targets 的 CollectAliveAll）、邻接（BoardRules）、
+        ///   出手序列（BuildActionOrderInto）全都按它遍历。中途增员**不进** `_all`，
+        ///   否则召唤物会突然开始行动、开始吃 DoT —— 那是改玩法（也会动指纹）。
+        ///   `_allEver` 只服务**表现层**：帧流按它遍历、视图按它补建，
+        ///   这样"中途出现的水晶 / 分身"才有自己的 view、血条与飘字位置。
+        /// </summary>
+        private readonly List<BattleUnit> _allEver = new List<BattleUnit>(BoardLayout.MaxDeployed * 2);
+
+        /// <summary>运行期新增单位的 id 序号（见 <see cref="NextRuntimeId"/>）。</summary>
+        private int _runtimeSerial;
+
         private bool _setupDone;
 
         // ---- 视图帧流（见 ViewFrames.cs 的说明） ----
@@ -194,6 +210,9 @@ namespace WanXiang.Battle.Core
             unit.RageCap = Config.RageMax;
             _slots[s][pos.Index] = unit;
             _units[s].Add(unit);
+            // 中途增员（_setupDone 之后上场的召唤物 / 分身）只进**表现层名册**：
+            // 战斗规则名册 _all 保持开场阵容不变（见 _allEver 的注释）。
+            if (_setupDone) _allEver.Add(unit);
             return true;
         }
 
@@ -224,6 +243,10 @@ namespace WanXiang.Battle.Core
             _all.Clear();
             for (int s = 0; s < 2; s++) _all.AddRange(_units[s]);
 
+            // 表现层名册 = 开场名册（此后中途增员由 Place 追加）
+            _allEver.Clear();
+            _allEver.AddRange(_all);
+
             _setupDone = true;
 
             _lastSnapshot = new UnitSnapshot[_all.Count];
@@ -243,13 +266,22 @@ namespace WanXiang.Battle.Core
         public void CaptureFrame(bool forceAll = false)
         {
             if (!CaptureFrames) return;
-            if (_lastSnapshot.Length != _all.Count)
-                _lastSnapshot = new UnitSnapshot[_all.Count];
+            // ⚠ 中途增员会让名册变长：**只扩容、不清空**。
+            //   原来那句 `if (长度不等) 重新 new` 会在增员时把上一帧的比对基准全丢掉，
+            //   于是下一帧把全战场都当成"有变化"重发一遍（帧体积暴涨）。
+            //   扩容后新增槽位 = default ⇒ 与真实快照必然不等 ⇒ 该单位自然出现在下一帧的
+            //   Changed 里，表现层据此补建 view。这正是"召唤物在其入场那一刻才出现"的机制。
+            if (_lastSnapshot.Length < _allEver.Count)
+            {
+                var grown = new UnitSnapshot[_allEver.Count];
+                System.Array.Copy(_lastSnapshot, grown, _lastSnapshot.Length);
+                _lastSnapshot = grown;
+            }
 
             _frameBuf.Clear();
-            for (int i = 0; i < _all.Count; i++)
+            for (int i = 0; i < _allEver.Count; i++)
             {
-                var snap = ViewSnapshot.Of(_all[i]);
+                var snap = ViewSnapshot.Of(_allEver[i]);
                 if (!forceAll && _lastSnapshot[i].Equals(snap)) continue;
                 _lastSnapshot[i] = snap;
                 _frameBuf.Add(snap);
@@ -268,8 +300,23 @@ namespace WanXiang.Battle.Core
         public void ResetFrames()
         {
             _frames.Clear();
-            for (int i = 0; i < _lastSnapshot.Length; i++) _lastSnapshot[i] = default;
+            _lastSnapshot = new UnitSnapshot[_allEver.Count];   // 与表现层名册对齐（含中途增员）
             CaptureFrame(true);
+        }
+
+        /// <summary>
+        /// 运行期新增单位的**唯一** RuntimeId（中途召唤 / 分身专用）。
+        ///
+        /// ⛔ 绝不能用 "E+序号"：<c>BattleFactory.Deploy(st, entries, "E")</c> 的计数器**每次调用都从 0 起**
+        ///   ⇒ 召唤物会拿到 "E0"，与开场第一个敌人**撞号**。
+        ///   而 RuntimeId 既是表现层 `_views` 的键，也是日志里的 actorId / targetId：
+        ///   撞号的后果就是——召唤物**没有自己的 view（战场上看不见）**，而它的伤害事件
+        ///   （targetId="E0"）被算到撞号那个单位头上 ⇒ **伤害数字 / 血条全飘到 Boss 身上**。
+        /// </summary>
+        public string NextRuntimeId()
+        {
+            _runtimeSerial++;
+            return "S" + _runtimeSerial;
         }
 
         // ================================================================
@@ -290,8 +337,15 @@ namespace WanXiang.Battle.Core
         /// <summary>某方全部上阵单位，按站位索引升序。</summary>
         public IReadOnlyList<BattleUnit> UnitsOf(TeamSide side) => _units[(int)side];
 
-        /// <summary>全体单位：我方先、敌方后，各自按站位升序。</summary>
+        /// <summary>全体单位：我方先、敌方后，各自按站位升序。**战斗规则用这个**（开场阵容，中途增员不在内）。</summary>
         public IReadOnlyList<BattleUnit> AllUnits => _all;
+
+        /// <summary>
+        /// **表现层名册**：开场阵容 + 中途增员（召唤 / 分身），后者按入场顺序追加。
+        /// 帧流与视图建表用它 —— 否则中途出现的水晶 / 分身既没有帧、也没有 view（战场上不可见）。
+        /// ⛔ 战斗规则（DoT / 目标选择 / 邻接 / 出手序列）**必须**继续用 <see cref="AllUnits"/>。
+        /// </summary>
+        public IReadOnlyList<BattleUnit> AllUnitsEver => _allEver;
 
         public bool IsSetupDone => _setupDone;
 
