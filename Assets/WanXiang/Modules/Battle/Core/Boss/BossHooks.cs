@@ -555,7 +555,20 @@ namespace WanXiang.Battle.Core
             _crystalHpFrac = crystalHpFrac;
         }
 
-        private void SetHint(string s) { if (_boss != null) _boss.StateHint = s; }
+        /// <summary>
+        /// 写 Boss 头顶的机制提示（表现层读 <c>BattleUnit.StateHint</c>，随帧流走）。
+        /// ⛔ 必须**顺手抓一帧**：提示不进日志，而帧只在 `Log.Add` 时抓 ⇒
+        ///   若只赋值不抓帧，这条提示要等到**下一个事件**才进帧流（约 0.3~1 秒），
+        ///   如果死亡恰好是该回合最后一步、或玩家同回合把冰晶清完，观感就是"提示根本没出现"。
+        ///   （`BoardRules` 也有直接调 `st.CaptureFrame()` 的先例，这里是同一手法。）
+        /// </summary>
+        private void SetHint(BattleState st, string s)
+        {
+            if (_boss == null) return;
+            if (_boss.StateHint == s) return;     // 值没变就不抓帧（CaptureFrame 自身也会短路）
+            _boss.StateHint = s;
+            if (st != null) st.CaptureFrame();
+        }
 
         public override void OnUnitKilled(BattleState st, BattleUnit killer, BattleUnit victim)
         {
@@ -566,7 +579,7 @@ namespace WanXiang.Battle.Core
             EnsureCrystals(st, fullHeal: true);
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                        note: $"{_boss.DisplayName} 碎成 {_crystals.Count} 枚冰晶（{_windowTurns} 回合内打光可破）");
-            SetHint($"冰晶期：{_windowTurns} 回合内打光 {_crystals.Count} 枚冰晶");
+            SetHint(st, $"冰晶期 · 还有 {_windowTurns} 回合复活");
         }
 
         public override void OnTurnEnd(BattleState st)
@@ -577,7 +590,7 @@ namespace WanXiang.Battle.Core
             if (AllCrystalsDead())
             {
                 _active = false;
-                SetHint(null);
+                SetHint(st, null);
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                            note: $"冰晶尽碎 ⇒ {_boss.DisplayName} 真正陨落");
                 return;
@@ -587,7 +600,7 @@ namespace WanXiang.Battle.Core
             int elapsed = st.Turn - _deadTurn;
             if (elapsed < _windowTurns)
             {
-                SetHint($"冰晶期：还剩 {_windowTurns - elapsed} 回合");
+                SetHint(st, $"冰晶期 · 还有 {_windowTurns - elapsed} 回合复活");
                 return;
             }
 
@@ -596,7 +609,7 @@ namespace WanXiang.Battle.Core
                 ? _revivePcts[System.Math.Min(_cycle, _revivePcts.Length - 1)] : 0f;
             _cycle++;
             _active = false;
-            SetHint(null);
+            SetHint(st, null);
 
             if (pct <= 0f)
             {

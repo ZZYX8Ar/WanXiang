@@ -128,6 +128,15 @@ namespace WanXiang.Battle.Presentation
         public Sprite BgSpring;        // ArtRes/Battle/BG_spring.png
         public Sprite CatalogSpriteFallback;
 
+        // ---- Boss 机制提示（单位头顶的世界空间文字：冰晶期"还有 N 回合复活"等）----
+        //  美术点位：直接在 Inspector 里改这三个值，不用动代码、也不用改 prefab。
+        /// <summary>提示文字颜色（默认朱红）。</summary>
+        public Color HintColor = new Color(0.80f, 0.24f, 0.15f);
+        /// <summary>提示文字字号倍率（1 = 默认；Boss 放大 2.5× 时文字**不跟着放大**）。</summary>
+        public float HintSize = 1f;
+        /// <summary>提示相对立绘上沿再往上抬的距离（世界单位）。</summary>
+        public float HintRaise = 1.05f;
+
         private BattleState _state;
         private readonly Dictionary<string, UnitView2D> _views = new Dictionary<string, UnitView2D>(16);
         private readonly List<GameObject> _tempTexts = new List<GameObject>(16);
@@ -367,7 +376,7 @@ namespace WanXiang.Battle.Presentation
                 float rsHint = Mathf.Max(0.001f, root.transform.localScale.y);
                 float spriteWorldH = bodySr.sprite != null ? bodySr.sprite.bounds.size.y * rsHint : 1f;
                 hintGo.transform.localScale = Vector3.one / rsHint;
-                hintGo.transform.localPosition = new Vector3(0f, (spriteWorldH * 0.5f + 1.05f) / rsHint, 0f);
+                hintGo.transform.localPosition = new Vector3(0f, (spriteWorldH * 0.5f + HintRaise) / rsHint, 0f);
                 view.Hint = hintGo.AddComponent<TextMesh>();
                 if (f != null)
                 {
@@ -375,11 +384,11 @@ namespace WanXiang.Battle.Presentation
                     hintGo.GetComponent<MeshRenderer>().sharedMaterial = f.material;
                 }
                 view.Hint.text = "";
-                view.Hint.characterSize = 0.075f;
+                view.Hint.characterSize = 0.075f * Mathf.Max(0.01f, HintSize);
                 view.Hint.fontSize = 48;
                 view.Hint.anchor = TextAnchor.LowerCenter;
                 view.Hint.alignment = TextAlignment.Center;
-                view.Hint.color = new Color(0.80f, 0.24f, 0.15f);   // 朱红：机制提示要一眼看见
+                view.Hint.color = HintColor;
 
                 int h2 = u.RuntimeId != null ? u.RuntimeId.GetHashCode() : i * 7919;
                 view.Phase = (Mathf.Abs(h2) % 1000) / 1000f * Mathf.PI * 2f;
