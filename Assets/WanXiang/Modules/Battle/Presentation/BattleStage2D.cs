@@ -118,8 +118,17 @@ namespace WanXiang.Battle.Presentation
         private readonly Color[] _cellBaseEnemy = new Color[9];
                                                         //   （原来写死 1.9 > 行距 1.155 ⇒ 视觉挤在一起）
 
-        /// <summary>血条相对立绘容器的高度（立绘高 1.9，浮在头顶上沿）。</summary>
-        private const float HpBarY = 1.95f;
+        // ---- 单位标签（名字 / 血条）的美术点位：直接在 Inspector 里改，不用动代码、不用改 prefab ----
+        /// <summary>血条相对立绘容器的 y 偏移。</summary>
+        public float HpBarY = 2.35f;
+        /// <summary>血条满宽（世界单位）。</summary>
+        public float HpBarWidth = 1.30f;
+        /// <summary>血条底衬高（世界单位）。</summary>
+        public float HpBarBackHeight = 0.18f;
+        /// <summary>名字字号（TextMesh.characterSize）。</summary>
+        public float NameSize = 0.10f;
+        /// <summary>名字相对立绘容器的 y 偏移。</summary>
+        public float NameY = 1.62f;
 
         private const float BoardY = -0.2f;      // 棋盘（3×3 网格）中心 y —— 网格与单位**必须共用**
         private const float PlayerX = -4.3f;
@@ -343,14 +352,15 @@ namespace WanXiang.Battle.Presentation
                 view.BaseColor = bodySr.color;
 
                 view.HpBg = MakeChildSprite(root, "HpBg", new Color(0.10f, 0.08f, 0.06f),
-                                            new Vector2(0.85f, 0.10f), new Vector2(0f, HpBarY), 2);
+                                            new Vector2(HpBarWidth, HpBarBackHeight), new Vector2(0f, HpBarY), 2);
                 view.HpFill = MakeChildSprite(root, "HpFill", BattlePalette.Vital,
-                                              new Vector2(0.80f, 0.07f), new Vector2(0f, HpBarY), 3);
+                                              new Vector2(HpBarWidth - 0.06f, HpBarBackHeight - 0.06f),
+                                              new Vector2(0f, HpBarY), 3);
                 SetHpBar2D(view, u.Hp, u.MaxHp);
 
                 var nameGo = new GameObject("Name");
                 nameGo.transform.SetParent(root.transform, false);
-                nameGo.transform.localPosition = new Vector3(0f, 1.35f, 0f);
+                nameGo.transform.localPosition = new Vector3(0f, NameY, 0f);
                 var f = LegacyFont();
                 view.NameText = nameGo.AddComponent<TextMesh>();
                 if (f != null)
@@ -359,7 +369,7 @@ namespace WanXiang.Battle.Presentation
                     nameGo.GetComponent<MeshRenderer>().sharedMaterial = f.material;
                 }
                 view.NameText.text = u.DisplayName;
-                view.NameText.characterSize = 0.055f;
+                view.NameText.characterSize = NameSize;
                 view.NameText.fontSize = 48;
                 view.NameText.anchor = TextAnchor.LowerCenter;
                 view.NameText.alignment = TextAlignment.Center;
@@ -676,14 +686,16 @@ namespace WanXiang.Battle.Presentation
             }
         }
 
-        private static void SetHpBar2D(UnitView2D v, int hp, int max)
+        /// <summary>血条按比例伸缩。<paramref name="v"/> 的填充宽度 = <see cref="HpBarWidth"/>（可在 Inspector 调）。</summary>
+        private void SetHpBar2D(UnitView2D v, int hp, int max)
         {
             if (v.HpFill == null || max <= 0) return;
             float ratio = Mathf.Clamp01((float)hp / max);
+            float full = Mathf.Max(0.05f, HpBarWidth - 0.06f);   // ⛔ 必须跟 BuildUnitsFor 里创建 HpFill 的宽度一致
             var t = v.HpFill.transform;
             var s = t.localScale;
-            t.localScale = new Vector3(0.90f * ratio, s.y, s.z);
-            t.localPosition = new Vector3(-(0.90f - 0.90f * ratio) * 0.5f, t.localPosition.y, t.localPosition.z);
+            t.localScale = new Vector3(full * ratio, s.y, s.z);
+            t.localPosition = new Vector3(-(full - full * ratio) * 0.5f, t.localPosition.y, t.localPosition.z);
             v.HpFill.color = ratio > 0.5f ? BattlePalette.Vital
                           : ratio > 0.25f ? BattlePalette.Gold : BattlePalette.Crimson;
         }
