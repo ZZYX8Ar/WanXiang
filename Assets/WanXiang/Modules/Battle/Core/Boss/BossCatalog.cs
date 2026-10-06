@@ -342,7 +342,7 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new SummonHook(2, new[]{ TengNu, TengNu }, new[]{ 3, 5 }));
                     // 生机（被动）：场上每存活 1 只召唤物，伤害 +6%（可叠）⇒ 清场 = 直接削弱它
                     st.Hooks.Add(new OutgoingDamageBonusHook(boss,
-                        (s, d) => 0.04f * CountSummons(s, boss)));
+                        (s, d) => 0.04f * System.Math.Min(3, CountSummons(s, boss))));
                     st.Hooks.Add(new RootHook(4));                // 根缚：每 3 回合缚住 1 人 1 回合
                     st.Hooks.Add(new PhaseHook(boss, 0.50f, (s, b) =>
                     {
@@ -367,8 +367,8 @@ namespace WanXiang.Battle.Core
                 case "b_manman":  // 蔓娘：荆棘 25% + 缠丝（连击加码）+ 汲养 50% + 根缚
                     st.Hooks.Add(new BossOpeningMpHook(3));
                     // 荆棘 + 缠丝二合一：基础反弹 25%，被**同一单位**连续攻击时第 2 次起 +15%/次
-                    st.Hooks.Add(new ThornStreakHook(0.15f, 0.08f));
-                    st.Hooks.Add(new LifestealHook(boss, 0.50f));
+                    st.Hooks.Add(new ThornStreakHook(0.10f, 0.05f));
+                    st.Hooks.Add(new LifestealHook(boss, 0.10f));
                     st.Hooks.Add(new RootHook(3));                // 根缚：每 2 回合
                     break;
 
@@ -384,10 +384,10 @@ namespace WanXiang.Battle.Core
 
                 case "b_chiba":   // 赤魃：燎原 + 焚身爆裂 + 分阶段分身 + 火种同源
                     st.Hooks.Add(new BossOpeningMpHook(3));
-                    st.Hooks.Add(new SummonHook(4, new[]{ FenShen }, new[]{ 2 }));
+                    st.Hooks.Add(new SummonHook(6, new[]{ FenShen }, new[]{ 2 }));
                     // 燎原（被动）：场上每 1 层灼烧，伤害 +3%
                     st.Hooks.Add(new OutgoingDamageBonusHook(boss,
-                        (s, d) => 0.03f * TotalPlayerStacks(s, StatusCatalog.Burn)));
+                        (s, d) => System.Math.Min(1.20f, 0.03f * TotalPlayerStacks(s, StatusCatalog.Burn))));
                     st.Hooks.Add(new SummonDeathBurstHook(boss, 0.12f));   // 分身崩解 → 全体 25% 最大生命
                     st.Hooks.Add(new PhaseHook(boss, 0.75f, (s, b) => DeployToFreeCell(s, b.Side, FenShen)));
                     st.Hooks.Add(new PhaseHook(boss, 0.50f, (s, b) => DeployToFreeCell(s, b.Side, FenShen)));
@@ -397,14 +397,14 @@ namespace WanXiang.Battle.Core
 
                 case "b_jinjiao":  // 烬蛟：灼烧叠层 + 引燃 + 余烬 + 焚身（≤40% 叠层翻倍）
                     st.Hooks.Add(new BossOpeningMpHook(3));
-                    st.Hooks.Add(new BurnOnHitPhaseHook(boss, 0.40f, 0.02f));
+                    st.Hooks.Add(new BurnOnHitPhaseHook(boss, 0.40f, 0.012f));
                     st.Hooks.Add(new DevourGrowthHook(boss, 0.02f, 0.02f));   // 余烬（近似）
                     st.Hooks.Add(new BurnDetonateHook(boss, 5, 0.04f));       // 引燃：总层 ≥8 → 引爆
                     break;
 
                 case "b_jiaozhi":  // 燋彘：硬壳 + 破壳窗口 + 岩浆喷发 + 熔核
                     st.Hooks.Add(new BossOpeningMpHook(3));
-                    st.Hooks.Add(new CrustHook(boss, 0.20f, 0.50f));
+                    st.Hooks.Add(new CrustHook(boss, 0.10f, 0.50f));
                     st.Hooks.Add(new PeriodicNukeHook(boss, 3, 0.08f, "岩浆喷发"));
                     st.Hooks.Add(new DeathSummonHook(boss, RongYing, 2));
                     break;
@@ -420,18 +420,18 @@ namespace WanXiang.Battle.Core
 
                 case "b_shai":     // 铩：机关护盾 + 齿轮反击 + 组装 + 过载
                     st.Hooks.Add(new BossOpeningMpHook(3));
-                    st.Hooks.Add(new CrustHook(boss, 0.25f, 0.40f));
+                    st.Hooks.Add(new CrustHook(boss, 0.12f, 0.40f));
                     st.Hooks.Add(new ShieldBreakReflectHook(boss, 1.50f));  // 齿轮反击
-                    st.Hooks.Add(new AssembleHook(boss, 0.15f));
+                    st.Hooks.Add(new AssembleHook(boss, 0.15f, 0.45f));
                     break;
 
                 case "b_shuangfeng": // 霜锋：连环斩 + 剜心 + 残刃
                     st.Hooks.Add(new BossOpeningMpHook(3));
                     st.Hooks.Add(new StreakDamageHook(boss, 0.10f));      // 连环斩
-                    st.Hooks.Add(new LowestHpNukeHook(boss, 2, 1.30f));   // 剜心
-                    st.Hooks.Add(new PhaseHook(boss, 0.75f, (s, b) => AoeNuke(s, b, 0.30f), false));
-                    st.Hooks.Add(new PhaseHook(boss, 0.50f, (s, b) => AoeNuke(s, b, 0.30f), false));
-                    st.Hooks.Add(new PhaseHook(boss, 0.25f, (s, b) => AoeNuke(s, b, 0.30f), false));
+                    st.Hooks.Add(new LowestHpNukeHook(boss, 2, 1.10f));   // 剜心
+                    st.Hooks.Add(new PhaseHook(boss, 0.75f, (s, b) => AoeNuke(s, b, 0.30f)));
+                    st.Hooks.Add(new PhaseHook(boss, 0.50f, (s, b) => AoeNuke(s, b, 0.30f)));
+                    st.Hooks.Add(new PhaseHook(boss, 0.25f, (s, b) => AoeNuke(s, b, 0.30f)));
                     break;
 
                 // ---- 幕四 · 水 ----
@@ -441,13 +441,13 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new DamageReflectHook(0.30f));
                     st.Hooks.Add(new FreezeStealMpHook(boss, 3, 3));      // 冰封：冻结 + 偷灵力
                     st.Hooks.Add(new IceCrystalRebirthHook(boss, IceCrystal, CrossCells,
-                                                          3, new float[] { 0.5f, 0.25f, 0f }, 0.25f));
+                                                          2, new float[] { 0.5f, 0.25f }, 0.25f));
                     break;
 
                 case "b_mingkun":  // 溟鲲：潮汐 + 吞舟 + 鲸落 + 深潜
                     st.Hooks.Add(new BossOpeningMpHook(3));
                     st.Hooks.Add(new MpDrainHook(2));
-                    st.Hooks.Add(new HighestHpNukeHook(boss, 2, 0.20f));  // 吞舟：生命最高者 35% 当前生命
+                    st.Hooks.Add(new HighestHpNukeHook(boss, 2, 0.15f));  // 吞舟：生命最高者 35% 当前生命
                     st.Hooks.Add(new DeathAoeHook(boss, 0.30f));
                     st.Hooks.Add(new LastStandHook(boss, 0.35f));         // 深潜：≤35% 每回合额外行动
                     break;
@@ -474,7 +474,7 @@ namespace WanXiang.Battle.Core
                         SummonHook.DeploySummon(s, ShouHu, 5);
                     }));
                     st.Hooks.Add(new AllyPresenceRegenHook(boss, 0.05f));
-                    st.Hooks.Add(new DpsTimeoutHook(12));
+                    st.Hooks.Add(new DpsTimeoutHook(16));
                     break;
 
                 case "b_hongmeng": // 鸿蒙：混元 + 造化 + 混沌护持 + 湮灭
@@ -482,7 +482,7 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new IgnoreCounterHook(boss));
                     st.Hooks.Add(new SummonHook(3, new[]{ ZaoHua }, new[]{ 2 }));
                     st.Hooks.Add(new FirstHitReduceHook(0.40f));
-                    st.Hooks.Add(new DpsTimeoutHook(15));
+                    st.Hooks.Add(new DpsTimeoutHook(20));
                     break;
             }
         }

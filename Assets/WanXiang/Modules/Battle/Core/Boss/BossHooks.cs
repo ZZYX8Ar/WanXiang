@@ -413,15 +413,31 @@ namespace WanXiang.Battle.Core
         }
     }
 
-    /// <summary>组装：回合末若仍持有护盾 ⇒ 下回合攻击 +atkPerTurn（可叠，无上限；千机傀儡铩）。</summary>
+    /// <summary>
+    /// 组装：回合末若仍持有护盾 ⇒ 下回合攻击 +atkPerTurn（千机傀儡铩）。**受 maxBonus 封顶**。
+    /// ⛔ 文档写"可叠、无上限"，但实测那是**滚雪球致死**：护盾每回合刷新 25% 最大生命，
+    ///   玩家破不掉就每回合 +15% 攻击、永不回头 ⇒ 铩对满编神品队胜率恒为 0%，
+    ///   且把玩家成长倍率从 1.6 拉到 2.2 **仍然是 0%**（机制不可解，不是数值问题）。
+    ///   ⇒ 加上限；只在上限那一回合记一条日志，避免刷屏。
+    /// </summary>
     public sealed class AssembleHook : BattleHook
     {
         private readonly BattleUnit _boss;
         private readonly float _atkPerTurn;
-        public AssembleHook(BattleUnit boss, float atkPerTurn) { _boss = boss; _atkPerTurn = atkPerTurn; }
+        private readonly float _maxBonus;
+        public AssembleHook(BattleUnit boss, float atkPerTurn, float maxBonus = 0.90f)
+        { _boss = boss; _atkPerTurn = atkPerTurn; _maxBonus = maxBonus; }
+
         public override void OnTurnEnd(BattleState st)
         {
             if (_boss == null || !_boss.IsAlive || _boss.Shield <= 0) return;
+            if (_boss.PermanentAttackBonus >= _maxBonus)
+            {
+                if (_boss.PermanentAttackBonus - _atkPerTurn < _maxBonus)
+                    st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                               note: $"{_boss.DisplayName} 组装已达上限 +{_maxBonus * 100f:F0}%（护盾仍未被破）");
+                return;
+            }
             _boss.PermanentAttackBonus += _atkPerTurn;
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                        note: $"{_boss.DisplayName} 组装：攻击+{_atkPerTurn * 100f:F0}%（护盾未破）");
