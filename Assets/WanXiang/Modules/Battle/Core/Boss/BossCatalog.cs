@@ -89,18 +89,17 @@ namespace WanXiang.Battle.Core
             {
                 string sn = StatusCatalog.Get(flavor).Name;
                 if (string.IsNullOrEmpty(sn)) sn = flavor;
-                // ⛔ 控制类（无法行动 / 封技）**只能挂单体**：文档写的是"随机 1 名被缚"，
-                //    挂 AllEnemies = 每次出手全队被控 ⇒ 玩家完全无法行动（实测第 1/2/4 幕胜率直接 0%）。
-                //    伤害/易伤类（灼烧 / 冰蚀 / 裂甲 / 斩标 …）挂全体才符合"群体压制"的定位。
-                bool control = flavor == StatusCatalog.Root
-                            || flavor == StatusCatalog.Freeze
-                            || flavor == StatusCatalog.Silence
-                            || flavor == StatusCatalog.Confuse;
-                var tgt = control ? TargetSelector.SingleFrontMost : TargetSelector.AllEnemies;
-                act.Add(EffectAtom.Status(tgt, flavor, 1, 1));
-                ult.Add(EffectAtom.Status(tgt, flavor, 2, 3));
-                actDesc = "全体攻击 + " + (control ? "单体" : "全体") + sn;
-                ultDesc = "全体重击 + " + (control ? "单体" : "全体") + sn + " ×2";
+                // ⛔⛔ **专属状态只挂「绝技」**，战技保持纯全体伤害。
+                //   实测证据（2026-10-06，逐只首领 24 局 × 两档遗物）：
+                //     · 战技**几乎每回合都能放**（`UseCooldown = false` ⇒ 填的 Cd=2 根本不生效，
+                //       只有 EnemyMp 在限速：+2/回合、战技要 3）；
+                //     · 于是任何 ≥2 回合的状态都被**永久覆盖** ⇒ 全队常驻根缚/灼烧/易伤。
+                //     · 铁证：把玩家成长倍率从 1.60 拉到 2.20（巨幅加强）胜率**纹丝不动仍是 0%**
+                //       —— 机制不可解，加数值救不回来。
+                //   绝技受"元气满"门槛限制（`UltimateNeedsRage` + `RageMax=100`）⇒ 天然稀有，
+                //   这才是"招牌技能"该出现的位置：不常来，一来就是大事。
+                ult.Add(EffectAtom.Status(TargetSelector.SingleFrontMost, flavor, 2, 3));
+                ultDesc = "全体重击 + 单体" + sn + " ×2";
             }
 
             return new[]
@@ -400,7 +399,7 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new BossOpeningMpHook(3));
                     st.Hooks.Add(new BurnOnHitPhaseHook(boss, 0.40f, 0.02f));
                     st.Hooks.Add(new DevourGrowthHook(boss, 0.02f, 0.02f));   // 余烬（近似）
-                    st.Hooks.Add(new BurnDetonateHook(boss, 10, 0.03f));       // 引燃：总层 ≥8 → 引爆
+                    st.Hooks.Add(new BurnDetonateHook(boss, 5, 0.04f));       // 引燃：总层 ≥8 → 引爆
                     break;
 
                 case "b_jiaozhi":  // 燋彘：硬壳 + 破壳窗口 + 岩浆喷发 + 熔核

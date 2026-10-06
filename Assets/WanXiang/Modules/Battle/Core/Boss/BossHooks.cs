@@ -1070,7 +1070,12 @@ namespace WanXiang.Battle.Core
     }
 
     /// <summary>
-    /// 引燃：全场我方灼烧**总层数** ≥ threshold 时引爆 —— 每层造成 pct 最大生命伤害并清空灼烧。烬蛟。
+    /// 引燃：**我方任一单位的灼烧层数** ≥ threshold 时引爆 —— 该单位每层受 pct 最大生命伤害并清空其灼烧。烬蛟。
+    ///
+    /// ⛔ 判据用"**单人最高层数**"而不是文档写的"全场总层数"：烬蛟的附烧是 AOE 命中，
+    ///   一次出手就给 5 人各叠 1~2 层 ⇒ 按总层数判（≥8）等于**第一回合就引爆、之后每回合都炸**，
+    ///   实测把第 2 幕胜率直接压到 0%（且加大玩家成长倍率也救不回来 = 机制不可解）。
+    ///   按单人口径后：玩家只需盯住"谁的灼烧最高"去治/净化 —— 与文档"别让单人叠太高"的应对一致。
     /// 检查点放在回合末：玩家有整个回合决定"清层还是硬吃"。
     /// </summary>
     public sealed class BurnDetonateHook : BattleHook
@@ -1085,13 +1090,17 @@ namespace WanXiang.Battle.Core
         {
             if (_boss == null || !_boss.IsAlive) return;
             var list = st.UnitsOf(TeamSide.Player);
-            int total = 0;
+            int worst = 0;
             for (int i = 0; i < list.Count; i++)
-                if (list[i].IsAlive) total += list[i].GetStacks(StatusCatalog.Burn);
-            if (total < _threshold) return;
+                if (list[i].IsAlive)
+                {
+                    int n = list[i].GetStacks(StatusCatalog.Burn);
+                    if (n > worst) worst = n;
+                }
+            if (worst < _threshold) return;
 
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                       note: $"{_boss.DisplayName} 引燃！全场灼烧 {total} 层 ⇒ 引爆");
+                       note: $"{_boss.DisplayName} 引燃！最高灼烧 {worst} 层 ⇒ 引爆");
             for (int i = 0; i < list.Count; i++)
             {
                 var u = list[i];
