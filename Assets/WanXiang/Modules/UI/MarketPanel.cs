@@ -130,10 +130,27 @@ namespace WanXiang.Modules.UI
             var owned = new HashSet<string>();
             if (run.Collection != null) foreach (var id in run.Collection) owned.Add(id);
             if (run.Team != null) foreach (var id in run.Team) owned.Add(id);
+
+            // ★ 缺的优先（用户 2026-10-06）：本局**曾经拥有、后来阵亡失去**的兽加权上架。
+            //   口径 = 开局快照 SnapBeastIds 里有、但现在不在 Collection∪Team 里的 ——
+            //   这正是"阵亡丢掉的"，不必另立 LostThisRun 名单（那套已被推翻）。
+            var lost = new List<BeastDef>();
+            if (run.SnapBeastIds != null)
+            {
+                var snap = new HashSet<string>();
+                foreach (var id in run.SnapBeastIds) snap.Add(id);
+                for (int i = 0; i < all.Length; i++)
+                    if (all[i] != null && snap.Contains(all[i].Id) && !owned.Contains(all[i].Id))
+                        lost.Add(all[i]);
+            }
+
             int guard = 0;
             while (_goods.Count < 4 && guard++ < 40)
             {
-                var b = all[rng.NextInt(0, all.Length)];
+                // 一半概率从"你丢掉的"里摇 —— 想买回阵亡兽就不用刷那么多次
+                var b = (lost.Count > 0 && rng.NextInt(0, 2) == 0)
+                    ? lost[rng.NextInt(0, lost.Count)]
+                    : all[rng.NextInt(0, all.Length)];
                 if (used.Contains(b.Id) || owned.Contains(b.Id)) continue;
                 used.Add(b.Id);
                 // 价格随稀有度与幕数上浮（GDD：价格随幕数与劫数上浮）

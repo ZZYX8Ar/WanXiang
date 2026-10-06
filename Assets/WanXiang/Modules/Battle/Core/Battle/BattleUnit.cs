@@ -119,6 +119,13 @@ namespace WanXiang.Battle.Core
         public bool Invulnerable;
 
         /// <summary>
+        /// 本回合是否还有一次**额外行动**（溟鲲「深潜」等阶段技）。
+        /// 由钩子在回合始置位，<c>BattleSimulator.Steps</c> 的行动循环在它常规行动后再执行一次。
+        /// 用"标志"而不是"复制一套行动逻辑" —— 额外行动必须与常规行动走完全相同的规则。
+        /// </summary>
+        public bool ExtraActionPending;
+
+        /// <summary>
         /// 单位级的**临时状态提示**（表现层 HUD 直接显示，如"冰核 850/850 破核即可真死"）。
         /// 由机制钩子写入（目前只有 <c>PhantomDeathHook</c> 的碎冰重生），回合结束/状态解除时清空。
         ///

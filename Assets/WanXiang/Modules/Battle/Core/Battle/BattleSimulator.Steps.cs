@@ -93,6 +93,17 @@ namespace WanXiang.Battle.Core
                     ExecuteAction(st, u, buf);
                     DevourAfterAction(st, u);      // 「吞噬」劫象：行动结束剥离对侧 1 增益 + 自损
                     if (st.CheckOutcome()) break;
+
+                    // ★ 额外行动（溟鲲「深潜」等阶段技）：标志由钩子在回合始置位，这里消费并清零。
+                    //   ⛔ 必须走**同一个 ExecuteAction** —— 另写一套行动逻辑必然与常规规则漂移。
+                    if (u.ExtraActionPending)
+                    {
+                        u.ExtraActionPending = false;
+                        st.Log.Add(st.Turn, BattleEventKind.ActionBegin, actorId: u.RuntimeId, note: "额外行动");
+                        ExecuteAction(st, u, buf);
+                        DevourAfterAction(st, u);
+                        if (st.CheckOutcome()) break;
+                    }
                 }
                 if (st.IsOver) break;
 

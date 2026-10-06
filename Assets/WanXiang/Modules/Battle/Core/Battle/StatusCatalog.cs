@@ -87,6 +87,8 @@ namespace WanXiang.Battle.Core
         public const string Marked      = "marked";       // 斩标 / 易伤
         public const string Confuse     = "confuse";      // 混乱（不能行动）—— 清明免疫它
         public const string Silence     = "silence";      // 沉默（不能放技能）—— 清明免疫它
+        public const string Root        = "root";         // 根缚（不能行动）—— 蝮魇 / 蔓娘
+        public const string Miasma      = "miasma";       // 瘴气（每层攻击 −3%）—— 魍魉
 
         // ---- 增益 ----
         public const string Qi          = "qi";           // 同气（相生相邻产出，每层 +2% 技能效果）
@@ -129,6 +131,12 @@ namespace WanXiang.Battle.Core
 
             new StatusDef { Id = Silence, Name = "沉默", IsDebuff = true, MaxStacks = 1,
                 PreventsSkill = true, Description = "无法释放技能，普攻仍可（清明可免疫）" },
+
+            // ---- 首领机制专用（2026-10-06：把设计文档里原先没实现的机制补上）----
+            new StatusDef { Id = Root, Name = "根缚", IsDebuff = true, MaxStacks = 1,
+                PreventsAction = true, Description = "被藤蔓缠住，本回合无法行动" },
+            new StatusDef { Id = Miasma, Name = "瘴气", IsDebuff = true, MaxStacks = 10,
+                AttackDeltaPerStack = -0.03f, Description = "每层攻击 −3%（可叠，魍魉的瘴林）" },
 
             new StatusDef { Id = Qi, Name = "同气", IsDebuff = false, MaxStacks = 5,
                 Description = "相生相邻产出。每层 +2% 技能效果" },

@@ -98,6 +98,9 @@ namespace WanXiang.Battle.Core
         public override void OnDamageDealt(BattleState st, BattleUnit src, BattleUnit dst, int dmg, int dealt, bool trueDmg)
         {
             if (src == null || src == dst || !src.IsAlive || dealt <= 0) return;
+            // ⛔ 只反弹"**敌人挨打**"这一侧。原实现不看 dst 的阵营 ⇒ 首领用 AOE 打我方时，
+            //    会把自己打出去的伤害按比例"反弹"给自己（等于自伤），与设计"受到的伤害反弹给攻击者"相反。
+            if (dst == null || dst.Side != TeamSide.Enemy) return;
             int r = CoreMath.RoundDamage(dealt * _ratio);
             if (r <= 0) return;
             int got = src.TakeDamage(r);
@@ -822,6 +825,482 @@ namespace WanXiang.Battle.Core
             int h = _boss.Heal(CoreMath.RoundDamage(_boss.MaxHp * _frac));
             if (h > 0)
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve, note: $"{_boss.DisplayName} 随从回血 {h}");
+        }
+    }
+
+    // ============================================================================
+    //  2026-10-06 补齐：《首领战设计文档 v1.0》里**设计了却没实现**的机制
+    //  ---------------------------------------------------------------------------
+    //  背景（用户报障"一、二幕首领像小兵、只会普攻"）：原先只实现了"好做"的积木
+    //  （召唤 / 反弹 / 护盾 / 阶段），凡是要「叠状态 + 判阈值 + 周期 AOE」的一律没做。
+    //  这里全部用**现成的状态系统**实现，不新增系统：
+    //    · 根缚 = StatusCatalog.Root（PreventsAction，无法行动）
+    //    · 瘴气 = StatusCatalog.Miasma（每层攻击 −3%）
+    //    · 灼烧 / 冰蚀 = 现成 DoT；冻结 / 沉默 = 现成
+    // ============================================================================
+
+    /// <summary>
+    /// 首领**造成**的伤害乘区（生机：每只召唤物 +6%；燎原：每层灼烧 +3%）。
+    /// 走 <see cref="BattleHook.ModifyIncoming"/>，只在"自己是攻击方"时改写 dmg —— 不碰别人的结算。
+    /// </summary>
+    public sealed class OutgoingDamageBonusHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly Func<BattleState, BattleUnit, float> _bonus;
+        public OutgoingDamageBonusHook(BattleUnit boss, Func<BattleState, BattleUnit, float> bonus)
+        { _boss = boss; _bonus = bonus; }
+
+        public override void ModifyIncoming(BattleState st, BattleUnit src, BattleUnit dst, ref int dmg, Element el)
+        {
+            if (src != _boss || dmg <= 0 || _bonus == null) return;
+            float b = _bonus(st, dst);
+            if (b <= 0f) return;
+            dmg = CoreMath.RoundDamage(dmg * (1f + b));
+        }
+    }
+
+    /// <summary>
+    /// 首领**开场给灵力**（否则前两回合只能普攻：EnemyMp 从 0 起、每回合 +2、战技要 3）。
+    /// ⚠ 只对首领生效（在 AttachHooks 里挂）⇒ 普通遭遇战的敌人行为完全不变。
+    /// </summary>
+    public sealed class BossOpeningMpHook : BattleHook
+    {
+        private readonly int _mp;
+        public BossOpeningMpHook(int mp) { _mp = mp; }
+        public override void OnBattleStart(BattleState st)
+        {
+            if (st.EnemyMp < _mp) st.EnemyMp = _mp;
+        }
+    }
+
+    /// <summary>根缚：每 interval 回合随机缚住 1 名我方单位 1 回合（无法行动）。蝮魇 / 蔓娘。</summary>
+    public sealed class RootHook : BattleHook
+    {
+        private readonly int _interval;
+        public RootHook(int interval) { _interval = CoreMath.Max(1, interval); }
+        public override void OnTurnStart(BattleState st)
+        {
+            if (st.Turn % _interval != 0) return;
+            var list = st.UnitsOf(TeamSide.Player);
+            var alive = new List<BattleUnit>();
+            for (int i = 0; i < list.Count; i++) if (list[i].IsAlive) alive.Add(list[i]);
+            if (alive.Count == 0) return;
+            var t = alive[st.Random.NextInt(0, alive.Count)];
+            t.ApplyStatus(StatusCatalog.Root, 1, 1);   // PreventsAction 会把 turns 自动 +1 ⇒ 覆盖本回合
+            st.Log.Add(st.Turn, BattleEventKind.StatusApplied, targetId: t.RuntimeId,
+                       note: $"{t.DisplayName} 被根缚缠住（本回合无法行动）");
+        }
+    }
+
+    /// <summary>瘴气：每回合结束给全体我方叠 stacks 层「瘴气」（每层攻击 −3%，可叠到 10）。魍魉。</summary>
+    public sealed class MiasmaHook : BattleHook
+    {
+        private readonly int _stacks;
+        public MiasmaHook(int stacks) { _stacks = CoreMath.Max(1, stacks); }
+        public override void OnTurnEnd(BattleState st)
+        {
+            var list = st.UnitsOf(TeamSide.Player);
+            int n = 0;
+            for (int i = 0; i < list.Count; i++)
+                if (list[i].IsAlive) { list[i].ApplyStatus(StatusCatalog.Miasma, _stacks, 99); n++; }
+            if (n > 0)
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                           note: $"瘴气弥漫：全体我方 +{_stacks} 层（攻击 −{_stacks * 3}%/层，共 {n} 人）");
+        }
+    }
+
+    /// <summary>瘴爆：首领阵亡时，按我方各自当前瘴气层数 × pct 最大生命 造成伤害。魍魉。</summary>
+    public sealed class MiasmaBurstHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly float _pctPerStack;
+        private bool _used;
+        public MiasmaBurstHook(BattleUnit boss, float pctPerStack) { _boss = boss; _pctPerStack = pctPerStack; }
+
+        public override void OnUnitKilled(BattleState st, BattleUnit killer, BattleUnit victim)
+        {
+            if (_used || victim != _boss) return;
+            _used = true;
+            var list = st.UnitsOf(TeamSide.Player);
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (!u.IsAlive) continue;
+                int layers = u.GetStacks(StatusCatalog.Miasma);
+                if (layers <= 0) continue;
+                int dmg = CoreMath.RoundDamage(u.MaxHp * _pctPerStack * layers);
+                int dealt = u.TakeDamage(dmg);
+                st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: _boss.RuntimeId, targetId: u.RuntimeId,
+                           amount: dmg, element: _boss.Element, note: $"瘴爆（{layers} 层瘴气）");
+                if (dealt > 0 && !u.IsAlive)
+                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: u.RuntimeId, note: $"{u.DisplayName} 死于瘴爆");
+            }
+        }
+    }
+
+    /// <summary>散瘴：每 interval 回合清除首领自身全部负面，并把全体我方的瘴气层数**翻倍**。魍魉。</summary>
+    public sealed class ScatterMiasmaHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly int _interval;
+        public ScatterMiasmaHook(BattleUnit boss, int interval) { _boss = boss; _interval = CoreMath.Max(1, interval); }
+
+        public override void OnTurnStart(BattleState st)
+        {
+            if (_boss == null || !_boss.IsAlive || st.Turn % _interval != 0) return;
+            int cleared = 0;
+            for (int i = _boss.Statuses.Count - 1; i >= 0; i--)
+                if (_boss.Statuses[i].Def.IsDebuff) { _boss.Statuses.RemoveAt(i); cleared++; }
+
+            var list = st.UnitsOf(TeamSide.Player);
+            int doubled = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (!u.IsAlive) continue;
+                int cur = u.GetStacks(StatusCatalog.Miasma);
+                if (cur <= 0) continue;
+                u.ApplyStatus(StatusCatalog.Miasma, cur, 99);   // 再加 cur 层 = 翻倍（MaxStacks 封顶）
+                doubled++;
+            }
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                       note: $"{_boss.DisplayName} 散瘴：清除自身 {cleared} 个负面，{doubled} 人的瘴气翻倍");
+        }
+    }
+
+    /// <summary>
+    /// 连环斩：对**同一目标**连续攻击时，每次伤害递增 +perHit（换目标立刻清零）。白魍 / 霜锋。
+    /// 实现：只保留"最后一个被打的目标"计数 —— 这就是"连续"的语义。
+    /// </summary>
+    public sealed class StreakDamageHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly float _perHit;
+        private readonly Dictionary<string, int> _streak = new Dictionary<string, int>();
+        public StreakDamageHook(BattleUnit boss, float perHit) { _boss = boss; _perHit = perHit; }
+
+        public override void ModifyIncoming(BattleState st, BattleUnit src, BattleUnit dst, ref int dmg, Element el)
+        {
+            if (src != _boss || dmg <= 0 || dst == null) return;
+            string id = dst.RuntimeId;
+            int n;
+            _streak.TryGetValue(id, out n);
+            _streak.Clear();                 // 只留最后一个目标 ⇒ 换人就断连击
+            _streak[id] = n + 1;
+            if (n > 0) dmg = CoreMath.RoundDamage(dmg * (1f + _perHit * n));
+        }
+    }
+
+    /// <summary>
+    /// 缠丝：被**同一单位**连续攻击时，第 2 次起对该单位的反击额外 +bonus。蔓娘。
+    /// （与 <see cref="DamageReflectHook"/> 同一套反弹口径，只是倍率随风向递增。）
+    /// </summary>
+    public sealed class ThornStreakHook : BattleHook
+    {
+        private readonly float _ratio;
+        private readonly float _bonus;
+        private string _lastSrc;
+        private int _streak;
+        public ThornStreakHook(float ratio, float bonus) { _ratio = ratio; _bonus = bonus; }
+
+        public override void OnDamageDealt(BattleState st, BattleUnit src, BattleUnit dst, int dmg, int dealt, bool trueDmg)
+        {
+            if (src == null || src == dst || !src.IsAlive || dealt <= 0) return;
+            if (dst == null || dst.Side != TeamSide.Enemy) return;   // 只反弹"敌人挨打"
+            if (_lastSrc == src.RuntimeId) _streak++;
+            else { _lastSrc = src.RuntimeId; _streak = 0; }
+            float r = _ratio + _bonus * _streak;
+            int reflect = CoreMath.RoundDamage(dealt * r);
+            if (reflect <= 0) return;
+            int got = src.TakeDamage(reflect);
+            if (got > 0)
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                           note: $"缠丝反击 ×{1 + _streak}：{dst.DisplayName} 反伤 {got} 给 {src.DisplayName}");
+            if (!src.IsAlive)
+                st.Log.Add(st.Turn, BattleEventKind.Death, targetId: src.RuntimeId, note: $"{src.DisplayName} 被反伤打死");
+        }
+    }
+
+    /// <summary>焚身爆裂：召唤物 / 分身阵亡时，对全体我方造成其各自 pct 最大生命的伤害并叠 1 层灼烧。赤魃。</summary>
+    public sealed class SummonDeathBurstHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly float _pct;
+        public SummonDeathBurstHook(BattleUnit boss, float pct) { _boss = boss; _pct = pct; }
+
+        public override void OnUnitKilled(BattleState st, BattleUnit killer, BattleUnit victim)
+        {
+            if (victim == null || victim == _boss) return;
+            if (victim.Def == null || victim.Def.Id == null || !victim.Def.Id.StartsWith("summon_")) return;
+            var list = st.UnitsOf(TeamSide.Player);
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (!u.IsAlive) continue;
+                int dmg = CoreMath.RoundDamage(u.MaxHp * _pct);
+                int dealt = u.TakeDamage(dmg);
+                u.ApplyStatus(StatusCatalog.Burn, 1, 2, dmg * 0.25f);
+                st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: _boss.RuntimeId, targetId: u.RuntimeId,
+                           amount: dmg, element: Element.Fire, note: "焚身爆裂（分身崩解）");
+                if (dealt > 0 && !u.IsAlive)
+                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: u.RuntimeId, note: $"{u.DisplayName} 死于焚身爆裂");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 灼烧叠层（含「焚身」阶段）：命中给目标叠 stacks 层灼烧；
+    /// 首领血量 ≤ lowHpPct 后叠层速度**翻倍**。烬蛟（取代旧 <see cref="BurnOnHitHook"/>）。
+    /// </summary>
+    public sealed class BurnOnHitPhaseHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly float _lowHpPct;
+        private readonly float _perStackPower;
+        public BurnOnHitPhaseHook(BattleUnit boss, float lowHpPct, float perStackPower)
+        { _boss = boss; _lowHpPct = lowHpPct; _perStackPower = perStackPower; }
+
+        public override void OnDamageDealt(BattleState st, BattleUnit src, BattleUnit dst, int dmg, int dealt, bool trueDmg)
+        {
+            if (_boss == null || src != _boss || dst == null || !dst.IsAlive) return;
+            if (dst.Side == _boss.Side) return;                    // 不烧自己人
+            int stacks = _boss.HpPercent <= _lowHpPct ? 2 : 1;     // 焚身：≤40% 叠层翻倍
+            dst.ApplyStatus(StatusCatalog.Burn, stacks, 2, _boss.Attack * _perStackPower);
+        }
+    }
+
+    /// <summary>
+    /// 引燃：全场我方灼烧**总层数** ≥ threshold 时引爆 —— 每层造成 pct 最大生命伤害并清空灼烧。烬蛟。
+    /// 检查点放在回合末：玩家有整个回合决定"清层还是硬吃"。
+    /// </summary>
+    public sealed class BurnDetonateHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly int _threshold;
+        private readonly float _pctPerStack;
+        public BurnDetonateHook(BattleUnit boss, int threshold, float pctPerStack)
+        { _boss = boss; _threshold = threshold; _pctPerStack = pctPerStack; }
+
+        public override void OnTurnEnd(BattleState st)
+        {
+            if (_boss == null || !_boss.IsAlive) return;
+            var list = st.UnitsOf(TeamSide.Player);
+            int total = 0;
+            for (int i = 0; i < list.Count; i++)
+                if (list[i].IsAlive) total += list[i].GetStacks(StatusCatalog.Burn);
+            if (total < _threshold) return;
+
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                       note: $"{_boss.DisplayName} 引燃！全场灼烧 {total} 层 ⇒ 引爆");
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (!u.IsAlive) continue;
+                int layers = u.GetStacks(StatusCatalog.Burn);
+                if (layers <= 0) continue;
+                int dmg = CoreMath.RoundDamage(u.MaxHp * _pctPerStack * layers);
+                int dealt = u.TakeDamage(dmg);
+                u.RemoveStatus(StatusCatalog.Burn);
+                st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: _boss.RuntimeId, targetId: u.RuntimeId,
+                           amount: dmg, element: Element.Fire, note: $"引燃（{layers} 层）");
+                if (dealt > 0 && !u.IsAlive)
+                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: u.RuntimeId, note: $"{u.DisplayName} 被引燃焚尽");
+            }
+        }
+    }
+
+    /// <summary>周期 AOE：每 interval 回合对全体我方造成各自 pct 最大生命的伤害（岩浆喷发 / 通用）。</summary>
+    public sealed class PeriodicNukeHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly int _interval;
+        private readonly float _pct;
+        private readonly string _label;
+        public PeriodicNukeHook(BattleUnit boss, int interval, float pct, string label)
+        { _boss = boss; _interval = CoreMath.Max(1, interval); _pct = pct; _label = label; }
+
+        public override void OnTurnStart(BattleState st)
+        {
+            if (_boss == null || !_boss.IsAlive || st.Turn % _interval != 0) return;
+            var list = st.UnitsOf(TeamSide.Player);
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (!u.IsAlive) continue;
+                int dmg = CoreMath.RoundDamage(u.MaxHp * _pct);
+                int dealt = u.TakeDamage(dmg);
+                st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: _boss.RuntimeId, targetId: u.RuntimeId,
+                           amount: dmg, element: _boss.Element, note: _label);
+                if (dealt > 0 && !u.IsAlive)
+                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: u.RuntimeId, note: $"{u.DisplayName} 死于{_label}");
+            }
+        }
+    }
+
+    /// <summary>齿轮反击：首领护盾被打破时，对**破盾者**造成其自身攻击 × ratio 的反伤。铩。</summary>
+    public sealed class ShieldBreakReflectHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly float _ratio;
+        private string _brokenBy;
+        private bool _hadShield;
+        public ShieldBreakReflectHook(BattleUnit boss, float ratio) { _boss = boss; _ratio = ratio; }
+
+        public override void OnTurnStart(BattleState st) { _hadShield = _boss != null && _boss.Shield > 0; }
+
+        public override void OnDamageDealt(BattleState st, BattleUnit src, BattleUnit dst, int dmg, int dealt, bool trueDmg)
+        {
+            if (_boss == null || dst != _boss || src == null) return;
+            if (!_hadShield || _boss.Shield > 0) return;
+            _hadShield = false;
+            _brokenBy = src.RuntimeId;
+            int back = CoreMath.RoundDamage(src.Attack * _ratio);
+            int got = src.TakeDamage(back);
+            if (got > 0)
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                           note: $"{_boss.DisplayName} 齿轮反击：{src.DisplayName} 破盾受 {got} 反伤");
+            if (!src.IsAlive)
+                st.Log.Add(st.Turn, BattleEventKind.Death, targetId: src.RuntimeId, note: $"{src.DisplayName} 被齿轮绞碎");
+        }
+    }
+
+    /// <summary>
+    /// 吞舟：每 interval 回合对**当前生命最高**的我方造成其**当前生命** × pct 的伤害。溟鲲。
+    /// （旧实现误用了 LowestHpNukeHook ⇒ 打的是血最少的，与设计相反。）
+    /// </summary>
+    public sealed class HighestHpNukeHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly int _interval;
+        private readonly float _pctCurrent;
+        public HighestHpNukeHook(BattleUnit boss, int interval, float pctCurrent)
+        { _boss = boss; _interval = CoreMath.Max(1, interval); _pctCurrent = pctCurrent; }
+
+        public override void OnTurnStart(BattleState st)
+        {
+            if (_boss == null || !_boss.IsAlive || st.Turn % _interval != 0) return;
+            var list = st.UnitsOf(TeamSide.Player);
+            BattleUnit top = null;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (!u.IsAlive) continue;
+                if (top == null || u.Hp > top.Hp) top = u;
+            }
+            if (top == null) return;
+            int dmg = CoreMath.RoundDamage(top.Hp * _pctCurrent);
+            int dealt = top.TakeDamage(dmg);
+            st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: _boss.RuntimeId, targetId: top.RuntimeId,
+                       amount: dmg, element: _boss.Element, note: $"{_boss.DisplayName} 吞舟（{_pctCurrent * 100f:F0}% 当前生命）");
+            if (dealt > 0 && !top.IsAlive)
+                st.Log.Add(st.Turn, BattleEventKind.Death, targetId: top.RuntimeId, note: $"{top.DisplayName} 被吞舟咬碎");
+        }
+    }
+
+    /// <summary>
+    /// 深潜：首领血量 ≤ pct 后，**每回合额外多一次行动**。溟鲲。
+    /// 实现：本钩子在回合始置 <see cref="BattleUnit.ExtraActionPending"/>，
+    /// 由 <c>BattleSimulator.Steps</c> 的行动循环在它常规行动后**再执行一次**（同一出手逻辑，不另写一套）。
+    /// </summary>
+    public sealed class LastStandHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly float _pct;
+        public LastStandHook(BattleUnit boss, float pct) { _boss = boss; _pct = pct; }
+
+        public override void OnTurnStart(BattleState st)
+        {
+            if (_boss == null || !_boss.IsAlive) return;
+            if (_boss.HpPercent > _pct) return;
+            _boss.ExtraActionPending = true;
+            if (st.Turn % 1 == 0)
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                           note: $"{_boss.DisplayName} 深潜：濒死反扑，本回合额外行动一次");
+        }
+    }
+
+    /// <summary>虚实：每回合随机让 1 个存活单位**本回合免疫伤害**（可能落在真身）。霜影。</summary>
+    public sealed class RandomImmunityHook : BattleHook
+    {
+        public override void OnTurnStart(BattleState st)
+        {
+            var all = new List<BattleUnit>();
+            for (int s = 0; s < 2; s++)
+            {
+                var list = st.UnitsOf((TeamSide)s);
+                for (int i = 0; i < list.Count; i++) if (list[i].IsAlive) all.Add(list[i]);
+            }
+            if (all.Count == 0) return;
+            var pick = all[st.Random.NextInt(0, all.Count)];
+            pick.Invulnerable = true;
+            pick.StateHint = "虚实：本回合免疫伤害";
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                       note: $"虚实：{pick.DisplayName} 本回合免疫伤害");
+            st.CaptureFrame();   // 提示不进日志之外的帧 ⇒ 见 BossHooks 顶部 SetHint 的说明
+        }
+        public override void OnTurnEnd(BattleState st)
+        {
+            for (int s = 0; s < 2; s++)
+            {
+                var list = st.UnitsOf((TeamSide)s);
+                for (int i = 0; i < list.Count; i++)
+                    if (list[i].StateHint != null && list[i].StateHint.StartsWith("虚实"))
+                    { list[i].Invulnerable = false; list[i].StateHint = null; }
+            }
+            st.CaptureFrame();
+        }
+    }
+
+    /// <summary>镜碎：真身受伤时，全体分身承受该伤害的 ratio。霜影。</summary>
+    public sealed class CloneDamageShareHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly float _ratio;
+        public CloneDamageShareHook(BattleUnit boss, float ratio) { _boss = boss; _ratio = ratio; }
+
+        public override void OnDamageDealt(BattleState st, BattleUnit src, BattleUnit dst, int dmg, int dealt, bool trueDmg)
+        {
+            if (_boss == null || dst != _boss || dealt <= 0) return;
+            int share = CoreMath.RoundDamage(dealt * _ratio);
+            if (share <= 0) return;
+            var list = st.UnitsOf(_boss.Side);
+            for (int i = 0; i < list.Count; i++)
+            {
+                var c = list[i];
+                if (c == null || c == _boss || !c.IsAlive) continue;
+                if (c.Def == null || c.Def.Id == null || !c.Def.Id.StartsWith("summon_")) continue;
+                c.TakeDamage(share);
+            }
+        }
+    }
+
+    /// <summary>冰封：每 interval 回合冻结**灵力最高**的我方单位 1 回合，并偷走 steal 点灵力。玄溟。</summary>
+    public sealed class FreezeStealMpHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly int _interval;
+        private readonly int _steal;
+        public FreezeStealMpHook(BattleUnit boss, int interval, int steal)
+        { _boss = boss; _interval = CoreMath.Max(1, interval); _steal = steal; }
+
+        public override void OnTurnStart(BattleState st)
+        {
+            if (_boss == null || !_boss.IsAlive || st.Turn % _interval != 0) return;
+            // ⚠ 灵力是"我方团队池"（st.TeamMp），不是每单位资源 ⇒ "灵力最高"用**元气最高的单位**近似。
+            var list = st.UnitsOf(TeamSide.Player);
+            BattleUnit pick = null;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (!u.IsAlive) continue;
+                if (pick == null || u.Rage > pick.Rage) pick = u;
+            }
+            if (pick == null) return;
+            pick.ApplyStatus(StatusCatalog.Freeze, 1, 1);
+            int stolen = CoreMath.Min(_steal, st.TeamMp);
+            st.TeamMp -= stolen;
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                       note: $"{_boss.DisplayName} 冰封：{pick.DisplayName} 被冻结 1 回合，灵力 −{stolen}");
         }
     }
 }
