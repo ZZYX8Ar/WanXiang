@@ -987,13 +987,18 @@ namespace WanXiang.Battle.Core
     /// <summary>
     /// 连环斩：对**同一目标**连续攻击时，每次伤害递增 +perHit（换目标立刻清零）。白魍 / 霜锋。
     /// 实现：只保留"最后一个被打的目标"计数 —— 这就是"连续"的语义。
+    /// ⛔ **连击数封顶 maxStreak**：原实现无上限，而首领的普攻/战技都是 AOE，
+    ///   一轮下来"最后一个被打的目标"固定 ⇒ 连击数**每回合 +1、永不回头**，
+    ///   十几回合后就是 +100% 起步。实测霜锋 12 回合就打穿满编神品队。
     /// </summary>
     public sealed class StreakDamageHook : BattleHook
     {
         private readonly BattleUnit _boss;
         private readonly float _perHit;
+        private readonly int _maxStreak;
         private readonly Dictionary<string, int> _streak = new Dictionary<string, int>();
-        public StreakDamageHook(BattleUnit boss, float perHit) { _boss = boss; _perHit = perHit; }
+        public StreakDamageHook(BattleUnit boss, float perHit, int maxStreak = 3)
+        { _boss = boss; _perHit = perHit; _maxStreak = CoreMath.Max(1, maxStreak); }
 
         public override void ModifyIncoming(BattleState st, BattleUnit src, BattleUnit dst, ref int dmg, Element el)
         {
@@ -1002,7 +1007,8 @@ namespace WanXiang.Battle.Core
             int n;
             _streak.TryGetValue(id, out n);
             _streak.Clear();                 // 只留最后一个目标 ⇒ 换人就断连击
-            _streak[id] = n + 1;
+            if (n < _maxStreak) _streak[id] = n + 1;
+            else _streak[id] = _maxStreak;
             if (n > 0) dmg = CoreMath.RoundDamage(dmg * (1f + _perHit * n));
         }
     }
@@ -1244,11 +1250,18 @@ namespace WanXiang.Battle.Core
         }
     }
 
-    /// <summary>虚实：每回合随机让 1 个存活单位**本回合免疫伤害**（可能落在真身）。霜影。</summary>
+    /// <summary>
+    /// 虚实：每 interval 回合随机让 1 个存活单位**本回合免疫伤害**（可能落在真身）。霜影。
+    /// ⚠ 这是**输出税**：每回合 1 个人免疫 ≈ 抹掉 20% 队伍输出 ⇒ 太密会让战斗变成"打不死"（实测霜影平局 100%）。
+    /// </summary>
     public sealed class RandomImmunityHook : BattleHook
     {
+        private readonly int _interval;
+        public RandomImmunityHook(int interval = 1) { _interval = CoreMath.Max(1, interval); }
+
         public override void OnTurnStart(BattleState st)
         {
+            if (st.Turn % _interval != 0) return;
             var all = new List<BattleUnit>();
             for (int s = 0; s < 2; s++)
             {
