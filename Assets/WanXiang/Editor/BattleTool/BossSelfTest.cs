@@ -399,7 +399,8 @@ namespace WanXiang.Editor.BattleTool
             c.Title("[6/7] 代表机制触发（扫战斗日志 Note）");
 
             // 反弹（蔓娘荆棘） —— 玩家打 boss 即触发
-            ExpectNote(c, "反弹", "b_manman", "伤害反弹", 400f, 4000, 3, RoleType.Striker, 20261201UL);
+            // 荆棘 + 缠丝（蔓娘）—— 二者已合并为 ThornStreakHook，日志文案是「缠丝反击 ×N」
+            ExpectNote(c, "缠丝反击", "b_manman", "荆棘反伤+缠丝(连击加码)", 400f, 4000, 3, RoleType.Striker, 20261201UL);
 
             // 召唤（蝮魇蔓生） —— 第 2 回合补召唤物
             ExpectNote(c, "召唤", "b_fuman", "召唤物", 400f, 4000, 3, RoleType.Striker, 20261202UL);

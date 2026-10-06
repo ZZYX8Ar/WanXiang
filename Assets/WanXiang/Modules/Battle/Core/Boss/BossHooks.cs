@@ -905,7 +905,7 @@ namespace WanXiang.Battle.Core
                 if (list[i].IsAlive) { list[i].ApplyStatus(StatusCatalog.Miasma, _stacks, 99); n++; }
             if (n > 0)
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                           note: $"瘴气弥漫：全体我方 +{_stacks} 层（攻击 −{_stacks * 3}%/层，共 {n} 人）");
+                           note: $"瘴气弥漫：全体我方 +{_stacks} 层（攻击 −{_stacks * 2}%/层，共 {n} 人）");
         }
     }
 

@@ -136,7 +136,7 @@ namespace WanXiang.Battle.Core
             new StatusDef { Id = Root, Name = "根缚", IsDebuff = true, MaxStacks = 1,
                 PreventsAction = true, Description = "被藤蔓缠住，本回合无法行动" },
             new StatusDef { Id = Miasma, Name = "瘴气", IsDebuff = true, MaxStacks = 10,
-                AttackDeltaPerStack = -0.03f, Description = "每层攻击 −3%（可叠，魍魉的瘴林）" },
+                AttackDeltaPerStack = -0.02f, Description = "每层攻击 −2%（可叠，魍魉的瘴林）" },
 
             new StatusDef { Id = Qi, Name = "同气", IsDebuff = false, MaxStacks = 5,
                 Description = "相生相邻产出。每层 +2% 技能效果" },
