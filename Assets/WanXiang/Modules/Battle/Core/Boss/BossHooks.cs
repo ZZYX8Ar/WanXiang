@@ -921,7 +921,7 @@ namespace WanXiang.Battle.Core
                 if (list[i].IsAlive) { list[i].ApplyStatus(StatusCatalog.Miasma, _stacks, 99); n++; }
             if (n > 0)
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                           note: $"瘴气弥漫：全体我方 +{_stacks} 层（攻击 −{_stacks * 2}%/层，共 {n} 人）");
+                           note: $"瘴气弥漫：全体我方 +{_stacks} 层（攻击 −{_stacks * 3}%/层，共 {n} 人）");
         }
     }
 
@@ -1168,14 +1168,22 @@ namespace WanXiang.Battle.Core
         }
     }
 
-    /// <summary>齿轮反击：首领护盾被打破时，对**破盾者**造成其自身攻击 × ratio 的反伤。铩。</summary>
+    /// <summary>
+    /// 齿轮反击：首领护盾被打破时，对**破盾者**造成其自身攻击 × ratio 的反伤。铩。
+    /// ⛔ **反伤基数必须封顶**（<paramref name="maxFracOfBossHp"/>，按首领最大生命的比例）：
+    ///   文档写的是"按破盾者的攻击力 150%"，但那会**随玩家成长线性放大** ——
+    ///   养得越强反得越狠，等于惩罚成长（实测铩对满编神品队 0% 胜率，连压两轮输出都救不回来）。
+    ///   封顶后它仍是"破盾有代价"，但不会随玩家数值失控。
+    /// </summary>
     public sealed class ShieldBreakReflectHook : BattleHook
     {
         private readonly BattleUnit _boss;
         private readonly float _ratio;
+        private readonly float _maxFracOfBossHp;
         private string _brokenBy;
         private bool _hadShield;
-        public ShieldBreakReflectHook(BattleUnit boss, float ratio) { _boss = boss; _ratio = ratio; }
+        public ShieldBreakReflectHook(BattleUnit boss, float ratio, float maxFracOfBossHp = 0.10f)
+        { _boss = boss; _ratio = ratio; _maxFracOfBossHp = maxFracOfBossHp; }
 
         public override void OnTurnStart(BattleState st) { _hadShield = _boss != null && _boss.Shield > 0; }
 
@@ -1186,6 +1194,8 @@ namespace WanXiang.Battle.Core
             _hadShield = false;
             _brokenBy = src.RuntimeId;
             int back = CoreMath.RoundDamage(src.Attack * _ratio);
+            int cap = CoreMath.RoundDamage(_boss.MaxHp * _maxFracOfBossHp);
+            if (cap > 0 && back > cap) back = cap;
             int got = src.TakeDamage(back);
             if (got > 0)
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
