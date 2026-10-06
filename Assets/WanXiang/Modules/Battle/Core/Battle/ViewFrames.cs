@@ -46,6 +46,14 @@ namespace WanXiang.Battle.Core
         public string Statuses;
 
         /// <summary>
+        /// 同一批状态的**机器可读**形式：`id:层数|id:层数`（如 `burn:3|root:1`）。
+        /// ★ 2026-10-06：正式战斗界面要画**状态图标**，而图标是按**状态 id** 查图/查色的
+        /// （美术替换口径 = 文件名即 id），中文名没法反查 ⇒ 单独带一份 id 串。
+        /// 仍然用字符串（不引入数组/列表）—— 它随帧流每帧拷贝，别给 GC 添活。
+        /// </summary>
+        public string StatusIds;
+
+        /// <summary>
         /// Boss 机制提示（玄溟冰晶期的「还剩 N 回合」等，来源 <c>BattleUnit.StateHint</c>）。
         /// ⚠ 必须跟帧流走，**不能让表现层直接读 state 里的单位**：
         ///   自动模式下 state 是"整场跑完"的终局态（会把终局提示从第 1 帧就贴上）；
@@ -67,6 +75,7 @@ namespace WanXiang.Battle.Core
                 && Rage == o.Rage
                 && Cd0 == o.Cd0 && Cd1 == o.Cd1 && Cd2 == o.Cd2
                 && Statuses == o.Statuses
+                && StatusIds == o.StatusIds
                 && StateHint == o.StateHint
                 && ResonanceBonus == o.ResonanceBonus
                 && Element == o.Element;
@@ -84,6 +93,7 @@ namespace WanXiang.Battle.Core
                 h = h * 31 + Cd0; h = h * 31 + Cd1; h = h * 31 + Cd2;
                 h = h * 31 + (int)Element;
                 h = h * 31 + (StateHint != null ? StateHint.Length : 0);
+                h = h * 31 + (StatusIds != null ? StatusIds.Length : 0);
                 return h;
             }
         }
@@ -122,6 +132,7 @@ namespace WanXiang.Battle.Core
                 Cd1 = u.Cooldowns[1],
                 Cd2 = u.Cooldowns[2],
                 Statuses = DescribeStatuses(u),
+                StatusIds = DescribeStatusIds(u),
                 StateHint = u.StateHint,
                 ResonanceBonus = u.ResonanceAttackBonus,
             };
@@ -138,6 +149,23 @@ namespace WanXiang.Battle.Core
                 if (sb.Length > 0) sb.Append(' ');
                 sb.Append(st.Def.Name);
                 if (st.Stacks > 1) sb.Append('×').Append(st.Stacks);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 同 <see cref="DescribeStatuses"/>，但输出 `id:层数|id:层数`。
+        /// 表现层要按**状态 id** 查图标与配色（美术替换口径 = 文件名即 id），中文名反查不了。
+        /// </summary>
+        public static string DescribeStatusIds(BattleUnit u)
+        {
+            if (u.Statuses.Count == 0) return "";
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < u.Statuses.Count; i++)
+            {
+                var st = u.Statuses[i];
+                if (sb.Length > 0) sb.Append('|');
+                sb.Append(st.Id).Append(':').Append(st.Stacks);
             }
             return sb.ToString();
         }

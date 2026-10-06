@@ -52,6 +52,12 @@ namespace WanXiang.Battle.Presentation
         public float LungeElapsed;
         public Vector2 LungeTo;          // 冲锋落点（目标前方一点，避免盖住目标立绘）
         public int BaseSortingOrder = 0; // 冲锋时临时置顶，回位要还原
+
+        // ---- 状态图标排（头顶）----
+        public GameObject StatusRow;            // 整排的容器（跟着单位走）
+        public SpriteRenderer[] StatusPlates;   // 每格底板（有图标时用图标，没图标用纯色块）
+        public TextMesh[] StatusLabels;         // 每格文字（缩写 + 层数）
+        public string StatusShown = "";         // 当前已画的状态串（变了才重画）
     }
 
     public sealed class BattleStage2D : MonoBehaviour
@@ -129,6 +135,57 @@ namespace WanXiang.Battle.Presentation
         public float NameSize = 0.10f;
         /// <summary>名字相对立绘容器的 y 偏移。</summary>
         public float NameY = 1.62f;
+
+        // ====================================================================
+        //  状态图标（单位头顶那一排）—— 美术替换点位
+        //  -------------------------------------------------------------------
+        //  替换美术：把 `Assets/ArtRes/UI/Status/<状态id>.png` 拖到下面**对应那一行**的 Icon 上即可；
+        //           不拖任何图也能跑（自动回退成「色块 + 缩写」，不会空、也不会报错）。
+        //  新增状态：加一行（Id 填 StatusCatalog 里的 id）即可。
+        //  尺寸/间距/位置：StatusIconSize / StatusIconGap / StatusRowY，全在 Inspector 里调。
+        // ====================================================================
+        [System.Serializable]
+        public sealed class StatusIcon
+        {
+            public string Id;          // = StatusCatalog 的常量（也是图标文件名）
+            public Sprite Icon;        // ← 拖 PNG 到这里替换美术（可留空）
+            public Color Color = new Color(0.85f, 0.35f, 0.30f);   // 缺图时的底色
+            public string Abbr;        // 缺图时的 1~2 字缩写
+        }
+
+        /// <summary>一站配齐 StatusCatalog 里的全部状态（缺图则回退色块+缩写）。</summary>
+        public StatusIcon[] StatusIcons = new[]
+        {
+            new StatusIcon { Id = "burn",        Color = new Color(0.90f, 0.42f, 0.20f), Abbr = "灼" },
+            new StatusIcon { Id = "ice_erosion", Color = new Color(0.45f, 0.72f, 0.92f), Abbr = "蚀" },
+            new StatusIcon { Id = "corrode",     Color = new Color(0.55f, 0.60f, 0.35f), Abbr = "腐" },
+            new StatusIcon { Id = "wet",         Color = new Color(0.35f, 0.62f, 0.85f), Abbr = "湿" },
+            new StatusIcon { Id = "frost",       Color = new Color(0.62f, 0.80f, 0.92f), Abbr = "霜" },
+            new StatusIcon { Id = "freeze",      Color = new Color(0.46f, 0.80f, 0.96f), Abbr = "冻" },
+            new StatusIcon { Id = "armor_break", Color = new Color(0.72f, 0.58f, 0.36f), Abbr = "裂" },
+            new StatusIcon { Id = "marked",      Color = new Color(0.88f, 0.36f, 0.34f), Abbr = "标" },
+            new StatusIcon { Id = "confuse",     Color = new Color(0.70f, 0.45f, 0.75f), Abbr = "乱" },
+            new StatusIcon { Id = "silence",     Color = new Color(0.60f, 0.55f, 0.70f), Abbr = "默" },
+            new StatusIcon { Id = "root",        Color = new Color(0.42f, 0.66f, 0.36f), Abbr = "缚" },
+            new StatusIcon { Id = "miasma",      Color = new Color(0.50f, 0.55f, 0.32f), Abbr = "瘴" },
+            new StatusIcon { Id = "qi",          Color = new Color(0.55f, 0.80f, 0.55f), Abbr = "气" },
+            new StatusIcon { Id = "vigor",       Color = new Color(0.50f, 0.82f, 0.60f), Abbr = "生" },
+            new StatusIcon { Id = "grain",       Color = new Color(0.85f, 0.76f, 0.40f), Abbr = "谷" },
+            new StatusIcon { Id = "bounty",      Color = new Color(0.90f, 0.80f, 0.45f), Abbr = "穰" },
+            new StatusIcon { Id = "haste",       Color = new Color(0.60f, 0.85f, 0.90f), Abbr = "凝" },
+        };
+
+        /// <summary>状态图标边长（世界单位）。</summary>
+        public float StatusIconSize = 0.22f;
+        /// <summary>状态图标之间的间距（世界单位）。</summary>
+        public float StatusIconGap = 0.03f;
+        /// <summary>状态图标排相对立绘容器的 y 偏移。</summary>
+        public float StatusRowY = 2.05f;
+        /// <summary>状态图标文字大小倍率。</summary>
+        public float StatusLabelSize = 1f;
+
+        /// <summary>技能名飘字的颜色（只有战技/绝技会飘，普攻不飘）。</summary>
+        public Color SkillNameColor = new Color(0.96f, 0.87f, 0.52f);
 
         private const float BoardY = -0.2f;      // 棋盘（3×3 网格）中心 y —— 网格与单位**必须共用**
         private const float PlayerX = -4.3f;
@@ -403,6 +460,51 @@ namespace WanXiang.Battle.Presentation
                 int h2 = u.RuntimeId != null ? u.RuntimeId.GetHashCode() : i * 7919;
                 view.Phase = (Mathf.Abs(h2) % 1000) / 1000f * Mathf.PI * 2f;
 
+                // ---- 状态图标排（头顶）----
+                //  数据只来自帧流的 UnitSnapshot.StatusIds（`id:层数|id:层数`），
+                //  ⛔ 不读 _state 里的单位（同 Hint 的理由：自动模式是终局态、手动模式是分片推进）。
+                {
+                    var rowGo = new GameObject("StatusRow");
+                    rowGo.transform.SetParent(root.transform, false);
+                    rowGo.transform.localScale = Vector3.one / rsHint;              // 世界尺寸恒定
+                    rowGo.transform.localPosition = new Vector3(0f, StatusRowY / rsHint, 0f);
+                    view.StatusRow = rowGo;
+                    int slots = (StatusIcons != null && StatusIcons.Length > 0) ? Mathf.Min(8, StatusIcons.Length) : 1;
+                    view.StatusPlates = new SpriteRenderer[slots];
+                    view.StatusLabels = new TextMesh[slots];
+                    float plateScale = StatusIconSize / 0.32f;                      // 底图是 32px @ PPU100
+                    for (int s = 0; s < slots; s++)
+                    {
+                        // ⛔ 底板与文字**必须分放两个子对象**：同一个 GameObject 上先 AddComponent<SpriteRenderer>
+                        //    再加 TextMesh 时，AddComponent<TextMesh>() 会**静默返回 null**（实测），
+                        //    随后 tm.xxx 直接 NPE。名字那处之所以没事，是因为它那个对象只有 TextMesh。
+                        var slotGo = new GameObject("S" + s);                   // 整格的容器（负责缩放/定位）
+                        slotGo.transform.SetParent(rowGo.transform, false);
+                        slotGo.transform.localScale = new Vector3(plateScale, plateScale, 1f);
+
+                        var plateGo = new GameObject("Plate");
+                        plateGo.transform.SetParent(slotGo.transform, false);
+                        var sr = plateGo.AddComponent<SpriteRenderer>();
+                        sr.sprite = SolidSprite(Color.white, 32, 32, 2, new Color(0.10f, 0.08f, 0.06f));
+                        sr.sortingOrder = 12;
+
+                        var labGo = new GameObject("Label");
+                        labGo.transform.SetParent(slotGo.transform, false);
+                        var tm = labGo.AddComponent<TextMesh>();
+                        var mr = labGo.GetComponent<MeshRenderer>();
+                        if (f != null && mr != null) { tm.font = f; mr.sharedMaterial = f.material; }
+                        tm.characterSize = 0.42f * Mathf.Max(0.01f, StatusLabelSize);
+                        tm.fontSize = 48;
+                        tm.anchor = TextAnchor.MiddleCenter;
+                        tm.alignment = TextAlignment.Center;
+                        tm.color = Color.white;
+                        tm.text = "";
+                        slotGo.SetActive(false);
+                        view.StatusPlates[s] = sr;
+                        view.StatusLabels[s] = tm;
+                    }
+                }
+
                 _views[u.RuntimeId] = view;
                 // 开场就有的单位立刻可见；中途增员先隐藏 —— 由 ApplyFrame 在它第一次出现在帧流里时唤起。
                 if (hasFrame0 && !bornAtStart.Contains(u.RuntimeId)) root.SetActive(false);
@@ -448,10 +550,71 @@ namespace WanXiang.Battle.Presentation
                     string hint = s.StateHint ?? "";
                     if (v.Hint.text != hint) v.Hint.text = hint;
                 }
+                // 状态图标排：变了才重画（每秒都在刷的东西，别每帧重建 sprite）
+                string sids = s.StatusIds ?? "";
+                if (v.StatusRow != null && v.StatusShown != sids) UpdateStatusRow(v, sids);
                 v.Hp = s.Hp; v.MaxHp = s.MaxHp;
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 if (v.Alive && !s.Alive) v.DeadBlend = 0f;
                 v.Alive = s.Alive;
+            }
+        }
+
+        /// <summary>
+        /// 重画某单位的**状态图标排**。<paramref name="ids"/> 形如 `burn:3|root:1`。
+        /// 图标查 <see cref="StatusIcons"/>（Id 同时也是 `ArtRes/UI/Status/<id>.png` 的文件名 ⇒ 换图即换美术）；
+        /// 查不到或没拖图 ⇒ 回退成「色块 + 缩写 + 层数」，绝不空白。
+        /// </summary>
+        private void UpdateStatusRow(UnitView2D v, string ids)
+        {
+            v.StatusShown = ids;
+            int used = 0;
+            if (!string.IsNullOrEmpty(ids) && v.StatusPlates != null)
+            {
+                var parts = ids.Split('|');
+                for (int i = 0; i < parts.Length && used < v.StatusPlates.Length; i++)
+                {
+                    var kv = parts[i].Split(':');
+                    if (kv.Length < 2) continue;
+                    int stacks = 1;
+                    int.TryParse(kv[1], out stacks);
+                    var def = StatusIcons != null ? System.Array.Find(StatusIcons, x => x != null && x.Id == kv[0]) : null;
+                    var plate = v.StatusPlates[used];
+                    var label = v.StatusLabels != null ? v.StatusLabels[used] : null;
+                    if (plate == null) continue;
+
+                    if (def != null && def.Icon != null)
+                    {
+                        plate.sprite = def.Icon;          // ← 你拖进来的图
+                        plate.color = Color.white;
+                        if (label != null) label.text = "";
+                    }
+                    else
+                    {
+                        plate.sprite = SolidSprite(Color.white, 32, 32, 2, new Color(0.10f, 0.08f, 0.06f));
+                        plate.color = def != null ? def.Color : new Color(0.6f, 0.6f, 0.6f);
+                        if (label != null)
+                            label.text = ((def != null && !string.IsNullOrEmpty(def.Abbr)) ? def.Abbr : kv[0])
+                                       + (stacks > 1 ? stacks.ToString() : "");
+                    }
+                    plate.gameObject.SetActive(true);
+                    if (plate.transform.parent != null) plate.transform.parent.gameObject.SetActive(true);
+                    used++;
+                }
+            }
+            for (int s = used; s < (v.StatusPlates != null ? v.StatusPlates.Length : 0); s++)
+                if (v.StatusPlates[s] != null && v.StatusPlates[s].transform.parent != null)
+                    v.StatusPlates[s].transform.parent.gameObject.SetActive(false);
+
+            // 居中排布（rowGo 有自己的缩放 ⇒ 世界步长换算回局部；定位打在"格容器"上）
+            if (used > 0 && v.StatusRow != null)
+            {
+                float sc = Mathf.Max(0.0001f, v.StatusRow.transform.localScale.x);
+                float step = (StatusIconSize + StatusIconGap) / sc;
+                for (int s = 0; s < used; s++)
+                    if (v.StatusPlates[s] != null && v.StatusPlates[s].transform.parent != null)
+                        v.StatusPlates[s].transform.parent.localPosition =
+                            new Vector3((s - (used - 1) * 0.5f) * step, 0f, 0f);
             }
         }
 
@@ -531,6 +694,11 @@ namespace WanXiang.Battle.Presentation
                     // 出手：冲上去（GDD 的"跑到目标面前"）。目标 id 缺失（群体技/
                     // 纯增益）时退化为"朝敌方方向冲一段"，不影响观感。
                     StartLunge(e.ActorId, e.TargetId);
+                    // ★ 技能名飘字（用户 2026-10-06："怎么体现这些技能效果"）：
+                    //   普攻每回合都放，飘了会刷屏 ⇒ 只飘战技/绝技。技能名事件里本来就有（skillName）。
+                    if (!string.IsNullOrEmpty(e.SkillName) && e.SkillName != "普攻" &&
+                        e.ActorId != null && _views.TryGetValue(e.ActorId, out var scv))
+                        SpawnNumber(scv, e.SkillName, SkillNameColor);
                     break;
 
                 case BattleEventKind.Damage:
