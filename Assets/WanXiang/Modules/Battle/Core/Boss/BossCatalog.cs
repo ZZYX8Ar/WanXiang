@@ -178,14 +178,14 @@ namespace WanXiang.Battle.Core
             //   历史坑：曾用 b_baiwang 当 id，SpriteCatalog 查不到图 ⇒ 表现层"按序号随便分配"
             //   ⇒ 最后靠 cp b_bairen.png 补了个副本，结果两张立绘一模一样（用户发现）。
             new BossDef { Id="b_bairen", DisplayName="白魍·白刃", Element=Element.Metal, Role=RoleType.Striker, BaseHp=5900, BaseAtk=420, BaseDef=120, BaseSpeed=110, FlavorStatus=StatusCatalog.ArmorBreak },
-            new BossDef { Id="b_shai",   DisplayName="千机傀儡·铩",   Element=Element.Metal, Role=RoleType.Guard,    BaseHp=1850, BaseAtk=215, BaseDef=110, BaseSpeed=80,  FlavorStatus=StatusCatalog.ArmorBreak },
+            new BossDef { Id="b_shai",   DisplayName="千机傀儡·铩",   Element=Element.Metal, Role=RoleType.Guard,    BaseHp=1760, BaseAtk=215, BaseDef=110, BaseSpeed=80,  FlavorStatus=StatusCatalog.ArmorBreak },
             new BossDef { Id="b_shuangfeng", DisplayName="断刃游侠·霜锋", Element=Element.Metal, Role=RoleType.Swift, BaseHp=1880, BaseAtk=295, BaseDef=110, BaseSpeed=140, FlavorStatus=StatusCatalog.Marked },
             // 幕四 · 冬（水）
             new BossDef { Id="b_xuanming", DisplayName="凝冰之君·玄溟", Element=Element.Water, Role=RoleType.Guard,  BaseHp=1400, BaseAtk=340, BaseDef=150, BaseSpeed=90,  FlavorStatus=StatusCatalog.Freeze },
             new BossDef { Id="b_mingkun", DisplayName="深渊鲸落·溟鲲", Element=Element.Water, Role=RoleType.Guard,  BaseHp=2630, BaseAtk=290, BaseDef=150, BaseSpeed=85,  FlavorStatus=StatusCatalog.Wet },
             new BossDef { Id="b_shuangying", DisplayName="冰渊镜魔·霜影", Element=Element.Water, Role=RoleType.Swift, BaseHp=2350, BaseAtk=360, BaseDef=120, BaseSpeed=115, FlavorStatus=StatusCatalog.Frost },
             // 幕五 · 终局
-            new BossDef { Id="b_guixu",  DisplayName="归墟之主",       Element=Element.Earth, Role=RoleType.Guard,  BaseHp=1500, BaseAtk=290, BaseDef=180, BaseSpeed=100, FlavorStatus=StatusCatalog.ArmorBreak },
+            new BossDef { Id="b_guixu",  DisplayName="归墟之主",       Element=Element.Earth, Role=RoleType.Guard,  BaseHp=1150, BaseAtk=290, BaseDef=180, BaseSpeed=100, FlavorStatus=StatusCatalog.ArmorBreak },
             new BossDef { Id="b_hongmeng", DisplayName="混沌之母·鸿蒙", Element=Element.None,  Role=RoleType.Striker, BaseHp=1880, BaseAtk=440, BaseDef=170, BaseSpeed=105, FlavorStatus=StatusCatalog.Silence },
         };
 
@@ -420,7 +420,7 @@ namespace WanXiang.Battle.Core
 
                 case "b_shai":     // 铩：机关护盾 + 齿轮反击 + 组装 + 过载
                     st.Hooks.Add(new BossOpeningMpHook(3));
-                    st.Hooks.Add(new CrustHook(boss, 0.06f, 0.40f));
+                    st.Hooks.Add(new CrustHook(boss, 0.05f, 0.40f));
                     st.Hooks.Add(new ShieldBreakReflectHook(boss, 1.50f, 0.10f));  // 齿轮反击
                     st.Hooks.Add(new AssembleHook(boss, 0.10f, 0.25f));
                     break;
@@ -473,7 +473,7 @@ namespace WanXiang.Battle.Core
                         SummonHook.DeploySummon(s, ShouHu, 3);
                     }));
                     st.Hooks.Add(new AllyPresenceRegenHook(boss, 0.03f));
-                    st.Hooks.Add(new DpsTimeoutHook(22));
+                    st.Hooks.Add(new DpsTimeoutHook(25));
                     break;
 
                 case "b_hongmeng": // 鸿蒙：混元 + 造化 + 混沌护持 + 湮灭
@@ -481,7 +481,7 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new IgnoreCounterHook(boss));
                     st.Hooks.Add(new SummonHook(3, new[]{ ZaoHua }, new[]{ 2 }));
                     st.Hooks.Add(new FirstHitReduceHook(0.40f));
-                    st.Hooks.Add(new DpsTimeoutHook(22));
+                    st.Hooks.Add(new DpsTimeoutHook(25));
                     break;
             }
         }
