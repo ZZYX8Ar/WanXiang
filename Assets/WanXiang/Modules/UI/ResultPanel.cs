@@ -550,6 +550,7 @@ namespace WanXiang.Modules.UI
                             BeastIndices = new int[n],
                             SoulIndices = new int[n],
                             BoardSlots = new int[n],
+                            Growth = new byte[n],
                             Seed = (ulong)run.RunSeed,
                         };
                         for (int i = 0; i < n; i++)
@@ -566,6 +567,24 @@ namespace WanXiang.Modules.UI
                                 (WanXiang.Modules.UI.SceneFlow.LastAllyCells != null &&
                                  i < WanXiang.Modules.UI.SceneFlow.LastAllyCells.Count)
                                 ? WanXiang.Modules.UI.SceneFlow.LastAllyCells[i] : i;
+
+                            // ★ 局内**养成快照**（等级 + 进化）—— 好友对战要体现"把异兽养成多厉害"
+                            //   （用户 2026-10-06。原先分享码完全没带养成 ⇒ 双方都是默认面板，
+                            //    那个玩法就失去意义了；这是缺口，不是设计取舍。）
+                            {
+                                int glv = 1; bool gev = false;
+                                if (run.SnapBeastIds != null)
+                                    for (int k = 0; k < run.SnapBeastIds.Count; k++)
+                                        if (run.SnapBeastIds[k] == allies[i])
+                                        {
+                                            if (run.SnapLevels != null && k < run.SnapLevels.Count)
+                                                glv = run.SnapLevels[k];
+                                            if (run.SnapEvolved != null && k < run.SnapEvolved.Count)
+                                                gev = run.SnapEvolved[k];
+                                            break;
+                                        }
+                                payload.Growth[i] = WanXiang.Fusion.ShareCode.PackGrowth(glv, gev);
+                            }
                         }
                         code = WanXiang.Fusion.ShareCode.Encode(payload) ?? "";
                     }

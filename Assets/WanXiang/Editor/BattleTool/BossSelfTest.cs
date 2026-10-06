@@ -411,9 +411,11 @@ namespace WanXiang.Editor.BattleTool
             // 冰晶重生（玄溟） —— boss 被击杀瞬间退场 + 十字格生成 4 枚冰晶
             ExpectNote(c, "冰晶", "b_xuanming", "冰晶重生(本体退场→十字冰晶)", 5000f, 6000, 3, RoleType.Striker, 20261203UL);
 
-            // 属性轮转 + 硬性DPS灭团（归墟之主） —— 第 3 回合轮转、第 12 回合灭团
+            // 属性轮转 + 硬性DPS灭团（归墟之主） —— 第 3 回合轮转、第 18 回合灭团
+            // ⚠ maxTurns 必须 **大于** DpsTimeoutHook 的回合数（现 18）—— 否则跑不到灭团那一步就结束，
+            //   断言会误报"钩子没挂"。改硬性 DPS 回合数时这里要同步。
             ExpectNotes(c, new[] { "五行轮转", "灭团" }, "b_guixu", "属性轮转 + 硬性DPS灭团",
-                10f, 20000, 3, RoleType.Guard, 20261204UL, maxTurns: 16);
+                10f, 20000, 3, RoleType.Guard, 20261204UL, maxTurns: 24);
 
             // 破壳护盾（燋彘硬壳） —— 每回合始加护盾
             ExpectNote(c, "护盾", "b_jiaozhi", "破壳护盾", 700f, 6000, 3, RoleType.Striker, 20261205UL);

@@ -176,6 +176,23 @@ namespace WanXiang.Modules.UI
 
             ulong seed = WanXiang.Pvp.PvpMatch.SeedOf(mine, opp);
 
+            // ★ 好友对战带上双方**养成**（用户 2026-10-06 定案：这个玩法要体现"把异兽养成多厉害"）。
+            //   分享码 v2 每只带一个"等级 + 进化"字节；老的 v1 码没有这一段 ⇒ 按默认（倍率 1）。
+            var payMine = new WanXiang.Fusion.SharePayload();
+            var payOpp = new WanXiang.Fusion.SharePayload();
+            WanXiang.Fusion.ShareCode.TryDecode(mine, beasts.Length, souls.Count, out payMine);
+            WanXiang.Fusion.ShareCode.TryDecode(opp, beasts.Length, souls.Count, out payOpp);
+            System.Func<WanXiang.Fusion.SharePayload, int, float> growthMul = (pp, i) =>
+            {
+                if (pp.Growth == null || i < 0 || i >= pp.Growth.Length) return 1f;
+                int lv; bool ev;
+                WanXiang.Fusion.ShareCode.UnpackGrowth(pp.Growth[i], out lv, out ev);
+                return WanXiang.Meta.MetaDefaults.CombatBonusMul(lv, ev);
+            };
+            // 对方：直接乘进 DeployEntry.StatMul ⇒ PvpMatch / BattlePlayback 的接口都不用动
+            for (int i = 0; i < oppEntries.Length; i++)
+                oppEntries[i] = oppEntries[i].WithMul(oppEntries[i].StatMul * growthMul(payOpp, i));
+
             var req = new WanXiang.Modules.UI.BattleRequest
             {
                 Title = "好友对战",
@@ -187,10 +204,12 @@ namespace WanXiang.Modules.UI
             req.EnemyEntries.AddRange(oppEntries);
             if (req.PlayerCells == null) req.PlayerCells = new System.Collections.Generic.List<int>();
             req.PlayerCells.Clear();
-            foreach (var e in myEntries)
+            for (int i = 0; i < myEntries.Length; i++)
             {
+                var e = myEntries[i];
                 req.Player.Add(e.Def);
                 req.PlayerCells.Add(e.PosIndex);   // DeployEntry 的字段名是 PosIndex（不是 BoardSlot）
+                req.PlayerMulPer.Add(growthMul(payMine, i));   // ★ 我方养成（等级 + 进化）
             }
 
             CloseSelf();

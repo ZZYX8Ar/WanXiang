@@ -34,6 +34,15 @@ namespace WanXiang.Fusion
         public int[] BeastIndices;   // 与 SoulIndices/BoardSlots 等长
         public int[] SoulIndices;
         public int[] BoardSlots;
+
+        /// <summary>
+        /// 每只的**养成**（v2 起）：低 4 位 = 等级(1..15)、第 4 位 = 是否进化。
+        /// ★ 用户 2026-10-06："好友对战要体现把异兽养成多厉害" —— 不带这个，
+        ///   双方就都是**默认面板**，那个玩法就没有意义了（原先确实没带，是缺口不是取舍）。
+        /// 为空 = 旧码 ⇒ 一律按默认（等级 1 / 未进化）。
+        /// </summary>
+        public byte[] Growth;
+
         public ulong Seed;
 
         public int UnitCount => BeastIndices?.Length ?? 0;
@@ -48,9 +57,27 @@ namespace WanXiang.Fusion
 
     public static class ShareCode
     {
-        public const byte CurrentVersion = 1;
+        public const byte CurrentVersion = 2;   // v2：加入每只的"养成"字节（v1 码仍可解，按默认养成）
         public const int MaxUnits = 5;          // 3×3 棋盘单侧上限（GDD：5 只上阵）
         public const int MaxBoardSlot = 8;
+
+        /// <summary>默认养成字节：等级 1、未进化。</summary>
+        public const byte DefaultGrowth = 1;
+
+        /// <summary>打包"等级 + 进化"到一个字节：低 4 位等级(夹 1..15)、第 4 位进化。</summary>
+        public static byte PackGrowth(int level, bool evolved)
+        {
+            int lv = System.Math.Max(1, System.Math.Min(15, level));
+            return (byte)(lv | (evolved ? 0x10 : 0));
+        }
+
+        /// <summary>拆出等级与进化。空/越界一律回落到默认（等级 1 / 未进化）。</summary>
+        public static void UnpackGrowth(byte g, out int level, out bool evolved)
+        {
+            int lv = g & 0x0F;
+            level = lv < 1 ? 1 : lv;
+            evolved = (g & 0x10) != 0;
+        }
 
         /// <summary>编码。载荷非法（数量 0 或超上限）返回 null —— 调用方负责给出可读错误。</summary>
         public static string Encode(SharePayload p)
@@ -73,9 +100,9 @@ namespace WanXiang.Fusion
                 seen[p.BoardSlots[i]] = true;
             }
 
-            // 2 头部 + 3×n + 8 种子。n=5 时 25 字节 → Base64 约 36 字符。
-            var bytes = new byte[2 + n * 3 + 8];
-            bytes[0] = p.Version;
+            // v2：2 头部 + 3×n + **n 养成** + 8 种子。n=5 时 30 字节 → Base64 约 44 字符。
+            var bytes = new byte[2 + n * 3 + n + 8];
+            bytes[0] = CurrentVersion;   // ⛔ 版本由编码器决定，别信调用方传的（否则产出自己解不开的码）
             bytes[1] = (byte)n;
             for (int i = 0; i < n; i++)
             {
@@ -83,8 +110,10 @@ namespace WanXiang.Fusion
                 bytes[o] = (byte)p.BeastIndices[i];
                 bytes[o + 1] = (byte)p.SoulIndices[i];
                 bytes[o + 2] = (byte)p.BoardSlots[i];
+                bytes[2 + n * 3 + i] = (p.Growth != null && i < p.Growth.Length)
+                    ? p.Growth[i] : DefaultGrowth;
             }
-            WriteU64(bytes, 2 + n * 3, p.Seed);
+            WriteU64(bytes, 2 + n * 3 + n, p.Seed);
 
             return ToChatSafeBase64(bytes);
         }
@@ -104,15 +133,18 @@ namespace WanXiang.Fusion
             if (bytes == null || bytes.Length < 10) return false;
 
             byte version = bytes[0];
-            if (version != CurrentVersion) return false;
+            // ⚠ v1（无养成分段）与 v2（带养成）都要能解 —— 老分享码不能失效。
+            if (version != 1 && version != CurrentVersion) return false;
 
             int n = bytes[1];
             if (n < 1 || n > MaxUnits) return false;
-            if (bytes.Length != 2 + n * 3 + 8) return false;
+            int expect = (version >= 2) ? 2 + n * 3 + n + 8 : 2 + n * 3 + 8;
+            if (bytes.Length != expect) return false;
 
             var beasts = new int[n];
             var souls = new int[n];
             var slots = new int[n];
+            var growth = new byte[n];
             var seen = new bool[MaxBoardSlot + 1];
 
             for (int i = 0; i < n; i++)
@@ -121,6 +153,7 @@ namespace WanXiang.Fusion
                 beasts[i] = bytes[o];
                 souls[i] = bytes[o + 1];
                 slots[i] = bytes[o + 2];
+                growth[i] = (version >= 2) ? bytes[2 + n * 3 + i] : DefaultGrowth;
 
                 if (beasts[i] >= beastCount) return false;   // byte 非负，只查上界
                 if (souls[i] >= soulCount) return false;
@@ -135,7 +168,8 @@ namespace WanXiang.Fusion
                 BeastIndices = beasts,
                 SoulIndices = souls,
                 BoardSlots = slots,
-                Seed = ReadU64(bytes, 2 + n * 3),
+                Growth = growth,
+                Seed = ReadU64(bytes, 2 + n * 3 + (version >= 2 ? n : 0)),
             };
             return true;
         }
