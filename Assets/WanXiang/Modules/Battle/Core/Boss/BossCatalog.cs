@@ -166,27 +166,27 @@ namespace WanXiang.Battle.Core
             // 幕一 · 春（木）
             new BossDef { Id="b_fuman",  DisplayName="腐木之君·蝮魇", Element=Element.Wood,  Role=RoleType.Guard,    BaseHp=3000, BaseAtk=300, BaseDef=140, BaseSpeed=85,  FlavorStatus=StatusCatalog.Root },
             new BossDef { Id="b_manman", DisplayName="缠丝女萝·蔓娘", Element=Element.Wood,  Role=RoleType.Swift,    BaseHp=2600, BaseAtk=340, BaseDef=110, BaseSpeed=120, FlavorStatus=StatusCatalog.Root },
-            new BossDef { Id="b_wangliang", DisplayName="瘴林之影·魍魉", Element=Element.Wood, Role=RoleType.Striker, BaseHp=2400, BaseAtk=360, BaseDef=100, BaseSpeed=135, FlavorStatus=StatusCatalog.Miasma },
+            new BossDef { Id="b_wangliang", DisplayName="瘴林之影·魍魉", Element=Element.Wood, Role=RoleType.Striker, BaseHp=2900, BaseAtk=400, BaseDef=100, BaseSpeed=135, FlavorStatus=StatusCatalog.Miasma },
             // 幕二 · 夏（火）
             new BossDef { Id="b_chiba",  DisplayName="炎狱之君·赤魃", Element=Element.Fire,  Role=RoleType.Striker,  BaseHp=2800, BaseAtk=380, BaseDef=120, BaseSpeed=105, FlavorStatus=StatusCatalog.Burn },
-            new BossDef { Id="b_jinjiao", DisplayName="焚天凶骸·烬蛟", Element=Element.Fire,  Role=RoleType.Striker,  BaseHp=2700, BaseAtk=360, BaseDef=115, BaseSpeed=110, FlavorStatus=StatusCatalog.Burn },
-            new BossDef { Id="b_jiaozhi", DisplayName="熔岩行尸·燋彘", Element=Element.Fire,  Role=RoleType.Guard,    BaseHp=3200, BaseAtk=320, BaseDef=160, BaseSpeed=80,  FlavorStatus=StatusCatalog.Burn },
+            new BossDef { Id="b_jinjiao", DisplayName="焚天凶骸·烬蛟", Element=Element.Fire,  Role=RoleType.Striker,  BaseHp=2700, BaseAtk=320, BaseDef=115, BaseSpeed=110, FlavorStatus=StatusCatalog.Burn },
+            new BossDef { Id="b_jiaozhi", DisplayName="熔岩行尸·燋彘", Element=Element.Fire,  Role=RoleType.Guard,    BaseHp=2850, BaseAtk=320, BaseDef=160, BaseSpeed=80,  FlavorStatus=StatusCatalog.Burn },
             // 幕三 · 秋（金）
             // ⚠ 白魍的 id 用 **b_bairen**（白刃），不是 b_baiwang ——
             //   设计上"肃杀之君·白魍"就是**双子本身**（白刃 + 素刃），没有第三个"白魍本体"立绘。
             //   b_baiwang 从来不是立绘 CSV 里的 id（那份表只有 b_bairen / b_suren）。
             //   历史坑：曾用 b_baiwang 当 id，SpriteCatalog 查不到图 ⇒ 表现层"按序号随便分配"
             //   ⇒ 最后靠 cp b_bairen.png 补了个副本，结果两张立绘一模一样（用户发现）。
-            new BossDef { Id="b_bairen", DisplayName="白魍·白刃", Element=Element.Metal, Role=RoleType.Striker, BaseHp=2600, BaseAtk=380, BaseDef=120, BaseSpeed=110, FlavorStatus=StatusCatalog.ArmorBreak },
-            new BossDef { Id="b_shai",   DisplayName="千机傀儡·铩",   Element=Element.Metal, Role=RoleType.Guard,    BaseHp=3300, BaseAtk=340, BaseDef=170, BaseSpeed=80,  FlavorStatus=StatusCatalog.ArmorBreak },
-            new BossDef { Id="b_shuangfeng", DisplayName="断刃游侠·霜锋", Element=Element.Metal, Role=RoleType.Swift, BaseHp=2500, BaseAtk=420, BaseDef=110, BaseSpeed=140, FlavorStatus=StatusCatalog.Marked },
+            new BossDef { Id="b_bairen", DisplayName="白魍·白刃", Element=Element.Metal, Role=RoleType.Striker, BaseHp=3100, BaseAtk=420, BaseDef=120, BaseSpeed=110, FlavorStatus=StatusCatalog.ArmorBreak },
+            new BossDef { Id="b_shai",   DisplayName="千机傀儡·铩",   Element=Element.Metal, Role=RoleType.Guard,    BaseHp=3300, BaseAtk=300, BaseDef=170, BaseSpeed=80,  FlavorStatus=StatusCatalog.ArmorBreak },
+            new BossDef { Id="b_shuangfeng", DisplayName="断刃游侠·霜锋", Element=Element.Metal, Role=RoleType.Swift, BaseHp=2500, BaseAtk=340, BaseDef=110, BaseSpeed=140, FlavorStatus=StatusCatalog.Marked },
             // 幕四 · 冬（水）
-            new BossDef { Id="b_xuanming", DisplayName="凝冰之君·玄溟", Element=Element.Water, Role=RoleType.Guard,  BaseHp=3400, BaseAtk=340, BaseDef=150, BaseSpeed=90,  FlavorStatus=StatusCatalog.Freeze },
-            new BossDef { Id="b_mingkun", DisplayName="深渊鲸落·溟鲲", Element=Element.Water, Role=RoleType.Guard,  BaseHp=3500, BaseAtk=330, BaseDef=150, BaseSpeed=85,  FlavorStatus=StatusCatalog.Wet },
+            new BossDef { Id="b_xuanming", DisplayName="凝冰之君·玄溟", Element=Element.Water, Role=RoleType.Guard,  BaseHp=2850, BaseAtk=340, BaseDef=150, BaseSpeed=90,  FlavorStatus=StatusCatalog.Freeze },
+            new BossDef { Id="b_mingkun", DisplayName="深渊鲸落·溟鲲", Element=Element.Water, Role=RoleType.Guard,  BaseHp=3500, BaseAtk=290, BaseDef=150, BaseSpeed=85,  FlavorStatus=StatusCatalog.Wet },
             new BossDef { Id="b_shuangying", DisplayName="冰渊镜魔·霜影", Element=Element.Water, Role=RoleType.Swift, BaseHp=2700, BaseAtk=360, BaseDef=120, BaseSpeed=115, FlavorStatus=StatusCatalog.Frost },
             // 幕五 · 终局
-            new BossDef { Id="b_guixu",  DisplayName="归墟之主",       Element=Element.Earth, Role=RoleType.Guard,  BaseHp=4200, BaseAtk=460, BaseDef=180, BaseSpeed=100, FlavorStatus=StatusCatalog.ArmorBreak },
-            new BossDef { Id="b_hongmeng", DisplayName="混沌之母·鸿蒙", Element=Element.None,  Role=RoleType.Striker, BaseHp=4000, BaseAtk=440, BaseDef=170, BaseSpeed=105, FlavorStatus=StatusCatalog.Silence },
+            new BossDef { Id="b_guixu",  DisplayName="归墟之主",       Element=Element.Earth, Role=RoleType.Guard,  BaseHp=3300, BaseAtk=460, BaseDef=180, BaseSpeed=100, FlavorStatus=StatusCatalog.ArmorBreak },
+            new BossDef { Id="b_hongmeng", DisplayName="混沌之母·鸿蒙", Element=Element.None,  Role=RoleType.Striker, BaseHp=3150, BaseAtk=440, BaseDef=170, BaseSpeed=105, FlavorStatus=StatusCatalog.Silence },
         };
 
         /// <summary>每幕专属池（下标 = 幕-1）。</summary>
@@ -454,7 +454,7 @@ namespace WanXiang.Battle.Core
 
                 case "b_shuangying": // 霜影：镜像分身 + 虚实 + 寒渊 + 镜碎
                     st.Hooks.Add(new BossOpeningMpHook(3));
-                    st.Hooks.Add(new SummonHook(3, new[]{ JingYing, JingYing }, new[]{ 2, 6 }));
+                    st.Hooks.Add(new SummonHook(5, new[]{ JingYing, JingYing }, new[]{ 2, 6 }));
                     st.Hooks.Add(new RandomImmunityHook());               // 虚实：每回合 1 个单位免疫
                     st.Hooks.Add(new SpeedAuraHook(0.20f));
                     st.Hooks.Add(new CloneDamageShareHook(boss, 0.30f));  // 镜碎
