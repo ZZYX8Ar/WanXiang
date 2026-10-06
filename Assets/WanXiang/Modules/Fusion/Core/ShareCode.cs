@@ -43,6 +43,15 @@ namespace WanXiang.Fusion
         /// </summary>
         public byte[] Growth;
 
+        /// <summary>
+        /// **遗物的整体倍率**（v3 起）：把这一局攒的遗物**折算成一个标量**带过来
+        /// （用户 2026-10-06 定案）。⛔ 只折**数值部分**（全队倍率 × 本队每只的
+        /// 五行/定位/异兽加成，取均值），**不重放**遗物的机制类效果（复活 / 开局灵力 /
+        /// 改技能 / 授予劫象）—— 那要先接整套 mods 管线，收益/风险不划算。
+        /// 1f = 无遗物。
+        /// </summary>
+        public float RelicMul;
+
         public ulong Seed;
 
         public int UnitCount => BeastIndices?.Length ?? 0;
@@ -57,12 +66,25 @@ namespace WanXiang.Fusion
 
     public static class ShareCode
     {
-        public const byte CurrentVersion = 2;   // v2：加入每只的"养成"字节（v1 码仍可解，按默认养成）
+        public const byte CurrentVersion = 3;   // v3：加入"遗物整体倍率"1 字节（v1/v2 码仍可解）
         public const int MaxUnits = 5;          // 3×3 棋盘单侧上限（GDD：5 只上阵）
         public const int MaxBoardSlot = 8;
 
         /// <summary>默认养成字节：等级 1、未进化。</summary>
         public const byte DefaultGrowth = 1;
+
+        /// <summary>遗物倍率量化：步长 0.05、范围 1.00~13.75（1 字节）。0 字节 = 1.0。</summary>
+        public static byte PackRelicMul(float mul)
+        {
+            if (mul < 1f) mul = 1f;
+            int q = (int)System.Math.Round((mul - 1f) * 20f);
+            if (q < 0) q = 0;
+            if (q > 255) q = 255;
+            return (byte)q;
+        }
+
+        /// <summary>解出遗物整体倍率（缺字节 ⇒ 1.0）。</summary>
+        public static float UnpackRelicMul(byte b) { return 1f + b / 20f; }
 
         /// <summary>打包"等级 + 进化"到一个字节：低 4 位等级(夹 1..15)、第 4 位进化。</summary>
         public static byte PackGrowth(int level, bool evolved)
@@ -100,8 +122,8 @@ namespace WanXiang.Fusion
                 seen[p.BoardSlots[i]] = true;
             }
 
-            // v2：2 头部 + 3×n + **n 养成** + 8 种子。n=5 时 30 字节 → Base64 约 44 字符。
-            var bytes = new byte[2 + n * 3 + n + 8];
+            // v3：2 头部 + 3×n + **n 养成** + **1 遗物倍率** + 8 种子。n=5 时 31 字节 → Base64 约 44 字符。
+            var bytes = new byte[2 + n * 3 + n + 1 + 8];
             bytes[0] = CurrentVersion;   // ⛔ 版本由编码器决定，别信调用方传的（否则产出自己解不开的码）
             bytes[1] = (byte)n;
             for (int i = 0; i < n; i++)
@@ -113,7 +135,8 @@ namespace WanXiang.Fusion
                 bytes[2 + n * 3 + i] = (p.Growth != null && i < p.Growth.Length)
                     ? p.Growth[i] : DefaultGrowth;
             }
-            WriteU64(bytes, 2 + n * 3 + n, p.Seed);
+            bytes[2 + n * 3 + n] = PackRelicMul(p.RelicMul <= 0f ? 1f : p.RelicMul);
+            WriteU64(bytes, 2 + n * 3 + n + 1, p.Seed);
 
             return ToChatSafeBase64(bytes);
         }
@@ -133,12 +156,14 @@ namespace WanXiang.Fusion
             if (bytes == null || bytes.Length < 10) return false;
 
             byte version = bytes[0];
-            // ⚠ v1（无养成分段）与 v2（带养成）都要能解 —— 老分享码不能失效。
-            if (version != 1 && version != CurrentVersion) return false;
+            // ⚠ v1（裸阵容）/ v2（带养成）/ v3（带养成 + 遗物倍率）都要能解 —— 老分享码不能失效。
+            if (version < 1 || version > CurrentVersion) return false;
 
             int n = bytes[1];
             if (n < 1 || n > MaxUnits) return false;
-            int expect = (version >= 2) ? 2 + n * 3 + n + 8 : 2 + n * 3 + 8;
+            int expect = 2 + n * 3 + 8;                       // v1
+            if (version >= 2) expect += n;                    // + 养成
+            if (version >= 3) expect += 1;                    // + 遗物倍率
             if (bytes.Length != expect) return false;
 
             var beasts = new int[n];
@@ -162,6 +187,7 @@ namespace WanXiang.Fusion
                 seen[slots[i]] = true;
             }
 
+            int seedAt = 2 + n * 3 + (version >= 2 ? n : 0) + (version >= 3 ? 1 : 0);
             p = new SharePayload
             {
                 Version = version,
@@ -169,7 +195,8 @@ namespace WanXiang.Fusion
                 SoulIndices = souls,
                 BoardSlots = slots,
                 Growth = growth,
-                Seed = ReadU64(bytes, 2 + n * 3 + (version >= 2 ? n : 0)),
+                RelicMul = (version >= 3) ? UnpackRelicMul(bytes[2 + n * 3 + n]) : 1f,
+                Seed = ReadU64(bytes, seedAt),
             };
             return true;
         }

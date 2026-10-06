@@ -286,12 +286,20 @@ namespace WanXiang.Editor.MetaTool
                     if (m != (beasts[i].Element == Element.Wood)) woodOnly = false;
                 }
 
+                // ⚠ 每系应有的数量**按名单推导**，不写死。
+                //   原写死 6 ⇒ 名单从 30 只扩到 50 只后误报了两轮（"各应 6"而实际各 10）。
+                //   写死数字的断言挡不住"名单变了"这类回归，而这次要守的是**口径**
+                //   （tab 分类不重不漏），不是具体数量。
+                int nonNone = 0;
+                for (int i = 0; i < beasts.Length; i++) if (beasts[i].Element != Element.None) nonNone++;
+                int perElem = (hit.Length > 1) ? nonNone / (hit.Length - 1) : 0;
+
                 bool countsOk = hit[0] == beasts.Length;
-                for (int tab = 1; tab < hit.Length; tab++) if (hit[tab] != 6) countsOk = false;
+                for (int tab = 1; tab < hit.Length; tab++) if (hit[tab] != perElem) countsOk = false;
 
                 Check(lines, countsOk && woodOnly,
                       $"⑩ 五行 tab 口径：全部 {hit[0]}；木/火/土/金/水 = "
-                      + $"{hit[1]}/{hit[2]}/{hit[3]}/{hit[4]}/{hit[5]}（各应 6）；「木」只命中木系 = {woodOnly}");
+                      + $"{hit[1]}/{hit[2]}/{hit[3]}/{hit[4]}/{hit[5]}（各应 {perElem}）；「木」只命中木系 = {woodOnly}");
             }
 
             return Finish(lines);

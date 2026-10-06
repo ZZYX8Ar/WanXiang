@@ -586,6 +586,33 @@ namespace WanXiang.Modules.UI
                                 payload.Growth[i] = WanXiang.Fusion.ShareCode.PackGrowth(glv, gev);
                             }
                         }
+                        // ★ 遗物**折算成一个整体倍率**（用户 2026-10-06 定案）：
+                        //   玩到这里攒的遗物要能在好友对战里体现，但只折**数值部分** ——
+                        //   全队倍率 × 本队每只(五行/定位/异兽)加成、取**几何平均**（= 每只的平均增益）。
+                        //   ⛔ 不重放机制类遗物（复活/开局灵力/改技能/授予劫象）：那要接整套 mods 管线，
+                        //     分享码也只多 1 个字节。
+                        if (run.Relics != null && run.Relics.Count > 0)
+                        {
+                            try
+                            {
+                                var rmods = WanXiang.Campaign.RelicCatalog.Accumulate(run.Relics, n, run.Wins);
+                                double prod = 1.0; int cnt = 0;
+                                for (int i = 0; i < n; i++)
+                                {
+                                    int ri = -1;
+                                    for (int k = 0; k < allBeasts.Length; k++)
+                                        if (allBeasts[k].Id == allies[i]) { ri = k; break; }
+                                    if (ri < 0) continue;
+                                    var bd = allBeasts[ri];
+                                    prod *= rmods.MulFor(bd.Element) * rmods.RoleFor(bd.Role) * rmods.BeastFor(bd.Id);
+                                    cnt++;
+                                }
+                                float perAvg = cnt > 0 ? (float)System.Math.Pow(prod, 1.0 / cnt) : 1f;
+                                payload.RelicMul = rmods.PlayerMul * perAvg;
+                            }
+                            catch (System.Exception exr)
+                            { Debug.LogWarning("[ResultPanel] 遗物折算失败（按无遗物处理）：" + exr.Message); }
+                        }
                         code = WanXiang.Fusion.ShareCode.Encode(payload) ?? "";
                     }
                 }

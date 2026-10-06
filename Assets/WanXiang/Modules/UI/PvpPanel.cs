@@ -189,9 +189,12 @@ namespace WanXiang.Modules.UI
                 WanXiang.Fusion.ShareCode.UnpackGrowth(pp.Growth[i], out lv, out ev);
                 return WanXiang.Meta.MetaDefaults.CombatBonusMul(lv, ev);
             };
-            // 对方：直接乘进 DeployEntry.StatMul ⇒ PvpMatch / BattlePlayback 的接口都不用动
+            // 遗物折算成的整体倍率（v3）：对方直接乘进 StatMul，我方落在 PlayerMul（作用全队）
+            float myRelicMul = payMine.RelicMul > 0f ? payMine.RelicMul : 1f;
+            float oppRelicMul = payOpp.RelicMul > 0f ? payOpp.RelicMul : 1f;
             for (int i = 0; i < oppEntries.Length; i++)
-                oppEntries[i] = oppEntries[i].WithMul(oppEntries[i].StatMul * growthMul(payOpp, i));
+                oppEntries[i] = oppEntries[i].WithMul(
+                    oppEntries[i].StatMul * growthMul(payOpp, i) * oppRelicMul);
 
             var req = new WanXiang.Modules.UI.BattleRequest
             {
@@ -200,6 +203,7 @@ namespace WanXiang.Modules.UI
                 WeatherName = "AI 自动对战（双方各自动放技能）",
                 Seed = seed,
             };
+            req.PlayerMul *= myRelicMul;   // ★ 我方遗物折算（全队）
             // DeployEntry 自带 Def/Side/PosIndex/StatMul —— 直接整组塞给 EnemyEntries
             req.EnemyEntries.AddRange(oppEntries);
             if (req.PlayerCells == null) req.PlayerCells = new System.Collections.Generic.List<int>();
