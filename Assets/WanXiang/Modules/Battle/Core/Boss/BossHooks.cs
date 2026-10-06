@@ -208,7 +208,13 @@ namespace WanXiang.Battle.Core
         public DpsTimeoutHook(int turnLimit) { _turnLimit = turnLimit; }
         public override void OnTurnEnd(BattleState st)
         {
-            if (st.Turn < _turnLimit) return;
+            if (st.Turn < _turnLimit)
+            {
+                // ★ 倒计时：硬性 DPS 是"莫名其妙团灭"的重灾区，玩家必须看得见还剩几回合
+                BossHint.SetOnBoss(st, "天罚：还剩 " + (_turnLimit - st.Turn) + " 回合");
+                return;
+            }
+            BossHint.SetOnBoss(st, null);
             if (st.AliveCountOf(TeamSide.Enemy) == 0) return;   // 已经打过了
             if (st.AliveCountOf(TeamSide.Player) == 0) return;  // 已经没人才不重复判
             var list = st.UnitsOf(TeamSide.Player);
@@ -1119,6 +1125,7 @@ namespace WanXiang.Battle.Core
                     int n = list[i].GetStacks(StatusCatalog.Burn);
                     if (n > worst) worst = n;
                 }
+            if (_boss != null) BossHint.Set(st, _boss, "引燃：最高灼烧 " + worst + "/" + _threshold);
             if (worst < _threshold) return;
 
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
@@ -1137,6 +1144,32 @@ namespace WanXiang.Battle.Core
                 if (dealt > 0 && !u.IsAlive)
                     st.Log.Add(st.Turn, BattleEventKind.Death, targetId: u.RuntimeId, note: $"{u.DisplayName} 被引燃焚尽");
             }
+        }
+    }
+
+    /// <summary>
+    /// Boss 机制提示的统一写入口（表现层读 BattleUnit.StateHint → 画在单位头顶）。
+    /// ⛔ 写完**必须抓帧**：提示不进日志，而帧只在 Log.Add 时抓 ⇒ 不抓就得等下一个事件才显示
+    ///   （观感是"提示晚一拍 / 干脆没出现"，冰晶那轮踩过）。
+    /// ⚠ StateHint 每单位只有**一个**字符串 ⇒ 同一只首领身上多个机制会互相覆盖，
+    ///   所以每只首领只挑**最关键的那一条**写（尤其"倒计时类"）。
+    /// </summary>
+    public static class BossHint
+    {
+        public static void Set(BattleState st, BattleUnit u, string text)
+        {
+            if (u == null || u.StateHint == text) return;
+            u.StateHint = text;
+            if (st != null) st.CaptureFrame();
+        }
+
+        /// <summary>给敌方当前存活的那只首领写提示（钩子手里没有 boss 引用时用）。</summary>
+        public static void SetOnBoss(BattleState st, string text)
+        {
+            if (st == null) return;
+            var foes = st.UnitsOf(TeamSide.Enemy);
+            for (int i = 0; i < foes.Count; i++)
+                if (foes[i] != null && foes[i].IsAlive) { Set(st, foes[i], text); return; }
         }
     }
 
