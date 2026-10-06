@@ -902,6 +902,10 @@ namespace WanXiang.Battle.Core
         public RootHook(int interval) { _interval = CoreMath.Max(1, interval); }
         public override void OnTurnStart(BattleState st)
         {
+            {
+                int left = (_interval - (st.Turn % _interval)) % _interval;
+                BossHint.SetOnBoss(st, "根缚：" + (left == 0 ? "本回合缚 1 人" : left + " 回合后"));
+            }
             if (st.Turn % _interval != 0) return;
             var list = st.UnitsOf(TeamSide.Player);
             var alive = new List<BattleUnit>();
@@ -969,7 +973,12 @@ namespace WanXiang.Battle.Core
 
         public override void OnTurnStart(BattleState st)
         {
-            if (_boss == null || !_boss.IsAlive || st.Turn % _interval != 0) return;
+            if (_boss == null || !_boss.IsAlive) return;
+            {
+                int left = (_interval - (st.Turn % _interval)) % _interval;
+                BossHint.Set(st, _boss, "散瘴：" + (left == 0 ? "本回合瘴气翻倍" : left + " 回合后瘴气翻倍"));
+            }
+            if (st.Turn % _interval != 0) return;
             int cleared = 0;
             for (int i = _boss.Statuses.Count - 1; i >= 0; i--)
                 if (_boss.Statuses[i].Def.IsDebuff) { _boss.Statuses.RemoveAt(i); cleared++; }
@@ -1185,7 +1194,12 @@ namespace WanXiang.Battle.Core
 
         public override void OnTurnStart(BattleState st)
         {
-            if (_boss == null || !_boss.IsAlive || st.Turn % _interval != 0) return;
+            if (_boss == null || !_boss.IsAlive) return;
+            {
+                int left = (_interval - (st.Turn % _interval)) % _interval;
+                BossHint.Set(st, _boss, _label + "：" + (left == 0 ? "本回合发动" : left + " 回合后"));
+            }
+            if (st.Turn % _interval != 0) return;
             var list = st.UnitsOf(TeamSide.Player);
             for (int i = 0; i < list.Count; i++)
             {
@@ -1252,7 +1266,12 @@ namespace WanXiang.Battle.Core
 
         public override void OnTurnStart(BattleState st)
         {
-            if (_boss == null || !_boss.IsAlive || st.Turn % _interval != 0) return;
+            if (_boss == null || !_boss.IsAlive) return;
+            {
+                int left = (_interval - (st.Turn % _interval)) % _interval;
+                BossHint.Set(st, _boss, "吞舟：" + (left == 0 ? "本回合发动" : left + " 回合后"));
+            }
+            if (st.Turn % _interval != 0) return;
             var list = st.UnitsOf(TeamSide.Player);
             BattleUnit top = null;
             for (int i = 0; i < list.Count; i++)
