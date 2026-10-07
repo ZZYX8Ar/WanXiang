@@ -49,7 +49,13 @@ namespace WanXiang.Modules.UI
                 for (int i = 0; i < _orderRows.Length; i++)
                 {
                     if (_orderRows[i] == null) continue;
-                    var trig = _orderRows[i].GetComponent<UnityEngine.EventSystems.EventTrigger>();
+                    // ⛔ EventTrigger 必须挂在**真正吃射线的那个对象**上：
+                    //   UGUI 的 PointerEnter/Exit **只发给被命中的对象，不会冒泡给父节点**
+                    //   ⇒ 挂在 Row 上永远不触发（本轮实测踩了这个坑）。
+                    //   吃射线的是子节点 Img_RowHit，所以触发器也放它身上。
+                    var hitGo = _orderRows[i].Find("Img_RowHit");
+                    var trig = hitGo != null ? hitGo.GetComponent<UnityEngine.EventSystems.EventTrigger>() : null;
+                    if (trig == null) trig = _orderRows[i].GetComponent<UnityEngine.EventSystems.EventTrigger>();
                     if (trig == null) continue;
                     int idx = i;   // ⛔ 闭包捕获：直接写 i 会全部指到最后一行
                     AddTipTrigger(trig, UnityEngine.EventSystems.EventTriggerType.PointerEnter, _ => ShowStatusTip(idx));

@@ -176,9 +176,9 @@ namespace WanXiang.Battle.Presentation
         };
 
         /// <summary>状态图标边长（世界单位）。</summary>
-        public float StatusIconSize = 0.22f;
+        public float StatusIconSize = 0.36f;
         /// <summary>状态图标之间的间距（世界单位）。</summary>
-        public float StatusIconGap = 0.07f;
+        public float StatusIconGap = 0.08f;
         /// <summary>状态图标排相对立绘容器的 y 偏移。</summary>
         public float StatusRowY = 2.05f;
         /// <summary>状态图标文字大小倍率。</summary>
@@ -493,7 +493,10 @@ namespace WanXiang.Battle.Presentation
                         var tm = labGo.AddComponent<TextMesh>();
                         var mr = labGo.GetComponent<MeshRenderer>();
                         if (f != null && mr != null) { tm.font = f; mr.sharedMaterial = f.material; }
-                        tm.characterSize = 0.035f * Mathf.Max(0.01f, StatusLabelSize);
+                        // ⛔ 文字的 sortingOrder 必须**高于底板**（底板 12）—— 否则字被底板盖住
+                        //   表现为"字看不见"（字号大时因为溢出底板边缘反而看得见，会误导成字号问题）。
+                        if (mr != null) mr.sortingOrder = 14;
+                        tm.characterSize = 0.045f * Mathf.Max(0.01f, StatusLabelSize);
                         tm.fontSize = 48;
                         tm.anchor = TextAnchor.MiddleCenter;
                         tm.alignment = TextAlignment.Center;
