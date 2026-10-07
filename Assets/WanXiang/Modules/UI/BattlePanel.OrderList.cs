@@ -44,23 +44,9 @@ namespace WanXiang.Modules.UI
                 if (_statusTip != null) _statusTip.gameObject.SetActive(false);
                 if (_statusTipItem != null) _statusTipItem.gameObject.SetActive(false);
 
-                // ★ 悬停行 → 看该单位的状态列表（参考杀戮尖塔）。
-                //   能 hover 的前提是行上有**可受击层**：prefab 里的 Img_RowHit（全透明 a=0，但仍吃射线）。
-                for (int i = 0; i < _orderRows.Length; i++)
-                {
-                    if (_orderRows[i] == null) continue;
-                    // ⛔ EventTrigger 必须挂在**真正吃射线的那个对象**上：
-                    //   UGUI 的 PointerEnter/Exit **只发给被命中的对象，不会冒泡给父节点**
-                    //   ⇒ 挂在 Row 上永远不触发（本轮实测踩了这个坑）。
-                    //   吃射线的是子节点 Img_RowHit，所以触发器也放它身上。
-                    var hitGo = _orderRows[i].Find("Img_RowHit");
-                    var trig = hitGo != null ? hitGo.GetComponent<UnityEngine.EventSystems.EventTrigger>() : null;
-                    if (trig == null) trig = _orderRows[i].GetComponent<UnityEngine.EventSystems.EventTrigger>();
-                    if (trig == null) continue;
-                    int idx = i;   // ⛔ 闭包捕获：直接写 i 会全部指到最后一行
-                    AddTipTrigger(trig, UnityEngine.EventSystems.EventTriggerType.PointerEnter, _ => ShowStatusTip(idx));
-                    AddTipTrigger(trig, UnityEngine.EventSystems.EventTriggerType.PointerExit, _ => HideStatusTip());
-                }
+                // ⚠ 悬停**不挂在行动顺序的行上**（用户 2026-10-07 定案：触发走世界空间 —— 鼠标直接指棋盘上的异兽）。
+                //   原因：UGUI 的 PointerEnter/Exit **不冒泡**（只发给命中对象），挂行上要额外加受击层，且不如直接指单位直观。
+                //   行上的 EventTrigger/Img_RowHit 先留着不接线（prefab 结构不动，将来要恢复只补一行绑定）。
 
                 _orderPanel.gameObject.SetActive(false);
                 return;
@@ -247,15 +233,26 @@ namespace WanXiang.Modules.UI
         /// </summary>
         private void ShowStatusTip(int rowIndex)
         {
-            if (_statusTip == null || _statusTipRows == null || _statusTipItem == null) return;
             if (rowIndex < 0 || rowIndex >= _orderUnits.Length) return;
             var u = _orderUnits[rowIndex];
             if (u == null || u.Def == null) { HideStatusTip(); return; }
+            ShowStatusTipFor(u.RuntimeId, u.DisplayName);
+        }
+
+        /// <summary>
+        /// 核心：把某个单位的**全部状态 + 效果说明**摊成列表。
+        /// ⛔ 状态数据必须取自**帧流视图**（<c>_stage.TryGetViewStatusIds</c>），**不能读 `_play.State`** ——
+        ///   自动模式下 State 是整场跑完的终局态，面板会显示"打完之后的状态"（冰晶那轮的血泪）。
+        /// </summary>
+        private void ShowStatusTipFor(string unitId, string displayName)
+        {
+            if (_statusTip == null || _statusTipRows == null || _statusTipItem == null) return;
 
             string ids = null;
-            if (_stage != null) _stage.TryGetViewStatusIds(u.RuntimeId, out ids);
+            if (_stage != null) _stage.TryGetViewStatusIds(unitId, out ids);
 
-            if (_statusTipTitle != null) _statusTipTitle.text = u.DisplayName;
+            if (_statusTipTitle != null)
+                _statusTipTitle.text = string.IsNullOrEmpty(displayName) ? "状态" : displayName;
             ClearTipRows();
 
             var parts = string.IsNullOrEmpty(ids) ? new string[0] : ids.Split('|');
@@ -283,6 +280,53 @@ namespace WanXiang.Modules.UI
         private void HideStatusTip()
         {
             if (_statusTip != null) _statusTip.gameObject.SetActive(false);
+        }
+
+        // --------------------------------------------------------------------
+        //  悬停载体：**世界空间命中**（用户定案 —— 鼠标直接指棋盘上的异兽）
+        //  触发用单位身上 BoxCollider2D 的世界包围盒做点测试；列表本体仍是 UGUI 面板。
+        // --------------------------------------------------------------------
+
+        /// <summary>上一次悬停到的单位（变了才重算列表，避免每帧重建）。</summary>
+        private string _hoverUnitId;
+
+        private void UpdateUnitStatusHover()
+        {
+            if (_stage == null || _statusTip == null) return;
+            if (State != UIPanelState.Opened)
+            {
+                if (_hoverUnitId != null) { _hoverUnitId = null; HideStatusTip(); }
+                return;
+            }
+            var cam = Camera.main;
+            if (cam == null) return;
+
+            Vector3 world = cam.ScreenToWorldPoint(Input.mousePosition);
+            string uid, uname; Vector3 anchor;
+            if (_stage.TryPickUnit(world, out uid, out uname, out anchor))
+            {
+                if (uid != _hoverUnitId) { _hoverUnitId = uid; ShowStatusTipFor(uid, uname); }
+                else if (!_statusTip.gameObject.activeSelf) _statusTip.gameObject.SetActive(true);
+                PlaceTipNear(cam, anchor);
+            }
+            else if (_hoverUnitId != null) { _hoverUnitId = null; HideStatusTip(); }
+        }
+
+        /// <summary>把面板摆到单位的**头顶上方**（世界 → 屏幕 → 父矩形局部），并夹在屏幕内。</summary>
+        private void PlaceTipNear(Camera cam, Vector3 anchorWorld)
+        {
+            var parentRt = _statusTip.parent as RectTransform;
+            if (parentRt == null) return;
+            Vector3 sp = cam.WorldToScreenPoint(anchorWorld);
+            if (sp.z < 0f) return;   // 在相机背后
+            Vector2 screen = new Vector2(Mathf.Clamp(sp.x, 10f, Screen.width - 10f),
+                                         Mathf.Clamp(sp.y + 24f, 10f, Screen.height - 10f));
+            Vector2 local;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRt, screen, null, out local)) return;
+            // 面板锚点/轴心都是右上 (1,1) ⇒ anchoredPosition 是相对**父矩形右上角**的偏移
+            _statusTip.anchoredPosition = new Vector2(
+                local.x - parentRt.rect.width * 0.5f,
+                local.y - parentRt.rect.height * 0.5f);
         }
 
         /// <summary>清掉上次克隆出来的行（模板行本身留着，它一直是 inactive）。</summary>

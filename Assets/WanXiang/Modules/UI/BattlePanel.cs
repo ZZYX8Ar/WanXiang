@@ -310,6 +310,9 @@ namespace WanXiang.Modules.UI
 
             if (_tipPanel != null && _tipPanel.gameObject.activeSelf) CheckTipHover();
 
+            // ★ 悬停棋盘上的异兽 → 状态列表（用户定案：触发走世界空间，鼠标直接指单位）
+            UpdateUnitStatusHover();
+
             if (!_playing || _stage == null) return;
             if (State != UIPanelState.Opened) return;      // 被上层盖住/暂停时不推进
             _stage.Step(Time.deltaTime * Mathf.Max(1f, _speed));

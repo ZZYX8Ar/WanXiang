@@ -408,6 +408,23 @@ namespace WanXiang.Battle.Presentation
                 view.Body = bodySr;
                 view.BaseColor = bodySr.color;
 
+                // ★ 鼠标命中框（世界空间）—— 用户定案：悬停*棋盘上的异兽*看状态列表。
+                //   尺寸取立绘的世界尺寸（没立绘时用兜底块）。
+                //   ⚠ 命中判定用的是 <c>collider.bounds</c> 做**代码点测试**，不是 Physics2D.OverlapPoint：
+                //     少一层"2D 物理设置 / 层 / 查询开关"的依赖，而命中框在 Inspector 里照样可见可调。
+                var hitCol = root.AddComponent<BoxCollider2D>();
+                hitCol.isTrigger = true;
+                // ⚠ 尺寸必须用 **SpriteRenderer.bounds（渲染器实际世界尺寸）**换算回 root 的局部空间：
+                //   `sprite.bounds.size` 是**贴图原始尺寸**（本例 10.24），而立绘被缩放显示成 ~1.5 ⇒
+                //   直接拿它当命中框会**误选邻居**（格子间距才 1.75）。bounds 由渲染器算，不依赖物理。
+                {
+                    var b = bodySr.bounds;
+                    Vector3 sc = root.transform.lossyScale;
+                    float sx = Mathf.Max(0.0001f, Mathf.Abs(sc.x)), sy = Mathf.Max(0.0001f, Mathf.Abs(sc.y));
+                    hitCol.size = new Vector2(Mathf.Max(0.5f, b.size.x / sx), Mathf.Max(0.6f, b.size.y / sy));
+                    hitCol.offset = new Vector2(0f, (b.center.y - root.transform.position.y) / sy);
+                }
+
                 view.HpBg = MakeChildSprite(root, "HpBg", new Color(0.10f, 0.08f, 0.06f),
                                             new Vector2(HpBarWidth, HpBarBackHeight), new Vector2(0f, HpBarY), 2);
                 view.HpFill = MakeChildSprite(root, "HpFill", BattlePalette.Vital,
@@ -562,6 +579,40 @@ namespace WanXiang.Battle.Presentation
                 if (v.Alive && !s.Alive) v.DeadBlend = 0f;
                 v.Alive = s.Alive;
             }
+        }
+
+        /// <summary>
+        /// **世界空间点选**：鼠标世界坐标落在哪个单位上（用户定案：不用 UGUI 行悬停）。
+        /// 命中口径 = 单位身上 `BoxCollider2D` 的**世界包围盒**（不是 Physics2D 查询，
+        /// 少一层物理设置依赖）。多个重叠时取**最靠上**的那个（贴近"指到谁就是谁"）。
+        /// 输出 <paramref name="anchorWorld"/> = 头顶上方一点，给 UGUI 面板定位用。
+        /// </summary>
+        public bool TryPickUnit(Vector3 worldPos, out string unitId, out string displayName, out Vector3 anchorWorld)
+        {
+            unitId = null; displayName = null; anchorWorld = worldPos;
+            if (_views == null) return false;
+            UnitView2D best = null; float bestTop = float.MinValue;
+            foreach (var kv in _views)
+            {
+                var v = kv.Value;
+                if (v == null || v.Root == null || !v.Alive) continue;   // 阵亡的不参与（指尸体不该弹面板）
+                var col = v.Root.GetComponent<BoxCollider2D>();
+                if (col == null) continue;
+                // ⚠ 不用 `col.bounds` —— 它要物理引擎把碰撞体注册进去才有值（2D 物理没开/没步进时会是零）。
+                //   自己按"碰撞体尺寸 × 世界缩放"算包围盒：确定、且**命中框仍在 Inspector 里可见可调**。
+                var tr = v.Root.transform;
+                Vector3 c = tr.TransformPoint(col.offset);
+                Vector3 sz = Vector3.Scale(col.size, tr.lossyScale);
+                float hx = Mathf.Abs(sz.x) * 0.5f, hy = Mathf.Abs(sz.y) * 0.5f;
+                if (worldPos.x < c.x - hx || worldPos.x > c.x + hx) continue;
+                if (worldPos.y < c.y - hy || worldPos.y > c.y + hy) continue;
+                if (c.y + hy > bestTop) { bestTop = c.y + hy; best = v; }
+            }
+            if (best == null) return false;
+            unitId = best.UnitId;
+            displayName = best.NameText != null ? best.NameText.text : null;
+            anchorWorld = new Vector3(best.Root.transform.position.x, bestTop, best.Root.transform.position.z);
+            return true;
         }
 
         /// <summary>
