@@ -96,6 +96,19 @@ namespace WanXiang.Battle.Core
         }
     }
 
+    /// <summary>
+    /// 每回合在首领头顶刷一条**固定说明型**提示（没有倒计时，只是把机制讲清楚）。
+    /// ⚠ 用它之前先确认这只首领**没有别的提示钩子** —— `StateHint` 每单位只有一个字符串，
+    /// 多个钩子会按 `BattleHooks` 的**注册顺序依次覆盖**，最后注册的赢。
+    /// </summary>
+    public sealed class StaticHintHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly string _text;
+        public StaticHintHook(BattleUnit boss, string text) { _boss = boss; _text = text; }
+        public override void OnTurnStart(BattleState st) { BossHint.Set(st, _boss, _text); }
+    }
+
     /// <summary>伤害反弹：受到的非零伤害有 ratio 比例反弹给攻击者（蔓娘荆棘 / 玄溟寒狱镜面 / 鸿蒙混沌护持用 ratio 版）。</summary>
     public sealed class DamageReflectHook : BattleHook
     {
