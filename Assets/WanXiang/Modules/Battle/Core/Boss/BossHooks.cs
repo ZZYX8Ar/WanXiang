@@ -81,7 +81,13 @@ namespace WanXiang.Battle.Core
         private readonly float _reduce;
         private readonly HashSet<string> _hitThisTurn = new HashSet<string>();
         public FirstHitReduceHook(float reduce) { _reduce = reduce; }
-        public override void OnTurnStart(BattleState st) { _hitThisTurn.Clear(); }
+        public override void OnTurnStart(BattleState st)
+        {
+            _hitThisTurn.Clear();
+            // ★ 首击减伤（白魍·金身 / 魍魉·隐遁 / 鸿蒙·混沌护持）——
+            //   玩家必须知道"每回合第一击会被削"，否则会以为自己的爆发没用。
+            BossHint.SetOnBoss(st, "首击减伤：" + (_reduce * 100f).ToString("F0") + "%（每回合首次受伤）");
+        }
         public override void ModifyIncoming(BattleState st, BattleUnit src, BattleUnit dst, ref int dmg, Element el)
         {
             if (dmg <= 0) return;
@@ -447,6 +453,10 @@ namespace WanXiang.Battle.Core
             _boss.PermanentAttackBonus += _atkPerTurn;
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                        note: $"{_boss.DisplayName} 组装：攻击+{_atkPerTurn * 100f:F0}%（护盾未破）");
+            // ★ 实时提示：组装是**每回合递增**的，玩家要能看出"它现在多痛了"
+            BossHint.Set(st, _boss,
+                "组装：攻击 +" + (_boss.PermanentAttackBonus * 100f).ToString("F0")
+                + "%（破盾可止）");
         }
     }
 
@@ -737,7 +747,12 @@ namespace WanXiang.Battle.Core
         }
         public override void OnTurnStart(BattleState st)
         {
-            if (_boss == null || !_boss.IsAlive || st.Turn % _interval != 0) return;
+            if (_boss == null || !_boss.IsAlive) return;
+            {
+                int left = (_interval - (st.Turn % _interval)) % _interval;
+                BossHint.Set(st, _boss, "剜心：" + (left == 0 ? "本回合斩最低血" : left + " 回合后"));
+            }
+            if (st.Turn % _interval != 0) return;
             var list = st.UnitsOf(TeamSide.Player);
             BattleUnit lowest = null;
             for (int i = 0; i < list.Count; i++)
