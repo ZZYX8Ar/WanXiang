@@ -178,7 +178,7 @@ namespace WanXiang.Battle.Presentation
         /// <summary>状态图标边长（世界单位）。</summary>
         public float StatusIconSize = 0.22f;
         /// <summary>状态图标之间的间距（世界单位）。</summary>
-        public float StatusIconGap = 0.03f;
+        public float StatusIconGap = 0.07f;
         /// <summary>状态图标排相对立绘容器的 y 偏移。</summary>
         public float StatusRowY = 2.05f;
         /// <summary>状态图标文字大小倍率。</summary>
@@ -493,7 +493,7 @@ namespace WanXiang.Battle.Presentation
                         var tm = labGo.AddComponent<TextMesh>();
                         var mr = labGo.GetComponent<MeshRenderer>();
                         if (f != null && mr != null) { tm.font = f; mr.sharedMaterial = f.material; }
-                        tm.characterSize = 0.42f * Mathf.Max(0.01f, StatusLabelSize);
+                        tm.characterSize = 0.035f * Mathf.Max(0.01f, StatusLabelSize);
                         tm.fontSize = 48;
                         tm.anchor = TextAnchor.MiddleCenter;
                         tm.alignment = TextAlignment.Center;
@@ -551,13 +551,29 @@ namespace WanXiang.Battle.Presentation
                     if (v.Hint.text != hint) v.Hint.text = hint;
                 }
                 // 状态图标排：变了才重画（每秒都在刷的东西，别每帧重建 sprite）
-                string sids = s.StatusIds ?? "";
+                // ⛔ 阵亡单位必须**清空**图标排 —— 否则尸体头上还挂着一串状态（用户 2026-10-07 截图反馈）
+                string sids = s.Alive ? (s.StatusIds ?? "") : "";
                 if (v.StatusRow != null && v.StatusShown != sids) UpdateStatusRow(v, sids);
                 v.Hp = s.Hp; v.MaxHp = s.MaxHp;
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 if (v.Alive && !s.Alive) v.DeadBlend = 0f;
                 v.Alive = s.Alive;
             }
+        }
+
+        /// <summary>
+        /// 取某单位**当前画面**上的状态串（`id:层数|id:层数`）—— 给"悬停看状态列表"用。
+        /// ⛔ 数据源是**帧流累积出来的视图**（ApplyFrame 逐帧叠出来的），**不是 `_state`**：
+        ///   自动模式下 `_state` 是整场跑完的终局态，直接读会让提示从第一帧就显示"打完之后的状态"。
+        /// </summary>
+        public bool TryGetViewStatusIds(string unitId, out string ids)
+        {
+            ids = null;
+            if (string.IsNullOrEmpty(unitId) || _views == null) return false;
+            UnitView2D v;
+            if (!_views.TryGetValue(unitId, out v) || v == null) return false;
+            ids = v.StatusShown;
+            return true;
         }
 
         /// <summary>

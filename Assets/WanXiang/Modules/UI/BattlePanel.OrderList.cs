@@ -40,6 +40,22 @@ namespace WanXiang.Modules.UI
                     var n = _orderRows[i].Find("Tmp_Name");
                     if (n != null) _orderNames[i] = n.GetComponent<TMP_Text>();
                 }
+                // ★ 状态悬浮框（prefab 节点）：默认收起；模板行也收起来，运行时按需克隆
+                if (_statusTip != null) _statusTip.gameObject.SetActive(false);
+                if (_statusTipItem != null) _statusTipItem.gameObject.SetActive(false);
+
+                // ★ 悬停行 → 看该单位的状态列表（参考杀戮尖塔）。
+                //   能 hover 的前提是行上有**可受击层**：prefab 里的 Img_RowHit（全透明 a=0，但仍吃射线）。
+                for (int i = 0; i < _orderRows.Length; i++)
+                {
+                    if (_orderRows[i] == null) continue;
+                    var trig = _orderRows[i].GetComponent<UnityEngine.EventSystems.EventTrigger>();
+                    if (trig == null) continue;
+                    int idx = i;   // ⛔ 闭包捕获：直接写 i 会全部指到最后一行
+                    AddTipTrigger(trig, UnityEngine.EventSystems.EventTriggerType.PointerEnter, _ => ShowStatusTip(idx));
+                    AddTipTrigger(trig, UnityEngine.EventSystems.EventTriggerType.PointerExit, _ => HideStatusTip());
+                }
+
                 _orderPanel.gameObject.SetActive(false);
                 return;
             }
@@ -173,6 +189,7 @@ namespace WanXiang.Modules.UI
                 bool isCur = mine && cur != null && u.RuntimeId == cur.RuntimeId;
 
                 _orderRows[shown].gameObject.SetActive(true);
+                if (shown < _orderUnits.Length) _orderUnits[shown] = u;   // 悬停查状态时按行号回找单位
                 if (_orderHeads[shown] != null && _sprites != null && u.Def != null)
                 {
                     var sp = _sprites.GetHead(u.Def.Id);
@@ -194,6 +211,7 @@ namespace WanXiang.Modules.UI
             for (int i = shown; i < OrderRowCount; i++)
             {
                 if (_orderRows[i] == null) continue;
+                if (i < _orderUnits.Length) _orderUnits[i] = null;   // 行被隐藏 ⇒ 单位映射也要清（否则悬停到空行会显示旧单位）
                 // 隐藏行顺手清文本：避免残留内容在将来复用/截图时露出来
                 if (_orderNames != null && i < _orderNames.Length && _orderNames[i] != null)
                     _orderNames[i].text = string.Empty;
@@ -201,6 +219,91 @@ namespace WanXiang.Modules.UI
                     _orderHeads[i].sprite = null;
                 _orderRows[i].gameObject.SetActive(false);
             }
+        }
+
+        // ====================================================================
+        //  状态悬浮列表（悬停「行动顺序」的行 → 该单位的状态 + 效果说明）
+        // ====================================================================
+
+        private static void AddTipTrigger(UnityEngine.EventSystems.EventTrigger trig,
+            UnityEngine.EventSystems.EventTriggerType type,
+            UnityEngine.Events.UnityAction<UnityEngine.EventSystems.BaseEventData> cb)
+        {
+            var e = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = type };
+            e.callback.AddListener(cb);
+            trig.triggers.Add(e);
+        }
+
+        /// <summary>
+        /// 悬停某行 → 在左侧列出该单位的**全部状态 + 效果说明**（玩家不用猜「气/湿/缚」是什么）。
+        /// ⛔ 状态数据必须取自**帧流视图**（<c>_stage.TryGetViewStatusIds</c>），**不能读 `_play.State`** ——
+        ///   自动模式下 State 是整场跑完的终局态，面板会显示"打完之后的状态"（冰晶那轮的血泪）。
+        /// </summary>
+        private void ShowStatusTip(int rowIndex)
+        {
+            if (_statusTip == null || _statusTipRows == null || _statusTipItem == null) return;
+            if (rowIndex < 0 || rowIndex >= _orderUnits.Length) return;
+            var u = _orderUnits[rowIndex];
+            if (u == null || u.Def == null) { HideStatusTip(); return; }
+
+            string ids = null;
+            if (_stage != null) _stage.TryGetViewStatusIds(u.RuntimeId, out ids);
+
+            if (_statusTipTitle != null) _statusTipTitle.text = u.DisplayName;
+            ClearTipRows();
+
+            var parts = string.IsNullOrEmpty(ids) ? new string[0] : ids.Split('|');
+            if (parts.Length == 0)
+            {
+                AddTipRow("（无状态）", "该单位目前身上没有任何状态。");
+            }
+            else
+            {
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    var kv = parts[i].Split(':');
+                    if (kv.Length < 1 || string.IsNullOrEmpty(kv[0])) continue;
+                    var def = WanXiang.Battle.Core.StatusCatalog.Get(kv[0]);   // ⚠ StatusDef 是 struct，不能用 != null 判空
+                    int stacks = 1;
+                    if (kv.Length > 1) int.TryParse(kv[1], out stacks);
+                    string nm = !string.IsNullOrEmpty(def.Name) ? def.Name : kv[0];
+                    if (stacks > 1) nm += " ×" + stacks;
+                    AddTipRow(nm, def.Description);
+                }
+            }
+            _statusTip.gameObject.SetActive(true);
+        }
+
+        private void HideStatusTip()
+        {
+            if (_statusTip != null) _statusTip.gameObject.SetActive(false);
+        }
+
+        /// <summary>清掉上次克隆出来的行（模板行本身留着，它一直是 inactive）。</summary>
+        private void ClearTipRows()
+        {
+            for (int i = _statusTipRows.childCount - 1; i >= 0; i--)
+            {
+                var c = _statusTipRows.GetChild(i);
+                if (c == _statusTipItem) continue;
+                UnityEngine.Object.Destroy(c.gameObject);
+            }
+        }
+
+        private void AddTipRow(string name, string desc)
+        {
+            int used = 0;
+            for (int i = 0; i < _statusTipRows.childCount; i++)
+                if (_statusTipRows.GetChild(i).gameObject.activeSelf) used++;
+
+            var row = UnityEngine.Object.Instantiate(_statusTipItem, _statusTipRows);
+            row.gameObject.SetActive(true);
+            row.anchoredPosition = new Vector2(0f, -used * 46f);
+
+            var nm = row.Find("Tmp_StatusName");
+            if (nm != null) { var t = nm.GetComponent<TMP_Text>(); if (t != null) t.text = name; }
+            var ds = row.Find("Tmp_StatusDesc");
+            if (ds != null) { var t2 = ds.GetComponent<TMP_Text>(); if (t2 != null) t2.text = desc; }
         }
     }
 }
