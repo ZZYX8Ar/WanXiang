@@ -181,7 +181,6 @@ namespace WanXiang.Modules.UI
                 bool isCur = mine && cur != null && u.RuntimeId == cur.RuntimeId;
 
                 _orderRows[shown].gameObject.SetActive(true);
-                if (shown < _orderUnits.Length) _orderUnits[shown] = u;   // 悬停查状态时按行号回找单位
                 if (_orderHeads[shown] != null && _sprites != null && u.Def != null)
                 {
                     var sp = _sprites.GetHead(u.Def.Id);
@@ -203,7 +202,6 @@ namespace WanXiang.Modules.UI
             for (int i = shown; i < OrderRowCount; i++)
             {
                 if (_orderRows[i] == null) continue;
-                if (i < _orderUnits.Length) _orderUnits[i] = null;   // 行被隐藏 ⇒ 单位映射也要清（否则悬停到空行会显示旧单位）
                 // 隐藏行顺手清文本：避免残留内容在将来复用/截图时露出来
                 if (_orderNames != null && i < _orderNames.Length && _orderNames[i] != null)
                     _orderNames[i].text = string.Empty;
@@ -214,30 +212,8 @@ namespace WanXiang.Modules.UI
         }
 
         // ====================================================================
-        //  状态悬浮列表（悬停「行动顺序」的行 → 该单位的状态 + 效果说明）
+        //  状态悬浮列表（**世界空间悬停异兽** → 该单位的状态 + 效果说明）
         // ====================================================================
-
-        private static void AddTipTrigger(UnityEngine.EventSystems.EventTrigger trig,
-            UnityEngine.EventSystems.EventTriggerType type,
-            UnityEngine.Events.UnityAction<UnityEngine.EventSystems.BaseEventData> cb)
-        {
-            var e = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = type };
-            e.callback.AddListener(cb);
-            trig.triggers.Add(e);
-        }
-
-        /// <summary>
-        /// 悬停某行 → 在左侧列出该单位的**全部状态 + 效果说明**（玩家不用猜「气/湿/缚」是什么）。
-        /// ⛔ 状态数据必须取自**帧流视图**（<c>_stage.TryGetViewStatusIds</c>），**不能读 `_play.State`** ——
-        ///   自动模式下 State 是整场跑完的终局态，面板会显示"打完之后的状态"（冰晶那轮的血泪）。
-        /// </summary>
-        private void ShowStatusTip(int rowIndex)
-        {
-            if (rowIndex < 0 || rowIndex >= _orderUnits.Length) return;
-            var u = _orderUnits[rowIndex];
-            if (u == null || u.Def == null) { HideStatusTip(); return; }
-            ShowStatusTipFor(u.RuntimeId, u.DisplayName);
-        }
 
         /// <summary>
         /// 核心：把某个单位的**全部状态 + 效果说明**摊成列表。
@@ -289,6 +265,7 @@ namespace WanXiang.Modules.UI
 
         /// <summary>上一次悬停到的单位（变了才重算列表，避免每帧重建）。</summary>
         private string _hoverUnitId;
+        private float _hoverDbgTimer;
 
         private void UpdateUnitStatusHover()
         {
@@ -298,18 +275,54 @@ namespace WanXiang.Modules.UI
                 if (_hoverUnitId != null) { _hoverUnitId = null; HideStatusTip(); }
                 return;
             }
-            var cam = Camera.main;
-            if (cam == null) return;
+
+            // ⛔ 相机必须用**舞台自己那个**（BattleStage2D.Camera）：
+            //   舞台的相机是代码建的、**没打 MainCamera 标签** ⇒ Camera.main 会拿到 null，
+            //   然后这里静默 return —— 表现就是"悬停完全没反应"（本轮真因）。
+            var cam = _stage.Camera != null ? _stage.Camera : Camera.main;
+            if (cam == null)
+            {
+                _hoverDbgTimer -= Time.deltaTime;
+                if (_hoverDbgTimer <= 0f)
+                {
+                    _hoverDbgTimer = 2f;
+                    Debug.LogWarning("[BattlePanel][悬停] 取不到相机：_stage.Camera 与 Camera.main 都是 null");
+                }
+                return;
+            }
 
             Vector3 world = cam.ScreenToWorldPoint(Input.mousePosition);
             string uid, uname; Vector3 anchor;
-            if (_stage.TryPickUnit(world, out uid, out uname, out anchor))
+            bool hit = _stage.TryPickUnit(world, out uid, out uname, out anchor);
+
+            // 诊断日志（节流 1 秒一次，别刷屏）：相机名 / 鼠标世界点 / 命中结果
+            _hoverDbgTimer -= Time.deltaTime;
+            if (_hoverDbgTimer <= 0f)
             {
-                if (uid != _hoverUnitId) { _hoverUnitId = uid; ShowStatusTipFor(uid, uname); }
+                _hoverDbgTimer = 1f;
+                Debug.Log("[BattlePanel][悬停] 相机=" + cam.name + " 鼠标世界点=" +
+                          world.x.ToString("F2") + "," + world.y.ToString("F2") +
+                          " 命中=" + (hit ? uid + "(" + uname + ")" : "空") +
+                          " 当前显示=" + (_hoverUnitId ?? "-"));
+            }
+
+            if (hit)
+            {
+                if (uid != _hoverUnitId)
+                {
+                    _hoverUnitId = uid;
+                    ShowStatusTipFor(uid, uname);
+                    Debug.Log("[BattlePanel][悬停] 显示状态列表：" + uid + " / " + uname);
+                }
                 else if (!_statusTip.gameObject.activeSelf) _statusTip.gameObject.SetActive(true);
                 PlaceTipNear(cam, anchor);
             }
-            else if (_hoverUnitId != null) { _hoverUnitId = null; HideStatusTip(); }
+            else if (_hoverUnitId != null)
+            {
+                _hoverUnitId = null;
+                HideStatusTip();
+                Debug.Log("[BattlePanel][悬停] 离开单位 → 收起列表");
+            }
         }
 
         /// <summary>把面板摆到单位的**头顶上方**（世界 → 屏幕 → 父矩形局部），并夹在屏幕内。</summary>

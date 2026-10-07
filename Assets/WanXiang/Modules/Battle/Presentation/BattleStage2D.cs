@@ -177,8 +177,9 @@ namespace WanXiang.Battle.Presentation
 
         /// <summary>状态图标边长（世界单位）。</summary>
         public float StatusIconSize = 0.36f;
-        /// <summary>状态图标之间的间距（世界单位）。</summary>
-        public float StatusIconGap = 0.08f;
+        /// <summary>状态图标之间的间距（世界单位）。
+        /// ⚠ 必须**大于字宽**，否则相邻两格的缩写会视觉上连成一片（用户截图反馈"气和裂糊在一起"）。</summary>
+        public float StatusIconGap = 0.16f;
         /// <summary>状态图标排相对立绘容器的 y 偏移。</summary>
         public float StatusRowY = 2.05f;
         /// <summary>状态图标文字大小倍率。</summary>
@@ -513,7 +514,9 @@ namespace WanXiang.Battle.Presentation
                         // ⛔ 文字的 sortingOrder 必须**高于底板**（底板 12）—— 否则字被底板盖住
                         //   表现为"字看不见"（字号大时因为溢出底板边缘反而看得见，会误导成字号问题）。
                         if (mr != null) mr.sortingOrder = 14;
-                        tm.characterSize = 0.045f * Mathf.Max(0.01f, StatusLabelSize);
+                        // 字号实测（TextMesh: characterSize × fontSize=48）：0.022→0.165 宽 / 0.032→0.24 宽 /
+                        // 0.05→0.375 宽（已超过 0.36 的底板）⇒ 取 0.032（约 0.27，含格容器缩放）。
+                        tm.characterSize = 0.032f * Mathf.Max(0.01f, StatusLabelSize);
                         tm.fontSize = 48;
                         tm.anchor = TextAnchor.MiddleCenter;
                         tm.alignment = TextAlignment.Center;
@@ -676,11 +679,12 @@ namespace WanXiang.Battle.Presentation
                 if (v.StatusPlates[s] != null && v.StatusPlates[s].transform.parent != null)
                     v.StatusPlates[s].transform.parent.gameObject.SetActive(false);
 
-            // 居中排布（rowGo 有自己的缩放 ⇒ 世界步长换算回局部；定位打在"格容器"上）
+            // 居中排布。⛔ **不要再除以行缩放**：`rowGo.localScale = 1/rootScale` 的存在意义
+            //   正是让**它的局部空间 == 世界单位**（rowGo.lossyScale = (1/rootScale) × rootScale = 1）。
+            //   再除一次就缩小了 ~rootScale 倍（实测 9.75×）⇒ 三个状态挤在同一处看不出区别（用户截图报的"叠加"）。
             if (used > 0 && v.StatusRow != null)
             {
-                float sc = Mathf.Max(0.0001f, v.StatusRow.transform.localScale.x);
-                float step = (StatusIconSize + StatusIconGap) / sc;
+                float step = StatusIconSize + StatusIconGap;
                 for (int s = 0; s < used; s++)
                     if (v.StatusPlates[s] != null && v.StatusPlates[s].transform.parent != null)
                         v.StatusPlates[s].transform.parent.localPosition =

@@ -512,8 +512,6 @@ namespace WanXiang.Modules.UI
         [SerializeField] private RectTransform[] _orderRows;    // OrderRow_0..7
         private Image[] _orderHeads;                            // 行内引用：生成器产物里按名字取
         private TMP_Text[] _orderNames;
-        /// <summary>行号 → 该行当前显示的单位（悬停查状态时用）。</summary>
-        private readonly BattleUnit[] _orderUnits = new BattleUnit[OrderRowCount];
 
         // 状态悬浮列表（Root_StatusTip）—— 悬停「行动顺序」的行 → 列出该单位的全部状态 + 效果说明。
         //   参考《杀戮尖塔》：它把 buff/debuff 摊成一个列表，玩家不用猜图标。
