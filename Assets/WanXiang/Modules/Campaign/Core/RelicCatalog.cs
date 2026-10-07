@@ -616,9 +616,16 @@ namespace WanXiang.Campaign
         /// 从池里随机抽 <paramref name="count"/> 个（按稀有度权重）。
         /// <paramref name="bossLike"/>=true（精英 / Boss 节点）时提高 Rare/Boss 权重。
         /// 已拥有的遗物尽量不重复出现（池足够时）。
+        ///
+        /// ★ <paramref name="teamScopes"/>（用户 2026-10-07 定案）：进遗物节点时，
+        ///   **与本队异兽相关的遗物更容易出现** —— 否则给的常是一堆"跟我队伍无关"的东西。
+        ///   命中口径见 <see cref="ScopesForTeam"/>（五行名 / 定位名 / 异兽 id 三种 ScopeId）。
+        ///   ⚠ 只是**加权**（默认 ×4），不是"只给相关的" —— 保留随机性，玩家仍有选择空间。
         /// </summary>
         public static List<RelicDef> Roll(int count, int act, bool bossLike, DeterministicRandom rng,
-                                          ICollection<string> owned = null)
+                                          ICollection<string> owned = null,
+                                          ICollection<string> teamScopes = null,
+                                          int teamWeight = 4)
         {
             var pool = new List<RelicDef>();
             foreach (var d in All)
@@ -640,8 +647,8 @@ namespace WanXiang.Campaign
                 int roll = rng.NextInt(0, cCommon + cRare + cBoss);
                 RelicRarity want = roll < cCommon ? RelicRarity.Common
                                  : roll < cCommon + cRare ? RelicRarity.Rare : RelicRarity.Boss;
-                var cand = PickOfRarity(pool, want, rng, used);
-                if (cand == null) cand = PickOfRarity(pool, RelicRarity.Common, rng, used); // 该稀有度抽空 → 降级
+                var cand = PickOfRarity(pool, want, rng, used, teamScopes, teamWeight);
+                if (cand == null) cand = PickOfRarity(pool, RelicRarity.Common, rng, used, teamScopes, teamWeight); // 该稀有度抽空 → 降级
                 if (cand == null) break;
                 used.Add(cand.Id);
                 out_.Add(cand);
@@ -649,17 +656,65 @@ namespace WanXiang.Campaign
             return out_;
         }
 
-        private static RelicDef PickOfRarity(List<RelicDef> pool, RelicRarity r,
-                                             DeterministicRandom rng, HashSet<string> used)
+        /// <summary>
+        /// 从**出战异兽**构造"与本队相关"的作用域 key 集合（抽遗物时加权用）。
+        /// 口径与 <see cref="Accumulate"/> 完全一致 —— ScopeId 存的是**枚举名**：
+        /// 五行（<c>Wood</c>/<c>Fire</c>/…）、定位（<c>Guard</c>/<c>Striker</c>/…）、异兽 id（<c>jumang</c>…）。
+        /// ⛔ 这三种是 `RelicEffect` 决定的，别在这里另立一套字符串。
+        /// </summary>
+        public static HashSet<string> ScopesForTeam(IEnumerable<BeastDef> team)
         {
-            int n = 0;
-            foreach (var d in pool) if (d.Rarity == r && !used.Contains(d.Id)) n++;
-            if (n == 0) return null;
-            int k = rng.NextInt(0, n);
+            var s = new HashSet<string>();
+            if (team == null) return s;
+            foreach (var b in team)
+            {
+                if (b == null) continue;
+                AddBeastScopes(s, b.Id, b.Element, b.Role);
+            }
+            return s;
+        }
+
+        /// <summary>
+        /// 把**一只异兽**的三条作用域塞进集合（异兽 id / 五行 / 定位）—— 与 <see cref="ScopesForTeam"/> 同一口径。
+        /// 给拿不到 `BeastDef` 的调用方用（例如 UI 手里只有 `BeastConfigSO`：它直接带 BeastId/Element/Role）。
+        /// </summary>
+        public static void AddBeastScopes(HashSet<string> into, string beastId, Element element, RoleType role)
+        {
+            if (into == null) return;
+            if (!string.IsNullOrEmpty(beastId)) into.Add(beastId);
+            if (element != Element.None) into.Add(element.ToString());
+            into.Add(role.ToString());
+        }
+
+        /// <summary>单个遗物在抽取里的权重：作用域命中队伍 ⇒ <paramref name="teamWeight"/>，否则 1。</summary>
+        private static int WeightOf(RelicDef d, ICollection<string> teamScopes, int teamWeight)
+        {
+            if (teamScopes != null && teamScopes.Count > 0 && !string.IsNullOrEmpty(d.ScopeId)
+                && teamScopes.Contains(d.ScopeId))
+                return teamWeight < 1 ? 1 : teamWeight;
+            return 1;
+        }
+
+        private static RelicDef PickOfRarity(List<RelicDef> pool, RelicRarity r,
+                                             DeterministicRandom rng, HashSet<string> used,
+                                             ICollection<string> teamScopes = null, int teamWeight = 4)
+        {
+            // 加权抽取（原来是等概率）：先累总权重，再掷一个 [0,total) 的骰子走前缀和。
+            int total = 0;
             foreach (var d in pool)
             {
                 if (d.Rarity != r || used.Contains(d.Id)) continue;
-                if (k-- == 0) return d;
+                total += WeightOf(d, teamScopes, teamWeight);
+            }
+            if (total <= 0) return null;
+
+            int k = rng.NextInt(0, total);
+            foreach (var d in pool)
+            {
+                if (d.Rarity != r || used.Contains(d.Id)) continue;
+                int w = WeightOf(d, teamScopes, teamWeight);
+                if (k < w) return d;
+                k -= w;
             }
             return null;
         }

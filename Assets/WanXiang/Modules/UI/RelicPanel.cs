@@ -50,7 +50,34 @@ namespace WanXiang.Modules.UI
             int act = run != null ? run.Act : 1;
             var rng = new WanXiang.Battle.Core.DeterministicRandom(
                 (ulong)System.DateTime.Now.Ticks ^ (uint)(act * 40503));
-            _offered = RelicCatalog.Roll(3, act, true, rng, run != null ? run.Relics : null);
+            // ★ 与本队异兽相关的遗物**加权**出现（用户 2026-10-07 定案）：
+            //   否则给的三选一常是"跟我队伍无关"的东西，玩家没法做"适配队伍"的决策。
+            //   作用域口径与遗物结算完全一致（RelicCatalog.AddBeastScopes）：异兽 id / 五行 / 定位。
+            System.Collections.Generic.HashSet<string> teamScopes = null;
+            var cats = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
+            var cat = (cats != null && cats.Length > 0) ? cats[0] : null;
+            if (cat != null && run != null && run.Team != null && cat.Beasts != null)
+            {
+                teamScopes = new System.Collections.Generic.HashSet<string>();
+                for (int i = 0; i < run.Team.Count; i++)
+                {
+                    string tid = run.Team[i];
+                    if (string.IsNullOrEmpty(tid)) continue;
+                    for (int k = 0; k < cat.Beasts.Length; k++)
+                    {
+                        var cfg = cat.Beasts[k];
+                        if (cfg == null || cfg.BeastId != tid) continue;
+                        WanXiang.Campaign.RelicCatalog.AddBeastScopes(
+                            teamScopes, cfg.BeastId, cfg.Element, cfg.Role);
+                        break;
+                    }
+                }
+                Debug.Log("[RelicPanel] 队伍作用域加权 " + teamScopes.Count + " 项（队伍 " +
+                          run.Team.Count + " 只）：" + string.Join(",", teamScopes));
+            }
+
+            _offered = RelicCatalog.Roll(3, act, true, rng,
+                run != null ? run.Relics : null, teamScopes);
             _selected = -1;
 
             if (_tmpTitle != null) _tmpTitle.text = "遗物 · 三选一（本局已持有 " +
