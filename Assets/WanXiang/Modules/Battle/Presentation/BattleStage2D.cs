@@ -34,6 +34,10 @@ namespace WanXiang.Battle.Presentation
         public SpriteRenderer Body;    // 立绘
         public SpriteRenderer HpBg;
         public SpriteRenderer HpFill;
+        /// <summary>护盾指示（血条右侧的蓝牌）。护盾 &gt; 0 才显示。</summary>
+        public SpriteRenderer ShieldPlate;
+        /// <summary>护盾数值（独立对象，**不能挂在蓝牌下** —— 蓝牌有缩放，会把字一起放大）。</summary>
+        public TextMesh ShieldText;
         public TextMesh NameText;
         /// <summary>Boss 机制提示（冰晶期「还剩 N 回合」等，来源 <c>BattleUnit.StateHint</c>，
         /// 由帧流携带 —— 见 <c>UnitSnapshot.StateHint</c>）。空串 = 不显示。</summary>
@@ -128,13 +132,32 @@ namespace WanXiang.Battle.Presentation
         /// <summary>血条相对立绘容器的 y 偏移。</summary>
         public float HpBarY = 2.35f;
         /// <summary>血条满宽（世界单位）。</summary>
-        public float HpBarWidth = 1.30f;
+        public float HpBarWidth = 5.20f;
         /// <summary>血条底衬高（世界单位）。</summary>
-        public float HpBarBackHeight = 0.18f;
+        public float HpBarBackHeight = 0.92f;
         /// <summary>名字字号（TextMesh.characterSize）。</summary>
         public float NameSize = 0.10f;
         /// <summary>名字相对立绘容器的 y 偏移。</summary>
         public float NameY = 1.62f;
+
+        // ---- 护盾指示（血条**右侧**的蓝牌 + 数值）----
+        //  为什么值得显示：护盾**不会自然消退**（只被伤害消耗，见 BattleUnit.TakeDamage / AddShield），
+        //  所以它是"还剩多少"的真实信息，不给玩家看就是隐形的第二管血。
+        /// <summary>护盾牌宽度（世界单位）。</summary>
+        public float ShieldPlateW = 1.90f;
+        /// <summary>护盾牌高度（世界单位）。</summary>
+        public float ShieldPlateH = 0.92f;
+        /// <summary>护盾牌与血条之间的间隙（世界单位）。</summary>
+        public float ShieldGap = 0.30f;
+        /// <summary>护盾数值的字号（TextMesh.characterSize）。
+        /// ⚠ 实测口径：该值是**root 局部单位**，而 root 有缩放（普通单位≈0.10、首领 2.5×≈0.26）
+        ///   ⇒ 0.012 时文字只有 0.02 世界宽（等于看不见）。0.14 时普通单位约 0.05/字、首领约 0.13/字，
+        ///   三位的护盾值正好落在牌内。</summary>
+        public float ShieldTextSize = 0.14f;
+        /// <summary>护盾牌底色。</summary>
+        public Color ShieldColor = new Color(0.30f, 0.55f, 0.82f);
+        /// <summary>护盾数值颜色。</summary>
+        public Color ShieldTextColor = new Color(0.96f, 0.98f, 1f);
 
         // ====================================================================
         //  状态图标（单位头顶那一排）—— 美术替换点位
@@ -433,6 +456,31 @@ namespace WanXiang.Battle.Presentation
                                               new Vector2(0f, HpBarY), 3);
                 SetHpBar2D(view, u.Hp, u.MaxHp);
 
+                // ---- 护盾指示（血条**右侧**）----
+                //  护盾**不会自然消退**（只被伤害消耗）⇒ 不显示就等于一管隐形的血。
+                float shX = HpBarWidth * 0.5f + ShieldGap + ShieldPlateW * 0.5f;
+                view.ShieldPlate = MakeChildSprite(root, "ShieldPlate", ShieldColor,
+                                                   new Vector2(ShieldPlateW, ShieldPlateH),
+                                                   new Vector2(shX, HpBarY), 2);
+                var shTxtGo = new GameObject("ShieldText");
+                shTxtGo.transform.SetParent(root.transform, false);   // ⛔ 挂 root，不挂蓝牌（否则继承缩放）
+                shTxtGo.transform.localPosition = new Vector3(shX, HpBarY, -0.02f);
+                view.ShieldText = shTxtGo.AddComponent<TextMesh>();
+                var shFont = LegacyFont();   // ⚠ 本方法里 `f` 在后面才声明，这里自己取一次
+                if (shFont != null)
+                {
+                    view.ShieldText.font = shFont;
+                    var shMr = shTxtGo.GetComponent<MeshRenderer>();
+                    if (shMr != null) { shMr.sharedMaterial = shFont.material; shMr.sortingOrder = 6; }
+                }
+                view.ShieldText.text = "";
+                view.ShieldText.characterSize = ShieldTextSize;
+                view.ShieldText.fontSize = 48;
+                view.ShieldText.anchor = TextAnchor.MiddleCenter;
+                view.ShieldText.alignment = TextAlignment.Center;
+                view.ShieldText.color = ShieldTextColor;
+                SetShield2D(view, 0);   // 开场无护盾 ⇒ 收起
+
                 var nameGo = new GameObject("Name");
                 nameGo.transform.SetParent(root.transform, false);
                 nameGo.transform.localPosition = new Vector3(0f, NameY, 0f);
@@ -579,6 +627,7 @@ namespace WanXiang.Battle.Presentation
                 if (v.StatusRow != null && v.StatusShown != sids) UpdateStatusRow(v, sids);
                 v.Hp = s.Hp; v.MaxHp = s.MaxHp;
                 SetHpBar2D(v, s.Hp, s.MaxHp);
+                SetShield2D(v, s.Shield);
                 if (v.Alive && !s.Alive) v.DeadBlend = 0f;
                 v.Alive = s.Alive;
             }
@@ -858,6 +907,9 @@ namespace WanXiang.Battle.Presentation
                 // 血条跟随立绘（相机 2D 朝 -Z，直接摆即可）
                 if (v.HpBg != null) v.HpBg.transform.localPosition = new Vector3(0f, HpBarY, -0.01f);
                 if (v.HpFill != null) v.HpFill.transform.localPosition = new Vector3(0f, HpBarY, -0.02f);
+                float shX2 = HpBarWidth * 0.5f + ShieldGap + ShieldPlateW * 0.5f;
+                if (v.ShieldPlate != null) v.ShieldPlate.transform.localPosition = new Vector3(shX2, HpBarY, -0.01f);
+                if (v.ShieldText != null) v.ShieldText.transform.localPosition = new Vector3(shX2, HpBarY, -0.02f);
             }
 
             // 伤害数字上浮 + 回收
@@ -940,6 +992,25 @@ namespace WanXiang.Battle.Presentation
             t.localPosition = new Vector3(-(full - full * ratio) * 0.5f, t.localPosition.y, t.localPosition.z);
             v.HpFill.color = ratio > 0.5f ? BattlePalette.Vital
                           : ratio > 0.25f ? BattlePalette.Gold : BattlePalette.Crimson;
+        }
+
+        /// <summary>
+        /// 护盾指示：护盾 &gt; 0 时显示血条右侧的蓝牌 + 数值，否则整块收起。
+        /// ⚠ 护盾**没有持续回合数、也不会自然消退** —— 只被伤害消耗
+        /// （见 <c>BattleUnit.TakeDamage</c> 的 `Shield -= toShield`），也没有任何"回合末清空"的逻辑。
+        /// 所以它是"还剩多少"的真实信息，必须显示。
+        /// </summary>
+        private void SetShield2D(UnitView2D v, int shield)
+        {
+            bool on = shield > 0;
+            if (v.ShieldPlate != null && v.ShieldPlate.gameObject.activeSelf != on)
+                v.ShieldPlate.gameObject.SetActive(on);
+            if (v.ShieldText != null)
+            {
+                if (v.ShieldText.gameObject.activeSelf != on) v.ShieldText.gameObject.SetActive(on);
+                string t = on ? shield.ToString() : "";
+                if (v.ShieldText.text != t) v.ShieldText.text = t;
+            }
         }
 
         // ================================================================
