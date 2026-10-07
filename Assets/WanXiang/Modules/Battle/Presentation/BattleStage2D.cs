@@ -132,9 +132,9 @@ namespace WanXiang.Battle.Presentation
         /// <summary>血条相对立绘容器的 y 偏移。</summary>
         public float HpBarY = 2.35f;
         /// <summary>血条满宽（世界单位）。</summary>
-        public float HpBarWidth = 5.20f;
+        public float HpBarWidth = 3.40f;
         /// <summary>血条底衬高（世界单位）。</summary>
-        public float HpBarBackHeight = 0.92f;
+        public float HpBarBackHeight = 0.72f;
         /// <summary>名字字号（TextMesh.characterSize）。</summary>
         public float NameSize = 0.10f;
         /// <summary>名字相对立绘容器的 y 偏移。</summary>
@@ -144,16 +144,16 @@ namespace WanXiang.Battle.Presentation
         //  为什么值得显示：护盾**不会自然消退**（只被伤害消耗，见 BattleUnit.TakeDamage / AddShield），
         //  所以它是"还剩多少"的真实信息，不给玩家看就是隐形的第二管血。
         /// <summary>护盾牌宽度（世界单位）。</summary>
-        public float ShieldPlateW = 1.90f;
+        public float ShieldPlateW = 3.20f;
         /// <summary>护盾牌高度（世界单位）。</summary>
-        public float ShieldPlateH = 0.92f;
+        public float ShieldPlateH = 1.10f;
         /// <summary>护盾牌与血条之间的间隙（世界单位）。</summary>
         public float ShieldGap = 0.30f;
         /// <summary>护盾数值的字号（TextMesh.characterSize）。
         /// ⚠ 实测口径：该值是**root 局部单位**，而 root 有缩放（普通单位≈0.10、首领 2.5×≈0.26）
         ///   ⇒ 0.012 时文字只有 0.02 世界宽（等于看不见）。0.14 时普通单位约 0.05/字、首领约 0.13/字，
         ///   三位的护盾值正好落在牌内。</summary>
-        public float ShieldTextSize = 0.14f;
+        public float ShieldTextSize = 0.22f;
         /// <summary>护盾牌底色。</summary>
         public Color ShieldColor = new Color(0.30f, 0.55f, 0.82f);
         /// <summary>护盾数值颜色。</summary>

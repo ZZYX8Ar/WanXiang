@@ -87,8 +87,13 @@ namespace WanXiang.Battle.Core
                 {
                     var u = buf.Order[i];
                     if (!u.IsAlive) continue;          // 可能在别人回合里被打死
-                    // 回合制断点：我方单位行动前把控制权交回调用方（手动模式等玩家下令）
-                    if (st.PlayerControlled && u.Side == TeamSide.Player)
+                    // 回合制断点：我方单位行动前把控制权交回调用方（手动模式等玩家下令）。
+                    // ⛔ **必须判 `CanAct`**：被冻结/根缚/混乱的单位这回合动不了，
+                    //   若还停下来等指令，玩家会被要求给一个"无法行动"的单位下令
+                    //   （下令后又会被 ExecuteAction 拒掉、只留一条「无法行动」日志）
+                    //   —— 用户实测："已经被冻结了为什么还能行动，玩起来很奇怪"。
+                    //   不停 ⇒ 直接走 ExecuteAction 记一条「无法行动」，流程自然跳过。
+                    if (st.PlayerControlled && u.Side == TeamSide.Player && u.CanAct)
                         yield return new BattleStep { Kind = BattleStepKind.NeedDecision, Unit = u };
                     ExecuteAction(st, u, buf);
                     DevourAfterAction(st, u);      // 「吞噬」劫象：行动结束剥离对侧 1 增益 + 自损
