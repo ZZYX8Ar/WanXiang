@@ -388,7 +388,7 @@ namespace WanXiang.Battle.Core
                     // 燎原（被动）：场上每 1 层灼烧，伤害 +3%
                     st.Hooks.Add(new OutgoingDamageBonusHook(boss,
                         (s, d) => System.Math.Min(1.20f, 0.03f * TotalPlayerStacks(s, StatusCatalog.Burn))));
-                    st.Hooks.Add(new SummonDeathBurstHook(boss, 0.12f));   // 分身崩解 → 全体 25% 最大生命
+                    st.Hooks.Add(new SummonDeathBurstHook(boss, 0.10f));   // 分身崩解 → 全体 25% 最大生命
                     // ★ 头顶提示**分三段**（key 决定顺序：10 → 15 → 20）：
                     //   燎原是它的招牌（灼烧越厚越痛，不写出来玩家不会去压灼烧）；
                     //   分身是**血量档位**（75/50/25），所以用 PhaseCountdownHook 而不是"每 N 回合"。
@@ -403,15 +403,15 @@ namespace WanXiang.Battle.Core
 
                 case "b_jinjiao":  // 烬蛟：灼烧叠层 + 引燃 + 余烬 + 焚身（≤40% 叠层翻倍）
                     st.Hooks.Add(new BossOpeningMpHook(3));
-                    st.Hooks.Add(new BurnOnHitPhaseHook(boss, 0.40f, 0.012f));
+                    st.Hooks.Add(new BurnOnHitPhaseHook(boss, 0.40f, 0.014f));
                     st.Hooks.Add(new DevourGrowthHook(boss, 0.02f, 0.02f));   // 余烬（近似）
-                    st.Hooks.Add(new BurnDetonateHook(boss, 5, 0.04f));       // 引燃：总层 ≥8 → 引爆
+                    st.Hooks.Add(new BurnDetonateHook(boss, 5, 0.042f));       // 引燃：总层 ≥8 → 引爆
                     break;
 
                 case "b_jiaozhi":  // 燋彘：硬壳 + 破壳窗口 + 岩浆喷发 + 熔核
                     st.Hooks.Add(new BossOpeningMpHook(3));
                     st.Hooks.Add(new CrustHook(boss, 0.06f, 0.50f));
-                    st.Hooks.Add(new PeriodicNukeHook(boss, 3, 0.08f, "岩浆喷发"));
+                    st.Hooks.Add(new PeriodicNukeHook(boss, 3, 0.085f, "岩浆喷发"));
                     st.Hooks.Add(new DeathSummonHook(boss, RongYing, 2));
                     break;
 
