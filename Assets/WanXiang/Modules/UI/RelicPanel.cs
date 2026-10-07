@@ -26,6 +26,12 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text[] _tmpDraftNames;
         [BindArray("Tmp_DraftDesc_{0}", 3)]
         [SerializeField] private TMP_Text[] _tmpDraftDescs;
+        /// <summary>
+        /// 每张卡右上角的「本队」角标（与本队异兽相关的遗物才显示）。
+        /// 节点由 prefab 提供（`Draft_i/Mark_Team_i`，含底色 Image + 文字 Tmp_Mark）⇒ 可在 prefab 里改配色/换图。
+        /// </summary>
+        [BindArray("Mark_Team_{0}", 3)]
+        [SerializeField] private UnityEngine.GameObject[] _markTeam;
         [SerializeField] private Button _btnConfirm;
         [SerializeField] private Button _btnSkip;
 
@@ -78,6 +84,18 @@ namespace WanXiang.Modules.UI
 
             _offered = RelicCatalog.Roll(3, act, true, rng,
                 run != null ? run.Relics : null, teamScopes);
+
+            // ★ 「本队」角标：把**与本队异兽相关**的遗物标出来（作用域命中 = 同五行/同定位/该异兽专属）。
+            //   加权只是让它们更容易出现；角标是让玩家**一眼看出该挑哪个**。
+            for (int i = 0; i < (_markTeam != null ? _markTeam.Length : 0); i++)
+            {
+                if (_markTeam[i] == null) continue;
+                bool related = _offered != null && i < _offered.Count
+                            && teamScopes != null && teamScopes.Count > 0
+                            && !string.IsNullOrEmpty(_offered[i].ScopeId)
+                            && teamScopes.Contains(_offered[i].ScopeId);
+                _markTeam[i].SetActive(related);
+            }
             _selected = -1;
 
             if (_tmpTitle != null) _tmpTitle.text = "遗物 · 三选一（本局已持有 " +
