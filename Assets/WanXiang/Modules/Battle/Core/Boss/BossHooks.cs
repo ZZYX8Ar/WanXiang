@@ -97,6 +97,36 @@ namespace WanXiang.Battle.Core
     }
 
     /// <summary>
+    /// 阶段档位的**血量倒计时**：每回合写"再掉 X 血触发下一档"。
+    /// 用于赤魃的「分阶段分身」（75% / 50% / 25%）—— 它是**血量档位**而不是回合档位，
+    /// 所以 <see cref="PeriodicNukeHook"/> 那套"每 N 回合"的写法套不上。
+    /// ⚠ 血量回升（治疗 / 冰晶复活）时会自动重新开始倒数 —— 这是对的：那一档确实又还没打中。
+    /// </summary>
+    public sealed class PhaseCountdownHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly float[] _thresholds;   // 必须**降序**（0.75, 0.50, 0.25）
+        private readonly string _partKey;
+        private readonly string _label;
+        public PhaseCountdownHook(BattleUnit boss, float[] thresholds, string partKey, string label)
+        {
+            _boss = boss; _thresholds = thresholds ?? new float[0];
+            _partKey = partKey; _label = label;
+        }
+
+        public override void OnTurnStart(BattleState st)
+        {
+            if (_boss == null || !_boss.IsAlive) return;
+            float next = -1f;
+            for (int i = 0; i < _thresholds.Length; i++)
+                if (_thresholds[i] > _boss.HpPercent + 0.0001f) { next = _thresholds[i]; break; }
+            if (next < 0f) { BossHint.SetPart(st, _boss, _partKey, null); return; }
+            int need = CoreMath.RoundDamage((next - _boss.HpPercent) * _boss.MaxHp);
+            BossHint.SetPart(st, _boss, _partKey, _label + "：再掉 " + need + " 血分裂");
+        }
+    }
+
+    /// <summary>
     /// 每回合在首领头顶刷一条**固定说明型**提示（没有倒计时，只是把机制讲清楚）。
     /// ⚠ 用它之前先确认这只首领**没有别的提示钩子** —— `StateHint` 每单位只有一个字符串，
     /// 多个钩子会按 `BattleHooks` 的**注册顺序依次覆盖**，最后注册的赢。
@@ -105,8 +135,18 @@ namespace WanXiang.Battle.Core
     {
         private readonly BattleUnit _boss;
         private readonly string _text;
-        public StaticHintHook(BattleUnit boss, string text) { _boss = boss; _text = text; }
-        public override void OnTurnStart(BattleState st) { BossHint.Set(st, _boss, _text); }
+        private readonly string _partKey;
+        /// <param name="partKey">
+        /// 非空 ⇒ 走 <c>BossHint.SetPart</c>（**分段**，可与其它机制共存）；
+        /// 空 ⇒ 走 <c>BossHint.Set</c>（整条覆盖，会清掉已有分段）。</param>
+        public StaticHintHook(BattleUnit boss, string text, string partKey = null)
+        { _boss = boss; _text = text; _partKey = partKey; }
+
+        public override void OnTurnStart(BattleState st)
+        {
+            if (!string.IsNullOrEmpty(_partKey)) BossHint.SetPart(st, _boss, _partKey, _text);
+            else BossHint.Set(st, _boss, _text);
+        }
     }
 
     /// <summary>伤害反弹：受到的非零伤害有 ratio 比例反弹给攻击者（蔓娘荆棘 / 玄溟寒狱镜面 / 鸿蒙混沌护持用 ratio 版）。</summary>
@@ -1207,6 +1247,62 @@ namespace WanXiang.Battle.Core
             var foes = st.UnitsOf(TeamSide.Enemy);
             for (int i = 0; i < foes.Count; i++)
                 if (foes[i] != null && foes[i].IsAlive) { Set(st, foes[i], text); return; }
+        }
+
+        /// <summary>分隔符（多段拼装用）。</summary>
+        public const string PartSeparator = " · ";
+
+        /// <summary>
+        /// **分段**写提示：同一只首领的多个机制可以共存，最终显示成 "A · B · C"。
+        /// <paramref name="key"/> 决定顺序（按 key 字典序排，⇒ 显示顺序稳定、可预期）。
+        /// 传空文本 = 移除该段。
+        /// ⚠ 与 <see cref="Set"/> 混用会互相干扰：<c>Set</c> 是"整条覆盖"，会把已有分段清掉。
+        ///   ⇒ 一只首领要么全用 SetPart，要么全用 Set，别混。
+        /// </summary>
+        public static void SetPart(BattleState st, BattleUnit u, string key, string text)
+        {
+            if (u == null || string.IsNullOrEmpty(key)) return;
+            if (u.HintParts == null) u.HintParts = new System.Collections.Generic.SortedDictionary<string, string>();
+            bool empty = string.IsNullOrEmpty(text);
+            bool had = u.HintParts.ContainsKey(key);
+            if (empty)
+            {
+                if (!had) return;
+                u.HintParts.Remove(key);
+            }
+            else
+            {
+                u.HintParts[key] = text;
+            }
+
+            // 重拼：SortedDictionary 的枚举顺序 = key 字典序 ⇒ 稳定
+            string composed = null;
+            if (u.HintParts.Count > 0)
+            {
+                var parts = new System.Collections.Generic.List<string>(u.HintParts.Values);
+                composed = string.Join(PartSeparator, parts);
+            }
+            if (u.StateHint == composed) return;
+            u.StateHint = composed;
+            if (st != null) st.CaptureFrame();
+        }
+
+        /// <summary>清掉某单位的所有分段（连带 StateHint）。</summary>
+        public static void ClearParts(BattleState st, BattleUnit u)
+        {
+            if (u == null || u.HintParts == null || u.HintParts.Count == 0) return;
+            u.HintParts.Clear();
+            u.StateHint = null;
+            if (st != null) st.CaptureFrame();
+        }
+
+        /// <summary>给敌方当前存活的那只首领写<paramref name="key"/>分段。</summary>
+        public static void SetPartOnBoss(BattleState st, string key, string text)
+        {
+            if (st == null) return;
+            var foes = st.UnitsOf(TeamSide.Enemy);
+            for (int i = 0; i < foes.Count; i++)
+                if (foes[i] != null && foes[i].IsAlive) { SetPart(st, foes[i], key, text); return; }
         }
     }
 

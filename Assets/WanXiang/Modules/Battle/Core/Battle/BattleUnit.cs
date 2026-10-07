@@ -135,6 +135,18 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public string StateHint;
 
+        /// <summary>
+        /// 机制提示的**分段**（key → 文本）。最终显示由 <see cref="StateHint"/> 承载，
+        /// 内容 = 按 key 排序拼成的 "A · B · C"。
+        ///
+        /// 为什么需要它：<see cref="StateHint"/> 只有**一个字符串**，多个钩子写同一只首领会
+        /// **按注册顺序互相覆盖**（后注册的赢）⇒ 一只首领只能显示一条机制。
+        /// 有了分段，多个机制就能共存（"组装 +25% · 护盾 12%"）。
+        /// ⚠ **懒创建**：绝大多数单位一辈子不写提示 ⇒ 别在字段初始化里 new（每单位一份字典太贵）。
+        ///   用 <c>BossHint.SetPart</c> 写，不要直接碰这个字段。
+        /// </summary>
+        public System.Collections.Generic.SortedDictionary<string, string> HintParts;
+
         /// <summary>免疫五行克制：计算伤害系数时把相克/相生系数强制为 1（混沌之母·鸿蒙"混元"用）。</summary>
         public bool IgnoreElementCounter;
 

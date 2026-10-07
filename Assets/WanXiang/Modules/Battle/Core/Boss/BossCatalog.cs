@@ -389,8 +389,12 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new OutgoingDamageBonusHook(boss,
                         (s, d) => System.Math.Min(1.20f, 0.03f * TotalPlayerStacks(s, StatusCatalog.Burn))));
                     st.Hooks.Add(new SummonDeathBurstHook(boss, 0.12f));   // 分身崩解 → 全体 25% 最大生命
-                    // ★ 头顶提示：赤魃的招牌是"灼烧越厚它越痛"，不写出来玩家不会去压灼烧
-                    st.Hooks.Add(new StaticHintHook(boss, "燎原：每层灼烧 +3%（封顶 +120%）· 分身崩解波及全体"));
+                    // ★ 头顶提示**分三段**（key 决定顺序：10 → 15 → 20）：
+                    //   燎原是它的招牌（灼烧越厚越痛，不写出来玩家不会去压灼烧）；
+                    //   分身是**血量档位**（75/50/25），所以用 PhaseCountdownHook 而不是"每 N 回合"。
+                    st.Hooks.Add(new StaticHintHook(boss, "燎原：每层灼烧 +3%（封顶 +120%）", "10"));
+                    st.Hooks.Add(new StaticHintHook(boss, "分身崩解波及全体", "15"));
+                    st.Hooks.Add(new PhaseCountdownHook(boss, new float[] { 0.75f, 0.50f, 0.25f }, "20", "分身"));
                     st.Hooks.Add(new PhaseHook(boss, 0.75f, (s, b) => DeployToFreeCell(s, b.Side, FenShen)));
                     st.Hooks.Add(new PhaseHook(boss, 0.50f, (s, b) => DeployToFreeCell(s, b.Side, FenShen)));
                     st.Hooks.Add(new PhaseHook(boss, 0.25f, (s, b) => DeployToFreeCell(s, b.Side, FenShen)));
