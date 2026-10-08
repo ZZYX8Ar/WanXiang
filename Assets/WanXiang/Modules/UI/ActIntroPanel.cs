@@ -273,7 +273,12 @@ namespace WanXiang.Modules.UI
                 await UniTask.Yield();
             }
             maskRt.sizeDelta = new Vector2(fullW + 8f, maskRt.sizeDelta.y);
-            Dbg("书写完成 遮罩宽=" + maskRt.sizeDelta.x.ToString("F0")
+            // 兜底：书写结束后**直接关掉 RectMask2D** ⇒ 即使它的裁剪行为有意外，标题也一定可见。
+            // （"默认可见优先"：效果可以让步，但内容不能被裁没。）
+            var rm = maskRt.GetComponent<UnityEngine.UI.RectMask2D>();
+            if (rm != null) rm.enabled = false;
+            Dbg("书写完成 已关闭遮罩裁剪 RectMask2D=" + (rm != null)
+                + " 遮罩宽=" + maskRt.sizeDelta.x.ToString("F0")
                 + " 遮罩rect=" + maskRt.rect.width.ToString("F0")
                 + " 文本激活=" + (_tmpTitleMain != null && _tmpTitleMain.gameObject.activeInHierarchy)
                 + " 文本alpha=" + (_tmpTitleMain != null ? _tmpTitleMain.color.a.ToString("F2") : "-"));
