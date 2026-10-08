@@ -74,7 +74,9 @@ namespace WanXiang.Battle.Presentation
 
     public sealed class BattleStage2D : MonoBehaviour
     {
-        private const float Cell = 1.75f;        // 格子边长（放大后棋盘占屏宽 ~27%，原来只有 ~18%）
+        private const float Cell = 1.75f;        // 格子边长（横向）
+        /// <summary>行间距 = Cell × 本值。⛔ BuildBoard 的格子尺寸与 CellPos 的落位**共用**它。</summary>
+        public const float BoardRowGap = 0.72f;
         /// <summary>立绘枢轴在底部中点，抬高让脚踩在格子中心（Build 与 Step 必须用同一个值）。</summary>
         private const float FootOffset = 0.7f;
 
@@ -182,7 +184,8 @@ namespace WanXiang.Battle.Presentation
             public Sprite Art;         // ← 把冰晶/藤蔓/火焰的 PNG 拖到这里
             public Color Tint = new Color(0.6f, 0.8f, 1f, 0.45f);   // 没图时的兜底色
             public float Scale = 1f;   // 相对立绘尺寸的倍率（美术图留白多时调它）
-            public float OffsetY = 0f; // 相对立绘中心的 y 偏移
+            /// <summary>相对立绘中心的 y 偏移，单位是**立绘高度的百分比**（-0.1 = 下移 10% 身高）。</summary>
+            public float OffsetY = 0f;
             public int Priority = 50;  // 同时多个时取小者
 
             // ---- 动画（走 Resources/Shaders/StatusOverlay，见该文件注释）----
@@ -209,31 +212,36 @@ namespace WanXiang.Battle.Presentation
             // 冻结：慢、稳、冷 —— 只有轻微呼吸与极小的摆，别让它像活物
             new StatusOverlay { Id = "freeze",      Tint = new Color(0.60f, 0.86f, 1.00f, 0.55f), Priority = 0,
                                 WaveAmp = 0.005f, WaveSpeed = 1.1f, PulseAmp = 0.06f, PulseSpeed = 1.5f,
-                                RiseAmp = 0.015f, RiseSpeed = 1.2f, SwayDeg = 0.8f, SwaySpeed = 0.7f },
+                                RiseAmp = 0.015f, RiseSpeed = 1.2f, SwayDeg = 0.8f, SwaySpeed = 0.7f,
+                                Scale = 1.0f, OffsetY = 0f },
             // 束缚：藤蔓被拉扯的摇曳感
             new StatusOverlay { Id = "root",        Tint = new Color(0.34f, 0.60f, 0.26f, 0.48f), Priority = 1,
                                 WaveAmp = 0.011f, WaveFreq = 11f, WaveSpeed = 1.5f, PulseAmp = 0.07f,
-                                PulseSpeed = 1.8f, RiseAmp = 0.03f, RiseSpeed = 1.6f, SwayDeg = 3.2f, SwaySpeed = 1.0f },
+                                PulseSpeed = 1.8f, RiseAmp = 0.03f, RiseSpeed = 1.6f, SwayDeg = 3.2f, SwaySpeed = 1.0f,
+                                Scale = 0.95f, OffsetY = -0.05f },
             new StatusOverlay { Id = "confuse",     Tint = new Color(0.74f, 0.45f, 0.86f, 0.38f), Priority = 2,
-                                WaveAmp = 0.016f, WaveSpeed = 3.0f, PulseAmp = 0.14f, PulseSpeed = 4.0f },
-            // 燃烧：最活泼 —— 大幅度、快节奏、明显的向上舔
-            new StatusOverlay { Id = "burn",        Tint = new Color(1.00f, 0.44f, 0.14f, 0.40f), Priority = 3,
+                                WaveAmp = 0.016f, WaveSpeed = 3.0f, PulseAmp = 0.14f, PulseSpeed = 4.0f,
+                                Scale = 0.9f, OffsetY = 0f },
+            // 燃烧：最活泼，但**别盖住整只异兽** —— 缩到 0.8、往下挪一点、透明度也收一档
+            new StatusOverlay { Id = "burn",        Tint = new Color(1.00f, 0.44f, 0.14f, 0.34f), Priority = 3,
                                 WaveAmp = 0.020f, WaveFreq = 20f, WaveSpeed = 3.4f, PulseAmp = 0.24f,
-                                PulseSpeed = 5.2f, RiseAmp = 0.10f, RiseSpeed = 4.0f, SwayDeg = 3.5f, SwaySpeed = 2.6f },
+                                PulseSpeed = 5.2f, RiseAmp = 0.10f, RiseSpeed = 4.0f, SwayDeg = 3.5f, SwaySpeed = 2.6f,
+                                Scale = 0.80f, OffsetY = -0.10f },
             // 瘴气：翻滚的雾
             new StatusOverlay { Id = "miasma",      Tint = new Color(0.42f, 0.56f, 0.24f, 0.40f), Priority = 4,
                                 WaveAmp = 0.014f, WaveFreq = 8f, WaveSpeed = 1.2f, PulseAmp = 0.10f,
-                                PulseSpeed = 1.3f, RiseAmp = 0.04f, RiseSpeed = 1.0f, SwayDeg = 2.0f, SwaySpeed = 0.9f },
+                                PulseSpeed = 1.3f, RiseAmp = 0.04f, RiseSpeed = 1.0f, SwayDeg = 2.0f, SwaySpeed = 0.9f,
+                                Scale = 0.95f, OffsetY = 0f },
             new StatusOverlay { Id = "wet",         Tint = new Color(0.34f, 0.60f, 0.90f, 0.32f), Priority = 5,
-                                PulseAmp = 0.09f, PulseSpeed = 2.0f, SwayDeg = 1.2f, SwaySpeed = 1.0f },
+                                PulseAmp = 0.09f, PulseSpeed = 2.0f, SwayDeg = 1.2f, SwaySpeed = 1.0f, Scale = 0.9f },
             new StatusOverlay { Id = "frost",       Tint = new Color(0.70f, 0.88f, 1.00f, 0.32f), Priority = 6,
-                                WaveAmp = 0.007f, PulseAmp = 0.07f, PulseSpeed = 1.8f, SwayDeg = 1.0f },
+                                WaveAmp = 0.007f, PulseAmp = 0.07f, PulseSpeed = 1.8f, SwayDeg = 1.0f, Scale = 0.9f },
             new StatusOverlay { Id = "ice_erosion", Tint = new Color(0.55f, 0.80f, 0.95f, 0.32f), Priority = 7,
-                                WaveAmp = 0.008f, PulseAmp = 0.08f, PulseSpeed = 2.0f },
+                                WaveAmp = 0.008f, PulseAmp = 0.08f, PulseSpeed = 2.0f, Scale = 0.9f },
             new StatusOverlay { Id = "armor_break", Tint = new Color(0.86f, 0.64f, 0.34f, 0.30f), Priority = 8,
-                                PulseAmp = 0.10f, PulseSpeed = 2.4f, SwayDeg = 1.5f },
+                                PulseAmp = 0.10f, PulseSpeed = 2.4f, SwayDeg = 1.5f, Scale = 0.9f },
             new StatusOverlay { Id = "marked",      Tint = new Color(0.90f, 0.34f, 0.30f, 0.32f), Priority = 9,
-                                PulseAmp = 0.18f, PulseSpeed = 4.4f, SwayDeg = 1.5f, SwaySpeed = 2.0f },
+                                PulseAmp = 0.18f, PulseSpeed = 4.4f, SwayDeg = 1.5f, SwaySpeed = 2.0f, Scale = 0.9f },
         };
 
         /// <summary>状态特效材质缓存（按状态 id 共享；单位各自颜色走顶点色，不用每只 new 一份）。</summary>
@@ -317,8 +325,8 @@ namespace WanXiang.Battle.Presentation
         /// <summary>状态图标之间的间距（世界单位）。
         /// ⚠ 必须**大于字宽**，否则相邻两格的缩写会视觉上连成一片（用户截图反馈"气和裂糊在一起"）。</summary>
         public float StatusIconGap = 0.16f;
-        /// <summary>状态图标排相对立绘容器的 y 偏移。</summary>
-        public float StatusRowY = 2.05f;
+        /// <summary>状态图标排相对立绘容器的 y 偏移。**局部单位**（立绘自身高 10.24，头顶在 +5.12）⇒ 7.4 = 刚好贴在头顶上方。</summary>
+        public float StatusRowY = 7.4f;
         /// <summary>状态图标文字大小倍率。</summary>
         public float StatusLabelSize = 1f;
 
@@ -409,10 +417,17 @@ namespace WanXiang.Battle.Presentation
                 cell.transform.SetParent(board.transform, false);
                 var sr = cell.AddComponent<SpriteRenderer>();
                 // 格子：程序化纯色 + 墨色描边（用户换图点位：Cell_x 的 sprite 直接换）
-                sr.sprite = SolidSprite(
-                    center ? new Color(0.94f, 0.89f, 0.78f) : new Color(0.91f, 0.89f, 0.82f),
-                    (int)(Cell * 100), (int)(Cell * 100), 3,
-                    center ? new Color(0.79f, 0.63f, 0.39f) : new Color(0.16f, 0.13f, 0.09f));
+                // 格子：**尺寸必须与行间距一致**，否则上下行互相压边、看着"九宫格大小不齐"
+                //（原先是 1.75×1.75 正方形 + 1.26 行距 ⇒ 每行压掉 0.49，用户实测就是这个现象）。
+                // ⚠ 单位落位用同一套公式（（1-row)*Cell*BoardRowGap），改这里必须同步改 CellPos。
+                // 🔧 换美术：把 `Assets/Resources/UI/Board/cell.png`（+ `cell_center.png`）丢进去即可替换，缺图回退程序化纯色。
+                var cellArt = Resources.Load<Sprite>("UI/Board/" + (center ? "cell_center" : "cell"));
+                sr.sprite = cellArt != null
+                    ? cellArt
+                    : SolidSprite(
+                        center ? new Color(0.94f, 0.89f, 0.78f) : new Color(0.91f, 0.89f, 0.82f),
+                        (int)(Cell * 100), (int)(Cell * BoardRowGap * 100), 3,
+                        center ? new Color(0.79f, 0.63f, 0.39f) : new Color(0.16f, 0.13f, 0.09f));
                 sr.sortingOrder = -5;
 
                 // 缓存格子渲染器与底色：技能预览高亮用（还原时用缓存值，不硬编码颜色）
@@ -422,7 +437,7 @@ namespace WanXiang.Battle.Presentation
                 if (!player) col = 2 - col;   // 敌方列镜像，与我方对称
                 int row = i / 3;
                 cell.transform.localPosition = new Vector3(
-                    cx + (col - 1) * Cell, cy + (1 - row) * Cell * 0.72f, 0f);
+                    cx + (col - 1) * Cell, cy + (1 - row) * Cell * BoardRowGap, 0f);
             }
         }
 
@@ -660,7 +675,10 @@ namespace WanXiang.Battle.Presentation
                     var rowGo = new GameObject("StatusRow");
                     rowGo.transform.SetParent(root.transform, false);
                     rowGo.transform.localScale = Vector3.one / rsHint;              // 世界尺寸恒定
-                    rowGo.transform.localPosition = new Vector3(0f, StatusRowY / rsHint, 0f);
+                    // ⛔ 位置用**局部单位**（与 NameY / HpBarY 同一套语义）。
+                    //   原来写的是 `StatusRowY / rsHint` ⇒ 除了一次缩放 ⇒ 实际飞到 2.05 世界高，
+                    //   而立绘顶只有 0.53 ⇒ 徽标飘在头顶 1.5 个身位（用户实测："状态太高了"）。
+                    rowGo.transform.localPosition = new Vector3(0f, StatusRowY, 0f);
                     view.StatusRow = rowGo;
                     int slots = (StatusIcons != null && StatusIcons.Length > 0) ? Mathf.Min(8, StatusIcons.Length) : 1;
                     view.StatusPlates = new SpriteRenderer[slots];
@@ -833,9 +851,12 @@ namespace WanXiang.Battle.Presentation
                     var label = v.StatusLabels != null ? v.StatusLabels[used] : null;
                     if (plate == null) continue;
 
-                    if (def != null && def.Icon != null)
+                    // 图标来源与状态特效同一条口径：表里拖的 `Icon` 优先 → `Resources/UI/StatusIcon/<id>` → 色块+缩写
+                    var iconArt = def != null ? def.Icon : null;
+                    if (iconArt == null) iconArt = ResolveStatusIconArt(kv[0]);
+                    if (iconArt != null)
                     {
-                        plate.sprite = def.Icon;          // ← 你拖进来的图
+                        plate.sprite = iconArt;           // ← 你拖进来 / 放进 Resources 的图
                         plate.color = Color.white;
                         if (label != null) label.text = "";
                     }
@@ -1175,6 +1196,24 @@ namespace WanXiang.Battle.Presentation
             return best;
         }
 
+        /// <summary>状态图标（头顶徽标里的图）缓存。</summary>
+        private static readonly System.Collections.Generic.Dictionary<string, Sprite> StatusIconCache =
+            new System.Collections.Generic.Dictionary<string, Sprite>();
+
+        /// <summary>
+        /// 头顶徽标的图标：`Resources/UI/StatusIcon/&lt;状态id&gt;.png` —— 与状态特效同一条"文件名 = id"口径。
+        /// 把图丢进那个目录就生效，不用改表、不用改引用。缺图时上层会回退成「色块 + 缩写」。
+        /// </summary>
+        private static Sprite ResolveStatusIconArt(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            Sprite s;
+            if (StatusIconCache.TryGetValue(id, out s)) return s;
+            s = Resources.Load<Sprite>("UI/StatusIcon/" + id);
+            StatusIconCache[id] = s;
+            return s;
+        }
+
         /// <summary>状态外观图缓存（id → Sprite；null 也缓存，避免每帧 Load）。</summary>
         private static readonly System.Collections.Generic.Dictionary<string, Sprite> StatusArtCache =
             new System.Collections.Generic.Dictionary<string, Sprite>();
@@ -1226,7 +1265,8 @@ namespace WanXiang.Battle.Presentation
                 v.Overlay.color = best.Tint;
                 v.Overlay.transform.localScale = new Vector3(bodySize.x / 0.32f, bodySize.y / 0.64f, 1f);
             }
-            v.Overlay.transform.localPosition = new Vector3(0f, best.OffsetY, -0.02f);
+            // OffsetY 是**立绘高度的百分比**（-0.1 = 往下挪身高的 10%）—— 比写死像素值好调、也与缩放无关
+            v.Overlay.transform.localPosition = new Vector3(0f, best.OffsetY * bodySize.y, -0.02f);
             v.OverlayDef = best;
             // 特效动画材质（按状态共享；取不到 shader 则保持默认 sprite 材质 = 静态图，不会崩）
             var mat = OverlayMaterial(best);
@@ -1272,7 +1312,7 @@ namespace WanXiang.Battle.Presentation
             int row = cell / 3;
             float cx = player ? PlayerX : EnemyX;
             return new Vector2(cx + (col - 1) * Cell,
-                               BoardY + (1 - row) * Cell * 0.72f - FootOffset);
+                               BoardY + (1 - row) * Cell * BoardRowGap - FootOffset);
         }
 
         private SpriteRenderer MakeChildSprite(GameObject parent, string name, Color c,
