@@ -956,7 +956,13 @@ namespace WanXiang.Battle.Presentation
 
                 // 血条跟随立绘（相机 2D 朝 -Z，直接摆即可）
                 if (v.HpBg != null) v.HpBg.transform.localPosition = new Vector3(0f, HpBarY, -0.01f);
-                if (v.HpFill != null) v.HpFill.transform.localPosition = new Vector3(0f, HpBarY, -0.02f);
+                // ⛔ 填充条**只改 y，必须保留 x**：x 是 SetHpBar2D 算的"左端固定"偏移，
+                //   这里每帧归零的话填充就永远居中 ⇒ 观感变成"血从两边一起掉"（用户实测两轮的真因）。
+                if (v.HpFill != null)
+                {
+                    var flp = v.HpFill.transform.localPosition;
+                    v.HpFill.transform.localPosition = new Vector3(flp.x, HpBarY, -0.02f);
+                }
                 float shX2 = HpBarWidth * 0.5f + ShieldGap + ShieldPlateW * 0.5f;
                 if (v.ShieldPlate != null) v.ShieldPlate.transform.localPosition = new Vector3(shX2, HpBarY, -0.01f);
                 if (v.ShieldText != null) v.ShieldText.transform.localPosition = new Vector3(shX2, HpBarY, -0.02f);
@@ -1073,9 +1079,28 @@ namespace WanXiang.Battle.Presentation
             return best;
         }
 
+        /// <summary>状态外观图缓存（id → Sprite；null 也缓存，避免每帧 Load）。</summary>
+        private static readonly System.Collections.Generic.Dictionary<string, Sprite> StatusArtCache =
+            new System.Collections.Generic.Dictionary<string, Sprite>();
+
+        /// <summary>
+        /// 取某状态的外观图：优先用表里拖进去的 `Art`，没有就去 `Resources/UI/StatusArt/&lt;id&gt;` 找。
+        /// 「**文件名 = 状态 id**」⇒ 出图后直接丢进那个目录即可生效，不用改任何代码/引用。
+        /// </summary>
+        private static Sprite ResolveStatusArt(string id, Sprite fromTable)
+        {
+            if (fromTable != null) return fromTable;
+            if (string.IsNullOrEmpty(id)) return null;
+            Sprite s;
+            if (StatusArtCache.TryGetValue(id, out s)) return s;
+            s = Resources.Load<Sprite>("UI/StatusArt/" + id);
+            StatusArtCache[id] = s;
+            return s;
+        }
+
         /// <summary>
         /// 状态外观：把优先级最高的那条覆盖到立绘上（冰封 = 冰蓝罩 / 束缚 = 苔绿罩 / 燃烧 = 火橙罩…）。
-        /// 有 `Art` 就显示美术图（按立绘尺寸自动缩放，`Scale`/`OffsetY` 可调），
+        /// 有美术图就显示美术图（按立绘尺寸自动缩放，`Scale`/`OffsetY` 可调），
         /// 没图则用该状态的半透明色块兜底 —— **不挂任何美术也看得见**。
         /// </summary>
         private void SetOverlay2D(UnitView2D v, string ids)
@@ -1087,11 +1112,12 @@ namespace WanXiang.Battle.Presentation
             v.OverlayShown = key;
             if (best == null) { v.Overlay.enabled = false; return; }
 
+            var art = ResolveStatusArt(best.Id, best.Art);
             Vector2 bodySize = v.Body.sprite != null ? v.Body.sprite.bounds.size : new Vector2(1f, 1.4f);
-            if (best.Art != null)
+            if (art != null)
             {
-                var a = best.Art.bounds.size;
-                v.Overlay.sprite = best.Art;
+                var a = art.bounds.size;
+                v.Overlay.sprite = art;
                 v.Overlay.color = new Color(1f, 1f, 1f, Mathf.Clamp01(best.Tint.a * 1.6f));
                 v.Overlay.transform.localScale = new Vector3(
                     a.x > 0.0001f ? bodySize.x / a.x * Mathf.Max(0.01f, best.Scale) : 1f,
