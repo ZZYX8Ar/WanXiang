@@ -198,26 +198,11 @@ namespace WanXiang.Modules.UI
             SpawnLeaves(t);
             UpdateLeavesLoop().Forget();
 
-            // ---- 逐字「书写」----
-            //  不再整字弹出：每个字一个 TMP 克隆 + 各自一份 TitleWrite 材质，
-            //  由 `_Reveal` 从左到右推进 ⇒ 观感是"一笔一划写出来"。
-            var mats = SpawnTitleChars(t.Main);
-            if (mats.Count > 0)
-            {
-                float writeSec = Mathf.Max(0.18f, _charInterval * 2.1f);   // 一个字"写"多久
-                for (int i = 0; i < mats.Count; i++)
-                {
-                    float t0 = 0f;
-                    while (t0 < writeSec)
-                    {
-                        t0 += Time.unscaledDeltaTime;
-                        if (mats[i] != null) mats[i].SetFloat("_Reveal", Mathf.Clamp01(t0 / writeSec));
-                        await UniTask.Yield();
-                    }
-                    if (mats[i] != null) mats[i].SetFloat("_Reveal", 1f);
-                    await UniTask.Delay(Ms(_charInterval * 0.35f));        // 字与字之间的连贯节奏
-                }
-            }
+            // ---- 书写 ----
+            //  用 **UGUI 内置 RectMask2D 从左到右扫过**（Unity 原生、零布局计算、零自定义 shader）。
+            //  遮罩宽度增长 ⇒ 整行字被连续"写"出来（不是一个一个蹦），而且文本位置完全交给 UGUI，
+            //  不会再出现"每一字自己算坐标算歪"的问题。
+            await WriteTitleAsync(t);
 
             // ---- 小字 ----
             await UniTask.Delay(Ms(_subDelay));
@@ -231,63 +216,31 @@ namespace WanXiang.Modules.UI
             CloseSelf();
         }
 
-        /// <summary>克隆出来的逐字 TMP（用于书写动画）。</summary>
-        private readonly List<TMP_Text> _titleChars = new List<TMP_Text>(16);
-
         /// <summary>
-        /// 把标题拆成**逐字**的 TMP 克隆，每个字一份 TitleWrite 材质并返回材质列表（供逐个推进 `_Reveal`）。
-        /// 做法：先用模板 TMP 排一次版（它当"尺子"），再按每个字的 origin/advance 精确摆克隆
-        /// ⇒ 间距与整体排版和原来完全一致，只是变成一个字一个对象。
-        /// ⛔ 自定义材质**必须把字体图集塞进 `_MainTex`**，否则字会渲染成白块。
+        /// 书写：把 `Root_Title/Img_TitleMask`（RectMask2D）的宽度从 0 推到整幅，字就被连续"扫"出来。
+        /// 宽度从**遮罩的父级**（Root_Title）取，不写死，改名/改尺寸都不用动代码。
+        /// 收笔时多给 8px，避免最后一列像素被裁掉。
         /// </summary>
-        private List<Material> SpawnTitleChars(string text)
+        private async UniTask WriteTitleAsync(ActTitle t)
         {
-            var mats = new List<Material>(16);
-            for (int i = 0; i < _titleChars.Count; i++)
-                if (_titleChars[i] != null) UnityEngine.Object.Destroy(_titleChars[i].gameObject);
-            _titleChars.Clear();
-            if (_tmpTitleMain == null || string.IsNullOrEmpty(text)) return mats;
+            var maskT = transform.Find("Root_Title/Img_TitleMask");
+            var maskRt = maskT as RectTransform;
+            if (maskRt == null) return;
+            var parentRt = maskRt.parent as RectTransform;
+            float fullW = parentRt != null ? parentRt.rect.width : 1200f;
 
-            var tpl = _tmpTitleMain;
-            var rt = tpl.rectTransform;
-            tpl.text = text;
-            tpl.maxVisibleCharacters = int.MaxValue;
-            tpl.ForceMeshUpdate();
-            var info = tpl.textInfo;
+            int n = _tmpTitleMain != null && !string.IsNullOrEmpty(t.Main) ? t.Main.Length : 4;
+            float total = Mathf.Max(0.8f, n * _charInterval * 1.7f);   // 整行写完的总时长
 
-            var shader = Resources.Load<Shader>("Shaders/TitleWrite");
-            if (shader == null) shader = Shader.Find("WanXiang/TitleWrite");
-
-            for (int i = 0; i < info.characterCount; i++)
+            maskRt.sizeDelta = new Vector2(0f, maskRt.sizeDelta.y);
+            float elapsed = 0f;
+            while (elapsed < total)
             {
-                var ci = info.characterInfo[i];
-                if (!ci.isVisible) continue;
-
-                var ct = Instantiate(tpl, rt.parent);
-                ct.text = ci.character.ToString();
-                ct.maxVisibleCharacters = int.MaxValue;
-                var crt = ct.rectTransform;
-                crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0.5f);
-                crt.pivot = new Vector2(0.5f, 0.5f);
-                crt.sizeDelta = new Vector2(ci.xAdvance + 12f, rt.rect.height);
-                crt.anchoredPosition = new Vector2(
-                    ci.origin - rt.rect.width * 0.5f + ci.xAdvance * 0.5f, rt.anchoredPosition.y);
-
-                if (shader != null)
-                {
-                    var m = new Material(shader);
-                    // ⛔ 自定义材质必须带上字体图集，否则白块
-                    var atlas = tpl.fontSharedMaterial != null
-                        ? tpl.fontSharedMaterial.GetTexture("_MainTex") : null;
-                    if (atlas != null) m.SetTexture("_MainTex", atlas);
-                    m.SetFloat("_Reveal", 0f);
-                    ct.fontSharedMaterial = m;
-                }
-                _titleChars.Add(ct);
-                mats.Add(ct.fontSharedMaterial);
+                elapsed += Time.unscaledDeltaTime;
+                maskRt.sizeDelta = new Vector2(fullW * Mathf.Clamp01(elapsed / total), maskRt.sizeDelta.y);
+                await UniTask.Yield();
             }
-            tpl.gameObject.SetActive(false);   // 模板只当尺子，用完隐藏
-            return mats;
+            maskRt.sizeDelta = new Vector2(fullW + 8f, maskRt.sizeDelta.y);
         }
 
         private static int Ms(float seconds) { return Mathf.Max(1, (int)(seconds * 1000f)); }
@@ -419,7 +372,13 @@ namespace WanXiang.Modules.UI
                             Mathf.Clamp01((L.Age - fadeStart) / Mathf.Max(0.01f, L.Life - fadeStart)));
                         L.Img.color = c;
                     }
-                    if (p.y < -halfH - 120f) L.Rt = null;
+                    if (p.y < -halfH - 120f)
+                    {
+                        // ⛔ 必须**销毁**，不能只把引用置空：否则 GameObject 留在层级里，
+                        //   最后一个更新帧的位置被冻住 ⇒ 观感就是"粒子卡在半空"（用户截图里的现象）。
+                        if (L.Rt != null) UnityEngine.Object.Destroy(L.Rt.gameObject);
+                        L.Rt = null;
+                    }
                     any = true;
                 }
                 if (!any) break;
