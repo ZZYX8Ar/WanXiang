@@ -198,12 +198,25 @@ namespace WanXiang.Modules.UI
             SpawnLeaves(t);
             UpdateLeavesLoop().Forget();
 
-            // ---- 逐字浮现（"写"出来）----
-            int n = _tmpTitleMain != null ? _tmpTitleMain.text.Length : 0;
-            for (int i = 1; i <= n; i++)
+            // ---- 逐字「书写」----
+            //  不再整字弹出：每个字一个 TMP 克隆 + 各自一份 TitleWrite 材质，
+            //  由 `_Reveal` 从左到右推进 ⇒ 观感是"一笔一划写出来"。
+            var mats = SpawnTitleChars(t.Main);
+            if (mats.Count > 0)
             {
-                _tmpTitleMain.maxVisibleCharacters = i;
-                await UniTask.Delay(Ms(_charInterval));
+                float writeSec = Mathf.Max(0.18f, _charInterval * 2.1f);   // 一个字"写"多久
+                for (int i = 0; i < mats.Count; i++)
+                {
+                    float t0 = 0f;
+                    while (t0 < writeSec)
+                    {
+                        t0 += Time.unscaledDeltaTime;
+                        if (mats[i] != null) mats[i].SetFloat("_Reveal", Mathf.Clamp01(t0 / writeSec));
+                        await UniTask.Yield();
+                    }
+                    if (mats[i] != null) mats[i].SetFloat("_Reveal", 1f);
+                    await UniTask.Delay(Ms(_charInterval * 0.35f));        // 字与字之间的连贯节奏
+                }
             }
 
             // ---- 小字 ----
@@ -216,6 +229,65 @@ namespace WanXiang.Modules.UI
             _leaves.Clear();
             if (_rootLeaves != null) _rootLeaves.gameObject.SetActive(false);
             CloseSelf();
+        }
+
+        /// <summary>克隆出来的逐字 TMP（用于书写动画）。</summary>
+        private readonly List<TMP_Text> _titleChars = new List<TMP_Text>(16);
+
+        /// <summary>
+        /// 把标题拆成**逐字**的 TMP 克隆，每个字一份 TitleWrite 材质并返回材质列表（供逐个推进 `_Reveal`）。
+        /// 做法：先用模板 TMP 排一次版（它当"尺子"），再按每个字的 origin/advance 精确摆克隆
+        /// ⇒ 间距与整体排版和原来完全一致，只是变成一个字一个对象。
+        /// ⛔ 自定义材质**必须把字体图集塞进 `_MainTex`**，否则字会渲染成白块。
+        /// </summary>
+        private List<Material> SpawnTitleChars(string text)
+        {
+            var mats = new List<Material>(16);
+            for (int i = 0; i < _titleChars.Count; i++)
+                if (_titleChars[i] != null) UnityEngine.Object.Destroy(_titleChars[i].gameObject);
+            _titleChars.Clear();
+            if (_tmpTitleMain == null || string.IsNullOrEmpty(text)) return mats;
+
+            var tpl = _tmpTitleMain;
+            var rt = tpl.rectTransform;
+            tpl.text = text;
+            tpl.maxVisibleCharacters = int.MaxValue;
+            tpl.ForceMeshUpdate();
+            var info = tpl.textInfo;
+
+            var shader = Resources.Load<Shader>("Shaders/TitleWrite");
+            if (shader == null) shader = Shader.Find("WanXiang/TitleWrite");
+
+            for (int i = 0; i < info.characterCount; i++)
+            {
+                var ci = info.characterInfo[i];
+                if (!ci.isVisible) continue;
+
+                var ct = Instantiate(tpl, rt.parent);
+                ct.text = ci.character.ToString();
+                ct.maxVisibleCharacters = int.MaxValue;
+                var crt = ct.rectTransform;
+                crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0.5f);
+                crt.pivot = new Vector2(0.5f, 0.5f);
+                crt.sizeDelta = new Vector2(ci.xAdvance + 12f, rt.rect.height);
+                crt.anchoredPosition = new Vector2(
+                    ci.origin - rt.rect.width * 0.5f + ci.xAdvance * 0.5f, rt.anchoredPosition.y);
+
+                if (shader != null)
+                {
+                    var m = new Material(shader);
+                    // ⛔ 自定义材质必须带上字体图集，否则白块
+                    var atlas = tpl.fontSharedMaterial != null
+                        ? tpl.fontSharedMaterial.GetTexture("_MainTex") : null;
+                    if (atlas != null) m.SetTexture("_MainTex", atlas);
+                    m.SetFloat("_Reveal", 0f);
+                    ct.fontSharedMaterial = m;
+                }
+                _titleChars.Add(ct);
+                mats.Add(ct.fontSharedMaterial);
+            }
+            tpl.gameObject.SetActive(false);   // 模板只当尺子，用完隐藏
+            return mats;
         }
 
         private static int Ms(float seconds) { return Mathf.Max(1, (int)(seconds * 1000f)); }
@@ -287,7 +359,7 @@ namespace WanXiang.Modules.UI
                 //   出生点横跨左半边、纵向从顶部之上一点一直铺到画面中部偏下
                 //   ⇒ 一部分**开场就在画面里**，不会像以前那样动画结束了还没飘进来。
                 float x = -halfW + Random.Range(0f, halfW * 1.1f);
-                float y = halfH * 1.15f - Random.Range(0f, halfH * 2.6f);
+                float y = halfH * 0.85f - Random.Range(0f, halfH * 2.1f);
                 rt.anchoredPosition = new Vector2(x, y);
                 rt.localScale = Vector3.one * Random.Range(1.40f, 2.90f);
                 rt.localRotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
@@ -301,7 +373,7 @@ namespace WanXiang.Modules.UI
                 //   ⇒ 横向速度必须约为纵向的 2 倍。之前反了（纵向快、横向慢）⇒ 没到右边就到底（用户实测）。
                 float speed = Mathf.Max(0.1f, t.LeafSpeed);
                 float vx = Random.Range(420f, 620f) * speed;
-                float vy = Random.Range(190f, 330f) * speed;
+                float vy = Random.Range(300f, 430f) * speed;     // 约 4s 内走完整屏高度
                 _leaves.Add(new Leaf
                 {
                     Rt = rt,
@@ -309,8 +381,8 @@ namespace WanXiang.Modules.UI
                     VY = -vy,
                     VX = vx,                                   // 一律朝右（左上→右下）
                     RotSpd = Random.Range(-90f, 90f) * speed,
-                    Delay = Random.Range(0f, 1.2f),
-                    Life = Mathf.Max(2.5f, (halfW * 2f + 300f) / Mathf.Max(1f, vx)),   // 按横向穿越时间算
+                    Delay = Random.Range(0f, 0.30f),   // 必须小：Delay+Life 要装进动画总时长
+                    Life = Mathf.Clamp((halfW * 2f + 200f) / Mathf.Max(1f, vx), 2.2f, 3.2f),  // 横向穿越时间，夹进动画窗口
                     BaseAlpha = a,
                 });
             }
