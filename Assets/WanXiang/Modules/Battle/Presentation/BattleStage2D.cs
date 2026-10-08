@@ -38,6 +38,10 @@ namespace WanXiang.Battle.Presentation
         public SpriteRenderer ShieldPlate;
         /// <summary>护盾数值（独立对象，**不能挂在蓝牌下** —— 蓝牌有缩放，会把字一起放大）。</summary>
         public TextMesh ShieldText;
+        /// <summary>状态外观层（冰封/束缚/燃烧…），是 <see cref="Body"/> 的子节点 ⇒ 跟着立绘走。</summary>
+        public SpriteRenderer Overlay;
+        /// <summary>当前覆盖层显示的状态 id（变了才重设，别每帧换 sprite）。</summary>
+        public string OverlayShown;
         public TextMesh NameText;
         /// <summary>Boss 机制提示（冰晶期「还剩 N 回合」等，来源 <c>BattleUnit.StateHint</c>，
         /// 由帧流携带 —— 见 <c>UnitSnapshot.StateHint</c>）。空串 = 不显示。</summary>
@@ -148,7 +152,7 @@ namespace WanXiang.Battle.Presentation
         /// <summary>护盾牌高度（世界单位）。</summary>
         public float ShieldPlateH = 1.10f;
         /// <summary>护盾牌与血条之间的间隙（世界单位）。</summary>
-        public float ShieldGap = 0.30f;
+        public float ShieldGap = 0.80f;
         /// <summary>护盾数值的字号（TextMesh.characterSize）。
         /// ⚠ 实测口径：该值是**root 局部单位**，而 root 有缩放（普通单位≈0.10、首领 2.5×≈0.26）
         ///   ⇒ 0.012 时文字只有 0.02 世界宽（等于看不见）。0.14 时普通单位约 0.05/字、首领约 0.13/字，
@@ -158,6 +162,40 @@ namespace WanXiang.Battle.Presentation
         public Color ShieldColor = new Color(0.30f, 0.55f, 0.82f);
         /// <summary>护盾数值颜色。</summary>
         public Color ShieldTextColor = new Color(0.96f, 0.98f, 1f);
+
+        // ====================================================================
+        //  状态外观（冰封 / 束缚 / 燃烧…）—— 覆盖在立绘上的那一层
+        //  -------------------------------------------------------------------
+        //  用户诉求："被冻结要做出冰块冻住异兽、木条束缚、燃烧等等"。
+        //  · 每个状态可挂一张 **PNG**（文件名 = 状态 id，放 ArtRes/UI/StatusArt/）⇒ 后期替换美术；
+        //  · **没挂图也能跑**：自动用该状态的**半透明色块**兜底（冰蓝 / 苔绿 / 火橙）⇒ 现在就看得见；
+        //  · 同一单位同时多个状态时，按 `Priority`（小者优先）**只显示最重要的一个**。
+        // ====================================================================
+        [System.Serializable]
+        public sealed class StatusOverlay
+        {
+            public string Id;          // = StatusCatalog 常量（也是 PNG 文件名）
+            public Sprite Art;         // ← 把冰晶/藤蔓/火焰的 PNG 拖到这里
+            public Color Tint = new Color(0.6f, 0.8f, 1f, 0.45f);   // 没图时的兜底色
+            public float Scale = 1f;   // 相对立绘尺寸的倍率（美术图留白多时调它）
+            public float OffsetY = 0f; // 相对立绘中心的 y 偏移
+            public int Priority = 50;  // 同时多个时取小者
+        }
+
+        /// <summary>状态外观表（缺图回退色块）。优先级：冻结 &gt; 束缚/混乱 &gt; 燃烧 &gt; 瘴气 &gt; 湿/霜…</summary>
+        public StatusOverlay[] StatusOverlays = new[]
+        {
+            new StatusOverlay { Id = "freeze",      Tint = new Color(0.60f, 0.86f, 1.00f, 0.55f), Priority = 0 },
+            new StatusOverlay { Id = "root",        Tint = new Color(0.34f, 0.60f, 0.26f, 0.48f), Priority = 1 },
+            new StatusOverlay { Id = "confuse",     Tint = new Color(0.74f, 0.45f, 0.86f, 0.38f), Priority = 2 },
+            new StatusOverlay { Id = "burn",        Tint = new Color(1.00f, 0.44f, 0.14f, 0.40f), Priority = 3 },
+            new StatusOverlay { Id = "miasma",      Tint = new Color(0.42f, 0.56f, 0.24f, 0.40f), Priority = 4 },
+            new StatusOverlay { Id = "wet",         Tint = new Color(0.34f, 0.60f, 0.90f, 0.32f), Priority = 5 },
+            new StatusOverlay { Id = "frost",       Tint = new Color(0.70f, 0.88f, 1.00f, 0.32f), Priority = 6 },
+            new StatusOverlay { Id = "ice_erosion", Tint = new Color(0.55f, 0.80f, 0.95f, 0.32f), Priority = 7 },
+            new StatusOverlay { Id = "armor_break", Tint = new Color(0.86f, 0.64f, 0.34f, 0.30f), Priority = 8 },
+            new StatusOverlay { Id = "marked",      Tint = new Color(0.90f, 0.34f, 0.30f, 0.32f), Priority = 9 },
+        };
 
         // ====================================================================
         //  状态图标（单位头顶那一排）—— 美术替换点位
@@ -432,6 +470,17 @@ namespace WanXiang.Battle.Presentation
                 view.Body = bodySr;
                 view.BaseColor = bodySr.color;
 
+                // ---- 状态外观层（冰封 / 束缚 / 燃烧…）----
+                //  挂在 **Body 之下** ⇒ 自动跟随立绘的位置、缩放与左右镜像，不用另算。
+                //  sortingOrder 比立绘大 1 ⇒ 盖在立绘上。缺图时 `SetOverlay2D` 用半透明色块兜底。
+                var ovGo = new GameObject("Overlay");
+                ovGo.transform.SetParent(bodySr.transform, false);
+                var ovSr = ovGo.AddComponent<SpriteRenderer>();
+                ovSr.sprite = SolidSprite(Color.white, 32, 64, 0, Color.white);
+                ovSr.sortingOrder = bodySr.sortingOrder + 1;
+                ovSr.enabled = false;
+                view.Overlay = ovSr;
+
                 // ★ 鼠标命中框（世界空间）—— 用户定案：悬停*棋盘上的异兽*看状态列表。
                 //   尺寸取立绘的世界尺寸（没立绘时用兜底块）。
                 //   ⚠ 命中判定用的是 <c>collider.bounds</c> 做**代码点测试**，不是 Physics2D.OverlapPoint：
@@ -628,6 +677,7 @@ namespace WanXiang.Battle.Presentation
                 v.Hp = s.Hp; v.MaxHp = s.MaxHp;
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 SetShield2D(v, s.Shield);
+                SetOverlay2D(v, s.Alive ? s.StatusIds : null);   // 阵亡不挂状态外观
                 if (v.Alive && !s.Alive) v.DeadBlend = 0f;
                 v.Alive = s.Alive;
             }
@@ -986,12 +1036,76 @@ namespace WanXiang.Battle.Presentation
             if (v.HpFill == null || max <= 0) return;
             float ratio = Mathf.Clamp01((float)hp / max);
             float full = Mathf.Max(0.05f, HpBarWidth - 0.06f);   // ⛔ 必须跟 BuildUnitsFor 里创建 HpFill 的宽度一致
+
+            // ⛔ 缩放必须走**归一化比例**，不能再乘 `full`：`MakeChildSprite` 是把尺寸
+            //   **烘进 sprite 本身**的（贴图 = size×100 像素，localScale 保持 1）
+            //   ⇒ 再乘一次 `full`(3.34) 就是**双重应用**，填充条会宽 3.34 倍、从血槽两边冒出来。
+            //   用户实测的两个现象都出自这里："血怎么两边同时扣" + "护盾和血重叠看不清"。
             var t = v.HpFill.transform;
-            var s = t.localScale;
-            t.localScale = new Vector3(full * ratio, s.y, s.z);
+            t.localScale = new Vector3(ratio, 1f, 1f);
+            // 左端固定 ⇒ 只从**右边**往回缩（掉血观感正确）
             t.localPosition = new Vector3(-(full - full * ratio) * 0.5f, t.localPosition.y, t.localPosition.z);
             v.HpFill.color = ratio > 0.5f ? BattlePalette.Vital
                           : ratio > 0.25f ? BattlePalette.Gold : BattlePalette.Crimson;
+        }
+
+        /// <summary>
+        /// 取出状态串里**优先级最高**的那条的外观配置（<paramref name="ids"/> 形如 `freeze:2|burn:3`）。
+        /// 没配置过的状态返回 null（不显示外观）。
+        /// </summary>
+        private StatusOverlay BestOverlayFor(string ids)
+        {
+            if (string.IsNullOrEmpty(ids) || StatusOverlays == null) return null;
+            StatusOverlay best = null;
+            var parts = ids.Split('|');
+            for (int i = 0; i < parts.Length; i++)
+            {
+                var kv = parts[i].Split(':');
+                if (kv.Length < 1 || string.IsNullOrEmpty(kv[0])) continue;
+                for (int k = 0; k < StatusOverlays.Length; k++)
+                {
+                    var d = StatusOverlays[k];
+                    if (d == null || d.Id != kv[0]) continue;
+                    if (best == null || d.Priority < best.Priority) best = d;
+                    break;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// 状态外观：把优先级最高的那条覆盖到立绘上（冰封 = 冰蓝罩 / 束缚 = 苔绿罩 / 燃烧 = 火橙罩…）。
+        /// 有 `Art` 就显示美术图（按立绘尺寸自动缩放，`Scale`/`OffsetY` 可调），
+        /// 没图则用该状态的半透明色块兜底 —— **不挂任何美术也看得见**。
+        /// </summary>
+        private void SetOverlay2D(UnitView2D v, string ids)
+        {
+            if (v.Overlay == null || v.Body == null) return;
+            var best = BestOverlayFor(ids);
+            string key = best != null ? best.Id : null;
+            if (v.OverlayShown == key) return;                 // 变了才换，别每帧重建 sprite
+            v.OverlayShown = key;
+            if (best == null) { v.Overlay.enabled = false; return; }
+
+            Vector2 bodySize = v.Body.sprite != null ? v.Body.sprite.bounds.size : new Vector2(1f, 1.4f);
+            if (best.Art != null)
+            {
+                var a = best.Art.bounds.size;
+                v.Overlay.sprite = best.Art;
+                v.Overlay.color = new Color(1f, 1f, 1f, Mathf.Clamp01(best.Tint.a * 1.6f));
+                v.Overlay.transform.localScale = new Vector3(
+                    a.x > 0.0001f ? bodySize.x / a.x * Mathf.Max(0.01f, best.Scale) : 1f,
+                    a.y > 0.0001f ? bodySize.y / a.y * Mathf.Max(0.01f, best.Scale) : 1f, 1f);
+            }
+            else
+            {
+                // 兜底色块：SolidSprite(32,64) = 0.32×0.64 世界单位，按立绘尺寸放大
+                v.Overlay.sprite = SolidSprite(Color.white, 32, 64, 0, Color.white);
+                v.Overlay.color = best.Tint;
+                v.Overlay.transform.localScale = new Vector3(bodySize.x / 0.32f, bodySize.y / 0.64f, 1f);
+            }
+            v.Overlay.transform.localPosition = new Vector3(0f, best.OffsetY, -0.02f);
+            v.Overlay.enabled = true;
         }
 
         /// <summary>
