@@ -59,6 +59,14 @@ namespace WanXiang.Modules.UI
         [SerializeField] private RectTransform _rootLeaves;  // Root_Leaves
         [SerializeField] private Image _itemLeaf;        // Item_Leaf（模板，运行时克隆）
 
+        // ---- 诊断（用户要求：看不到效果时先看 Console）----
+        [Header("诊断")]
+        [SerializeField] private bool _debugLog = true;
+        private void Dbg(string msg)
+        {
+            if (_debugLog) Debug.Log("[ActIntro] " + msg);
+        }
+
         // ---- 时序（秒）----
         [Header("时序")]
         [SerializeField] private float _fadeIn = 0.45f;       // 宣纸底淡入
@@ -131,6 +139,17 @@ namespace WanXiang.Modules.UI
                 : (Titles != null && Titles.Length > 0 ? Titles[0] : new ActTitle());
 
             MarkShown(act);        // ★ 这里才记账（见 MarkShown 注释）
+            Dbg("打开 act=" + act + " 标题=\"" + (t != null ? t.Main : "?") + "\""
+                + " 主文本=" + (_tmpTitleMain != null ? "有" : "null✗")
+                + (_tmpTitleMain != null ? (" 激活=" + _tmpTitleMain.gameObject.activeInHierarchy
+                    + " enabled=" + _tmpTitleMain.enabled
+                    + " 文本=\"" + _tmpTitleMain.text + "\""
+                    + " 颜色=" + _tmpTitleMain.color
+                    + " 字号=" + _tmpTitleMain.fontSize
+                    + " 字体=" + (_tmpTitleMain.font != null ? _tmpTitleMain.font.name : "null✗")
+                    + " rect=" + _tmpTitleMain.rectTransform.rect.width.ToString("F0") + "x" + _tmpTitleMain.rectTransform.rect.height.ToString("F0")
+                    + " sizeDelta=" + _tmpTitleMain.rectTransform.sizeDelta.x.ToString("F0")) : ""));
+
             Play(t, act).Forget();
             return UniTask.CompletedTask;
         }
@@ -238,6 +257,13 @@ namespace WanXiang.Modules.UI
             int n = _tmpTitleMain != null && !string.IsNullOrEmpty(t.Main) ? t.Main.Length : 4;
             float total = Mathf.Max(0.8f, n * _charInterval * 1.7f);   // 整行写完的总时长
 
+            Dbg("书写开始 遮罩找到=" + (maskRt != null)
+                + " fullW=" + fullW.ToString("F0")
+                + " 遮罩sizeDelta=" + maskRt.sizeDelta.x.ToString("F0") + "x" + maskRt.sizeDelta.y.ToString("F0")
+                + " 遮罩rect=" + maskRt.rect.width.ToString("F0") + "x" + maskRt.rect.height.ToString("F0")
+                + " 父=" + (maskRt.parent != null ? maskRt.parent.name : "null")
+                + " 总时长=" + total.ToString("F2") + "s");
+
             maskRt.sizeDelta = new Vector2(0f, maskRt.sizeDelta.y);
             float elapsed = 0f;
             while (elapsed < total)
@@ -247,6 +273,10 @@ namespace WanXiang.Modules.UI
                 await UniTask.Yield();
             }
             maskRt.sizeDelta = new Vector2(fullW + 8f, maskRt.sizeDelta.y);
+            Dbg("书写完成 遮罩宽=" + maskRt.sizeDelta.x.ToString("F0")
+                + " 遮罩rect=" + maskRt.rect.width.ToString("F0")
+                + " 文本激活=" + (_tmpTitleMain != null && _tmpTitleMain.gameObject.activeInHierarchy)
+                + " 文本alpha=" + (_tmpTitleMain != null ? _tmpTitleMain.color.a.ToString("F2") : "-"));
         }
 
         private static int Ms(float seconds) { return Mathf.Max(1, (int)(seconds * 1000f)); }
