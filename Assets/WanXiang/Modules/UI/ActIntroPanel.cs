@@ -69,7 +69,7 @@ namespace WanXiang.Modules.UI
         /// <summary>四幕文案（= 幕号-1）。⛔ 只想改文案就改这里，别的都不用动。</summary>
         [Header("四幕文案（每幕一条，按幕号顺序）")]
         [SerializeField]
-        private ActTitle[] Titles = new ActTitle[4]
+        private ActTitle[] Titles = new ActTitle[5]
         {
             new ActTitle { Main = "东风解冻",  Sub = "第一幕 · 春",
                            LeafTint = new Color(0.68f, 0.80f, 0.42f, 0.9f),
@@ -80,9 +80,12 @@ namespace WanXiang.Modules.UI
             new ActTitle { Main = "金风玉露",  Sub = "第三幕 · 秋",
                            LeafTint = new Color(0.86f, 0.66f, 0.28f, 0.9f),
                            MainColor = new Color(0.78f, 0.60f, 0.20f, 1f) },   // 秋：赭黄
-            new ActTitle { Main = "寒渊归墟",  Sub = "第四幕 · 冬",
+            new ActTitle { Main = "寒渊凝冰",  Sub = "第四幕 · 冬",
                            LeafTint = new Color(0.78f, 0.88f, 0.96f, 0.9f),
                            MainColor = new Color(0.42f, 0.52f, 0.62f, 1f) },   // 冬：冷灰蓝
+            new ActTitle { Main = "厚土归墟",  Sub = "第五幕 · 长夏",
+                           LeafTint = new Color(0.80f, 0.68f, 0.42f, 0.9f),
+                           MainColor = new Color(0.62f, 0.50f, 0.26f, 1f) },   // 长夏：土黄
         };
 
         // ------------------------------------------------------------------
@@ -94,14 +97,22 @@ namespace WanXiang.Modules.UI
         /// ⛔ **开面板由 <see cref="CampaignPanel"/> 自己做** —— `UIPanelBase.OpenPanelAsync` 是
         ///   `protected`，静态方法里既调不到自己的、更调不到别人的面板（试过，编译报 CS1540）。
         /// </summary>
-        public static bool ShouldPlayAndMark(int act)
+        public static bool ShouldPlay(int act, bool fromMenu)
+        {
+            if (fromMenu) return true;                     // ★ 每次从主界面进节点地图都播（用户要的）
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return true;
+            return run.IntroShownAct != act;               // 换幕时也播
+        }
+
+        /// <summary>记一笔“这一幕播过了”并落盘。⛔ 必须在**面板真的打开后**调用 ——
+        /// 放在 ShouldPlay 里的话，万一面板没开成功，也会被记成已播（用户实测：第一幕没看到却再也不播）。</summary>
+        private static void MarkShown(int act)
         {
             var run = WanXiang.Run.RunSave.Current;
-            if (run == null) return false;
-            if (run.IntroShownAct == act) return false;   // 这一幕已经播过
+            if (run == null) return;
             run.IntroShownAct = act;
-            WanXiang.Run.RunSave.SaveCurrent();           // ⛔ 立刻落盘：否则读档回图会重播
-            return true;
+            WanXiang.Run.RunSave.SaveCurrent();
         }
 
         /// <summary>本面板没有需要预先挂钩的控件（动画全在 OnOpenAsync 里跑）—— 但 UIPanelBase 要求实现。</summary>
@@ -117,6 +128,7 @@ namespace WanXiang.Modules.UI
                 ? Titles[act - 1]
                 : (Titles != null && Titles.Length > 0 ? Titles[0] : new ActTitle());
 
+            MarkShown(act);        // ★ 这里才记账（见 MarkShown 注释）
             Play(t).Forget();
             return UniTask.CompletedTask;
         }

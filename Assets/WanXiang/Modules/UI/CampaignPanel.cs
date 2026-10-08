@@ -120,6 +120,9 @@ namespace WanXiang.Modules.UI
             }
         }
 
+        /// <summary>由 <see cref="HomePanel"/> 在“出征”开图前置位 ⇒ 让开场动画每次都播（用户要求）。</summary>
+        public static bool RequestIntroFromMenu;
+
         protected override UniTask OnOpenAsync(object payload)
         {
             // ★ 跨存档恢复星移余气：把持久化的 XingyiLingers 重建为会话级 LiveWeather.Lingers，
@@ -131,7 +134,10 @@ namespace WanXiang.Modules.UI
             //   免得两处各写一遍、行为还不一致。是否已播记在存档 RunState.IntroShownAct。
             {
                 var introRun = WanXiang.Run.RunSave.Current;
-                if (introRun != null && ActIntroPanel.ShouldPlayAndMark(introRun.Act))
+                int introAct = introRun != null ? introRun.Act : 1;
+                bool fromMenu = RequestIntroFromMenu;      // 由 HomePanel 出征时置位
+                RequestIntroFromMenu = false;              // 一次性：消费掉，避免战后回图也重播
+                if (ActIntroPanel.ShouldPlay(introAct, fromMenu))
                     OpenPanelAsync<ActIntroPanel>().Forget();   // 开面板只能由面板自己调（protected）
             }
 

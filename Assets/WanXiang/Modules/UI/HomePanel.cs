@@ -118,7 +118,7 @@ namespace WanXiang.Modules.UI
 
             if (!hasProgress)
             {
-                OpenPanelAsync<CampaignPanel>().Forget();
+                { CampaignPanel.RequestIntroFromMenu = true; OpenPanelAsync<CampaignPanel>().Forget(); }
                 return;
             }
 
@@ -137,7 +137,7 @@ namespace WanXiang.Modules.UI
             //   旧逻辑只判了 pick == 1，导致"点 × "也会掉进重开确认弹窗（用户实测）。
             if (pick != 0)
             {
-                if (pick == 1) OpenPanelAsync<CampaignPanel>().Forget();   // 继续旅程
+                if (pick == 1) { CampaignPanel.RequestIntroFromMenu = true; OpenPanelAsync<CampaignPanel>().Forget(); }   // 继续旅程
                 return;                                                   // -1 = 留在主界面
             }
 
@@ -159,7 +159,7 @@ namespace WanXiang.Modules.UI
             WanXiang.Run.RunSave.SaveCurrent();
 
             RefreshDeployLabel();
-            OpenPanelAsync<CampaignPanel>().Forget();
+            { CampaignPanel.RequestIntroFromMenu = true; OpenPanelAsync<CampaignPanel>().Forget(); }
         }
 
 
