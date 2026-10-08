@@ -65,8 +65,8 @@ namespace WanXiang.Modules.UI
         [SerializeField] private float _titleStart = 0.25f;   // 起笔前的停顿
         [SerializeField] private float _charInterval = 0.16f; // 每个字出现的间隔（"写"的速度）
         [SerializeField] private float _subDelay = 0.25f;     // 主标题写完后，小字延迟多久出现
-        [SerializeField] private float _hold = 1.15f;         // 全部写完后的停留
-        [SerializeField] private float _fadeOut = 0.55f;      // 整屏淡出
+        [SerializeField] private float _hold = 1.45f;         // 全部写完后的停留（留够粒子飞出画面）
+        [SerializeField] private float _fadeOut = 0.75f;      // 整屏淡出（长一点，收尾不生硬）
 
         /// <summary>四幕文案（= 幕号-1）。⛔ 只想改文案就改这里，别的都不用动。</summary>
         [Header("四幕文案（每幕一条，按幕号顺序）")]
@@ -153,6 +153,18 @@ namespace WanXiang.Modules.UI
                 if (bg != null) _imgPaper.sprite = bg;
             }
             if (_imgPaper != null && t != null) _imgPaper.color = t.BgTint;   // ★ 季节染色
+            // 四周边框也随幕换色（同一张母版 + 染色）—— 若存在  则优先用它
+            var fr = transform.Find("Img_Frame");
+            if (fr != null)
+            {
+                var fi = fr.GetComponent<UnityEngine.UI.Image>();
+                if (fi != null)
+                {
+                    var perAct = Resources.Load<Sprite>("UI/ActIntro/frame_" + act);
+                    if (perAct != null) fi.sprite = perAct;
+                    if (t != null) fi.color = t.BgTint;
+                }
+            }
             var p = Resources.Load<Sprite>("UI/ActIntro/particle_" + act);
             _seasonParticle = p;
         }
@@ -277,7 +289,7 @@ namespace WanXiang.Modules.UI
                 float x = -halfW + Random.Range(0f, halfW * 1.1f);
                 float y = halfH * 1.15f - Random.Range(0f, halfH * 2.6f);
                 rt.anchoredPosition = new Vector2(x, y);
-                rt.localScale = Vector3.one * Random.Range(1.05f, 2.10f);
+                rt.localScale = Vector3.one * Random.Range(1.40f, 2.90f);
                 rt.localRotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
 
                 var c = t.LeafTint;
@@ -288,8 +300,8 @@ namespace WanXiang.Modules.UI
                 // ★ 1920×1080 下要从**左上角斜穿到右下角**：横向 1920、纵向 1080
                 //   ⇒ 横向速度必须约为纵向的 2 倍。之前反了（纵向快、横向慢）⇒ 没到右边就到底（用户实测）。
                 float speed = Mathf.Max(0.1f, t.LeafSpeed);
-                float vx = Random.Range(300f, 470f) * speed;
-                float vy = Random.Range(140f, 250f) * speed;
+                float vx = Random.Range(420f, 620f) * speed;
+                float vy = Random.Range(190f, 330f) * speed;
                 _leaves.Add(new Leaf
                 {
                     Rt = rt,
