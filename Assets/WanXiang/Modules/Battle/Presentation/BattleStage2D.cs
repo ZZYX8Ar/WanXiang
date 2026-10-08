@@ -222,10 +222,10 @@ namespace WanXiang.Battle.Presentation
             new StatusOverlay { Id = "confuse",     Tint = new Color(0.74f, 0.45f, 0.86f, 0.38f), Priority = 2,
                                 WaveAmp = 0.016f, WaveSpeed = 3.0f, PulseAmp = 0.14f, PulseSpeed = 4.0f,
                                 Scale = 0.9f, OffsetY = 0f },
-            // 燃烧：最活泼，但**别盖住整只异兽** —— 缩到 0.8、往下挪一点、透明度也收一档
+            // 燃烧：**静态图**（用户 2026-10-08："燃烧的动画给我删了，效果不好"）。
+            //   动画参数全 0 ⇒ shader 不起作用、只剩一张静态火焰；其它状态不受影响。
             new StatusOverlay { Id = "burn",        Tint = new Color(1.00f, 0.44f, 0.14f, 0.34f), Priority = 3,
-                                WaveAmp = 0.020f, WaveFreq = 20f, WaveSpeed = 3.4f, PulseAmp = 0.24f,
-                                PulseSpeed = 5.2f, RiseAmp = 0.10f, RiseSpeed = 4.0f, SwayDeg = 3.5f, SwaySpeed = 2.6f,
+                                WaveAmp = 0f, PulseAmp = 0f, RiseAmp = 0f, SwayDeg = 0f,
                                 Scale = 0.80f, OffsetY = -0.10f },
             // 瘴气：翻滚的雾
             new StatusOverlay { Id = "miasma",      Tint = new Color(0.42f, 0.56f, 0.24f, 0.40f), Priority = 4,
