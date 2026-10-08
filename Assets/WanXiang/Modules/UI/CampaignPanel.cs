@@ -126,6 +126,15 @@ namespace WanXiang.Modules.UI
             //   保证「用了星移→关游戏→重进」星移天气仍在（之前天气随会话丢失，等于白花灵卵）。
             RehydrateXingyi();
 
+            // ★ 每一幕的开场/转场动画（宣纸底 + 大字逐字浮现 + 当季落叶）。
+            //   触发口子**只放这一处**：进图与换幕都会经过 CampaignPanel.OnOpenAsync，
+            //   免得两处各写一遍、行为还不一致。是否已播记在存档 RunState.IntroShownAct。
+            {
+                var introRun = WanXiang.Run.RunSave.Current;
+                if (introRun != null && introRun.IntroShownAct != introRun.CurrentAct)
+                    ActIntroPanel.PlayIfNeeded(introRun.CurrentAct);
+            }
+
             // 遗物 HUD（左上角一排小牌，悬浮看说明）
             var hudRun = WanXiang.Run.RunSave.Current;
             RelicHud.Populate(_rootRelics, _relicTemplate, hudRun != null ? hudRun.Relics : null,

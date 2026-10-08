@@ -59,6 +59,13 @@ namespace WanXiang.Campaign
 
         public int CurrentAct { get; private set; }
 
+        /// <summary>
+        /// 已经播过开场动画的幕号（0 = 一幕都还没播）。见 <c>ActIntroPanel</c>。
+        /// ⛔ 必须落盘：否则每次读档回节点地图都会重播开场（用户要的是"每到新的一幕才播"）。
+        /// 老存档没有这个字段 ⇒ 反序列化后为 0 ⇒ 会补播一次当前幕，属于可接受的"自愈"。
+        /// </summary>
+        public int IntroShownAct;
+
         /// <summary>本幕已过的节点数（0..4）。</summary>
         public int VisitedInAct { get; private set; }
 
