@@ -46,9 +46,11 @@ namespace WanXiang.Modules.UI
             /// <summary>主标题颜色。</summary>
             public Color MainColor = new Color(0.78f, 0.60f, 0.24f, 1f);
             /// <summary>落叶数量（多了会糊，12~20 合适）。</summary>
-            public int LeafCount = 16;
+            public int LeafCount = 30;
             /// <summary>落叶速度倍率（&gt;1 更快）。</summary>
             public float LeafSpeed = 1f;
+            /// <summary>背景染色（乘在底图上）。每季不同 ⇒ 一眼能看出换季了。</summary>
+            public Color BgTint = Color.white;
         }
 
         [SerializeField] private Image _imgPaper;        // Img_Paper（整屏宣纸底）
@@ -142,7 +144,7 @@ namespace WanXiang.Modules.UI
         /// **按幕号取文件** ⇒ 以后加幕/换图只要丢文件，不用改 prefab、不用改代码。
         /// 缺图时：背景回退到通用的 paper，粒子回退到模板原有的图。
         /// </summary>
-        private void ApplySeasonArt(int act)
+        private void ApplySeasonArt(int act, ActTitle t)
         {
             if (_imgPaper != null)
             {
@@ -150,6 +152,7 @@ namespace WanXiang.Modules.UI
                 if (bg == null) bg = Resources.Load<Sprite>("UI/ActIntro/paper");
                 if (bg != null) _imgPaper.sprite = bg;
             }
+            if (_imgPaper != null && t != null) _imgPaper.color = t.BgTint;   // ★ 季节染色
             var p = Resources.Load<Sprite>("UI/ActIntro/particle_" + act);
             _seasonParticle = p;
         }
@@ -176,7 +179,7 @@ namespace WanXiang.Modules.UI
                 _tmpTitleSub.color = c;
             }
 
-            ApplySeasonArt(act);      // ★ 每幕专属背景 + 粒子图（缺图自动回退）
+            ApplySeasonArt(act, t);   // ★ 每幕专属背景 + 粒子图 + 季节染色（缺图自动回退）
             if (group != null) await FadeAsync(group, 0f, 1f, _fadeIn);
             await UniTask.Delay(Ms(_titleStart));
 
@@ -274,25 +277,28 @@ namespace WanXiang.Modules.UI
                 float x = -halfW + Random.Range(0f, halfW * 1.1f);
                 float y = halfH * 1.15f - Random.Range(0f, halfH * 2.6f);
                 rt.anchoredPosition = new Vector2(x, y);
-                rt.localScale = Vector3.one * Random.Range(0.6f, 1.35f);
+                rt.localScale = Vector3.one * Random.Range(1.05f, 2.10f);
                 rt.localRotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
 
                 var c = t.LeafTint;
-                float a = Random.Range(0.45f, 0.95f);
+                float a = Random.Range(0.80f, 1.00f);
                 c.a = a;
                 leaf.color = c;
 
+                // ★ 1920×1080 下要从**左上角斜穿到右下角**：横向 1920、纵向 1080
+                //   ⇒ 横向速度必须约为纵向的 2 倍。之前反了（纵向快、横向慢）⇒ 没到右边就到底（用户实测）。
                 float speed = Mathf.Max(0.1f, t.LeafSpeed);
-                float vy = Random.Range(110f, 190f) * speed;
+                float vx = Random.Range(300f, 470f) * speed;
+                float vy = Random.Range(140f, 250f) * speed;
                 _leaves.Add(new Leaf
                 {
                     Rt = rt,
                     Img = leaf,
                     VY = -vy,
-                    VX = Random.Range(60f, 130f) * speed,      // 一律朝右（左上→右下）
+                    VX = vx,                                   // 一律朝右（左上→右下）
                     RotSpd = Random.Range(-90f, 90f) * speed,
                     Delay = Random.Range(0f, 1.2f),
-                    Life = (halfH * 2f + 200f) / Mathf.Max(1f, vy),
+                    Life = Mathf.Max(2.5f, (halfW * 2f + 300f) / Mathf.Max(1f, vx)),   // 按横向穿越时间算
                     BaseAlpha = a,
                 });
             }
@@ -315,7 +321,7 @@ namespace WanXiang.Modules.UI
                     L.Age += dt;
                     var p = L.Rt.anchoredPosition;
                     // 横向再叠一层正弦摇摆，落得更像叶子
-                    p.x += (L.VX + Mathf.Sin((L.Age + i) * 2.2f) * 26f) * dt;
+                    p.x += (L.VX + Mathf.Sin((L.Age + i) * 2.0f) * 46f) * dt;
                     p.y += L.VY * dt;
                     L.Rt.anchoredPosition = p;
                     L.Rt.localRotation = Quaternion.Euler(0f, 0f,
