@@ -227,7 +227,13 @@ namespace WanXiang.Modules.UI
             var maskRt = maskT as RectTransform;
             if (maskRt == null) return;
             var parentRt = maskRt.parent as RectTransform;
-            float fullW = parentRt != null ? parentRt.rect.width : 1200f;
+            // ⛔ 不能取 ：面板刚打开那一帧**布局还没算完**，rect 会是 0
+            //   ⇒ fullW=0 ⇒ 遮罩宽度永远是 0 ⇒ 整行字被裁光（用户实测"看不到字"的真因）。
+            //   优先用**文本自己的 sizeDelta**（它是显式设置值，不受 layout 时机影响）。
+            float fullW = 1200f;
+            var trt = _tmpTitleMain != null ? _tmpTitleMain.rectTransform : null;
+            if (trt != null && trt.sizeDelta.x > 1f) fullW = trt.sizeDelta.x;
+            else if (parentRt != null) fullW = parentRt.rect.width > 1f ? parentRt.rect.width : Mathf.Max(1f, parentRt.sizeDelta.x);
 
             int n = _tmpTitleMain != null && !string.IsNullOrEmpty(t.Main) ? t.Main.Length : 4;
             float total = Mathf.Max(0.8f, n * _charInterval * 1.7f);   // 整行写完的总时长
