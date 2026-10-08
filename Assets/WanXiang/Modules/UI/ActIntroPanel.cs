@@ -129,7 +129,7 @@ namespace WanXiang.Modules.UI
                 : (Titles != null && Titles.Length > 0 ? Titles[0] : new ActTitle());
 
             MarkShown(act);        // ★ 这里才记账（见 MarkShown 注释）
-            Play(t).Forget();
+            Play(t, act).Forget();
             return UniTask.CompletedTask;
         }
 
@@ -137,7 +137,27 @@ namespace WanXiang.Modules.UI
         //  播放
         // ------------------------------------------------------------------
 
-        private async UniTaskVoid Play(ActTitle t)
+        /// <summary>
+        /// 每幕专属美术：Resources/UI/ActIntro/bg_幕号.png（背景）、particle_幕号.png（粒子）。
+        /// **按幕号取文件** ⇒ 以后加幕/换图只要丢文件，不用改 prefab、不用改代码。
+        /// 缺图时：背景回退到通用的 paper，粒子回退到模板原有的图。
+        /// </summary>
+        private void ApplySeasonArt(int act)
+        {
+            if (_imgPaper != null)
+            {
+                var bg = Resources.Load<Sprite>("UI/ActIntro/bg_" + act);
+                if (bg == null) bg = Resources.Load<Sprite>("UI/ActIntro/paper");
+                if (bg != null) _imgPaper.sprite = bg;
+            }
+            var p = Resources.Load<Sprite>("UI/ActIntro/particle_" + act);
+            _seasonParticle = p;
+        }
+
+        /// <summary>本幕粒子贴图（为空则用模板自带图）。</summary>
+        private Sprite _seasonParticle;
+
+        private async UniTaskVoid Play(ActTitle t, int act)
         {
             var group = GetComponent<CanvasGroup>();
             if (group != null) group.alpha = 0f;
@@ -156,6 +176,7 @@ namespace WanXiang.Modules.UI
                 _tmpTitleSub.color = c;
             }
 
+            ApplySeasonArt(act);      // ★ 每幕专属背景 + 粒子图（缺图自动回退）
             if (group != null) await FadeAsync(group, 0f, 1f, _fadeIn);
             await UniTask.Delay(Ms(_titleStart));
 
@@ -233,18 +254,26 @@ namespace WanXiang.Modules.UI
         {
             if (_rootLeaves == null || _itemLeaf == null) return;
             _rootLeaves.gameObject.SetActive(true);
-            float halfW = Mathf.Max(200f, _rootLeaves.rect.width * 0.5f);
-            float halfH = Mathf.Max(200f, _rootLeaves.rect.height * 0.5f);
+            // ⛔ 尺寸必须取**面板**的 rect，不能取容器自己的：容器是拉伸锚点，
+            //   在某些上下文（未挂 Canvas 的实例）rect 会退化成 0。
+            var panelRt = transform as RectTransform;
+            float halfW = Mathf.Max(320f, (panelRt != null && panelRt.rect.width > 1f ? panelRt.rect.width : 1920f) * 0.5f);
+            float halfH = Mathf.Max(240f, (panelRt != null && panelRt.rect.height > 1f ? panelRt.rect.height : 1080f) * 0.5f);
             int count = Mathf.Clamp(t.LeafCount, 0, 60);
             _leaves.Clear();
 
             for (int i = 0; i < count; i++)
             {
                 var leaf = Instantiate(_itemLeaf, _rootLeaves);
+                if (_seasonParticle != null) leaf.sprite = _seasonParticle;   // 本幕粒子图
                 leaf.gameObject.SetActive(true);
                 var rt = (RectTransform)leaf.transform;
-                float x = Random.Range(-halfW, halfW);
-                rt.anchoredPosition = new Vector2(x, halfH + 80f);
+                // ★ 从**左上角**来、往**右下角**走（用户要求）。
+                //   出生点横跨左半边、纵向从顶部之上一点一直铺到画面中部偏下
+                //   ⇒ 一部分**开场就在画面里**，不会像以前那样动画结束了还没飘进来。
+                float x = -halfW + Random.Range(0f, halfW * 1.1f);
+                float y = halfH * 1.15f - Random.Range(0f, halfH * 2.6f);
+                rt.anchoredPosition = new Vector2(x, y);
                 rt.localScale = Vector3.one * Random.Range(0.6f, 1.35f);
                 rt.localRotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
 
@@ -260,7 +289,7 @@ namespace WanXiang.Modules.UI
                     Rt = rt,
                     Img = leaf,
                     VY = -vy,
-                    VX = Random.Range(-36f, 36f) * speed,
+                    VX = Random.Range(60f, 130f) * speed,      // 一律朝右（左上→右下）
                     RotSpd = Random.Range(-90f, 90f) * speed,
                     Delay = Random.Range(0f, 1.2f),
                     Life = (halfH * 2f + 200f) / Mathf.Max(1f, vy),
