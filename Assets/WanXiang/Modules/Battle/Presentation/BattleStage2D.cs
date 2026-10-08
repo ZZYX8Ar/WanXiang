@@ -42,6 +42,10 @@ namespace WanXiang.Battle.Presentation
         public SpriteRenderer Overlay;
         /// <summary>当前覆盖层显示的状态 id（变了才重设，别每帧换 sprite）。</summary>
         public string OverlayShown;
+        /// <summary>当前覆盖层用的那条配置（Step 里的摇摆要从它取角度/速度）。
+        /// ⚠ 必须写全限定名：`UnitView2D` 与 `BattleStage2D` 是文件里**两个并列的类**，
+        ///   嵌套在 BattleStage2D 里的 `StatusOverlay` 不写限定名会 CS0246。</summary>
+        public BattleStage2D.StatusOverlay OverlayDef;
         public TextMesh NameText;
         /// <summary>Boss 机制提示（冰晶期「还剩 N 回合」等，来源 <c>BattleUnit.StateHint</c>，
         /// 由帧流携带 —— 见 <c>UnitSnapshot.StateHint</c>）。空串 = 不显示。</summary>
@@ -180,22 +184,94 @@ namespace WanXiang.Battle.Presentation
             public float Scale = 1f;   // 相对立绘尺寸的倍率（美术图留白多时调它）
             public float OffsetY = 0f; // 相对立绘中心的 y 偏移
             public int Priority = 50;  // 同时多个时取小者
+
+            // ---- 动画（走 Resources/Shaders/StatusOverlay，见该文件注释）----
+            /// <summary>横向摆动幅度（越靠上摆得越大）。0 = 不摆。</summary>
+            public float WaveAmp = 0.012f;
+            /// <summary>摆动的空间频率（几个波）。</summary>
+            public float WaveFreq = 16f;
+            /// <summary>摆动速度。</summary>
+            public float WaveSpeed = 2.2f;
+            /// <summary>明度/透明的呼吸幅度。火焰给大、冰块给小。</summary>
+            public float PulseAmp = 0.12f;
+            public float PulseSpeed = 3.0f;
+            /// <summary>纵向拉伸幅度（火焰"往上舔一下"）。</summary>
+            public float RiseAmp = 0.05f;
+            public float RiseSpeed = 2.6f;
+            /// <summary>整体左右摇摆角度（度）。</summary>
+            public float SwayDeg = 2.5f;
+            public float SwaySpeed = 1.6f;
         }
 
         /// <summary>状态外观表（缺图回退色块）。优先级：冻结 &gt; 束缚/混乱 &gt; 燃烧 &gt; 瘴气 &gt; 湿/霜…</summary>
         public StatusOverlay[] StatusOverlays = new[]
         {
-            new StatusOverlay { Id = "freeze",      Tint = new Color(0.60f, 0.86f, 1.00f, 0.55f), Priority = 0 },
-            new StatusOverlay { Id = "root",        Tint = new Color(0.34f, 0.60f, 0.26f, 0.48f), Priority = 1 },
-            new StatusOverlay { Id = "confuse",     Tint = new Color(0.74f, 0.45f, 0.86f, 0.38f), Priority = 2 },
-            new StatusOverlay { Id = "burn",        Tint = new Color(1.00f, 0.44f, 0.14f, 0.40f), Priority = 3 },
-            new StatusOverlay { Id = "miasma",      Tint = new Color(0.42f, 0.56f, 0.24f, 0.40f), Priority = 4 },
-            new StatusOverlay { Id = "wet",         Tint = new Color(0.34f, 0.60f, 0.90f, 0.32f), Priority = 5 },
-            new StatusOverlay { Id = "frost",       Tint = new Color(0.70f, 0.88f, 1.00f, 0.32f), Priority = 6 },
-            new StatusOverlay { Id = "ice_erosion", Tint = new Color(0.55f, 0.80f, 0.95f, 0.32f), Priority = 7 },
-            new StatusOverlay { Id = "armor_break", Tint = new Color(0.86f, 0.64f, 0.34f, 0.30f), Priority = 8 },
-            new StatusOverlay { Id = "marked",      Tint = new Color(0.90f, 0.34f, 0.30f, 0.32f), Priority = 9 },
+            // 冻结：慢、稳、冷 —— 只有轻微呼吸与极小的摆，别让它像活物
+            new StatusOverlay { Id = "freeze",      Tint = new Color(0.60f, 0.86f, 1.00f, 0.55f), Priority = 0,
+                                WaveAmp = 0.005f, WaveSpeed = 1.1f, PulseAmp = 0.06f, PulseSpeed = 1.5f,
+                                RiseAmp = 0.015f, RiseSpeed = 1.2f, SwayDeg = 0.8f, SwaySpeed = 0.7f },
+            // 束缚：藤蔓被拉扯的摇曳感
+            new StatusOverlay { Id = "root",        Tint = new Color(0.34f, 0.60f, 0.26f, 0.48f), Priority = 1,
+                                WaveAmp = 0.011f, WaveFreq = 11f, WaveSpeed = 1.5f, PulseAmp = 0.07f,
+                                PulseSpeed = 1.8f, RiseAmp = 0.03f, RiseSpeed = 1.6f, SwayDeg = 3.2f, SwaySpeed = 1.0f },
+            new StatusOverlay { Id = "confuse",     Tint = new Color(0.74f, 0.45f, 0.86f, 0.38f), Priority = 2,
+                                WaveAmp = 0.016f, WaveSpeed = 3.0f, PulseAmp = 0.14f, PulseSpeed = 4.0f },
+            // 燃烧：最活泼 —— 大幅度、快节奏、明显的向上舔
+            new StatusOverlay { Id = "burn",        Tint = new Color(1.00f, 0.44f, 0.14f, 0.40f), Priority = 3,
+                                WaveAmp = 0.020f, WaveFreq = 20f, WaveSpeed = 3.4f, PulseAmp = 0.24f,
+                                PulseSpeed = 5.2f, RiseAmp = 0.10f, RiseSpeed = 4.0f, SwayDeg = 3.5f, SwaySpeed = 2.6f },
+            // 瘴气：翻滚的雾
+            new StatusOverlay { Id = "miasma",      Tint = new Color(0.42f, 0.56f, 0.24f, 0.40f), Priority = 4,
+                                WaveAmp = 0.014f, WaveFreq = 8f, WaveSpeed = 1.2f, PulseAmp = 0.10f,
+                                PulseSpeed = 1.3f, RiseAmp = 0.04f, RiseSpeed = 1.0f, SwayDeg = 2.0f, SwaySpeed = 0.9f },
+            new StatusOverlay { Id = "wet",         Tint = new Color(0.34f, 0.60f, 0.90f, 0.32f), Priority = 5,
+                                PulseAmp = 0.09f, PulseSpeed = 2.0f, SwayDeg = 1.2f, SwaySpeed = 1.0f },
+            new StatusOverlay { Id = "frost",       Tint = new Color(0.70f, 0.88f, 1.00f, 0.32f), Priority = 6,
+                                WaveAmp = 0.007f, PulseAmp = 0.07f, PulseSpeed = 1.8f, SwayDeg = 1.0f },
+            new StatusOverlay { Id = "ice_erosion", Tint = new Color(0.55f, 0.80f, 0.95f, 0.32f), Priority = 7,
+                                WaveAmp = 0.008f, PulseAmp = 0.08f, PulseSpeed = 2.0f },
+            new StatusOverlay { Id = "armor_break", Tint = new Color(0.86f, 0.64f, 0.34f, 0.30f), Priority = 8,
+                                PulseAmp = 0.10f, PulseSpeed = 2.4f, SwayDeg = 1.5f },
+            new StatusOverlay { Id = "marked",      Tint = new Color(0.90f, 0.34f, 0.30f, 0.32f), Priority = 9,
+                                PulseAmp = 0.18f, PulseSpeed = 4.4f, SwayDeg = 1.5f, SwaySpeed = 2.0f },
         };
+
+        /// <summary>状态特效材质缓存（按状态 id 共享；单位各自颜色走顶点色，不用每只 new 一份）。</summary>
+        private static readonly System.Collections.Generic.Dictionary<string, Material> OverlayMats =
+            new System.Collections.Generic.Dictionary<string, Material>();
+        private static Shader _overlayShader;
+
+        /// <summary>取状态特效 shader（Resources 优先 ⇒ 保证进包；再退回 Shader.Find）。</summary>
+        private static Shader OverlayShader()
+        {
+            if (_overlayShader != null) return _overlayShader;
+            _overlayShader = Resources.Load<Shader>("Shaders/StatusOverlay");
+            if (_overlayShader == null) _overlayShader = Shader.Find("WanXiang/StatusOverlay");
+            return _overlayShader;
+        }
+
+        /// <summary>
+        /// 按状态取（并缓存）材质并把动画参数下发。
+        /// ⚠ 取不到 shader 时返回 null —— 调用方退回默认 sprite 材质：**特效变成静态图，但不会崩**。
+        /// </summary>
+        private static Material OverlayMaterial(StatusOverlay d)
+        {
+            Material m;
+            if (OverlayMats.TryGetValue(d.Id, out m) && m != null) return m;
+            var sh = OverlayShader();
+            if (sh == null) return null;
+            m = new Material(sh);
+            m.SetColor("_Tint", Color.white);
+            m.SetFloat("_WaveAmp", d.WaveAmp);
+            m.SetFloat("_WaveFreq", d.WaveFreq);
+            m.SetFloat("_WaveSpeed", d.WaveSpeed);
+            m.SetFloat("_PulseAmp", d.PulseAmp);
+            m.SetFloat("_PulseSpeed", d.PulseSpeed);
+            m.SetFloat("_RiseAmp", d.RiseAmp);
+            m.SetFloat("_RiseSpeed", d.RiseSpeed);
+            OverlayMats[d.Id] = m;
+            return m;
+        }
 
         // ====================================================================
         //  状态图标（单位头顶那一排）—— 美术替换点位
@@ -270,6 +346,8 @@ namespace WanXiang.Battle.Presentation
         private readonly List<GameObject> _tempTexts = new List<GameObject>(16);
         private readonly List<float> _tempLife = new List<float>(16);
         private Camera _cam;
+        /// <summary>舞台动画时钟（Step 里按 dt 累加）。表现层所有周期动画都用它，别用 Time.time。</summary>
+        private float _animT;
         private string _actingId;
 
         public Camera Camera => _cam;
@@ -913,6 +991,9 @@ namespace WanXiang.Battle.Presentation
 
         public void Step(float dt)
         {
+            // 舞台自己的动画时钟：由 dt 累加（**不用 `Time.time`**）——
+            // 这样表现层动画与"推进了多少帧"严格对应，编辑器里连调 Step 也能被验证到。
+            _animT += dt;
             foreach (var v in _views.Values)
             {
                 if (v.Root == null) continue;
@@ -966,6 +1047,21 @@ namespace WanXiang.Battle.Presentation
                 float shX2 = HpBarWidth * 0.5f + ShieldGap + ShieldPlateW * 0.5f;
                 if (v.ShieldPlate != null) v.ShieldPlate.transform.localPosition = new Vector3(shX2, HpBarY, -0.01f);
                 if (v.ShieldText != null) v.ShieldText.transform.localPosition = new Vector3(shX2, HpBarY, -0.02f);
+
+                // 状态特效的**整体摇摆**（shader 管波形/呼吸，这里只管左右晃 —— 冰封几乎不晃、燃烧晃得厉害）
+                if (v.Overlay != null)
+                {
+                    float swayDeg = (v.Overlay.enabled && v.OverlayDef != null) ? v.OverlayDef.SwayDeg : 0f;
+                    if (swayDeg > 0.01f)
+                    {
+                        float sp = Mathf.Max(0.01f, v.OverlayDef.SwaySpeed);
+                        v.Overlay.transform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(_animT * sp) * swayDeg);
+                    }
+                    else if (v.Overlay.transform.localRotation != Quaternion.identity)
+                    {
+                        v.Overlay.transform.localRotation = Quaternion.identity;
+                    }
+                }
             }
 
             // 伤害数字上浮 + 回收
@@ -1131,6 +1227,10 @@ namespace WanXiang.Battle.Presentation
                 v.Overlay.transform.localScale = new Vector3(bodySize.x / 0.32f, bodySize.y / 0.64f, 1f);
             }
             v.Overlay.transform.localPosition = new Vector3(0f, best.OffsetY, -0.02f);
+            v.OverlayDef = best;
+            // 特效动画材质（按状态共享；取不到 shader 则保持默认 sprite 材质 = 静态图，不会崩）
+            var mat = OverlayMaterial(best);
+            if (mat != null) v.Overlay.sharedMaterial = mat;
             v.Overlay.enabled = true;
         }
 
