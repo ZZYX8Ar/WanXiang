@@ -185,6 +185,13 @@ namespace WanXiang.Run
         /// <summary>拥有的异兽图鉴（灵市购买进这里，不占出战名额；出战 5 只在编阵界面选）。</summary>
         public List<string> Collection = new List<string>();
 
+        /// <summary>
+        /// 已经播过开场动画的幕号（0 = 一幕都没播）。见 <c>ActIntroPanel</c>。
+        /// ⛔ 必须落盘：否则每次读档回节点地图都会重播（用户要的是"每到新的一幕才播"）。
+        /// 老存档没这个字段 ⇒ 反序列化后为 0 ⇒ 补播一次当前幕（可接受的自愈）。
+        /// </summary>
+        public int IntroShownAct;
+
         public List<string> Team = new List<string>();   // 上阵异兽 id（继承用）
         public string LastSaved = "";           // 最后保存时间（展示用）
 

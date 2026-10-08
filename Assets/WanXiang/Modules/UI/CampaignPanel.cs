@@ -131,8 +131,8 @@ namespace WanXiang.Modules.UI
             //   免得两处各写一遍、行为还不一致。是否已播记在存档 RunState.IntroShownAct。
             {
                 var introRun = WanXiang.Run.RunSave.Current;
-                if (introRun != null && introRun.IntroShownAct != introRun.CurrentAct)
-                    ActIntroPanel.PlayIfNeeded(introRun.CurrentAct);
+                if (introRun != null && ActIntroPanel.ShouldPlayAndMark(introRun.Act))
+                    OpenPanelAsync<ActIntroPanel>().Forget();   // 开面板只能由面板自己调（protected）
             }
 
             // 遗物 HUD（左上角一排小牌，悬浮看说明）
