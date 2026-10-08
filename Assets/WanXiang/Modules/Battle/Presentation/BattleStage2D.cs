@@ -1208,9 +1208,11 @@ namespace WanXiang.Battle.Presentation
         {
             if (string.IsNullOrEmpty(id)) return null;
             Sprite s;
-            if (StatusIconCache.TryGetValue(id, out s)) return s;
+            if (StatusIconCache.TryGetValue(id, out s) && s != null) return s;
             s = Resources.Load<Sprite>("UI/StatusIcon/" + id);
-            StatusIconCache[id] = s;
+            // ⛔ **不缓存 null**：否则"图还没放进去时的 null"会被记一辈子
+            //   （编辑器里运行时丢图进去也永远取不到；本轮就踩到过，调试了很久）。
+            if (s != null) StatusIconCache[id] = s;
             return s;
         }
 
@@ -1227,9 +1229,9 @@ namespace WanXiang.Battle.Presentation
             if (fromTable != null) return fromTable;
             if (string.IsNullOrEmpty(id)) return null;
             Sprite s;
-            if (StatusArtCache.TryGetValue(id, out s)) return s;
+            if (StatusArtCache.TryGetValue(id, out s) && s != null) return s;
             s = Resources.Load<Sprite>("UI/StatusArt/" + id);
-            StatusArtCache[id] = s;
+            if (s != null) StatusArtCache[id] = s;   // 同上：**不缓存 null**
             return s;
         }
 
