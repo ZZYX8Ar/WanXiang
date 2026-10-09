@@ -890,6 +890,18 @@ namespace WanXiang.Battle.Presentation
                             label.text = ((def != null && !string.IsNullOrEmpty(def.Abbr)) ? def.Abbr : kv[0])
                                        + (stacks > 1 ? stacks.ToString() : "");
                     }
+                    // ★ 按图的实际尺寸归一化（2026-10-09 根因修复）：
+                    //   槽位缩放 = StatusIconSize / 图宽 ⇒ 图标世界尺寸恒等于 StatusIconSize。
+                    //   此前槽位缩放写死按"底图 32px"算（0.36/0.32≈1.13），而 StatusIcon/*.png 实为
+                    //   256×256（2.56 世界单位）⇒ 图标被放大 8 倍 ≈2.9 单位、盖满整格 ——
+                    //   用户看到的"巨大盾牌/漩涡/火焰"就是它们（不是特效 overlay，那个一直是正常的）。
+                    {
+                        var drawn = plate.sprite;
+                        float srcW = drawn != null ? drawn.bounds.size.x : 0f;
+                        float sc = srcW > 0.0001f ? StatusIconSize / srcW : 1.125f;
+                        if (plate.transform.parent != null)
+                            plate.transform.parent.localScale = new Vector3(sc, sc, 1f);
+                    }
                     plate.gameObject.SetActive(true);
                     if (plate.transform.parent != null) plate.transform.parent.gameObject.SetActive(true);
                     used++;
