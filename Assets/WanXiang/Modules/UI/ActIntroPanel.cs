@@ -239,7 +239,7 @@ namespace WanXiang.Modules.UI
         private readonly List<Image> _titleCharImgs = new List<Image>(8);
 
         /// <summary>整句写完的目标总时长（秒）；实际按总笔画数分摊，单笔 0.04~0.18s。</summary>
-        private float _writeTotal = 2.4f;
+        private float _writeTotal = 4.6f;   // 用户反馈"写得有点快" ⇒ 2.4 → 4.6 秒
 
         /// <summary>
         /// 书写：用**真实笔顺数据**逐笔写出。
@@ -295,7 +295,7 @@ namespace WanXiang.Modules.UI
 
             int totalStrokes = 0;
             for (int i = 0; i < counts.Count; i++) totalStrokes += counts[i];
-            float per = Mathf.Clamp(_writeTotal / Mathf.Max(1, totalStrokes), 0.04f, 0.18f);
+            float per = Mathf.Clamp(_writeTotal / Mathf.Max(1, totalStrokes), 0.07f, 0.30f);
 
             // ---- 逐字逐笔推进（第 1 笔创建时就已显示）----
             for (int i = 0; i < text.Length; i++)
