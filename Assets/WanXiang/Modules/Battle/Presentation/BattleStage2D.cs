@@ -1251,13 +1251,10 @@ namespace WanXiang.Battle.Presentation
 
             var art = ResolveStatusArt(best.Id, best.Art);
             Vector2 bodySize = v.Body.sprite != null ? v.Body.sprite.bounds.size : new Vector2(1f, 1.4f);
-            // ⛔ 修正： 是**本地空间**尺寸（= 像素/PPU），
-            //   立绘被 transform 缩放后**并不等于显示尺寸**。
-            //   Boss 立绘 1024@100 ⇒ 这里会算成 10.24，而实际只显示 ~2.6
-            //   ⇒ 直接拿它当基准，会把状态特效放大 3~4 倍（用户实测：特效图太大了）。
-            //   乘上物体缩放才是立绘实际占多大，特效才会与立绘同尺寸。
-            var bodyScale = v.Body.transform.lossyScale;
-            bodySize = new Vector2(bodySize.x * Mathf.Abs(bodyScale.x), bodySize.y * Mathf.Abs(bodyScale.y));
+            // 说明：这里用的是**贴图本地尺寸**，看着“比显示尺寸大”，但**不用乘缩放** ——
+            //   因为 Overlay 是 Body 的**子物体**（见创建处 SetParent(bodySr.transform)），
+            //   父级缩放会自动乘进去 ⇒ 最终显示尺寸 = 贴图尺寸 × localScale × 立绘缩放 = 立绘显示尺寸。
+            //   （曾误判“少了 lossyScale”而乘了一次，结果特效反而小了近 4 倍，已回滚。）
             if (art != null)
             {
                 var a = art.bounds.size;
@@ -1266,6 +1263,18 @@ namespace WanXiang.Battle.Presentation
                 v.Overlay.transform.localScale = new Vector3(
                     a.x > 0.0001f ? bodySize.x / a.x * Mathf.Max(0.01f, best.Scale) : 1f,
                     a.y > 0.0001f ? bodySize.y / a.y * Mathf.Max(0.01f, best.Scale) : 1f, 1f);
+                // ---- 临时诊断（排查"特效太大"用，查完删）----
+                {
+                    var ws = v.Overlay.transform.lossyScale;
+                    Debug.Log("[StatusArt] 状态=" + best.Id + " 图=" + art.name
+                        + " 图本地尺寸=" + a.x.ToString("F2") + "x" + a.y.ToString("F2")
+                        + " Scale=" + best.Scale.ToString("F2")
+                        + " localScale=" + v.Overlay.transform.localScale.x.ToString("F3")
+                        + " 父级lossy=" + (v.Body != null ? v.Body.transform.lossyScale.x.ToString("F3") : "-")
+                        + " ⇒ 实际显示=" + (a.x * ws.x).ToString("F2")
+                        + " 立绘显示=" + (v.Body != null && v.Body.sprite != null ? (v.Body.sprite.bounds.size.x * v.Body.transform.lossyScale.x).ToString("F2") : "-")
+                        + " 单位=" + v.Body.gameObject.name);
+                }
             }
             else
             {
