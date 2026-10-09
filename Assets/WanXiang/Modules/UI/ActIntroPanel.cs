@@ -319,6 +319,7 @@ namespace WanXiang.Modules.UI
             float d2 = 0.26f; e = 0f;
             while (e < d2)
             {
+                if (rt == null) return;                         // ⛔ 面板已销毁
                 if (s_Skip) break;
                 e += Time.unscaledDeltaTime;
                 float k = Mathf.Clamp01(e / d2);
@@ -336,6 +337,7 @@ namespace WanXiang.Modules.UI
         {
             for (int i = 0; i < 3; i++)
             {
+                if (this == null) return;                       // ⛔ 面板已销毁 ⇒ 别再放音效
                 PlaySfx("brush", 0.75f);
                 await UniTask.Delay(Ms(Mathf.Max(0.5f, total * 0.32f)));
             }
@@ -349,10 +351,14 @@ namespace WanXiang.Modules.UI
             float dur = Mathf.Max(1f, _writeTotal + _hold + 0.6f), e = 0f;
             while (e < dur)
             {
+                // ⛔ 必须每帧判空：本循环活得比面板久（面板先被销毁时，tt 会变成"已销毁"对象），
+                //   直接写 localScale 会抛 MissingReferenceException（用户实测过）。
+                if (tt == null) return;
                 e += Time.unscaledDeltaTime;
                 tt.localScale = Vector3.one * Mathf.Lerp(0.975f, 1.02f, Mathf.Clamp01(e / dur));
                 await UniTask.Yield();
             }
+            if (tt == null) return;
             tt.localScale = Vector3.one * 1.02f;
         }
 
@@ -435,7 +441,7 @@ namespace WanXiang.Modules.UI
                 for (int i = 0; i < _inkBlots.Count; i++)
                 {
                     var b = _inkBlots[i];
-                    if (b.Rt == null) continue;
+                    if (b.Rt == null || b.Img == null) continue;   // ⛔ 面板销毁后这些都变"已销毁"，必须跳过
                     if (b.Delay > 0f) { b.Delay -= dt; any = true; continue; }
 
                     b.Age += dt;
@@ -686,6 +692,7 @@ namespace WanXiang.Modules.UI
             while (true)
             {
                 bool any = false;
+                if (this == null) return;                       // ⛔ 面板已销毁 ⇒ 直接收工
                 if (s_Skip) { _leaves.Clear(); break; }
                 float dt = Time.unscaledDeltaTime;
                 for (int i = 0; i < _leaves.Count; i++)
