@@ -1252,9 +1252,10 @@ namespace WanXiang.Battle.Presentation
         /// <summary>临时诊断：延后一帧，列出所有"显示尺寸 &gt; 3 世界单位"的渲染物（含 UGUI）。</summary>
         private string DiagPath(UnityEngine.Transform x)
         {
+            // 全场景扫描 ⇒ 路径一直走到根（原来以 BattleStage2D 为界，UI 树完全看不见）
             string p = x.name;
             var q = x.parent;
-            while (q != null && q != transform) { p = q.name + "/" + p; q = q.parent; }
+            while (q != null) { p = q.name + "/" + p; q = q.parent; }
             return p;
         }
 
@@ -1263,7 +1264,7 @@ namespace WanXiang.Battle.Presentation
             yield return null;
             yield return null;
             // 1) 普通 Renderer（SpriteRenderer / MeshRenderer …）
-            foreach (var r in transform.GetComponentsInChildren<Renderer>(true))
+            foreach (var r in UnityEngine.Object.FindObjectsOfType<Renderer>(true))
             {
                 var b = r.bounds;
                 if (Mathf.Max(b.size.x, b.size.y) <= 3f) continue;
@@ -1273,7 +1274,7 @@ namespace WanXiang.Battle.Presentation
             }
             // 2) UGUI —— Image/Text 用的是 CanvasRenderer，它「不是」Renderer！
             //    前两次扫描就是漏了这一类（用户看到的巨大特效其实是 UGUI）。
-            foreach (var g in transform.GetComponentsInChildren<UnityEngine.UI.Graphic>(true))
+            foreach (var g in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Graphic>(true))
             {
                 var rt = g.rectTransform;
                 Vector3 c0 = rt.TransformPoint(rt.rect.min);
@@ -1288,7 +1289,7 @@ namespace WanXiang.Battle.Presentation
                     + "  贴图=" + sp + "  enabled=" + g.enabled);
             }
             // 3) 世界空间文字（TMP）
-            foreach (var tx in transform.GetComponentsInChildren<TMPro.TMP_Text>(true))
+            foreach (var tx in UnityEngine.Object.FindObjectsOfType<TMPro.TMP_Text>(true))
             {
                 float w = tx.preferredWidth * tx.transform.lossyScale.x;
                 float h = tx.preferredHeight * tx.transform.lossyScale.y;
