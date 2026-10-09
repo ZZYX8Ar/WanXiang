@@ -55,12 +55,12 @@ namespace WanXiang.Modules.UI
             return set.Count;
         }
 
-        [SerializeField] private Button _btnClearAll;      // 兜底创建
+        [SerializeField] private Button _btnClearAll;      // 节点已在 prefab 里（Btn_ClearAll）
 
         protected override UniTask OnOpenAsync(object payload)
         {
-            EnsureSlotResetButtons();
-            EnsureClearAllButton();
+            SyncSlotResetButtons();     // 原来叫 Ensure…（代码建按钮）；现改为「切显隐 + 挂监听」
+            WireClearAllButton();       // 同上：按钮已在 prefab 里
             RefreshSlots();
             return UniTask.CompletedTask;
         }
@@ -102,41 +102,38 @@ namespace WanXiang.Modules.UI
             SceneFlow.EnterMain();
         }
 
-        /// <summary>给已存档的槽位加一个小的「重置」按钮（代码自建，带确认弹窗）。</summary>
-        private void EnsureSlotResetButtons()
+        /// <summary>
+        /// 槽位「重置」按钮：**节点已在 prefab 里**（`Btn_Slot{i}/Btn_Reset`，默认隐藏），
+        /// 这里只按"该档有没有存档"切显隐 + 挂监听。
+        /// ⛔ 不再用代码 `new GameObject` 建 UI —— UI 一律在 prefab 里做好（工程硬规则）。
+        /// </summary>
+        private void SyncSlotResetButtons()
         {
             for (int i = 0; i < _btnSlots.Length && i < RunSave.SlotCount; i++)
             {
                 var slot = i + 1;
                 var slotBtn = _btnSlots[i];
-                if (slotBtn == null || !RunSave.Exists(slot)) continue;
+                if (slotBtn == null) continue;
 
-                // 防重复
-                if (slotBtn.transform.Find("Btn_Reset") != null) continue;
+                var reset = slotBtn.transform.Find("Btn_Reset");
+                if (reset == null) continue;                 // prefab 里没做就跳过（不报错）
+                reset.gameObject.SetActive(RunSave.Exists(slot));
 
-                var go = new GameObject("Btn_Reset", typeof(RectTransform));
-                go.transform.SetParent(slotBtn.transform, false);
-                var img = go.AddComponent<Image>();
-                img.color = new Color(0.85f, 0.62f, 0.58f, 1f);
-                var btn = go.AddComponent<Button>();
-                btn.targetGraphic = img;
-                var r = (RectTransform)go.transform;
-                r.anchorMin = r.anchorMax = new Vector2(1f, 0.5f);
-                r.anchoredPosition = new Vector2(-46f, 0f);
-                r.sizeDelta = new Vector2(72f, 44f);
-
-                var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
-                tgo.transform.SetParent(go.transform, false);
-                var tmp = tgo.AddComponent<TextMeshProUGUI>();
-                tmp.text = "重置";
-                tmp.fontSize = 20;
-                tmp.color = new Color(0.35f, 0.16f, 0.13f, 1f);
-                tmp.alignment = TextAlignmentOptions.Center;
-                var tr = (RectTransform)tgo.transform;
-                tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.sizeDelta = Vector2.zero;
-
-                btn.onClick.AddListener(() => ResetAfterConfirm(slot));
+                var btn = reset.GetComponent<Button>();
+                if (btn != null)
+                {
+                    btn.onClick.RemoveAllListeners();        // 幂等：避免每次打开重复叠加监听
+                    btn.onClick.AddListener(() => ResetAfterConfirm(slot));
+                }
             }
+        }
+
+        /// <summary>「清空全部存档」按钮：节点已在 prefab 里（`Btn_ClearAll`），这里只挂监听（幂等）。</summary>
+        private void WireClearAllButton()
+        {
+            if (_btnClearAll == null) return;
+            _btnClearAll.onClick.RemoveAllListeners();
+            _btnClearAll.onClick.AddListener(ConfirmClear);
         }
 
         private async void ResetAfterConfirm(int slot)
@@ -186,56 +183,7 @@ namespace WanXiang.Modules.UI
             }
         }
 
-        /// <summary>「清空全部存档」兜底按钮（代码自建，放屏幕底部）。</summary>
-        private void EnsureClearAllButton()
-        {
-            if (_btnClearAll != null) return;
-
-            var go = new GameObject("Btn_ClearAll", typeof(RectTransform));
-            go.transform.SetParent(transform, false);
-            var img = go.AddComponent<Image>();
-            img.color = new Color(0.85f, 0.62f, 0.58f, 1f);
-            var btn = go.AddComponent<Button>();
-            btn.targetGraphic = img;
-            var r = (RectTransform)go.transform;
-            r.anchorMin = r.anchorMax = new Vector2(0.5f, 0f);
-            r.anchoredPosition = new Vector2(0f, 40f);
-            r.sizeDelta = new Vector2(260f, 60f);
-
-            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
-            tgo.transform.SetParent(go.transform, false);
-            var tmp = tgo.AddComponent<TextMeshProUGUI>();
-            tmp.text = "清空全部存档";
-            tmp.fontSize = 24;
-            tmp.color = new Color(0.35f, 0.16f, 0.13f, 1f);
-            tmp.alignment = TextAlignmentOptions.Center;
-            var tr = (RectTransform)tgo.transform;
-            tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.sizeDelta = Vector2.zero;
-
-            _btnClearAll = btn;
-            btn.onClick.AddListener(() =>
-            {
-                bool ok = awaitClearConfirm();
-                if (!ok) return;
-                WanXiang.Run.RunSave.ClearAll();
-                WanXiang.Meta.MetaStore.DeleteAllHistory();   // ★ 连历程一起清
-                WanXiang.Meta.MetaStore.DeleteAllMeta();      // ★ 全部槽位的局外数据一并清
-                WanXiang.Meta.MetaStore.ReloadMeta();         // ★ 内存回到全新状态
-                // 刷新列表显示
-                OpenPanelAsync<SavePanel>().Forget();
-            });
-        }
-
         private bool _clearConfirming;
-
-        private bool awaitClearConfirm()
-        {
-            // 双重确认：先弹确认框（异步），这里用一个简单标记避免重复点击
-            if (_clearConfirming) return false;
-            _clearConfirming = true;
-            ConfirmClear();
-            return false;
-        }
 
         private async void ConfirmClear()
         {
