@@ -375,6 +375,8 @@ namespace WanXiang.Battle.Presentation
             _catalog = catalog;
             Clear();
             _state = st;
+            // 自证身份：看到这行 = 跑的是"身体特效已关"的 2026-10-09 版本
+            Debug.Log("[Stage2D] Build v2026-10-09: StatusArtEnabled=" + StatusArtEnabled + "（false=身体特效不创建，只用头顶小图标）");
 
             var bg = new GameObject("BG_Spring");
             bg.transform.SetParent(transform, false);
@@ -580,13 +582,19 @@ namespace WanXiang.Battle.Presentation
                 // ---- 状态外观层（冰封 / 束缚 / 燃烧…）----
                 //  挂在 **Body 之下** ⇒ 自动跟随立绘的位置、缩放与左右镜像，不用另算。
                 //  sortingOrder 比立绘大 1 ⇒ 盖在立绘上。缺图时 `SetOverlay2D` 用半透明色块兜底。
-                var ovGo = new GameObject("Overlay");
-                ovGo.transform.SetParent(bodySr.transform, false);
-                var ovSr = ovGo.AddComponent<SpriteRenderer>();
-                ovSr.sprite = SolidSprite(Color.white, 32, 64, 0, Color.white);
-                ovSr.sortingOrder = bodySr.sortingOrder + 1;
-                ovSr.enabled = false;
-                view.Overlay = ovSr;
+                //  ★ 2026-10-09 用户定案：StatusArtEnabled=false 时**连对象都不创建**——
+                //    防止"Play 中途热重载/异常中断后旧视觉残留"（SetOverlay2D 的 enabled 闸门
+                //    只在每帧 Tick 时生效，建对象时就不给才是彻底的关）。
+                if (StatusArtEnabled)
+                {
+                    var ovGo = new GameObject("Overlay");
+                    ovGo.transform.SetParent(bodySr.transform, false);
+                    var ovSr = ovGo.AddComponent<SpriteRenderer>();
+                    ovSr.sprite = SolidSprite(Color.white, 32, 64, 0, Color.white);
+                    ovSr.sortingOrder = bodySr.sortingOrder + 1;
+                    ovSr.enabled = false;
+                    view.Overlay = ovSr;
+                }
 
                 // ★ 鼠标命中框（世界空间）—— 用户定案：悬停*棋盘上的异兽*看状态列表。
                 //   尺寸取立绘的世界尺寸（没立绘时用兜底块）。
