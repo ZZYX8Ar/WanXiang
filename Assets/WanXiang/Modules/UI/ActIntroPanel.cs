@@ -236,52 +236,35 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>
-        /// 书写：把 `Root_Title/Img_TitleMask`（RectMask2D）的宽度从 0 推到整幅，字就被连续"扫"出来。
-        /// 宽度从**遮罩的父级**（Root_Title）取，不写死，改名/改尺寸都不用动代码。
-        /// 收笔时多给 8px，避免最后一列像素被裁掉。
+        /// 书写：用 **TMP 自带的 `maxVisibleCharacters`** 从左往右逐字扫出。
+        /// ⛔ 曾经用 `RectMask2D` 做遮罩扫过（效果更像"扫"），但在真机上标题**整行看不见**，
+        ///   查了多轮（日志/几何/字形全部正常）仍未定位 ⇒ 按**"可见优先"**改回 TMP 原生能力。
+        ///   原则：效果可以让步，内容不能被裁没。
         /// </summary>
         private async UniTask WriteTitleAsync(ActTitle t)
         {
-            var maskT = transform.Find("Root_Title/Img_TitleMask");
-            var maskRt = maskT as RectTransform;
-            if (maskRt == null) return;
-            var parentRt = maskRt.parent as RectTransform;
-            // ⛔ 不能取 ：面板刚打开那一帧**布局还没算完**，rect 会是 0
-            //   ⇒ fullW=0 ⇒ 遮罩宽度永远是 0 ⇒ 整行字被裁光（用户实测"看不到字"的真因）。
-            //   优先用**文本自己的 sizeDelta**（它是显式设置值，不受 layout 时机影响）。
-            float fullW = 1200f;
-            var trt = _tmpTitleMain != null ? _tmpTitleMain.rectTransform : null;
-            if (trt != null && trt.sizeDelta.x > 1f) fullW = trt.sizeDelta.x;
-            else if (parentRt != null) fullW = parentRt.rect.width > 1f ? parentRt.rect.width : Mathf.Max(1f, parentRt.sizeDelta.x);
-
-            int n = _tmpTitleMain != null && !string.IsNullOrEmpty(t.Main) ? t.Main.Length : 4;
-            float total = Mathf.Max(0.8f, n * _charInterval * 1.7f);   // 整行写完的总时长
-
-            Dbg("书写开始 遮罩找到=" + (maskRt != null)
-                + " fullW=" + fullW.ToString("F0")
-                + " 遮罩sizeDelta=" + maskRt.sizeDelta.x.ToString("F0") + "x" + maskRt.sizeDelta.y.ToString("F0")
-                + " 遮罩rect=" + maskRt.rect.width.ToString("F0") + "x" + maskRt.rect.height.ToString("F0")
-                + " 父=" + (maskRt.parent != null ? maskRt.parent.name : "null")
-                + " 总时长=" + total.ToString("F2") + "s");
-
-            maskRt.sizeDelta = new Vector2(0f, maskRt.sizeDelta.y);
-            float elapsed = 0f;
-            while (elapsed < total)
+            if (_tmpTitleMain == null) return;
+            _tmpTitleMain.text = t.Main;                 // 双保险：这里再设一次
+            _tmpTitleMain.maxVisibleCharacters = 0;
+            _tmpTitleMain.ForceMeshUpdate();
+            int n = _tmpTitleMain.textInfo.characterCount;
+            if (n <= 0)
             {
-                elapsed += Time.unscaledDeltaTime;
-                maskRt.sizeDelta = new Vector2(fullW * Mathf.Clamp01(elapsed / total), maskRt.sizeDelta.y);
-                await UniTask.Yield();
+                _tmpTitleMain.maxVisibleCharacters = 9999;
+                Dbg("书写：字符数=0（字体缺字？）⇒ 直接全显");
+                return;
             }
-            maskRt.sizeDelta = new Vector2(fullW + 8f, maskRt.sizeDelta.y);
-            // 兜底：书写结束后**直接关掉 RectMask2D** ⇒ 即使它的裁剪行为有意外，标题也一定可见。
-            // （"默认可见优先"：效果可以让步，但内容不能被裁没。）
-            var rm = maskRt.GetComponent<UnityEngine.UI.RectMask2D>();
-            if (rm != null) rm.enabled = false;
-            Dbg("书写完成 已关闭遮罩裁剪 RectMask2D=" + (rm != null)
-                + " 遮罩宽=" + maskRt.sizeDelta.x.ToString("F0")
-                + " 遮罩rect=" + maskRt.rect.width.ToString("F0")
-                + " 文本激活=" + (_tmpTitleMain != null && _tmpTitleMain.gameObject.activeInHierarchy)
-                + " 文本alpha=" + (_tmpTitleMain != null ? _tmpTitleMain.color.a.ToString("F2") : "-"));
+
+            float per = Mathf.Max(0.06f, _charInterval);
+            for (int i = 1; i <= n; i++)
+            {
+                _tmpTitleMain.maxVisibleCharacters = i;
+                await UniTask.Delay(Ms(per));
+            }
+            _tmpTitleMain.maxVisibleCharacters = 9999;
+            Dbg("书写完成 字符数=" + n + " 文本=\"" + _tmpTitleMain.text + "\""
+                + " 颜色=" + _tmpTitleMain.color + " alpha=" + _tmpTitleMain.alpha
+                + " 世界位置=" + _tmpTitleMain.rectTransform.position);
         }
 
         private static int Ms(float seconds) { return Mathf.Max(1, (int)(seconds * 1000f)); }
