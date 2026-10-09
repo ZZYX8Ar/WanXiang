@@ -353,7 +353,9 @@ namespace WanXiang.Modules.UI
         private void SpawnInkBlots()
         {
             var root = transform.Find("Root_Ink") as RectTransform;
-            var tpl = transform.Find("Root_Ink/Item_InkBlot") as Image;
+            // ⛔ Transform.Find 返回的是 **Transform**，不能 `as Image`（不相关的两个类型 ⇒ CS0039）
+            var tplT = transform.Find("Root_Ink/Item_InkBlot");
+            var tpl = tplT != null ? tplT.GetComponent<Image>() : null;
             if (root == null || tpl == null) return;          // 缺节点就跳过，不报错
             root.gameObject.SetActive(true);
 
