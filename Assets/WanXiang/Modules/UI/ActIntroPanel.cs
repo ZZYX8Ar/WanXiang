@@ -217,6 +217,10 @@ namespace WanXiang.Modules.UI
             SpawnLeaves(t);
             UpdateLeavesLoop().Forget();
 
+            // ---- 音效 + 缓慢推近（择天记那种"片头感"的两个来源）----
+            BrushSfxLoopAsync(_writeTotal).Forget();   // 笔触沙沙（写的过程中隔一段放一次）
+            SlowPushAsync().Forget();                  // 画面极缓慢推近
+
             // ---- 书写 ----
             //  用 **UGUI 内置 RectMask2D 从左到右扫过**（Unity 原生、零布局计算、零自定义 shader）。
             //  遮罩宽度增长 ⇒ 整行字被连续"写"出来（不是一个一个蹦），而且文本位置完全交给 UGUI，
@@ -227,12 +231,97 @@ namespace WanXiang.Modules.UI
             await UniTask.Delay(Ms(_subDelay));
             if (_tmpTitleSub != null) await FadeTextAsync(_tmpTitleSub, 0f, 1f, 0.35f);
 
-            await UniTask.Delay(Ms(_hold));
+            await UniTask.Delay(Ms(_hold * 0.5f));
+            await PlaySealAsync();                     // 落款：印章落到纸上
+            await UniTask.Delay(Ms(_hold * 0.5f));
             if (group != null) await FadeAsync(group, 1f, 0f, _fadeOut);
 
             _leaves.Clear();
             if (_rootLeaves != null) _rootLeaves.gameObject.SetActive(false);
             CloseSelf();
+        }
+
+        /// <summary>
+        /// 落款：印章从上方加速落下、"啪"地盖上（带过冲与回正），落印瞬间放一记闷响。
+        /// 位置/尺寸取自 prefab 的 `Img_Seal`；贴图运行时取 `Resources/UI/ActIntro/seal`（取不到就不显示印章，不影响别的）。
+        /// </summary>
+        private async UniTask PlaySealAsync()
+        {
+            var sealT = transform.Find("Img_Seal");
+            if (sealT == null) return;
+            var rt = sealT as RectTransform;
+            var img = sealT.GetComponent<Image>();
+            if (img == null) return;
+            if (img.sprite == null) img.sprite = Resources.Load<Sprite>("UI/ActIntro/seal");
+            if (img.sprite == null) return;                 // 没图就跳过，不报错
+
+            var home = rt.anchoredPosition;
+            sealT.gameObject.SetActive(true);
+            rt.localScale = Vector3.one * 1.22f;
+            rt.localRotation = Quaternion.Euler(0f, 0f, -11f);
+            rt.anchoredPosition = new Vector2(home.x, home.y + 240f);
+            var c0 = img.color; c0.a = 0f; img.color = c0;
+
+            // 加速下落
+            float dur = 0.34f, e = 0f;
+            while (e < dur)
+            {
+                e += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(e / dur), kk = k * k;
+                rt.anchoredPosition = new Vector2(home.x, Mathf.Lerp(home.y + 240f, home.y, kk));
+                var c = img.color; c.a = k; img.color = c;
+                await UniTask.Yield();
+            }
+            rt.anchoredPosition = home;
+            PlaySfx("stamp");                                // 落印那一下
+
+            // 回正 + 缩回原尺寸（盖下去的手感）
+            float d2 = 0.26f; e = 0f;
+            while (e < d2)
+            {
+                e += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(e / d2);
+                rt.localScale = Vector3.one * Mathf.Lerp(1.22f, 1f, k);
+                rt.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-11f, 0f, k));
+                await UniTask.Yield();
+            }
+            rt.localScale = Vector3.one;
+            rt.localRotation = Quaternion.identity;
+            var cf = img.color; cf.a = 1f; img.color = cf;
+        }
+
+        /// <summary>写的过程中隔一段放一次笔触声（不循环，避免接缝）。</summary>
+        private async UniTaskVoid BrushSfxLoopAsync(float total)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                PlaySfx("brush", 0.75f);
+                await UniTask.Delay(Ms(Mathf.Max(0.5f, total * 0.32f)));
+            }
+        }
+
+        /// <summary>极缓慢推近（0.975 → 1.02）—— 片头"呼吸感"的来源。只缩标题层，不动整屏。</summary>
+        private async UniTaskVoid SlowPushAsync()
+        {
+            var tt = transform.Find("Root_Title") as RectTransform;
+            if (tt == null) return;
+            float dur = Mathf.Max(1f, _writeTotal + _hold + 0.6f), e = 0f;
+            while (e < dur)
+            {
+                e += Time.unscaledDeltaTime;
+                tt.localScale = Vector3.one * Mathf.Lerp(0.975f, 1.02f, Mathf.Clamp01(e / dur));
+                await UniTask.Yield();
+            }
+            tt.localScale = Vector3.one * 1.02f;
+        }
+
+        /// <summary>放一段音效。⛔ 取不到 AudioSource / AudioClip 就静默跳过 —— 音频绝不能卡流程或报错。</summary>
+        private void PlaySfx(string name, float vol = 1f)
+        {
+            var src = GetComponent<AudioSource>();
+            if (src == null) return;
+            var clip = Resources.Load<AudioClip>("UI/ActIntro/" + name);
+            if (clip != null) src.PlayOneShot(clip, vol);
         }
 
         /// <summary>逐笔书写用：克隆出来的单字图（每字一张，切 sprite 推进笔画）。</summary>
