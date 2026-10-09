@@ -330,6 +330,12 @@ namespace WanXiang.Battle.Presentation
         /// <summary>状态图标文字大小倍率。</summary>
         public float StatusLabelSize = 1f;
 
+        /// <summary>★ 状态特效（罩在异兽身上的大图）总开关。
+        /// 2026-10-09 用户定案：关掉它，战斗里只显示**头顶状态小图标**（StatusIcon 那一套），
+        /// 不再把 burn/裂甲/湿… 的 PNG 罩在异兽身上（此前显示过大、观感差）。
+        /// 想恢复身体特效 → 在 Inspector 把本项勾回 true 即可，无需改代码。</summary>
+        public bool StatusArtEnabled = false;
+
         /// <summary>技能名飘字的颜色（只有战技/绝技会飘，普攻不飘）。</summary>
         public Color SkillNameColor = new Color(0.96f, 0.87f, 0.52f);
 
@@ -1297,6 +1303,8 @@ namespace WanXiang.Battle.Presentation
         private void SetOverlay2D(UnitView2D v, string ids)
         {
             if (v.Overlay == null || v.Body == null) return;
+            // ★ 2026-10-09 用户定案：关闭状态特效大图，只用头顶小图标（见 StatusArtEnabled）。
+            if (!StatusArtEnabled) { v.Overlay.enabled = false; return; }
             var best = BestOverlayFor(ids);
             string key = best != null ? best.Id : null;
             if (v.OverlayShown == key) return;                 // 变了才换，别每帧重建 sprite
@@ -1317,18 +1325,6 @@ namespace WanXiang.Battle.Presentation
                 v.Overlay.transform.localScale = new Vector3(
                     a.x > 0.0001f ? bodySize.x / a.x * Mathf.Max(0.01f, best.Scale) : 1f,
                     a.y > 0.0001f ? bodySize.y / a.y * Mathf.Max(0.01f, best.Scale) : 1f, 1f);
-                // ---- 临时诊断（排查"特效太大"用，查完删）----
-                {
-                    var ws = v.Overlay.transform.lossyScale;
-                    Debug.Log("[StatusArt] 状态=" + best.Id + " 图=" + art.name
-                        + " 图本地尺寸=" + a.x.ToString("F2") + "x" + a.y.ToString("F2")
-                        + " Scale=" + best.Scale.ToString("F2")
-                        + " localScale=" + v.Overlay.transform.localScale.x.ToString("F3")
-                        + " 父级lossy=" + (v.Body != null ? v.Body.transform.lossyScale.x.ToString("F3") : "-")
-                        + " ⇒ 实际显示=" + (a.x * ws.x).ToString("F2")
-                        + " 立绘显示=" + (v.Body != null && v.Body.sprite != null ? (v.Body.sprite.bounds.size.x * v.Body.transform.lossyScale.x).ToString("F2") : "-")
-                        + " 单位=" + v.Body.gameObject.name);
-                }
             }
             else
             {
