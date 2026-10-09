@@ -216,6 +216,8 @@ namespace WanXiang.Modules.UI
 
             SpawnLeaves(t);
             UpdateLeavesLoop().Forget();
+            SpawnInkBlots();
+            UpdateInkBlotsLoop().Forget();
 
             // ---- 音效 + 缓慢推近（择天记那种"片头感"的两个来源）----
             BrushSfxLoopAsync(_writeTotal).Forget();   // 笔触沙沙（写的过程中隔一段放一次）
@@ -322,6 +324,97 @@ namespace WanXiang.Modules.UI
             if (src == null) return;
             var clip = Resources.Load<AudioClip>("UI/ActIntro/" + name);
             if (clip != null) src.PlayOneShot(clip, vol);
+        }
+
+        // ==================================================================
+        //  背景墨韵：墨在纸上缓慢洇开
+        //  ------------------------------------------------------------------
+        //  静态宣纸显得"死"，所以叠几团**极淡**的墨晕，各自缓慢放大 + 游走 + 淡入淡出。
+        //  贴图程序化生成（`_tools/_make_inkblot.py`）⇒ 换风格只要换
+        //  `Resources/UI/ActIntro/inkblot.png`，代码不用动。
+        //  ⚠ 透明度压得很低（默认 0.11）—— 它是氛围，不能抢标题。
+        // ==================================================================
+        [Header("背景墨韵")]
+        [SerializeField] private int _inkBlotCount = 4;
+        [SerializeField] private float _inkMaxAlpha = 0.11f;
+
+        private Sprite _inkBlotSprite;
+
+        private sealed class InkBlot
+        {
+            public RectTransform Rt;
+            public Image Img;
+            public Vector2 Vel;
+            public float Age, Delay, Life, Peak, BaseScale;
+        }
+
+        private readonly List<InkBlot> _inkBlots = new List<InkBlot>(8);
+
+        private void SpawnInkBlots()
+        {
+            var root = transform.Find("Root_Ink") as RectTransform;
+            var tpl = transform.Find("Root_Ink/Item_InkBlot") as Image;
+            if (root == null || tpl == null) return;          // 缺节点就跳过，不报错
+            root.gameObject.SetActive(true);
+
+            var panelRt = transform as RectTransform;
+            float hw = Mathf.Max(320f, (panelRt != null && panelRt.rect.width > 1f ? panelRt.rect.width : 1920f) * 0.5f);
+            float hh = Mathf.Max(240f, (panelRt != null && panelRt.rect.height > 1f ? panelRt.rect.height : 1080f) * 0.5f);
+
+            if (_inkBlotSprite == null) _inkBlotSprite = Resources.Load<Sprite>("UI/ActIntro/inkblot");
+            int n = Mathf.Clamp(_inkBlotCount, 0, 8);
+            _inkBlots.Clear();
+            for (int i = 0; i < n; i++)
+            {
+                var clone = Instantiate(tpl, root);
+                clone.gameObject.SetActive(true);
+                if (_inkBlotSprite != null) clone.sprite = _inkBlotSprite;   // 运行时取图，不依赖 prefab 绑定
+                var rt = clone.rectTransform;
+                rt.anchoredPosition = new Vector2(Random.Range(-hw * 0.8f, hw * 0.8f),
+                                                  Random.Range(-hh * 0.7f, hh * 0.7f));
+                float s0 = Random.Range(0.55f, 0.95f);
+                rt.localScale = Vector3.one * s0;
+                var c = clone.color; c.a = 0f; clone.color = c;
+                _inkBlots.Add(new InkBlot
+                {
+                    Rt = rt, Img = clone,
+                    Vel = new Vector2(Random.Range(-16f, 16f), Random.Range(-11f, 11f)),
+                    Delay = Random.Range(0f, 0.9f),
+                    Life = Random.Range(5.5f, 8.5f),
+                    Peak = _inkMaxAlpha * Random.Range(0.7f, 1.15f),
+                    BaseScale = s0,
+                });
+            }
+        }
+
+        /// <summary>墨韵推进：延迟 → 放大（洇开）+ 漂移 + 淡入淡出（两端都柔）。</summary>
+        private async UniTaskVoid UpdateInkBlotsLoop()
+        {
+            while (true)
+            {
+                bool any = false;
+                float dt = Time.unscaledDeltaTime;
+                for (int i = 0; i < _inkBlots.Count; i++)
+                {
+                    var b = _inkBlots[i];
+                    if (b.Rt == null) continue;
+                    if (b.Delay > 0f) { b.Delay -= dt; any = true; continue; }
+
+                    b.Age += dt;
+                    float k = Mathf.Clamp01(b.Age / b.Life);
+                    if (k >= 1f) { b.Rt = null; UnityEngine.Object.Destroy(b.Img.gameObject); continue; }
+
+                    b.Rt.anchoredPosition += b.Vel * dt;
+                    b.Rt.localScale = Vector3.one * (b.BaseScale * Mathf.Lerp(1f, 1.75f, k));  // 洇开
+                    // 透明度：sin 包络（中段最浓），两端为 0 ⇒ 不出现硬边出现/消失
+                    var c = b.Img.color;
+                    c.a = b.Peak * Mathf.Sin(Mathf.PI * k);
+                    b.Img.color = c;
+                    any = true;
+                }
+                if (!any) break;
+                await UniTask.Yield();
+            }
         }
 
         /// <summary>逐笔书写用：克隆出来的单字图（每字一张，切 sprite 推进笔画）。</summary>
