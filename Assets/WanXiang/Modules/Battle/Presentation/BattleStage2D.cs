@@ -384,6 +384,32 @@ namespace WanXiang.Battle.Presentation
             bgSr.sortingOrder = -10;
 
             BuildBoard("BoardP", PlayerX, BoardY, true);
+#if UNITY_EDITOR
+                // ---- 临时诊断（排查“有个东西特别大”，查完删）----
+                //  列出所有显示尺寸 > 3 世界单位的渲染物 ⇒ 一眼看出“大”的到底是谁。
+                try
+                {
+                    foreach (var _sr in transform.GetComponentsInChildren<UnityEngine.SpriteRenderer>(true))
+                    {
+                        if (_sr.sprite == null) continue;
+                        var _s = _sr.transform.lossyScale;
+                        float _w = _sr.sprite.bounds.size.x * Mathf.Abs(_s.x);
+                        float _h = _sr.sprite.bounds.size.y * Mathf.Abs(_s.y);
+                        if (Mathf.Max(_w, _h) > 3f)
+                        {
+                            string _path = _sr.gameObject.name;
+                            var _q = _sr.transform.parent;
+                            while (_q != null && _q != transform) { _path = _q.name + "/" + _path; _q = _q.parent; }
+                            Debug.Log("[BigRender] " + _path + "  图=" + _sr.sprite.name
+                                + "  显示=" + _w.ToString("F2") + "x" + _h.ToString("F2")
+                                + "  贴图=" + _sr.sprite.bounds.size.x.ToString("F2")
+                                + "  scale=" + _s.x.ToString("F3") + "  enabled=" + _sr.enabled);
+                        }
+                    }
+                }
+                catch (System.Exception _e) { Debug.LogWarning("[BigRender] 扫描异常：" + _e.Message); }
+#endif
+
             BuildBoard("BoardE", EnemyX, BoardY, false);
             BuildUnits();
             BuildCamera();
