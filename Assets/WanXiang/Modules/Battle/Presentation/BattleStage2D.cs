@@ -1250,20 +1250,53 @@ namespace WanXiang.Battle.Presentation
         /// </summary>
 #if UNITY_EDITOR
         /// <summary>临时诊断：延后一帧，列出所有"显示尺寸 &gt; 3 世界单位"的渲染物（含 UGUI）。</summary>
+        private string DiagPath(UnityEngine.Transform x)
+        {
+            string p = x.name;
+            var q = x.parent;
+            while (q != null && q != transform) { p = q.name + "/" + p; q = q.parent; }
+            return p;
+        }
+
         private System.Collections.IEnumerator DiagScanBigRender()
         {
             yield return null;
             yield return null;
+            // 1) 普通 Renderer（SpriteRenderer / MeshRenderer …）
             foreach (var r in transform.GetComponentsInChildren<Renderer>(true))
             {
-                var b = r.bounds;                 // 世界空间包围盒
+                var b = r.bounds;
                 if (Mathf.Max(b.size.x, b.size.y) <= 3f) continue;
-                string path = r.gameObject.name;
-                var q = r.transform.parent;
-                while (q != null && q != transform) { path = q.name + "/" + path; q = q.parent; }
-                Debug.Log("[BigRender] " + r.GetType().Name + "  " + path
+                Debug.Log("[BigRender] " + r.GetType().Name + "  " + DiagPath(r.transform)
                     + "  世界尺寸=" + b.size.x.ToString("F2") + "x" + b.size.y.ToString("F2")
                     + "  enabled=" + r.enabled);
+            }
+            // 2) UGUI —— Image/Text 用的是 CanvasRenderer，它「不是」Renderer！
+            //    前两次扫描就是漏了这一类（用户看到的巨大特效其实是 UGUI）。
+            foreach (var g in transform.GetComponentsInChildren<UnityEngine.UI.Graphic>(true))
+            {
+                var rt = g.rectTransform;
+                Vector3 c0 = rt.TransformPoint(rt.rect.min);
+                Vector3 c2 = rt.TransformPoint(rt.rect.max);
+                float w = Mathf.Abs(c2.x - c0.x), h = Mathf.Abs(c2.y - c0.y);
+                if (Mathf.Max(w, h) <= 3f) continue;
+                string sp = "-";
+                var im = g as UnityEngine.UI.Image;
+                if (im != null && im.sprite != null) sp = im.sprite.name;
+                Debug.Log("[BigRender] UGUI:" + g.GetType().Name + "  " + DiagPath(g.transform)
+                    + "  世界尺寸=" + w.ToString("F2") + "x" + h.ToString("F2")
+                    + "  贴图=" + sp + "  enabled=" + g.enabled);
+            }
+            // 3) 世界空间文字（TMP）
+            foreach (var tx in transform.GetComponentsInChildren<TMPro.TMP_Text>(true))
+            {
+                float w = tx.preferredWidth * tx.transform.lossyScale.x;
+                float h = tx.preferredHeight * tx.transform.lossyScale.y;
+                if (Mathf.Max(w, h) <= 3f) continue;
+                string txt = tx.text ?? "";
+                if (txt.Length > 12) txt = txt.Substring(0, 12);
+                Debug.Log("[BigRender] TMP:" + DiagPath(tx.transform)
+                    + "  世界尺寸=" + w.ToString("F2") + "x" + h.ToString("F2") + "  文本=" + txt);
             }
             Debug.Log("[BigRender] 扫描结束");
         }
