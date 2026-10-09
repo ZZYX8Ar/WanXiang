@@ -38,6 +38,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button  _btnOmen;         // Hot_Omen      天象（底排卷轴图标）
         [SerializeField] private Button  _btnSettings;     // Btn_Settings  设置
         [SerializeField] private Button  _btnHistory;      // Btn_History   历程（最近 10 局）
+        [SerializeField] private HomeMapRing _homeMap;     // Map_Ring      中央四季节气环（进图刷新进度）
 
         [Header("数据引用（由生成器自动绑定）")]
         [SerializeField] private ContentCatalogSO _contentCatalog;
@@ -88,6 +89,9 @@ namespace WanXiang.Modules.UI
             }
             RefreshDeployLabel();
             HideRetiredEntries();
+
+            // 中央四季节气环：每次回到主城都按当前旅程进度重刷（幕/层 → 扇区点亮 + 标记位置）
+            if (_homeMap != null) _homeMap.Refresh();
 
             // 天阙抉择挂起 → 弹三选一（登天阙 / 续劫 / 归元）。Overlay 层盖住主城，必须选。
             if (SceneFlow.PendingFinale)
