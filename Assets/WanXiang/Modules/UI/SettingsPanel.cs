@@ -7,6 +7,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using WanXiang.Framework.UI;
+using WanXiang.Framework.Audio;
 
 namespace WanXiang.Modules.UI
 {
@@ -39,17 +40,25 @@ namespace WanXiang.Modules.UI
             if (_tglFullscreen != null) _tglFullscreen.onValueChanged.AddListener(OnFullscreenChanged);
             if (_tglVsync != null) _tglVsync.onValueChanged.AddListener(OnVsyncChanged);
             if (_btnClose != null) _btnClose.onClick.AddListener(CloseSelf);
+
+            // 打开/创建时用**已保存的音量**回填滑条（SetValueWithoutNotify：不触发回调、不重复写盘）
+            if (_sldBgm != null) _sldBgm.SetValueWithoutNotify(AudioSystem.MusicVolume);
+            if (_sldSfx != null) _sldSfx.SetValueWithoutNotify(AudioSystem.SfxVolume);
             if (_btnBackToStart != null) _btnBackToStart.onClick.AddListener(OnBackToStartClicked);
         }
 
         private void OnBgmChanged(float value)
         {
-            // TODO(交互): 即时生效并写入存档
+            // 音频系统内部会**立即应用 + 写 PlayerPrefs**（见 AudioSystem 的音量 setter）
+            AudioSystem.MusicVolume = value;
+            AudioSystem.Save();
         }
 
         private void OnSfxChanged(float value)
         {
-            // TODO(交互): 即时生效并写入存档
+            AudioSystem.SfxVolume = value;
+            AudioSystem.Save();
+            AudioSystem.PlaySfx("ui_click", 0.7f);   // 顺手放一声，让玩家听到当前音量
         }
 
         private void OnFullscreenChanged(bool on)

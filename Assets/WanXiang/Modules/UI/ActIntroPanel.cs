@@ -317,13 +317,10 @@ namespace WanXiang.Modules.UI
             tt.localScale = Vector3.one * 1.02f;
         }
 
-        /// <summary>放一段音效。⛔ 取不到 AudioSource / AudioClip 就静默跳过 —— 音频绝不能卡流程或报错。</summary>
+        /// <summary>放一段音效。走全局音频系统（自带音量/静音/池化）；资源缺失时静默跳过。</summary>
         private void PlaySfx(string name, float vol = 1f)
         {
-            var src = GetComponent<AudioSource>();
-            if (src == null) return;
-            var clip = Resources.Load<AudioClip>("UI/ActIntro/" + name);
-            if (clip != null) src.PlayOneShot(clip, vol);
+            WanXiang.Framework.Audio.AudioSystem.PlaySfx(name, vol);
         }
 
         // ==================================================================
