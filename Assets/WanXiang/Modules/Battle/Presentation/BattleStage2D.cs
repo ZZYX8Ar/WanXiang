@@ -386,28 +386,10 @@ namespace WanXiang.Battle.Presentation
             BuildBoard("BoardP", PlayerX, BoardY, true);
 #if UNITY_EDITOR
                 // ---- 临时诊断（排查“有个东西特别大”，查完删）----
-                //  列出所有显示尺寸 > 3 世界单位的渲染物 ⇒ 一眼看出“大”的到底是谁。
-                try
-                {
-                    foreach (var _sr in transform.GetComponentsInChildren<UnityEngine.SpriteRenderer>(true))
-                    {
-                        if (_sr.sprite == null) continue;
-                        var _s = _sr.transform.lossyScale;
-                        float _w = _sr.sprite.bounds.size.x * Mathf.Abs(_s.x);
-                        float _h = _sr.sprite.bounds.size.y * Mathf.Abs(_s.y);
-                        if (Mathf.Max(_w, _h) > 3f)
-                        {
-                            string _path = _sr.gameObject.name;
-                            var _q = _sr.transform.parent;
-                            while (_q != null && _q != transform) { _path = _q.name + "/" + _path; _q = _q.parent; }
-                            Debug.Log("[BigRender] " + _path + "  图=" + _sr.sprite.name
-                                + "  显示=" + _w.ToString("F2") + "x" + _h.ToString("F2")
-                                + "  贴图=" + _sr.sprite.bounds.size.x.ToString("F2")
-                                + "  scale=" + _s.x.ToString("F3") + "  enabled=" + _sr.enabled);
-                        }
-                    }
-                }
-                catch (System.Exception _e) { Debug.LogWarning("[BigRender] 扫描异常：" + _e.Message); }
+                //  ⚠ 两个要点：
+                //   ① 扫**所有 Renderer**（不只是 SpriteRenderer）——UGUI 的 Image/Mesh 都算；
+                //   ② **延后一帧**再扫 —— 状态特效是后来才赋值的，紧跟 BuildBoard 扫会漏掉。
+                StartCoroutine(DiagScanBigRender());
 #endif
 
             BuildBoard("BoardE", EnemyX, BoardY, false);
@@ -1266,6 +1248,27 @@ namespace WanXiang.Battle.Presentation
         /// 有美术图就显示美术图（按立绘尺寸自动缩放，`Scale`/`OffsetY` 可调），
         /// 没图则用该状态的半透明色块兜底 —— **不挂任何美术也看得见**。
         /// </summary>
+#if UNITY_EDITOR
+        /// <summary>临时诊断：延后一帧，列出所有"显示尺寸 &gt; 3 世界单位"的渲染物（含 UGUI）。</summary>
+        private System.Collections.IEnumerator DiagScanBigRender()
+        {
+            yield return null;
+            yield return null;
+            foreach (var r in transform.GetComponentsInChildren<Renderer>(true))
+            {
+                var b = r.bounds;                 // 世界空间包围盒
+                if (Mathf.Max(b.size.x, b.size.y) <= 3f) continue;
+                string path = r.gameObject.name;
+                var q = r.transform.parent;
+                while (q != null && q != transform) { path = q.name + "/" + path; q = q.parent; }
+                Debug.Log("[BigRender] " + r.GetType().Name + "  " + path
+                    + "  世界尺寸=" + b.size.x.ToString("F2") + "x" + b.size.y.ToString("F2")
+                    + "  enabled=" + r.enabled);
+            }
+            Debug.Log("[BigRender] 扫描结束");
+        }
+#endif
+
         private void SetOverlay2D(UnitView2D v, string ids)
         {
             if (v.Overlay == null || v.Body == null) return;
