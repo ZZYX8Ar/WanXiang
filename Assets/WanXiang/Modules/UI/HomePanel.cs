@@ -38,7 +38,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button  _btnOmen;         // Hot_Omen      天象（底排卷轴图标）
         [SerializeField] private Button  _btnSettings;     // Btn_Settings  设置
         [SerializeField] private Button  _btnHistory;      // Btn_History   历程（最近 10 局）
-        [SerializeField] private HomeMapRing _homeMap;     // Map_Ring      中央四季节气环（进图刷新进度）
+        [SerializeField] private HomeMapJourney _homeMap;  // Map_Journey   中央四季旅程图（进图刷新进度）
 
         [Header("数据引用（由生成器自动绑定）")]
         [SerializeField] private ContentCatalogSO _contentCatalog;

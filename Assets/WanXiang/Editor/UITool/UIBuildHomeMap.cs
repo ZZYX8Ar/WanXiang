@@ -1,22 +1,21 @@
 // ============================================================================
-//  UI 工具：主界面中央地图（四季节气环 · 终末地风格）
+//  万相 · UI 工具：主界面「四季旅程」横卷地图（旅行者风，替代终末地圆环）
 //  ---------------------------------------------------------------------------
-//  在 Panel_Home.prefab 中央补出 HomeMapRing 所需的整套节点（Ensure 语义：
-//  只补缺，绝不重建/移动已有节点），并接好全部 SerializedField 绑定。
+//  在 Panel_Home.prefab 中央补出 HomeMapJourney 所需的整套节点（Ensure 语义：
+//  只补缺；旧 Map_Ring 若还在则删掉重建，因为整棵都是工具生成的、无手工美术）：
 //
-//  结构（新增部分，Map_Ring 垫在 Img_HeroSprite 之下 = 立绘在地图上层）：
 //    Panel_Home
-//    └─ Map_Ring   (560×560 居中, HomeMapRing; 悬浮事件从子节点冒泡上来)
-//       ├─ Map_Tilt        悬浮晃动作用层（旋转/平移/放大都动它）
-//       │  ├─ Img_MapDisc   等高线圆盘（raycastTarget=true，悬浮事件入口）
-//       │  ├─ Img_Sea_Spring / Summer / Autumn / Winter（扇区 Radial360）
-//       │  ├─ Map_Nodes     24 节点容器
-//       │  │  └─ Nde_Template  节点模板（默认隐藏，运行时克隆 24 个）
-//       │  └─ Img_MapFrame  外环 + 刻度
-//       ├─ Img_Marker      当前节气菱形标记
+//    └─ Map_Journey  (1240×300 居中, HomeMapJourney; 插到 Img_HeroSprite 之前=垫在立绘下)
+//       ├─ Map_Par        视差作用层
+//       │  ├─ Img_Terrain  地形长卷（左→右 春夏秋冬，raycastTarget=true 悬浮入口）
+//       │  ├─ Map_Nodes    24 个已烘焙节气节点（运行时只染色，不建节点）
+//       │  │  └─ Nde_Term_立春 … Nde_Term_大寒
+//       │  ├─ Tmp_Season_0..3  四季名标签（春/夏/秋/冬，各自季色，静态）
+//       │  ├─ Img_Fog       迷雾（从当前进度盖到右缘，左缘渐隐）
+//       │  └─ Img_Flag      旅行者小旗（当前位置）
 //       └─ Tmp_MapLabel    中央「第X幕·春 / 节气」
 //
-//  幂等：Map_Ring 已存在时只重做绑定与美术导入设置，不动布局。
+//  幂等：Map_Journey 已存在则销毁重建（全子树工具生成）。
 // ============================================================================
 
 #if UNITY_EDITOR
@@ -39,7 +38,10 @@ namespace WanXiang.EditorTools
         private const string BackupDir  = @"D:\Unity_Project\MYRIAD\_backups";
         private const string ReportPath = "Temp/WanXiangDiag/homemap_report.txt";
 
-        [MenuItem("WanXiang/UI/主界面中央地图（四季环）", priority = 112)]
+        private const float StripW = 1240f;
+        private const float StripH = 300f;
+
+        [MenuItem("WanXiang/UI/主界面四季旅程图（横卷）", priority = 112)]
         public static void Build()
         {
             if (!File.Exists(PrefabPath))
@@ -54,20 +56,20 @@ namespace WanXiang.EditorTools
             var root = PrefabUtility.LoadPrefabContents(PrefabPath);
             try
             {
-                bool created = EnsureRing(root);
-                WireRing(root);
+                EnsureJourney(root);
+                var comp = WireJourney(root);
+
                 PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();
-                Debug.Log("[HomeMap] " + (created ? "已新建 Map_Ring 并" : "Map_Ring 已存在，仅")
-                          + "保存 prefab → " + PrefabPath);
+                Debug.Log("[HomeMap] 已保存 prefab → " + PrefabPath);
+
+                bool ok = Verify(comp);
+                Debug.Log("[HomeMap] 核验 " + (ok ? "全部通过 ✓（报告见 " + ReportPath + "）" : "有缺项 ✗（见报告）"));
             }
             finally
             {
                 PrefabUtility.UnloadPrefabContents(root);
             }
-
-            bool ok = Verify();
-            Debug.Log("[HomeMap] 核验 " + (ok ? "全部通过 ✓（报告见 " + ReportPath + "）" : "有缺项 ✗（见报告）"));
         }
 
         // ------------------------------------------------------------------ 备份（工程外）
@@ -91,16 +93,12 @@ namespace WanXiang.EditorTools
         // ------------------------------------------------------------------ 美术导入设置
         private static void EnsureArtImportSettings()
         {
-            string[] files = { "map_disc.png", "map_frame.png", "map_sector_glow.png", "map_node.png", "map_marker.png" };
+            string[] files = { "journey_terrain.png", "journey_fog.png", "journey_flag.png", "map_node.png" };
             foreach (var f in files)
             {
                 string p = ArtDir + "/" + f;
                 var imp = AssetImporter.GetAtPath(p) as TextureImporter;
-                if (imp == null)
-                {
-                    Debug.LogWarning("[HomeMap] 缺美术：" + p + "（应先跑 _tools/_gen_homemap.py）");
-                    continue;
-                }
+                if (imp == null) { Debug.LogWarning("[HomeMap] 缺美术：" + p + "（应先跑 _tools/_gen_homemap2.py）"); continue; }
                 if (imp.textureType != TextureImporterType.Sprite || imp.mipmapEnabled)
                 {
                     imp.textureType = TextureImporterType.Sprite;
@@ -117,73 +115,110 @@ namespace WanXiang.EditorTools
         }
 
         // ------------------------------------------------------------------ Ensure 节点
-        private static bool EnsureRing(GameObject root)
+        private static void EnsureJourney(GameObject root)
         {
-            if (FindDeep(root.transform, "Map_Ring") != null) return false;
+            // 旧圆环（若还在）→ 删（全子树工具生成，无手工美术）
+            var oldRing = FindDeep(root.transform, "Map_Ring");
+            if (oldRing != null)
+            {
+                UnityEngine.Object.DestroyImmediate(oldRing.gameObject);
+                Debug.Log("[HomeMap] 已删除旧 Map_Ring（圆环方案）");
+            }
 
-            // Map_Ring 垫在立绘之下：插到 Img_HeroSprite 之前
+            var j = FindDeep(root.transform, "Map_Journey");
+            if (j != null)
+            {
+                UnityEngine.Object.DestroyImmediate(j.gameObject);
+                Debug.Log("[HomeMap] Map_Journey 已存在 → 销毁重建");
+            }
+
             var hero = FindDeep(root.transform, "Img_HeroSprite");
             Transform parent = hero != null ? hero.transform.parent : root.transform;
 
-            var ring = NewUI("Map_Ring", parent, 560f, 560f);
-            ring.AddComponent<HomeMapRing>();
+            var journey = NewUI("Map_Journey", parent, StripW, StripH);
+            journey.AddComponent<HomeMapJourney>();
 
-            var tilt = NewUI("Map_Tilt", ring.transform, 560f, 560f);
+            var par = NewUI("Map_Par", journey.transform, StripW, StripH);
 
-            // 圆盘：唯一的 raycastTarget（悬浮事件入口）
-            var disc = NewUI("Img_MapDisc", tilt.transform, 560f, 560f);
-            var discImg = disc.AddComponent<Image>();
-            discImg.sprite = LoadSprite("map_disc.png");
-            discImg.raycastTarget = true;
+            // 地形长卷（raycast 入口）
+            var terrain = NewUI("Img_Terrain", par.transform, StripW, StripH);
+            var terrainImg = terrain.AddComponent<Image>();
+            terrainImg.sprite = LoadSprite("journey_terrain.png");
+            terrainImg.raycastTarget = true;
 
-            // 四季扇区（Radial360 填充，运行时由 HomeMapRing 控 fillAmount/color）
-            string[] seaNames = { "Img_Sea_Spring", "Img_Sea_Summer", "Img_Sea_Autumn", "Img_Sea_Winter" };
-            foreach (var n in seaNames)
+            // 24 节气节点（位置公式与 _gen_homemap2.py / HomeMapJourney 一致）
+            string[] terms =
             {
-                var go = NewUI(n, tilt.transform, 560f, 560f);
-                var img = go.AddComponent<Image>();
-                img.sprite = LoadSprite("map_sector_glow.png");
-                img.type = Image.Type.Filled;
-                img.fillMethod = Image.FillMethod.Radial360;
-                img.fillClockwise = true;
-                img.raycastTarget = false;
+                "立春","雨水","惊蛰","春分","清明","谷雨","立夏","小满","芒种","夏至","小暑","大暑",
+                "立秋","处暑","白露","秋分","寒露","霜降","立冬","小雪","大雪","冬至","小寒","大寒",
+            };
+            var nodesRoot = NewUI("Map_Nodes", par.transform, StripW, StripH);
+            for (int k = 0; k < 24; k++)
+            {
+                float xf = (k + 1) / 25f;
+                float x = xf * StripW - StripW * 0.5f;
+                float y = Mathf.Sin(k * 0.9f) * 24f;
+                var node = NewUI("Nde_Term_" + terms[k], nodesRoot.transform, 26f, 26f);
+                var ni = node.AddComponent<Image>();
+                ni.sprite = LoadSprite("map_node.png");
+                ni.raycastTarget = false;
+                var nrt = (RectTransform)node.transform;
+                nrt.anchoredPosition = new Vector2(x, y);
             }
 
-            // 24 节点容器 + 模板
-            var nodesRoot = NewUI("Map_Nodes", tilt.transform, 560f, 560f);
-            var nodeT = NewUI("Nde_Template", nodesRoot.transform, 26f, 26f);
-            var nodeImg = nodeT.AddComponent<Image>();
-            nodeImg.sprite = LoadSprite("map_node.png");
-            nodeImg.raycastTarget = false;
-            nodeT.SetActive(false);
+            // 四季名标签（静态，季色）
+            Color[] seasonCols =
+            {
+                new Color(0.38f, 0.72f, 0.42f), new Color(0.92f, 0.46f, 0.34f),
+                new Color(0.90f, 0.68f, 0.28f), new Color(0.48f, 0.70f, 0.95f),
+            };
+            string[] seasonNames = { "春", "夏", "秋", "冬" };
+            for (int s = 0; s < 4; s++)
+            {
+                int centerNode = 6 * s + 2;                    // 每季中段节点
+                float xf = (centerNode + 1) / 25f;
+                float x = xf * StripW - StripW * 0.5f;
+                var lab = NewUI("Tmp_Season_" + s, par.transform, 140f, 44f);
+                var tmp = lab.AddComponent<TextMeshProUGUI>();
+                if (UIBuild.Font != null) tmp.font = UIBuild.Font;
+                tmp.text = seasonNames[s];
+                tmp.fontSize = 30;
+                tmp.alignment = TextAlignmentOptions.Center;
+                tmp.color = seasonCols[s];
+                tmp.raycastTarget = false;
+                ((RectTransform)lab.transform).anchoredPosition = new Vector2(x, 108f);
+            }
 
-            // 外环刻度
-            var frame = NewUI("Img_MapFrame", tilt.transform, 560f, 560f);
-            var frameImg = frame.AddComponent<Image>();
-            frameImg.sprite = LoadSprite("map_frame.png");
-            frameImg.raycastTarget = false;
+            // 迷雾（运行时控锚点；初始铺满）
+            var fog = NewUI("Img_Fog", par.transform, StripW, StripH);
+            var fogImg = fog.AddComponent<Image>();
+            fogImg.sprite = LoadSprite("journey_fog.png");
+            fogImg.raycastTarget = false;
+            var frt = (RectTransform)fog.transform;
+            frt.anchorMin = Vector2.zero; frt.anchorMax = Vector2.one;
+            frt.offsetMin = frt.offsetMax = Vector2.zero;
 
-            // 当前节气标记
-            var marker = NewUI("Img_Marker", ring.transform, 34f, 34f);
-            var markerImg = marker.AddComponent<Image>();
-            markerImg.sprite = LoadSprite("map_marker.png");
-            markerImg.raycastTarget = false;
+            // 旅行者小旗
+            var flag = NewUI("Img_Flag", par.transform, 40f, 40f);
+            var flagImg = flag.AddComponent<Image>();
+            flagImg.sprite = LoadSprite("journey_flag.png");
+            flagImg.raycastTarget = false;
 
             // 中央文案
-            var labelGo = NewUI("Tmp_MapLabel", ring.transform, 280f, 110f);
-            var tmp = labelGo.AddComponent<TextMeshProUGUI>();
-            if (UIBuild.Font != null) tmp.font = UIBuild.Font;
-            tmp.text = "第1幕 · 春\n立春";
-            tmp.fontSize = 30;
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = new Color(0.45f, 0.88f, 0.55f, 1f);
-            tmp.raycastTarget = false;
+            var labelGo = NewUI("Tmp_MapLabel", journey.transform, 340f, 100f);
+            var tmpL = labelGo.AddComponent<TextMeshProUGUI>();
+            if (UIBuild.Font != null) tmpL.font = UIBuild.Font;
+            tmpL.text = "第1幕 · 春\n立春";
+            tmpL.fontSize = 30;
+            tmpL.alignment = TextAlignmentOptions.Center;
+            tmpL.color = seasonCols[0];
+            tmpL.raycastTarget = false;
+            ((RectTransform)labelGo.transform).anchoredPosition = new Vector2(0f, 118f);
 
-            // 垫到立绘下面
-            if (hero != null) ring.transform.SetSiblingIndex(hero.transform.GetSiblingIndex());
+            // 垫到立绘之下
+            if (hero != null) journey.transform.SetSiblingIndex(hero.transform.GetSiblingIndex());
 
-            Debug.Log("[HomeMap] + Map_Ring（四季环整套，垫在 Img_HeroSprite 之下）");
-            return true;
+            Debug.Log("[HomeMap] + Map_Journey（四季横卷：地形+24节点+四季名+迷雾+小旗，垫在立绘下）");
         }
 
         private static GameObject NewUI(string name, Transform parent, float w, float h)
@@ -198,132 +233,107 @@ namespace WanXiang.EditorTools
         }
 
         // ------------------------------------------------------------------ 绑定
-        private static void WireRing(GameObject root)
+        private static HomeMapJourney WireJourney(GameObject root)
         {
-            var ring = FindDeep(root.transform, "Map_Ring");
-            var comp = ring != null ? ring.GetComponent<HomeMapRing>() : null;
-            if (comp == null) { Debug.LogError("[HomeMap] Map_Ring 上没有 HomeMapRing 组件"); return; }
+            var journey = FindDeep(root.transform, "Map_Journey");
+            var comp = journey != null ? journey.GetComponent<HomeMapJourney>() : null;
+            if (comp == null) { Debug.LogError("[HomeMap] Map_Journey 上无 HomeMapJourney 组件"); return null; }
 
             var so = new SerializedObject(comp);
-            Bind(so, "_tilt",   FindDeep(ring, "Map_Tilt"),    typeof(RectTransform));
-            Bind(so, "_disc",   FindDeep(ring, "Img_MapDisc"), typeof(Image));
-            Bind(so, "_frame",  FindDeep(ring, "Img_MapFrame"), typeof(Image));
-            Bind(so, "_nodesRoot", FindDeep(ring, "Map_Nodes"), typeof(RectTransform));
-            Bind(so, "_nodeTemplate", FindDeep(ring, "Nde_Template"), typeof(Image));
-            Bind(so, "_marker", FindDeep(ring, "Img_Marker"),  typeof(Image));
-            Bind(so, "_label",  FindDeep(ring, "Tmp_MapLabel"), typeof(TMP_Text));
-
-            var sectors = so.FindProperty("_sectors");
-            if (sectors != null && sectors.isArray)
-            {
-                string[] names = { "Img_Sea_Spring", "Img_Sea_Summer", "Img_Sea_Autumn", "Img_Sea_Winter" };
-                sectors.arraySize = 4;
-                for (int i = 0; i < 4; i++)
-                {
-                    var t = FindDeep(ring, names[i]);
-                    sectors.GetArrayElementAtIndex(i).objectReferenceValue =
-                        t != null ? t.GetComponent<Image>() : null;
-                }
-            }
+            Bind(so, "_par",      FindDeep(journey, "Map_Par"));
+            Bind(so, "_terrain",  FindDeep(journey, "Img_Terrain"));
+            Bind(so, "_fog",      FindDeep(journey, "Img_Fog"));
+            Bind(so, "_nodesRoot", FindDeep(journey, "Map_Nodes"));
+            Bind(so, "_marker",   FindDeep(journey, "Img_Flag"));
+            Bind(so, "_label",    FindDeep(journey, "Tmp_MapLabel"));
             so.ApplyModifiedPropertiesWithoutUndo();
-            Debug.Log("[HomeMap] HomeMapRing 字段绑定完成");
+            Debug.Log("[HomeMap] HomeMapJourney 字段绑定完成");
 
-            // 顺带接 HomePanel._homeMap（主城每次打开 → Refresh）
+            // 顺带接 HomePanel._homeMap
             var panel = root.GetComponent<WanXiang.Modules.UI.HomePanel>();
             if (panel != null)
             {
                 var pso = new SerializedObject(panel);
                 var pp = pso.FindProperty("_homeMap");
-                if (pp != null)
-                {
-                    pp.objectReferenceValue = comp;
-                    pso.ApplyModifiedPropertiesWithoutUndo();
-                    Debug.Log("[HomeMap] HomePanel._homeMap ← Map_Ring ✓");
-                }
+                if (pp != null) { pp.objectReferenceValue = comp; pso.ApplyModifiedPropertiesWithoutUndo(); Debug.Log("[HomeMap] HomePanel._homeMap ← Map_Journey ✓"); }
             }
+            return comp;
         }
 
-        private static void Bind(SerializedObject so, string field, Transform node, Type type)
+        // 按字段真实类型取组件：RectTransform / Image / TMP_Text 各取所需
+        // （旧版写死 GetComponent<Image>()，会把 _par/_nodesRoot/_label 漏绑）
+        private static void Bind(SerializedObject so, string field, Transform node)
         {
             var p = so.FindProperty(field);
-            if (p == null) { Debug.LogError("[HomeMap] HomeMapRing 找不到字段 " + field); return; }
-            if (node == null) { Debug.LogError("[HomeMap] prefab 里找不到节点（绑定 " + field + " 失败）"); return; }
-            var c = node.GetComponent(type);
-            if (c == null) { Debug.LogError("[HomeMap] 节点 " + node.name + " 上没有 " + type.Name); return; }
+            if (p == null) { Debug.LogError("[HomeMap] 找不到字段 " + field); return; }
+            if (node == null) { Debug.LogError("[HomeMap] prefab 缺节点（绑定 " + field + "）"); return; }
+            var ft = typeof(HomeMapJourney).GetField(field, BindingFlags.Instance | BindingFlags.NonPublic);
+            if (ft == null) { Debug.LogError("[HomeMap] 反射不到字段 " + field); return; }
+            var c = node.GetComponent(ft.FieldType);
+            if (c == null) { Debug.LogError("[HomeMap] 节点 " + node.name + " 无 " + ft.FieldType.Name + " 组件"); return; }
             p.objectReferenceValue = c;
         }
 
         // ------------------------------------------------------------------ 反射核验
-        private static bool Verify()
+        private static bool Verify(HomeMapJourney comp)
         {
             var sb = new StringBuilder();
             sb.AppendLine("=== HomeMap 核验 " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " ===");
             bool ok = true;
-
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
-            if (prefab == null) { Debug.LogError("[HomeMap] prefab 载入失败"); return false; }
-
-            var ring = FindDeep(prefab.transform, "Map_Ring");
-            if (ring == null) { Debug.LogError("[HomeMap] 核验失败：Map_Ring 不存在"); return false; }
-            var comp = ring.GetComponent<HomeMapRing>();
-            if (comp == null) { Debug.LogError("[HomeMap] 核验失败：HomeMapRing 组件缺失"); return false; }
+            if (comp == null) { sb.AppendLine("✗ 组件缺失"); WriteReport(sb.ToString()); Debug.Log(sb.ToString()); return false; }
 
             var flags = BindingFlags.Instance | BindingFlags.NonPublic;
-            foreach (var f in typeof(HomeMapRing).GetFields(flags))
+            foreach (var f in typeof(HomeMapJourney).GetFields(flags))
             {
                 if (!f.IsPublic && f.GetCustomAttribute<SerializeField>() == null) continue;
-                if (f.FieldType == typeof(HomeMapRing)) continue;   // 自引用跳过
-
-                object v = f.GetValue(comp);
-                var arr = v as Array;
-                if (arr != null)
-                {
-                    int bad = 0;
-                    foreach (var e in arr) if (e == null) bad++;
-                    sb.AppendLine((bad == 0 ? "✓ " : "✗ ") + f.Name + " len=" + arr.Length + (bad > 0 ? " 缺" + bad : ""));
-                    if (bad > 0) ok = false;
-                }
-                else if (v == null)
-                {
-                    // 表现参数（float 等）有默认值不为 null；对象字段为 null 才算缺
-                    if (f.FieldType.IsClass) { sb.AppendLine("✗ " + f.Name + " = null"); ok = false; }
-                    else sb.AppendLine("· " + f.Name + " = " + v);
-                }
+                if (f.FieldType == typeof(HomeMapJourney)) continue;
+                var v = f.GetValue(comp);
+                if (v == null && f.FieldType.IsClass) { sb.AppendLine("✗ " + f.Name + " = null"); ok = false; }
                 else sb.AppendLine("✓ " + f.Name);
             }
 
-            // 垫底位置：Map_Ring 必须在 Img_HeroSprite 之前
-            var hero = FindDeep(prefab.transform, "Img_HeroSprite");
-            if (hero != null && ring.GetSiblingIndex() > hero.GetSiblingIndex())
+            var journey = (comp.transform as RectTransform);
+            // 节点数
+            var nodesRoot = FindDeep(journey, "Map_Nodes");
+            if (nodesRoot != null)
             {
-                sb.AppendLine("✗ Map_Ring 应垫在立绘之下（sibling " + ring.GetSiblingIndex()
-                              + " > hero " + hero.GetSiblingIndex() + "）");
-                ok = false;
+                if (nodesRoot.childCount == 24) sb.AppendLine("✓ Map_Nodes 24 个节气节点");
+                else { sb.AppendLine("✗ Map_Nodes 节点数=" + nodesRoot.childCount); ok = false; }
             }
-            else sb.AppendLine("✓ Map_Ring 层级（垫在立绘之下）");
+            else { sb.AppendLine("✗ 缺 Map_Nodes"); ok = false; }
 
-            // 关键行为：圆盘必须可接收射线（悬浮事件入口）
-            var disc = FindDeep(ring, "Img_MapDisc");
-            var discImg = disc != null ? disc.GetComponent<Image>() : null;
-            if (discImg == null || !discImg.raycastTarget)
-            {
-                sb.AppendLine("✗ Img_MapDisc 必须 raycastTarget=true（否则悬浮无事件）");
-                ok = false;
-            }
-            else sb.AppendLine("✓ Img_MapDisc.raycastTarget=true");
+            // 垫底位置
+            var hero = FindDeep(journey, "Img_HeroSprite") ?? FindHeroParent(journey.root);
+            if (hero != null && journey.GetSiblingIndex() > hero.GetSiblingIndex())
+            { sb.AppendLine("✗ Map_Journey 应垫在立绘之下"); ok = false; }
+            else sb.AppendLine("✓ 层级（垫在立绘下）");
 
-            var tpl = FindDeep(ring, "Nde_Template");
-            if (tpl == null || tpl.gameObject.activeSelf)
+            // 关键行为
+            var terrain = FindDeep(journey, "Img_Terrain");
+            var ti = terrain != null ? terrain.GetComponent<Image>() : null;
+            if (ti == null || !ti.raycastTarget) { sb.AppendLine("✗ Img_Terrain 必须 raycastTarget=true"); ok = false; }
+            else sb.AppendLine("✓ Img_Terrain.raycastTarget=true");
+
+            // 仅 Image 节点查 sprite；Tmp_MapLabel 是 TMP_Text，单独核
+            foreach (var n in new[] { "Img_Fog", "Img_Flag" })
             {
-                sb.AppendLine("✗ Nde_Template 必须存在且默认隐藏");
-                ok = false;
+                var t = FindDeep(journey, n);
+                var img = t != null ? t.GetComponent<Image>() : null;
+                if (img == null || img.sprite == null) { sb.AppendLine("✗ " + n + " 缺 sprite"); ok = false; }
+                else sb.AppendLine("✓ " + n + " sprite 就绪");
             }
-            else sb.AppendLine("✓ Nde_Template 隐藏");
+            var lab = FindDeep(journey, "Tmp_MapLabel");
+            if (lab == null || lab.GetComponent<TMP_Text>() == null) { sb.AppendLine("✗ Tmp_MapLabel 缺失 TMP_Text"); ok = false; }
+            else sb.AppendLine("✓ Tmp_MapLabel (TMP_Text) 就绪");
 
             sb.AppendLine(ok ? "=== 全部通过 ===" : "=== 存在缺项 ===");
             WriteReport(sb.ToString());
-            Debug.Log("[HomeMap] 核验报告 → " + ReportPath + "\n" + sb.ToString());
             return ok;
+        }
+
+        private static Transform FindHeroParent(Transform root)
+        {
+            return FindDeep(root, "Img_HeroSprite");
         }
 
         private static void WriteReport(string text)
