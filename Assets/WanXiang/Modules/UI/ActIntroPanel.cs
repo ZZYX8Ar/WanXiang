@@ -235,26 +235,96 @@ namespace WanXiang.Modules.UI
             CloseSelf();
         }
 
+        /// <summary>逐笔书写用：克隆出来的单字图（每字一张，切 sprite 推进笔画）。</summary>
+        private readonly List<Image> _titleCharImgs = new List<Image>(8);
+
+        /// <summary>整句写完的目标总时长（秒）；实际按总笔画数分摊，单笔 0.04~0.18s。</summary>
+        private float _writeTotal = 2.4f;
+
         /// <summary>
-        /// 书写：用 **TMP 自带的 `maxVisibleCharacters`** 从左往右逐字扫出。
-        /// ⛔ 曾经用 `RectMask2D` 做遮罩扫过（效果更像"扫"），但在真机上标题**整行看不见**，
-        ///   查了多轮（日志/几何/字形全部正常）仍未定位 ⇒ 按**"可见优先"**改回 TMP 原生能力。
-        ///   原则：效果可以让步，内容不能被裁没。
+        /// 书写：用**真实笔顺数据**逐笔写出。
+        /// 帧图放在 `Resources/UI/TitleStroke/&lt;字&gt;/&lt;n&gt;.png`，**第 n 帧 = 画完前 n 笔**；
+        /// 数据来源 Hanzi Writer / Make Me a Hanzi（1024 网格、y 向下，MIT）。
+        /// ⛔ 任一字符缺帧 ⇒ **整体回退**到 TMP 的 `maxVisibleCharacters` 扫出（宁可不好看，也不能不显示）。
         /// </summary>
         private async UniTask WriteTitleAsync(ActTitle t)
         {
             if (_tmpTitleMain == null) return;
-            _tmpTitleMain.text = t.Main;                 // 双保险：这里再设一次
+            _tmpTitleMain.text = t.Main;
+            string text = t.Main ?? "";
+            if (string.IsNullOrEmpty(text)) return;
+
+            var tpl = transform.Find("Root_Title/Img_TitleChar") as RectTransform;
+            if (tpl == null) { await WriteByTmpAsync(text); return; }
+
+            // ---- 探帧：先数清每个字有多少帧，任一为 0 就整体回退 ----
+            var counts = new List<int>(text.Length);
+            for (int i = 0; i < text.Length; i++)
+            {
+                int c = 0;
+                while (Resources.Load<Sprite>("UI/TitleStroke/" + text[i] + "/" + (c + 1)) != null) c++;
+                counts.Add(c);
+            }
+            for (int i = 0; i < counts.Count; i++)
+                if (counts[i] <= 0) { Dbg("字「" + text[i] + "」无笔顺帧 ⇒ 回退 TMP 扫出"); await WriteByTmpAsync(text); return; }
+
+            // ---- 布局：CJK 等宽，按字号步进、整体居中，纵向与 TMP 同一基准 ----
+            float step = _tmpTitleMain.fontSize * 1.18f;
+            float baseY = _tmpTitleMain.rectTransform.anchoredPosition.y;
+            float x0 = -(text.Length - 1) * 0.5f * step;
+            _tmpTitleMain.enabled = false;                       // 关掉 TMP，改用帧图
+
+            for (int i = 0; i < text.Length; i++)
+            {
+                // ⛔ Instantiate(tpl) 里 tpl 是 RectTransform ⇒ 返回的也是 RectTransform，
+                //   **不能直接取 .sprite/.enabled**（那是 Image 的成员）⇒ 分开取。
+                var clone = Instantiate(tpl, tpl.parent);
+                clone.gameObject.SetActive(true);
+                clone.anchoredPosition = new Vector2(x0 + i * step, baseY);
+                clone.localScale = Vector3.one;
+                var img = clone.GetComponent<Image>();
+                if (img != null)
+                {
+                    img.enabled = true;
+                    var s1 = Resources.Load<Sprite>("UI/TitleStroke/" + text[i] + "/1");
+                    if (s1 != null) img.sprite = s1;
+                }
+                _titleCharImgs.Add(img);
+            }
+
+            int totalStrokes = 0;
+            for (int i = 0; i < counts.Count; i++) totalStrokes += counts[i];
+            float per = Mathf.Clamp(_writeTotal / Mathf.Max(1, totalStrokes), 0.04f, 0.18f);
+
+            // ---- 逐字逐笔推进（第 1 笔创建时就已显示）----
+            for (int i = 0; i < text.Length; i++)
+            {
+                for (int k = 2; k <= counts[i]; k++)
+                {
+                    var img = _titleCharImgs[i];
+                    if (img == null) continue;
+                    var s = Resources.Load<Sprite>("UI/TitleStroke/" + text[i] + "/" + k);
+                    if (s != null) img.sprite = s;
+                    img.rectTransform.localScale = Vector3.one * 1.05f;   // 落笔顿一下
+                    await UniTask.Delay(Ms(per * 0.45f));
+                    if (img != null) img.rectTransform.localScale = Vector3.one;
+                    await UniTask.Delay(Ms(per * 0.55f));
+                }
+            }
+            Dbg("书写完成（真实笔顺） 文本=\"" + text + "\" 笔画总数=" + totalStrokes
+                + " 单笔=" + per.ToString("F3") + "s 字数=" + text.Length);
+        }
+
+        /// <summary>回退方案：TMP 原生逐字扫出（没有笔顺帧时用，保证一定有东西显示）。</summary>
+        private async UniTask WriteByTmpAsync(string text)
+        {
+            if (_tmpTitleMain == null) return;
+            _tmpTitleMain.enabled = true;
+            _tmpTitleMain.text = text;
             _tmpTitleMain.maxVisibleCharacters = 0;
             _tmpTitleMain.ForceMeshUpdate();
             int n = _tmpTitleMain.textInfo.characterCount;
-            if (n <= 0)
-            {
-                _tmpTitleMain.maxVisibleCharacters = 9999;
-                Dbg("书写：字符数=0（字体缺字？）⇒ 直接全显");
-                return;
-            }
-
+            if (n <= 0) { _tmpTitleMain.maxVisibleCharacters = 9999; return; }
             float per = Mathf.Max(0.06f, _charInterval);
             for (int i = 1; i <= n; i++)
             {
@@ -262,9 +332,6 @@ namespace WanXiang.Modules.UI
                 await UniTask.Delay(Ms(per));
             }
             _tmpTitleMain.maxVisibleCharacters = 9999;
-            Dbg("书写完成 字符数=" + n + " 文本=\"" + _tmpTitleMain.text + "\""
-                + " 颜色=" + _tmpTitleMain.color + " alpha=" + _tmpTitleMain.alpha
-                + " 世界位置=" + _tmpTitleMain.rectTransform.position);
         }
 
         private static int Ms(float seconds) { return Mathf.Max(1, (int)(seconds * 1000f)); }
