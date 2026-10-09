@@ -1251,6 +1251,13 @@ namespace WanXiang.Battle.Presentation
 
             var art = ResolveStatusArt(best.Id, best.Art);
             Vector2 bodySize = v.Body.sprite != null ? v.Body.sprite.bounds.size : new Vector2(1f, 1.4f);
+            // ⛔ 修正： 是**本地空间**尺寸（= 像素/PPU），
+            //   立绘被 transform 缩放后**并不等于显示尺寸**。
+            //   Boss 立绘 1024@100 ⇒ 这里会算成 10.24，而实际只显示 ~2.6
+            //   ⇒ 直接拿它当基准，会把状态特效放大 3~4 倍（用户实测：特效图太大了）。
+            //   乘上物体缩放才是立绘实际占多大，特效才会与立绘同尺寸。
+            var bodyScale = v.Body.transform.lossyScale;
+            bodySize = new Vector2(bodySize.x * Mathf.Abs(bodyScale.x), bodySize.y * Mathf.Abs(bodyScale.y));
             if (art != null)
             {
                 var a = art.bounds.size;
