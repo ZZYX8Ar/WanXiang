@@ -61,7 +61,7 @@ namespace WanXiang.Modules.UI
 
         // ---- 诊断（用户要求：看不到效果时先看 Console）----
         [Header("诊断")]
-        [SerializeField] private bool _debugLog = true;
+        [SerializeField] private bool _debugLog = false;   // 排查完关掉（需要时在 Inspector 勾上）
         private void Dbg(string msg)
         {
             if (_debugLog) Debug.Log("[ActIntro] " + msg);
