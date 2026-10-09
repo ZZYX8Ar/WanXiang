@@ -53,69 +53,8 @@ namespace WanXiang.Modules.UI
             }
             if (_orderPanel != null) { _orderPanel.gameObject.SetActive(false); return; }   // 只绑了面板没绑行：显示空壳，不崩
 
-            var go = new GameObject("Root_OrderList", typeof(RectTransform));
-            _orderPanel = (RectTransform)go.transform;
-            _orderPanel.SetParent(transform, false);
-            _orderPanel.anchorMin = _orderPanel.anchorMax = new Vector2(1f, 1f);
-            _orderPanel.pivot = new Vector2(1f, 1f);
-            _orderPanel.sizeDelta = new Vector2(330f, 380f);
-            _orderPanel.anchoredPosition = new Vector2(-24f, -120f);
-            var bg = go.AddComponent<Image>();
-            bg.color = new Color(0.11f, 0.09f, 0.07f, 0.62f);
-
-            // 标题
-            var trt = new GameObject("Tmp_Title", typeof(RectTransform)).GetComponent<RectTransform>();
-            trt.SetParent(_orderPanel, false);
-            trt.anchorMin = new Vector2(0f, 1f);
-            trt.anchorMax = new Vector2(1f, 1f);
-            trt.pivot = new Vector2(0.5f, 1f);
-            trt.anchoredPosition = new Vector2(0f, -6f);
-            trt.sizeDelta = new Vector2(-16f, 30f);
-            var title = trt.gameObject.AddComponent<TextMeshProUGUI>();
-            title.text = "行动顺序（按速度）";
-            title.fontSize = 20;
-            title.color = new Color(0.96f, 0.94f, 0.88f, 1f);
-            title.alignment = TextAlignmentOptions.Center;
-            title.raycastTarget = false;
-
-            // 8 行：头像 + 名字
-            _orderRows = new RectTransform[OrderRowCount];
-            _orderHeads = new Image[OrderRowCount];
-            _orderNames = new TMP_Text[OrderRowCount];
-            for (int i = 0; i < OrderRowCount; i++)
-            {
-                var row = new GameObject("Row_" + i, typeof(RectTransform)).GetComponent<RectTransform>();
-                row.SetParent(_orderPanel, false);
-                row.anchorMin = new Vector2(0f, 1f);
-                row.anchorMax = new Vector2(1f, 1f);
-                row.pivot = new Vector2(0.5f, 1f);
-                row.anchoredPosition = new Vector2(0f, -38f - i * 41f);
-                row.sizeDelta = new Vector2(-14f, 38f);
-                _orderRows[i] = row;
-
-                var head = new GameObject("Head", typeof(RectTransform)).GetComponent<RectTransform>();
-                head.SetParent(row, false);
-                head.anchorMin = head.anchorMax = new Vector2(0f, 0.5f);
-                head.pivot = new Vector2(0f, 0.5f);
-                head.anchoredPosition = new Vector2(6f, 0f);
-                head.sizeDelta = new Vector2(36f, 36f);
-                _orderHeads[i] = head.gameObject.AddComponent<Image>();
-                _orderHeads[i].raycastTarget = false;
-                _orderHeads[i].preserveAspect = true;
-
-                var nm = new GameObject("Tmp_Name", typeof(RectTransform)).GetComponent<RectTransform>();
-                nm.SetParent(row, false);
-                nm.anchorMin = Vector2.zero;
-                nm.anchorMax = Vector2.one;
-                nm.offsetMin = new Vector2(50f, 0f);
-                nm.offsetMax = new Vector2(-6f, 0f);
-                _orderNames[i] = nm.gameObject.AddComponent<TextMeshProUGUI>();
-                _orderNames[i].fontSize = 19;
-                _orderNames[i].alignment = TextAlignmentOptions.MidlineLeft;
-                _orderNames[i].raycastTarget = false;
-            }
-            _orderPanel.gameObject.SetActive(false);
-        }
+            // （原「prefab 没有才自建」的兜底段已删除 —— 该分支不可达，UI 一律在 prefab 里做好）
+}
 
         /// <summary>刷新行动顺序（带守卫：只有变化才重建 UI）。</summary>
         private void RefreshOrderList()

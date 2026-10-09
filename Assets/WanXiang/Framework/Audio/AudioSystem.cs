@@ -127,6 +127,12 @@ namespace WanXiang.Framework.Audio
                     var go = new GameObject("[AudioSystem]");
                     UnityEngine.Object.DontDestroyOnLoad(go);
                     _host = go.AddComponent<AudioHost>();   // ⚠ 这行会同步跑 Awake（见 _creatingHost 注释）
+                    // ⚠ 场景里若**没有 AudioListener**，所有音效都是哑的（Unity 会警告 no audio listeners）。
+                    //   只在确实没有时补一个 —— 重复添加会和相机上的监听器冲突并再警告。
+                    if (UnityEngine.Object.FindObjectOfType<UnityEngine.AudioListener>() == null)
+                    {
+                        go.AddComponent<UnityEngine.AudioListener>();
+                    }
                     Apply();                                // 音量在**建完之后**再应用，别让 Awake 去读静态属性
                 }
                 finally { _creatingHost = false; }
