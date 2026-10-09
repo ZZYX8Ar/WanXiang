@@ -281,11 +281,12 @@ namespace WanXiang.Modules.UI
                 var clone = Instantiate(tpl, tpl.parent);
                 clone.gameObject.SetActive(true);
                 clone.anchoredPosition = new Vector2(x0 + i * step, baseY);
-                clone.localScale = Vector3.one;
                 var img = clone.GetComponent<Image>();
                 if (img != null)
                 {
                     img.enabled = true;
+                    // 帧图是**白色**的 ⇒ 在这里用 Image.color 上该幕的颜色（改风格只改 Titles 里的 MainColor）
+                    img.color = t.MainColor;
                     var s1 = Resources.Load<Sprite>("UI/TitleStroke/" + text[i] + "/1");
                     if (s1 != null) img.sprite = s1;
                 }
@@ -305,10 +306,9 @@ namespace WanXiang.Modules.UI
                     if (img == null) continue;
                     var s = Resources.Load<Sprite>("UI/TitleStroke/" + text[i] + "/" + k);
                     if (s != null) img.sprite = s;
-                    img.rectTransform.localScale = Vector3.one * 1.05f;   // 落笔顿一下
-                    await UniTask.Delay(Ms(per * 0.45f));
-                    if (img != null) img.rectTransform.localScale = Vector3.one;
-                    await UniTask.Delay(Ms(per * 0.55f));
+                    // ⛔ 这里**绝不能再加缩放/位移动画**：整字图一动，之前画好的笔画会跟着抖，
+                    //   观感就是"一弹一弹一抖一抖"（用户实测）。笔画推进只切 sprite，不动 transform。
+                    await UniTask.Delay(Ms(per));
                 }
             }
             Dbg("书写完成（真实笔顺） 文本=\"" + text + "\" 笔画总数=" + totalStrokes
