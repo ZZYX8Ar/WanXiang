@@ -278,7 +278,7 @@ CanvasGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1291626945492823707}
   m_Enabled: 1
-  m_Alpha: 1
+  m_Alpha: 0
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
@@ -342,6 +342,8 @@ MonoBehaviour:
     LeafCount: 26
     LeafSpeed: 1
     BgTint: {r: 1, g: 0.97, b: 0.88, a: 1}
+  _inkBlotCount: 4
+  _inkMaxAlpha: 0.11
 --- !u!82 &7850381692692503246
 AudioSource:
   m_ObjectHideFlags: 0

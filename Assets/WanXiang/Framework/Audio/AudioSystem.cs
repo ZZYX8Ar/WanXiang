@@ -37,6 +37,10 @@ namespace WanXiang.Framework.Audio
         private static bool _mute;
         private static bool _loaded;
         private static AudioHost _host;
+        /// <summary>⛔ 建宿主期间的护栏： 会**同步**执行新组件的 Awake，
+        /// 而那一刻  还没被赋值 ⇒ Awake 里若再读 AudioSystem 的属性就会**无限递归**
+        /// （实测：StackOverflowException）。有了它，创建过程中任何重入都会直接返回。</summary>
+        private static bool _creatingHost;
         private static readonly Dictionary<string, AudioClip> _sfxCache = new Dictionary<string, AudioClip>();
         private static readonly Dictionary<string, AudioClip> _bgmCache = new Dictionary<string, AudioClip>();
 
@@ -115,11 +119,17 @@ namespace WanXiang.Framework.Audio
                 _bgm = PlayerPrefs.GetFloat(KeyBgm, 0.6f);
                 _mute = PlayerPrefs.GetInt(KeyMute, 0) != 0;
             }
-            if (_host == null && Application.isPlaying)
+            if (_host == null && Application.isPlaying && !_creatingHost)
             {
-                var go = new GameObject("[AudioSystem]");
-                UnityEngine.Object.DontDestroyOnLoad(go);
-                _host = go.AddComponent<AudioHost>();
+                _creatingHost = true;
+                try
+                {
+                    var go = new GameObject("[AudioSystem]");
+                    UnityEngine.Object.DontDestroyOnLoad(go);
+                    _host = go.AddComponent<AudioHost>();   // ⚠ 这行会同步跑 Awake（见 _creatingHost 注释）
+                    Apply();                                // 音量在**建完之后**再应用，别让 Awake 去读静态属性
+                }
+                finally { _creatingHost = false; }
             }
         }
 
@@ -151,7 +161,9 @@ namespace WanXiang.Framework.Audio
                 s.playOnAwake = false;
                 _pool.Add(s);
             }
-            ApplyVolumes(AudioSystem.SfxVolume, AudioSystem.MusicVolume);
+            // ⛔ 这里**绝不能**读 AudioSystem.SfxVolume / MusicVolume：
+            //   此刻静态字段尚未完成初始化（宿主正在被创建）⇒ 会递归回 EnsureLoaded ⇒ 栈溢出。
+            //   音量统一由 AudioSystem 在宿主建好后调 Apply() 设置。
         }
 
         public void ApplyVolumes(float sfx, float bgm)

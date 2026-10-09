@@ -211,7 +211,14 @@ namespace WanXiang.Modules.UI
             }
 
             ApplySeasonArt(act, t);   // ★ 每幕专属背景 + 粒子图 + 季节染色（缺图自动回退）
+
+            // 分层淡入：**先纸、再边框** —— 让背景"慢慢透出来"，而不是整块啪地出现。
+            // （根 prefab 的 CanvasGroup.alpha 默认已是 0，构即隐形；这里只额外错开边框。）
+            var frameT = transform.Find("Img_Frame");
+            var frameImg = frameT != null ? frameT.GetComponent<Image>() : null;
+            if (frameImg != null) { var fc = frameImg.color; fc.a = 0f; frameImg.color = fc; }
             if (group != null) await FadeAsync(group, 0f, 1f, _fadeIn);
+            if (frameImg != null) await FadeImageAsync(frameImg, 0f, 1f, 0.55f);   // 边框比纸晚一档
             await UniTask.Delay(Ms(_titleStart));
 
             SpawnLeaves(t);
@@ -530,6 +537,23 @@ namespace WanXiang.Modules.UI
                 await UniTask.Yield();
             }
             g.alpha = to;
+        }
+
+        private static async UniTask FadeImageAsync(Image img, float from, float to, float dur)
+        {
+            if (img == null) return;
+            var c = img.color;
+            if (dur <= 0.001f) { c.a = to; img.color = c; return; }
+            float t = 0f;
+            while (t < dur)
+            {
+                t += Time.unscaledDeltaTime;
+                c.a = Mathf.Lerp(from, to, Mathf.Clamp01(t / dur));
+                img.color = c;
+                await UniTask.Yield();
+            }
+            c.a = to;
+            img.color = c;
         }
 
         private static async UniTask FadeTextAsync(TMP_Text txt, float from, float to, float dur)
