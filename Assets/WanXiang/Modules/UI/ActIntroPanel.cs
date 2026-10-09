@@ -59,6 +59,13 @@ namespace WanXiang.Modules.UI
         [SerializeField] private RectTransform _rootLeaves;  // Root_Leaves
         [SerializeField] private Image _itemLeaf;        // Item_Leaf（模板，运行时克隆）
 
+        // ---- 跳过：双击左键 ----
+        [SerializeField] private Button _btnSkip;                  // 全屏透明按钮（prefab 里）
+        [SerializeField] private float _skipDoubleClickGap = 0.35f; // 双击间隔上限（秒）
+        private float _lastSkipClick = -10f;
+        /// <summary>⛔ 静态：静态的渐变辅助方法也要能感知"用户要跳过"。</summary>
+        private static bool s_Skip;
+
         // ---- 诊断（用户要求：看不到效果时先看 Console）----
         [Header("诊断")]
         [SerializeField] private bool _debugLog = false;   // 排查完关掉（需要时在 Inspector 勾上）
@@ -69,12 +76,12 @@ namespace WanXiang.Modules.UI
 
         // ---- 时序（秒）----
         [Header("时序")]
-        [SerializeField] private float _fadeIn = 0.45f;       // 宣纸底淡入
-        [SerializeField] private float _titleStart = 0.25f;   // 起笔前的停顿
+        [SerializeField] private float _fadeIn = 0.30f;       // 宣纸底淡入
+        [SerializeField] private float _titleStart = 0.15f;   // 起笔前的停顿
         [SerializeField] private float _charInterval = 0.16f; // 每个字出现的间隔（"写"的速度）
         [SerializeField] private float _subDelay = 0.25f;     // 主标题写完后，小字延迟多久出现
-        [SerializeField] private float _hold = 1.45f;         // 全部写完后的停留（留够粒子飞出画面）
-        [SerializeField] private float _fadeOut = 0.75f;      // 整屏淡出（长一点，收尾不生硬）
+        [SerializeField] private float _hold = 0.45f;         // 全部写完后的停留（留够粒子飞出画面）
+        [SerializeField] private float _fadeOut = 0.45f;      // 整屏淡出（长一点，收尾不生硬）
 
         /// <summary>四幕文案（= 幕号-1）。⛔ 只想改文案就改这里，别的都不用动。</summary>
         [Header("四幕文案（每幕一条，按幕号顺序）")]
@@ -125,9 +132,31 @@ namespace WanXiang.Modules.UI
             WanXiang.Run.RunSave.SaveCurrent();
         }
 
-        /// <summary>本面板没有需要预先挂钩的控件（动画全在 OnOpenAsync 里跑）—— 但 UIPanelBase 要求实现。</summary>
         protected override void OnCreate()
         {
+            s_Skip = false;                       // 每次创建归零（面板是 Transient，一般只开一次）
+            if (_btnSkip != null)
+            {
+                _btnSkip.onClick.RemoveAllListeners();   // 幂等
+                _btnSkip.onClick.AddListener(OnSkipClicked);
+            }
+        }
+
+        /// <summary>
+        /// 双击左键跳过整段开场。
+        /// 走 UGUI 的 Button（GraphicRaycaster）⇒ **不依赖输入后端**（新旧 Input 都能用），
+        /// 也不用在 Update 里轮询。单击不响应，必须两击间隔在 `_skipDoubleClickGap` 内。
+        /// </summary>
+        private void OnSkipClicked()
+        {
+            if (s_Skip) return;
+            float now = Time.unscaledTime;
+            if (now - _lastSkipClick <= _skipDoubleClickGap)
+            {
+                s_Skip = true;
+                Dbg("双击跳过开场");
+            }
+            _lastSkipClick = now;
         }
 
         protected override UniTask OnOpenAsync(object payload)
@@ -139,6 +168,7 @@ namespace WanXiang.Modules.UI
                 : (Titles != null && Titles.Length > 0 ? Titles[0] : new ActTitle());
 
             MarkShown(act);        // ★ 这里才记账（见 MarkShown 注释）
+            s_Skip = false;        // 每次开场重置跳过标志
             Dbg("打开 act=" + act + " 标题=\"" + (t != null ? t.Main : "?") + "\""
                 + " 主文本=" + (_tmpTitleMain != null ? "有" : "null✗")
                 + (_tmpTitleMain != null ? (" 激活=" + _tmpTitleMain.gameObject.activeInHierarchy
@@ -275,6 +305,7 @@ namespace WanXiang.Modules.UI
             float dur = 0.34f, e = 0f;
             while (e < dur)
             {
+                if (s_Skip) break;
                 e += Time.unscaledDeltaTime;
                 float k = Mathf.Clamp01(e / dur), kk = k * k;
                 rt.anchoredPosition = new Vector2(home.x, Mathf.Lerp(home.y + 240f, home.y, kk));
@@ -288,6 +319,7 @@ namespace WanXiang.Modules.UI
             float d2 = 0.26f; e = 0f;
             while (e < d2)
             {
+                if (s_Skip) break;
                 e += Time.unscaledDeltaTime;
                 float k = Mathf.Clamp01(e / d2);
                 rt.localScale = Vector3.one * Mathf.Lerp(1.22f, 1f, k);
@@ -427,7 +459,7 @@ namespace WanXiang.Modules.UI
         private readonly List<Image> _titleCharImgs = new List<Image>(8);
 
         /// <summary>整句写完的目标总时长（秒）；实际按总笔画数分摊，单笔 0.04~0.18s。</summary>
-        private float _writeTotal = 4.6f;   // 用户反馈"写得有点快" ⇒ 2.4 → 4.6 秒
+        private float _writeTotal = 2.2f;   // 整段控制在 4 秒左右（用户：正常 3~5 秒）
 
         /// <summary>
         /// 书写：用**真实笔顺数据**逐笔写出。
@@ -522,16 +554,24 @@ namespace WanXiang.Modules.UI
             _tmpTitleMain.maxVisibleCharacters = 9999;
         }
 
-        private static int Ms(float seconds) { return Mathf.Max(1, (int)(seconds * 1000f)); }
+        /// <summary>
+        /// 秒 → 毫秒。跳过后统一压到 **6%** ⇒ 所有 await 几乎立刻返回，
+        /// 于是一次检查就能让整段演出"快进到底"（不用在每个 await 上贴跳过判断）。
+        /// </summary>
+        private int Ms(float seconds)
+        {
+            return Mathf.Max(1, (int)(seconds * 1000f * (s_Skip ? 0.06f : 1f)));
+        }
 
         private static async UniTask FadeAsync(CanvasGroup g, float from, float to, float dur)
         {
             if (g == null) return;
             g.alpha = from;
-            if (dur <= 0.001f) { g.alpha = to; return; }
+            if (dur <= 0.001f || s_Skip) { g.alpha = to; return; }
             float t = 0f;
             while (t < dur)
             {
+                if (s_Skip) break;
                 t += Time.unscaledDeltaTime;
                 g.alpha = Mathf.Lerp(from, to, Mathf.Clamp01(t / dur));
                 await UniTask.Yield();
@@ -543,10 +583,11 @@ namespace WanXiang.Modules.UI
         {
             if (img == null) return;
             var c = img.color;
-            if (dur <= 0.001f) { c.a = to; img.color = c; return; }
+            if (dur <= 0.001f || s_Skip) { c.a = to; img.color = c; return; }
             float t = 0f;
             while (t < dur)
             {
+                if (s_Skip) break;
                 t += Time.unscaledDeltaTime;
                 c.a = Mathf.Lerp(from, to, Mathf.Clamp01(t / dur));
                 img.color = c;
@@ -560,10 +601,11 @@ namespace WanXiang.Modules.UI
         {
             if (txt == null) return;
             var c = txt.color;
-            if (dur <= 0.001f) { c.a = to; txt.color = c; return; }
+            if (dur <= 0.001f || s_Skip) { c.a = to; txt.color = c; return; }
             float t = 0f;
             while (t < dur)
             {
+                if (s_Skip) break;
                 t += Time.unscaledDeltaTime;
                 c.a = Mathf.Lerp(from, to, Mathf.Clamp01(t / dur));
                 txt.color = c;
@@ -644,6 +686,7 @@ namespace WanXiang.Modules.UI
             while (true)
             {
                 bool any = false;
+                if (s_Skip) { _leaves.Clear(); break; }
                 float dt = Time.unscaledDeltaTime;
                 for (int i = 0; i < _leaves.Count; i++)
                 {
