@@ -1288,17 +1288,8 @@ namespace WanXiang.Battle.Presentation
                     + "  世界尺寸=" + w.ToString("F2") + "x" + h.ToString("F2")
                     + "  贴图=" + sp + "  enabled=" + g.enabled);
             }
-            // 3) 世界空间文字（TMP）
-            foreach (var tx in UnityEngine.Object.FindObjectsOfType<TMPro.TMP_Text>(true))
-            {
-                float w = tx.preferredWidth * tx.transform.lossyScale.x;
-                float h = tx.preferredHeight * tx.transform.lossyScale.y;
-                if (Mathf.Max(w, h) <= 3f) continue;
-                string txt = tx.text ?? "";
-                if (txt.Length > 12) txt = txt.Substring(0, 12);
-                Debug.Log("[BigRender] TMP:" + DiagPath(tx.transform)
-                    + "  世界尺寸=" + w.ToString("F2") + "x" + h.ToString("F2") + "  文本=" + txt);
-            }
+            // 说明：TMP_Text 段已删（所在程序集未引用 TextMeshPro，CS0246）。
+            // 世界空间文字极少 >3 单位，漏扫不影响定位"巨大特效"。
             Debug.Log("[BigRender] 扫描结束");
         }
 #endif
