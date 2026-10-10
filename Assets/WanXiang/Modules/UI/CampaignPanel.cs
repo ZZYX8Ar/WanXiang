@@ -180,6 +180,7 @@ namespace WanXiang.Modules.UI
                         prun.FogLeft--;
                         Debug.Log("[Campaign] 瘴雾：通过节点 ⇒ 剩余 " + prun.FogLeft + " 节" +
                                   (prun.FogLeft == 0 ? "（雾散）" : ""));
+                        if (prun.FogLeft == 0) ShowFogBanner("雾散了，前路已非");   // ★ 雾散提示
                     }
                     // ★ 节点真正「通过」（离开事件/战斗面板回地图落地）⇒ 所有星移余气 -1（扣到负移除）。
                     //   推迟到此处而非「出征」点击，保证「进编队又返回」不算通过、星移仍可撤销
@@ -828,6 +829,10 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             Debug.Log("[Campaign] 瘴雾来袭：接下来 " + nodes + " 节只看得见下一层" +
                       (alreadyFoggy ? "（续期，不重掷）" : "（并重掷了远处节点类型）"));
             BuildNodeMap();
+            // ★ 开场提示：把"后续节点已经变了"讲明白（否则玩家会以为是 bug）
+            ShowFogBanner(alreadyFoggy
+                ? "瘴雾未散 · 视野依旧只剩下一层"
+                : "瘴雾来袭 · 前路隐没，后续节点已非旧貌");
         }
 
         /// <summary>
@@ -884,6 +889,45 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             int k = n.LastIndexOf('_');
             int v;
             return (k >= 0 && int.TryParse(n.Substring(k + 1), out v)) ? v : -1;
+        }
+
+        // ------------------------------------------------------------------
+        //  顶部横幅提示（瘴雾来 / 散）—— prefab 里的 Root_FogBanner
+        // ------------------------------------------------------------------
+        private Coroutine _fogBannerCo;
+        /// <summary>顶部横幅提示（瘴雾来/散）。被弹层盖着会先等着，等回到地图可见再显示。</summary>
+        private void ShowFogBanner(string text)
+        {
+            if (!isActiveAndEnabled) return;
+            if (_fogBannerCo != null) StopCoroutine(_fogBannerCo);
+            _fogBannerCo = StartCoroutine(FogBannerAnim(text));
+        }
+
+        private System.Collections.IEnumerator FogBannerAnim(string text)
+        {
+            var t = transform.Find("Root_FogBanner");
+            if (t == null) yield break;                                  // 缺节点 = 不提示（不报错）
+            var txt = t.Find("Tmp_FogBanner") != null ? t.Find("Tmp_FogBanner").GetComponent<TMP_Text>() : null;
+            if (txt != null) txt.text = text;
+            var cg = t.GetComponent<CanvasGroup>();
+            if (cg == null) cg = t.gameObject.AddComponent<CanvasGroup>();
+
+            // 被上层弹层盖着（战斗/选择/开场）⇒ 先等，别在背后一闪而过（用户：别没看到就结束了）
+            float w = 0f;
+            while (State == UIPanelState.Paused && w < 8f) { if (t == null) yield break; w += Time.unscaledDeltaTime; yield return null; }
+            float d0 = 0f;
+            while (d0 < 0.35f) { if (t == null) yield break; d0 += Time.unscaledDeltaTime; yield return null; }
+
+            t.gameObject.SetActive(true);
+            float d = 0.35f, e = 0f;
+            while (e < d) { if (t == null) yield break; e += Time.unscaledDeltaTime; cg.alpha = Mathf.Clamp01(e / d); yield return null; }
+            cg.alpha = 1f;
+            yield return new WaitForSecondsRealtime(2.6f);
+            e = 0f;
+            while (e < d) { if (t == null) yield break; e += Time.unscaledDeltaTime; cg.alpha = 1f - Mathf.Clamp01(e / d); yield return null; }
+            cg.alpha = 0f;
+            if (t != null) t.gameObject.SetActive(false);
+            _fogBannerCo = null;
         }
 
         private RectTransform SpawnNodeItem(RectTransform content, int offset, int layer)
