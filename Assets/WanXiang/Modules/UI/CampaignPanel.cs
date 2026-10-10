@@ -321,6 +321,13 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private readonly HashSet<int> _newlyPassed = new HashSet<int>();
         private readonly HashSet<int> _lastVisited = new HashSet<int>();
         private bool _visitedSeeded;
+        /// <summary>待播动画的"新通过"节点（等真正回到地图看到画面时才播，见 PlayPendingAnim）。</summary>
+        private readonly HashSet<int> _pendingNodes = new HashSet<int>();
+        private bool _pendingAnim;
+        /// <summary>本次画出的边（供回到地图后播画线动画）。</summary>
+        private readonly List<RectTransform> _edgeItems = new List<RectTransform>();
+        private readonly List<int> _edgeA = new List<int>();
+        private readonly List<int> _edgeB = new List<int>();
         private readonly List<RectTransform> _nodeItems = new List<RectTransform>(8);
 
         private void BuildNodeMap()
@@ -475,11 +482,25 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)_scrollNodes.viewport);
             UnityEngine.Canvas.ForceUpdateCanvases();
 
-            _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 200f) / Mathf.Max(1f, totalH));
+            // ★ 定位到"当前/刚通过"那一层并**居中**（用户：摄像机要定位到我刚刚通过的节点）
+            {
+                float dist = Mathf.Abs(curY);
+                float range = Mathf.Max(1f, Mathf.Max(totalH, viewH + 1f) - viewH);
+                _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (dist - viewH * 0.5f) / range);
+            }
 
             // ★ 更新 visited 快照（下次重绘 diff 出"新通过"用）
             _lastVisited.Clear();
             foreach (var v in _visited) _lastVisited.Add(v);
+
+            // ★ 有"新通过" ⇒ 先挂起，等真正回到地图看到画面（OnOpened / OnResume）再播动画，
+            //   否则玩家还在战斗/选择弹层里，动画就在背后播完了（用户实锤）。
+            if (_newlyPassed.Count > 0)
+            {
+                _pendingNodes.Clear();
+                foreach (var v in _newlyPassed) _pendingNodes.Add(v);
+                _pendingAnim = true;
+            }
         }
 
         /// <summary>关掉 content 上的自动布局组件（手动排布的前提）。</summary>
@@ -511,6 +532,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private void DrawEdges(RectTransform lineLayer)
         {
             if (_graph == null) return;
+            _edgeItems.Clear(); _edgeA.Clear(); _edgeB.Clear();
 
             for (int layer = 0; layer + 1 < _graph.Layers.Length; layer++)
             {
@@ -553,9 +575,11 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                         img.color = new Color(sa.r, sa.g, sa.b, 0.5f);
                     }
                     img.raycastTarget = false;
-                    // ★ 本次新走通的边 ⇒ 播"虚线变实线"的画线动画
+                    // 记录边（供"回到地图后"播画线动画用）
+                    _edgeItems.Add(rt); _edgeA.Add(a); _edgeB.Add(b);
+                    // ★ 本次新走通的边先藏起来，等 PlayPendingAnim 再"从虚线变实线"
                     if (walked && (_newlyPassed.Contains(a) || _newlyPassed.Contains(b)))
-                        StartCoroutine(LineDrawAnim(rt, img));
+                    { var cc = img.color; cc.a = 0f; img.color = cc; }
                     }
                 }
             }
@@ -622,11 +646,8 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private System.Collections.IEnumerator StampDropAnim(RectTransform rt, Image img)
         {
             if (rt == null || img == null) yield break;
-            // 等 ~0.3s（面板打开瞬间就播的话玩家看不到）
-            float d0 = 0f;
-            while (d0 < 0.30f) { if (rt == null || img == null) yield break; d0 += Time.unscaledDeltaTime; yield return null; }
-
-            float dur = 0.30f, e = 0f;
+            // 时长放缓（用户：动画可以慢一点）：0.30s → 0.55s
+            float dur = 0.55f, e = 0f;
             rt.localScale = Vector3.one * 2.6f;                 // ★ 从很大开始 ⇒ 缩放冲击明显
             rt.localRotation = Quaternion.Euler(0f, 0f, -18f);
             var c0 = img.color; c0.a = 0f; img.color = c0;
@@ -634,10 +655,11 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             {
                 if (rt == null || img == null) yield break;
                 e += Time.unscaledDeltaTime;
-                float k = Mathf.Clamp01(e / dur); float kk = k * k;   // 加速落下
+                float k = Mathf.Clamp01(e / dur);
+                float kk = k * k * (3f - 2f * k);                    // smoothstep：落下更柔、不突兀
                 rt.localScale = Vector3.one * Mathf.Lerp(2.6f, 1f, kk);
                 rt.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-18f, -2f, kk));
-                var c = img.color; c.a = Mathf.Lerp(0f, 0.95f, Mathf.Min(1f, k * 1.6f)); img.color = c;
+                var c = img.color; c.a = Mathf.Lerp(0f, 0.95f, Mathf.Min(1f, k * 1.5f)); img.color = c;
                 yield return null;
             }
             if (rt != null) { rt.localScale = Vector3.one; rt.localRotation = Quaternion.Euler(0f, 0f, -2f); }
@@ -648,9 +670,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private System.Collections.IEnumerator LineDrawAnim(RectTransform rt, Image img)
         {
             if (rt == null || img == null) yield break;
-            float d0 = 0f;
-            while (d0 < 0.30f) { if (rt == null || img == null) yield break; d0 += Time.unscaledDeltaTime; yield return null; }
-            float dur = 0.5f, e = 0f;
+            float dur = 0.9f, e = 0f;                          // 放慢（用户：动画可以慢一点；0.5 → 0.9）
             var c0 = img.color; c0.a = 0f; img.color = c0;
             rt.localScale = new Vector3(0.04f, 1f, 1f);
             while (e < dur)
@@ -664,6 +684,61 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             }
             if (rt != null) rt.localScale = Vector3.one;
             if (img != null) { var c = img.color; c.a = 1f; img.color = c; }
+        }
+
+        // ------------------------------------------------------------------
+        //  "新通过"动画：只在**真正回到地图、看到画面**时才播
+        //  （否则玩家还在战斗/选择弹层里，动画就在背后播完了）
+        // ------------------------------------------------------------------
+        protected override void OnOpened()
+        {
+            base.OnOpened();
+            if (_pendingAnim) StartCoroutine(PlayPendingAnimAfter(0.50f));
+        }
+        protected override void OnResume()
+        {
+            base.OnResume();
+            if (_pendingAnim) StartCoroutine(PlayPendingAnimAfter(0.30f));   // 被上层弹层（如开场）盖过再露出 ⇒ 这时才播
+        }
+        private System.Collections.IEnumerator PlayPendingAnimAfter(float d)
+        {
+            float e = 0f;
+            while (e < d) { e += Time.unscaledDeltaTime; yield return null; }
+            PlayPendingAnim();
+        }
+        /// <summary>播"新通过"的落印 + 画线（仅在面板可见且未被遮挡时；否则留到 OnResume）。</summary>
+        private void PlayPendingAnim()
+        {
+            if (!_pendingAnim) return;
+            if (State == UIPanelState.Paused) return;   // 还被弹层盖着 ⇒ 等 OnResume
+            _pendingAnim = false;
+
+            for (int i = 0; i < _nodeItems.Count; i++)
+            {
+                var it = _nodeItems[i];
+                if (it == null) continue;
+                if (!_pendingNodes.Contains(OffsetOfName(it.name))) continue;
+                var st = it.Find("Img_Stamp") as RectTransform;
+                if (st == null || !st.gameObject.activeSelf) continue;
+                var im = st.GetComponent<Image>();
+                if (im != null) StartCoroutine(StampDropAnim(st, im));
+            }
+            for (int i = 0; i < _edgeItems.Count; i++)
+            {
+                var rt = _edgeItems[i];
+                if (rt == null || !rt.gameObject.activeSelf) continue;
+                if (!(_pendingNodes.Contains(_edgeA[i]) || _pendingNodes.Contains(_edgeB[i]))) continue;
+                var im = rt.GetComponent<Image>();
+                if (im != null) StartCoroutine(LineDrawAnim(rt, im));
+            }
+        }
+        /// <summary>从 "Item_Node_&lt;offset&gt;" 取 offset。</summary>
+        private static int OffsetOfName(string n)
+        {
+            if (string.IsNullOrEmpty(n)) return -1;
+            int k = n.LastIndexOf('_');
+            int v;
+            return (k >= 0 && int.TryParse(n.Substring(k + 1), out v)) ? v : -1;
         }
 
         private RectTransform SpawnNodeItem(RectTransform content, int offset, int layer)
@@ -757,16 +832,12 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             stampT.gameObject.SetActive(showStamp);
             if (showStamp && stampImg != null)
             {
-                if (_newlyPassed.Contains(offset))
-                {
-                    StartCoroutine(StampDropAnim(stampT, stampImg));        // ★ 本次新通过 ⇒ 落印动画
-                }
-                else
-                {
-                    stampT.localScale = Vector3.one;
-                    stampT.localRotation = Quaternion.Euler(0f, 0f, -2f);
-                    var sc0 = stampImg.color; sc0.a = 0.92f; stampImg.color = sc0;
-                }
+                // ★ 本次新通过的那枚先"藏起来"(alpha 0)：等真正回到地图、看到画面时才由 PlayPendingAnim 落印
+                //   （否则玩家还在战斗/选择弹层里，印章就在背后盖完了 —— 用户实锤）
+                bool fresh = _newlyPassed.Contains(offset);
+                stampT.localScale = Vector3.one;
+                stampT.localRotation = Quaternion.Euler(0f, 0f, -2f);
+                var sc0 = stampImg.color; sc0.a = fresh ? 0f : 0.92f; stampImg.color = sc0;
             }
             var captured = offset;
             btn.onClick.AddListener(() => SelectNode(captured, silent: false));
