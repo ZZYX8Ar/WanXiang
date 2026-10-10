@@ -180,7 +180,7 @@ namespace WanXiang.Modules.UI
                         prun.FogLeft--;
                         Debug.Log("[Campaign] 瘴雾：通过节点 ⇒ 剩余 " + prun.FogLeft + " 节" +
                                   (prun.FogLeft == 0 ? "（雾散）" : ""));
-                        if (prun.FogLeft == 0) ShowFogBanner("雾散了，前路已非");   // ★ 雾散提示
+                        if (prun.FogLeft == 0) { ShowFogBanner("雾散了，前路已非"); prun.FogTriggerNode = -1; }  // ★ 雾散提示 + 起雾格恢复可见
                     }
                     // ★ 节点真正「通过」（离开事件/战斗面板回地图落地）⇒ 所有星移余气 -1（扣到负移除）。
                     //   推迟到此处而非「出征」点击，保证「进编队又返回」不算通过、星移仍可撤销
@@ -221,6 +221,7 @@ namespace WanXiang.Modules.UI
                         if (prun.RerolledKinds != null) prun.RerolledKinds.Clear();   // 换幕：重掷记录作废
                         if (prun.FogWeatherNodes != null) prun.FogWeatherNodes.Clear(); // 换幕：挂的瘴雾天时作废
                         prun.FogGenAct = 0;                                           // 换幕：下一幕重新生成瘴雾节点
+                        prun.FogTriggerNode = -1;
                         prun.FogLeft = 0; prun.FogRerolled = false;                   // 换幕：雾散
                         Debug.Log("[Campaign] 通过本幕最后一格 ⇒ 推进到第 " + prun.Act + " 幕");
                         WanXiang.Run.RunSave.SaveCurrent();
@@ -820,17 +821,20 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         {
             int f = FogFromLayer();
             if (f == int.MaxValue || _graph == null) return false;
+            // ★ "起雾的那一格"本身也算被雾盖住（用户：把迷雾节点也设置成未知，一起被雾挡）
+            var run = WanXiang.Run.RunSave.Current;
+            if (run != null && run.FogTriggerNode == offset) return true;
             return _graph.LayerOf(offset) >= f;
         }
 
-        private static Sprite _fogBadge; private static bool _fogBadgeTried;
-        /// <summary>瘴雾节点用的「雾云徽」美术（Resources/UI/Campaign/fog_badge）。缺图 = 不显示。</summary>
-        private static Sprite FogBadgeSprite()
+        private static Sprite _fogCover; private static bool _fogCoverTried;
+        /// <summary>盖住"被雾遮住"节点的整卡雾图（Resources/UI/Campaign/fog_card）。缺图 = 不显示。</summary>
+        private static Sprite FogCoverSprite()
         {
-            if (_fogBadgeTried) return _fogBadge;
-            _fogBadgeTried = true;
-            _fogBadge = UnityEngine.Resources.Load<Sprite>("UI/Campaign/fog_badge");
-            return _fogBadge;
+            if (_fogCoverTried) return _fogCover;
+            _fogCoverTried = true;
+            _fogCover = UnityEngine.Resources.Load<Sprite>("UI/Campaign/fog_card");
+            return _fogCover;
         }
 
         /// <summary>
@@ -1044,7 +1048,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             {
                 // ★ 瘴雾：遮住的层连类型都不透 —— 只显示"迷雾"（这就是迷雾的意义）
                 label.text = "？？　迷雾";
-                label.color = new Color(0.58f, 0.56f, 0.53f, 0.9f);
+                label.color = new Color(0.32f, 0.30f, 0.38f, 0.95f);   // 雾上要够深才看得清
             }
             else if (label != null)
             {
@@ -1091,16 +1095,16 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 }
             }
 
-            // ★ 瘴雾天时：卡右侧一个「雾云徽」（**美术，不用文字**）—— 看见就知道走上去会起雾
-            var badgeT = item.Find("Img_FogBadge") as RectTransform;
-            if (badgeT != null)
+            // ★ 瘴雾：被雾盖住的节点，**整张卡铺一层雾**（美术，"完全挡住"，让人看不出是什么）。
+            //   文字的「？？迷雾」显示在雾之上（cover 的兄弟顺序排 Tmp_NodeText 之前）。
+            var coverT = item.Find("Img_FogCover") as RectTransform;
+            if (coverT != null)
             {
-                bool fogNode = _fogWeather.Contains(offset);
-                badgeT.gameObject.SetActive(fogNode && !fogged);
-                if (fogNode)
+                coverT.gameObject.SetActive(fogged);
+                if (fogged)
                 {
-                    var bi = badgeT.GetComponent<Image>();
-                    if (bi != null && bi.sprite == null) bi.sprite = FogBadgeSprite();
+                    var ci = coverT.GetComponent<Image>();
+                    if (ci != null && ci.sprite == null) ci.sprite = FogCoverSprite();
                 }
             }
 
@@ -1764,8 +1768,17 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 if (run.FogWeatherNodes != null && run.FogWeatherNodes.Contains(_selected))
                 {
                     run.FogWeatherNodes.Remove(_selected);
+                    if (run.FogLeft > 0)
+                    {
+                        // ★ 已经在雾里 ⇒ **不叠加、不续期**（用户定案：不该出现叠加）
+                        Debug.Log("[Campaign] 已在瘴雾中 ⇒ 这一格不再起雾（不叠加）");
+                    }
+                    else
+                    {
+                        run.FogTriggerNode = _selected;   // ★ 记下"起雾那一格"（它自己也显示成「？？迷雾」）
+                        TriggerFog(3);
+                    }
                     WanXiang.Run.RunSave.SaveCurrent();
-                    TriggerFog(3);
                 }
             }
 

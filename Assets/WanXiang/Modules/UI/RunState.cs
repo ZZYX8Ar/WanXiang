@@ -195,6 +195,9 @@ namespace WanXiang.Run
 
         /// <summary>已经为哪一幕生成过瘴雾节点（0 = 还没生成）。换幕置 0 ⇒ 下一幕重新生成。</summary>
         public int FogGenAct = 0;
+
+        /// <summary>"起雾的那一格"（走到它才起的雾）：**雾期间它自己也显示成「？？迷雾」**。-1 = 无。</summary>
+        public int FogTriggerNode = -1;
         public int Losses;                      // 本程败场
         /// <summary>
         /// 轮回数（"续劫"次数）：每轮回一次，敌人属性 +15%、天气更恶劣。
