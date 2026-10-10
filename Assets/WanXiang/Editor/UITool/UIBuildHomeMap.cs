@@ -96,8 +96,8 @@ namespace WanXiang.EditorTools
         // ------------------------------------------------------------------ 美术导入设置
         private static void EnsureArtImportSettings()
         {
-            string[] files = { "journey_far.png", "journey_mid.png", "journey_near.png",
-                               "journey_fog.png", "journey_flag.png", "map_node.png" };
+            string[] files = { "journey_pano.png", "journey_far.png", "journey_near.png",
+                               "journey_path.png", "journey_fog.png", "journey_traveler.png", "map_node.png" };
             foreach (var f in files)
             {
                 string p = ArtDir + "/" + f;
@@ -144,17 +144,24 @@ namespace WanXiang.EditorTools
 
             var par = NewUI("Map_Par", journey.transform, StripW, StripH);
 
-            // 远山层（大气透视，视差最慢 —— 伪3D 底层）
-            var far = NewUI("Img_Far", par.transform, StripW, StripH);
+            // 远山淡墨（AI 出图抠透明；条带上部，视差最慢 —— 伪3D 底层）
+            var far = NewUI("Img_Far", par.transform, StripW, 210f);
             var farImg = far.AddComponent<Image>();
             farImg.sprite = LoadSprite("journey_far.png");
             farImg.raycastTarget = false;
+            ((RectTransform)far.transform).anchoredPosition = new Vector2(0f, 62f);
 
-            // 主景丘陵（raycast 入口，路径烘焙在此层）
+            // 主景画卷（AI 四季水墨长卷；raycast 入口）
             var terrain = NewUI("Img_Terrain", par.transform, StripW, StripH);
             var terrainImg = terrain.AddComponent<Image>();
-            terrainImg.sprite = LoadSprite("journey_terrain.png");
+            terrainImg.sprite = LoadSprite("journey_pano.png");
             terrainImg.raycastTarget = true;
+
+            // 白虚线小路（程序化，位置公式与节点一致；盖在画卷上）
+            var pathGo = NewUI("Img_Path", par.transform, StripW, StripH);
+            var pathImg = pathGo.AddComponent<Image>();
+            pathImg.sprite = LoadSprite("journey_path.png");
+            pathImg.raycastTarget = false;
 
             // 24 节气节点（位置公式与 _gen_homemap2.py / HomeMapJourney 一致）
             string[] terms =
@@ -199,11 +206,12 @@ namespace WanXiang.EditorTools
                 ((RectTransform)lab.transform).anchoredPosition = new Vector2(x, 108f);
             }
 
-            // 近景层（深色前景，视差最快 —— 伪3D 前层；垫在迷雾/小旗之下）
-            var near = NewUI("Img_Near", par.transform, StripW, StripH);
+            // 近景墨丘（AI 出图抠透明；条带底部，视差最快 —— 伪3D 前层）
+            var near = NewUI("Img_Near", par.transform, StripW, 150f);
             var nearImg = near.AddComponent<Image>();
             nearImg.sprite = LoadSprite("journey_near.png");
             nearImg.raycastTarget = false;
+            ((RectTransform)near.transform).anchoredPosition = new Vector2(0f, -75f);
 
             // 迷雾（运行时控锚点；初始铺满）
             var fog = NewUI("Img_Fog", par.transform, StripW, StripH);
@@ -214,11 +222,13 @@ namespace WanXiang.EditorTools
             frt.anchorMin = Vector2.zero; frt.anchorMax = Vector2.one;
             frt.offsetMin = frt.offsetMax = Vector2.zero;
 
-            // 旅行者小旗
-            var flag = NewUI("Img_Flag", par.transform, 40f, 40f);
+            // 小旅行者（AI 水墨小人物；底枢轴 ⇒ 脚踩在小路上）
+            var flag = NewUI("Img_Flag", par.transform, 48f, 64f);
             var flagImg = flag.AddComponent<Image>();
-            flagImg.sprite = LoadSprite("journey_flag.png");
+            flagImg.sprite = LoadSprite("journey_traveler.png");
             flagImg.raycastTarget = false;
+            var frt2 = (RectTransform)flag.transform;
+            frt2.pivot = new Vector2(0.5f, 0.05f);
 
             // 中央文案
             var labelGo = NewUI("Tmp_MapLabel", journey.transform, 340f, 100f);
@@ -326,13 +336,14 @@ namespace WanXiang.EditorTools
             { sb.AppendLine("✗ Map_Journey 应垫在立绘之下"); ok = false; }
             else sb.AppendLine("✓ 层级（垫在立绘下）");
 
-            // Image 层 sprite 就绪（主景必须可受击；远/近层不可受击）
+            // Image 层 sprite 就绪（主景必须可受击且有 sprite；其余层不可受击）
             var terrain = FindDeep(journey, "Img_Terrain");
             var ti = terrain != null ? terrain.GetComponent<Image>() : null;
             if (ti == null || !ti.raycastTarget) { sb.AppendLine("✗ Img_Terrain 必须 raycastTarget=true"); ok = false; }
-            else sb.AppendLine("✓ Img_Terrain.raycastTarget=true");
+            else if (ti.sprite == null) { sb.AppendLine("✗ Img_Terrain 缺 sprite（主景没了却不报错=白屏元凶）"); ok = false; }
+            else sb.AppendLine("✓ Img_Terrain sprite+raycast ✓");
 
-            foreach (var n in new[] { "Img_Far", "Img_Near" })
+            foreach (var n in new[] { "Img_Far", "Img_Near", "Img_Path" })
             {
                 var t = FindDeep(journey, n);
                 var img = t != null ? t.GetComponent<Image>() : null;

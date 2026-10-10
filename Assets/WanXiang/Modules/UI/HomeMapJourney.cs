@@ -70,8 +70,14 @@ namespace WanXiang.Modules.UI
         private bool _hover;
         private Vector2 _hoverNorm;
         private Vector2 _hoverSmooth;   // 平滑后的悬浮向量（驱动分层视差）
+        private Vector2 _farBase, _nearBase; // 远/近层基准位（prefab 里带 y 偏移）
 
-        private void OnEnable() { Refresh(); }
+        private void OnEnable()
+        {
+            if (_far != null) _farBase = _far.rectTransform.anchoredPosition;
+            if (_near != null) _nearBase = _near.rectTransform.anchoredPosition;
+            Refresh();
+        }
 
         // ------------------------------------------------------------------
         //  数据 → 表现。HomePanel.OnOpenAsync 每次打开都会调用。
@@ -126,7 +132,7 @@ namespace WanXiang.Modules.UI
             if (_marker != null)
             {
                 _marker.gameObject.SetActive(true);
-                _marker.rectTransform.anchoredPosition = new Vector2(mx, my + 10f);
+                _marker.rectTransform.anchoredPosition = new Vector2(mx, my + 4f); // 底枢轴：脚踩小路
             }
 
             // 迷雾：从当前位置盖到最右；走完消失。左缘自带 150px 渐隐
@@ -193,21 +199,28 @@ namespace WanXiang.Modules.UI
             Vector2 hTarget = _hover ? _hoverNorm : Vector2.zero;
             _hoverSmooth = Vector2.Lerp(_hoverSmooth, hTarget, k);
 
+            // 常态轻漂移（不动鼠标场景也是活的）
+            Vector2 drift = new Vector2(
+                Mathf.Sin(Time.unscaledTime * 0.4f) * 3f,
+                Mathf.Cos(Time.unscaledTime * 0.31f) * 1.5f);
+
             if (_par != null)
             {
                 float tRot = -_hoverSmooth.x * _tiltDeg;
                 Vector3 e = _par.localEulerAngles;
                 _par.localEulerAngles = new Vector3(e.x, e.y, Mathf.LerpAngle(e.z, tRot, k));
-                _par.anchoredPosition = _hoverSmooth * _shiftPx;
+                _par.anchoredPosition = _hoverSmooth * _shiftPx + drift;
             }
 
-            // 伪3D：远山慢、近景快 ⇒ 悬浮时三层错动产生纵深
+            // 伪3D：远山慢、近景快 ⇒ 悬浮/漂移时三层错动产生纵深
             if (_far != null)
-                _far.rectTransform.anchoredPosition =
-                    new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _farParallax);
+                _far.rectTransform.anchoredPosition = _farBase +
+                    new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _farParallax)
+                    + drift * _farParallax;
             if (_near != null)
-                _near.rectTransform.anchoredPosition =
-                    new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _nearParallax);
+                _near.rectTransform.anchoredPosition = _nearBase +
+                    new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _nearParallax)
+                    + drift * _nearParallax;
 
             // 小旗轻微摆动
             if (_marker != null && _marker.gameObject.activeSelf)
