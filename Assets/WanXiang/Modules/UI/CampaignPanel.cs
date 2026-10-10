@@ -177,10 +177,19 @@ namespace WanXiang.Modules.UI
                     //     否则"雾散了图又变回去"会很怪。它跟 VisitedNodes 一样在换幕/重开时清。
                     if (prun.FogLeft > 0)
                     {
-                        prun.FogLeft--;
-                        Debug.Log("[Campaign] 瘴雾：通过节点 ⇒ 剩余 " + prun.FogLeft + " 节" +
-                                  (prun.FogLeft == 0 ? "（雾散）" : ""));
-                        if (prun.FogLeft == 0) { ShowFogBanner("雾散了，前路已非"); prun.FogTriggerNode = -1; }  // ★ 雾散提示 + 起雾格恢复可见
+                        if (PendingCommit == prun.FogTriggerNode)
+                        {
+                            // ★ 起雾那一格（天象节点）**不算进 3 节**（用户定案："要后续 3 个节点"）⇒ 跳过这次扣减
+                            prun.FogTriggerNode = -1;
+                            Debug.Log("[Campaign] 瘴雾：通过「起雾格」（不计入）⇒ 仍剩 " + prun.FogLeft + " 节");
+                        }
+                        else
+                        {
+                            prun.FogLeft--;
+                            Debug.Log("[Campaign] 瘴雾：通过节点 ⇒ 剩余 " + prun.FogLeft + " 节" +
+                                      (prun.FogLeft == 0 ? "（雾散）" : ""));
+                        }
+                        if (prun.FogLeft == 0) { ShowFogBanner("雾散了，前路已非"); prun.FogTriggerNode = -1; }
                     }
                     // ★ 节点真正「通过」（离开事件/战斗面板回地图落地）⇒ 所有星移余气 -1（扣到负移除）。
                     //   推迟到此处而非「出征」点击，保证「进编队又返回」不算通过、星移仍可撤销
@@ -821,9 +830,8 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         {
             int f = FogFromLayer();
             if (f == int.MaxValue || _graph == null) return false;
-            // ★ "起雾的那一格"本身也算被雾盖住（用户：把迷雾节点也设置成未知，一起被雾挡）
-            var run = WanXiang.Run.RunSave.Current;
-            if (run != null && run.FogTriggerNode == offset) return true;
+            // ⛔ 起雾的那一格（天象节点）**不盖雾** —— 用户 2026-10-10 定案："不要包括一开始的迷雾节点，
+            //   要后续 3 个节点，不然这个天象节点怎么解释"（玩家要看得见、走得进去，雾从它之后开始）。
             return _graph.LayerOf(offset) >= f;
         }
 
