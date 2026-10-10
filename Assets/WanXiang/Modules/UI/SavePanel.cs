@@ -144,8 +144,14 @@ namespace WanXiang.Modules.UI
             WanXiang.Meta.MetaStore.DeleteHistory(slot);   // ★ 顺手删该档历程，否则重进还会显示旧历程
             WanXiang.Meta.MetaStore.DeleteMeta(slot);      // ★ 该档局外数据一并清空（每槽独立）
             WanXiang.Meta.MetaStore.ReloadMeta();          // ★ 内存立即回到"新档"状态（含历程重读）
-            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
-            if (ui != null) await ui.OpenAsync<SavePanel>();
+            // ⛔ 不能再 `await ui.OpenAsync<SavePanel>()` 指望它刷新 —— SavePanel 是 **Cached**，
+            //    对"已经打开着的"面板再 Open 会走框架的 InternalRefresh（**不重放 OnOpenAsync**），
+            //    槽位文字/重置按钮根本不会重画（用户实测："点重置后没有立马刷新 UI"）。
+            //    ⇒ 就地刷新：重画槽位 + 重挂重置按钮显隐。
+            RefreshSlots();
+            SyncSlotResetButtons();
+            if (_tmpHint != null) _tmpHint.text = "存档 " + slot + " 已重置（回到第一幕，从头开始）。";
+            Debug.Log("[SavePanel] 槽位 " + slot + " 已重置并就地刷新");
         }
 
         /// <summary>「新的旅程」：挑第一个空档；全满则提示（避免手滑覆盖）。</summary>

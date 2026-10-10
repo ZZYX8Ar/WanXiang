@@ -49,6 +49,21 @@ namespace WanXiang.Modules.UI
             if (_btnSkip != null) _btnSkip.onClick.AddListener(OnSkipClicked);
         }
 
+        /// <summary>
+        /// 这件遗物是不是"加成我方/本队"的？—— **敌方弱化类不算**。
+        /// 用户实测：`素金克星玉 · 敌方金属性 -8%`（Effect=EnemyElementWeakPct, ScopeId="Metal"）
+        /// 因为 ScopeId 命中了本队某只金属性异兽而被标上「本队」，但它实际是**削敌方**，跟"适配本队"无关。
+        /// （全局无 ScopeId 的本来就不参与本队角标。）
+        /// </summary>
+        private static bool IsTeamBenefiting(RelicDef d)
+        {
+            if (d == null) return false;
+            if (d.Effect == RelicEffect.EnemyWeakPct) return false;        // 敌方全属性 -%
+            if (d.Effect == RelicEffect.EnemyElementWeakPct) return false; // 敌方指定五行 -%
+            if (d.Mechanic == RelicMechanic.EnemyCautious) return false;   // 敌方 AI 变保守
+            return true;
+        }
+
         protected override UniTask OnOpenAsync(object payload)
         {
             // 抽 3 个遗物（本节点本身是「遗物」节点，视为稀有权重偏高）
@@ -93,7 +108,8 @@ namespace WanXiang.Modules.UI
                 bool related = _offered != null && i < _offered.Count
                             && teamScopes != null && teamScopes.Count > 0
                             && !string.IsNullOrEmpty(_offered[i].ScopeId)
-                            && teamScopes.Contains(_offered[i].ScopeId);
+                            && teamScopes.Contains(_offered[i].ScopeId)
+                            && IsTeamBenefiting(_offered[i]);   // ★ "减敌方属性"那种不算本队（用户实测）
                 _markTeam[i].SetActive(related);
             }
             _selected = -1;
