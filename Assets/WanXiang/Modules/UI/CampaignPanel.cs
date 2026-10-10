@@ -152,7 +152,6 @@ namespace WanXiang.Modules.UI
             //   不会持久化，节点也不会推进 ⇒ 下次进来还能重做（奖励不丢）。
             if (PendingCommit >= 0)
             {
-                _justPassed = PendingCommit;   // ★ 记下"刚通过的节点" ⇒ 重绘时给它播落印/连线动画
                 var prun = WanXiang.Run.RunSave.Current;
                 if (prun != null)
                 {
@@ -317,8 +316,11 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private WanXiang.Campaign.ActGraph _graph;
         private int _currentOffset = -1;      // 当前所在节点（-1 = 还没出发）
         private int _selected = -1;
-        /// <summary>本次重绘时"刚刚通过"的节点 ⇒ 播落印/画线动画（-1 = 无）。</summary>
-        private int _justPassed = -1;
+        /// <summary>本次重绘时"新通过"的节点（= 本次 _visited 比上次多的那部分）⇒ 播落印/画线动画。
+        ///  用 diff 而不是靠 PendingCommit：无论面板是"重开"还是"恢复"，只要图真的重建过就一定播。</summary>
+        private readonly HashSet<int> _newlyPassed = new HashSet<int>();
+        private readonly HashSet<int> _lastVisited = new HashSet<int>();
+        private bool _visitedSeeded;
         private readonly List<RectTransform> _nodeItems = new List<RectTransform>(8);
 
         private void BuildNodeMap()
@@ -400,6 +402,15 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             if (run != null && run.VisitedNodes != null)
                 foreach (var v in run.VisitedNodes) _visited.Add(v);
 
+            // ★ 本次"新通过"= 本次 _visited 比上次多的部分（不看 PendingCommit，重开/恢复都能算准）
+            _newlyPassed.Clear();
+            if (_visitedSeeded)
+            {
+                foreach (var v in _visited)
+                    if (!_lastVisited.Contains(v)) _newlyPassed.Add(v);
+            }
+            else _visitedSeeded = true;   // 首次建图：只 seed，不播动画
+
             if (_tmpActTitle != null)
                 _tmpActTitle.text = "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn +
                                     " · 守关 " + _graph.BossName;
@@ -465,7 +476,10 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             UnityEngine.Canvas.ForceUpdateCanvases();
 
             _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 200f) / Mathf.Max(1f, totalH));
-            _justPassed = -1;   // ★ 落印/画线动画每次重绘只播一次
+
+            // ★ 更新 visited 快照（下次重绘 diff 出"新通过"用）
+            _lastVisited.Clear();
+            foreach (var v in _visited) _lastVisited.Add(v);
         }
 
         /// <summary>关掉 content 上的自动布局组件（手动排布的前提）。</summary>
@@ -539,8 +553,8 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                         img.color = new Color(sa.r, sa.g, sa.b, 0.5f);
                     }
                     img.raycastTarget = false;
-                    // ★ 本幕刚走通的边 ⇒ 播"虚线变实线"的画线动画
-                    if (walked && _justPassed >= 0 && (a == _justPassed || b == _justPassed))
+                    // ★ 本次新走通的边 ⇒ 播"虚线变实线"的画线动画
+                    if (walked && (_newlyPassed.Contains(a) || _newlyPassed.Contains(b)))
                         StartCoroutine(LineDrawAnim(rt, img));
                     }
                 }
@@ -604,21 +618,26 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             return _dash;
         }
 
-        /// <summary>落印：从上方加速落下 + 过冲回正 + 淡入（"啪"地盖在季节徽上）。</summary>
+        /// <summary>落印：先等面板稳定，再从"很大"加速缩到默认 + 过冲回正 + 淡入（"啪"地盖上去，给视觉冲击）。</summary>
         private System.Collections.IEnumerator StampDropAnim(RectTransform rt, Image img)
         {
-            float dur = 0.26f, e = 0f;
-            rt.localScale = Vector3.one * 1.75f;
-            rt.localRotation = Quaternion.Euler(0f, 0f, -16f);
+            if (rt == null || img == null) yield break;
+            // 等 ~0.3s（面板打开瞬间就播的话玩家看不到）
+            float d0 = 0f;
+            while (d0 < 0.30f) { if (rt == null || img == null) yield break; d0 += Time.unscaledDeltaTime; yield return null; }
+
+            float dur = 0.30f, e = 0f;
+            rt.localScale = Vector3.one * 2.6f;                 // ★ 从很大开始 ⇒ 缩放冲击明显
+            rt.localRotation = Quaternion.Euler(0f, 0f, -18f);
             var c0 = img.color; c0.a = 0f; img.color = c0;
             while (e < dur)
             {
                 if (rt == null || img == null) yield break;
                 e += Time.unscaledDeltaTime;
-                float k = Mathf.Clamp01(e / dur); float kk = k * k;
-                rt.localScale = Vector3.one * Mathf.Lerp(1.75f, 1f, kk);
-                rt.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-16f, -2f, kk));
-                var c = img.color; c.a = Mathf.Lerp(0f, 0.95f, k); img.color = c;
+                float k = Mathf.Clamp01(e / dur); float kk = k * k;   // 加速落下
+                rt.localScale = Vector3.one * Mathf.Lerp(2.6f, 1f, kk);
+                rt.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-18f, -2f, kk));
+                var c = img.color; c.a = Mathf.Lerp(0f, 0.95f, Mathf.Min(1f, k * 1.6f)); img.color = c;
                 yield return null;
             }
             if (rt != null) { rt.localScale = Vector3.one; rt.localRotation = Quaternion.Euler(0f, 0f, -2f); }
@@ -628,6 +647,9 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// <summary>画线：新走通的边从左端"长"出来 + 淡入（配合节点落印 ⇒ "这条路刚打通"）。</summary>
         private System.Collections.IEnumerator LineDrawAnim(RectTransform rt, Image img)
         {
+            if (rt == null || img == null) yield break;
+            float d0 = 0f;
+            while (d0 < 0.30f) { if (rt == null || img == null) yield break; d0 += Time.unscaledDeltaTime; yield return null; }
             float dur = 0.5f, e = 0f;
             var c0 = img.color; c0.a = 0f; img.color = c0;
             rt.localScale = new Vector3(0.04f, 1f, 1f);
@@ -730,13 +752,14 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             }
             var stampImg = stampT.GetComponent<Image>();
             if (stampImg != null && stampImg.sprite == null) stampImg.sprite = StampSprite();
-            bool showStamp = passed && !isHere && !canGo;
+            // ★ 只判 passed（含"当前"格）：刚通过的节点**就是**当前格，若排除 isHere 会"晚一格"才盖印（用户实锤）
+            bool showStamp = passed;
             stampT.gameObject.SetActive(showStamp);
             if (showStamp && stampImg != null)
             {
-                if (offset == _justPassed)
+                if (_newlyPassed.Contains(offset))
                 {
-                    StartCoroutine(StampDropAnim(stampT, stampImg));        // ★ 刚通过 ⇒ 落印动画
+                    StartCoroutine(StampDropAnim(stampT, stampImg));        // ★ 本次新通过 ⇒ 落印动画
                 }
                 else
                 {
