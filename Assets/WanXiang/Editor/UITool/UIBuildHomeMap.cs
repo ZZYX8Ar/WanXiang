@@ -41,8 +41,9 @@ namespace WanXiang.EditorTools
         private const string BackupDir  = @"D:\Unity_Project\MYRIAD\_backups";
         private const string ReportPath = "Temp/WanXiangDiag/homemap_report.txt";
 
-        private const float StripW = 1240f;
-        private const float StripH = 300f;
+        // 2026-10-10 用户要求地图再大一点：1240×300 → 1320×320（节点/路径公式不变）
+        private const float StripW = 1320f;
+        private const float StripH = 320f;
 
         [MenuItem("WanXiang/UI/主界面四季旅程图（横卷）", priority = 112)]
         public static void Build()
@@ -97,7 +98,8 @@ namespace WanXiang.EditorTools
         private static void EnsureArtImportSettings()
         {
             string[] files = { "journey_pano.png", "journey_far.png", "journey_near.png",
-                               "journey_path.png", "journey_fog.png", "journey_traveler.png", "map_node.png" };
+                               "journey_path.png", "journey_fog.png", "journey_traveler.png",
+                               "journey_finale.png", "map_node.png" };
             foreach (var f in files)
             {
                 string p = ArtDir + "/" + f;
@@ -149,7 +151,7 @@ namespace WanXiang.EditorTools
             var farImg = far.AddComponent<Image>();
             farImg.sprite = LoadSprite("journey_far.png");
             farImg.raycastTarget = false;
-            ((RectTransform)far.transform).anchoredPosition = new Vector2(0f, 62f);
+            ((RectTransform)far.transform).anchoredPosition = new Vector2(0f, 66f);
 
             // 主景画卷（AI 四季水墨长卷；raycast 入口）
             var terrain = NewUI("Img_Terrain", par.transform, StripW, StripH);
@@ -203,7 +205,7 @@ namespace WanXiang.EditorTools
                 tmp.alignment = TextAlignmentOptions.Center;
                 tmp.color = seasonCols[s];
                 tmp.raycastTarget = false;
-                ((RectTransform)lab.transform).anchoredPosition = new Vector2(x, 108f);
+                ((RectTransform)lab.transform).anchoredPosition = new Vector2(x, 115f);
             }
 
             // 近景墨丘（AI 出图抠透明；条带底部，视差最快 —— 伪3D 前层）
@@ -211,7 +213,18 @@ namespace WanXiang.EditorTools
             var nearImg = near.AddComponent<Image>();
             nearImg.sprite = LoadSprite("journey_near.png");
             nearImg.raycastTarget = false;
-            ((RectTransform)near.transform).anchoredPosition = new Vector2(0f, -75f);
+            ((RectTransform)near.transform).anchoredPosition = new Vector2(0f, -80f);
+
+            // 终幕「归墟之门」（仅 act≥5 由 HomeMapJourney 显示；小路右端终点）
+            var fin = NewUI("Img_Finale", par.transform, 96f, 105f);
+            var finImg = fin.AddComponent<Image>();
+            finImg.sprite = LoadSprite("journey_finale.png");
+            finImg.raycastTarget = false;
+            fin.SetActive(false);                              // 默认隐藏，终幕才亮出
+            var finRt = (RectTransform)fin.transform;
+            finRt.pivot = new Vector2(0.5f, 0.08f);
+            // 小路终点：末节点 k=23 在 xFrac=0.96；门放它右后侧（旅行者走到门前）
+            finRt.anchoredPosition = new Vector2(StripW * 0.5f - 32f, Mathf.Sin(23f * 0.9f) * 24f + 2f);
 
             // 迷雾（运行时控锚点；初始铺满）
             var fog = NewUI("Img_Fog", par.transform, StripW, StripH);
@@ -223,7 +236,8 @@ namespace WanXiang.EditorTools
             frt.offsetMin = frt.offsetMax = Vector2.zero;
 
             // 小旅行者（AI 水墨小人物；底枢轴 ⇒ 脚踩在小路上）
-            var flag = NewUI("Img_Flag", par.transform, 48f, 64f);
+            // 2026-10-10 用户要求加大：48×64 → 78×120（图已重抠为 169×260 干净底）
+            var flag = NewUI("Img_Flag", par.transform, 78f, 120f);
             var flagImg = flag.AddComponent<Image>();
             flagImg.sprite = LoadSprite("journey_traveler.png");
             flagImg.raycastTarget = false;
@@ -239,7 +253,7 @@ namespace WanXiang.EditorTools
             tmpL.alignment = TextAlignmentOptions.Center;
             tmpL.color = seasonCols[0];
             tmpL.raycastTarget = false;
-            ((RectTransform)labelGo.transform).anchoredPosition = new Vector2(0f, 118f);
+            ((RectTransform)labelGo.transform).anchoredPosition = new Vector2(0f, 126f);
 
             // 垫到立绘之下
             if (hero != null) journey.transform.SetSiblingIndex(hero.transform.GetSiblingIndex());
@@ -273,6 +287,7 @@ namespace WanXiang.EditorTools
             Bind(so, "_marker",   FindDeep(journey, "Img_Flag"));
             Bind(so, "_far",      FindDeep(journey, "Img_Far"));
             Bind(so, "_near",     FindDeep(journey, "Img_Near"));
+            Bind(so, "_finale",   FindDeep(journey, "Img_Finale"));
             Bind(so, "_label",    FindDeep(journey, "Tmp_MapLabel"));
             so.ApplyModifiedPropertiesWithoutUndo();
             Debug.Log("[HomeMap] HomeMapJourney 字段绑定完成");
@@ -360,6 +375,12 @@ namespace WanXiang.EditorTools
                 if (img == null || img.sprite == null) { sb.AppendLine("✗ " + n + " 缺 sprite"); ok = false; }
                 else sb.AppendLine("✓ " + n + " sprite 就绪");
             }
+            // 终幕之门：sprite 就绪 + 默认隐藏
+            var finT = FindDeep(journey, "Img_Finale");
+            var finI = finT != null ? finT.GetComponent<Image>() : null;
+            if (finI == null || finI.sprite == null) { sb.AppendLine("✗ Img_Finale 缺 sprite"); ok = false; }
+            else if (finT.gameObject.activeSelf) { sb.AppendLine("✗ Img_Finale 应默认隐藏"); ok = false; }
+            else sb.AppendLine("✓ Img_Finale sprite 就绪（默认隐藏）");
             var lab = FindDeep(journey, "Tmp_MapLabel");
             if (lab == null || lab.GetComponent<TMP_Text>() == null) { sb.AppendLine("✗ Tmp_MapLabel 缺失 TMP_Text"); ok = false; }
             else sb.AppendLine("✓ Tmp_MapLabel (TMP_Text) 就绪");

@@ -31,6 +31,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Image      _marker;       // Img_Flag     旅行者小旗
         [SerializeField] private Image      _far;          // Img_Far      远山层（大气透视，视差最慢）
         [SerializeField] private Image      _near;         // Img_Near     近景层（视差最快 ⇒ 伪3D）
+        [SerializeField] private Image      _finale;       // Img_Finale   终幕「归墟之门」（仅 act≥5 显示）
         [SerializeField] private TMP_Text   _label;        // Tmp_MapLabel 中央文案
 
         [Header("表现参数（可在 Inspector 直接调）")]
@@ -94,7 +95,17 @@ namespace WanXiang.Modules.UI
 
             ApplyNodes(p, act >= 5);
             ApplyFogAndMarker(p, act, prog);
+            ApplyFinaleGate(act >= 5);
             ApplyLabel(act, prog);
+        }
+
+        // ------------------------------------------------------------------ 终幕之门（第五幕表现）
+        //  第五幕=长夏·厚土归墟：四季节点全亮琥珀 + 小路右端亮出「归墟之门」，
+        //  旅行者走到门前 —— 终局目的地可视化，别的东西不用改。
+        private void ApplyFinaleGate(bool finale)
+        {
+            if (_finale == null) return;
+            _finale.gameObject.SetActive(finale);
         }
 
         // ------------------------------------------------------------------ 节点染色
@@ -228,6 +239,13 @@ namespace WanXiang.Modules.UI
                 float sway = 1.5f * Mathf.Sin(Time.unscaledTime * 2.6f);
                 var e2 = _marker.rectTransform.localEulerAngles;
                 _marker.rectTransform.localEulerAngles = new Vector3(e2.x, e2.y, sway);
+            }
+
+            // 归墟之门：终幕时轻微呼吸（没有就跳过）
+            if (_finale != null && _finale.gameObject.activeSelf)
+            {
+                float br = 1f + 0.025f * Mathf.Sin(Time.unscaledTime * 1.7f);
+                _finale.rectTransform.localScale = new Vector3(br, br, 1f);
             }
         }
 
