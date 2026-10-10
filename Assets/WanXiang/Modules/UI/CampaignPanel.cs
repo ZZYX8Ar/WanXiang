@@ -260,6 +260,36 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private static readonly Color PathGold = new Color(0.79f, 0.63f, 0.39f, 1f);
         private static readonly Color QuestionInk = new Color(0.45f, 0.42f, 0.62f, 1f);
 
+        // ★ 节点/连线按【幕=季节】换风格（用户要求）：春绿 / 夏深绿 / 秋赭金 / 冬冰蓝 / 长夏土黄。
+        private static readonly Color[] SeasonPalette =
+        {
+            new Color(0.44f, 0.66f, 0.38f),   // 幕1 春
+            new Color(0.28f, 0.55f, 0.36f),   // 幕2 夏
+            new Color(0.80f, 0.55f, 0.22f),   // 幕3 秋
+            new Color(0.45f, 0.62f, 0.78f),   // 幕4 冬
+            new Color(0.70f, 0.53f, 0.30f),   // 幕5 长夏
+        };
+
+        /// <summary>本幕季节下标 0..4（由 _graph.Act 推得）。</summary>
+        private int SeasonIdx
+        {
+            get { int a = _graph != null ? _graph.Act : 1; return Mathf.Clamp(a - 1, 0, SeasonPalette.Length - 1); }
+        }
+        /// <summary>本幕季节强调色（节点徽 + 连线）。</summary>
+        private Color SeasonAccent { get { return SeasonPalette[SeasonIdx]; } }
+
+        // 节点季节徽（Resources/UI/Campaign/node_s1..5：花/竹/枫/雪/土）。缺图则保留 prefab 默认。
+        private static Sprite[] _seasonNodeSprites;
+        private static Sprite SeasonNodeSpriteFor(int idx)
+        {
+            if (_seasonNodeSprites == null) _seasonNodeSprites = new Sprite[5];
+            if (idx < 0 || idx >= _seasonNodeSprites.Length) idx = 0;
+            if (_seasonNodeSprites[idx] == null)
+                _seasonNodeSprites[idx] = UnityEngine.Resources.Load<Sprite>("UI/Campaign/node_s" + (idx + 1));
+            return _seasonNodeSprites[idx];
+        }
+        private Sprite SeasonNodeSprite() { return SeasonNodeSpriteFor(SeasonIdx); }
+
         private readonly HashSet<int> _visited = new HashSet<int>();
         private WanXiang.Campaign.ActGraph[] _acts;
         private WanXiang.Campaign.ActGraph _graph;
@@ -462,7 +492,7 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                     rt.SetParent(lineLayer, false);
                     rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
                     rt.pivot = new Vector2(0f, 0.5f);
-                    rt.sizeDelta = new Vector2(Vector2.Distance(pa, pb), walked ? 7f : 4f);
+                    rt.sizeDelta = new Vector2(Vector2.Distance(pa, pb), walked ? 9f : 6f);
                     rt.anchoredPosition = pa;
                     float ang = Mathf.Atan2(pb.y - pa.y, pb.x - pa.x) * Mathf.Rad2Deg;
                     rt.localRotation = Quaternion.Euler(0f, 0f, ang);
@@ -470,7 +500,10 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                     var img = go.AddComponent<Image>();
                     img.sprite = LineSprite();                 // 笔触墨线（回退白 sprite）
                     img.raycastTarget = false;
-                    img.color = walked ? PathGold : EdgeInk;
+                    // ★ 连线按【本幕季节】上色：走过的亮、其余半透明（"已过/可前往"另有文字标签兜底）
+                    var sa = SeasonAccent;
+                    img.color = walked ? new Color(sa.r, sa.g, sa.b, 1f)
+                                       : new Color(sa.r, sa.g, sa.b, 0.55f);
                     }
                 }
             }
@@ -555,8 +588,14 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             if (dot != null)
             {
                 bool q = kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset);
-                dot.color = q ? QuestionInk : isHere ? NodeVisited : canGo ? NodeReachable
-                              : passed ? PathGold : NodeLocked;
+                var em = SeasonNodeSprite();                 // ★ 本幕季节徽（花/竹/枫/雪/土）
+                if (em != null) dot.sprite = em;
+                // ★ 节点按【本幕季节】上色；锁定态压暗 = "去不了"。"当前/可前往/已过"另有文字标签按状态上色。
+                var sc = SeasonAccent;
+                bool lit = isHere || canGo || passed;
+                dot.color = q ? QuestionInk
+                          : lit ? sc
+                          : new Color(sc.r * 0.62f, sc.g * 0.62f, sc.b * 0.62f, 0.75f);
             }
 
             var btn = item.GetComponent<Button>();

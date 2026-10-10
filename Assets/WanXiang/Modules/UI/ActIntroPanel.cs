@@ -242,13 +242,12 @@ namespace WanXiang.Modules.UI
 
             ApplySeasonArt(act, t);   // ★ 每幕专属背景 + 粒子图 + 季节染色（缺图自动回退）
 
-            // 分层淡入：**先纸、再边框** —— 让背景"慢慢透出来"，而不是整块啪地出现。
-            // （根 prefab 的 CanvasGroup.alpha 默认已是 0，构即隐形；这里只额外错开边框。）
+            // ⛔ 不再叠「花边框」层（2026-10-10 用户实锤）：它比背景晚 0.55s 淡入 ⇒ 观感是
+            //    "先看到本幕季节背景、一下又被一层花纹盖住"（用户："每一幕的背景图有两张会变化"）。
+            //    背景图 `bg_<act>` 本身已含四季装饰（竹/枫/雪/土 + 云纹），去掉这层后开场**只剩一张图**。
             var frameT = transform.Find("Img_Frame");
-            var frameImg = frameT != null ? frameT.GetComponent<Image>() : null;
-            if (frameImg != null) { var fc = frameImg.color; fc.a = 0f; frameImg.color = fc; }
+            if (frameT != null) frameT.gameObject.SetActive(false);
             if (group != null) await FadeAsync(group, 0f, 1f, _fadeIn);
-            if (frameImg != null) await FadeImageAsync(frameImg, 0f, 1f, 0.55f);   // 边框比纸晚一档
             await UniTask.Delay(Ms(_titleStart));
 
             SpawnLeaves(t);
