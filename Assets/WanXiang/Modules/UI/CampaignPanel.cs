@@ -159,6 +159,9 @@ namespace WanXiang.Modules.UI
                 if (prun != null)
                 {
                     prun.NodeOffset = PendingCommit;
+                    // ★ 记一笔"真·通过"（落印✕ / 连线实线 只看它；VisitedNodes 只是"进入"，不算通过）
+                    if (prun.PassedNodes == null) prun.PassedNodes = new System.Collections.Generic.List<int>();
+                    if (!prun.PassedNodes.Contains(PendingCommit)) prun.PassedNodes.Add(PendingCommit);
                     // ★ 节点真正「通过」（离开事件/战斗面板回地图落地）⇒ 所有星移余气 -1（扣到负移除）。
                     //   推迟到此处而非「出征」点击，保证「进编队又返回」不算通过、星移仍可撤销
                     //   （用户实测：出征→编队→返回后星移撤销不了，根因就是出征时就把余气 -1 了）。
@@ -324,6 +327,9 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         ///  ⛔ 绝不能用"进过节点(VisitedNodes)"当判据：点进战斗/事件节点**只是进入**（进入即写 VisitedNodes），
         ///     玩家点开编队又返回、或事件没做完就返回，都不算通过 —— 用 visited 会误播动画（用户实锤）。</summary>
         private int _justPassedNode = -1;
+        /// <summary>本幕"真·通过"的节点集合（= PassedNodes ∩ VisitedNodes）。落印✕ / 连线实线 只看它，
+        ///  ⛔ 不看 _visited（那是"进入"）。</summary>
+        private readonly HashSet<int> _passed = new HashSet<int>();
         /// <summary>待播动画的节点（等真正回到地图看到画面时才播，见 PlayPendingAnim）。</summary>
         private readonly HashSet<int> _pendingNodes = new HashSet<int>();
         private bool _pendingAnim;
@@ -411,6 +417,28 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             _visited.Clear();          // readonly 字段只能就地清空（不能 new）
             if (run != null && run.VisitedNodes != null)
                 foreach (var v in run.VisitedNodes) _visited.Add(v);
+
+            // ★ "真·通过"集合 = PassedNodes ∩ VisitedNodes。
+            //   换幕/重开会把 VisitedNodes 清空 ⇒ 这边自动跟着空（不必去每处清 PassedNodes）。
+            _passed.Clear();
+            if (run != null)
+            {
+                if (run.PassedNodes != null && run.PassedNodes.Count > 0)
+                {
+                    foreach (var o in run.PassedNodes)
+                        if (_visited.Contains(o)) _passed.Add(o);
+                }
+                else if (_visited.Count > 0)
+                {
+                    // ★ 一次性迁移（老存档没有 PassedNodes 字段）：把"走过的"里**还能前往**的
+                    //   （= 从当前节点还走得到的，也就是"进去过但没通过"的那几格）剔掉 ⇒ 保留合法的通过格。
+                    foreach (var v in _visited)
+                        if (!IsReachable(v)) _passed.Add(v);
+                    if (_currentOffset >= 0) _passed.Add(_currentOffset);   // 当前格本身就是"已通过到这一格"
+                    run.PassedNodes = new System.Collections.Generic.List<int>(_passed);
+                    WanXiang.Run.RunSave.SaveCurrent();
+                }
+            }
 
 
             if (_tmpActTitle != null)
@@ -538,7 +566,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     {
                     Vector2 pa = NodePos(a);
                     Vector2 pb = NodePos(b);
-                    bool walked = _visited.Contains(a) && _visited.Contains(b);
+                    bool walked = _passed.Contains(a) && _passed.Contains(b);   // ★ 描金实线 = 两端都"真·通过"
 
                     var go = new GameObject("Edge_" + a + "_" + b, typeof(RectTransform));
                     var rt = (RectTransform)go.transform;
@@ -743,7 +771,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             var kind = _graph.KindOf(offset);
             bool isHere = offset == _currentOffset;
             bool canGo = IsReachable(offset);
-            bool passed = _visited.Contains(offset);
+            bool passed = _passed.Contains(offset);   // ★ "真·通过"（不是"进入"）：落印✕ / 标签描金 只看它
 
             // ★ 节点卡：按【本幕季节】换底板（纸卡 + 四角季节装饰）；锁定节点压暗。
             var cardImg = item.GetComponent<Image>();

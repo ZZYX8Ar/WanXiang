@@ -162,6 +162,16 @@ namespace WanXiang.Run
         public System.Collections.Generic.List<int> VisitedNodes = new System.Collections.Generic.List<int>();
 
         /// <summary>
+        /// **真正通过**的节点 —— 与 <see cref="VisitedNodes"/> 的区别：
+        /// `VisitedNodes` = **进入**（点节点那一刻就写）；本表 = **通过**（只有 `CampaignPanel.OnOpenAsync`
+        /// 把 `NodeOffset = PendingCommit` 落地时才记一笔）。
+        /// ⛔ 落印「✕」、连线描金实线 等"通过之后才有"的表现一律看本表，不看 VisitedNodes
+        ///   （用户实锤：点进战斗编队又返回，算"进入"但没通过）。换幕/重开时随 VisitedNodes 一起作废
+        ///   （读取端用 `PassedNodes ∩ VisitedNodes` 过滤即可，不必每处都清）。
+        /// </summary>
+        public System.Collections.Generic.List<int> PassedNodes = new System.Collections.Generic.List<int>();
+
+        /// <summary>
         /// 问号节点的揭晓结果，形如 "7:nest"（节点下标:类型）。
         /// ⚠ 不用 Dictionary —— JsonUtility 不支持，存成 List<string> 最省事。
         /// </summary>
