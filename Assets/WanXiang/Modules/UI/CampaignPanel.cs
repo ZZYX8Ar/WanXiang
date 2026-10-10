@@ -290,6 +290,27 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         }
         private Sprite SeasonNodeSprite() { return SeasonNodeSpriteFor(SeasonIdx); }
 
+        // 本幕季节「节点卡」（Resources/UI/Campaign/node_card_1..5：纸卡 + 四角季节装饰）。
+        private static Sprite[] _seasonCards;
+        private static Sprite SeasonCardSpriteFor(int idx)
+        {
+            if (_seasonCards == null) _seasonCards = new Sprite[5];
+            if (idx < 0 || idx >= _seasonCards.Length) idx = 0;
+            if (_seasonCards[idx] == null)
+                _seasonCards[idx] = UnityEngine.Resources.Load<Sprite>("UI/Campaign/node_card_" + (idx + 1));
+            return _seasonCards[idx];
+        }
+        // 本幕季节「连线」（Resources/UI/Campaign/line_s1..5：笔触墨线，春软/夏满/秋飞白/冬冽/长夏厚）。
+        private static Sprite[] _seasonLines;
+        private static Sprite SeasonLineSpriteFor(int idx)
+        {
+            if (_seasonLines == null) _seasonLines = new Sprite[5];
+            if (idx < 0 || idx >= _seasonLines.Length) idx = 0;
+            if (_seasonLines[idx] == null)
+                _seasonLines[idx] = UnityEngine.Resources.Load<Sprite>("UI/Campaign/line_s" + (idx + 1));
+            return _seasonLines[idx];
+        }
+
         private readonly HashSet<int> _visited = new HashSet<int>();
         private WanXiang.Campaign.ActGraph[] _acts;
         private WanXiang.Campaign.ActGraph _graph;
@@ -492,13 +513,14 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                     rt.SetParent(lineLayer, false);
                     rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
                     rt.pivot = new Vector2(0f, 0.5f);
-                    rt.sizeDelta = new Vector2(Vector2.Distance(pa, pb), walked ? 9f : 6f);
+                    rt.sizeDelta = new Vector2(Vector2.Distance(pa, pb), walked ? 14f : 10f);
                     rt.anchoredPosition = pa;
                     float ang = Mathf.Atan2(pb.y - pa.y, pb.x - pa.x) * Mathf.Rad2Deg;
                     rt.localRotation = Quaternion.Euler(0f, 0f, ang);
 
                     var img = go.AddComponent<Image>();
-                    img.sprite = LineSprite();                 // 笔触墨线（回退白 sprite）
+                    var seLine = SeasonLineSpriteFor(SeasonIdx);         // ★ 本幕季节笔触墨线
+                    img.sprite = seLine != null ? seLine : LineSprite(); // 缺图回退通用笔触
                     img.raycastTarget = false;
                     // ★ 连线按【本幕季节】上色：走过的亮、其余半透明（"已过/可前往"另有文字标签兜底）
                     var sa = SeasonAccent;
@@ -555,6 +577,16 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             bool isHere = offset == _currentOffset;
             bool canGo = IsReachable(offset);
             bool passed = _visited.Contains(offset);
+
+            // ★ 节点卡：按【本幕季节】换底板（纸卡 + 四角季节装饰）；锁定节点压暗。
+            var cardImg = item.GetComponent<Image>();
+            if (cardImg != null)
+            {
+                var card = SeasonCardSpriteFor(SeasonIdx);
+                if (card != null) { cardImg.sprite = card; cardImg.type = Image.Type.Sliced; }
+                cardImg.color = (passed || canGo || isHere)
+                    ? Color.white : new Color(0.80f, 0.80f, 0.80f, 0.92f);
+            }
 
             var label = item.Find("Tmp_NodeText") != null
                 ? item.Find("Tmp_NodeText").GetComponent<TMP_Text>() : null;
