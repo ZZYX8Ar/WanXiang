@@ -129,6 +129,8 @@ namespace WanXiang.Modules.UI
             //   保证「用了星移→关游戏→重进」星移天气仍在（之前天气随会话丢失，等于白花灵卵）。
             RehydrateXingyi();
 
+            _justPassedNode = -1;   // ★ 每次开面重置：只有下面 PendingCommit 真落地了才会重新置位
+
             // ★ 每一幕的开场/转场动画（宣纸底 + 大字逐字浮现 + 当季落叶）。
             //   触发口子**只放这一处**：进图与换幕都会经过 CampaignPanel.OnOpenAsync，
             //   免得两处各写一遍、行为还不一致。是否已播记在存档 RunState.IntroShownAct。
@@ -152,6 +154,7 @@ namespace WanXiang.Modules.UI
             //   不会持久化，节点也不会推进 ⇒ 下次进来还能重做（奖励不丢）。
             if (PendingCommit >= 0)
             {
+                _justPassedNode = PendingCommit;   // ★ 真·通过（这里才把 NodeOffset 落地）⇒ 记下它供落印/画线动画
                 var prun = WanXiang.Run.RunSave.Current;
                 if (prun != null)
                 {
@@ -316,12 +319,12 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private WanXiang.Campaign.ActGraph _graph;
         private int _currentOffset = -1;      // 当前所在节点（-1 = 还没出发）
         private int _selected = -1;
-        /// <summary>本次重绘时"新通过"的节点（= 本次 _visited 比上次多的那部分）⇒ 播落印/画线动画。
-        ///  用 diff 而不是靠 PendingCommit：无论面板是"重开"还是"恢复"，只要图真的重建过就一定播。</summary>
-        private readonly HashSet<int> _newlyPassed = new HashSet<int>();
-        private readonly HashSet<int> _lastVisited = new HashSet<int>();
-        private bool _visitedSeeded;
-        /// <summary>待播动画的"新通过"节点（等真正回到地图看到画面时才播，见 PlayPendingAnim）。</summary>
+        /// <summary>本次**真正通过**的节点 —— 只在 OnOpenAsync 把 <c>NodeOffset = PendingCommit</c>
+        ///  落地那一刻才置位。-1 = 本次没有"通过"。
+        ///  ⛔ 绝不能用"进过节点(VisitedNodes)"当判据：点进战斗/事件节点**只是进入**（进入即写 VisitedNodes），
+        ///     玩家点开编队又返回、或事件没做完就返回，都不算通过 —— 用 visited 会误播动画（用户实锤）。</summary>
+        private int _justPassedNode = -1;
+        /// <summary>待播动画的节点（等真正回到地图看到画面时才播，见 PlayPendingAnim）。</summary>
         private readonly HashSet<int> _pendingNodes = new HashSet<int>();
         private bool _pendingAnim;
         /// <summary>本次画出的边（供回到地图后播画线动画）。</summary>
@@ -409,14 +412,6 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             if (run != null && run.VisitedNodes != null)
                 foreach (var v in run.VisitedNodes) _visited.Add(v);
 
-            // ★ 本次"新通过"= 本次 _visited 比上次多的部分（不看 PendingCommit，重开/恢复都能算准）
-            _newlyPassed.Clear();
-            if (_visitedSeeded)
-            {
-                foreach (var v in _visited)
-                    if (!_lastVisited.Contains(v)) _newlyPassed.Add(v);
-            }
-            else _visitedSeeded = true;   // 首次建图：只 seed，不播动画
 
             if (_tmpActTitle != null)
                 _tmpActTitle.text = "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn +
@@ -489,16 +484,13 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (dist - viewH * 0.5f) / range);
             }
 
-            // ★ 更新 visited 快照（下次重绘 diff 出"新通过"用）
-            _lastVisited.Clear();
-            foreach (var v in _visited) _lastVisited.Add(v);
-
-            // ★ 有"新通过" ⇒ 先挂起，等真正回到地图看到画面（OnOpened / OnResume）再播动画，
-            //   否则玩家还在战斗/选择弹层里，动画就在背后播完了（用户实锤）。
-            if (_newlyPassed.Count > 0)
+            // ★ 只对**真正通过**的那个节点挂起动画（等回到地图可见时才播，见 PlayPendingAnim）。
+            //   _justPassedNode 只在 OnOpenAsync 把 NodeOffset 落地那刻置位 ⇒ "进编队又返回""事件没做完就返回"
+            //   都不会误播（用户实锤）。这里再挂起，是为了避开"还在战斗/选择弹层里"的时机。
+            if (_justPassedNode >= 0)
             {
                 _pendingNodes.Clear();
-                foreach (var v in _newlyPassed) _pendingNodes.Add(v);
+                _pendingNodes.Add(_justPassedNode);
                 _pendingAnim = true;
             }
         }
@@ -578,7 +570,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     // 记录边（供"回到地图后"播画线动画用）
                     _edgeItems.Add(rt); _edgeA.Add(a); _edgeB.Add(b);
                     // ★ 本次新走通的边先藏起来，等 PlayPendingAnim 再"从虚线变实线"
-                    if (walked && (_newlyPassed.Contains(a) || _newlyPassed.Contains(b)))
+                    if (walked && _justPassedNode >= 0 && (a == _justPassedNode || b == _justPassedNode))
                     { var cc = img.color; cc.a = 0f; img.color = cc; }
                     }
                 }
@@ -712,6 +704,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             if (!_pendingAnim) return;
             if (State == UIPanelState.Paused) return;   // 还被弹层盖着 ⇒ 等 OnResume
             _pendingAnim = false;
+            _justPassedNode = -1;                        // 播完就消费掉（后续重绘不再重播）
 
             for (int i = 0; i < _nodeItems.Count; i++)
             {
@@ -834,7 +827,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             {
                 // ★ 本次新通过的那枚先"藏起来"(alpha 0)：等真正回到地图、看到画面时才由 PlayPendingAnim 落印
                 //   （否则玩家还在战斗/选择弹层里，印章就在背后盖完了 —— 用户实锤）
-                bool fresh = _newlyPassed.Contains(offset);
+                bool fresh = (offset == _justPassedNode);
                 stampT.localScale = Vector3.one;
                 stampT.localRotation = Quaternion.Euler(0f, 0f, -2f);
                 var sc0 = stampImg.color; sc0.a = fresh ? 0f : 0.92f; stampImg.color = sc0;
