@@ -177,6 +177,17 @@ namespace WanXiang.Run
         /// </summary>
         public System.Collections.Generic.List<string> QuestionRevealed =
             new System.Collections.Generic.List<string>();
+
+        // ==================== 瘴雾（2026-10-10 新玩法） ====================
+        /// <summary>瘴雾剩余节点数（0 = 无雾）。>0 时节点图上"当前格 + 下一层"之外的层被雾遮住，
+        ///  每**真正通过**一个节点 -1，扣到 0 雾散。</summary>
+        public int FogLeft = 0;
+        /// <summary>本批瘴雾是否已经重掷过节点类型（防止反复开关面板时节点变来变去）。</summary>
+        public bool FogRerolled = false;
+        /// <summary>被瘴雾重掷过的节点类型，形如 "7:3"（节点下标:NodeKind）。
+        ///  ⛔ 节点图每次都由种子重建 ⇒ 重掷结果**必须落盘并在 BuildRoute 之后覆盖回去**（照 QuestionRevealed 的做法）。</summary>
+        public System.Collections.Generic.List<string> RerolledKinds =
+            new System.Collections.Generic.List<string>();
         public int Losses;                      // 本程败场
         /// <summary>
         /// 轮回数（"续劫"次数）：每轮回一次，敌人属性 +15%、天气更恶劣。

@@ -118,6 +118,16 @@ namespace WanXiang.Modules.UI
                 _btnXingyi.onClick.AddListener(OnXingyiClicked);
                 _btnXingyi.gameObject.SetActive(false);   // 默认隐藏，选中有天时的节点才显示
             }
+
+            // ★ 瘴雾调试按钮（prefab 里 Btn_DebugFog）：点一下触发 3 节瘴雾，方便实机看效果。
+            //   等正式触发口（天象/事件/守关失败）接上后可以删掉这个按钮。
+            var dbg = transform.Find("Btn_DebugFog");
+            if (dbg != null)
+            {
+                var b = dbg.GetComponent<UnityEngine.UI.Button>();
+                if (b != null) { b.onClick.RemoveAllListeners(); b.onClick.AddListener(() => TriggerFog(3)); }
+            }
+            else Debug.LogWarning("[Campaign] 缺 Btn_DebugFog（瘴雾调试按钮）");
         }
 
         /// <summary>由 <see cref="HomePanel"/> 在“出征”开图前置位 ⇒ 让开场动画每次都播（用户要求）。</summary>
@@ -162,6 +172,15 @@ namespace WanXiang.Modules.UI
                     // ★ 记一笔"真·通过"（落印✕ / 连线实线 只看它；VisitedNodes 只是"进入"，不算通过）
                     if (prun.PassedNodes == null) prun.PassedNodes = new System.Collections.Generic.List<int>();
                     if (!prun.PassedNodes.Contains(PendingCommit)) prun.PassedNodes.Add(PendingCommit);
+                    // ★ 瘴雾：真正通过一格 ⇒ 剩余雾 -1；扣到 0 雾就散。
+                    //   ⚠ 重掷记录（RerolledKinds）**不随雾散清掉** —— 地图被改过就该一直算数（本幕内），
+                    //     否则"雾散了图又变回去"会很怪。它跟 VisitedNodes 一样在换幕/重开时清。
+                    if (prun.FogLeft > 0)
+                    {
+                        prun.FogLeft--;
+                        Debug.Log("[Campaign] 瘴雾：通过节点 ⇒ 剩余 " + prun.FogLeft + " 节" +
+                                  (prun.FogLeft == 0 ? "（雾散）" : ""));
+                    }
                     // ★ 节点真正「通过」（离开事件/战斗面板回地图落地）⇒ 所有星移余气 -1（扣到负移除）。
                     //   推迟到此处而非「出征」点击，保证「进编队又返回」不算通过、星移仍可撤销
                     //   （用户实测：出征→编队→返回后星移撤销不了，根因就是出征时就把余气 -1 了）。
@@ -197,6 +216,9 @@ namespace WanXiang.Modules.UI
                         prun.Act++;
                         prun.NodeOffset = -1;
                         if (prun.VisitedNodes != null) prun.VisitedNodes.Clear();
+                        if (prun.PassedNodes != null) prun.PassedNodes.Clear();       // 换幕：通过记录作废（offset 是"本幕"的）
+                        if (prun.RerolledKinds != null) prun.RerolledKinds.Clear();   // 换幕：重掷记录作废
+                        prun.FogLeft = 0; prun.FogRerolled = false;                   // 换幕：雾散
                         Debug.Log("[Campaign] 通过本幕最后一格 ⇒ 推进到第 " + prun.Act + " 幕");
                         WanXiang.Run.RunSave.SaveCurrent();
 
@@ -396,6 +418,22 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             ulong seed = CoreMath.Fnv1a("route:" + (run != null ? run.RunSeed : 0) + ":" + act);
             _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(act, seed, Layers);
 
+            // ★ 瘴雾重掷过的节点类型：覆盖回去（节点图每次都由种子重建，不覆盖就被冲掉了）
+            if (run != null && run.RerolledKinds != null && run.RerolledKinds.Count > 0 && _graph.Kinds != null)
+            {
+                foreach (var rec in run.RerolledKinds)
+                {
+                    if (string.IsNullOrEmpty(rec)) continue;
+                    int ci = rec.IndexOf(':');
+                    if (ci <= 0) continue;
+                    int off, val;
+                    if (int.TryParse(rec.Substring(0, ci), out off) &&
+                        int.TryParse(rec.Substring(ci + 1), out val) &&
+                        off >= 0 && off < _graph.Kinds.Length)
+                        _graph.Kinds[off] = (WanXiang.Campaign.NodeKind)val;
+                }
+            }
+
             // ★★ 建图后重算实际层数（上面那个 lc 是兜底值！）
             lc = (_graph != null && _graph.Layers != null) ? _graph.Layers.Length : Layers;
 
@@ -567,6 +605,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     Vector2 pa = NodePos(a);
                     Vector2 pb = NodePos(b);
                     bool walked = _passed.Contains(a) && _passed.Contains(b);   // ★ 描金实线 = 两端都"真·通过"
+                    bool foggedEdge = InFog(a) || InFog(b);                     // ★ 瘴雾：雾里的边画得极淡
 
                     var go = new GameObject("Edge_" + a + "_" + b, typeof(RectTransform));
                     var rt = (RectTransform)go.transform;
@@ -595,6 +634,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                         img.color = new Color(sa.r, sa.g, sa.b, 0.5f);
                     }
                     img.raycastTarget = false;
+                    if (foggedEdge) { var fc = img.color; fc.a = 0.10f; img.color = fc; }   // ★ 雾里的边几乎看不见
                     // 记录边（供"回到地图后"播画线动画用）
                     _edgeItems.Add(rt); _edgeA.Add(a); _edgeB.Add(b);
                     // ★ 本次新走通的边先藏起来，等 PlayPendingAnim 再"从虚线变实线"
@@ -753,6 +793,90 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 if (im != null) StartCoroutine(LineDrawAnim(rt, im));
             }
         }
+        // ------------------------------------------------------------------
+        //  瘴雾：临时迷雾（只看得见"当前格 + 下一层"）+ 雾里节点类型重掷
+        // ------------------------------------------------------------------
+        /// <summary>雾遮到的"起始层"：layer >= 它就被雾盖住。当前层 + 下一层可见；没雾 = int.MaxValue。</summary>
+        private int FogFromLayer()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || run.FogLeft <= 0 || _graph == null) return int.MaxValue;
+            int baseLayer = _currentOffset >= 0 ? _graph.LayerOf(_currentOffset) : -1;
+            return baseLayer + 2;
+        }
+        private bool InFog(int offset)
+        {
+            int f = FogFromLayer();
+            if (f == int.MaxValue || _graph == null) return false;
+            return _graph.LayerOf(offset) >= f;
+        }
+
+        /// <summary>
+        /// 触发瘴雾：接下来 <paramref name="nodes"/> 个节点内，图上只有"当前格 + 下一层"可见，
+        /// 更远的层连类型都被雾盖住；**并把雾覆盖到、还没走过的节点类型重掷一遍**（关键节点除外）。
+        /// 已经在雾里则只续期、不重复重掷（防节点反复变）。
+        /// </summary>
+        public void TriggerFog(int nodes)
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || nodes <= 0) return;
+            bool alreadyFoggy = run.FogLeft > 0;
+            run.FogLeft = nodes;
+            run.FogRerolled = true;
+            if (!alreadyFoggy) RerollFoggedKinds(run);
+            WanXiang.Run.RunSave.SaveCurrent();
+            Debug.Log("[Campaign] 瘴雾来袭：接下来 " + nodes + " 节只看得见下一层" +
+                      (alreadyFoggy ? "（续期，不重掷）" : "（并重掷了远处节点类型）"));
+            BuildNodeMap();
+        }
+
+        /// <summary>
+        /// 重掷"雾里"的节点类型。只动**没走过、非当前格、非关键**的节点，且**拓扑不动**
+        /// （层/边/节气序号全不变）⇒ 所有按下标存的存档字段（NodeOffset/VisitedNodes/Path/QuestionRevealed）全部有效。
+        /// 结果写进 <c>RunState.RerolledKinds</c> 落盘（节点图每次由种子重建，不落盘就被冲掉，见 BuildNodeMap）。
+        /// </summary>
+        private static void RerollFoggedKinds(WanXiang.Run.RunState run)
+        {
+            var graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(
+                run.Act, CoreMath.Fnv1a("route:" + run.RunSeed + ":" + run.Act), Layers);
+            if (graph == null || graph.Kinds == null || graph.Layers == null) return;
+
+            int baseLayer = run.NodeOffset >= 0 ? graph.LayerOf(run.NodeOffset) : -1;
+            int fogFrom = baseLayer + 2;
+            int last = graph.NodeCount - 1;
+
+            // 重掷池：普通"计划类"节点（遭遇权重高一点）。精英/招募/遗物是结构位，不在池里。
+            var pool = new[]
+            {
+                WanXiang.Campaign.NodeKind.Encounter, WanXiang.Campaign.NodeKind.Encounter,
+                WanXiang.Campaign.NodeKind.Shop, WanXiang.Campaign.NodeKind.Nest,
+                WanXiang.Campaign.NodeKind.Tale, WanXiang.Campaign.NodeKind.Forge,
+                WanXiang.Campaign.NodeKind.Omen, WanXiang.Campaign.NodeKind.Question,
+            };
+
+            // ⛔ 独立随机源（绝不用 st.Random —— 那会扰动战斗随机流，项目铁律）
+            var rng = new System.Random(System.Environment.TickCount ^ (run.RunSeed * 397) ^ run.Act);
+            var recs = new System.Collections.Generic.List<string>();
+            for (int off = 0; off < graph.NodeCount; off++)
+            {
+                if (graph.LayerOf(off) < fogFrom) continue;                                   // 只在雾里重掷
+                if (off == last) continue;                                                    // 末层守关 Boss：锁死
+                if (run.VisitedNodes != null && run.VisitedNodes.Contains(off)) continue;      // 走过的：锁死
+                if (IsStructuralKind(graph.Kinds[off])) continue;                              // 招募/遗物/精英：锁死
+                var k = pool[rng.Next(pool.Length)];
+                recs.Add(off + ":" + (int)k);
+            }
+            run.RerolledKinds = recs;
+        }
+
+        /// <summary>结构位节点（不参与重掷）：招募(首层) / 遗物(次层) / 精英(含守关占位)。</summary>
+        private static bool IsStructuralKind(WanXiang.Campaign.NodeKind k)
+        {
+            return k == WanXiang.Campaign.NodeKind.Recruit
+                || k == WanXiang.Campaign.NodeKind.Relic
+                || k == WanXiang.Campaign.NodeKind.Elite;
+        }
+
         /// <summary>从 "Item_Node_&lt;offset&gt;" 取 offset。</summary>
         private static int OffsetOfName(string n)
         {
@@ -772,6 +896,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             bool isHere = offset == _currentOffset;
             bool canGo = IsReachable(offset);
             bool passed = _passed.Contains(offset);   // ★ "真·通过"（不是"进入"）：落印✕ / 标签描金 只看它
+            bool fogged = InFog(offset);              // ★ 瘴雾：只在"当前格 + 下一层"内可见
 
             // ★ 节点卡：按【本幕季节】换底板（纸卡 + 四角季节装饰）；锁定节点压暗。
             var cardImg = item.GetComponent<Image>();
@@ -779,13 +904,20 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             {
                 var card = SeasonCardSpriteFor(SeasonIdx);
                 if (card != null) { cardImg.sprite = card; cardImg.type = Image.Type.Sliced; }
-                cardImg.color = (passed || canGo || isHere)
-                    ? Color.white : new Color(0.80f, 0.80f, 0.80f, 0.92f);
+                cardImg.color = fogged
+                    ? new Color(0.78f, 0.80f, 0.82f, 0.95f)                      // ★ 瘴雾：冷灰"雾气卡"
+                    : (passed || canGo || isHere) ? Color.white : new Color(0.80f, 0.80f, 0.80f, 0.92f);
             }
 
             var label = item.Find("Tmp_NodeText") != null
                 ? item.Find("Tmp_NodeText").GetComponent<TMP_Text>() : null;
-            if (label != null)
+            if (label != null && fogged)
+            {
+                // ★ 瘴雾：遮住的层连类型都不透 —— 只显示"迷雾"（这就是迷雾的意义）
+                label.text = "？？　迷雾";
+                label.color = new Color(0.58f, 0.56f, 0.53f, 0.9f);
+            }
+            else if (label != null)
             {
                 // ★ 守卫格在图里都是【精英】占位（NodeKind 没有 Boss 类型），显示上必须讲明：
                 //   · 幕 1~4 守关  → 「守关 · <首领名>」，走 BossSquadFor 抽 BossCatalog 首领
@@ -815,15 +947,19 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             var dot = item.Find("Img_Dot") != null ? item.Find("Img_Dot").GetComponent<Image>() : null;
             if (dot != null)
             {
-                bool q = kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset);
-                var em = SeasonNodeSprite();                 // ★ 本幕季节徽（花/竹/枫/雪/土）
-                if (em != null) dot.sprite = em;
-                // ★ 节点按【本幕季节】上色；锁定态压暗 = "去不了"。"当前/可前往/已过"另有文字标签按状态上色。
-                var sc = SeasonAccent;
-                bool lit = isHere || canGo || passed;
-                dot.color = q ? QuestionInk
-                          : lit ? sc
-                          : new Color(sc.r * 0.62f, sc.g * 0.62f, sc.b * 0.62f, 0.75f);
+                dot.gameObject.SetActive(!fogged);           // ★ 雾里的节点连季节徽都不露
+                if (!fogged)
+                {
+                    bool q = kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset);
+                    var em = SeasonNodeSprite();             // ★ 本幕季节徽（花/竹/枫/雪/土）
+                    if (em != null) dot.sprite = em;
+                    // ★ 节点按【本幕季节】上色；锁定态压暗 = "去不了"。"当前/可前往/已过"另有文字标签按状态上色。
+                    var sc = SeasonAccent;
+                    bool lit = isHere || canGo || passed;
+                    dot.color = q ? QuestionInk
+                              : lit ? sc
+                              : new Color(sc.r * 0.62f, sc.g * 0.62f, sc.b * 0.62f, 0.75f);
+                }
             }
 
             var btn = item.GetComponent<Button>();
@@ -849,7 +985,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             var stampImg = stampT.GetComponent<Image>();
             if (stampImg != null && stampImg.sprite == null) stampImg.sprite = StampSprite();
             // ★ 只判 passed（含"当前"格）：刚通过的节点**就是**当前格，若排除 isHere 会"晚一格"才盖印（用户实锤）
-            bool showStamp = passed;
+            bool showStamp = passed && !fogged;
             stampT.gameObject.SetActive(showStamp);
             if (showStamp && stampImg != null)
             {
