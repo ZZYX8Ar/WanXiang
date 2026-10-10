@@ -468,7 +468,7 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                     rt.localRotation = Quaternion.Euler(0f, 0f, ang);
 
                     var img = go.AddComponent<Image>();
-                    img.sprite = WhiteSprite();
+                    img.sprite = LineSprite();                 // 笔触墨线（回退白 sprite）
                     img.raycastTarget = false;
                     img.color = walked ? PathGold : EdgeInk;
                     }
@@ -498,6 +498,18 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             tex.Apply();
             _white = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 100f);
             return _white;
+        }
+
+        private static Sprite _lineSprite;
+        private static bool _lineTried;
+        /// <summary>连线美术：笔触墨线（Resources/UI/Campaign/map_edge_ink）。缺图回退白 sprite，保证功能不受影响。</summary>
+        private static Sprite LineSprite()
+        {
+            if (_lineTried) return _lineSprite;
+            _lineTried = true;
+            _lineSprite = UnityEngine.Resources.Load<Sprite>("UI/Campaign/map_edge_ink");
+            if (_lineSprite == null) _lineSprite = WhiteSprite();
+            return _lineSprite;
         }
 
         private RectTransform SpawnNodeItem(RectTransform content, int offset, int layer)
