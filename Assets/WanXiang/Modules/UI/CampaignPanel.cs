@@ -152,6 +152,7 @@ namespace WanXiang.Modules.UI
             //   不会持久化，节点也不会推进 ⇒ 下次进来还能重做（奖励不丢）。
             if (PendingCommit >= 0)
             {
+                _justPassed = PendingCommit;   // ★ 记下"刚通过的节点" ⇒ 重绘时给它播落印/连线动画
                 var prun = WanXiang.Run.RunSave.Current;
                 if (prun != null)
                 {
@@ -255,7 +256,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
 
         // 路线图尺寸常量（连线的节点坐标必须与排布公式一致，所以提出来共用）
         private const int Layers = WanXiang.Campaign.SolarTermGraph.DefaultLayers;   // 路线图层数（每幕节点数；连线的节点坐标必须与排布公式一致）
-        private const float NodeW = 380f, NodeH = 110f, GapX = 40f, GapY = 90f;
+        private const float NodeW = 420f, NodeH = 110f, GapX = 24f, GapY = 90f;   // 2026-10-10 节点加大、间距收窄（配合 Scroll_Nodes 加宽到 1376，三列不再被裁）
         private static readonly Color EdgeInk = new Color(0.72f, 0.68f, 0.60f, 0.9f);
         private static readonly Color PathGold = new Color(0.79f, 0.63f, 0.39f, 1f);
         private static readonly Color QuestionInk = new Color(0.45f, 0.42f, 0.62f, 1f);
@@ -316,6 +317,8 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private WanXiang.Campaign.ActGraph _graph;
         private int _currentOffset = -1;      // 当前所在节点（-1 = 还没出发）
         private int _selected = -1;
+        /// <summary>本次重绘时"刚刚通过"的节点 ⇒ 播落印/画线动画（-1 = 无）。</summary>
+        private int _justPassed = -1;
         private readonly List<RectTransform> _nodeItems = new List<RectTransform>(8);
 
         private void BuildNodeMap()
@@ -461,7 +464,8 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)_scrollNodes.viewport);
             UnityEngine.Canvas.ForceUpdateCanvases();
 
-_scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 200f) / Mathf.Max(1f, totalH));
+            _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 200f) / Mathf.Max(1f, totalH));
+            _justPassed = -1;   // ★ 落印/画线动画每次重绘只播一次
         }
 
         /// <summary>关掉 content 上的自动布局组件（手动排布的前提）。</summary>
@@ -513,19 +517,31 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                     rt.SetParent(lineLayer, false);
                     rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
                     rt.pivot = new Vector2(0f, 0.5f);
-                    rt.sizeDelta = new Vector2(Vector2.Distance(pa, pb), walked ? 14f : 10f);
+                    // 虚/实：未走通 = 虚线（Tiled 平铺；高度须与 line_dash 贴图一致=14，否则会被裁）；走通 = 实线
+                    rt.sizeDelta = new Vector2(Vector2.Distance(pa, pb), 14f);
                     rt.anchoredPosition = pa;
                     float ang = Mathf.Atan2(pb.y - pa.y, pb.x - pa.x) * Mathf.Rad2Deg;
                     rt.localRotation = Quaternion.Euler(0f, 0f, ang);
 
                     var img = go.AddComponent<Image>();
-                    var seLine = SeasonLineSpriteFor(SeasonIdx);         // ★ 本幕季节笔触墨线
-                    img.sprite = seLine != null ? seLine : LineSprite(); // 缺图回退通用笔触
-                    img.raycastTarget = false;
-                    // ★ 连线按【本幕季节】上色：走过的亮、其余半透明（"已过/可前往"另有文字标签兜底）
                     var sa = SeasonAccent;
-                    img.color = walked ? new Color(sa.r, sa.g, sa.b, 1f)
-                                       : new Color(sa.r, sa.g, sa.b, 0.55f);
+                    if (walked)
+                    {
+                        var seLine = SeasonLineSpriteFor(SeasonIdx);         // ★ 本幕季节笔触（实线）
+                        img.sprite = seLine != null ? seLine : LineSprite();
+                        img.type = Image.Type.Simple;
+                        img.color = new Color(sa.r, sa.g, sa.b, 1f);
+                    }
+                    else
+                    {
+                        img.sprite = DashSprite();                           // 虚线笔触
+                        img.type = Image.Type.Tiled;                         // 沿线平铺 ⇒ 虚
+                        img.color = new Color(sa.r, sa.g, sa.b, 0.5f);
+                    }
+                    img.raycastTarget = false;
+                    // ★ 本幕刚走通的边 ⇒ 播"虚线变实线"的画线动画
+                    if (walked && _justPassed >= 0 && (a == _justPassed || b == _justPassed))
+                        StartCoroutine(LineDrawAnim(rt, img));
                     }
                 }
             }
@@ -567,6 +583,67 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             return _lineSprite;
         }
 
+        private static Sprite _stamp; private static bool _stampTried;
+        /// <summary>朱砂「✕」印章（Resources/UI/Campaign/x_stamp）。缺图 = 不显示（不报错）。</summary>
+        private static Sprite StampSprite()
+        {
+            if (_stampTried) return _stamp;
+            _stampTried = true;
+            _stamp = UnityEngine.Resources.Load<Sprite>("UI/Campaign/x_stamp");
+            return _stamp;
+        }
+
+        private static Sprite _dash; private static bool _dashTried;
+        /// <summary>虚线笔触（Resources/UI/Campaign/line_dash，可平铺；Image.type 必须 Tiled）。</summary>
+        private static Sprite DashSprite()
+        {
+            if (_dashTried) return _dash;
+            _dashTried = true;
+            _dash = UnityEngine.Resources.Load<Sprite>("UI/Campaign/line_dash");
+            if (_dash == null) _dash = WhiteSprite();
+            return _dash;
+        }
+
+        /// <summary>落印：从上方加速落下 + 过冲回正 + 淡入（"啪"地盖在季节徽上）。</summary>
+        private System.Collections.IEnumerator StampDropAnim(RectTransform rt, Image img)
+        {
+            float dur = 0.26f, e = 0f;
+            rt.localScale = Vector3.one * 1.75f;
+            rt.localRotation = Quaternion.Euler(0f, 0f, -16f);
+            var c0 = img.color; c0.a = 0f; img.color = c0;
+            while (e < dur)
+            {
+                if (rt == null || img == null) yield break;
+                e += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(e / dur); float kk = k * k;
+                rt.localScale = Vector3.one * Mathf.Lerp(1.75f, 1f, kk);
+                rt.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-16f, -2f, kk));
+                var c = img.color; c.a = Mathf.Lerp(0f, 0.95f, k); img.color = c;
+                yield return null;
+            }
+            if (rt != null) { rt.localScale = Vector3.one; rt.localRotation = Quaternion.Euler(0f, 0f, -2f); }
+            if (img != null) { var c = img.color; c.a = 0.95f; img.color = c; }
+        }
+
+        /// <summary>画线：新走通的边从左端"长"出来 + 淡入（配合节点落印 ⇒ "这条路刚打通"）。</summary>
+        private System.Collections.IEnumerator LineDrawAnim(RectTransform rt, Image img)
+        {
+            float dur = 0.5f, e = 0f;
+            var c0 = img.color; c0.a = 0f; img.color = c0;
+            rt.localScale = new Vector3(0.04f, 1f, 1f);
+            while (e < dur)
+            {
+                if (rt == null || img == null) yield break;
+                e += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(e / dur);
+                rt.localScale = new Vector3(Mathf.Lerp(0.04f, 1f, k), 1f, 1f);
+                var c = img.color; c.a = Mathf.Lerp(0f, 1f, Mathf.Min(1f, k * 2f)); img.color = c;
+                yield return null;
+            }
+            if (rt != null) rt.localScale = Vector3.one;
+            if (img != null) { var c = img.color; c.a = 1f; img.color = c; }
+        }
+
         private RectTransform SpawnNodeItem(RectTransform content, int offset, int layer)
         {
             var item = Instantiate(_nodeItemTemplate, content);
@@ -602,17 +679,18 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
                                     _graph.NodeCount > 0 && offset == _graph.NodeCount - 1;
                 string name;
                 if (kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset))
-                    name = "？ 未知";
+                    name = "？未知";
                 else if (kind == WanXiang.Campaign.NodeKind.Question)
                     name = WanXiang.Campaign.NodeKinds.Cn(RevealedKind(offset));   // 揭晓后显示真实类型
                 else if (isFinaleCell)
-                    name = "终局 · " + (_graph.BossName ?? "后土");
+                    name = "终局·" + (_graph.BossName ?? "后土");
                 else if (isSeasonBossCell)
-                    name = "守关 · " + (_graph.BossName ?? "首领");
+                    name = "守关·" + (_graph.BossName ?? "首领");
                 else
                     name = WanXiang.Campaign.NodeKinds.Cn(kind);
-                label.text = (offset + 1) + ". " + TermName(_graph.Terms[offset]) + "　【" + name + "】" +
-                             (isHere ? "　◀ 当前" : canGo ? "　← 可前往" : passed ? "　已过" : "");
+                // ★ 文案精简：去掉多余全角空格；"已过"不再用文字 —— 改用朱砂 ✕ 印章（见下方 Img_Stamp）
+                label.text = (offset + 1) + "." + TermName(_graph.Terms[offset]) + "【" + name + "】" +
+                             (isHere ? " ◀当前" : canGo ? " ←可前往" : "");
                 label.color = isHere ? NodeVisited : canGo ? NodeReachable : passed ? PathGold : NodeLocked;
             }
 
@@ -636,24 +714,37 @@ _scrollNodes.verticalNormalizedPosition = Mathf.Clamp01(1f - (Mathf.Abs(curY) - 
             // 已过的节点：不可再点 + 变灰 + 右上角一个 ✕（用户要求"通过了就不能再点"）
             btn.interactable = canGo || isHere;
 
-            var mark = item.Find("Tmp_Done") != null ? item.Find("Tmp_Done").GetComponent<TMP_Text>() : null;
-            if (mark == null)
+            // ★ 已过：盖一个朱砂「✕」印（用户要求：去掉"已过"文字，改用落印 + 落印动画）
+            var stampT = item.Find("Img_Stamp") as RectTransform;
+            if (stampT == null)
             {
-                var mrt = new GameObject("Tmp_Done", typeof(RectTransform)).GetComponent<RectTransform>();
-                mrt.SetParent(item, false);
-                mrt.anchorMin = new Vector2(1f, 1f);
-                mrt.anchorMax = new Vector2(1f, 1f);
-                mrt.pivot = new Vector2(0.5f, 0.5f);
-                mrt.anchoredPosition = new Vector2(-30f, -20f);
-                mrt.sizeDelta = new Vector2(60f, 50f);
-                mark = mrt.gameObject.AddComponent<TextMeshProUGUI>();
-                mark.fontSize = 40;
-                mark.fontStyle = FontStyles.Bold;
-                mark.alignment = TextAlignmentOptions.Center;
-                mark.raycastTarget = false;
+                stampT = new GameObject("Img_Stamp", typeof(RectTransform)).GetComponent<RectTransform>();
+                stampT.SetParent(item, false);
+                stampT.anchorMin = stampT.anchorMax = new Vector2(0f, 0.5f);   // 盖在左侧季节徽上
+                stampT.pivot = new Vector2(0.5f, 0.5f);
+                stampT.anchoredPosition = new Vector2(94f, 0f);
+                stampT.sizeDelta = new Vector2(86f, 86f);
+                var si = stampT.gameObject.AddComponent<Image>();
+                si.raycastTarget = false;
+                si.sprite = StampSprite();
             }
-            mark.gameObject.SetActive(passed && !isHere && !canGo);
-            if (mark.gameObject.activeSelf) mark.color = new Color(0.55f, 0.52f, 0.46f, 0.9f);
+            var stampImg = stampT.GetComponent<Image>();
+            if (stampImg != null && stampImg.sprite == null) stampImg.sprite = StampSprite();
+            bool showStamp = passed && !isHere && !canGo;
+            stampT.gameObject.SetActive(showStamp);
+            if (showStamp && stampImg != null)
+            {
+                if (offset == _justPassed)
+                {
+                    StartCoroutine(StampDropAnim(stampT, stampImg));        // ★ 刚通过 ⇒ 落印动画
+                }
+                else
+                {
+                    stampT.localScale = Vector3.one;
+                    stampT.localRotation = Quaternion.Euler(0f, 0f, -2f);
+                    var sc0 = stampImg.color; sc0.a = 0.92f; stampImg.color = sc0;
+                }
+            }
             var captured = offset;
             btn.onClick.AddListener(() => SelectNode(captured, silent: false));
 
