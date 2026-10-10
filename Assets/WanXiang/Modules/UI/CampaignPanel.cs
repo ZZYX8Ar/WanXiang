@@ -125,7 +125,7 @@ namespace WanXiang.Modules.UI
             if (dbg != null)
             {
                 var b = dbg.GetComponent<UnityEngine.UI.Button>();
-                if (b != null) { b.onClick.RemoveAllListeners(); b.onClick.AddListener(() => TriggerFog(3)); }
+                if (b != null) { b.onClick.RemoveAllListeners(); b.onClick.AddListener(ArmFogOnNextLayer); }
             }
             else Debug.LogWarning("[Campaign] 缺 Btn_DebugFog（瘴雾调试按钮）");
         }
@@ -219,6 +219,7 @@ namespace WanXiang.Modules.UI
                         if (prun.VisitedNodes != null) prun.VisitedNodes.Clear();
                         if (prun.PassedNodes != null) prun.PassedNodes.Clear();       // 换幕：通过记录作废（offset 是"本幕"的）
                         if (prun.RerolledKinds != null) prun.RerolledKinds.Clear();   // 换幕：重掷记录作废
+                        if (prun.FogWeatherNodes != null) prun.FogWeatherNodes.Clear(); // 换幕：挂的瘴雾天时作废
                         prun.FogLeft = 0; prun.FogRerolled = false;                   // 换幕：雾散
                         Debug.Log("[Campaign] 通过本幕最后一格 ⇒ 推进到第 " + prun.Act + " 幕");
                         WanXiang.Run.RunSave.SaveCurrent();
@@ -353,6 +354,8 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// <summary>本幕"真·通过"的节点集合（= PassedNodes ∩ VisitedNodes）。落印✕ / 连线实线 只看它，
         ///  ⛔ 不看 _visited（那是"进入"）。</summary>
         private readonly HashSet<int> _passed = new HashSet<int>();
+        /// <summary>挂了「瘴雾」天时的节点（点"前往"走到它 ⇒ 起雾）。</summary>
+        private readonly HashSet<int> _fogWeather = new HashSet<int>();
         /// <summary>待播动画的节点（等真正回到地图看到画面时才播，见 PlayPendingAnim）。</summary>
         private readonly HashSet<int> _pendingNodes = new HashSet<int>();
         private bool _pendingAnim;
@@ -459,6 +462,10 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
 
             // ★ "真·通过"集合 = PassedNodes ∩ VisitedNodes。
             //   换幕/重开会把 VisitedNodes 清空 ⇒ 这边自动跟着空（不必去每处清 PassedNodes）。
+            _fogWeather.Clear();
+            if (run != null && run.FogWeatherNodes != null)
+                foreach (var o in run.FogWeatherNodes) _fogWeather.Add(o);
+
             _passed.Clear();
             if (run != null)
             {
@@ -829,10 +836,33 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             Debug.Log("[Campaign] 瘴雾来袭：接下来 " + nodes + " 节只看得见下一层" +
                       (alreadyFoggy ? "（续期，不重掷）" : "（并重掷了远处节点类型）"));
             BuildNodeMap();
+            // 注：起雾的"当场提示"见 ShowFogBanner（下面）
             // ★ 开场提示：把"后续节点已经变了"讲明白（否则玩家会以为是 bug）
             ShowFogBanner(alreadyFoggy
                 ? "瘴雾未散 · 视野依旧只剩下一层"
                 : "瘴雾来袭 · 前路隐没，后续节点已非旧貌");
+        }
+
+        /// <summary>
+        /// 【调试，模拟正式流程】把「瘴雾」天时挂到**下一层**的节点上：节点卡上会显示「·瘴雾」，
+        /// 等你点「前往」真正走到那里时才起雾（不是一点按钮就变）。正式版应由节点生成/天气数据填这个表。
+        /// </summary>
+        public void ArmFogOnNextLayer()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || _graph == null || _graph.Layers == null) return;
+            if (run.FogWeatherNodes == null) run.FogWeatherNodes = new System.Collections.Generic.List<int>();
+
+            int nextLayer = _currentOffset >= 0 ? _graph.LayerOf(_currentOffset) + 1 : 0;
+            if (nextLayer < 0 || nextLayer >= _graph.Layers.Length) { ShowFogBanner("已经没有下一层了"); return; }
+
+            int added = 0;
+            foreach (var off in _graph.Layers[nextLayer])
+                if (!run.FogWeatherNodes.Contains(off)) { run.FogWeatherNodes.Add(off); added++; }
+            WanXiang.Run.RunSave.SaveCurrent();
+            Debug.Log("[Campaign] 已把「瘴雾」天时挂到下一层 " + added + " 个节点（走到即起雾）");
+            BuildNodeMap();
+            ShowFogBanner("已把「瘴雾」天时挂到下一层 —— 走到那个节点就会起雾");
         }
 
         /// <summary>
@@ -984,6 +1014,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     name = WanXiang.Campaign.NodeKinds.Cn(kind);
                 // ★ 文案精简：去掉多余全角空格；"已过"不再用文字 —— 改用朱砂 ✕ 印章（见下方 Img_Stamp）
                 label.text = (offset + 1) + "." + TermName(_graph.Terms[offset]) + "【" + name + "】" +
+                             (_fogWeather.Contains(offset) ? " <color=#6E5A8E>·瘴雾</color>" : "") +
                              (isHere ? " ◀当前" : canGo ? " ←可前往" : "");
                 label.color = isHere ? NodeVisited : canGo ? NodeReachable : passed ? PathGold : NodeLocked;
             }
@@ -1661,6 +1692,14 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 //   会被当成「已通过」，导致星移无法撤销（用户实测）。余气扣减统一推迟到
                 //   节点真正通过时（见 OnOpenAsync 里对 PendingCommit 的落地）。
                 WanXiang.Run.RunSave.SaveCurrent();
+
+                // ★ 瘴雾天时：走到挂了「瘴雾」的节点 ⇒ **当场起雾**（跟真的一样：节点卡上就标着「·瘴雾」）
+                if (run.FogWeatherNodes != null && run.FogWeatherNodes.Contains(_selected))
+                {
+                    run.FogWeatherNodes.Remove(_selected);
+                    WanXiang.Run.RunSave.SaveCurrent();
+                    TriggerFog(3);
+                }
             }
 
             // ---- 问号节点：走上去这一刻揭晓（v1.2 核心）----

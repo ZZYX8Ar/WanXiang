@@ -188,6 +188,11 @@ namespace WanXiang.Run
         ///  ⛔ 节点图每次都由种子重建 ⇒ 重掷结果**必须落盘并在 BuildRoute 之后覆盖回去**（照 QuestionRevealed 的做法）。</summary>
         public System.Collections.Generic.List<string> RerolledKinds =
             new System.Collections.Generic.List<string>();
+
+        /// <summary>挂了「瘴雾」天时的节点：**走到这些节点（点"前往"那一刻）就起雾**。
+        ///  本幕有效，换幕/重开清空。（现在由调试口挂；以后改由节点生成/天气数据填。）</summary>
+        public System.Collections.Generic.List<int> FogWeatherNodes =
+            new System.Collections.Generic.List<int>();
         public int Losses;                      // 本程败场
         /// <summary>
         /// 轮回数（"续劫"次数）：每轮回一次，敌人属性 +15%、天气更恶劣。
