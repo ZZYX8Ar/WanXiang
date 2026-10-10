@@ -29,6 +29,8 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Image      _fog;          // Img_Fog      迷雾（右锚拉伸）
         [SerializeField] private RectTransform _nodesRoot; // Map_Nodes    24 个烘焙节点
         [SerializeField] private Image      _marker;       // Img_Flag     旅行者小旗
+        [SerializeField] private Image      _far;          // Img_Far      远山层（大气透视，视差最慢）
+        [SerializeField] private Image      _near;         // Img_Near     近景层（视差最快 ⇒ 伪3D）
         [SerializeField] private TMP_Text   _label;        // Tmp_MapLabel 中央文案
 
         [Header("表现参数（可在 Inspector 直接调）")]
@@ -37,6 +39,9 @@ namespace WanXiang.Modules.UI
         [SerializeField] private float _fogSoftPx = 150f;  // 迷雾左缘渐隐宽度（px）
         [SerializeField] private float _tiltDeg   = 1.5f;  // 悬浮最大倾角
         [SerializeField] private float _shiftPx   = 8f;    // 悬浮最大平移（px）
+        [Header("伪3D 分层视差")]
+        [SerializeField] private float _farParallax  = 0.35f; // 远山随悬浮移动的倍率（慢）
+        [SerializeField] private float _nearParallax = 1.70f; // 近景随悬浮移动的倍率（快）
 
         // ---- 常量表 ----
         private static readonly string[] Terms =
@@ -64,6 +69,7 @@ namespace WanXiang.Modules.UI
         // ---- 运行时 ----
         private bool _hover;
         private Vector2 _hoverNorm;
+        private Vector2 _hoverSmooth;   // 平滑后的悬浮向量（驱动分层视差）
 
         private void OnEnable() { Refresh(); }
 
@@ -183,15 +189,25 @@ namespace WanXiang.Modules.UI
 
         private void Update()
         {
+            float k = 1f - Mathf.Exp(-10f * Time.deltaTime);
+            Vector2 hTarget = _hover ? _hoverNorm : Vector2.zero;
+            _hoverSmooth = Vector2.Lerp(_hoverSmooth, hTarget, k);
+
             if (_par != null)
             {
-                float  tRot  = _hover ? -_hoverNorm.x * _tiltDeg : 0f;
-                Vector2 tPos  = _hover ? new Vector2(_hoverNorm.x, _hoverNorm.y) * _shiftPx : Vector2.zero;
-                float k = 1f - Mathf.Exp(-10f * Time.deltaTime);
+                float tRot = -_hoverSmooth.x * _tiltDeg;
                 Vector3 e = _par.localEulerAngles;
                 _par.localEulerAngles = new Vector3(e.x, e.y, Mathf.LerpAngle(e.z, tRot, k));
-                _par.anchoredPosition = Vector2.Lerp(_par.anchoredPosition, tPos, k);
+                _par.anchoredPosition = _hoverSmooth * _shiftPx;
             }
+
+            // 伪3D：远山慢、近景快 ⇒ 悬浮时三层错动产生纵深
+            if (_far != null)
+                _far.rectTransform.anchoredPosition =
+                    new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _farParallax);
+            if (_near != null)
+                _near.rectTransform.anchoredPosition =
+                    new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _nearParallax);
 
             // 小旗轻微摆动
             if (_marker != null && _marker.gameObject.activeSelf)

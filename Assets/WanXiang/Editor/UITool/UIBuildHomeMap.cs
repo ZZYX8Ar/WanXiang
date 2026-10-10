@@ -7,14 +7,17 @@
 //    Panel_Home
 //    └─ Map_Journey  (1240×300 居中, HomeMapJourney; 插到 Img_HeroSprite 之前=垫在立绘下)
 //       ├─ Map_Par        视差作用层
-//       │  ├─ Img_Terrain  地形长卷（左→右 春夏秋冬，raycastTarget=true 悬浮入口）
+//       │  ├─ Img_Far      远山层（大气透视，视差最慢 —— 伪3D 底层）
+//       │  ├─ Img_Terrain  主景丘陵+虚线小路（raycastTarget=true 悬浮入口）
 //       │  ├─ Map_Nodes    24 个已烘焙节气节点（运行时只染色，不建节点）
 //       │  │  └─ Nde_Term_立春 … Nde_Term_大寒
 //       │  ├─ Tmp_Season_0..3  四季名标签（春/夏/秋/冬，各自季色，静态）
+//       │  ├─ Img_Near     近景层（视差最快 —— 伪3D 前层）
 //       │  ├─ Img_Fog       迷雾（从当前进度盖到右缘，左缘渐隐）
 //       │  └─ Img_Flag      旅行者小旗（当前位置）
 //       └─ Tmp_MapLabel    中央「第X幕·春 / 节气」
 //
+//  美术：_tools/_gen_homemap3.py（透明通道伪3D三层），替代 v2 的 journey_terrain
 //  幂等：Map_Journey 已存在则销毁重建（全子树工具生成）。
 // ============================================================================
 
@@ -93,7 +96,8 @@ namespace WanXiang.EditorTools
         // ------------------------------------------------------------------ 美术导入设置
         private static void EnsureArtImportSettings()
         {
-            string[] files = { "journey_terrain.png", "journey_fog.png", "journey_flag.png", "map_node.png" };
+            string[] files = { "journey_far.png", "journey_mid.png", "journey_near.png",
+                               "journey_fog.png", "journey_flag.png", "map_node.png" };
             foreach (var f in files)
             {
                 string p = ArtDir + "/" + f;
@@ -140,7 +144,13 @@ namespace WanXiang.EditorTools
 
             var par = NewUI("Map_Par", journey.transform, StripW, StripH);
 
-            // 地形长卷（raycast 入口）
+            // 远山层（大气透视，视差最慢 —— 伪3D 底层）
+            var far = NewUI("Img_Far", par.transform, StripW, StripH);
+            var farImg = far.AddComponent<Image>();
+            farImg.sprite = LoadSprite("journey_far.png");
+            farImg.raycastTarget = false;
+
+            // 主景丘陵（raycast 入口，路径烘焙在此层）
             var terrain = NewUI("Img_Terrain", par.transform, StripW, StripH);
             var terrainImg = terrain.AddComponent<Image>();
             terrainImg.sprite = LoadSprite("journey_terrain.png");
@@ -158,7 +168,7 @@ namespace WanXiang.EditorTools
                 float xf = (k + 1) / 25f;
                 float x = xf * StripW - StripW * 0.5f;
                 float y = Mathf.Sin(k * 0.9f) * 24f;
-                var node = NewUI("Nde_Term_" + terms[k], nodesRoot.transform, 26f, 26f);
+                var node = NewUI("Nde_Term_" + terms[k], nodesRoot.transform, 32f, 32f);
                 var ni = node.AddComponent<Image>();
                 ni.sprite = LoadSprite("map_node.png");
                 ni.raycastTarget = false;
@@ -188,6 +198,12 @@ namespace WanXiang.EditorTools
                 tmp.raycastTarget = false;
                 ((RectTransform)lab.transform).anchoredPosition = new Vector2(x, 108f);
             }
+
+            // 近景层（深色前景，视差最快 —— 伪3D 前层；垫在迷雾/小旗之下）
+            var near = NewUI("Img_Near", par.transform, StripW, StripH);
+            var nearImg = near.AddComponent<Image>();
+            nearImg.sprite = LoadSprite("journey_near.png");
+            nearImg.raycastTarget = false;
 
             // 迷雾（运行时控锚点；初始铺满）
             var fog = NewUI("Img_Fog", par.transform, StripW, StripH);
@@ -245,6 +261,8 @@ namespace WanXiang.EditorTools
             Bind(so, "_fog",      FindDeep(journey, "Img_Fog"));
             Bind(so, "_nodesRoot", FindDeep(journey, "Map_Nodes"));
             Bind(so, "_marker",   FindDeep(journey, "Img_Flag"));
+            Bind(so, "_far",      FindDeep(journey, "Img_Far"));
+            Bind(so, "_near",     FindDeep(journey, "Img_Near"));
             Bind(so, "_label",    FindDeep(journey, "Tmp_MapLabel"));
             so.ApplyModifiedPropertiesWithoutUndo();
             Debug.Log("[HomeMap] HomeMapJourney 字段绑定完成");
@@ -308,11 +326,20 @@ namespace WanXiang.EditorTools
             { sb.AppendLine("✗ Map_Journey 应垫在立绘之下"); ok = false; }
             else sb.AppendLine("✓ 层级（垫在立绘下）");
 
-            // 关键行为
+            // Image 层 sprite 就绪（主景必须可受击；远/近层不可受击）
             var terrain = FindDeep(journey, "Img_Terrain");
             var ti = terrain != null ? terrain.GetComponent<Image>() : null;
             if (ti == null || !ti.raycastTarget) { sb.AppendLine("✗ Img_Terrain 必须 raycastTarget=true"); ok = false; }
             else sb.AppendLine("✓ Img_Terrain.raycastTarget=true");
+
+            foreach (var n in new[] { "Img_Far", "Img_Near" })
+            {
+                var t = FindDeep(journey, n);
+                var img = t != null ? t.GetComponent<Image>() : null;
+                if (img == null || img.sprite == null) { sb.AppendLine("✗ " + n + " 缺 sprite"); ok = false; }
+                else if (img.raycastTarget) { sb.AppendLine("✗ " + n + " 不应接受 raycast"); ok = false; }
+                else sb.AppendLine("✓ " + n + " sprite 就绪（非受击）");
+            }
 
             // 仅 Image 节点查 sprite；Tmp_MapLabel 是 TMP_Text，单独核
             foreach (var n in new[] { "Img_Fog", "Img_Flag" })
