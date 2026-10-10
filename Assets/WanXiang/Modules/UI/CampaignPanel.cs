@@ -367,6 +367,8 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private readonly HashSet<int> _passed = new HashSet<int>();
         /// <summary>挂了「瘴雾」天时的节点（点"前往"走到它 ⇒ 起雾）。</summary>
         private readonly HashSet<int> _fogWeather = new HashSet<int>();
+        /// <summary>本幕被强制成"整层都是 ？"的层（走进去必定起瘴雾）。</summary>
+        private readonly HashSet<int> _forcedQLayers = new HashSet<int>();
         /// <summary>待播动画的节点（等真正回到地图看到画面时才播，见 PlayPendingAnim）。</summary>
         private readonly HashSet<int> _pendingNodes = new HashSet<int>();
         private bool _pendingAnim;
@@ -449,7 +451,24 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 }
             }
 
-            // ★ 本幕「瘴雾」节点生成（天象按概率 + 每幕随机 0~2 个，可能一个都没有；见 EnsureFogNodesGenerated）
+            // ★ 本幕"全 ？ 层"：整层都是未知节点（四幕里 1~2 幕会有 1~2 层）⇒ 走进去必定起瘴雾
+            _forcedQLayers.Clear();
+            {
+                var fl = new System.Collections.Generic.List<int>();
+                ForcedQuestionLayers(run, _graph, fl);
+                foreach (var L in fl)
+                {
+                    _forcedQLayers.Add(L);
+                    if (L < 0 || L >= _graph.Layers.Length) continue;
+                    foreach (var off in _graph.Layers[L])
+                        if (off >= 0 && off < _graph.Kinds.Length && off != _graph.NodeCount - 1)
+                            _graph.Kinds[off] = WanXiang.Campaign.NodeKind.Question;
+                }
+                if (_forcedQLayers.Count > 0)
+                    Debug.Log("[Campaign] 本幕「全 ？ 层」共 " + _forcedQLayers.Count + " 层（进这些层必起瘴雾）");
+            }
+
+            // ★ 本幕「瘴雾」节点生成（未知节点 20% + 天象按概率 + 全？层必定；见 EnsureFogNodesGenerated）
             EnsureFogNodesGenerated(run, _graph);
 
             // ★★ 建图后重算实际层数（上面那个 lc 是兜底值！）
@@ -861,29 +880,60 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             // ⛔ 独立随机源（别用 st.Random：会扰动战斗随机流）；用 run seed 派生 ⇒ 稳定可复现
             var rng = new System.Random((int)(CoreMath.Fnv1a("fog:" + run.RunSeed + ":" + g.Act) & 0x7fffffffUL));
             int last = g.NodeCount - 1;
-            const int MAX_FOG_PER_ACT = 3;                          // "少数节点"：每幕最多 3 个
 
-            // ① 天象节点：每个 ~50% 概率演变成「天象示警 · 瘴雾」
-            for (int off = 0; off < g.NodeCount && run.FogWeatherNodes.Count < MAX_FOG_PER_ACT; off++)
+            // "全 ？ 层"（整层未知）⇒ 该层每个节点**必定**起雾
+            var forced = new System.Collections.Generic.List<int>();
+            ForcedQuestionLayers(run, g, forced);
+            var forcedSet = new System.Collections.Generic.HashSet<int>(forced);
+
+            for (int off = 0; off < g.NodeCount; off++)
             {
-                if (off == last) continue;
-                if (g.Kinds[off] == WanXiang.Campaign.NodeKind.Omen && rng.NextDouble() < 0.5)
+                if (off == last) continue;                                           // 末层守关：不含
+                if (forcedSet.Contains(g.LayerOf(off)))                              // 整层未知 ⇒ 必定
+                {
+                    run.FogWeatherNodes.Add(off);
+                    continue;
+                }
+                var k = g.Kinds[off];
+                if (k == WanXiang.Campaign.NodeKind.Omen && rng.NextDouble() < 0.50)         // 天象：50%
+                    run.FogWeatherNodes.Add(off);
+                else if (k == WanXiang.Campaign.NodeKind.Question && rng.NextDouble() < 0.20) // 普通未知：~20%
                     run.FogWeatherNodes.Add(off);
             }
-            // ② 每幕再随机 0~2 个普通节点（"也可能一个都没有"）
-            int extra = rng.Next(0, 3);
-            for (int i = 0; i < extra && run.FogWeatherNodes.Count < MAX_FOG_PER_ACT; i++)
-            {
-                if (g.NodeCount <= 5) break;
-                int off = rng.Next(3, g.NodeCount - 1);              // 避开最前几层：别一开局就中
-                if (run.FogWeatherNodes.Contains(off)) continue;
-                if (IsStructuralKind(g.Kinds[off])) continue;
-                if (g.Kinds[off] == WanXiang.Campaign.NodeKind.Omen) continue;
-                run.FogWeatherNodes.Add(off);
-            }
             Debug.Log("[Campaign] 本幕瘴雾节点生成：" + run.FogWeatherNodes.Count +
-                      " 个（天象按概率 + 每幕随机）｜Act=" + g.Act);
+                      " 个（全？层必定 / 天象 50% / 未知 20%）｜Act=" + g.Act);
             WanXiang.Run.RunSave.SaveCurrent();
+        }
+
+        /// <summary>
+        /// 本幕哪些层被强制成"**整层都是 ？**"：**四幕（1~4）里选 1~2 幕**，每幕再选 **1~2 层**
+        /// （避开最前 4 层与末层、跳过单格结构层）。全部由 run seed 派生 ⇒ 同一局稳定、不必落盘。
+        /// ⛔ 只改 `Kinds`（"这格是什么"），**不动拓扑**。
+        /// </summary>
+        private static void ForcedQuestionLayers(WanXiang.Run.RunState run, WanXiang.Campaign.ActGraph g,
+                                                System.Collections.Generic.List<int> outLayers)
+        {
+            outLayers.Clear();
+            if (run == null || g == null || g.Layers == null) return;
+
+            // ① 四幕里挑 1~2 幕"必定有迷雾"
+            var a = new System.Random((int)(CoreMath.Fnv1a("fogacts:" + run.RunSeed) & 0x7fffffffUL));
+            int nActs = 1 + a.Next(0, 2);
+            var acts = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < nActs; i++) { int x = a.Next(1, 5); if (!acts.Contains(x)) acts.Add(x); }
+            if (!acts.Contains(g.Act)) return;                          // 本幕不在名单 ⇒ 没有全？层
+
+            int lc = g.Layers.Length;
+            if (lc < 8) return;                                         // 图太小（缺省图）跳过
+            // ② 本幕挑 1~2 层
+            var r2 = new System.Random((int)(CoreMath.Fnv1a("foglayer:" + run.RunSeed + ":" + g.Act) & 0x7fffffffUL));
+            int nL = 1 + r2.Next(0, 2);
+            for (int i = 0; i < nL; i++)
+            {
+                int L = r2.Next(4, lc - 1);                             // 避开最前 4 层与末层
+                if (g.Layers[L] == null || g.Layers[L].Length <= 1) continue;   // 单格层 = 结构位，跳过
+                if (!outLayers.Contains(L)) outLayers.Add(L);
+            }
         }
 
         /// <summary>
@@ -1055,8 +1105,8 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             if (label != null && fogged)
             {
                 // ★ 瘴雾：遮住的层连类型都不透 —— 只显示"迷雾"（这就是迷雾的意义）
-                label.text = "？？　迷雾";
-                label.color = new Color(0.32f, 0.30f, 0.38f, 0.95f);   // 雾上要够深才看得清
+                label.text = "？？";
+                label.color = new Color(0.52f, 0.50f, 0.48f, 0.9f);
             }
             else if (label != null)
             {
@@ -1103,18 +1153,8 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 }
             }
 
-            // ★ 瘴雾：被雾盖住的节点，**整张卡铺一层雾**（美术，"完全挡住"，让人看不出是什么）。
-            //   文字的「？？迷雾」显示在雾之上（cover 的兄弟顺序排 Tmp_NodeText 之前）。
-            var coverT = item.Find("Img_FogCover") as RectTransform;
-            if (coverT != null)
-            {
-                coverT.gameObject.SetActive(fogged);
-                if (fogged)
-                {
-                    var ci = coverT.GetComponent<Image>();
-                    if (ci != null && ci.sprite == null) ci.sprite = FogCoverSprite();
-                }
-            }
+            // ★ 瘴雾：不再盖美术图（用户 2026-10-10："整个美术就不是那么重要了，这个美术图先去了吧"）
+            //   被雾遮住的节点只显示「？？」，靠"看不见 + 未知"表达（prefab 里的 Img_FogCover 留着备用，不启用）。
 
             var btn = item.GetComponent<Button>();
             if (btn == null) btn = item.gameObject.AddComponent<Button>();
