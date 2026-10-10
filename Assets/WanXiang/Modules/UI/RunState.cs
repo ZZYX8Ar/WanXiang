@@ -189,10 +189,12 @@ namespace WanXiang.Run
         public System.Collections.Generic.List<string> RerolledKinds =
             new System.Collections.Generic.List<string>();
 
-        /// <summary>挂了「瘴雾」天时的节点：**走到这些节点（点"前往"那一刻）就起雾**。
-        ///  本幕有效，换幕/重开清空。（现在由调试口挂；以后改由节点生成/天气数据填。）</summary>
+        /// <summary>挂了「瘴雾」天时的节点：**走到这些节点（点"前往"那一刻）就起雾**。本幕有效，换幕重生成。</summary>
         public System.Collections.Generic.List<int> FogWeatherNodes =
             new System.Collections.Generic.List<int>();
+
+        /// <summary>已经为哪一幕生成过瘴雾节点（0 = 还没生成）。换幕置 0 ⇒ 下一幕重新生成。</summary>
+        public int FogGenAct = 0;
         public int Losses;                      // 本程败场
         /// <summary>
         /// 轮回数（"续劫"次数）：每轮回一次，敌人属性 +15%、天气更恶劣。

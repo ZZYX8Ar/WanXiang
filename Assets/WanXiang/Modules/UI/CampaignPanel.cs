@@ -220,6 +220,7 @@ namespace WanXiang.Modules.UI
                         if (prun.PassedNodes != null) prun.PassedNodes.Clear();       // 换幕：通过记录作废（offset 是"本幕"的）
                         if (prun.RerolledKinds != null) prun.RerolledKinds.Clear();   // 换幕：重掷记录作废
                         if (prun.FogWeatherNodes != null) prun.FogWeatherNodes.Clear(); // 换幕：挂的瘴雾天时作废
+                        prun.FogGenAct = 0;                                           // 换幕：下一幕重新生成瘴雾节点
                         prun.FogLeft = 0; prun.FogRerolled = false;                   // 换幕：雾散
                         Debug.Log("[Campaign] 通过本幕最后一格 ⇒ 推进到第 " + prun.Act + " 幕");
                         WanXiang.Run.RunSave.SaveCurrent();
@@ -437,6 +438,9 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                         _graph.Kinds[off] = (WanXiang.Campaign.NodeKind)val;
                 }
             }
+
+            // ★ 本幕「瘴雾」节点生成（天象按概率 + 每幕随机 0~2 个，可能一个都没有；见 EnsureFogNodesGenerated）
+            EnsureFogNodesGenerated(run, _graph);
 
             // ★★ 建图后重算实际层数（上面那个 lc 是兜底值！）
             lc = (_graph != null && _graph.Layers != null) ? _graph.Layers.Length : Layers;
@@ -819,6 +823,57 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             return _graph.LayerOf(offset) >= f;
         }
 
+        private static Sprite _fogBadge; private static bool _fogBadgeTried;
+        /// <summary>瘴雾节点用的「雾云徽」美术（Resources/UI/Campaign/fog_badge）。缺图 = 不显示。</summary>
+        private static Sprite FogBadgeSprite()
+        {
+            if (_fogBadgeTried) return _fogBadge;
+            _fogBadgeTried = true;
+            _fogBadge = UnityEngine.Resources.Load<Sprite>("UI/Campaign/fog_badge");
+            return _fogBadge;
+        }
+
+        /// <summary>
+        /// 【正式来源】本幕「瘴雾」节点生成：**天象节点按概率**挂 + **每幕再随机 0~2 个**（可能一个都没有）。
+        /// 由 run seed 派生 ⇒ 同一局同一幕结果稳定；生成一次即落盘（<c>FogGenAct</c> 记住已生成哪一幕），换幕重生成。
+        /// </summary>
+        private void EnsureFogNodesGenerated(WanXiang.Run.RunState run, WanXiang.Campaign.ActGraph g)
+        {
+            if (run == null || g == null || g.Kinds == null || g.Layers == null) return;
+            if (run.FogGenAct == g.Act) return;                     // 本幕已生成过
+            run.FogGenAct = g.Act;
+            if (run.FogWeatherNodes == null)
+                run.FogWeatherNodes = new System.Collections.Generic.List<int>();
+            run.FogWeatherNodes.Clear();
+
+            // ⛔ 独立随机源（别用 st.Random：会扰动战斗随机流）；用 run seed 派生 ⇒ 稳定可复现
+            var rng = new System.Random((int)(CoreMath.Fnv1a("fog:" + run.RunSeed + ":" + g.Act) & 0x7fffffffUL));
+            int last = g.NodeCount - 1;
+            const int MAX_FOG_PER_ACT = 3;                          // "少数节点"：每幕最多 3 个
+
+            // ① 天象节点：每个 ~50% 概率演变成「天象示警 · 瘴雾」
+            for (int off = 0; off < g.NodeCount && run.FogWeatherNodes.Count < MAX_FOG_PER_ACT; off++)
+            {
+                if (off == last) continue;
+                if (g.Kinds[off] == WanXiang.Campaign.NodeKind.Omen && rng.NextDouble() < 0.5)
+                    run.FogWeatherNodes.Add(off);
+            }
+            // ② 每幕再随机 0~2 个普通节点（"也可能一个都没有"）
+            int extra = rng.Next(0, 3);
+            for (int i = 0; i < extra && run.FogWeatherNodes.Count < MAX_FOG_PER_ACT; i++)
+            {
+                if (g.NodeCount <= 5) break;
+                int off = rng.Next(3, g.NodeCount - 1);              // 避开最前几层：别一开局就中
+                if (run.FogWeatherNodes.Contains(off)) continue;
+                if (IsStructuralKind(g.Kinds[off])) continue;
+                if (g.Kinds[off] == WanXiang.Campaign.NodeKind.Omen) continue;
+                run.FogWeatherNodes.Add(off);
+            }
+            Debug.Log("[Campaign] 本幕瘴雾节点生成：" + run.FogWeatherNodes.Count +
+                      " 个（天象按概率 + 每幕随机）｜Act=" + g.Act);
+            WanXiang.Run.RunSave.SaveCurrent();
+        }
+
         /// <summary>
         /// 触发瘴雾：接下来 <paramref name="nodes"/> 个节点内，图上只有"当前格 + 下一层"可见，
         /// 更远的层连类型都被雾盖住；**并把雾覆盖到、还没走过的节点类型重掷一遍**（关键节点除外）。
@@ -1014,7 +1069,6 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     name = WanXiang.Campaign.NodeKinds.Cn(kind);
                 // ★ 文案精简：去掉多余全角空格；"已过"不再用文字 —— 改用朱砂 ✕ 印章（见下方 Img_Stamp）
                 label.text = (offset + 1) + "." + TermName(_graph.Terms[offset]) + "【" + name + "】" +
-                             (_fogWeather.Contains(offset) ? " <color=#6E5A8E>·瘴雾</color>" : "") +
                              (isHere ? " ◀当前" : canGo ? " ←可前往" : "");
                 label.color = isHere ? NodeVisited : canGo ? NodeReachable : passed ? PathGold : NodeLocked;
             }
@@ -1034,6 +1088,19 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     dot.color = q ? QuestionInk
                               : lit ? sc
                               : new Color(sc.r * 0.62f, sc.g * 0.62f, sc.b * 0.62f, 0.75f);
+                }
+            }
+
+            // ★ 瘴雾天时：卡右侧一个「雾云徽」（**美术，不用文字**）—— 看见就知道走上去会起雾
+            var badgeT = item.Find("Img_FogBadge") as RectTransform;
+            if (badgeT != null)
+            {
+                bool fogNode = _fogWeather.Contains(offset);
+                badgeT.gameObject.SetActive(fogNode && !fogged);
+                if (fogNode)
+                {
+                    var bi = badgeT.GetComponent<Image>();
+                    if (bi != null && bi.sprite == null) bi.sprite = FogBadgeSprite();
                 }
             }
 
