@@ -45,11 +45,11 @@ namespace WanXiang.Battle.Presentation
         {
             switch (Mathf.Clamp(act, 1, 5))
             {
-                case 1: return new Style { ResPath = "Battle/FX_particle_act1_petal",  Count = 16, WorldSize = 0.55f, FallSpeed = 0.62f, SwayAmp = 0.60f, SwayFreq = 0.9f, SpinDeg = 40f,  AlphaMin = 0.60f, AlphaSpeed = 0.0f };
-                case 2: return new Style { ResPath = "Battle/FX_particle_act2_firefly", Count = 14, WorldSize = 0.42f, FallSpeed = 0.30f, SwayAmp = 1.05f, SwayFreq = 0.5f, SpinDeg = 0f,   AlphaMin = 0.16f, AlphaSpeed = 1.6f };
-                case 3: return new Style { ResPath = "Battle/FX_particle_act3_leaf",    Count = 14, WorldSize = 0.62f, FallSpeed = 0.72f, SwayAmp = 1.10f, SwayFreq = 1.1f, SpinDeg = 75f,  AlphaMin = 0.65f, AlphaSpeed = 0.0f };
-                case 4: return new Style { ResPath = "Battle/FX_particle_act4_snow",    Count = 20, WorldSize = 0.34f, FallSpeed = 0.55f, SwayAmp = 0.55f, SwayFreq = 0.8f, SpinDeg = 14f, AlphaMin = 0.50f, AlphaSpeed = 0.5f };
-                default: return new Style { ResPath = "Battle/FX_particle_act5_pollen", Count = 18, WorldSize = 0.26f, FallSpeed = 0.34f, SwayAmp = 0.80f, SwayFreq = 0.7f, SpinDeg = 8f, AlphaMin = 0.24f, AlphaSpeed = 1.1f };
+                case 1: return new Style { ResPath = "Battle/FX_particle_act1_petal",  Count = 16, WorldSize = 0.40f, FallSpeed = 0.62f, SwayAmp = 0.60f, SwayFreq = 0.9f, SpinDeg = 40f,  AlphaMin = 0.60f, AlphaSpeed = 0.0f };
+                case 2: return new Style { ResPath = "Battle/FX_particle_act2_firefly", Count = 14, WorldSize = 0.30f, FallSpeed = 0.30f, SwayAmp = 1.05f, SwayFreq = 0.5f, SpinDeg = 0f,   AlphaMin = 0.16f, AlphaSpeed = 1.6f };
+                case 3: return new Style { ResPath = "Battle/FX_particle_act3_leaf",    Count = 14, WorldSize = 0.45f, FallSpeed = 0.72f, SwayAmp = 1.10f, SwayFreq = 1.1f, SpinDeg = 75f,  AlphaMin = 0.65f, AlphaSpeed = 0.0f };
+                case 4: return new Style { ResPath = "Battle/FX_particle_act4_snow",    Count = 20, WorldSize = 0.25f, FallSpeed = 0.55f, SwayAmp = 0.55f, SwayFreq = 0.8f, SpinDeg = 14f, AlphaMin = 0.50f, AlphaSpeed = 0.5f };
+                default: return new Style { ResPath = "Battle/FX_particle_act5_pollen", Count = 18, WorldSize = 0.20f, FallSpeed = 0.34f, SwayAmp = 0.80f, SwayFreq = 0.7f, SpinDeg = 8f, AlphaMin = 0.24f, AlphaSpeed = 1.1f };
             }
         }
 

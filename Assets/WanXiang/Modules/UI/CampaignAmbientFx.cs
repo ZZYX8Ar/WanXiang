@@ -48,8 +48,8 @@ namespace WanXiang.Modules.UI
         };
 
         // 每幕：数量 / 像素尺寸 / 下落速度(px/s) / 横向摆幅 / 摆频 / 每秒自转 / alpha呼吸
-        // ⚠ 2026-10-11 用户反馈"看不清"：Size 整体放大 ~1.6 倍、AlphaMin 抬高一档。
-        //   粒子是**装饰**，不能盖住节点卡与文字，所以 AlphaSpeed=0（不闪）的两幕给固定半透。
+        // ⚠ 尺寸调过两轮：初版 22~52px 用户报"太小看不清" → 放大到 34~84px 又报"太大"，
+        //   现在取中间值 30~56px（比初版大、比上版小）。要改只动这张表。
         private struct Style
         {
             public string ParticlePath;
@@ -68,16 +68,16 @@ namespace WanXiang.Modules.UI
         {
             switch (Mathf.Clamp(act, 1, 5))
             {
-                // 幕1 春·花瓣：28px 淡粉，半透 0.55
-                case 1: return new Style { ParticlePath = ParticleByAct[0], Count = 20, Size = 76f, FallSpeed = 34f, SwayAmp = 44f, SwayFreq = 0.9f, SpinDeg = 30f, AlphaMin = 0.45f, AlphaSpeed = 0f, Alpha = 0.55f };
-                // 幕2 夏·萤火：56px 萤光，呼吸（本来就该闪，底值别太低）
-                case 2: return new Style { ParticlePath = ParticleByAct[1], Count = 18, Size = 56f, FallSpeed = 16f, SwayAmp = 66f, SwayFreq = 0.5f, SpinDeg = 0f, AlphaMin = 0.42f, AlphaSpeed = 1.6f, Alpha = 1f };
-                // 幕3 秋·落叶：84px 大叶片，转着飘，半透 0.6
-                case 3: return new Style { ParticlePath = ParticleByAct[2], Count = 16, Size = 84f, FallSpeed = 42f, SwayAmp = 76f, SwayFreq = 1.1f, SpinDeg = 55f, AlphaMin = 0.52f, AlphaSpeed = 0f, Alpha = 0.60f };
-                // 幕4 冬·雪花：44px 雪花，微微闪，半透 0.7
-                case 4: return new Style { ParticlePath = ParticleByAct[3], Count = 20, Size = 44f, FallSpeed = 30f, SwayAmp = 40f, SwayFreq = 0.8f, SpinDeg = 12f, AlphaMin = 0.60f, AlphaSpeed = 0.5f, Alpha = 0.75f };
-                // 幕5 长夏·花粉：34px 金粉粒，闪但底值抬高（原来 22px/0.26 完全看不见）
-                default: return new Style { ParticlePath = ParticleByAct[4], Count = 26, Size = 34f, FallSpeed = 22f, SwayAmp = 50f, SwayFreq = 0.7f, SpinDeg = 6f, AlphaMin = 0.50f, AlphaSpeed = 1.1f, Alpha = 1f };
+                // 幕1 春·花瓣：50px 淡粉，半透 0.55
+                case 1: return new Style { ParticlePath = ParticleByAct[0], Count = 20, Size = 50f, FallSpeed = 34f, SwayAmp = 44f, SwayFreq = 0.9f, SpinDeg = 30f, AlphaMin = 0.45f, AlphaSpeed = 0f, Alpha = 0.55f };
+                // 幕2 夏·萤火：38px 萤光，呼吸（本来就该闪，底值别太低）
+                case 2: return new Style { ParticlePath = ParticleByAct[1], Count = 18, Size = 38f, FallSpeed = 16f, SwayAmp = 66f, SwayFreq = 0.5f, SpinDeg = 0f, AlphaMin = 0.42f, AlphaSpeed = 1.6f, Alpha = 1f };
+                // 幕3 秋·落叶：56px 叶片，转着飘，半透 0.6
+                case 3: return new Style { ParticlePath = ParticleByAct[2], Count = 16, Size = 56f, FallSpeed = 42f, SwayAmp = 76f, SwayFreq = 1.1f, SpinDeg = 55f, AlphaMin = 0.52f, AlphaSpeed = 0f, Alpha = 0.60f };
+                // 幕4 冬·雪花：32px 雪花，微微闪，半透 0.7
+                case 4: return new Style { ParticlePath = ParticleByAct[3], Count = 20, Size = 32f, FallSpeed = 30f, SwayAmp = 40f, SwayFreq = 0.8f, SpinDeg = 12f, AlphaMin = 0.60f, AlphaSpeed = 0.5f, Alpha = 0.75f };
+                // 幕5 长夏·花粉：26px 金粉粒，闪但底值抬高（初版 22px 用户报完全看不见）
+                default: return new Style { ParticlePath = ParticleByAct[4], Count = 26, Size = 26f, FallSpeed = 22f, SwayAmp = 50f, SwayFreq = 0.7f, SpinDeg = 6f, AlphaMin = 0.50f, AlphaSpeed = 1.1f, Alpha = 1f };
             }
         }
 
