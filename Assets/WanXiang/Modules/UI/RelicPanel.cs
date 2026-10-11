@@ -125,6 +125,19 @@ namespace WanXiang.Modules.UI
                     _tmpDraftDescs[i].text = (_offered != null && i < _offered.Count) ? _offered[i].Desc : "";
             }
 
+            // 三选一草稿卡：有图标则把遗物图设到卡面（Simple + preserveAspect 不变形），
+            // 无图则保留 prefab 原背景。点选时的高亮染色仍走下面 OnDraftClicked 的 color。
+            var relicSprites = RelicSpriteCatalog.Find();
+            for (int i = 0; i < _draftBtns.Length; i++)
+            {
+                if (_draftBtns[i] == null) continue;
+                var img = _draftBtns[i].targetGraphic as Image;
+                if (img == null || relicSprites == null) continue;
+                var relic = (_offered != null && i < _offered.Count) ? _offered[i] : null;
+                var sp = relic != null ? relicSprites.Get(relic.Id) : null;
+                if (sp != null) { img.sprite = sp; img.type = Image.Type.Simple; img.preserveAspect = true; }
+            }
+
             if (_btnConfirm != null) _btnConfirm.interactable = false;
             return UniTask.CompletedTask;
         }

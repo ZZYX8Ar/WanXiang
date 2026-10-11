@@ -51,7 +51,13 @@ namespace WanXiang.Modules.UI
                     var label = chip.transform.Find("Tmp_RelicName")?.GetComponent<TMP_Text>();
                     if (label != null) label.text = def.Name;
                     var img = chip.GetComponent<Image>();
-                    if (img != null) img.color = RarityColor(def.Rarity);
+                    if (img != null)
+                    {
+                        // 有图先显示图标（白底不染色），无图则保留稀有度色块兜底。
+                        var sp = RelicSpriteCatalog.Find()?.Get(def.Id);
+                        if (sp != null) { img.sprite = sp; img.color = Color.white; img.type = Image.Type.Simple; img.preserveAspect = true; }
+                        else { img.sprite = null; img.color = RarityColor(def.Rarity); }
+                    }
                     Hook(chip, def, onEnter, onExit);
                     shown++;
                 }

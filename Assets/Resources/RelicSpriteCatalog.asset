@@ -1,0 +1,193 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e4009e7d0c3412b48bd09fc1ef50255e, type: 3}
+  m_Name: RelicSpriteCatalog
+  m_EditorClassIdentifier: 
+  Entries:
+  - Id: r_trait_tenacity
+    Sprite: {fileID: 21300000, guid: c36c66a4dc03cc54790c4a29e9752c61, type: 3}
+  - Id: r_rule_enemy_cautious
+    Sprite: {fileID: 21300000, guid: 32b6f2e85dcab1e4e8e5b02f60bfb36f, type: 3}
+  - Id: r_mech_heal
+    Sprite: {fileID: 21300000, guid: 8d05d269ee584bd47899c427bab41bf4, type: 3}
+  - Id: r_trait_sharpedge
+    Sprite: {fileID: 21300000, guid: 7b5d4631feb566841937da39948d3daf, type: 3}
+  - Id: r_foe_earth_1
+    Sprite: {fileID: 21300000, guid: f9e537eda9d247043ba3d04417b7198d, type: 3}
+  - Id: r_foe_earth_2
+    Sprite: {fileID: 21300000, guid: f9e537eda9d247043ba3d04417b7198d, type: 3}
+  - Id: r_foe_earth_3
+    Sprite: {fileID: 21300000, guid: f9e537eda9d247043ba3d04417b7198d, type: 3}
+  - Id: r_foe_earth_4
+    Sprite: {fileID: 21300000, guid: f9e537eda9d247043ba3d04417b7198d, type: 3}
+  - Id: r_elem_earth_1
+    Sprite: {fileID: 21300000, guid: 73baacbdf99b2d54c8fe2d0db0408c2d, type: 3}
+  - Id: r_elem_earth_2
+    Sprite: {fileID: 21300000, guid: 73baacbdf99b2d54c8fe2d0db0408c2d, type: 3}
+  - Id: r_elem_earth_3
+    Sprite: {fileID: 21300000, guid: 73baacbdf99b2d54c8fe2d0db0408c2d, type: 3}
+  - Id: r_elem_earth_4
+    Sprite: {fileID: 21300000, guid: 73baacbdf99b2d54c8fe2d0db0408c2d, type: 3}
+  - Id: r_elem_earth_5
+    Sprite: {fileID: 21300000, guid: 73baacbdf99b2d54c8fe2d0db0408c2d, type: 3}
+  - Id: r_mech_extra_hit
+    Sprite: {fileID: 21300000, guid: f09492dd884f3004a867fa1e011d98c6, type: 3}
+  - Id: r_mark_jumang
+    Sprite: {fileID: 21300000, guid: 1e787b5857486b04083f27825b6ba558, type: 3}
+  - Id: r_mark_houtu
+    Sprite: {fileID: 21300000, guid: 5d31037c7b31db84b8ec8873bbb331e2, type: 3}
+  - Id: r_rule_turns_plus
+    Sprite: {fileID: 21300000, guid: e5b0ee2a65c7c6d4b9491c52ecfbe8bc, type: 3}
+  - Id: r_role_guard_1
+    Sprite: {fileID: 21300000, guid: a41dd8b41c4f82844a1c130e90115943, type: 3}
+  - Id: r_role_guard_2
+    Sprite: {fileID: 21300000, guid: a41dd8b41c4f82844a1c130e90115943, type: 3}
+  - Id: r_role_guard_3
+    Sprite: {fileID: 21300000, guid: a41dd8b41c4f82844a1c130e90115943, type: 3}
+  - Id: r_role_guard_4
+    Sprite: {fileID: 21300000, guid: a41dd8b41c4f82844a1c130e90115943, type: 3}
+  - Id: r_role_striker_1
+    Sprite: {fileID: 21300000, guid: 767e9e8ff0072f84da145dd663fa7f6c, type: 3}
+  - Id: r_role_striker_2
+    Sprite: {fileID: 21300000, guid: 767e9e8ff0072f84da145dd663fa7f6c, type: 3}
+  - Id: r_role_striker_3
+    Sprite: {fileID: 21300000, guid: 767e9e8ff0072f84da145dd663fa7f6c, type: 3}
+  - Id: r_role_striker_4
+    Sprite: {fileID: 21300000, guid: 767e9e8ff0072f84da145dd663fa7f6c, type: 3}
+  - Id: r_rule_no_rage
+    Sprite: {fileID: 21300000, guid: edfd0996e7f0d7b4f823cf40c1176dfb, type: 3}
+  - Id: r_role_caster_1
+    Sprite: {fileID: 21300000, guid: 52b2970fc2299104a91b13bfe3e48529, type: 3}
+  - Id: r_role_caster_2
+    Sprite: {fileID: 21300000, guid: 52b2970fc2299104a91b13bfe3e48529, type: 3}
+  - Id: r_role_caster_3
+    Sprite: {fileID: 21300000, guid: 52b2970fc2299104a91b13bfe3e48529, type: 3}
+  - Id: r_role_caster_4
+    Sprite: {fileID: 21300000, guid: 52b2970fc2299104a91b13bfe3e48529, type: 3}
+  - Id: r_rule_no_hit
+    Sprite: {fileID: 21300000, guid: 5c921bd7065febf4fb89e0447f848ea8, type: 3}
+  - Id: r_mech_burn
+    Sprite: {fileID: 21300000, guid: 9b1a5b980afcec045adf83fd05768776, type: 3}
+  - Id: r_foe_water_1
+    Sprite: {fileID: 21300000, guid: c003201c229e28a43bf1ffb87c4f0818, type: 3}
+  - Id: r_foe_water_2
+    Sprite: {fileID: 21300000, guid: c003201c229e28a43bf1ffb87c4f0818, type: 3}
+  - Id: r_foe_water_3
+    Sprite: {fileID: 21300000, guid: c003201c229e28a43bf1ffb87c4f0818, type: 3}
+  - Id: r_foe_water_4
+    Sprite: {fileID: 21300000, guid: c003201c229e28a43bf1ffb87c4f0818, type: 3}
+  - Id: r_elem_water_1
+    Sprite: {fileID: 21300000, guid: d47bc0a312b2d064d9076827b80efff2, type: 3}
+  - Id: r_elem_water_2
+    Sprite: {fileID: 21300000, guid: d47bc0a312b2d064d9076827b80efff2, type: 3}
+  - Id: r_elem_water_3
+    Sprite: {fileID: 21300000, guid: d47bc0a312b2d064d9076827b80efff2, type: 3}
+  - Id: r_elem_water_4
+    Sprite: {fileID: 21300000, guid: d47bc0a312b2d064d9076827b80efff2, type: 3}
+  - Id: r_elem_water_5
+    Sprite: {fileID: 21300000, guid: d47bc0a312b2d064d9076827b80efff2, type: 3}
+  - Id: r_role_swift_1
+    Sprite: {fileID: 21300000, guid: a3065f4240937324a93c8990e5cdc5b2, type: 3}
+  - Id: r_role_swift_2
+    Sprite: {fileID: 21300000, guid: a3065f4240937324a93c8990e5cdc5b2, type: 3}
+  - Id: r_role_swift_3
+    Sprite: {fileID: 21300000, guid: a3065f4240937324a93c8990e5cdc5b2, type: 3}
+  - Id: r_role_swift_4
+    Sprite: {fileID: 21300000, guid: a3065f4240937324a93c8990e5cdc5b2, type: 3}
+  - Id: r_mech_true
+    Sprite: {fileID: 21300000, guid: 6ce745c5f9b253d4d87bdf24f9a8a431, type: 3}
+  - Id: r_mech_pierce
+    Sprite: {fileID: 21300000, guid: 318b8bd079763a446b26bee9131399b5, type: 3}
+  - Id: r_trait_thickwall
+    Sprite: {fileID: 21300000, guid: a07c336a2a154f242896bac0e6b22ad6, type: 3}
+  - Id: r_mark_zhurong
+    Sprite: {fileID: 21300000, guid: fc2b404335271f1469a0e5f2e1eb6182, type: 3}
+  - Id: r_mark_yuqiang
+    Sprite: {fileID: 21300000, guid: b5ad16fa039aafe4eab3105ac8cd5445, type: 3}
+  - Id: r_foe_metal_1
+    Sprite: {fileID: 21300000, guid: aaf0a7c676e32dd4ba7fe4c085cf3a24, type: 3}
+  - Id: r_foe_metal_2
+    Sprite: {fileID: 21300000, guid: aaf0a7c676e32dd4ba7fe4c085cf3a24, type: 3}
+  - Id: r_foe_metal_3
+    Sprite: {fileID: 21300000, guid: aaf0a7c676e32dd4ba7fe4c085cf3a24, type: 3}
+  - Id: r_foe_metal_4
+    Sprite: {fileID: 21300000, guid: aaf0a7c676e32dd4ba7fe4c085cf3a24, type: 3}
+  - Id: r_elem_metal_1
+    Sprite: {fileID: 21300000, guid: 02a99c4c2db952e459de11c33b527631, type: 3}
+  - Id: r_elem_metal_2
+    Sprite: {fileID: 21300000, guid: 02a99c4c2db952e459de11c33b527631, type: 3}
+  - Id: r_elem_metal_3
+    Sprite: {fileID: 21300000, guid: 02a99c4c2db952e459de11c33b527631, type: 3}
+  - Id: r_elem_metal_4
+    Sprite: {fileID: 21300000, guid: 02a99c4c2db952e459de11c33b527631, type: 3}
+  - Id: r_elem_metal_5
+    Sprite: {fileID: 21300000, guid: 02a99c4c2db952e459de11c33b527631, type: 3}
+  - Id: r_mech_all_hits
+    Sprite: {fileID: 21300000, guid: 51793bf57f261f246a4a7a0505538e25, type: 3}
+  - Id: r_mark_rushou
+    Sprite: {fileID: 21300000, guid: bf0f817a97b5196439ad6c1d93377286, type: 3}
+  - Id: r_mech_ult_pierce
+    Sprite: {fileID: 21300000, guid: cf5591f932c60b045bba8e1ab2ffab09, type: 3}
+  - Id: r_trade_1
+    Sprite: {fileID: 21300000, guid: b5dbc73f905113747a4ddc29c4ca21bc, type: 3}
+  - Id: r_foe_fire_1
+    Sprite: {fileID: 21300000, guid: 70c1c6f3dcadc7c4486fa9cdf815698a, type: 3}
+  - Id: r_foe_fire_2
+    Sprite: {fileID: 21300000, guid: 70c1c6f3dcadc7c4486fa9cdf815698a, type: 3}
+  - Id: r_foe_fire_3
+    Sprite: {fileID: 21300000, guid: 70c1c6f3dcadc7c4486fa9cdf815698a, type: 3}
+  - Id: r_foe_fire_4
+    Sprite: {fileID: 21300000, guid: 70c1c6f3dcadc7c4486fa9cdf815698a, type: 3}
+  - Id: r_elem_fire_1
+    Sprite: {fileID: 21300000, guid: 5cce09fc18dac3e4bacc9d1316b514d7, type: 3}
+  - Id: r_elem_fire_2
+    Sprite: {fileID: 21300000, guid: 5cce09fc18dac3e4bacc9d1316b514d7, type: 3}
+  - Id: r_elem_fire_3
+    Sprite: {fileID: 21300000, guid: 5cce09fc18dac3e4bacc9d1316b514d7, type: 3}
+  - Id: r_elem_fire_4
+    Sprite: {fileID: 21300000, guid: 5cce09fc18dac3e4bacc9d1316b514d7, type: 3}
+  - Id: r_elem_fire_5
+    Sprite: {fileID: 21300000, guid: 5cce09fc18dac3e4bacc9d1316b514d7, type: 3}
+  - Id: r_role_support_1
+    Sprite: {fileID: 21300000, guid: e7da7ba4622f0a2409a425ea459f0fda, type: 3}
+  - Id: r_role_support_2
+    Sprite: {fileID: 21300000, guid: e7da7ba4622f0a2409a425ea459f0fda, type: 3}
+  - Id: r_role_support_3
+    Sprite: {fileID: 21300000, guid: e7da7ba4622f0a2409a425ea459f0fda, type: 3}
+  - Id: r_role_support_4
+    Sprite: {fileID: 21300000, guid: e7da7ba4622f0a2409a425ea459f0fda, type: 3}
+  - Id: r_rule_turns_minus
+    Sprite: {fileID: 21300000, guid: 9e518d79152c30e4abcc4c10bbfe261e, type: 3}
+  - Id: r_foe_wood_1
+    Sprite: {fileID: 21300000, guid: ba93cf2d723b7bd478ffd2bf6dfb2e16, type: 3}
+  - Id: r_foe_wood_2
+    Sprite: {fileID: 21300000, guid: ba93cf2d723b7bd478ffd2bf6dfb2e16, type: 3}
+  - Id: r_foe_wood_3
+    Sprite: {fileID: 21300000, guid: ba93cf2d723b7bd478ffd2bf6dfb2e16, type: 3}
+  - Id: r_foe_wood_4
+    Sprite: {fileID: 21300000, guid: ba93cf2d723b7bd478ffd2bf6dfb2e16, type: 3}
+  - Id: r_qingmu
+    Sprite: {fileID: 21300000, guid: 0c9dca235366b604891ba412416681c9, type: 3}
+  - Id: r_elem_wood_1
+    Sprite: {fileID: 21300000, guid: 0c9dca235366b604891ba412416681c9, type: 3}
+  - Id: r_elem_wood_2
+    Sprite: {fileID: 21300000, guid: 0c9dca235366b604891ba412416681c9, type: 3}
+  - Id: r_elem_wood_3
+    Sprite: {fileID: 21300000, guid: 0c9dca235366b604891ba412416681c9, type: 3}
+  - Id: r_elem_wood_4
+    Sprite: {fileID: 21300000, guid: 0c9dca235366b604891ba412416681c9, type: 3}
+  - Id: r_elem_wood_5
+    Sprite: {fileID: 21300000, guid: 0c9dca235366b604891ba412416681c9, type: 3}
+  - Id: r_trait_swiftshadow
+    Sprite: {fileID: 21300000, guid: d5029237bfdf3934daa35fe97d13418a, type: 3}
+  - Id: r_trait_devour
+    Sprite: {fileID: 21300000, guid: b898905a3f68e71428238fbbaea3dc47, type: 3}
