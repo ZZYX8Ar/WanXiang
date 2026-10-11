@@ -32,8 +32,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button  _btnSettings;     // Hot_Settings 设置
         [SerializeField] private Button  _btnHistory;      // Btn_History 历程（底排·沙漏图标）
         [SerializeField] private HomeMapJourney _homeMap;  // Map_Journey   中央四季旅程图（进图刷新进度）
-        [SerializeField] private HomeAmbientFx _ambientFx;      // 背景 + 天气特效（2026-10-11，2D）
-        [SerializeField] private HomeScene3D _scene3D;       // 3D 层：异兽行走 + 天气粒子（2026-10-11）
+        [SerializeField] private HomeScene3D _scene3D;       // 3D 层：背景 + 异兽行走 + 天气粒子（2026-10-11）
 
         // ⚠ 2026-10-11 布局调整（用户要求）：
         //   ① 左侧竖排三个按钮（局外成长/历程/残卷阁）移到**下方横排**，与图鉴/设置同排；
@@ -90,23 +89,34 @@ namespace WanXiang.Modules.UI
             RefreshDeployLabel();
             HideRetiredEntries();
 
-            // ---- 背景 + 天气特效（2026-10-11）：按当前探索的幕换背景+ 季节粒子 ----
-            if (_ambientFx == null) _ambientFx = GetComponent<HomeAmbientFx>();
-            if (_ambientFx == null) _ambientFx = gameObject.AddComponent<HomeAmbientFx>();
+            // ---- 3D 层：背景 + 出战异兽走动 + 天气粒子（2026-10-11 混合方案）----
+            // ⛔ 背景必须由 3D 层画：UIRoot 的 Canvas 是 ScreenSpaceOverlay，
+            //   Overlay 永远渲染在所有相机之上 ⇒ UI 层只要有一张全屏不透明图，
+            //   就会把 3D 的异兽/天气整个盖住（第一版就是这样，什么都看不见）。
             var ambRun = WanXiang.Run.RunSave.Current;
-            _ambientFx.Running = true;          // ⛔ 必须开这个开关，否则特效组件的 Update 直接 return（粒子/雨/涟漪全不动）
-            _ambientFx.Rebuild(ambRun != null ? ambRun.Act : 1);
-            // 天气：取当前存档的天时（无则晴）。有 LiveWeather 时按灵卵剩余切阴天。
-            _ambientFx.SetWeather(0);
-
-            // ---- 3D 层：出战异兽在主界面四周走动 + 天气粒子（2026-10-11 混合方案）----
-            //UI 仍是 2D Overlay；这层是独立的 3D 正交相机 + 世界空间内容，垫在 UI 之下。
             if (_scene3D == null) _scene3D = GetComponent<HomeScene3D>();
             if (_scene3D == null) _scene3D = gameObject.AddComponent<HomeScene3D>();
+            _scene3D.Init();
             _scene3D.InjectCatalog(_sprites);
+            _scene3D.SetMapRect(_homeMap != null ? _homeMap.transform as RectTransform : null);
             _scene3D.Running = true;
+            // 幕 + 幕内进度 → 氛围强度（雾/风/天气随探索进度实时变化）
+            int ambAct = ambRun != null ? Mathf.Clamp(ambRun.Act, 1, 5) : 1;
+            float ambProgress = 0f;
+            if (ambRun != null)
+            {
+                // 幕内进度：NodeOffset = 当前锚点节点（-1 = 尚未出发）。
+                // 分母用层数×3（节点上限；实际节点数随种子浮动）—— 这里只驱动视觉强度，
+                // 近似即可，不必精确到实际节点数。
+                int approxNodes = WanXiang.Campaign.SolarTermGraph.DefaultLayers * 3;
+                if (approxNodes > 0) ambProgress = Mathf.Clamp01((ambRun.NodeOffset + 1f) / approxNodes);
+            }
+            _scene3D.ApplyAmbience(ambAct, ambProgress);
             _scene3D.SetWalkers(ambRun != null ? ambRun.Team : null);
-            _scene3D.SetWeather(0);
+
+            // ⚠ 2026-10-11：2D 版 HomeAmbientFx（背景 + 季节粒子 + 雨丝/涟漪）已整体退役 ——
+            //   背景与天气全部移交 3D 层（HomeScene3D），用户也明确"主界面不需要粒子"。
+            //   组件与文件已删除，这里不再调用。
 
             // 中央四季节气环：每次回到主城都按当前旅程进度重刷（幕/层 → 扇区点亮 + 标记位置）
             if (_homeMap != null) _homeMap.Refresh();
@@ -189,6 +199,20 @@ namespace WanXiang.Modules.UI
         /// 隐藏已收口到路线图节点的四个入口（灵市 / 异闻 / 铸魂台 / 天象）。
         /// 留着"能点但没用"的按钮比没有更糟 —— 玩家会反复点、然后以为游戏坏了。
         /// </summary>
+        private void OnDisable()
+        {
+            // 主城被隐藏（进战斗等）⇒ 停掉 3D 层：相机与 3D 内容挂在 Canvas 之外，
+            // 不随面板隐藏，必须显式停，否则在别的界面后面空转。
+            if (_scene3D != null) _scene3D.Running = false;
+        }
+
+        protected override void OnResume()
+        {
+            base.OnResume();
+            // 被上层弹层盖过再露出时恢复 3D 渲染（与 OnDisable 成对）
+            if (_scene3D != null) _scene3D.Running = true;
+        }
+
         /// <summary>
         /// 退役入口的隐藏逻辑。
         /// ⚠ 2026-10-11：灵市/异闻/铸魂/天象/试炼 已连 prefab 节点一起删除，本方法清空。

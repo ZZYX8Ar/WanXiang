@@ -230,6 +230,21 @@ namespace WanXiang.Modules.UI
                 }
             }
 
+            // ⛔ 觉醒技（第 4 槽）：**未觉醒 / 未装备就隐藏**（用户 2026-10-11 要求）。
+            //   必须放在 `u != null` 判断之外 —— 否则轮到"无行动单位"（开局、结算、
+            //   敌方回合间隙）时不刷新，按钮会一直露着（prefab 默认是显示的）。
+            //   hasAwaken 的唯一判据 = BattleDef.Awaken 非空；该字段只在
+            //   BattleRequestFactory 里由 `run.SnapAwakenOf(id)` 非空时注入，
+            //   未觉醒/未装备的异兽拿到的是 null ⇒ 自然隐藏。
+            if (_skillBtns != null && _skillBtns.Length > 3 && _skillBtns[3] != null)
+            {
+                bool hasAwaken = u != null && u.GetSkill(SkillType.Awaken) != null;
+                if (_skillBtns[3].gameObject.activeSelf != hasAwaken)
+                    _skillBtns[3].gameObject.SetActive(hasAwaken);
+                if (hasAwaken)
+                    _skillBtns[3].interactable = cfg != null && u.CanCast(SkillType.Awaken, cfg);
+            }
+
             if (_skillBtns != null && u != null)
             {
                 _skillBtns[0].interactable = true;      // 普攻永远可用（0 耗兜底）
@@ -240,18 +255,6 @@ namespace WanXiang.Modules.UI
                 _skillBtns[2].interactable = u.GetSkill(SkillType.Ultimate) != null
                                           && cfg != null
                                           && u.CanCast(SkillType.Ultimate, cfg);
-
-                // ★ 觉醒技（第 4 槽）：**没装备就隐藏**（用户要求）；
-                //   装了则按 CanCast（元气满）决定可否点击。
-                if (_skillBtns.Length > 3 && _skillBtns[3] != null)
-                {
-                    bool hasAwaken = u.GetSkill(SkillType.Awaken) != null;
-                    bool before3 = _skillBtns[3].gameObject.activeSelf;
-                    if (before3 != hasAwaken)
-                        _skillBtns[3].gameObject.SetActive(hasAwaken);
-                    if (hasAwaken)
-                        _skillBtns[3].interactable = cfg != null && u.CanCast(SkillType.Awaken, cfg);
-                }
             }
 
             // 连携按钮不在每帧路径里刷新（见 RefreshComboButton，避免每帧 GC/查子节点）
