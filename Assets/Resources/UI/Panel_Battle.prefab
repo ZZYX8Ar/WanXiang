@@ -625,6 +625,7 @@ GameObject:
   - component: {fileID: 7760439918891452305}
   - component: {fileID: 8511536295453273289}
   - component: {fileID: 6371497982399458043}
+  - component: {fileID: 6401662976200595031}
   m_Layer: 0
   m_Name: Root_StatusTip
   m_TagString: Untagged
@@ -691,6 +692,20 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &6401662976200595031
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1145167513816960791}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3203d573f994e434f8e90a8de5c99705, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _offset: {x: 26, y: -26}
+  _edgePad: 12
 --- !u!1 &1223241066860405554
 GameObject:
   m_ObjectHideFlags: 0
@@ -1480,6 +1495,7 @@ GameObject:
   - component: {fileID: 3676063269991891528}
   - component: {fileID: 2015159090991450180}
   - component: {fileID: 3127261567899397365}
+  - component: {fileID: 3175498318565371352}
   m_Layer: 0
   m_Name: Root_RelicTip
   m_TagString: Untagged
@@ -1529,7 +1545,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -1545,6 +1561,20 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &3175498318565371352
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1992974418624767640}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3203d573f994e434f8e90a8de5c99705, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _offset: {x: 26, y: -26}
+  _edgePad: 12
 --- !u!1 &2214151285638128828
 GameObject:
   m_ObjectHideFlags: 0
@@ -2988,7 +3018,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7884777084490331925}
-  - component: {fileID: 8548139261893863372}
+  - component: {fileID: 5135347314844642405}
   m_Layer: 0
   m_Name: Root_Relics
   m_TagString: Untagged
@@ -3013,10 +3043,10 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 20, y: -16}
-  m_SizeDelta: {x: 440, y: 96}
+  m_AnchoredPosition: {x: 16, y: -100}
+  m_SizeDelta: {x: 420, y: 200}
   m_Pivot: {x: 0, y: 1}
---- !u!114 &8548139261893863372
+--- !u!114 &5135347314844642405
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3025,7 +3055,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 4471452535930153676}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30649d3a9faa99c48a7b1166b86bf2a0, type: 3}
+  m_Script: {fileID: 11500000, guid: 8a8695521f0d02e499659fee002a26c2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   m_Padding:
@@ -3033,15 +3063,13 @@ MonoBehaviour:
     m_Right: 0
     m_Top: 0
     m_Bottom: 0
-  m_ChildAlignment: 3
-  m_Spacing: 12
-  m_ChildForceExpandWidth: 0
-  m_ChildForceExpandHeight: 0
-  m_ChildControlWidth: 1
-  m_ChildControlHeight: 1
-  m_ChildScaleWidth: 0
-  m_ChildScaleHeight: 0
-  m_ReverseArrangement: 0
+  m_ChildAlignment: 0
+  m_StartCorner: 0
+  m_StartAxis: 0
+  m_CellSize: {x: 58, y: 58}
+  m_Spacing: {x: 6, y: 6}
+  m_Constraint: 1
+  m_ConstraintCount: 6
 --- !u!1 &4481388587854374067
 GameObject:
   m_ObjectHideFlags: 0
@@ -5981,7 +6009,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 96, y: 96}
+  m_SizeDelta: {x: 58, y: 58}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &7489363825592369427
 MonoBehaviour:
@@ -5996,12 +6024,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_IgnoreLayout: 0
-  m_MinWidth: 96
-  m_MinHeight: 96
-  m_PreferredWidth: 96
-  m_PreferredHeight: 96
-  m_FlexibleWidth: -1
-  m_FlexibleHeight: -1
+  m_MinWidth: 58
+  m_MinHeight: 58
+  m_PreferredWidth: 58
+  m_PreferredHeight: 58
+  m_FlexibleWidth: 0
+  m_FlexibleHeight: 0
   m_LayoutPriority: 1
 --- !u!222 &3929869248678526081
 CanvasRenderer:
@@ -6052,6 +6080,7 @@ GameObject:
   - component: {fileID: 6652929586345342347}
   - component: {fileID: 466607565609147914}
   - component: {fileID: 1591225147138241843}
+  - component: {fileID: 5777212041431983318}
   m_Layer: 0
   m_Name: Root_SkillTip
   m_TagString: Untagged
@@ -6117,6 +6146,20 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &5777212041431983318
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8117309569794937335}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3203d573f994e434f8e90a8de5c99705, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _offset: {x: 26, y: -26}
+  _edgePad: 12
 --- !u!1 &8303058583666653222
 GameObject:
   m_ObjectHideFlags: 0

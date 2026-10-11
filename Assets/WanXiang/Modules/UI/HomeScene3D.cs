@@ -220,15 +220,16 @@ namespace WanXiang.Modules.UI
         {
             switch (act)
             {
-                case 1: return new Eco { Clouds = 10, CloudScale = 0.85f, CloudAlpha = 0.72f, Birds = 14, BirdFlock = false, Butterflies = 10,
+                // ⚠ 云尺寸 2026-10-11 调小（用户："云和鸟有点大了"）：0.85~1.25 → 0.50~0.72
+                case 1: return new Eco { Clouds = 10, CloudScale = 0.50f, CloudAlpha = 0.72f, Birds = 14, BirdFlock = false, Butterflies = 10,
                                          Ground = "home_flower_1", GroundNum = 12, GroundScale = 0.95f };
-                case 2: return new Eco { Clouds = 14, CloudScale = 1.05f, CloudAlpha = 0.90f, Birds = 10, BirdFlock = false, Butterflies = 8,
+                case 2: return new Eco { Clouds = 14, CloudScale = 0.62f, CloudAlpha = 0.90f, Birds = 10, BirdFlock = false, Butterflies = 8,
                                          Ground = "home_flower_2", GroundNum = 13, GroundScale = 1.00f };
-                case 3: return new Eco { Clouds = 8, CloudScale = 0.75f, CloudAlpha = 0.66f, Birds = 16, BirdFlock = true, Butterflies = 0,
+                case 3: return new Eco { Clouds = 8, CloudScale = 0.45f, CloudAlpha = 0.66f, Birds = 16, BirdFlock = true, Butterflies = 0,
                                          Ground = "home_reeds", GroundNum = 13, GroundScale = 1.05f };
-                case 4: return new Eco { Clouds = 16, CloudScale = 1.15f, CloudAlpha = 0.94f, Birds = 5, BirdFlock = false, Butterflies = 0,
+                case 4: return new Eco { Clouds = 16, CloudScale = 0.68f, CloudAlpha = 0.94f, Birds = 5, BirdFlock = false, Butterflies = 0,
                                          Ground = "home_grass", GroundNum = 12, GroundScale = 0.95f };
-                default: return new Eco { Clouds = 18, CloudScale = 1.25f, CloudAlpha = 0.97f, Birds = 8, BirdFlock = false, Butterflies = 0,
+                default: return new Eco { Clouds = 18, CloudScale = 0.72f, CloudAlpha = 0.97f, Birds = 8, BirdFlock = false, Butterflies = 0,
                                           Ground = "home_wheat", GroundNum = 14, GroundScale = 1.05f };
             }
         }
@@ -297,15 +298,16 @@ namespace WanXiang.Modules.UI
             {
                 var img = MakeImage(_natureRoot, "Bird" + i, i);
                 img.sprite = f0;
-                float sz = Random.Range(78f, 150f) * _globalScale;
+                // ⚠ 鸟尺寸 2026-10-11 调小（用户："云和鸟有点大了"）：78~150 → 44~82
+                float sz = Random.Range(44f, 82f) * _globalScale;
                 SetSize(img, sz, sz);
                 float x, y, vx;
                 if (flock)
                 {
                     int row = (i + 1) / 2;
                     float side = (i % 2 == 0) ? 1f : -1f;
-                    x = flockX - flockDir * row * 62f;
-                    y = flockY + side * row * 30f;
+                    x = flockX - flockDir * row * 46f;
+                    y = flockY + side * row * 22f;
                     vx = flockDir * flockSpeed;
                 }
                 else
@@ -333,7 +335,7 @@ namespace WanXiang.Modules.UI
             {
                 var img = MakeImage(_natureRoot, "Butterfly" + i, i);
                 img.sprite = a;
-                float sz = Random.Range(56f, 96f) * _globalScale;
+                float sz = Random.Range(38f, 66f) * _globalScale;
                 SetSize(img, sz, sz);
                 float x = Random.Range(-HalfW * 0.9f, HalfW * 0.9f);
                 float y = Random.Range(-HalfH * 0.62f, HalfH * 0.18f);
