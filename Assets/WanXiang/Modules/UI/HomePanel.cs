@@ -29,12 +29,18 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Image   _imgHero;         // Img_HeroSprite 主战异兽立绘
         [SerializeField] private Button  _btnDeploy;       // Btn_Deploy    出征
         [SerializeField] private Button  _btnCodex;        // Btn_Codex     图鉴
-        [SerializeField] private Button  _btnMeta;         // Btn_Meta      局外成长
-        [SerializeField] private Button  _btnArchive;      // Btn_Archive   残卷阁（剧情面板：领觉醒材料）
-        [SerializeField] private Button  _btnSettings;     // Btn_Settings  设置
-        [SerializeField] private Button  _btnHistory;      // Btn_History   历程（最近 10 局）
+        [SerializeField] private Button  _btnMeta;            // Hot_Meta  局外成长（底排阵盘位，绑 MetaPanel）
+        [SerializeField] private Button  _btnArchive;      // Btn_Archive 残卷阁（底排·卷轴图标）
+        [SerializeField] private Button  _btnSettings;     // Hot_Settings 设置
+        [SerializeField] private Button  _btnHistory;      // Btn_History 历程（底排·沙漏图标）
         [SerializeField] private HomeMapJourney _homeMap;  // Map_Journey   中央四季旅程图（进图刷新进度）
         [SerializeField] private HomeAmbientFx _ambientFx;      // 背景 + 天气特效（2026-10-11）
+
+        // ⚠ 2026-10-11 布局调整（用户要求）：
+        //   ① 左侧竖排三个按钮（局外成长/历程/残卷阁）移到**下方横排**，与图鉴/设置同排；
+        //   ② 底排的阵盘图标（Hot_Meta）改绑 MetaPanel（局外成长）—— 原来 _btnMeta 字段
+        //      误绑到左侧的 Btn_Meta，导致点底排阵盘"没反应"；左侧那个重复的已删除。
+        //   ③ 三个字段（_btnMeta/_btnArchive/_btnHistory）现在都指向**底排**节点。
 
         // ⚠ 2026-10-11 清理：灵市/异闻/铸魂/天象/试炼 这5 个主城入口已退役 ——
         //   ① 前四个 v1.2 起收口为路线图节点（CampaignPanel 里进）；
@@ -90,6 +96,7 @@ namespace WanXiang.Modules.UI
             if (_ambientFx == null) _ambientFx = GetComponent<HomeAmbientFx>();
             if (_ambientFx == null) _ambientFx = gameObject.AddComponent<HomeAmbientFx>();
             var ambRun = WanXiang.Run.RunSave.Current;
+            _ambientFx.Running = true;          // ⛔ 必须开这个开关，否则特效组件的 Update 直接 return（粒子/雨/涟漪全不动）
             _ambientFx.Rebuild(ambRun != null ? ambRun.Act : 1);
             // 天气：取当前存档的天时（无则晴）。有 LiveWeather 时按灵卵剩余切阴天。
             _ambientFx.SetWeather(0);
