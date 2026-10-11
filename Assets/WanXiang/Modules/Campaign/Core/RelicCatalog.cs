@@ -605,6 +605,20 @@ namespace WanXiang.Campaign
                         rs[i], RelicEffect.TeamSizeStatPct, vs[i], need[i], null));
             }
 
+            // ---- 族 13：新遗物补全（2026-10-11，图已出、名字=图文件名走精确名规则）----
+            L.Add(new RelicDef("r_misc_diejifu", "叠击符", "全队普攻段数 +1（可与连环击叠加）", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.BasicExtraHit));
+            L.Add(new RelicDef("r_misc_haojiao", "号角", "战斗开局灵力 +2", RelicRarity.Common, RelicEffect.StartMana, 2));
+            L.Add(new RelicDef("r_misc_huiwenyubi", "回纹玉璧", "我方全体阵亡以 25% 生命复活 1 次", RelicRarity.Rare, RelicEffect.ReviveOnce, 25));
+            L.Add(new RelicDef("r_misc_guxinghui", "孤星徽", "上阵人数 ≤ 1 时，全队 生命/攻击/防御 +70%（孤胆成军）", RelicRarity.Boss, RelicEffect.TeamSizeStatPct, 70f, 1f));
+            L.Add(new RelicDef("r_misc_zhanqi", "战旗", "本局前 2 场战斗内，全队 生命/攻击/防御 +30%（之后失效）", RelicRarity.Rare, RelicEffect.EarlyWinStatPct, 30f, 2f));
+            L.Add(new RelicDef("r_misc_zhangu", "战鼓", "本局每胜利 1 场，全队 生命/攻击/防御 +2%（封顶 +20%）", RelicRarity.Rare, RelicEffect.PerWinStatPct, 2f, 20f));
+            L.Add(new RelicDef("r_misc_duanren", "断刃", "全队 生命/攻击/防御 +35%，但战斗开局灵力 -3", RelicRarity.Rare, RelicEffect.TradeStatPct, 35f, 3f));
+            L.Add(new RelicDef("r_misc_fangyu", "方玉印章", "敌方属性 -8%", RelicRarity.Common, RelicEffect.EnemyWeakPct, 8));
+            L.Add(new RelicDef("r_misc_chenzhong", "晨钟", "战斗开局灵力 +5", RelicRarity.Rare, RelicEffect.StartMana, 5));
+            L.Add(new RelicDef("r_misc_duyin", "独印", "敌方属性 -15%", RelicRarity.Boss, RelicEffect.EnemyWeakPct, 15));
+            L.Add(new RelicDef("r_misc_xiaoling", "青铜小铃", "全队 生命/攻击/防御 +5%", RelicRarity.Common, RelicEffect.PlayerStatPct, 5));
+            L.Add(new RelicDef("r_misc_heilian", "黑莲", "全队 生命/攻击/防御 +50%，但本局【无法复活】", RelicRarity.Boss, RelicEffect.NoReviveStatPct, 50f));
+
             return L.ToArray();
         }
 
