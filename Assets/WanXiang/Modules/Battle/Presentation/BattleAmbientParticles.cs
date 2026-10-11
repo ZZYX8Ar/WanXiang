@@ -37,16 +37,16 @@ namespace WanXiang.Battle.Presentation
             public float AlphaSpeed;    // 闪烁速度（0=不闪）
         }
 
-        // ---- 五幕风格表（act 1..5）----
+        // ---- 五幕风格表（act 1..5）· FallSpeed 一律为正 = 统一从上往下飘 ----
         public static Style StyleForAct(int act)
         {
             switch (Mathf.Clamp(act, 1, 5))
             {
-                case 1: return new Style { ResPath = "Battle/FX_particle_act1_petal",  Count = 14, WorldSize = 0.55f, FallSpeed = 0.55f, SwayAmp = 0.55f, SwayFreq = 0.9f,  SpinDeg = 40f,  AlphaMin = 0.55f, AlphaSpeed = 0.0f };
-                case 2: return new Style { ResPath = "Battle/FX_particle_act2_firefly", Count = 12, WorldSize = 0.42f, FallSpeed = -0.12f, SwayAmp = 0.95f, SwayFreq = 0.5f, SpinDeg = 0f,   AlphaMin = 0.18f, AlphaSpeed = 1.6f };
-                case 3: return new Style { ResPath = "Battle/FX_particle_act3_pollen", Count = 16, WorldSize = 0.26f, FallSpeed = 0.22f, SwayAmp = 0.75f, SwayFreq = 0.7f,  SpinDeg = 8f,   AlphaMin = 0.22f, AlphaSpeed = 1.1f };
-                case 4: return new Style { ResPath = "Battle/FX_particle_act4_leaf",   Count = 12, WorldSize = 0.62f, FallSpeed = 0.62f, SwayAmp = 1.05f, SwayFreq = 1.1f,  SpinDeg = 75f,  AlphaMin = 0.60f, AlphaSpeed = 0.0f };
-                default: return new Style { ResPath = "Battle/FX_particle_act5_snow",  Count = 18, WorldSize = 0.34f, FallSpeed = 0.48f, SwayAmp = 0.50f, SwayFreq = 0.8f,  SpinDeg = 14f,  AlphaMin = 0.45f, AlphaSpeed = 0.5f };
+                case 1: return new Style { ResPath = "Battle/FX_particle_act1_petal",  Count = 16, WorldSize = 0.55f, FallSpeed = 0.62f, SwayAmp = 0.60f, SwayFreq = 0.9f, SpinDeg = 40f,  AlphaMin = 0.60f, AlphaSpeed = 0.0f };
+                case 2: return new Style { ResPath = "Battle/FX_particle_act2_firefly", Count = 14, WorldSize = 0.42f, FallSpeed = 0.30f, SwayAmp = 1.05f, SwayFreq = 0.5f, SpinDeg = 0f,   AlphaMin = 0.16f, AlphaSpeed = 1.6f };
+                case 3: return new Style { ResPath = "Battle/FX_particle_act3_pollen", Count = 18, WorldSize = 0.26f, FallSpeed = 0.34f, SwayAmp = 0.80f, SwayFreq = 0.7f, SpinDeg = 8f,   AlphaMin = 0.24f, AlphaSpeed = 1.1f };
+                case 4: return new Style { ResPath = "Battle/FX_particle_act4_leaf",   Count = 14, WorldSize = 0.62f, FallSpeed = 0.72f, SwayAmp = 1.10f, SwayFreq = 1.1f, SpinDeg = 75f,  AlphaMin = 0.65f, AlphaSpeed = 0.0f };
+                default: return new Style { ResPath = "Battle/FX_particle_act5_snow",  Count = 20, WorldSize = 0.34f, FallSpeed = 0.55f, SwayAmp = 0.55f, SwayFreq = 0.8f, SpinDeg = 14f, AlphaMin = 0.50f, AlphaSpeed = 0.5f };
             }
         }
 
@@ -54,7 +54,8 @@ namespace WanXiang.Battle.Presentation
         {
             public Transform T;
             public SpriteRenderer Sr;
-            public float X0, Phase, Speed, SwayAmp, SwayFreq, Spin, BaseY;
+            public float X0, Phase, Speed, SwayAmp, SwayFreq, Spin, SpinPhase;
+            public float Y;              // 当前高度（每帧增量积分并写回，勿用初始值重算）
             public float AlphaMin, AlphaSpeed;
         }
 
@@ -110,7 +111,8 @@ namespace WanXiang.Battle.Presentation
                     SwayAmp = _style.SwayAmp * Random.Range(0.7f, 1.3f),
                     SwayFreq = _style.SwayFreq * Random.Range(0.8f, 1.2f),
                     Spin = _style.SpinDeg * Random.Range(-1f, 1f),
-                    BaseY = y,
+                    SpinPhase = Random.Range(0f, 360f),
+                    Y = y,
                     AlphaMin = _style.AlphaMin,
                     AlphaSpeed = _style.AlphaSpeed,
                 };
@@ -121,39 +123,42 @@ namespace WanXiang.Battle.Presentation
         /// <summary>推进粒子（由 BattleStage2D.Step 转发 dt）。</summary>
         public void Step(float dt)
         {
-            if (_ps == null) return;
+            if (_ps == null || _ps.Length == 0) return;
             _t += dt;
+            float top = _halfH + 0.8f;      // 出生/回绕的上边界（视野上方一点）
+            float bottom = -_halfH - 0.8f;  // 回收的下边界
+            float span = top - bottom;
+
             for (int i = 0; i < _ps.Length; i++)
             {
                 var p = _ps[i];
                 if (p.T == null) continue;
 
-                // 下落 / 上浮 + 循环（走出下边界就从顶部回来）
-                float y = p.BaseY - p.Speed * _t;
-                if (p.Speed > 0f)
-                {
-                    if (y < -_halfH - 0.6f) y = _halfH + 0.6f;
-                }
-                else
-                {
-                    if (y > _halfH + 0.6f) y = -_halfH - 0.6f;
-                }
+                // ⛔ 必须**增量积分**并把 y 写回结构体 —— 早期版本写成
+                //   `float y = p.BaseY - p.Speed * _t`（BaseY 永不更新），
+                //   粒子下落后每帧都被判成"仍在界外"而锁死在顶部 ⇒ 飘一会儿就没了。
+                //   用户要求：只要战斗没结束就一直飘、且方向统一从上往下。
+                p.Y -= p.Speed * dt;
+                // 走出下边界 → 从顶部同速带回（不同 x，避免整排同时出现）
+                if (p.Y < bottom) p.Y += span;
 
-                // 横向摆动（正弦）
+                // 横向摆动（正弦，越界环绕）
                 float x = p.X0 + Mathf.Sin(_t * p.SwayFreq + p.Phase) * p.SwayAmp;
                 if (x > _halfW + 0.8f) x -= 2f * (_halfW + 0.8f);
                 else if (x < -_halfW - 0.8f) x += 2f * (_halfW + 0.8f);
 
-                p.T.localPosition = new Vector3(x, y, 0f);
-                if (p.Spin != 0f) p.T.localRotation = Quaternion.Euler(0f, 0f, _t * p.Spin);
+                p.T.localPosition = new Vector3(x, p.Y, 0f);
+                if (p.Spin != 0f) p.T.localRotation = Quaternion.Euler(0f, 0f, p.SpinPhase);
 
-                // 闪烁 / 呼吸
+                // 闪烁 / 呼吸（只改 alpha，颜色基色保持白）
                 if (p.AlphaSpeed > 0f)
                 {
                     float k = 0.5f + 0.5f * Mathf.Sin(_t * p.AlphaSpeed * 3f + p.Phase);
                     var c = p.Sr.color;
                     p.Sr.color = new Color(c.r, c.g, c.b, Mathf.Lerp(p.AlphaMin, 1f, k));
                 }
+
+                _ps[i] = p;   // ⚠ 结构体是值类型，改完必须写回数组
             }
         }
 

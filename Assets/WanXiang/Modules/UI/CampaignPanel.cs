@@ -90,6 +90,11 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button _btnBack;              // Btn_Back
         [SerializeField] private Button _btnXingyi;            // Btn_Xingyi  星移（注入余气）
 
+        // ---- 按幕背景 + 飘落粒子（2026-10-11 用户要求，见 CampaignAmbientFx）----
+        [SerializeField] private Image _imgMapBg;            // Img_MapBg     按幕背景（铺满）
+        [SerializeField] private RectTransform _rootMapParticles;   // Root_MapParticles 粒子层（铺满）
+        private CampaignAmbientFx _ambientFx;               // 运行时挂在面板上（自己驱动 Update）
+
         // 遗物 HUD（左上角一排小牌 + 悬浮说明；见 RelicHud / Editor/UITool/BuildRelicHudPatch.cs）
         [SerializeField] private RectTransform _rootRelics;    // Root_Relics
         [SerializeField] private GameObject _relicTemplate;    // Item_Relic
@@ -140,6 +145,10 @@ namespace WanXiang.Modules.UI
             RehydrateXingyi();
 
             _justPassedNode = -1;   // ★ 每次开面重置：只有下面 PendingCommit 真落地了才会重新置位
+
+            // ---- 按幕背景 + 飘落粒子（2026-10-11）----
+            //   放在 ActIntro 之前：换幕时 OnOpenAsync 会重跑，这里跟着重建，背景/粒子随幕变。
+            RefreshAmbient();
 
             // ★ 每一幕的开场/转场动画（宣纸底 + 大字逐字浮现 + 当季落叶）。
             //   触发口子**只放这一处**：进图与换幕都会经过 CampaignPanel.OnOpenAsync，
@@ -794,12 +803,29 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         protected override void OnOpened()
         {
             base.OnOpened();
+            if (_ambientFx != null) _ambientFx.Running = true;   // 粒子只在面板可见时驱动
             if (_pendingAnim) StartCoroutine(PlayPendingAnimAfter(0.50f));
         }
         protected override void OnResume()
         {
             base.OnResume();
+            if (_ambientFx != null) _ambientFx.Running = true;
             if (_pendingAnim) StartCoroutine(PlayPendingAnimAfter(0.30f));   // 被上层弹层（如开场）盖过再露出 ⇒ 这时才播
+        }
+
+        // ================================================================
+        //  按幕背景 + 飘落粒子（2026-10-11）
+        //  ------------------------------------------------------------------
+        //  进图与换幕都会经过 OnOpenAsync ⇒ 那里调 RefreshAmbient()，
+        //  背景图与粒子就自动跟着幕变（春/夏/长夏/秋/冬）。
+        // ================================================================
+        private void RefreshAmbient()
+        {
+            if (_ambientFx == null) _ambientFx = GetComponent<CampaignAmbientFx>();
+            if (_ambientFx == null) _ambientFx = gameObject.AddComponent<CampaignAmbientFx>();
+            var run = WanXiang.Run.RunSave.Current;
+            int act = run != null ? run.Act : 1;
+            _ambientFx.Build(act, _imgMapBg, _rootMapParticles);
         }
         private System.Collections.IEnumerator PlayPendingAnimAfter(float d)
         {
