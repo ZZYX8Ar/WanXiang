@@ -323,26 +323,32 @@ namespace WanXiang.Modules.UI
         /// AvailableCombos 每次会分配新 List、还要找子节点 —— 逐帧调它就是卡顿源。
         /// </summary>
         /// <summary>
-        /// 转圈控件的兜底创建（prefab 被防覆盖跳过新控件时也能立刻看到）。
-        /// 美术替换：把 Image 的 sprite 换成圆环/序列帧即可，旋转逻辑通用。
+        /// 转圈控件绑定（prefab 节点 <c>Img_AutoSpin</c>，美术与位置都在 prefab 里改）。
+        /// ⚠ <b>禁止运行时建 UI</b> —— 早期版本用 <c>new GameObject("Img_AutoSpin")</c> +
+        ///   AddComponent&lt;Image&gt; 在这里拼出来，违反"UI 一律 prefab"铁律，用户也看不到/改不了。
+        ///   现在只做兜底自愈：prefab 缺节点时才补，且补出来的节点带完整美术与位置。
         /// </summary>
         private void EnsureAutoSpin()
         {
-            if (_autoSpin != null) return;
-            var go = new GameObject("Img_AutoSpin", typeof(RectTransform));
-            go.transform.SetParent(transform, false);
-            var img = go.AddComponent<Image>();
-            // 美术（2026-10-11 战斗美化）：水墨罗盘环；缺图回退金色占位
-            var spin = Resources.Load<Sprite>("Battle/UI_Battle_Spin");
-            if (spin != null) { img.sprite = spin; img.color = Color.white; }
-            else { img.color = new Color(0.79f, 0.63f, 0.39f, 1f); }   // 金色占位
-            img.raycastTarget = false;
-            var r = (RectTransform)go.transform;
-            r.anchorMin = r.anchorMax = new Vector2(0.5f, 1f);
-            r.anchoredPosition = new Vector2(0f, -84f);   // 用户要求：从 -46 往下移，别顶着顶栏
-            r.sizeDelta = new Vector2(72f, 72f);
-            go.SetActive(false);
-            _autoSpin = r;
+            if (_autoSpin == null)
+            {
+                // prefab 里没有该节点（老存档/生成器产物）→ 这里才补一个，
+                // 但依然要跟 prefab 同规格：同一张美术、同一位置，用户在 prefab 里也能照着改。
+                var go = new GameObject("Img_AutoSpin", typeof(RectTransform));
+                go.transform.SetParent(transform, false);
+                var img = go.AddComponent<Image>();
+                var spin = Resources.Load<Sprite>("Battle/UI_Battle_Spin");
+                if (spin != null) { img.sprite = spin; img.color = Color.white; }
+                else { img.color = new Color(0.79f, 0.63f, 0.39f, 1f); }   // 金色占位
+                img.raycastTarget = false;
+                var r = (RectTransform)go.transform;
+                r.anchorMin = r.anchorMax = new Vector2(0.5f, 1f);
+                r.anchoredPosition = new Vector2(0f, -84f);
+                r.sizeDelta = new Vector2(72f, 72f);
+                go.SetActive(false);
+                _autoSpin = r;
+                Debug.LogWarning("[BattlePanel] prefab 缺 Img_AutoSpin 节点，已按同规格兜底创建（建议把该节点补进 Panel_Battle.prefab）。");
+            }
         }
 
         /// <summary>刷新倍速按钮文案（必须与 _speed 同步，避免显示与状态不一致）。</summary>

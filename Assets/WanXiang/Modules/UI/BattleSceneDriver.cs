@@ -96,7 +96,7 @@ namespace WanXiang.Modules.UI
                     Sprite bg = Resources.Load<Sprite>(BgByAct[act - 1]);
                     if (bg == null) bg = _background;   // 旧序列化引用兜底
                     Sprite fg = Resources.Load<Sprite>(FgByAct[act - 1]);
-                    _stage.Build(play.State, bg, _sprites, fg);
+                    _stage.Build(play.State, bg, _sprites, fg, act);
                     Debug.Log("[BattleSceneDriver] 舞台已搭建：" + req.Title +
                               "（act=" + act + " bg=" + (bg != null ? bg.name : "null") +
                               " fg=" + (fg != null ? fg.name : "null") + "）");

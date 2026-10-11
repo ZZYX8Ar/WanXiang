@@ -366,6 +366,8 @@ namespace WanXiang.Battle.Presentation
 
         // ---- 四周前景装饰（2026-10-11 战斗美化：随幕变化 + 轻微摇曳）----
         private Transform _fgDecor;
+        /// <summary>环境粒子（按幕：春花瓣/夏萤火/长夏花粉/秋落叶/冬雪花）。</summary>
+        private BattleAmbientParticles _ambient;
 
         public Camera Camera => _cam;
 
@@ -373,7 +375,7 @@ namespace WanXiang.Battle.Presentation
         //  搭建
         // ================================================================
 
-        public void Build(BattleState st, Sprite springBg, SpriteCatalog catalog = null, Sprite fgDecor = null)
+        public void Build(BattleState st, Sprite springBg, SpriteCatalog catalog = null, Sprite fgDecor = null, int act = 1)
         {
             _catalog = catalog;
             Clear();
@@ -407,6 +409,11 @@ namespace WanXiang.Battle.Presentation
                 _fgDecor = fg.transform;
             }
 
+            // ---- 环境粒子（按幕：春花瓣/夏萤火/长夏花粉/秋落叶/冬雪花）----
+            _ambient = GetComponent<BattleAmbientParticles>();
+            if (_ambient == null) _ambient = gameObject.AddComponent<BattleAmbientParticles>();
+            _ambient.Build(act);
+
             BuildBoard("BoardP", PlayerX, BoardY, true);
 #if UNITY_EDITOR
                 // ---- 临时诊断（排查“有个东西特别大”，查完删）----
@@ -436,6 +443,7 @@ namespace WanXiang.Battle.Presentation
             _state = null;
             _cam = null;
             _fgDecor = null;
+            _ambient = null;   // 粒子子物体已被上面销毁；Build 里重新 GetComponent/AddComponent
         }
 
         // player=true 我方（左，不镜像）；player=false 敌方（右，列镜像 ⇒ 与我方对称）
@@ -1073,6 +1081,9 @@ namespace WanXiang.Battle.Presentation
                 _fgDecor.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(_animT * 0.9f) * 0.5f);
                 _fgDecor.localPosition = new Vector3(Mathf.Sin(_animT * 0.6f) * 0.06f, Mathf.Sin(_animT * 1.1f) * 0.05f, 0f);
             }
+
+            // 环境粒子（同一动画时钟，别用 Time.time）
+            if (_ambient != null) _ambient.Step(dt);
 
             foreach (var v in _views.Values)
             {
