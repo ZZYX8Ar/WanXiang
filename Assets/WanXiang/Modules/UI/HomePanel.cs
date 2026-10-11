@@ -97,10 +97,8 @@ namespace WanXiang.Modules.UI
             if (_scene3D == null) _scene3D = GetComponent<HomeScene3D>();
             if (_scene3D == null) _scene3D = gameObject.AddComponent<HomeScene3D>();
             _scene3D.Init();
-            _scene3D.InjectCatalog(_sprites);
-            _scene3D.SetMapRect(_homeMap != null ? _homeMap.transform as RectTransform : null);
             _scene3D.Running = true;
-            // 幕 + 幕内进度 → 氛围强度（雾/风/天气随探索进度实时变化）
+            // 幕 + 幕内进度 → 氛围强度（雾/风/天气/自然元素随探索进度实时变化）
             int ambAct = ambRun != null ? Mathf.Clamp(ambRun.Act, 1, 5) : 1;
             float ambProgress = 0f;
             if (ambRun != null)
@@ -112,7 +110,8 @@ namespace WanXiang.Modules.UI
                 if (approxNodes > 0) ambProgress = Mathf.Clamp01((ambRun.NodeOffset + 1f) / approxNodes);
             }
             _scene3D.ApplyAmbience(ambAct, ambProgress);
-            _scene3D.SetWalkers(ambRun != null ? ambRun.Team : null);
+            // ⚠ 2026-10-11：异兽行走已按用户要求移除（"看着太奇怪了"）。
+            //   主界面的动态改由自然元素承担：飞鸟 / 草丛摇曳 / 河流流动 + 天气。
 
             // ⚠ 2026-10-11：2D 版 HomeAmbientFx（背景 + 季节粒子 + 雨丝/涟漪）已整体退役 ——
             //   背景与天气全部移交 3D 层（HomeScene3D），用户也明确"主界面不需要粒子"。
