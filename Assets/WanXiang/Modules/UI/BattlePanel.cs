@@ -332,11 +332,14 @@ namespace WanXiang.Modules.UI
             var go = new GameObject("Img_AutoSpin", typeof(RectTransform));
             go.transform.SetParent(transform, false);
             var img = go.AddComponent<Image>();
-            img.color = new Color(0.79f, 0.63f, 0.39f, 1f);      // 金色占位
+            // 美术（2026-10-11 战斗美化）：水墨罗盘环；缺图回退金色占位
+            var spin = Resources.Load<Sprite>("Battle/UI_Battle_Spin");
+            if (spin != null) { img.sprite = spin; img.color = Color.white; }
+            else { img.color = new Color(0.79f, 0.63f, 0.39f, 1f); }   // 金色占位
             img.raycastTarget = false;
             var r = (RectTransform)go.transform;
             r.anchorMin = r.anchorMax = new Vector2(0.5f, 1f);
-            r.anchoredPosition = new Vector2(0f, -46f);
+            r.anchoredPosition = new Vector2(0f, -84f);   // 用户要求：从 -46 往下移，别顶着顶栏
             r.sizeDelta = new Vector2(72f, 72f);
             go.SetActive(false);
             _autoSpin = r;

@@ -364,13 +364,16 @@ namespace WanXiang.Battle.Presentation
         private float _animT;
         private string _actingId;
 
+        // ---- 四周前景装饰（2026-10-11 战斗美化：随幕变化 + 轻微摇曳）----
+        private Transform _fgDecor;
+
         public Camera Camera => _cam;
 
         // ================================================================
         //  搭建
         // ================================================================
 
-        public void Build(BattleState st, Sprite springBg, SpriteCatalog catalog = null)
+        public void Build(BattleState st, Sprite springBg, SpriteCatalog catalog = null, Sprite fgDecor = null)
         {
             _catalog = catalog;
             Clear();
@@ -390,6 +393,19 @@ namespace WanXiang.Battle.Presentation
                 bg.transform.localScale = new Vector3(sx, sy, 1f);
             }
             bgSr.sortingOrder = -10;
+
+            // ---- 四周前景装饰（透明 PNG、随幕变化；sortingOrder 30 = 压过冲锋立绘 20）----
+            if (fgDecor != null)
+            {
+                var fg = new GameObject("FG_Decor");
+                fg.transform.SetParent(transform, false);
+                var fgSr = fg.AddComponent<SpriteRenderer>();
+                fgSr.sprite = fgDecor;
+                var fb = fgDecor.bounds;
+                fg.transform.localScale = new Vector3(19.2f / fb.size.x, 10.8f / fb.size.y, 1f);
+                fgSr.sortingOrder = 30;
+                _fgDecor = fg.transform;
+            }
 
             BuildBoard("BoardP", PlayerX, BoardY, true);
 #if UNITY_EDITOR
@@ -419,6 +435,7 @@ namespace WanXiang.Battle.Presentation
             _tempLife.Clear();
             _state = null;
             _cam = null;
+            _fgDecor = null;
         }
 
         // player=true 我方（左，不镜像）；player=false 敌方（右，列镜像 ⇒ 与我方对称）
@@ -1049,6 +1066,14 @@ namespace WanXiang.Battle.Presentation
             // 舞台自己的动画时钟：由 dt 累加（**不用 `Time.time`**）——
             // 这样表现层动画与"推进了多少帧"严格对应，编辑器里连调 Step 也能被验证到。
             _animT += dt;
+
+            // 前景轻微摇曳（呼吸感；幅度很小，不干扰战斗阅读）
+            if (_fgDecor != null)
+            {
+                _fgDecor.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(_animT * 0.9f) * 0.5f);
+                _fgDecor.localPosition = new Vector3(Mathf.Sin(_animT * 0.6f) * 0.06f, Mathf.Sin(_animT * 1.1f) * 0.05f, 0f);
+            }
+
             foreach (var v in _views.Values)
             {
                 if (v.Root == null) continue;

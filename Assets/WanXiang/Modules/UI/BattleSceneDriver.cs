@@ -46,6 +46,19 @@ namespace WanXiang.Modules.UI
         /// <summary>回合制手动模式：开启后我方每个单位行动前等下令（与操作区配套）。</summary>
         [SerializeField] private bool _manualBattle = true;   // 回合制手动（战斗场景由本组件驱动）
 
+        // ---- 按幕选背景/前景（2026-10-11 战斗美化，Resources/Battle/ 下，AI 全新生成）----
+        //  act 1..5 = 春/夏/长夏/秋/冬；PvP/试炼无节点 → 春季兜底；Resources 缺图 → 旧 _background 兜底
+        private static readonly string[] BgByAct =
+        {
+            "Battle/BG_act1_spring", "Battle/BG_act2_summer", "Battle/BG_act3_latesummer",
+            "Battle/BG_act4_autumn", "Battle/BG_act5_winter",
+        };
+        private static readonly string[] FgByAct =
+        {
+            "Battle/FG_act1_spring", "Battle/FG_act2_summer", "Battle/FG_act3_latesummer",
+            "Battle/FG_act4_autumn", "Battle/FG_act5_winter",
+        };
+
         private async UniTaskVoid Start()
         {
             var req = SceneFlow.PendingBattle;
@@ -76,8 +89,17 @@ namespace WanXiang.Modules.UI
                 // 舞台搭建失败不该把整条流程卡死在战斗场景里：HUD 与结算仍然要走完
                 try
                 {
-                    _stage.Build(play.State, _background, _sprites);
-                    Debug.Log("[BattleSceneDriver] 舞台已搭建：" + req.Title);
+                    // 按幕选背景/前景（SceneFlow.PendingBattleNode 为 null 时春季兜底）
+                    int act = 1;
+                    var node = SceneFlow.PendingBattleNode;
+                    if (node != null) act = Mathf.Clamp(node.Act, 1, 5);
+                    Sprite bg = Resources.Load<Sprite>(BgByAct[act - 1]);
+                    if (bg == null) bg = _background;   // 旧序列化引用兜底
+                    Sprite fg = Resources.Load<Sprite>(FgByAct[act - 1]);
+                    _stage.Build(play.State, bg, _sprites, fg);
+                    Debug.Log("[BattleSceneDriver] 舞台已搭建：" + req.Title +
+                              "（act=" + act + " bg=" + (bg != null ? bg.name : "null") +
+                              " fg=" + (fg != null ? fg.name : "null") + "）");
                 }
                 catch (System.Exception ex)
                 {
