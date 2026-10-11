@@ -42,6 +42,7 @@ namespace WanXiang.Modules.UI
         private Image _blocker;              // 全屏拦截层（吃点击）
         private readonly List<Image> _pool = new List<Image>();
         private bool _busy;
+        private float _deadline;
 
         private static readonly string[] FallByAct =
         {
@@ -99,6 +100,12 @@ namespace WanXiang.Modules.UI
             _canvas.overrideSorting = true;
             _canvas.sortingOrder = 32000;          // 盖过所有面板
             gameObject.AddComponent<GraphicRaycaster>();
+            // 与 UIRoot 用同一参考分辨率，保证转场元素的尺寸口径和其它面板一致
+            var scaler = gameObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1280f, 720f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
             _root = rt;
             gameObject.SetActive(true);
 
@@ -114,7 +121,9 @@ namespace WanXiang.Modules.UI
 
         private Image NewImage(string name, int order)
         {
-            while (_pool.Count > order) { }
+            // ⛔ 这里原本有一行 `while (_pool.Count > order) { }`（空循环体）——
+            //   第二次调用起条件恒真 ⇒ **主线程死循环**，转场一播就整个卡住
+            //   （用户现象："开始→主界面只有一片黑"，因为墨团铺开后卡死）。
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(_root, false);
             var img = go.AddComponent<Image>();
@@ -165,6 +174,8 @@ namespace WanXiang.Modules.UI
             _busy = true;
             _blocker.raycastTarget = true;
             ClearExtra();
+            _deadline = Time.realtimeSinceStartup + total * 3f + 3f;   // ⛔ 硬超时保护
+            Debug.Log("[UiTransition] 播放 " + kind + " act=" + act + " 总时长=" + total + "s");
 
             float tIn = total * 0.42f;
             float tHold = total * 0.10f;
@@ -181,6 +192,7 @@ namespace WanXiang.Modules.UI
             ClearExtra();
             _blocker.raycastTarget = false;
             _busy = false;
+            Debug.Log("[UiTransition] 转场结束 " + kind);
             if (onDone != null) onDone();
         }
 
@@ -218,11 +230,34 @@ namespace WanXiang.Modules.UI
                 dirs.Add(new Vector2(Mathf.Cos(a), Mathf.Sin(a)));
             }
 
+            // ★ 季节粒子随墨团一起向外飞（用户："最好和这个季节相关一点"）：
+            //   春·花瓣 / 夏·萤火 / 秋·落叶 / 冬·飞雪 / 长夏·金尘。
+            var psp = Resources.Load<Sprite>(FallByAct[act - 1]);
+            var petals = new List<Image>();
+            var pdirs = new List<Vector2>();
+            if (psp != null)
+            {
+                int pn = 16;
+                for (int i = 0; i < pn; i++)
+                {
+                    var p = NewImage("InkPet" + i);
+                    p.sprite = psp;
+                    float ps = UnityEngine.Random.Range(40f, 110f);
+                    p.rectTransform.sizeDelta = new Vector2(ps, ps);
+                    p.rectTransform.anchoredPosition = Vector2.zero;
+                    p.color = new Color(1f, 1f, 1f, 0f);
+                    petals.Add(p);
+                    float a = (Mathf.PI * 2f / pn) * i + UnityEngine.Random.Range(-0.25f, 0.25f);
+                    pdirs.Add(new Vector2(Mathf.Cos(a), Mathf.Sin(a)));
+                }
+            }
+
             float cover = Mathf.Sqrt(CW * CW + CH * CH) * 1.25f;   // 覆盖对角的最大边长
             float e = 0f;
             while (e < tIn)
             {
                 e += Time.deltaTime;
+                if (Time.realtimeSinceStartup > _deadline) break;   // 超时保护
                 float k = Mathf.Clamp01(e / tIn);
                 float ke = 1f - Mathf.Pow(1f - k, 2.4f);            // ease-out
                 float s = Mathf.Lerp(0.05f, cover, ke);
@@ -235,6 +270,13 @@ namespace WanXiang.Modules.UI
                     rt.sizeDelta = new Vector2(ds, ds);
                     var c = drips[i].color; drips[i].color = new Color(c.r, c.g, c.b, 1f - ke * 0.15f);
                 }
+                // 季节粒子：从中心向外飞散并渐显
+                for (int i = 0; i < petals.Count; i++)
+                {
+                    petals[i].rectTransform.anchoredPosition = pdirs[i] * (cover * 0.46f * ke);
+                    petals[i].rectTransform.localRotation = Quaternion.Euler(0f, 0f, ke * 220f * (i % 2 == 0 ? 1f : -1f));
+                    petals[i].color = new Color(1f, 1f, 1f, Mathf.Clamp01(ke * 1.4f));
+                }
                 yield return null;
             }
 
@@ -246,6 +288,7 @@ namespace WanXiang.Modules.UI
             while (e < tOut)
             {
                 e += Time.deltaTime;
+                if (Time.realtimeSinceStartup > _deadline) break;   // 超时保护
                 float k = Mathf.Clamp01(e / tOut);
                 float s = Mathf.Lerp(cover, cover * 1.7f, k);
                 mrt.sizeDelta = new Vector2(s, s);
@@ -256,6 +299,11 @@ namespace WanXiang.Modules.UI
                     var c = drips[i].color; drips[i].color = new Color(c.r, c.g, c.b, a * 0.85f);
                     var rt = drips[i].rectTransform;
                     rt.anchoredPosition = dirs[i] * (cover * (0.42f + 0.5f * k));
+                }
+                for (int i = 0; i < petals.Count; i++)
+                {
+                    petals[i].rectTransform.anchoredPosition = pdirs[i] * (cover * (0.46f + 0.6f * k));
+                    petals[i].color = new Color(1f, 1f, 1f, a * 0.9f);
                 }
                 yield return null;
             }
@@ -324,6 +372,7 @@ namespace WanXiang.Modules.UI
             while (e < tIn)
             {
                 e += Time.deltaTime;
+                if (Time.realtimeSinceStartup > _deadline) break;   // 超时保护
                 float k = Mathf.Clamp01(e / tIn);
                 float ke = k * k;                                   // ease-in（越刷越快）
                 for (int i = 0; i < parts.Count; i++)
@@ -348,6 +397,7 @@ namespace WanXiang.Modules.UI
             while (e < tOut)
             {
                 e += Time.deltaTime;
+                if (Time.realtimeSinceStartup > _deadline) break;   // 超时保护
                 float k = Mathf.Clamp01(e / tOut);
                 float d = travel * (1f + k * 0.9f);
                 float a = 1f - k;
@@ -379,6 +429,29 @@ namespace WanXiang.Modules.UI
             float halfW = CW * 0.5f;
             float target = CW * 0.25f;     // 合拢后每帘中心离屏幕中心的距离
 
+            // ★ 季节粒子（用户："最好和这个季节相关"）：随两帘从两侧涌入
+            var psp = Resources.Load<Sprite>(FallByAct[act - 1]);
+            var petals = new List<Image>();
+            var pxs = new List<float>();
+            var pys = new List<float>();
+            if (psp != null)
+            {
+                for (int i = 0; i < 26; i++)
+                {
+                    var p = NewImage("SpPet" + i);
+                    p.sprite = psp;
+                    float ps = UnityEngine.Random.Range(46f, 130f);
+                    p.rectTransform.sizeDelta = new Vector2(ps, ps);
+                    bool fromLeft = (i % 2 == 0);
+                    float px = fromLeft ? -CW * UnityEngine.Random.Range(0.7f, 1.3f)
+                                        : CW * UnityEngine.Random.Range(0.7f, 1.3f);
+                    float py = UnityEngine.Random.Range(-CH * 0.52f, CH * 0.52f);
+                    p.rectTransform.anchoredPosition = new Vector2(px, py);
+                    p.color = new Color(1f, 1f, 1f, 0f);
+                    petals.Add(p); pxs.Add(px); pys.Add(py);
+                }
+            }
+
             var left = NewImage("CurtainL");
             left.sprite = sp;
             left.color = ink;
@@ -396,10 +469,17 @@ namespace WanXiang.Modules.UI
             while (e < tIn)
             {
                 e += Time.deltaTime;
+                if (Time.realtimeSinceStartup > _deadline) break;   // 超时保护
                 float k = Mathf.Clamp01(e / tIn);
                 float ke = 1f - Mathf.Pow(1f - k, 3f);                     // ease-out（合拢减速）
                 left.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(-CW * 1.2f, -target, ke), 0f);
                 right.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(CW * 1.2f, target, ke), 0f);
+                for (int i = 0; i < petals.Count; i++)
+                {
+                    petals[i].rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(pxs[i], pxs[i] * 0.18f, ke), pys[i]);
+                    petals[i].rectTransform.localRotation = Quaternion.Euler(0f, 0f, ke * 190f * (i % 2 == 0 ? 1f : -1f));
+                    petals[i].color = new Color(1f, 1f, 1f, Mathf.Clamp01(ke * 1.5f));
+                }
                 yield return null;
             }
 
@@ -411,6 +491,7 @@ namespace WanXiang.Modules.UI
             while (e < tOut)
             {
                 e += Time.deltaTime;
+                if (Time.realtimeSinceStartup > _deadline) break;   // 超时保护
                 float k = Mathf.Clamp01(e / tOut);
                 float ke = k * k;                                         // ease-in（拨开加速）
                 float a = 1f - k;
@@ -418,6 +499,11 @@ namespace WanXiang.Modules.UI
                 right.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(target, CW * 1.35f, ke), 0f);
                 left.color = new Color(ink.r, ink.g, ink.b, a);
                 right.color = new Color(ink.r, ink.g, ink.b, a);
+                for (int i = 0; i < petals.Count; i++)
+                {
+                    petals[i].rectTransform.anchoredPosition = new Vector2(pxs[i] * 0.18f * (1f - ke), pys[i]);
+                    petals[i].color = new Color(1f, 1f, 1f, a * 0.9f);
+                }
                 yield return null;
             }
         }
@@ -452,6 +538,7 @@ namespace WanXiang.Modules.UI
             while (e < tIn)
             {
                 e += Time.deltaTime;
+                if (Time.realtimeSinceStartup > _deadline) break;   // 超时保护
                 float k = Mathf.Clamp01(e / tIn);
                 for (int i = 0; i < clouds.Count; i++)
                 {
@@ -466,6 +553,7 @@ namespace WanXiang.Modules.UI
             while (e < tOut)
             {
                 e += Time.deltaTime;
+                if (Time.realtimeSinceStartup > _deadline) break;   // 超时保护
                 float k = Mathf.Clamp01(e / tOut);
                 for (int i = 0; i < clouds.Count; i++)
                 {

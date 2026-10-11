@@ -220,16 +220,20 @@ namespace WanXiang.Modules.UI
         {
             switch (act)
             {
-                // ⚠ 云尺寸 2026-10-11 调小（用户："云和鸟有点大了"）：0.85~1.25 → 0.50~0.72
-                case 1: return new Eco { Clouds = 10, CloudScale = 0.50f, CloudAlpha = 0.72f, Birds = 14, BirdFlock = false, Butterflies = 10,
+                // ⚠⚠ 云尺寸两次调小的记录，别再放大：
+                //   初版 0.85~1.25（用户"云和鸟有点大了"）→ 0.50~0.72 → 现在 **0.22~0.30**。
+                //   用户："你这个云怎么还变大了，第五幕的太大了" —— 长夏原本 0.72 最大是主因。
+                //   现在**长夏不再最大**，各幕只靠"数量/透明度"区分云的季节形态：
+                //     春·淡云疏 / 夏·积云厚白 / 秋·高云疏淡 / 冬·阴云灰密 / 长夏·低云压顶
+                case 1: return new Eco { Clouds = 10, CloudScale = 0.26f, CloudAlpha = 0.62f, Birds = 14, BirdFlock = false, Butterflies = 10,
                                          Ground = "home_flower_1", GroundNum = 12, GroundScale = 0.95f };
-                case 2: return new Eco { Clouds = 14, CloudScale = 0.62f, CloudAlpha = 0.90f, Birds = 10, BirdFlock = false, Butterflies = 8,
+                case 2: return new Eco { Clouds = 12, CloudScale = 0.30f, CloudAlpha = 0.86f, Birds = 10, BirdFlock = false, Butterflies = 8,
                                          Ground = "home_flower_2", GroundNum = 13, GroundScale = 1.00f };
-                case 3: return new Eco { Clouds = 8, CloudScale = 0.45f, CloudAlpha = 0.66f, Birds = 16, BirdFlock = true, Butterflies = 0,
+                case 3: return new Eco { Clouds = 7,  CloudScale = 0.22f, CloudAlpha = 0.52f, Birds = 16, BirdFlock = true, Butterflies = 0,
                                          Ground = "home_reeds", GroundNum = 13, GroundScale = 1.05f };
-                case 4: return new Eco { Clouds = 16, CloudScale = 0.68f, CloudAlpha = 0.94f, Birds = 5, BirdFlock = false, Butterflies = 0,
+                case 4: return new Eco { Clouds = 14, CloudScale = 0.28f, CloudAlpha = 0.90f, Birds = 5, BirdFlock = false, Butterflies = 0,
                                          Ground = "home_grass", GroundNum = 12, GroundScale = 0.95f };
-                default: return new Eco { Clouds = 18, CloudScale = 0.72f, CloudAlpha = 0.97f, Birds = 8, BirdFlock = false, Butterflies = 0,
+                default: return new Eco { Clouds = 11, CloudScale = 0.26f, CloudAlpha = 0.80f, Birds = 8, BirdFlock = false, Butterflies = 0,
                                           Ground = "home_wheat", GroundNum = 14, GroundScale = 1.05f };
             }
         }

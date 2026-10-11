@@ -205,6 +205,7 @@ namespace WanXiang.Modules.UI
             CampaignPanel.RequestIntroFromMenu = true;
             var r = WanXiang.Run.RunSave.Current;
             int act = r != null ? Mathf.Clamp(r.Act, 1, 5) : 1;
+            Debug.Log("[Home] 出征 → 播转场 act=" + act + " kind=" + UiTransition.KindForAct(act));
             UiTransition.PlayAuto(act, () => OpenPanelAsync<CampaignPanel>().Forget());
         }
 
