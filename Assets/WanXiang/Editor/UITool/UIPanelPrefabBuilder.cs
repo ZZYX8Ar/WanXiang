@@ -254,15 +254,8 @@ namespace WanXiang.EditorTools
             var comp = root.AddComponent<HomePanel>();
             var rt = (RectTransform)root.transform;
 
-            var top = UIBuild.Top(rt, "Root_TopBar", 96);
-            UIBuild.Img(top, UIBuild.Silk);
-            var tmpEggs = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_Eggs", new Vector2(0f, 0.5f),
-                new Vector2(260, 48), new Vector2(150, 0)), "灵卵 0", 30, UIBuild.Ink, TextAlignmentOptions.Left);
-            var tmpInk = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_Ink", new Vector2(0f, 0.5f),
-                new Vector2(260, 48), new Vector2(440, 0)), "墨锭 0", 30, UIBuild.Ink, TextAlignmentOptions.Left);
-            var badge = UIBuild.Fixed(top, "Img_RealmBadge", new Vector2(1f, 0.5f),
-                new Vector2(84, 84), new Vector2(-60, 0));
-            UIBuild.Img(badge, UIBuild.Gold);
+            // ⚠ 2026-10-11：Root_TopBar（Tmp_Eggs / Tmp_Ink / Img_RealmBadge）已按用户要求整块删除，
+            //   灵卵在编阵/灵市看、墨铊在局外成长面板看，境界徽未使用 ⇒ 不再建。
 
             var hero = UIBuild.Stretch(rt, "Root_Hero", 380, 140, 560, 230);
             UIBuild.Img(hero, new Color(1f, 1f, 1f, 0f));
@@ -296,8 +289,6 @@ namespace WanXiang.EditorTools
                 new Vector2(420, 36), new Vector2(130, 24));
             UIBuild.Tmp(ver, "v0.1  结构验证版", 20, UIBuild.Ink2, TextAlignmentOptions.Left);
 
-            UIBuild.Bind(comp, "_tmpEggs", tmpEggs);
-            UIBuild.Bind(comp, "_tmpInk", tmpInk);
             UIBuild.Bind(comp, "_imgHero", imgHero);
 
             // ⚠ 这九条以前是漏的 —— 按钮全都 Bind 不上（字段为 null），

@@ -24,17 +24,16 @@ namespace WanXiang.Modules.UI
         ///  返回输入会穿透到这里，把主城关掉，屏幕只剩背景色（用户实测空白）。</summary>
         public override bool AllowBackClose => false;
 
-        [SerializeField] private TMP_Text _tmpEggs;        // Tmp_Eggs      灵卵数量
-        [SerializeField] private TMP_Text _tmpInk;         // Tmp_Ink       墨锭数量
         [SerializeField] private Image   _imgHero;         // Img_HeroSprite 主战异兽立绘
-        [SerializeField] private Button  _btnDeploy;       // Btn_Deploy    出征
+        [SerializeField] private Button  _btnDeploy;       // Hot_Deploy    出征
         [SerializeField] private Button  _btnCodex;        // Btn_Codex     图鉴
         [SerializeField] private Button  _btnMeta;            // Hot_Meta  局外成长（底排阵盘位，绑 MetaPanel）
         [SerializeField] private Button  _btnArchive;      // Btn_Archive 残卷阁（底排·卷轴图标）
         [SerializeField] private Button  _btnSettings;     // Hot_Settings 设置
         [SerializeField] private Button  _btnHistory;      // Btn_History 历程（底排·沙漏图标）
         [SerializeField] private HomeMapJourney _homeMap;  // Map_Journey   中央四季旅程图（进图刷新进度）
-        [SerializeField] private HomeAmbientFx _ambientFx;      // 背景 + 天气特效（2026-10-11）
+        [SerializeField] private HomeAmbientFx _ambientFx;      // 背景 + 天气特效（2026-10-11，2D）
+        [SerializeField] private HomeScene3D _scene3D;       // 3D 层：异兽行走 + 天气粒子（2026-10-11）
 
         // ⚠ 2026-10-11 布局调整（用户要求）：
         //   ① 左侧竖排三个按钮（局外成长/历程/残卷阁）移到**下方横排**，与图鉴/设置同排；
@@ -72,10 +71,9 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
-            // ★ 左上角的灵卵/墨锭已按用户要求隐藏（信息重复：灵卵在编阵/灵市里看，
-            //   墨铊在局外成长面板看）。prefab 里的节点保留，需要时可再打开。
-            if (_tmpEggs != null) _tmpEggs.gameObject.SetActive(false);
-            if (_tmpInk != null) _tmpInk.gameObject.SetActive(false);
+            // ⚠ 2026-10-11：Root_TopBar（灵卵/墨锭/境界徽）已按用户要求整块删除，
+            //   原先"SetActive(false) 隐藏"的两行也一并清掉（字段已删，否则编译不过）。
+            //   灵卵在编阵/灵市里看，墨铊在局外成长面板看。
 
             // 主立绘取队伍第一只
             if (_imgHero != null && _sprites != null && _contentCatalog != null)
@@ -100,6 +98,15 @@ namespace WanXiang.Modules.UI
             _ambientFx.Rebuild(ambRun != null ? ambRun.Act : 1);
             // 天气：取当前存档的天时（无则晴）。有 LiveWeather 时按灵卵剩余切阴天。
             _ambientFx.SetWeather(0);
+
+            // ---- 3D 层：出战异兽在主界面四周走动 + 天气粒子（2026-10-11 混合方案）----
+            //UI 仍是 2D Overlay；这层是独立的 3D 正交相机 + 世界空间内容，垫在 UI 之下。
+            if (_scene3D == null) _scene3D = GetComponent<HomeScene3D>();
+            if (_scene3D == null) _scene3D = gameObject.AddComponent<HomeScene3D>();
+            _scene3D.InjectCatalog(_sprites);
+            _scene3D.Running = true;
+            _scene3D.SetWalkers(ambRun != null ? ambRun.Team : null);
+            _scene3D.SetWeather(0);
 
             // 中央四季节气环：每次回到主城都按当前旅程进度重刷（幕/层 → 扇区点亮 + 标记位置）
             if (_homeMap != null) _homeMap.Refresh();
