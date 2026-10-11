@@ -149,7 +149,7 @@ namespace WanXiang.Modules.UI
 
             if (!hasProgress)
             {
-                { CampaignPanel.RequestIntroFromMenu = true; OpenPanelAsync<CampaignPanel>().Forget(); }
+                { GoCampaign(); }
                 return;
             }
 
@@ -168,7 +168,7 @@ namespace WanXiang.Modules.UI
             //   旧逻辑只判了 pick == 1，导致"点 × "也会掉进重开确认弹窗（用户实测）。
             if (pick != 0)
             {
-                if (pick == 1) { CampaignPanel.RequestIntroFromMenu = true; OpenPanelAsync<CampaignPanel>().Forget(); }   // 继续旅程
+                if (pick == 1) { GoCampaign(); }   // 继续旅程
                 return;                                                   // -1 = 留在主界面
             }
 
@@ -190,7 +190,22 @@ namespace WanXiang.Modules.UI
             WanXiang.Run.RunSave.SaveCurrent();
 
             RefreshDeployLabel();
-            { CampaignPanel.RequestIntroFromMenu = true; OpenPanelAsync<CampaignPanel>().Forget(); }
+            { GoCampaign(); }
+        }
+
+        /// <summary>
+        /// 带**转场**进入节点地图（2026-10-11 用户："从主界面进入节点地图也生硬，
+        /// 加一些动效"）。转场方式按当前幕自动选：春·水墨铺开 / 夏·粒子右→左横扫 /
+        /// 秋·双帘拨开 / 冬·粒子横扫 / 长夏·双帘拨开。
+        /// ⚠ 转场中点才真正打开 CampaignPanel ⇒ 用户看到的顺序是
+        ///   "特效盖住屏幕 → 换页 → 特效退去露出节点地图（并开始写字开场）"。
+        /// </summary>
+        private void GoCampaign()
+        {
+            CampaignPanel.RequestIntroFromMenu = true;
+            var r = WanXiang.Run.RunSave.Current;
+            int act = r != null ? Mathf.Clamp(r.Act, 1, 5) : 1;
+            UiTransition.PlayAuto(act, () => OpenPanelAsync<CampaignPanel>().Forget());
         }
 
 

@@ -35,9 +35,9 @@ namespace WanXiang.Modules.UI
         [SerializeField] private float _globalSpeed = 1.0f;
 
         [Header("数量")]
-        [SerializeField] private int _rainCount = 150;
-        [SerializeField] private int _snowCount = 90;
-        [SerializeField] private int _fallCount = 60;
+        [SerializeField] private int _rainCount = 120;
+        [SerializeField] private int _snowCount = 55;
+        [SerializeField] private int _fallCount = 32;
 
         private RectTransform _backRoot;     // 地图之后（背景 / 雾）
         private RectTransform _natureRoot;   // 地图之前（云 / 鸟 / 草 / 水 …）
@@ -468,7 +468,8 @@ namespace WanXiang.Modules.UI
             {
                 var img = MakeImage(_natureRoot, "Rain" + i, 500 + i);
                 img.sprite = sp;
-                SetSize(img, Random.Range(4f, 7f), Random.Range(120f, 300f));
+                img.color = new Color(1f, 1f, 1f, 0.75f);
+                SetSize(img, Random.Range(3f, 6f), Random.Range(100f, 250f));
                 float x = Random.Range(-HalfW * 1.15f, HalfW * 1.15f);
                 float y = Random.Range(-HalfH, HalfH);
                 img.rectTransform.anchoredPosition = new Vector2(x, y);
@@ -485,8 +486,10 @@ namespace WanXiang.Modules.UI
             {
                 var img = MakeImage(_natureRoot, "Snow" + i, 500 + i);
                 img.sprite = sp;
-                float sz = Random.Range(16f, 40f) * _globalScale;
+                // ⚠ 同步调小调淡（原 16~40 / 不透明）
+                float sz = Random.Range(10f, 24f) * _globalScale;
                 SetSize(img, sz, sz);
+                img.color = new Color(1f, 1f, 1f, 0.72f);
                 float x = Random.Range(-HalfW, HalfW);
                 float y = Random.Range(-HalfH, HalfH);
                 img.rectTransform.anchoredPosition = new Vector2(x, y);
@@ -507,8 +510,11 @@ namespace WanXiang.Modules.UI
             {
                 var img = MakeImage(_natureRoot, "Fall" + i, 400 + i);
                 img.sprite = sp;
-                float sz = Random.Range(28f, 64f) * _globalScale;
+                // ⚠ 2026-10-11 用户："落叶和桃花雪这些粒子有点多、有点大、太显眼"
+                //   尺寸 28~64 → 16~36，并整体压到半透明（0.62）
+                float sz = Random.Range(16f, 36f) * _globalScale;
                 SetSize(img, sz, sz);
+                img.color = new Color(1f, 1f, 1f, 0.62f);
                 float x = Random.Range(-HalfW, HalfW);
                 float y = Random.Range(-HalfH, HalfH);
                 img.rectTransform.anchoredPosition = new Vector2(x, y);

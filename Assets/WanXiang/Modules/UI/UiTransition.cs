@@ -1,0 +1,479 @@
+// ============================================================================
+//  万相 · UI 转场（水墨铺开 / 粒子横扫 / 云过）
+//  ---------------------------------------------------------------------------
+//  2026-10-11 用户需求：
+//    · "从开始界面进入主界面太生硬，加一点转场，比如一点或几滴水墨铺开" → Ink
+//    · "从主界面进入节点地图也生硬" + "粒子快速从右往左滑满整个屏幕，
+//      然后才开始写字转场" → Sweep（按幕换粒子）
+//    · "根据不同的幕，转场前有不同的开场"
+//
+//  实现要点：
+//   · 独立 Canvas（overrideSorting + sortingOrder=32000）⇒ 永远盖在所有面板之上，
+//     不受 UIRoot 内 sibling 顺序影响。
+//   · 时间轴：进场(42%) → 切换面板(onSwitch) → 停留(10%) → 退场(48%)，
+//     默认总时长 2.4s（用户要"2-3 秒"）。
+//   · 转场期间有一层全屏透明 Image 吃点击（防误触），其余元素 raycastTarget=false。
+//   · ⛔ 本项目禁用 ParticleSystem ⇒ 全部用 Image。
+// ============================================================================
+
+using System.Collections;
+using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace WanXiang.Modules.UI
+{
+    /// <summary>UI 转场特效层。</summary>
+    public sealed class UiTransition : MonoBehaviour
+    {
+        public enum Kind
+        {
+            Ink,      // 水墨铺开（墨团从中心扩散 + 墨滴飞溅）
+            Sweep,    // 粒子横扫（按幕的粒子从右往左刷满全屏）
+            Split,    // 双帘拨开（两幅墨帘从两侧合拢，再从中缝向两侧拨开）
+            Cloud,    // 云过（几朵云从右往左飘过）
+        }
+
+        private static UiTransition _inst;
+
+        private Canvas _canvas;
+        private RectTransform _root;
+        private Image _blocker;              // 全屏拦截层（吃点击）
+        private readonly List<Image> _pool = new List<Image>();
+        private bool _busy;
+
+        private static readonly string[] FallByAct =
+        {
+            "Battle/FX_particle_act1_petal", "Battle/FX_particle_act2_firefly",
+            "Battle/FX_particle_act3_leaf", "Battle/FX_particle_act4_snow",
+            "Battle/FX_particle_act5_pollen",
+        };
+
+        /// <summary>
+        /// 按幕自动选转场方式（用户："根据不同的幕，这个转场前有不同的开场"）。
+        /// 春·水墨铺开 / 夏·粒子横扫 / 秋·双帘拨开 / 冬·粒子横扫(雪) / 长夏·双帘拨开。
+        /// 粒子图本身也随幕变（见 FallByAct）。
+        /// </summary>
+        public static Kind KindForAct(int act)
+        {
+            switch (Mathf.Clamp(act, 1, 5))
+            {
+                case 1: return Kind.Ink;
+                case 3: return Kind.Split;
+                case 5: return Kind.Split;
+                default: return Kind.Sweep;
+            }
+        }
+
+        /// <summary>按幕自动选方式播放。</summary>
+        public static void PlayAuto(int act, System.Action onSwitch, float total = 2.4f)
+        {
+            Play(KindForAct(act), act, onSwitch, total);
+        }
+
+        /// <summary>播放转场；到中点时回调 onSwitch（在那里打开目标面板）。</summary>
+        public static void Play(Kind kind, int act, System.Action onSwitch, float total = 2.4f)
+        {
+            var inst = Ensure();
+            if (inst == null) { if (onSwitch != null) onSwitch(); return; }
+            if (inst._busy) { if (onSwitch != null) onSwitch(); return; }   // 防重入
+            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), null));
+        }
+
+        private static UiTransition Ensure()
+        {
+            if (_inst != null) return _inst;
+            var go = new GameObject("UiTransitionLayer");
+            DontDestroyOnLoad(go);
+            _inst = go.AddComponent<UiTransition>();
+            _inst.Build();
+            return _inst;
+        }
+
+        private void Build()
+        {
+            var rt = gameObject.AddComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+            _canvas = gameObject.AddComponent<Canvas>();
+            _canvas.overrideSorting = true;
+            _canvas.sortingOrder = 32000;          // 盖过所有面板
+            gameObject.AddComponent<GraphicRaycaster>();
+            _root = rt;
+            gameObject.SetActive(true);
+
+            // 全屏拦截层（透明但吃点击，防止转场期间误触）
+            _blocker = NewImage("Blocker", 0);
+            _blocker.rectTransform.anchorMin = Vector2.zero;
+            _blocker.rectTransform.anchorMax = Vector2.one;
+            _blocker.rectTransform.offsetMin = Vector2.zero;
+            _blocker.rectTransform.offsetMax = Vector2.zero;
+            _blocker.color = new Color(0f, 0f, 0f, 0f);
+            _blocker.raycastTarget = false;        // 平时不吃；转场时打开
+        }
+
+        private Image NewImage(string name, int order)
+        {
+            while (_pool.Count > order) { }
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(_root, false);
+            var img = go.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.preserveAspect = true;
+            go.transform.SetSiblingIndex(order);
+            _pool.Add(img);
+            return img;
+        }
+
+        private Image NewImage(string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(_root, false);
+            var img = go.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.preserveAspect = true;
+            return img;
+        }
+
+        private void ClearExtra()
+        {
+            for (int i = _pool.Count - 1; i >= 0; i--)
+            {
+                if (_pool[i] == null) { _pool.RemoveAt(i); continue; }
+                if (_pool[i].gameObject == _blocker.gameObject) continue;
+                Destroy(_pool[i].gameObject);
+                _pool.RemoveAt(i);
+            }
+        }
+
+        private float CW { get { return _root.rect.width > 1f ? _root.rect.width : 1280f; } }
+        private float CH { get { return _root.rect.height > 1f ? _root.rect.height : 720f; } }
+
+        /// <summary>UniTask 版（给 MainSceneEntry 这类 async 流程用）：播完才返回。</summary>
+        public static async UniTask PlayAsync(Kind kind, int act, System.Action onSwitch, float total = 2.4f)
+        {
+            var inst = Ensure();
+            if (inst == null) { if (onSwitch != null) onSwitch(); return; }
+            if (inst._busy) { if (onSwitch != null) onSwitch(); return; }
+            bool done = false;
+            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), () => done = true));
+            await UniTask.WaitUntil(() => done);
+        }
+
+        private IEnumerator Run(Kind kind, int act, System.Action onSwitch, float total, System.Action onDone)
+        {
+            _busy = true;
+            _blocker.raycastTarget = true;
+            ClearExtra();
+
+            float tIn = total * 0.42f;
+            float tHold = total * 0.10f;
+            float tOut = total * 0.48f;
+
+            switch (kind)
+            {
+                case Kind.Ink: yield return InkSequence(act, onSwitch, tIn, tHold, tOut); break;
+                case Kind.Split: yield return SplitSequence(act, onSwitch, tIn, tHold, tOut); break;
+                case Kind.Cloud: yield return CloudSequence(act, onSwitch, tIn, tHold, tOut); break;
+                default: yield return SweepSequence(act, onSwitch, tIn, tHold, tOut); break;
+            }
+
+            ClearExtra();
+            _blocker.raycastTarget = false;
+            _busy = false;
+            if (onDone != null) onDone();
+        }
+
+        // ------------------------------------------------------------------ 水墨铺开
+        private IEnumerator InkSequence(int act, System.Action onSwitch, float tIn, float tHold, float tOut)
+        {
+            var spA = Resources.Load<Sprite>("UI/Trans/ui_ink_blot_a");
+            var spB = Resources.Load<Sprite>("UI/Trans/ui_ink_blot_b");
+            var spD = Resources.Load<Sprite>("UI/Trans/ui_ink_drop");
+            if (spA == null) { if (onSwitch != null) onSwitch(); yield break; }
+
+            // 按幕微调墨色（春青 / 夏浓 / 秋赭 / 冬冷 / 长夏焦）
+            Color ink = InkColorOf(act);
+
+            // 主墨团（中心 → 覆盖全屏）
+            var main = NewImage("InkMain");
+            main.sprite = spA;
+            main.color = ink;
+            var mrt = main.rectTransform;
+            mrt.anchoredPosition = Vector2.zero;
+
+            // 几滴飞溅墨滴（从中心向外）
+            int drops = 5;
+            var drips = new List<Image>();
+            var dirs = new List<Vector2>();
+            for (int i = 0; i < drops; i++)
+            {
+                var d = NewImage("InkDrop" + i);
+                d.sprite = spD;
+                d.color = ink;
+                d.rectTransform.sizeDelta = new Vector2(180f, 180f);
+                d.rectTransform.anchoredPosition = UnityEngine.Random.insideUnitCircle * 20f;
+                drips.Add(d);
+                float a = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+                dirs.Add(new Vector2(Mathf.Cos(a), Mathf.Sin(a)));
+            }
+
+            float cover = Mathf.Sqrt(CW * CW + CH * CH) * 1.25f;   // 覆盖对角的最大边长
+            float e = 0f;
+            while (e < tIn)
+            {
+                e += Time.deltaTime;
+                float k = Mathf.Clamp01(e / tIn);
+                float ke = 1f - Mathf.Pow(1f - k, 2.4f);            // ease-out
+                float s = Mathf.Lerp(0.05f, cover, ke);
+                mrt.sizeDelta = new Vector2(s, s);
+                for (int i = 0; i < drips.Count; i++)
+                {
+                    var rt = drips[i].rectTransform;
+                    rt.anchoredPosition = dirs[i] * (cover * 0.42f * ke);
+                    float ds = Mathf.Lerp(40f, 300f, ke);
+                    rt.sizeDelta = new Vector2(ds, ds);
+                    var c = drips[i].color; drips[i].color = new Color(c.r, c.g, c.b, 1f - ke * 0.15f);
+                }
+                yield return null;
+            }
+
+            if (onSwitch != null) onSwitch();
+            yield return new WaitForSeconds(tHold);
+
+            // 退场：继续放大并淡出
+            e = 0f;
+            while (e < tOut)
+            {
+                e += Time.deltaTime;
+                float k = Mathf.Clamp01(e / tOut);
+                float s = Mathf.Lerp(cover, cover * 1.7f, k);
+                mrt.sizeDelta = new Vector2(s, s);
+                float a = 1f - k;
+                main.color = new Color(ink.r, ink.g, ink.b, a);
+                for (int i = 0; i < drips.Count; i++)
+                {
+                    var c = drips[i].color; drips[i].color = new Color(c.r, c.g, c.b, a * 0.85f);
+                    var rt = drips[i].rectTransform;
+                    rt.anchoredPosition = dirs[i] * (cover * (0.42f + 0.5f * k));
+                }
+                yield return null;
+            }
+        }
+
+        private static Color InkColorOf(int act)
+        {
+            switch (act)
+            {
+                case 1: return new Color(0.16f, 0.20f, 0.18f, 1f);   // 春·青墨
+                case 2: return new Color(0.10f, 0.12f, 0.12f, 1f);   // 夏·浓墨
+                case 3: return new Color(0.22f, 0.16f, 0.10f, 1f);   // 秋·赭墨
+                case 4: return new Color(0.14f, 0.17f, 0.21f, 1f);   // 冬·冷墨
+                default: return new Color(0.20f, 0.15f, 0.09f, 1f);  // 长夏·焦墨
+            }
+        }
+
+        // ------------------------------------------------------------------ 粒子横扫（右 → 左）
+        private IEnumerator SweepSequence(int act, System.Action onSwitch, float tIn, float tHold, float tOut)
+        {
+            var psp = Resources.Load<Sprite>(FallByAct[act - 1]);
+            var wash = Resources.Load<Sprite>("UI/Trans/ui_paper_wipe");
+            if (psp == null && wash == null) { if (onSwitch != null) onSwitch(); yield break; }
+
+            // 纸色底帘（横向铺满，从左往右排，整体右→左平移）
+            var washImgs = new List<Image>();
+            if (wash != null)
+            {
+                float tileW = CW;
+                for (int i = 0; i < 2; i++)
+                {
+                    var w = NewImage("Wash" + i);
+                    w.sprite = wash;
+                    w.color = new Color(0.93f, 0.91f, 0.86f, 0f);
+                    w.rectTransform.sizeDelta = new Vector2(tileW, CH + 10f);
+                    w.rectTransform.anchoredPosition = new Vector2(CW + i * tileW, 0f);
+                    washImgs.Add(w);
+                }
+            }
+
+            // 粒子墙：几百个按幕的粒子上半屏密度由右向左刷过
+            int n = 130;
+            var parts = new List<Image>();
+            var xs = new List<float>();
+            var ys = new List<float>();
+            var szs = new List<float>();
+            var spds = new List<float>();
+            for (int i = 0; i < n; i++)
+            {
+                var p = NewImage("Sw" + i);
+                p.sprite = psp;
+                float sz = UnityEngine.Random.Range(46f, 150f);
+                p.rectTransform.sizeDelta = new Vector2(sz, sz);
+                // 起始位置：右侧一列（超出屏幕），纵向铺满
+                float x = CW * 0.5f + UnityEngine.Random.Range(0f, CW * 0.9f);
+                float y = UnityEngine.Random.Range(-CH * 0.54f, CH * 0.54f);
+                p.rectTransform.anchoredPosition = new Vector2(x, y);
+                p.color = new Color(1f, 1f, 1f, 0.95f);
+                parts.Add(p);
+                xs.Add(x); ys.Add(y); szs.Add(sz);
+                spds.Add(UnityEngine.Random.Range(1.15f, 1.75f));
+            }
+
+            float travel = CW * 2.1f;      // 需要移动的总距离（从右外到左外）
+            float e = 0f;
+            while (e < tIn)
+            {
+                e += Time.deltaTime;
+                float k = Mathf.Clamp01(e / tIn);
+                float ke = k * k;                                   // ease-in（越刷越快）
+                for (int i = 0; i < parts.Count; i++)
+                {
+                    float d = travel * ke * spds[i];
+                    parts[i].rectTransform.anchoredPosition = new Vector2(xs[i] - d, ys[i]);
+                }
+                for (int i = 0; i < washImgs.Count; i++)
+                {
+                    float d = travel * ke;
+                    washImgs[i].rectTransform.anchoredPosition = new Vector2(CW + i * CW - d, 0f);
+                    washImgs[i].color = new Color(0.93f, 0.91f, 0.86f, Mathf.Clamp01(k * 1.25f));
+                }
+                yield return null;
+            }
+
+            if (onSwitch != null) onSwitch();
+            yield return new WaitForSeconds(tHold);
+
+            // 退场：继续左移并淡出
+            e = 0f;
+            while (e < tOut)
+            {
+                e += Time.deltaTime;
+                float k = Mathf.Clamp01(e / tOut);
+                float d = travel * (1f + k * 0.9f);
+                float a = 1f - k;
+                for (int i = 0; i < parts.Count; i++)
+                {
+                    parts[i].rectTransform.anchoredPosition = new Vector2(xs[i] - d * spds[i], ys[i]);
+                    var c = parts[i].color; parts[i].color = new Color(c.r, c.g, c.b, a);
+                }
+                for (int i = 0; i < washImgs.Count; i++)
+                {
+                    washImgs[i].rectTransform.anchoredPosition = new Vector2(CW + i * CW - d, 0f);
+                    washImgs[i].color = new Color(0.93f, 0.91f, 0.86f, a);
+                }
+                yield return null;
+            }
+        }
+
+        // ------------------------------------------------------------------ 双帘拨开
+        /// <summary>
+        /// 两幅墨帘：进场从屏幕两侧向中间合拢（关门遮住）→ 切换 → 退场从中缝向两侧拨开。
+        /// 用户："从中间拨开也行"。
+        /// </summary>
+        private IEnumerator SplitSequence(int act, System.Action onSwitch, float tIn, float tHold, float tOut)
+        {
+            var sp = Resources.Load<Sprite>("UI/Trans/ui_ink_curtain");
+            if (sp == null) { if (onSwitch != null) onSwitch(); yield break; }
+
+            Color ink = InkColorOf(act);
+            float halfW = CW * 0.5f;
+            float target = CW * 0.25f;     // 合拢后每帘中心离屏幕中心的距离
+
+            var left = NewImage("CurtainL");
+            left.sprite = sp;
+            left.color = ink;
+            left.rectTransform.sizeDelta = new Vector2(halfW * 1.18f, CH + 8f);
+            left.rectTransform.anchoredPosition = new Vector2(-CW * 1.2f, 0f);
+
+            var right = NewImage("CurtainR");
+            right.sprite = sp;
+            right.color = ink;
+            right.rectTransform.sizeDelta = new Vector2(halfW * 1.18f, CH + 8f);
+            right.rectTransform.localScale = new Vector3(-1f, 1f, 1f);   // 镜像
+            right.rectTransform.anchoredPosition = new Vector2(CW * 1.2f, 0f);
+
+            float e = 0f;
+            while (e < tIn)
+            {
+                e += Time.deltaTime;
+                float k = Mathf.Clamp01(e / tIn);
+                float ke = 1f - Mathf.Pow(1f - k, 3f);                     // ease-out（合拢减速）
+                left.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(-CW * 1.2f, -target, ke), 0f);
+                right.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(CW * 1.2f, target, ke), 0f);
+                yield return null;
+            }
+
+            if (onSwitch != null) onSwitch();
+            yield return new WaitForSeconds(tHold);
+
+            // 退场：从中缝向两侧拨开 + 淡出
+            e = 0f;
+            while (e < tOut)
+            {
+                e += Time.deltaTime;
+                float k = Mathf.Clamp01(e / tOut);
+                float ke = k * k;                                         // ease-in（拨开加速）
+                float a = 1f - k;
+                left.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(-target, -CW * 1.35f, ke), 0f);
+                right.rectTransform.anchoredPosition = new Vector2(Mathf.Lerp(target, CW * 1.35f, ke), 0f);
+                left.color = new Color(ink.r, ink.g, ink.b, a);
+                right.color = new Color(ink.r, ink.g, ink.b, a);
+                yield return null;
+            }
+        }
+
+        // ------------------------------------------------------------------ 云过
+        private IEnumerator CloudSequence(int act, System.Action onSwitch, float tIn, float tHold, float tOut)
+        {
+            string[] kinds = { "UI/Home/home_cloud_a", "UI/Home/home_cloud_b", "UI/Home/home_cloud_c" };
+            var clouds = new List<Image>();
+            var xs = new List<float>();
+            var ys = new List<float>();
+            var spds = new List<float>();
+            for (int i = 0; i < 16; i++)
+            {
+                var sp = Resources.Load<Sprite>(kinds[i % 3]);
+                if (sp == null) continue;
+                var c = NewImage("Cl" + i);
+                c.sprite = sp;
+                float sc = UnityEngine.Random.Range(1.1f, 1.9f);
+                c.rectTransform.sizeDelta = new Vector2(sp.rect.width * sc, sp.rect.height * sc);
+                float x = CW * 0.5f + UnityEngine.Random.Range(0f, CW * 1.1f);
+                float y = UnityEngine.Random.Range(-CH * 0.5f, CH * 0.5f);
+                c.rectTransform.anchoredPosition = new Vector2(x, y);
+                c.color = new Color(1f, 1f, 1f, 0f);
+                clouds.Add(c); xs.Add(x); ys.Add(y);
+                spds.Add(UnityEngine.Random.Range(1.0f, 1.5f));
+            }
+            if (clouds.Count == 0) { if (onSwitch != null) onSwitch(); yield break; }
+
+            float travel = CW * 2.2f;
+            float e = 0f;
+            while (e < tIn)
+            {
+                e += Time.deltaTime;
+                float k = Mathf.Clamp01(e / tIn);
+                for (int i = 0; i < clouds.Count; i++)
+                {
+                    clouds[i].rectTransform.anchoredPosition = new Vector2(xs[i] - travel * k * spds[i], ys[i]);
+                    clouds[i].color = new Color(1f, 1f, 1f, Mathf.Clamp01(k * 1.3f));
+                }
+                yield return null;
+            }
+            if (onSwitch != null) onSwitch();
+            yield return new WaitForSeconds(tHold);
+            e = 0f;
+            while (e < tOut)
+            {
+                e += Time.deltaTime;
+                float k = Mathf.Clamp01(e / tOut);
+                for (int i = 0; i < clouds.Count; i++)
+                {
+                    clouds[i].rectTransform.anchoredPosition = new Vector2(xs[i] - travel * (1f + k * 0.8f) * spds[i], ys[i]);
+                    clouds[i].color = new Color(1f, 1f, 1f, 1f - k);
+                }
+                yield return null;
+            }
+        }
+    }
+}

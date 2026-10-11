@@ -112,8 +112,19 @@ namespace WanXiang.Modules.Boot
                 return;
             }
 
-            await ui.OpenAsync<HomePanel>();
-            Debug.Log("[MainSceneEntry] 已进入主界面（开始界面已关闭）。");
+            // ★ 转场进主界面（2026-10-11 用户："从开始界面进入主界面太生硬，
+            //   加一点转场，比如一点或几滴水墨铺开"）。
+            //   顺序：墨团从中心铺开盖住屏幕 → 关闭开始界面并打开主界面 → 墨团继续放大淡出。
+            {
+                var run0 = WanXiang.Run.RunSave.Current;
+                int act0 = run0 != null ? Mathf.Clamp(run0.Act, 1, 5) : 1;
+                await UiTransition.PlayAsync(UiTransition.Kind.Ink, act0, () =>
+                {
+                    ui.Close<StartPanel>();
+                    _ = ui.OpenAsync<HomePanel>();
+                });
+            }
+            Debug.Log("[MainSceneEntry] 已进入主界面（带水墨转场，开始界面已关闭）。");
         }
     }
 }
