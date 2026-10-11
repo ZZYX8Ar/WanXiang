@@ -41,10 +41,18 @@ MonoBehaviour:
     Sprite: {fileID: 21300000, guid: 73baacbdf99b2d54c8fe2d0db0408c2d, type: 3}
   - Id: r_mech_extra_hit
     Sprite: {fileID: 21300000, guid: f09492dd884f3004a867fa1e011d98c6, type: 3}
+  - Id: r_misc_diejifu
+    Sprite: {fileID: 21300000, guid: 266149088bad1cb46b9f5b126b28ca52, type: 3}
   - Id: r_mark_jumang
     Sprite: {fileID: 21300000, guid: 1e787b5857486b04083f27825b6ba558, type: 3}
+  - Id: r_misc_haojiao
+    Sprite: {fileID: 21300000, guid: 295ca812ad9a2ca44a93ce1be9e4eafd, type: 3}
   - Id: r_mark_houtu
     Sprite: {fileID: 21300000, guid: 5d31037c7b31db84b8ec8873bbb331e2, type: 3}
+  - Id: r_misc_huiwenyubi
+    Sprite: {fileID: 21300000, guid: 162fe4910b4f2c34ab9d5cccecece545, type: 3}
+  - Id: r_misc_guxinghui
+    Sprite: {fileID: 21300000, guid: bf03dfe11e6aa454fb0f81e5f080b81e, type: 3}
   - Id: r_rule_turns_plus
     Sprite: {fileID: 21300000, guid: e5b0ee2a65c7c6d4b9491c52ecfbe8bc, type: 3}
   - Id: r_role_guard_1
@@ -55,6 +63,10 @@ MonoBehaviour:
     Sprite: {fileID: 21300000, guid: a41dd8b41c4f82844a1c130e90115943, type: 3}
   - Id: r_role_guard_4
     Sprite: {fileID: 21300000, guid: a41dd8b41c4f82844a1c130e90115943, type: 3}
+  - Id: r_misc_zhanqi
+    Sprite: {fileID: 21300000, guid: 7543b6695c92e7144bb7f187e1b84b45, type: 3}
+  - Id: r_misc_zhangu
+    Sprite: {fileID: 21300000, guid: 47520967e9a6397419d941f188ddbde0, type: 3}
   - Id: r_role_striker_1
     Sprite: {fileID: 21300000, guid: 767e9e8ff0072f84da145dd663fa7f6c, type: 3}
   - Id: r_role_striker_2
@@ -63,8 +75,14 @@ MonoBehaviour:
     Sprite: {fileID: 21300000, guid: 767e9e8ff0072f84da145dd663fa7f6c, type: 3}
   - Id: r_role_striker_4
     Sprite: {fileID: 21300000, guid: 767e9e8ff0072f84da145dd663fa7f6c, type: 3}
+  - Id: r_misc_duanren
+    Sprite: {fileID: 21300000, guid: 07359a5524b12cd4183f8466f31ce568, type: 3}
+  - Id: r_misc_fangyu
+    Sprite: {fileID: 21300000, guid: 6aad7b21e59d15c458e8f14c5203e7cb, type: 3}
   - Id: r_rule_no_rage
     Sprite: {fileID: 21300000, guid: edfd0996e7f0d7b4f823cf40c1176dfb, type: 3}
+  - Id: r_misc_chenzhong
+    Sprite: {fileID: 21300000, guid: da7999b4db3adf744b3f0f10a5ed21a9, type: 3}
   - Id: r_role_caster_1
     Sprite: {fileID: 21300000, guid: 52b2970fc2299104a91b13bfe3e48529, type: 3}
   - Id: r_role_caster_2
@@ -77,6 +95,8 @@ MonoBehaviour:
     Sprite: {fileID: 21300000, guid: 5c921bd7065febf4fb89e0447f848ea8, type: 3}
   - Id: r_mech_burn
     Sprite: {fileID: 21300000, guid: 9b1a5b980afcec045adf83fd05768776, type: 3}
+  - Id: r_misc_duyin
+    Sprite: {fileID: 21300000, guid: ee10fa82e1c42ac4b8fbbe7e359266b1, type: 3}
   - Id: r_foe_water_1
     Sprite: {fileID: 21300000, guid: c003201c229e28a43bf1ffb87c4f0818, type: 3}
   - Id: r_foe_water_2
@@ -187,7 +207,11 @@ MonoBehaviour:
     Sprite: {fileID: 21300000, guid: 0c9dca235366b604891ba412416681c9, type: 3}
   - Id: r_elem_wood_5
     Sprite: {fileID: 21300000, guid: 0c9dca235366b604891ba412416681c9, type: 3}
+  - Id: r_misc_xiaoling
+    Sprite: {fileID: 21300000, guid: 650923e61cee8d34aa988a6d92b4780e, type: 3}
   - Id: r_trait_swiftshadow
     Sprite: {fileID: 21300000, guid: d5029237bfdf3934daa35fe97d13418a, type: 3}
   - Id: r_trait_devour
     Sprite: {fileID: 21300000, guid: b898905a3f68e71428238fbbaea3dc47, type: 3}
+  - Id: r_misc_heilian
+    Sprite: {fileID: 21300000, guid: 8bf53edc35963204db0711c64227d520, type: 3}
