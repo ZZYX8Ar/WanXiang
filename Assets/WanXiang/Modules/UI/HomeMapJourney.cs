@@ -106,6 +106,18 @@ namespace WanXiang.Modules.UI
         {
             if (_finale == null) return;
             _finale.gameObject.SetActive(finale);
+
+            // ⚠ 2026-10-11 地图加长（1320→1600）：归墟之门原本是 prefab 里写死的
+            //   anchoredPosition.x = 628（按旧宽度调好的），加长后会脱离右端 ⇒ 改成按
+            //   实际宽度换算贴到右端内侧，保证任何宽度下都跟着走。
+            if (finale)
+            {
+                float w = StripW();
+                float gateW = _finale.rectTransform.sizeDelta.x;
+                var p = _finale.rectTransform.anchoredPosition;
+                p.x = (w * 0.5f) - gateW * 0.5f - 40f;   // 贴右端，留 40px 内边距
+                _finale.rectTransform.anchoredPosition = p;
+            }
         }
 
         // ------------------------------------------------------------------ 节点染色

@@ -266,8 +266,8 @@ namespace WanXiang.EditorTools
 
             var hero = UIBuild.Stretch(rt, "Root_Hero", 380, 140, 560, 230);
             UIBuild.Img(hero, new Color(1f, 1f, 1f, 0f));
-            var podium = UIBuild.Bottom(hero, "Img_HeroPodium", 110);
-            UIBuild.Img(podium, UIBuild.Dim);
+            // ⚠ 2026-10-11：Img_HeroPodium 已按用户要求删除（英雄台底条），prefab 里也已移除。
+            //   若要重新生成 Panel_Home，注意不要再建这个节点。
             var sprite = UIBuild.Center(hero, "Img_HeroSprite", new Vector2(560, 560));
             var imgHero = UIBuild.Img(sprite, UIBuild.Card);
 

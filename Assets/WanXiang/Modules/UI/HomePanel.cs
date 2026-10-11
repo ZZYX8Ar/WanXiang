@@ -31,14 +31,15 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button  _btnCodex;        // Btn_Codex     图鉴
         [SerializeField] private Button  _btnMeta;         // Btn_Meta      局外成长
         [SerializeField] private Button  _btnArchive;      // Btn_Archive   残卷阁（剧情面板：领觉醒材料）
-        [SerializeField] private Button  _btnMarket;       // Btn_Market    灵市（底排布袋图标）
-        [SerializeField] private Button  _btnTale;         // Hot_Tale      异闻（底排亭子图标）
-        [SerializeField] private Button  _btnTrial;        // Hot_Trial     试炼（底排刀剑图标，直进战斗场景）
-        [SerializeField] private Button  _btnForge;        // Hot_Forge     铸魂台（底排双人图标）
-        [SerializeField] private Button  _btnOmen;         // Hot_Omen      天象（底排卷轴图标）
         [SerializeField] private Button  _btnSettings;     // Btn_Settings  设置
         [SerializeField] private Button  _btnHistory;      // Btn_History   历程（最近 10 局）
         [SerializeField] private HomeMapJourney _homeMap;  // Map_Journey   中央四季旅程图（进图刷新进度）
+        [SerializeField] private HomeAmbientFx _ambientFx;      // 背景 + 天气特效（2026-10-11）
+
+        // ⚠ 2026-10-11 清理：灵市/异闻/铸魂/天象/试炼 这5 个主城入口已退役 ——
+        //   ① 前四个 v1.2 起收口为路线图节点（CampaignPanel 里进）；
+        //   ② 试炼打开的 Panel_Trial 实为「天阙抉择」（通关后三选一），语义错配，GDD 全文无"试炼"一词。
+        //   它们原先是"隐藏 + 保留空 handler"，现已连prefab 节点、序列化字段、监听器一并删除。
 
         [Header("数据引用（由生成器自动绑定）")]
         [SerializeField] private ContentCatalogSO _contentCatalog;
@@ -60,11 +61,6 @@ namespace WanXiang.Modules.UI
             if (_btnMeta != null) _btnMeta.onClick.AddListener(OnMetaClicked);
             if (_btnHistory != null) _btnHistory.onClick.AddListener(() => OpenPanelAsync<HistoryPanel>().Forget());
             if (_btnArchive != null) _btnArchive.onClick.AddListener(OnArchiveClicked);
-            if (_btnMarket != null) _btnMarket.onClick.AddListener(OnMarketClicked);
-            if (_btnTale != null) _btnTale.onClick.AddListener(OnTaleClicked);
-            if (_btnTrial != null) _btnTrial.onClick.AddListener(OnTrialClicked);
-            if (_btnForge != null) _btnForge.onClick.AddListener(OnForgeClicked);
-            if (_btnOmen != null) _btnOmen.onClick.AddListener(OnOmenClicked);
             if (_btnSettings != null) _btnSettings.onClick.AddListener(OnSettingsClicked);
         }
 
@@ -89,6 +85,14 @@ namespace WanXiang.Modules.UI
             }
             RefreshDeployLabel();
             HideRetiredEntries();
+
+            // ---- 背景 + 天气特效（2026-10-11）：按当前探索的幕换背景+ 季节粒子 ----
+            if (_ambientFx == null) _ambientFx = GetComponent<HomeAmbientFx>();
+            if (_ambientFx == null) _ambientFx = gameObject.AddComponent<HomeAmbientFx>();
+            var ambRun = WanXiang.Run.RunSave.Current;
+            _ambientFx.Rebuild(ambRun != null ? ambRun.Act : 1);
+            // 天气：取当前存档的天时（无则晴）。有 LiveWeather 时按灵卵剩余切阴天。
+            _ambientFx.SetWeather(0);
 
             // 中央四季节气环：每次回到主城都按当前旅程进度重刷（幕/层 → 扇区点亮 + 标记位置）
             if (_homeMap != null) _homeMap.Refresh();
@@ -171,22 +175,13 @@ namespace WanXiang.Modules.UI
         /// 隐藏已收口到路线图节点的四个入口（灵市 / 异闻 / 铸魂台 / 天象）。
         /// 留着"能点但没用"的按钮比没有更糟 —— 玩家会反复点、然后以为游戏坏了。
         /// </summary>
+        /// <summary>
+        /// 退役入口的隐藏逻辑。
+        /// ⚠ 2026-10-11：灵市/异闻/铸魂/天象/试炼 已连 prefab 节点一起删除，本方法清空。
+        ///    保留这个空壳只为让OnCreate 调用点不动，将来新退役入口仍在此登记。
+        /// </summary>
         private void HideRetiredEntries()
         {
-            // ① 已收口为路线图节点：主城不再提供入口
-            if (_btnMarket != null) _btnMarket.gameObject.SetActive(false);
-            if (_btnTale != null) _btnTale.gameObject.SetActive(false);
-            if (_btnForge != null) _btnForge.gameObject.SetActive(false);
-            if (_btnOmen != null) _btnOmen.gameObject.SetActive(false);
-
-            // ② 「试炼」语义错配：它打开的 Panel_Trial 其实是 GDD 第 7 章的
-            //    「天阙抉择」（通关后三选一：登天阙 / 续劫 / 归元），属于**流程内**面板，
-            //    不该由主城直接进 —— GDD 全文没有"试炼"这个词（已核对，出现 0 次）。
-            if (_btnTrial != null) _btnTrial.gameObject.SetActive(false);
-
-            // ③ 「成长」= GDD 第 8 章局外成长 —— **已接回来**：
-            //    MetaPanel 现已接到局外存档（MetaStore：祭坛花墨铊升级 / 加成经 PlayerMul 生效），
-            //    不再是空壳。原来的"先隐藏等实现"注释到此结束。
         }
 
         /// <summary>出征按钮的文案带上进度 —— 一眼看清"点下去是继续哪一层"。</summary>
@@ -219,48 +214,6 @@ namespace WanXiang.Modules.UI
         {
             // ★ 打开局外成长面板（原来这里只把自己隐藏了，等于点不进去）
             OpenPanelAsync<MetaPanel>().Forget();
-        }
-
-        /// <summary>
-        /// v1.2 收口：该功能已改为路线图节点，主城不再提供入口。
-        /// 按钮本身会在 OnOpenAsync 里隐藏 —— 保留这个空实现只是防"万一被别处调用"。
-        /// </summary>
-        private void OnMarketClicked()
-        {
-            if (_btnMarket != null) _btnMarket.gameObject.SetActive(false);
-        }
-
-        /// <summary>
-        /// v1.2 收口：该功能已改为路线图节点，主城不再提供入口。
-        /// 按钮本身会在 OnOpenAsync 里隐藏 —— 保留这个空实现只是防"万一被别处调用"。
-        /// </summary>
-        private void OnTaleClicked()
-        {
-            if (_btnTale != null) _btnTale.gameObject.SetActive(false);
-        }
-
-        /// <summary>试炼：不经过节点地图，直接用内容目录组一场默认战斗进战斗场景。</summary>
-        private void OnTrialClicked()
-        {
-            if (_btnTrial != null) _btnTrial.gameObject.SetActive(false);
-        }
-
-        /// <summary>
-        /// v1.2 收口：该功能已改为路线图节点，主城不再提供入口。
-        /// 按钮本身会在 OnOpenAsync 里隐藏 —— 保留这个空实现只是防"万一被别处调用"。
-        /// </summary>
-        private void OnForgeClicked()
-        {
-            if (_btnForge != null) _btnForge.gameObject.SetActive(false);
-        }
-
-        /// <summary>
-        /// v1.2 收口：该功能已改为路线图节点，主城不再提供入口。
-        /// 按钮本身会在 OnOpenAsync 里隐藏 —— 保留这个空实现只是防"万一被别处调用"。
-        /// </summary>
-        private void OnOmenClicked()
-        {
-            if (_btnOmen != null) _btnOmen.gameObject.SetActive(false);
         }
 
         private void OnSettingsClicked()
