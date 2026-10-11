@@ -47,16 +47,24 @@ namespace WanXiang.Modules.UI
         [SerializeField] private bool _manualBattle = true;   // 回合制手动（战斗场景由本组件驱动）
 
         // ---- 按幕选背景/前景（2026-10-11 战斗美化，Resources/Battle/ 下，AI 全新生成）----
-        //  act 1..5 = 春/夏/长夏/秋/冬；PvP/试炼无节点 → 春季兜底；Resources 缺图 → 旧 _background 兜底
+        //  ⚠ 幕↔ 季节对应**以 CampaignPanel.SeasonPalette 为准**：幕1 春 / 幕2 夏 / 幕3 秋 / 幕4 冬 / 幕5 长夏。
+        //    别按"春夏秋冬+长夏"直觉排（那样 3/4/5 幕全错位）。
+        //  PvP/试炼无节点 → 春季兜底；Resources 缺图 → 旧 _background 兜底
         private static readonly string[] BgByAct =
         {
-            "Battle/BG_act1_spring", "Battle/BG_act2_summer", "Battle/BG_act3_latesummer",
-            "Battle/BG_act4_autumn", "Battle/BG_act5_winter",
+            "Battle/BG_act1_spring",     // 幕1 春
+            "Battle/BG_act2_summer",     // 幕2 夏
+            "Battle/BG_act3_autumn",     // 幕3 秋
+            "Battle/BG_act4_winter",     // 幕4 冬
+            "Battle/BG_act5_latesummer", // 幕5 长夏
         };
         private static readonly string[] FgByAct =
         {
-            "Battle/FG_act1_spring", "Battle/FG_act2_summer", "Battle/FG_act3_latesummer",
-            "Battle/FG_act4_autumn", "Battle/FG_act5_winter",
+            "Battle/FG_act1_spring",     // 幕1 春
+            "Battle/FG_act2_summer",     // 幕2 夏
+            "Battle/FG_act3_autumn",     // 幕3 秋
+            "Battle/FG_act4_winter",     // 幕4 冬
+            "Battle/FG_act5_latesummer", // 幕5 长夏
         };
 
         private async UniTaskVoid Start()
