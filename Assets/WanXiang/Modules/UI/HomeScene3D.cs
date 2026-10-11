@@ -49,12 +49,16 @@ namespace WanXiang.Modules.UI
         [Header("背景")]
         [SerializeField] private float _bgZ = 6f;
 
-        [Header("自然元素数量")]
-        [SerializeField] private int _birdCount = 6;
-        [SerializeField] private int _grassCount = 9;
-        [SerializeField] private int _rainCount = 130;
-        [SerializeField] private int _snowCount = 70;
-        [SerializeField] private int _fallCount = 40;
+        [Header("自然元素数量（按幕会再乘系数）")]
+        [SerializeField] private int _birdCount = 10;
+        [SerializeField] private int _cloudCount = 8;
+        [SerializeField] private int _butterflyCount = 6;
+        [SerializeField] private int _groundCount = 12;
+        [SerializeField] private int _rainCount = 150;
+        [SerializeField] private int _snowCount = 90;
+        [SerializeField] private int _fallCount = 60;
+        [SerializeField] private float _globalScale = 1.25f;   // 统一放大（用户："动得明显一点"）
+        [SerializeField] private float _globalSpeed = 1.45f;   // 统一加速
 
         [Header("氛围")]
         [SerializeField] private float _fogBase = 0.35f;
@@ -209,6 +213,7 @@ namespace WanXiang.Modules.UI
             }
             SetWeather(weather);
             BuildFog();
+            BuildEco();       // 云/鸟/蝴蝶/地面植被（按幕）
             BuildFallSprite();
 
             Debug.Log("[Home3D] 氛围 act=" + act + " 进度=" + p.ToString("0.00") +
@@ -216,95 +221,59 @@ namespace WanXiang.Modules.UI
         }
 
         // ------------------------------------------------------------------
-        //  自然动态物：鸟 · 草 · 水
+        //  自然动态物（按幕配置：云 / 鸟 / 蝴蝶 / 地面植被 / 水）
+        //  ⛔ 用户 2026-10-11："花鸟云啊什么的都加上""动得明显一点""太少了太单一了"
+        //     ⇒ 数量与尺寸整体放大(_globalScale)、速度加快(_globalSpeed)，
+        //       且**每幕一套不同的生态**（不是只换张图）。
         // ------------------------------------------------------------------
+        /// <summary>每幕的生态配置。</summary>
+        private struct Eco
+        {
+            public int Clouds; public float CloudScale; public float CloudAlpha; public string CloudKind;
+            public int Birds; public bool BirdFlock;
+            public int Butterflies;
+            public string Ground; public int GroundNum; public float GroundScale;
+        }
+
+        private static Eco EcoForAct(int act)
+        {
+            switch (act)
+            {
+                case 1: // 春：云淡、鸟多、蝴蝶飞舞、地面粉色花丛
+                    return new Eco { Clouds = 9, CloudScale = 1.5f, CloudAlpha = 0.75f, CloudKind = "ab",
+                                     Birds = 12, BirdFlock = false, Butterflies = 9,
+                                     Ground = "home_flower_1", GroundNum = 10, GroundScale = 1.35f };
+                case 2: // 夏：云厚偏低、蜻蜓蝴蝶、地面黄花 + 竹
+                    return new Eco { Clouds = 13, CloudScale = 1.9f, CloudAlpha = 0.92f, CloudKind = "bc",
+                                     Birds = 9, BirdFlock = false, Butterflies = 7,
+                                     Ground = "home_flower_2", GroundNum = 12, GroundScale = 1.45f };
+                case 3: // 秋：高云、大雁成群(V字)、芦苇
+                    return new Eco { Clouds = 7, CloudScale = 1.3f, CloudAlpha = 0.68f, CloudKind = "ac",
+                                     Birds = 14, BirdFlock = true, Butterflies = 0,
+                                     Ground = "home_reeds", GroundNum = 12, GroundScale = 1.5f };
+                case 4: // 冬：灰云厚重、鸟少、枯草
+                    return new Eco { Clouds = 15, CloudScale = 2.1f, CloudAlpha = 0.95f, CloudKind = "abc",
+                                     Birds = 4, BirdFlock = false, Butterflies = 0,
+                                     Ground = "home_grass", GroundNum = 11, GroundScale = 1.3f };
+                default: // 长夏：低压雷云、麦田
+                    return new Eco { Clouds = 17, CloudScale = 2.3f, CloudAlpha = 0.98f, CloudKind = "abc",
+                                     Birds = 7, BirdFlock = false, Butterflies = 0,
+                                     Ground = "home_wheat", GroundNum = 13, GroundScale = 1.5f };
+            }
+        }
+
         private void BuildNature()
         {
-            BuildBirds();
-            BuildGrass();
-            BuildWater();
+            BuildWater();          // 水是常驻（不管哪一幕都有河）
         }
 
-        private Sprite LoadOr(string name, Sprite fallback)
-        {
-            var sp = Resources.Load<Sprite>("UI/Home/" + name);
-            if (sp == null) Debug.LogWarning("[Home3D] 缺图 UI/Home/" + name);
-            return sp != null ? sp : fallback;
-        }
-
-        private void BuildBirds()
-        {
-            var f0 = Resources.Load<Sprite>("UI/Home/home_bird");
-            var f1 = Resources.Load<Sprite>("UI/Home/home_bird2");
-            if (f0 == null || f1 == null) { Debug.LogWarning("[Home3D] 飞鸟缺图"); return; }
-            if (_birds.Count > 0) return;
-
-            for (int i = 0; i < _birdCount; i++)
-            {
-                var go = new GameObject("Bird" + i);
-                go.transform.SetParent(_root, false);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = f0;
-                // 鸟在天上：z 比背景近，尺寸较小（远）
-                float z = 3.2f + Random.Range(-0.5f, 0.9f);
-                sr.sortingOrder = -500 + i;
-                float sc = Random.Range(0.30f, 0.62f);
-                go.transform.localScale = new Vector3(sc, sc, 1f);
-                float y = Random.Range(_orthoSize * 0.30f, _orthoSize * 0.88f);
-                float x = Random.Range(-HalfW, HalfW);
-                go.transform.localPosition = new Vector3(x, y, z);
-                _birds.Add(new Bird
-                {
-                    T = go.transform, Sr = sr,
-                    X = x, Y = y,
-                    Speed = Random.Range(0.55f, 1.25f) * (Random.value > 0.25f ? 1f : -1f),
-                    FlapT = Random.Range(0f, 0.4f), Frame = 0,
-                });
-            }
-        }
-
-        private void BuildGrass()
-        {
-            var grass = Resources.Load<Sprite>("UI/Home/home_grass");
-            var reeds = Resources.Load<Sprite>("UI/Home/home_reeds");
-            if (grass == null && reeds == null) { Debug.LogWarning("[Home3D] 草丛缺图"); return; }
-            if (_swayers.Count > 0) return;
-
-            float bottom = -_orthoSize;
-            for (int i = 0; i < _grassCount; i++)
-            {
-                var sp = (i % 3 == 1 && reeds != null) ? reeds : grass;
-                if (sp == null) continue;
-                var go = new GameObject("Grass" + i);
-                go.transform.SetParent(_root, false);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = sp;
-                // 前景草丛：z 小（最靠前），但排在背景之上、雾之下
-                float z = 2.4f - (i % 4) * 0.18f;
-                sr.sortingOrder = -200 + (i % 4);
-                float sc = Random.Range(0.55f, 1.05f);
-                go.transform.localScale = new Vector3(sc * (Random.value > 0.5f ? 1f : -1f), sc, 1f);
-                float x = -HalfW + (i + 0.5f) * (HalfW * 2f / _grassCount) + Random.Range(-0.5f, 0.5f);
-                // 底枢轴贴屏幕底（草根在画面外一点，只露上半）
-                float half = sp.bounds.size.y * sc * 0.5f;
-                go.transform.localPosition = new Vector3(x, bottom + half * 0.36f, z);
-                _swayers.Add(new Swayer
-                {
-                    T = go.transform,
-                    Amp = Random.Range(1.6f, 4.2f),      // 摆动角度
-                    Freq = Random.Range(0.55f, 1.05f),
-                    Phase = Random.Range(0f, 6.28f),
-                });
-            }
-        }
-
+        /// <summary>河流水波：两块并排横向无缝循环滚动。</summary>
         private void BuildWater()
         {
             var sp = Resources.Load<Sprite>("UI/Home/home_water");
-            if (sp == null) { Debug.LogWarning("[Home3D] 水波缺图"); return; }
+            if (sp == null) { Debug.LogWarning("[Home3D] 水波缺图 home_water"); return; }
             if (_water.Count > 0) return;
 
-            // 两块并排横向循环滚动 = 河流流动
             float sw = sp.bounds.size.x;
             float targetW = HalfW * 2f * 1.02f;
             float sc = sw > 0.001f ? targetW / sw : 1f;
@@ -314,11 +283,272 @@ namespace WanXiang.Modules.UI
                 go.transform.SetParent(_root, false);
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = sp;
-                sr.sortingOrder = -120;                 // 在草丛之后、雾之前
-                sr.color = new Color(1f, 1f, 1f, 0.55f);
-                go.transform.localScale = new Vector3(sc, 1f, 1f);
+                sr.sortingOrder = -120;                 // 草丛之后、雾之前
+                sr.color = new Color(1f, 1f, 1f, 0.62f);
+                // 高度也放大一点（用户："动得明显一点"）
+                go.transform.localScale = new Vector3(sc, 1.5f * _globalScale, 1f);
                 go.transform.localPosition = new Vector3(i * targetW, -_orthoSize * 0.52f, 2.0f);
                 _water.Add(sr);
+            }
+            Debug.Log("[Home3D] 河流水波 2 块就绪");
+        }
+
+        /// <summary>按幕重建云/鸟/蝴蝶/地面植被。</summary>
+        private void BuildEco()
+        {
+            var eco = EcoForAct(Mathf.Clamp(_curAct, 1, 5));
+            BuildClouds(eco);
+            BuildBirds(eco);
+            BuildButterflies(eco);
+            BuildGround(eco);
+        }
+
+        // ---------------- 云 ----------------
+        private readonly List<Cloud> _clouds = new List<Cloud>();
+        private struct Cloud { public Transform T; public SpriteRenderer Sr; public float Speed, X, Y; }
+
+        private void BuildClouds(Eco eco)
+        {
+            for (int i = 0; i < _clouds.Count; i++) if (_clouds[i].T != null) Destroy(_clouds[i].T.gameObject);
+            _clouds.Clear();
+
+            // 三种云形轮换
+            string[] kinds = { "home_cloud_a", "home_cloud_b", "home_cloud_c" };
+            int n = Mathf.RoundToInt(eco.Clouds);
+            for (int i = 0; i < n; i++)
+            {
+                string kn = kinds[i % kinds.Length];
+                if (eco.CloudKind.IndexOf((char)('a' + (i % 3))) < 0) kn = kinds[(i + 1) % kinds.Length];
+                var sp = Resources.Load<Sprite>("UI/Home/" + kn);
+                if (sp == null) { Debug.LogWarning("[Home3D] 云缺图 " + kn); continue; }
+
+                var go = new GameObject("Cloud" + i);
+                go.transform.SetParent(_root, false);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = sp;
+                float z = 4.4f - (i % 3) * 0.9f;               // 三层深度
+                sr.sortingOrder = -700 + i % 3;
+                sr.color = new Color(1f, 1f, 1f, eco.CloudAlpha * (0.72f + 0.28f * ((i % 3) / 2f)));
+                float sc = eco.CloudScale * _globalScale * Random.Range(0.75f, 1.35f);
+                go.transform.localScale = new Vector3(sc, sc * Random.Range(0.8f, 1.05f), 1f);
+                float sw = sp.bounds.size.x * sc;
+                float x = Random.Range(-HalfW - sw, HalfW + sw);
+                float y = Random.Range(_orthoSize * 0.12f, _orthoSize * 0.95f);
+                go.transform.localPosition = new Vector3(x, y, z);
+                _clouds.Add(new Cloud
+                {
+                    T = go.transform, Sr = sr, X = x, Y = y,
+                    Speed = (0.22f + (i % 3) * 0.14f) * _globalSpeed,
+                });
+            }
+            Debug.Log("[Home3D] 云 " + _clouds.Count + " 朵");
+        }
+
+        private void StepClouds(float dt, float windNow)
+        {
+            for (int i = 0; i < _clouds.Count; i++)
+            {
+                var c = _clouds[i];
+                if (c.T == null) continue;
+                c.X += c.Speed * _windDir * (0.6f + windNow) * dt;
+                float sw = c.Sr.sprite != null ? c.Sr.sprite.bounds.size.x * c.T.localScale.x : 4f;
+                if (c.X > HalfW + sw) c.X = -HalfW - sw;        // 从右侧绕回左侧
+                if (c.X < -HalfW - sw) c.X = HalfW + sw;
+                c.T.localPosition = new Vector3(c.X, c.Y, c.T.localPosition.z);
+                _clouds[i] = c;
+            }
+        }
+
+        // ---------------- 鸟（含 V 字雁群）----------------
+        private void BuildBirds(Eco eco)
+        {
+            for (int i = 0; i < _birds.Count; i++) if (_birds[i].T != null) Destroy(_birds[i].T.gameObject);
+            _birds.Clear();
+            var f0 = Resources.Load<Sprite>("UI/Home/home_bird");
+            var f1 = Resources.Load<Sprite>("UI/Home/home_bird2");
+            if (f0 == null || f1 == null) { Debug.LogWarning("[Home3D] 飞鸟缺图"); return; }
+
+            int n = Mathf.RoundToInt(eco.Birds);
+            bool flock = eco.BirdFlock;
+            float flockDir = Random.value > 0.5f ? 1f : -1f;
+            float flockY = Random.Range(_orthoSize * 0.42f, _orthoSize * 0.80f);
+            float flockX = Random.Range(-HalfW * 0.6f, HalfW * 0.2f);
+            float flockSpeed = Random.Range(1.1f, 1.6f) * _globalSpeed;
+
+            for (int i = 0; i < n; i++)
+            {
+                var go = new GameObject("Bird" + i);
+                go.transform.SetParent(_root, false);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = f0;
+                float z = 3.4f + Random.Range(-0.6f, 0.8f);
+                sr.sortingOrder = -500 + i % 5;
+                float sc = Random.Range(0.40f, 0.85f) * _globalScale;
+                go.transform.localScale = new Vector3(sc, sc, 1f);
+
+                float x, y, spd;
+                if (flock)
+                {
+                    // V 字雁群：以 flock 为队首，其余按 V 形偏移
+                    int row = (i + 1) / 2;
+                    float side = (i % 2 == 0) ? 1f : -1f;
+                    x = flockX - flockDir * row * 0.95f;
+                    y = flockY + side * row * 0.42f;
+                    spd = flockSpeed;
+                    if (flockDir < 0f) spd = -Mathf.Abs(spd); else spd = Mathf.Abs(spd);
+                }
+                else
+                {
+                    x = Random.Range(-HalfW * 1.1f, HalfW * 1.1f);
+                    y = Random.Range(_orthoSize * 0.22f, _orthoSize * 0.92f);
+                    spd = Random.Range(0.75f, 1.6f) * _globalSpeed * (Random.value > 0.25f ? 1f : -1f);
+                }
+                go.transform.localPosition = new Vector3(x, y, z);
+                _birds.Add(new Bird
+                {
+                    T = go.transform, Sr = sr, X = x, Y = y, Speed = spd,
+                    FlapT = Random.Range(0f, 0.3f), Frame = 0,
+                });
+            }
+            Debug.Log("[Home3D] 飞鸟 " + _birds.Count + " 只" + (flock ? "(V字雁群)" : ""));
+        }
+
+        private void StepBirds(float dt)
+        {
+            for (int i = 0; i < _birds.Count; i++)
+            {
+                var b = _birds[i];
+                if (b.T == null) continue;
+                b.X += b.Speed * dt;
+                float margin = HalfW * 1.25f;
+                if (b.X > margin) b.X = -margin;
+                if (b.X < -margin) b.X = margin;
+                b.Y += Mathf.Sin(Time.time * 1.1f + i * 0.7f) * 0.18f * dt;
+                b.T.localPosition = new Vector3(b.X, b.Y, b.T.localPosition.z);
+                float face = b.Speed >= 0f ? 1f : -1f;
+                var sc = b.T.localScale;
+                b.T.localScale = new Vector3(Mathf.Abs(sc.x) * face, sc.y, sc.z);
+
+                b.FlapT += dt;
+                float iv = 0.19f;
+                if (b.FlapT > iv)
+                {
+                    b.FlapT -= iv;
+                    b.Frame = 1 - b.Frame;
+                    b.Sr.sprite = Resources.Load<Sprite>(b.Frame == 0 ? "UI/Home/home_bird" : "UI/Home/home_bird2");
+                }
+                _birds[i] = b;
+            }
+        }
+
+        // ---------------- 蝴蝶 ----------------
+        private readonly List<Butterfly> _butterflies = new List<Butterfly>();
+        private struct Butterfly { public Transform T; public SpriteRenderer Sr; public float X, Y, VX, FlapT, Phase; public int Frame; }
+
+        private void BuildButterflies(Eco eco)
+        {
+            for (int i = 0; i < _butterflies.Count; i++) if (_butterflies[i].T != null) Destroy(_butterflies[i].T.gameObject);
+            _butterflies.Clear();
+            int n = Mathf.RoundToInt(eco.Butterflies);
+            if (n <= 0) return;
+            var a = Resources.Load<Sprite>("UI/Home/home_butterfly_a");
+            var b = Resources.Load<Sprite>("UI/Home/home_butterfly_b");
+            if (a == null || b == null) { Debug.LogWarning("[Home3D] 蝴蝶缺图"); return; }
+
+            for (int i = 0; i < n; i++)
+            {
+                var go = new GameObject("Butterfly" + i);
+                go.transform.SetParent(_root, false);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = a;
+                sr.sortingOrder = -150 + i % 4;
+                float sc = Random.Range(0.34f, 0.62f) * _globalScale;
+                go.transform.localScale = new Vector3(sc, sc, 1f);
+                float x = Random.Range(-HalfW * 0.9f, HalfW * 0.9f);
+                float y = Random.Range(-_orthoSize * 0.55f, _orthoSize * 0.30f);   // 中下部（贴近地面/水面）
+                go.transform.localPosition = new Vector3(x, y, 0.9f);
+                _butterflies.Add(new Butterfly
+                {
+                    T = go.transform, Sr = sr, X = x, Y = y,
+                    VX = Random.Range(0.35f, 0.85f) * _globalSpeed * (Random.value > 0.5f ? 1f : -1f),
+                    FlapT = Random.Range(0f, 0.2f), Phase = Random.Range(0f, 6.28f), Frame = 0,
+                });
+            }
+            Debug.Log("[Home3D] 蝴蝶 " + _butterflies.Count + " 只");
+        }
+
+        private void StepButterflies(float dt)
+        {
+            float t = Time.time;
+            for (int i = 0; i < _butterflies.Count; i++)
+            {
+                var b = _butterflies[i];
+                if (b.T == null) continue;
+                // 飘忽飞行：横向匀速 + 纵向正弦 + 换向
+                b.X += b.VX * dt;
+                if (b.X > HalfW * 0.95f) { b.X = HalfW * 0.95f; b.VX = -Mathf.Abs(b.VX); }
+                if (b.X < -HalfW * 0.95f) { b.X = -HalfW * 0.95f; b.VX = Mathf.Abs(b.VX); }
+                float y = b.Y + Mathf.Sin(t * 1.6f + b.Phase) * 0.55f + Mathf.Sin(t * 3.1f + b.Phase * 2f) * 0.18f;
+                b.T.localPosition = new Vector3(b.X, y, b.T.localPosition.z);
+                float face = b.VX >= 0f ? 1f : -1f;
+                var sc = b.T.localScale;
+                b.T.localScale = new Vector3(Mathf.Abs(sc.x) * face, sc.y, sc.z);
+
+                b.FlapT += dt;
+                if (b.FlapT > 0.13f)
+                {
+                    b.FlapT -= 0.13f;
+                    b.Frame = 1 - b.Frame;
+                    b.Sr.sprite = Resources.Load<Sprite>(b.Frame == 0 ? "UI/Home/home_butterfly_a" : "UI/Home/home_butterfly_b");
+                }
+                _butterflies[i] = b;
+            }
+        }
+
+        // ---------------- 地面植被 ----------------
+        private void BuildGround(Eco eco)
+        {
+            for (int i = 0; i < _swayers.Count; i++) if (_swayers[i].T != null) Destroy(_swayers[i].T.gameObject);
+            _swayers.Clear();
+            var sp = Resources.Load<Sprite>("UI/Home/" + eco.Ground);
+            if (sp == null) { Debug.LogWarning("[Home3D] 地面植被缺图 " + eco.Ground); return; }
+
+            int n = Mathf.RoundToInt(eco.GroundNum);
+            float bottom = -_orthoSize;
+            for (int i = 0; i < n; i++)
+            {
+                var go = new GameObject("Ground" + i);
+                go.transform.SetParent(_root, false);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = sp;
+                float z = 2.6f - (i % 4) * 0.22f;          // 前后错落
+                sr.sortingOrder = -200 + i % 4;
+                float sc = eco.GroundScale * _globalScale * Random.Range(0.80f, 1.30f);
+                go.transform.localScale = new Vector3(sc * (Random.value > 0.5f ? 1f : -1f), sc, 1f);
+                float x = -HalfW + (i + 0.5f) * (HalfW * 2f / n) + Random.Range(-0.42f, 0.42f);
+                float half = sp.bounds.size.y * sc * 0.5f;
+                go.transform.localPosition = new Vector3(x, bottom + half * 0.42f, z);
+                _swayers.Add(new Swayer
+                {
+                    T = go.transform,
+                    Amp = Random.Range(2.2f, 5.5f),        // 摆幅放大（"动得明显一点"）
+                    Freq = Random.Range(0.65f, 1.25f),
+                    Phase = Random.Range(0f, 6.28f),
+                });
+            }
+            Debug.Log("[Home3D] 地面植被 " + _swayers.Count + " 丛（" + eco.Ground + "）");
+        }
+
+        private void StepSwayers(float dt, float windNow)
+        {
+            float t = Time.time;
+            for (int i = 0; i < _swayers.Count; i++)
+            {
+                var s = _swayers[i];
+                if (s.T == null) continue;
+                float ang = Mathf.Sin(t * s.Freq + s.Phase) * s.Amp * (0.45f + windNow);
+                s.T.localRotation = Quaternion.Euler(0f, 0f, ang);
+                _swayers[i] = s;
             }
         }
 
@@ -548,7 +778,9 @@ namespace WanXiang.Modules.UI
             float windNow = Mathf.Clamp01(_wind * (0.7f + 0.5f * (Mathf.Sin(_gustPhase) * 0.5f + 0.5f)));
 
             StepFog(dt, windNow);
+            StepClouds(dt, windNow);
             StepBirds(dt);
+            StepButterflies(dt);
             StepSwayers(dt, windNow);
             StepWater(dt, windNow);
             StepFallers(_rain, dt, windNow, true);
@@ -570,47 +802,6 @@ namespace WanXiang.Modules.UI
                 else if (p.x < -half) p.x += f.Width;
                 f.Sr.transform.localPosition = p;
                 _fog[i] = f;
-            }
-        }
-
-        private void StepBirds(float dt)
-        {
-            for (int i = 0; i < _birds.Count; i++)
-            {
-                var b = _birds[i];
-                if (b.T == null) continue;
-                b.X += b.Speed * dt;
-                if (b.X > HalfW * 1.15f) b.X = -HalfW * 1.15f;
-                if (b.X < -HalfW * 1.15f) b.X = HalfW * 1.15f;
-                b.Y += Mathf.Sin(Time.time * 0.8f + i) * 0.06f * dt * 30f;
-                b.T.localPosition = new Vector3(b.X, b.Y, b.T.localPosition.z);
-                // 朝向
-                float face = b.Speed >= 0f ? 1f : -1f;
-                var sc = b.T.localScale; b.T.localScale = new Vector3(Mathf.Abs(sc.x) * face, sc.y, sc.z);
-                // 扇翅：两帧交替
-                b.FlapT += dt;
-                float iv = 0.22f;
-                if (b.FlapT > iv)
-                {
-                    b.FlapT -= iv;
-                    b.Frame = 1 - b.Frame;
-                    b.Sr.sprite = Resources.Load<Sprite>(b.Frame == 0 ? "UI/Home/home_bird" : "UI/Home/home_bird2");
-                }
-                _birds[i] = b;
-            }
-        }
-
-        private void StepSwayers(float dt, float windNow)
-        {
-            float t = Time.time;
-            for (int i = 0; i < _swayers.Count; i++)
-            {
-                var s = _swayers[i];
-                if (s.T == null) continue;
-                // 底枢轴摆动：绕 Z 轴小幅旋转
-                float ang = Mathf.Sin(t * s.Freq + s.Phase) * s.Amp * (0.5f + windNow);
-                s.T.localRotation = Quaternion.Euler(0f, 0f, ang);
-                _swayers[i] = s;
             }
         }
 
