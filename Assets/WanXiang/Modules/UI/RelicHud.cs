@@ -48,8 +48,9 @@ namespace WanXiang.Modules.UI
                     chip.SetActive(true);
                     chip.name = "Item_Relic_" + i;
 
-                    var label = chip.transform.Find("Tmp_RelicName")?.GetComponent<TMP_Text>();
-                    if (label != null) label.text = def.Name;
+                    // ⚠ 2026-10-11 用户要求：HUD 上**不显示遗物名字**（图标放大即可，
+                    //   名字放悬浮提示里写）。prefab 里 Tmp_RelicName 已 SetActive(false)，
+                    //   这里也不再赋值（省一次 string 分配）。
                     var img = chip.GetComponent<Image>();
                     if (img != null)
                     {

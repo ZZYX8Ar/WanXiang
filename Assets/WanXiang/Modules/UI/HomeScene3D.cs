@@ -1,97 +1,80 @@
 // ============================================================================
-//  万相 · 主界面 3D 层（背景 + 自然动态物 + 天气氛围）
+//  万相 · 主界面氛围层（UGUI 版）·  2026-10-11 第四版
 //  ---------------------------------------------------------------------------
-//  ⛔⛔ Unity 渲染铁律（务必牢记）：
-//     UIRoot 的 Canvas 是 ScreenSpaceOverlay（m_RenderMode=0），
-//     **Overlay Canvas 不需要相机、且永远渲染在所有相机之上**。
-//     ⇒ UI 层绝不能有全屏不透明图，否则 3D 全被盖住（第一版"看不见"的根因）。
-//     ⇒ 相机 depth 只管"相机之间"的顺序，管不了 Overlay Canvas。
-//     因此：背景由本层自己画；相机与内容根挂在 Canvas 之外。
+//  ⛔ 为什么从 3D 改成 UGUI（用户 2026-10-11："元素应该显示在中央地图的前面，
+//     不能被它挡住"）：
+//     UIRoot 的 Canvas 是 ScreenSpaceOverlay，**Overlay Canvas 永远渲染在所有
+//     相机之上** ⇒ 3D 相机里的内容（云/鸟/花草）永远在地图**后面**，
+//     想显示在地图前面是**不可能**的。要"在地图前面"就必须待在 UI 层里。
 //
-//  ⛔⛔ 不要用 ParticleSystem（2026-10-11 洋红事故）：
-//     本项目是 2D 内置管线，ParticleSystemRenderer 的默认材质取不到 ⇒
-//     雨/雪全部渲染成品红色（magenta = 材质缺失色），用户截图整屏紫条纹。
-//     ⇒ 一律用 **SpriteRenderer**（用 sprite 自带材质，零配置），
-//       与战斗/节点地图的粒子做法保持一致。
+//  ✅ 结构：Panel_Home 下两个铺满层，靠 siblingIndex 决定前后关系
+//       Root_HomeBack   （紧随 Img_Plate，在地图**之前**）→ 背景图 + 雾
+//       Root_HomeNature （最后一个，在地图**之后**）→ 云/鸟/蝴蝶/植被/水/雨雪/闪电
+//     ⇒ 背景在地图后面、动态元素在地图前面，两边都能看见。
 //
-//  本版内容（用户 2026-10-11 第三轮）：
-//   · ❌ 去掉异兽行走（用户："看着太奇怪了"）
-//   · ✅ 自然动态物：飞鸟（扇翅掠过）· 前景草丛/芦苇（随风摇曳）· 河流水波（横向流动）
-//   · ✅ 天气：雨/雪（SpriteRenderer 池）· 闪电（全屏白闪双闪）· 风（阵风调制）
-//   · ✅ 雾气：程序化无缝纹理，三层视差漂移
-//   · ✅ 幕 + 进度双驱动（幕定基调、进度定强度）
+//  ⛔ 本项目禁用 ParticleSystem（内置管线材质缺失 ⇒ 渲染成洋红）——
+//     全部用 Image（本文件）/ SpriteRenderer（战斗侧用）。
 // ============================================================================
 
 using System.Collections.Generic;
 using UnityEngine;
-using WanXiang.Battle.Presentation;
+using UnityEngine.UI;
 
 namespace WanXiang.Modules.UI
 {
-    /// <summary>主界面 3D 层：背景 + 自然动态物 + 天气。相机与内容挂在 Canvas 之外。</summary>
+    /// <summary>主界面氛围层（UGUI）：背景 + 雾 + 云/鸟/蝴蝶/植被/水 + 天气。</summary>
     public sealed class HomeScene3D : MonoBehaviour
     {
+        // ⚠ 类名保留 HomeScene3D（历史名，prefab 引用不变），实现已改为 UGUI，不再用 3D 相机。
+
         private bool _running;
-        public bool Running
-        {
-            get { return _running; }
-            set
-            {
-                _running = value;
-                if (_cam != null) _cam.enabled = value;   // 相机已移出面板层级，必须显式停/启
-            }
-        }
+        public bool Running { get { return _running; } set { _running = value; } }
 
-        [Header("相机")]
-        [SerializeField] private float _orthoSize = 5.4f;
-        [SerializeField] private float _camZ = 10f;
+        [Header("整体缩放 / 速度（Inspector 可调）")]
+        [SerializeField] private float _globalScale = 1.15f;
+        [SerializeField] private float _globalSpeed = 1.0f;
 
-        [Header("背景")]
-        [SerializeField] private float _bgZ = 6f;
-
-        [Header("自然元素数量（按幕会再乘系数）")]
-        [SerializeField] private int _birdCount = 10;
-        [SerializeField] private int _cloudCount = 8;
-        [SerializeField] private int _butterflyCount = 6;
-        [SerializeField] private int _groundCount = 12;
+        [Header("数量")]
         [SerializeField] private int _rainCount = 150;
         [SerializeField] private int _snowCount = 90;
         [SerializeField] private int _fallCount = 60;
-        [SerializeField] private float _globalScale = 1.25f;   // 统一放大（用户："动得明显一点"）
-        [SerializeField] private float _globalSpeed = 1.45f;   // 统一加速
 
-        [Header("氛围")]
-        [SerializeField] private float _fogBase = 0.35f;
-        [SerializeField] private float _windBase = 0.35f;
+        private RectTransform _backRoot;     // 地图之后（背景 / 雾）
+        private RectTransform _natureRoot;   // 地图之前（云 / 鸟 / 草 / 水 …）
+        private Image _bg;
+        private RectTransform _canvasRt;
 
-        private Camera _cam;
-        private Transform _root;
-        private SpriteRenderer _bgQuad;
         private int _curAct = -1;
         private float _progress;
-        private bool _inited;
-
-        // 氛围
-        private readonly List<FogLayer> _fog = new List<FogLayer>();
-        private SpriteRenderer _flash;
-        private float _flashTimer, _flashLife;
         private float _wind = 0.35f, _windDir = 1f, _gustPhase;
         private float _fogDensity = 0.35f;
         private int _weatherKind;
+        private bool _inited;
 
-        // 自然动态物
-        private readonly List<Bird> _birds = new List<Bird>();
+        private float W { get { return _canvasRt != null && _canvasRt.rect.width > 1f ? _canvasRt.rect.width : 1280f; } }
+        private float H { get { return _canvasRt != null && _canvasRt.rect.height > 1f ? _canvasRt.rect.height : 720f; } }
+        private float HalfW { get { return W * 0.5f; } }
+        private float HalfH { get { return H * 0.5f; } }
+
+        // 元素池
+        private readonly List<FogLayer> _fog = new List<FogLayer>();
+        private readonly List<Cloud> _clouds = new List<Cloud>();
+        private readonly List<Flyer> _birds = new List<Flyer>();
+        private readonly List<Flyer> _butterflies = new List<Flyer>();
         private readonly List<Swayer> _swayers = new List<Swayer>();
         private readonly List<Faller> _rain = new List<Faller>();
         private readonly List<Faller> _snow = new List<Faller>();
         private readonly List<Faller> _fall = new List<Faller>();
-        private readonly List<SpriteRenderer> _water = new List<SpriteRenderer>();
+        private readonly List<Image> _water = new List<Image>();
+        private Image _flash;
+        private float _flashTimer, _flashLife;
         private Sprite _fallSprite;
 
-        private struct FogLayer { public SpriteRenderer Sr; public float Speed, Width, Alpha; }
-        private struct Bird { public Transform T; public SpriteRenderer Sr; public float X, Y, Speed, FlapT; public int Frame; }
-        private struct Swayer { public Transform T; public float Amp, Freq, Phase; }
-        private struct Faller { public Transform T; public SpriteRenderer Sr; public float X, Y, Speed, SwayAmp, SwayFreq, Phase; }
+        private struct FogLayer { public Image Img; public float Speed, Width, Alpha; }
+        private struct Cloud { public RectTransform T; public Image Img; public float Speed, X, Y, Width; }
+        private struct Flyer { public RectTransform T; public Image Img; public float X, Y, VX, FlapT, Phase; public int Frame; }
+        private struct Swayer { public RectTransform T; public float Amp, Freq, Phase; }
+        private struct Faller { public RectTransform T; public Image Img; public float X, Y, Speed, SwayAmp, SwayFreq, Phase; }
 
         // 幕↔季节：1春 2夏 3秋 4冬 5长夏（⛔ 别按"春夏秋冬+长夏"直觉排）
         private static readonly string[] BgByAct =
@@ -107,85 +90,62 @@ namespace WanXiang.Modules.UI
             "Battle/FX_particle_act5_pollen",
         };
 
-        private float HalfW { get { return _orthoSize * 16f / 9f; } }
-
         private void Awake() { Init(); }
 
         public void Init()
         {
             if (_inited) return;
-            EnsureWorld();
-            MoveOutsideCanvas();
-            BuildNature();
+            var cv = GetComponentInParent<Canvas>();
+            _canvasRt = cv != null ? cv.transform as RectTransform : null;
+            // 背景层：紧跟 Img_Plate → 在地图**之前**（更靠后渲染 = 被地图盖住，符合"背景"语义）
+            _backRoot = EnsureLayer("Root_HomeBack", 1);
+            // 氛围层：插在 Root_Hero（中央地图）**之后**、底部按钮**之前**
+            //   ⇒ 元素盖住地图（用户要的"显示在地图前面"），但不会挡按钮。
+            int heroIdx = -1;
+            var hero = transform.Find("Root_Hero");
+            if (hero != null) heroIdx = hero.GetSiblingIndex();
+            _natureRoot = EnsureLayer("Root_HomeNature", heroIdx >= 0 ? heroIdx + 1 : int.MaxValue);
             _inited = true;
         }
 
-        private void EnsureWorld()
+        /// <summary>找不到才建；已存在则**不动它的层级**（保持 prefab 里手工调好的顺序）。</summary>
+        private RectTransform EnsureLayer(string name, int sibling)
         {
-            if (_cam == null)
-            {
-                var go = new GameObject("HomeCamera3D");
-                _cam = go.AddComponent<Camera>();
-                _cam.orthographic = true;
-                _cam.orthographicSize = _orthoSize;
-                _cam.nearClipPlane = 0.01f;
-                _cam.farClipPlane = 100f;
-                _cam.clearFlags = CameraClearFlags.SolidColor;
-                _cam.backgroundColor = new Color(0.86f, 0.87f, 0.86f);
-                _cam.depth = -10f;      // ⛔ 必须 < UICamera(99) 且为负
-                _cam.transform.position = new Vector3(0f, 0f, _camZ);
-                _cam.transform.rotation = Quaternion.identity;
-                _cam.transform.localScale = Vector3.one;
-            }
-            if (_root == null)
-            {
-                _root = new GameObject("HomeWorld3D").transform;
-                _root.position = Vector3.zero;
-                _root.localScale = Vector3.one;
-            }
+            var t = transform.Find(name) as RectTransform;
+            if (t != null) return t;
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(transform, false);
+            t = (RectTransform)go.transform;
+            t.anchorMin = Vector2.zero; t.anchorMax = Vector2.one;
+            t.offsetMin = Vector2.zero; t.offsetMax = Vector2.zero;
+            var img = go.AddComponent<Image>();
+            img.color = new Color(1f, 1f, 1f, 0f);
+            img.raycastTarget = false;
+            if (sibling == int.MaxValue) t.SetAsLastSibling();
+            else t.SetSiblingIndex(Mathf.Clamp(sibling, 0, transform.childCount - 1));
+            return t;
         }
 
-        private void MoveOutsideCanvas()
-        {
-            var canvas = GetComponentInParent<Canvas>();
-            Transform host = canvas != null ? canvas.transform.parent : null;
-            if (host == null) host = transform.root;
-            if (host == null) return;
-            if (_root != null && _root.parent != host) _root.SetParent(host, true);
-            if (_cam != null && _cam.transform.parent != host) _cam.transform.SetParent(host, true);
-        }
-
-        public void InjectCatalog(SpriteCatalog cat) { }   // 保留接口（异兽已移除，兼容调用点）
-
-        // ------------------------------------------------------------------
-        //  幕 + 进度 → 氛围
-        // ------------------------------------------------------------------
+        /// <summary>按幕 + 进度刷新整套氛围。</summary>
         public void ApplyAmbience(int act, float progress)
         {
             Init();
             act = Mathf.Clamp(act, 1, 5);
             _progress = Mathf.Clamp01(progress);
 
-            if (act != _curAct || _bgQuad == null || _bgQuad.sprite == null)
+            if (act != _curAct || _bg == null || _bg.sprite == null)
             {
                 _curAct = act;
                 var sp = Resources.Load<Sprite>(BgByAct[act - 1]);
-                if (sp == null) Debug.LogWarning("[Home3D] 背景缺图：" + BgByAct[act - 1]);
+                if (sp == null) Debug.LogWarning("[Home] 背景缺图：" + BgByAct[act - 1]);
                 else
                 {
-                    if (_bgQuad == null)
-                    {
-                        var go = new GameObject("HomeBg");
-                        go.transform.SetParent(_root, false);
-                        _bgQuad = go.AddComponent<SpriteRenderer>();
-                        _bgQuad.sortingOrder = -1000;
-                    }
-                    _bgQuad.sprite = sp;
-                    var size = sp.bounds.size;
-                    _bgQuad.transform.localScale = new Vector3(
-                        size.x > 0.001f ? (HalfW * 2.08f) / size.x : 1f,
-                        size.y > 0.001f ? (_orthoSize * 2.08f) / size.y : 1f, 1f);
-                    _bgQuad.transform.localPosition = new Vector3(0f, 0f, _bgZ);
+                    if (_bg == null) _bg = MakeImage(_backRoot, "HomeBg", 0);
+                    _bg.sprite = sp;
+                    _bg.preserveAspect = false;
+                    var rt = _bg.rectTransform;
+                    rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+                    rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
                 }
             }
 
@@ -193,11 +153,11 @@ namespace WanXiang.Modules.UI
             float baseWind, baseFog; int baseWeather;
             switch (act)
             {
-                case 1: baseWind = 0.30f; baseFog = 0.32f; baseWeather = 0; break;  // 春：柔风薄雾
-                case 2: baseWind = 0.42f; baseFog = 0.40f; baseWeather = 1; break;  // 夏：阵雨
-                case 3: baseWind = 0.62f; baseFog = 0.36f; baseWeather = 0; break;  // 秋：大风
-                case 4: baseWind = 0.48f; baseFog = 0.52f; baseWeather = 2; break;  // 冬：寒雾飞雪
-                default: baseWind = 0.55f; baseFog = 0.60f; baseWeather = 4; break; // 长夏：低压雷雨
+                case 1: baseWind = 0.30f; baseFog = 0.32f; baseWeather = 0; break;
+                case 2: baseWind = 0.42f; baseFog = 0.40f; baseWeather = 1; break;
+                case 3: baseWind = 0.62f; baseFog = 0.36f; baseWeather = 0; break;
+                case 4: baseWind = 0.48f; baseFog = 0.52f; baseWeather = 2; break;
+                default: baseWind = 0.55f; baseFog = 0.60f; baseWeather = 4; break;
             }
             _wind = Mathf.Clamp01(baseWind + p * 0.45f);
             _fogDensity = Mathf.Clamp01(baseFog + p * 0.40f);
@@ -206,30 +166,51 @@ namespace WanXiang.Modules.UI
             int weather = baseWeather;
             if (p > 0.72f)
             {
-                if (act == 2) weather = 4;        // 夏末 → 雷雨
-                else if (act == 3) weather = 1;   // 秋末 → 起雨
-                else if (act == 4) weather = 2;   // 冬末 → 大雪
-                else if (act == 1) weather = 3;   // 春末 → 转阴
+                if (act == 2) weather = 4;
+                else if (act == 3) weather = 1;
+                else if (act == 4) weather = 2;
+                else if (act == 1) weather = 3;
             }
             SetWeather(weather);
             BuildFog();
-            BuildEco();       // 云/鸟/蝴蝶/地面植被（按幕）
+            BuildEco();
             BuildFallSprite();
+            BuildWater();
+            ApplyTint();
 
-            Debug.Log("[Home3D] 氛围 act=" + act + " 进度=" + p.ToString("0.00") +
+            Debug.Log("[Home] 氛围 act=" + act + " 进度=" + p.ToString("0.00") +
                       " 风=" + _wind.ToString("0.00") + " 雾=" + _fogDensity.ToString("0.00") + " 天气=" + weather);
         }
 
-        // ------------------------------------------------------------------
-        //  自然动态物（按幕配置：云 / 鸟 / 蝴蝶 / 地面植被 / 水）
-        //  ⛔ 用户 2026-10-11："花鸟云啊什么的都加上""动得明显一点""太少了太单一了"
-        //     ⇒ 数量与尺寸整体放大(_globalScale)、速度加快(_globalSpeed)，
-        //       且**每幕一套不同的生态**（不是只换张图）。
-        // ------------------------------------------------------------------
-        /// <summary>每幕的生态配置。</summary>
+        // ------------------------------------------------------------------ 工具
+        private static Image MakeImage(RectTransform parent, string name, int order)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var img = go.AddComponent<Image>();
+            img.raycastTarget = false;          // 氛围层绝不能吃点击
+            img.preserveAspect = true;
+            go.transform.SetSiblingIndex(order);
+            return img;
+        }
+
+        private static void SetSize(Image img, float w, float h)
+        {
+            img.rectTransform.sizeDelta = new Vector2(w, h);
+        }
+
+        /// <summary>按 sprite 原始像素 × 系数 设尺寸（清晰且可控）。</summary>
+        private static void SetSizeBySprite(Image img, float scale)
+        {
+            if (img.sprite == null) return;
+            var r = img.sprite.rect;
+            img.rectTransform.sizeDelta = new Vector2(r.width * scale, r.height * scale);
+        }
+
+        // ------------------------------------------------------------------ 每幕生态
         private struct Eco
         {
-            public int Clouds; public float CloudScale; public float CloudAlpha; public string CloudKind;
+            public int Clouds; public float CloudScale; public float CloudAlpha;
             public int Birds; public bool BirdFlock;
             public int Butterflies;
             public string Ground; public int GroundNum; public float GroundScale;
@@ -239,61 +220,19 @@ namespace WanXiang.Modules.UI
         {
             switch (act)
             {
-                case 1: // 春：云淡、鸟多、蝴蝶飞舞、地面粉色花丛
-                    return new Eco { Clouds = 9, CloudScale = 1.5f, CloudAlpha = 0.75f, CloudKind = "ab",
-                                     Birds = 12, BirdFlock = false, Butterflies = 9,
-                                     Ground = "home_flower_1", GroundNum = 10, GroundScale = 1.35f };
-                case 2: // 夏：云厚偏低、蜻蜓蝴蝶、地面黄花 + 竹
-                    return new Eco { Clouds = 13, CloudScale = 1.9f, CloudAlpha = 0.92f, CloudKind = "bc",
-                                     Birds = 9, BirdFlock = false, Butterflies = 7,
-                                     Ground = "home_flower_2", GroundNum = 12, GroundScale = 1.45f };
-                case 3: // 秋：高云、大雁成群(V字)、芦苇
-                    return new Eco { Clouds = 7, CloudScale = 1.3f, CloudAlpha = 0.68f, CloudKind = "ac",
-                                     Birds = 14, BirdFlock = true, Butterflies = 0,
-                                     Ground = "home_reeds", GroundNum = 12, GroundScale = 1.5f };
-                case 4: // 冬：灰云厚重、鸟少、枯草
-                    return new Eco { Clouds = 15, CloudScale = 2.1f, CloudAlpha = 0.95f, CloudKind = "abc",
-                                     Birds = 4, BirdFlock = false, Butterflies = 0,
-                                     Ground = "home_grass", GroundNum = 11, GroundScale = 1.3f };
-                default: // 长夏：低压雷云、麦田
-                    return new Eco { Clouds = 17, CloudScale = 2.3f, CloudAlpha = 0.98f, CloudKind = "abc",
-                                     Birds = 7, BirdFlock = false, Butterflies = 0,
-                                     Ground = "home_wheat", GroundNum = 13, GroundScale = 1.5f };
+                case 1: return new Eco { Clouds = 10, CloudScale = 0.85f, CloudAlpha = 0.72f, Birds = 14, BirdFlock = false, Butterflies = 10,
+                                         Ground = "home_flower_1", GroundNum = 12, GroundScale = 0.95f };
+                case 2: return new Eco { Clouds = 14, CloudScale = 1.05f, CloudAlpha = 0.90f, Birds = 10, BirdFlock = false, Butterflies = 8,
+                                         Ground = "home_flower_2", GroundNum = 13, GroundScale = 1.00f };
+                case 3: return new Eco { Clouds = 8, CloudScale = 0.75f, CloudAlpha = 0.66f, Birds = 16, BirdFlock = true, Butterflies = 0,
+                                         Ground = "home_reeds", GroundNum = 13, GroundScale = 1.05f };
+                case 4: return new Eco { Clouds = 16, CloudScale = 1.15f, CloudAlpha = 0.94f, Birds = 5, BirdFlock = false, Butterflies = 0,
+                                         Ground = "home_grass", GroundNum = 12, GroundScale = 0.95f };
+                default: return new Eco { Clouds = 18, CloudScale = 1.25f, CloudAlpha = 0.97f, Birds = 8, BirdFlock = false, Butterflies = 0,
+                                          Ground = "home_wheat", GroundNum = 14, GroundScale = 1.05f };
             }
         }
 
-        private void BuildNature()
-        {
-            BuildWater();          // 水是常驻（不管哪一幕都有河）
-        }
-
-        /// <summary>河流水波：两块并排横向无缝循环滚动。</summary>
-        private void BuildWater()
-        {
-            var sp = Resources.Load<Sprite>("UI/Home/home_water");
-            if (sp == null) { Debug.LogWarning("[Home3D] 水波缺图 home_water"); return; }
-            if (_water.Count > 0) return;
-
-            float sw = sp.bounds.size.x;
-            float targetW = HalfW * 2f * 1.02f;
-            float sc = sw > 0.001f ? targetW / sw : 1f;
-            for (int i = 0; i < 2; i++)
-            {
-                var go = new GameObject("Water" + i);
-                go.transform.SetParent(_root, false);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = sp;
-                sr.sortingOrder = -120;                 // 草丛之后、雾之前
-                sr.color = new Color(1f, 1f, 1f, 0.62f);
-                // 高度也放大一点（用户："动得明显一点"）
-                go.transform.localScale = new Vector3(sc, 1.5f * _globalScale, 1f);
-                go.transform.localPosition = new Vector3(i * targetW, -_orthoSize * 0.52f, 2.0f);
-                _water.Add(sr);
-            }
-            Debug.Log("[Home3D] 河流水波 2 块就绪");
-        }
-
-        /// <summary>按幕重建云/鸟/蝴蝶/地面植被。</summary>
         private void BuildEco()
         {
             var eco = EcoForAct(Mathf.Clamp(_curAct, 1, 5));
@@ -303,270 +242,162 @@ namespace WanXiang.Modules.UI
             BuildGround(eco);
         }
 
-        // ---------------- 云 ----------------
-        private readonly List<Cloud> _clouds = new List<Cloud>();
-        private struct Cloud { public Transform T; public SpriteRenderer Sr; public float Speed, X, Y; }
+        private void DestroyNodes<T>(List<T> list, System.Func<T, RectTransform> get)
+        {
+            for (int i = 0; i < list.Count; i++)
+            {
+                var t = get(list[i]);
+                if (t != null) Destroy(t.gameObject);
+            }
+            list.Clear();
+        }
+        private RectTransform RToC(Cloud c) { return c.T; }
+        private RectTransform RToF(Flyer f) { return f.T; }
+        private RectTransform RToS(Swayer s) { return s.T; }
 
+        // ---------------- 云 ----------------
         private void BuildClouds(Eco eco)
         {
-            for (int i = 0; i < _clouds.Count; i++) if (_clouds[i].T != null) Destroy(_clouds[i].T.gameObject);
-            _clouds.Clear();
-
-            // 三种云形轮换
+            DestroyNodes<Cloud>(_clouds, RToC);
             string[] kinds = { "home_cloud_a", "home_cloud_b", "home_cloud_c" };
-            int n = Mathf.RoundToInt(eco.Clouds);
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < eco.Clouds; i++)
             {
-                string kn = kinds[i % kinds.Length];
-                if (eco.CloudKind.IndexOf((char)('a' + (i % 3))) < 0) kn = kinds[(i + 1) % kinds.Length];
-                var sp = Resources.Load<Sprite>("UI/Home/" + kn);
-                if (sp == null) { Debug.LogWarning("[Home3D] 云缺图 " + kn); continue; }
-
-                var go = new GameObject("Cloud" + i);
-                go.transform.SetParent(_root, false);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = sp;
-                float z = 4.4f - (i % 3) * 0.9f;               // 三层深度
-                sr.sortingOrder = -700 + i % 3;
-                sr.color = new Color(1f, 1f, 1f, eco.CloudAlpha * (0.72f + 0.28f * ((i % 3) / 2f)));
-                float sc = eco.CloudScale * _globalScale * Random.Range(0.75f, 1.35f);
-                go.transform.localScale = new Vector3(sc, sc * Random.Range(0.8f, 1.05f), 1f);
-                float sw = sp.bounds.size.x * sc;
-                float x = Random.Range(-HalfW - sw, HalfW + sw);
-                float y = Random.Range(_orthoSize * 0.12f, _orthoSize * 0.95f);
-                go.transform.localPosition = new Vector3(x, y, z);
-                _clouds.Add(new Cloud
-                {
-                    T = go.transform, Sr = sr, X = x, Y = y,
-                    Speed = (0.22f + (i % 3) * 0.14f) * _globalSpeed,
-                });
+                var sp = Resources.Load<Sprite>("UI/Home/" + kinds[i % 3]);
+                if (sp == null) { Debug.LogWarning("[Home] 云缺图"); break; }
+                var img = MakeImage(_natureRoot, "Cloud" + i, i);
+                img.sprite = sp;
+                SetSizeBySprite(img, eco.CloudScale * _globalScale * Random.Range(0.8f, 1.3f));
+                img.color = new Color(1f, 1f, 1f, eco.CloudAlpha * (0.72f + 0.28f * Random.value));
+                float w = img.rectTransform.sizeDelta.x;
+                float x = Random.Range(-HalfW - w * 0.5f, HalfW + w * 0.5f);
+                float y = Random.Range(-HalfH * 0.10f, HalfH * 0.88f);
+                img.rectTransform.anchoredPosition = new Vector2(x, y);
+                _clouds.Add(new Cloud { T = img.rectTransform, Img = img, X = x, Y = y,
+                                        Speed = (140f + (i % 3) * 90f) * _globalSpeed, Width = w });
             }
-            Debug.Log("[Home3D] 云 " + _clouds.Count + " 朵");
+            Debug.Log("[Home] 云 " + _clouds.Count + " 朵");
         }
 
-        private void StepClouds(float dt, float windNow)
-        {
-            for (int i = 0; i < _clouds.Count; i++)
-            {
-                var c = _clouds[i];
-                if (c.T == null) continue;
-                c.X += c.Speed * _windDir * (0.6f + windNow) * dt;
-                float sw = c.Sr.sprite != null ? c.Sr.sprite.bounds.size.x * c.T.localScale.x : 4f;
-                if (c.X > HalfW + sw) c.X = -HalfW - sw;        // 从右侧绕回左侧
-                if (c.X < -HalfW - sw) c.X = HalfW + sw;
-                c.T.localPosition = new Vector3(c.X, c.Y, c.T.localPosition.z);
-                _clouds[i] = c;
-            }
-        }
-
-        // ---------------- 鸟（含 V 字雁群）----------------
+        // ---------------- 鸟 / 蝴蝶 ----------------
         private void BuildBirds(Eco eco)
         {
-            for (int i = 0; i < _birds.Count; i++) if (_birds[i].T != null) Destroy(_birds[i].T.gameObject);
-            _birds.Clear();
+            DestroyNodes<Flyer>(_birds, RToF);
             var f0 = Resources.Load<Sprite>("UI/Home/home_bird");
             var f1 = Resources.Load<Sprite>("UI/Home/home_bird2");
-            if (f0 == null || f1 == null) { Debug.LogWarning("[Home3D] 飞鸟缺图"); return; }
+            if (f0 == null || f1 == null) { Debug.LogWarning("[Home] 飞鸟缺图"); return; }
 
-            int n = Mathf.RoundToInt(eco.Birds);
+            int n = eco.Birds;
             bool flock = eco.BirdFlock;
             float flockDir = Random.value > 0.5f ? 1f : -1f;
-            float flockY = Random.Range(_orthoSize * 0.42f, _orthoSize * 0.80f);
-            float flockX = Random.Range(-HalfW * 0.6f, HalfW * 0.2f);
-            float flockSpeed = Random.Range(1.1f, 1.6f) * _globalSpeed;
+            float flockY = Random.Range(HalfH * 0.30f, HalfH * 0.82f);
+            float flockX = Random.Range(-HalfW * 0.55f, HalfW * 0.15f);
+            float flockSpeed = Random.Range(120f, 170f) * _globalSpeed;
 
             for (int i = 0; i < n; i++)
             {
-                var go = new GameObject("Bird" + i);
-                go.transform.SetParent(_root, false);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = f0;
-                float z = 3.4f + Random.Range(-0.6f, 0.8f);
-                sr.sortingOrder = -500 + i % 5;
-                float sc = Random.Range(0.40f, 0.85f) * _globalScale;
-                go.transform.localScale = new Vector3(sc, sc, 1f);
-
-                float x, y, spd;
+                var img = MakeImage(_natureRoot, "Bird" + i, i);
+                img.sprite = f0;
+                float sz = Random.Range(78f, 150f) * _globalScale;
+                SetSize(img, sz, sz);
+                float x, y, vx;
                 if (flock)
                 {
-                    // V 字雁群：以 flock 为队首，其余按 V 形偏移
                     int row = (i + 1) / 2;
                     float side = (i % 2 == 0) ? 1f : -1f;
-                    x = flockX - flockDir * row * 0.95f;
-                    y = flockY + side * row * 0.42f;
-                    spd = flockSpeed;
-                    if (flockDir < 0f) spd = -Mathf.Abs(spd); else spd = Mathf.Abs(spd);
+                    x = flockX - flockDir * row * 62f;
+                    y = flockY + side * row * 30f;
+                    vx = flockDir * flockSpeed;
                 }
                 else
                 {
                     x = Random.Range(-HalfW * 1.1f, HalfW * 1.1f);
-                    y = Random.Range(_orthoSize * 0.22f, _orthoSize * 0.92f);
-                    spd = Random.Range(0.75f, 1.6f) * _globalSpeed * (Random.value > 0.25f ? 1f : -1f);
+                    y = Random.Range(HalfH * 0.20f, HalfH * 0.92f);
+                    vx = Random.Range(85f, 185f) * _globalSpeed * (Random.value > 0.25f ? 1f : -1f);
                 }
-                go.transform.localPosition = new Vector3(x, y, z);
-                _birds.Add(new Bird
-                {
-                    T = go.transform, Sr = sr, X = x, Y = y, Speed = spd,
-                    FlapT = Random.Range(0f, 0.3f), Frame = 0,
-                });
+                img.rectTransform.anchoredPosition = new Vector2(x, y);
+                _birds.Add(new Flyer { T = img.rectTransform, Img = img, X = x, Y = y, VX = vx,
+                                       FlapT = Random.Range(0f, 0.3f), Phase = Random.Range(0f, 6.28f), Frame = 0 });
             }
-            Debug.Log("[Home3D] 飞鸟 " + _birds.Count + " 只" + (flock ? "(V字雁群)" : ""));
+            Debug.Log("[Home] 飞鸟 " + _birds.Count + " 只" + (flock ? "(V字雁群)" : ""));
         }
-
-        private void StepBirds(float dt)
-        {
-            for (int i = 0; i < _birds.Count; i++)
-            {
-                var b = _birds[i];
-                if (b.T == null) continue;
-                b.X += b.Speed * dt;
-                float margin = HalfW * 1.25f;
-                if (b.X > margin) b.X = -margin;
-                if (b.X < -margin) b.X = margin;
-                b.Y += Mathf.Sin(Time.time * 1.1f + i * 0.7f) * 0.18f * dt;
-                b.T.localPosition = new Vector3(b.X, b.Y, b.T.localPosition.z);
-                float face = b.Speed >= 0f ? 1f : -1f;
-                var sc = b.T.localScale;
-                b.T.localScale = new Vector3(Mathf.Abs(sc.x) * face, sc.y, sc.z);
-
-                b.FlapT += dt;
-                float iv = 0.19f;
-                if (b.FlapT > iv)
-                {
-                    b.FlapT -= iv;
-                    b.Frame = 1 - b.Frame;
-                    b.Sr.sprite = Resources.Load<Sprite>(b.Frame == 0 ? "UI/Home/home_bird" : "UI/Home/home_bird2");
-                }
-                _birds[i] = b;
-            }
-        }
-
-        // ---------------- 蝴蝶 ----------------
-        private readonly List<Butterfly> _butterflies = new List<Butterfly>();
-        private struct Butterfly { public Transform T; public SpriteRenderer Sr; public float X, Y, VX, FlapT, Phase; public int Frame; }
 
         private void BuildButterflies(Eco eco)
         {
-            for (int i = 0; i < _butterflies.Count; i++) if (_butterflies[i].T != null) Destroy(_butterflies[i].T.gameObject);
-            _butterflies.Clear();
-            int n = Mathf.RoundToInt(eco.Butterflies);
-            if (n <= 0) return;
+            DestroyNodes<Flyer>(_butterflies, RToF);
+            if (eco.Butterflies <= 0) return;
             var a = Resources.Load<Sprite>("UI/Home/home_butterfly_a");
             var b = Resources.Load<Sprite>("UI/Home/home_butterfly_b");
-            if (a == null || b == null) { Debug.LogWarning("[Home3D] 蝴蝶缺图"); return; }
+            if (a == null || b == null) { Debug.LogWarning("[Home] 蝴蝶缺图"); return; }
 
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < eco.Butterflies; i++)
             {
-                var go = new GameObject("Butterfly" + i);
-                go.transform.SetParent(_root, false);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = a;
-                sr.sortingOrder = -150 + i % 4;
-                float sc = Random.Range(0.34f, 0.62f) * _globalScale;
-                go.transform.localScale = new Vector3(sc, sc, 1f);
+                var img = MakeImage(_natureRoot, "Butterfly" + i, i);
+                img.sprite = a;
+                float sz = Random.Range(56f, 96f) * _globalScale;
+                SetSize(img, sz, sz);
                 float x = Random.Range(-HalfW * 0.9f, HalfW * 0.9f);
-                float y = Random.Range(-_orthoSize * 0.55f, _orthoSize * 0.30f);   // 中下部（贴近地面/水面）
-                go.transform.localPosition = new Vector3(x, y, 0.9f);
-                _butterflies.Add(new Butterfly
-                {
-                    T = go.transform, Sr = sr, X = x, Y = y,
-                    VX = Random.Range(0.35f, 0.85f) * _globalSpeed * (Random.value > 0.5f ? 1f : -1f),
-                    FlapT = Random.Range(0f, 0.2f), Phase = Random.Range(0f, 6.28f), Frame = 0,
-                });
+                float y = Random.Range(-HalfH * 0.62f, HalfH * 0.18f);
+                img.rectTransform.anchoredPosition = new Vector2(x, y);
+                _butterflies.Add(new Flyer { T = img.rectTransform, Img = img, X = x, Y = y,
+                                             VX = Random.Range(50f, 115f) * _globalSpeed * (Random.value > 0.5f ? 1f : -1f),
+                                             FlapT = Random.Range(0f, 0.2f), Phase = Random.Range(0f, 6.28f), Frame = 0 });
             }
-            Debug.Log("[Home3D] 蝴蝶 " + _butterflies.Count + " 只");
-        }
-
-        private void StepButterflies(float dt)
-        {
-            float t = Time.time;
-            for (int i = 0; i < _butterflies.Count; i++)
-            {
-                var b = _butterflies[i];
-                if (b.T == null) continue;
-                // 飘忽飞行：横向匀速 + 纵向正弦 + 换向
-                b.X += b.VX * dt;
-                if (b.X > HalfW * 0.95f) { b.X = HalfW * 0.95f; b.VX = -Mathf.Abs(b.VX); }
-                if (b.X < -HalfW * 0.95f) { b.X = -HalfW * 0.95f; b.VX = Mathf.Abs(b.VX); }
-                float y = b.Y + Mathf.Sin(t * 1.6f + b.Phase) * 0.55f + Mathf.Sin(t * 3.1f + b.Phase * 2f) * 0.18f;
-                b.T.localPosition = new Vector3(b.X, y, b.T.localPosition.z);
-                float face = b.VX >= 0f ? 1f : -1f;
-                var sc = b.T.localScale;
-                b.T.localScale = new Vector3(Mathf.Abs(sc.x) * face, sc.y, sc.z);
-
-                b.FlapT += dt;
-                if (b.FlapT > 0.13f)
-                {
-                    b.FlapT -= 0.13f;
-                    b.Frame = 1 - b.Frame;
-                    b.Sr.sprite = Resources.Load<Sprite>(b.Frame == 0 ? "UI/Home/home_butterfly_a" : "UI/Home/home_butterfly_b");
-                }
-                _butterflies[i] = b;
-            }
+            Debug.Log("[Home] 蝴蝶 " + _butterflies.Count + " 只");
         }
 
         // ---------------- 地面植被 ----------------
         private void BuildGround(Eco eco)
         {
-            for (int i = 0; i < _swayers.Count; i++) if (_swayers[i].T != null) Destroy(_swayers[i].T.gameObject);
-            _swayers.Clear();
+            DestroyNodes<Swayer>(_swayers, RToS);
             var sp = Resources.Load<Sprite>("UI/Home/" + eco.Ground);
-            if (sp == null) { Debug.LogWarning("[Home3D] 地面植被缺图 " + eco.Ground); return; }
+            if (sp == null) { Debug.LogWarning("[Home] 地面植被缺图 " + eco.Ground); return; }
 
-            int n = Mathf.RoundToInt(eco.GroundNum);
-            float bottom = -_orthoSize;
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < eco.GroundNum; i++)
             {
-                var go = new GameObject("Ground" + i);
-                go.transform.SetParent(_root, false);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = sp;
-                float z = 2.6f - (i % 4) * 0.22f;          // 前后错落
-                sr.sortingOrder = -200 + i % 4;
-                float sc = eco.GroundScale * _globalScale * Random.Range(0.80f, 1.30f);
-                go.transform.localScale = new Vector3(sc * (Random.value > 0.5f ? 1f : -1f), sc, 1f);
-                float x = -HalfW + (i + 0.5f) * (HalfW * 2f / n) + Random.Range(-0.42f, 0.42f);
-                float half = sp.bounds.size.y * sc * 0.5f;
-                go.transform.localPosition = new Vector3(x, bottom + half * 0.42f, z);
-                _swayers.Add(new Swayer
-                {
-                    T = go.transform,
-                    Amp = Random.Range(2.2f, 5.5f),        // 摆幅放大（"动得明显一点"）
-                    Freq = Random.Range(0.65f, 1.25f),
-                    Phase = Random.Range(0f, 6.28f),
-                });
+                var img = MakeImage(_natureRoot, "Ground" + i, i);
+                img.sprite = sp;
+                SetSizeBySprite(img, eco.GroundScale * _globalScale * Random.Range(0.85f, 1.35f));
+                float hh = img.rectTransform.sizeDelta.y;
+                float x = -HalfW + (i + 0.5f) * (W / eco.GroundNum) + Random.Range(-30f, 30f);
+                float y = -HalfH + hh * 0.38f;      // 贴屏底，只露上半
+                img.rectTransform.anchoredPosition = new Vector2(x, y);
+                _swayers.Add(new Swayer { T = img.rectTransform,
+                                          Amp = Random.Range(2.4f, 6.0f), Freq = Random.Range(0.65f, 1.25f), Phase = Random.Range(0f, 6.28f) });
             }
-            Debug.Log("[Home3D] 地面植被 " + _swayers.Count + " 丛（" + eco.Ground + "）");
+            Debug.Log("[Home] 地面植被 " + _swayers.Count + " 丛（" + eco.Ground + "）");
         }
 
-        private void StepSwayers(float dt, float windNow)
+        // ---------------- 水（常驻） ----------------
+        private void BuildWater()
         {
-            float t = Time.time;
-            for (int i = 0; i < _swayers.Count; i++)
+            if (_water.Count > 0) return;
+            var sp = Resources.Load<Sprite>("UI/Home/home_water");
+            if (sp == null) { Debug.LogWarning("[Home] 水波缺图"); return; }
+            float targetW = W * 1.02f;
+            for (int i = 0; i < 2; i++)
             {
-                var s = _swayers[i];
-                if (s.T == null) continue;
-                float ang = Mathf.Sin(t * s.Freq + s.Phase) * s.Amp * (0.45f + windNow);
-                s.T.localRotation = Quaternion.Euler(0f, 0f, ang);
-                _swayers[i] = s;
+                var img = MakeImage(_natureRoot, "Water" + i, i);
+                img.sprite = sp;
+                img.color = new Color(1f, 1f, 1f, 0.62f);
+                SetSize(img, targetW, 110f * _globalScale);
+                img.rectTransform.anchoredPosition = new Vector2(i * targetW, -HalfH * 0.52f);
+                _water.Add(img);
             }
+            Debug.Log("[Home] 河流水波 2 块就绪");
         }
 
-        // ------------------------------------------------------------------
-        //  雾（程序化无缝纹理，三层视差）
-        // ------------------------------------------------------------------
+        // ------------------------------------------------------------------ 雾
         private static Sprite _fogSprite;
 
         private static Sprite FogSprite()
         {
             if (_fogSprite != null) return _fogSprite;
-            const int W = 256, H = 128;
-            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
-            for (int y = 0; y < H; y++)
-                for (int x = 0; x < W; x++)
+            const int TW = 256, TH = 128;
+            var tex = new Texture2D(TW, TH, TextureFormat.RGBA32, false);
+            for (int y = 0; y < TH; y++)
+                for (int x = 0; x < TW; x++)
                 {
-                    float u = (float)x / W, v = (float)y / H;
-                    // 整数频率正弦叠加 ⇒ u 方向天然无缝
+                    float u = (float)x / TW, v = (float)y / TH;
                     float a = 0.5f;
                     a += Mathf.Sin(u * Mathf.PI * 2f + v * 3.1f) * 0.26f;
                     a += Mathf.Sin(u * Mathf.PI * 4f + v * 5.7f + 1.3f) * 0.16f;
@@ -576,7 +407,7 @@ namespace WanXiang.Modules.UI
                 }
             tex.Apply();
             tex.wrapMode = TextureWrapMode.Repeat;
-            _fogSprite = Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+            _fogSprite = Sprite.Create(tex, new Rect(0, 0, TW, TH), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
             return _fogSprite;
         }
 
@@ -584,56 +415,46 @@ namespace WanXiang.Modules.UI
         {
             if (_fog.Count == 0)
             {
-                AddFogLayer(4.6f, 0.055f, 0.30f);
-                AddFogLayer(3.2f, 0.100f, 0.24f);
-                AddFogLayer(1.9f, 0.170f, 0.18f);
+                AddFogLayer(0.30f, 55f);
+                AddFogLayer(0.24f, 100f);
+                AddFogLayer(0.18f, 165f);
             }
             for (int i = 0; i < _fog.Count; i++)
             {
                 var f = _fog[i];
-                if (f.Sr == null) continue;
-                f.Sr.color = new Color(1f, 1f, 1f, f.Alpha * (0.5f + _fogDensity));
+                if (f.Img == null) continue;
+                f.Img.color = new Color(1f, 1f, 1f, f.Alpha * (0.5f + _fogDensity));
                 _fog[i] = f;
             }
         }
 
-        private void AddFogLayer(float z, float speed, float alpha)
+        private void AddFogLayer(float alpha, float speed)
         {
-            var sp = FogSprite();
-            float sw = sp.bounds.size.x;
-            float blockW = HalfW * 2f / sw * 1.06f;
-            var go = new GameObject("Fog_z" + z);
-            go.transform.SetParent(_root, false);
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = sp;
-            sr.sortingOrder = -900 + Mathf.RoundToInt(-z * 10f);
-            sr.color = new Color(1f, 1f, 1f, alpha);
-            go.transform.localScale = new Vector3(blockW * 2f, 1.6f, 1f);
-            go.transform.localPosition = new Vector3(0f, Random.Range(-0.6f, 1.4f), z);
-            _fog.Add(new FogLayer { Sr = sr, Speed = speed, Width = sw * blockW * 2f, Alpha = alpha });
+            float w = W * 2.2f;
+            var img = MakeImage(_backRoot, "Fog" + _fog.Count, 10 + _fog.Count);
+            img.sprite = FogSprite();
+            img.color = new Color(1f, 1f, 1f, alpha);
+            SetSize(img, w, 300f);
+            img.rectTransform.anchoredPosition = new Vector2(0f, Random.Range(-60f, 150f));
+            _fog.Add(new FogLayer { Img = img, Speed = speed * _globalSpeed, Width = w, Alpha = alpha });
         }
 
-        // ------------------------------------------------------------------
-        //  天气（SpriteRenderer 池，⛔ 不用 ParticleSystem，避免洋红）
-        // ------------------------------------------------------------------
+        // ------------------------------------------------------------------ 天气
         private Sprite _rainDot;
 
         private Sprite RainDot()
         {
             if (_rainDot != null) return _rainDot;
-            // 细长竖条（雨丝）；带上下淡出
-            const int W = 4, H = 32;
-            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
-            for (int y = 0; y < H; y++)
-                for (int x = 0; x < W; x++)
+            const int TW = 4, TH = 32;
+            var tex = new Texture2D(TW, TH, TextureFormat.RGBA32, false);
+            for (int y = 0; y < TH; y++)
+                for (int x = 0; x < TW; x++)
                 {
-                    float v = (float)y / (H - 1);
-                    float a = Mathf.Sin(v * Mathf.PI) * 0.85f;
-                    float edge = 1f - Mathf.Abs(x - (W - 1) * 0.5f) / (W * 0.5f);
-                    tex.SetPixel(x, y, new Color(0.80f, 0.87f, 0.96f, a * Mathf.Clamp01(edge + 0.3f)));
+                    float v = (float)y / (TH - 1);
+                    tex.SetPixel(x, y, new Color(0.80f, 0.87f, 0.96f, Mathf.Sin(v * Mathf.PI) * 0.85f));
                 }
             tex.Apply();
-            _rainDot = Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+            _rainDot = Sprite.Create(tex, new Rect(0, 0, TW, TH), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
             return _rainDot;
         }
 
@@ -643,18 +464,13 @@ namespace WanXiang.Modules.UI
             var sp = RainDot();
             for (int i = 0; i < _rainCount; i++)
             {
-                var go = new GameObject("Rain" + i);
-                go.transform.SetParent(_root, false);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = sp;
-                sr.sortingOrder = 300;
-                float len = Random.Range(0.8f, 1.8f);
-                float wid = Random.Range(0.5f, 0.9f);
-                go.transform.localScale = new Vector3(wid, len, 1f);
-                float x = Random.Range(-HalfW * 1.1f, HalfW * 1.1f);
-                float y = Random.Range(-_orthoSize, _orthoSize);
-                go.transform.localPosition = new Vector3(x, y, 1.0f);
-                _rain.Add(new Faller { T = go.transform, Sr = sr, X = x, Y = y, Speed = Random.Range(9f, 15f) });
+                var img = MakeImage(_natureRoot, "Rain" + i, 500 + i);
+                img.sprite = sp;
+                SetSize(img, Random.Range(4f, 7f), Random.Range(120f, 300f));
+                float x = Random.Range(-HalfW * 1.15f, HalfW * 1.15f);
+                float y = Random.Range(-HalfH, HalfH);
+                img.rectTransform.anchoredPosition = new Vector2(x, y);
+                _rain.Add(new Faller { T = img.rectTransform, Img = img, X = x, Y = y, Speed = Random.Range(900f, 1500f) });
             }
         }
 
@@ -665,24 +481,16 @@ namespace WanXiang.Modules.UI
             if (sp == null) return;
             for (int i = 0; i < _snowCount; i++)
             {
-                var go = new GameObject("Snow" + i);
-                go.transform.SetParent(_root, false);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = sp;
-                sr.sortingOrder = 300;
-                float sc = Random.Range(0.10f, 0.26f);
-                go.transform.localScale = new Vector3(sc, sc, 1f);
+                var img = MakeImage(_natureRoot, "Snow" + i, 500 + i);
+                img.sprite = sp;
+                float sz = Random.Range(16f, 40f) * _globalScale;
+                SetSize(img, sz, sz);
                 float x = Random.Range(-HalfW, HalfW);
-                float y = Random.Range(-_orthoSize, _orthoSize);
-                go.transform.localPosition = new Vector3(x, y, 1.0f);
-                _snow.Add(new Faller
-                {
-                    T = go.transform, Sr = sr, X = x, Y = y,
-                    Speed = Random.Range(0.6f, 1.5f),
-                    SwayAmp = Random.Range(0.15f, 0.5f),
-                    SwayFreq = Random.Range(0.4f, 1.1f),
-                    Phase = Random.Range(0f, 6.28f),
-                });
+                float y = Random.Range(-HalfH, HalfH);
+                img.rectTransform.anchoredPosition = new Vector2(x, y);
+                _snow.Add(new Faller { T = img.rectTransform, Img = img, X = x, Y = y,
+                                       Speed = Random.Range(45f, 120f) * _globalSpeed,
+                                       SwayAmp = Random.Range(12f, 40f), SwayFreq = Random.Range(0.4f, 1.1f), Phase = Random.Range(0f, 6.28f) });
             }
         }
 
@@ -691,29 +499,20 @@ namespace WanXiang.Modules.UI
             var sp = Resources.Load<Sprite>(FallByAct[Mathf.Clamp(_curAct, 1, 5) - 1]);
             if (sp == null || sp == _fallSprite) return;
             _fallSprite = sp;
-            // 重建飘落池（换幕换图）
             for (int i = 0; i < _fall.Count; i++) if (_fall[i].T != null) Destroy(_fall[i].T.gameObject);
             _fall.Clear();
             for (int i = 0; i < _fallCount; i++)
             {
-                var go = new GameObject("Fall" + i);
-                go.transform.SetParent(_root, false);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = sp;
-                sr.sortingOrder = 250;
-                float sc = Random.Range(0.18f, 0.40f);
-                go.transform.localScale = new Vector3(sc, sc, 1f);
+                var img = MakeImage(_natureRoot, "Fall" + i, 400 + i);
+                img.sprite = sp;
+                float sz = Random.Range(28f, 64f) * _globalScale;
+                SetSize(img, sz, sz);
                 float x = Random.Range(-HalfW, HalfW);
-                float y = Random.Range(-_orthoSize, _orthoSize);
-                go.transform.localPosition = new Vector3(x, y, 1.2f);
-                _fall.Add(new Faller
-                {
-                    T = go.transform, Sr = sr, X = x, Y = y,
-                    Speed = Random.Range(0.5f, 1.2f),
-                    SwayAmp = Random.Range(0.25f, 0.7f),
-                    SwayFreq = Random.Range(0.5f, 1.2f),
-                    Phase = Random.Range(0f, 6.28f),
-                });
+                float y = Random.Range(-HalfH, HalfH);
+                img.rectTransform.anchoredPosition = new Vector2(x, y);
+                _fall.Add(new Faller { T = img.rectTransform, Img = img, X = x, Y = y,
+                                       Speed = Random.Range(40f, 95f) * _globalSpeed,
+                                       SwayAmp = Random.Range(18f, 55f), SwayFreq = Random.Range(0.5f, 1.2f), Phase = Random.Range(0f, 6.28f) });
             }
         }
 
@@ -721,55 +520,43 @@ namespace WanXiang.Modules.UI
         {
             Init();
             _weatherKind = kind;
-            bool rain = (kind == 1 || kind == 4);
-            bool snow = (kind == 2);
+            bool rain = (kind == 1 || kind == 4), snow = (kind == 2);
             if (rain) BuildRainPool();
             if (snow) BuildSnowPool();
             for (int i = 0; i < _rain.Count; i++) if (_rain[i].T != null) _rain[i].T.gameObject.SetActive(rain);
             for (int i = 0; i < _snow.Count; i++) if (_snow[i].T != null) _snow[i].T.gameObject.SetActive(snow);
-
-            ApplyWeatherTint();
+            ApplyTint();
             if (kind != 4) { _flashTimer = 0f; _flashLife = 0f; SetFlashAlpha(0f); }
-            Debug.Log("[Home3D] 天气 kind=" + kind + (kind == 4 ? "（雷雨）" : ""));
+            Debug.Log("[Home] 天气 kind=" + kind + (kind == 4 ? "（雷雨）" : ""));
         }
 
-        private void ApplyWeatherTint()
+        private void ApplyTint()
         {
-            float dim = _weatherKind == 4 ? 0.58f
-                      : _weatherKind == 3 ? 0.68f
-                      : _weatherKind == 1 ? 0.78f
-                      : _weatherKind == 2 ? 0.92f : 1f;
-            dim = Mathf.Clamp(dim - _progress * 0.10f, 0.35f, 1f);
-            if (_bgQuad != null) _bgQuad.color = new Color(dim, dim, dim, 1f);
-            if (_cam != null)
-                _cam.backgroundColor = _weatherKind == 4 ? new Color(0.52f, 0.54f, 0.58f)
-                                     : _weatherKind == 3 ? new Color(0.60f, 0.62f, 0.64f)
-                                     : _weatherKind == 1 ? new Color(0.70f, 0.73f, 0.76f)
-                                     : new Color(0.86f, 0.87f, 0.86f);
+            float dim = _weatherKind == 4 ? 0.62f
+                      : _weatherKind == 3 ? 0.72f
+                      : _weatherKind == 1 ? 0.82f
+                      : _weatherKind == 2 ? 0.94f : 1f;
+            dim = Mathf.Clamp(dim - _progress * 0.10f, 0.42f, 1f);
+            if (_bg != null) _bg.color = new Color(dim, dim, dim, 1f);
         }
 
         private void EnsureFlash()
         {
             if (_flash != null) return;
-            var go = new GameObject("Flash");
-            go.transform.SetParent(_root, false);
-            go.transform.localPosition = new Vector3(0f, 0f, 0.4f);
-            var sr = go.AddComponent<SpriteRenderer>();
-            var t = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            for (int i = 0; i < 4; i++) t.SetPixel(i % 2, i / 2, Color.white);
-            t.Apply();
-            sr.sprite = Sprite.Create(t, new Rect(0, 0, 2, 2), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
-            go.transform.localScale = new Vector3(HalfW * 2.4f, _orthoSize * 2.4f, 1f);
-            sr.sortingOrder = 800;
-            sr.color = new Color(1f, 1f, 1f, 0f);
-            _flash = sr;
+            _flash = MakeImage(_natureRoot, "Flash", 900);
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            for (int i = 0; i < 4; i++) tex.SetPixel(i % 2, i / 2, Color.white);
+            tex.Apply();
+            _flash.sprite = Sprite.Create(tex, new Rect(0, 0, 2, 2), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+            var rt = _flash.rectTransform;
+            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+            _flash.color = new Color(1f, 1f, 1f, 0f);
         }
 
         private void SetFlashAlpha(float a) { if (_flash != null) _flash.color = new Color(1f, 1f, 1f, a); }
 
-        // ------------------------------------------------------------------
-        //  每帧推进
-        // ------------------------------------------------------------------
+        // ------------------------------------------------------------------ 推进
         private void Update()
         {
             if (!Running) return;
@@ -779,8 +566,8 @@ namespace WanXiang.Modules.UI
 
             StepFog(dt, windNow);
             StepClouds(dt, windNow);
-            StepBirds(dt);
-            StepButterflies(dt);
+            StepFlyers(_birds, dt, true);
+            StepFlyers(_butterflies, dt, false);
             StepSwayers(dt, windNow);
             StepWater(dt, windNow);
             StepFallers(_rain, dt, windNow, true);
@@ -791,61 +578,109 @@ namespace WanXiang.Modules.UI
 
         private void StepFog(float dt, float windNow)
         {
+            float span = W * 2.2f;
             for (int i = 0; i < _fog.Count; i++)
             {
                 var f = _fog[i];
-                if (f.Sr == null) continue;
-                var p = f.Sr.transform.localPosition;
-                p.x += f.Speed * _windDir * windNow * dt * 6f;
-                float half = f.Width * 0.5f;
-                if (p.x > half) p.x -= f.Width;
-                else if (p.x < -half) p.x += f.Width;
-                f.Sr.transform.localPosition = p;
+                if (f.Img == null) continue;
+                var p = f.Img.rectTransform.anchoredPosition;
+                p.x += f.Speed * _windDir * windNow * dt;
+                if (p.x > span) p.x -= span * 2f;
+                if (p.x < -span) p.x += span * 2f;
+                f.Img.rectTransform.anchoredPosition = p;
                 _fog[i] = f;
+            }
+        }
+
+        private void StepClouds(float dt, float windNow)
+        {
+            for (int i = 0; i < _clouds.Count; i++)
+            {
+                var c = _clouds[i];
+                if (c.T == null) continue;
+                c.X += c.Speed * _windDir * (0.6f + windNow) * dt;
+                float lim = HalfW + c.Width * 0.6f;
+                if (c.X > lim) c.X = -lim;
+                if (c.X < -lim) c.X = lim;
+                c.T.anchoredPosition = new Vector2(c.X, c.Y);
+                _clouds[i] = c;
+            }
+        }
+
+        private void StepFlyers(List<Flyer> list, float dt, bool isBird)
+        {
+            float t = Time.time;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var f = list[i];
+                if (f.T == null) continue;
+                f.X += f.VX * dt;
+                float lim = HalfW * 1.2f;
+                if (f.X > lim) f.X = -lim;
+                if (f.X < -lim) f.X = lim;
+                float y = f.Y + (isBird
+                    ? Mathf.Sin(t * 1.1f + f.Phase) * 10f
+                    : Mathf.Sin(t * 1.6f + f.Phase) * 38f + Mathf.Sin(t * 3.2f + f.Phase * 2f) * 14f);
+                f.T.anchoredPosition = new Vector2(f.X, y);
+                f.T.localScale = new Vector3(f.VX >= 0f ? 1f : -1f, 1f, 1f);   // 朝向
+
+                f.FlapT += dt;
+                float iv = isBird ? 0.19f : 0.13f;
+                if (f.FlapT > iv)
+                {
+                    f.FlapT -= iv;
+                    f.Frame = 1 - f.Frame;
+                    f.Img.sprite = Resources.Load<Sprite>(isBird
+                        ? (f.Frame == 0 ? "UI/Home/home_bird" : "UI/Home/home_bird2")
+                        : (f.Frame == 0 ? "UI/Home/home_butterfly_a" : "UI/Home/home_butterfly_b"));
+                }
+                list[i] = f;
+            }
+        }
+
+        private void StepSwayers(float dt, float windNow)
+        {
+            float t = Time.time;
+            for (int i = 0; i < _swayers.Count; i++)
+            {
+                var s = _swayers[i];
+                if (s.T == null) continue;
+                s.T.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * s.Freq + s.Phase) * s.Amp * (0.45f + windNow));
+                _swayers[i] = s;
             }
         }
 
         private void StepWater(float dt, float windNow)
         {
             if (_water.Count == 0) return;
-            float speed = 0.25f + windNow * 0.9f;
-            float total = 0f;
-            foreach (var sr in _water) if (sr != null) total = Mathf.Max(total, sr.bounds.size.x);
-            if (total <= 0.001f) return;
+            float total = W * 1.02f;
+            float sp = (28f + windNow * 95f) * _globalSpeed;
             for (int i = 0; i < _water.Count; i++)
             {
-                var sr = _water[i];
-                if (sr == null) continue;
-                var p = sr.transform.localPosition;
-                p.x -= speed * _windDir * dt;
+                var img = _water[i];
+                if (img == null) continue;
+                var p = img.rectTransform.anchoredPosition;
+                p.x -= sp * _windDir * dt;
                 if (p.x < -total) p.x += total * 2f;
                 if (p.x > total) p.x -= total * 2f;
-                sr.transform.localPosition = p;
+                img.rectTransform.anchoredPosition = p;
             }
         }
 
         private void StepFallers(List<Faller> list, float dt, float windNow, bool isRain)
         {
-            float bottom = -_orthoSize - 0.8f, top = _orthoSize + 0.8f;
-            float span = top - bottom;
+            float top = HalfH + 40f, bottom = -HalfH - 40f, span = top - bottom;
+            float t = Time.time;
             for (int i = 0; i < list.Count; i++)
             {
                 var f = list[i];
                 if (f.T == null || !f.T.gameObject.activeSelf) continue;
-                // ⛔ 增量积分 + 回绕（别用 y = y0 - v*t）
-                f.Y -= f.Speed * dt;
+                f.Y -= f.Speed * dt;                       // ⛔ 增量积分 + 回绕
                 if (f.Y < bottom) { f.Y += span; f.X = Random.Range(-HalfW, HalfW); }
-                float x = f.X;
-                if (isRain)
-                {
-                    // 雨丝随风整体倾斜
-                    x += _windDir * windNow * 1.5f * (f.Y - bottom) * 0.12f;
-                }
-                else
-                {
-                    x += Mathf.Sin(Time.time * f.SwayFreq + f.Phase) * f.SwayAmp + _windDir * windNow * 0.6f;
-                }
-                f.T.localPosition = new Vector3(x, f.Y, f.T.localPosition.z);
+                float x = f.X + (isRain
+                    ? _windDir * windNow * (f.Y - bottom) * 0.10f
+                    : Mathf.Sin(t * f.SwayFreq + f.Phase) * f.SwayAmp + _windDir * windNow * 22f);
+                f.T.anchoredPosition = new Vector2(x, f.Y);
                 list[i] = f;
             }
         }
