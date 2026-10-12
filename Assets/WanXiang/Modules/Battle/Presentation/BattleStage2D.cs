@@ -1060,6 +1060,18 @@ namespace WanXiang.Battle.Presentation
                         cv.Body.color = new Color(1f, 0.25f, 0.2f);
                     break;
 
+                case BattleEventKind.Revive:
+                    // ★ 双子同命 / 灵卵复活：把"灰尸"复位成满色并弹一下，玩家一眼能看到（2026-10-12）
+                    if (e.TargetId != null && _views.TryGetValue(e.TargetId, out var rv))
+                    {
+                        rv.Alive = true;
+                        rv.DeadBlend = 0f;                       // 复位：否则复活后仍顶着死亡灰调
+                        if (rv.Root != null && !rv.Root.activeSelf) rv.Root.SetActive(true);
+                        rv.Body.color = rv.BaseColor;
+                        SetHpBar2D(rv, rv.Hp, rv.MaxHp);
+                        SpawnNumber(rv, "复活!", new Color(1f, 0.85f, 0.40f));   // 金：同命复活
+                    }
+                    break;
                 case BattleEventKind.Death:
                     if (e.TargetId != null && _views.TryGetValue(e.TargetId, out var dv))
                         dv.Alive = false;

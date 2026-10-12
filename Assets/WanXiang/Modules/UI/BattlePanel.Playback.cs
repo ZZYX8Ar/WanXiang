@@ -255,6 +255,9 @@ namespace WanXiang.Modules.UI
                 case BattleEventKind.RoundResolve:
                     if (!string.IsNullOrEmpty(e.Note)) _tmpLog.text = e.Note;
                     break;
+                case BattleEventKind.Revive:
+                    if (!string.IsNullOrEmpty(e.Note)) _tmpLog.text = e.Note;
+                    break;
                 case BattleEventKind.BattleEnd: _tmpLog.text = _play.Summary(); break;
             }
         }
