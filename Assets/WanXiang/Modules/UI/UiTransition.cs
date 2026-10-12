@@ -221,19 +221,35 @@ namespace WanXiang.Modules.UI
             go.transform.SetParent(_root, false);
             var img = go.AddComponent<Image>();
             img.raycastTarget = false;
-            img.preserveAspect = true;
+            // ⛔ preserveAspect 必须 false：v1 用 true 时源图 8:1 比例会接管尺寸，
+            //    sizeDelta 形同虚设（和闪电缩成小方块同一个坑，用户截图"又粗又实"）。
+            img.preserveAspect = false;
             if (sh != null)
             {
                 var mat = new Material(sh);
-                mat.SetColor("_Color", col);
-                mat.SetFloat("_Head", 0.30f);
-                mat.SetFloat("_FadePow", 1.9f);
-                mat.SetFloat("_StreakAlpha", 0.85f);
+                mat.SetColor("_Color", col);          // ★ 按幕染色，不再是死白
+                mat.SetFloat("_FadePow", 2.6f);       // 尾多长（越大越短促）
+                mat.SetFloat("_HeadFloor", 0.85f);    // 头部保底
+                mat.SetFloat("_StreakAlpha", 0.75f);
+                mat.SetFloat("_TailGlow", 0.25f);     // 尾部提亮（速度感）
                 img.material = mat;
             }
             img.color = new Color(1f, 1f, 1f, 1f);
             img.rectTransform.sizeDelta = new Vector2(length, thick);
             return new Streak { T = img.rectTransform, Img = img, Len = length };
+        }
+
+        /// <summary>尾迹颜色按幕（春粉/夏青/秋赭/冬冷/长夏金），与当幕粒子同调。</summary>
+        private static Color StreakColorOf(int act)
+        {
+            switch (act)
+            {
+                case 1: return new Color(1.00f, 0.78f, 0.84f, 1f);   // 春·花粉
+                case 2: return new Color(0.72f, 0.92f, 0.80f, 1f);   // 夏·萤青
+                case 3: return new Color(1.00f, 0.76f, 0.52f, 1f);   // 秋·落叶橙
+                case 4: return new Color(0.82f, 0.90f, 1.00f, 1f);   // 冬·雪蓝
+                default: return new Color(1.00f, 0.88f, 0.58f, 1f);  // 长夏·金尘
+            }
         }
 
         private Image NewImage(string name)
@@ -581,7 +597,10 @@ namespace WanXiang.Modules.UI
             {
                 if (streakSp == null || StreakShader() == null) break;
                 float sz = szs[i];
-                var st = NewStreak("St" + i, sz * Random.Range(2.6f, 4.4f), sz * 0.55f, Color.white);
+                // v1 用 sz*2.6~4.4 长 / sz*0.55 粗 ⇒ 在 1280 画布上能拖出 600px 白棍。
+                // v2 收紧到 sz*1.5~2.6 长 / sz*0.20 粗，并按幕染色。
+                var st = NewStreak("St" + i, sz * Random.Range(1.5f, 2.6f), Mathf.Max(4f, sz * 0.20f),
+                                   StreakColorOf(act));
                 st.Img.sprite = streakSp;
                 st.T.SetSiblingIndex(100 + i);          // 尾迹在粒子之下
                 _streaks.Add(st);
@@ -602,7 +621,7 @@ namespace WanXiang.Modules.UI
                     // 尾迹跟着粒子，并随速度拉长
                     if (i < _streaks.Count && _streaks[i].T != null)
                     {
-                        float grow = 1f + ke * 1.6f;
+                        float grow = 1f + ke * 0.7f;
                         _streaks[i].T.anchoredPosition = new Vector2(xs[i] - d + _streaks[i].Len * 0.5f * grow, ys[i]);
                         _streaks[i].T.sizeDelta = new Vector2(_streaks[i].Len * grow, _streaks[i].T.sizeDelta.y);
                     }
