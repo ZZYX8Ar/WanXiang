@@ -235,7 +235,7 @@ namespace WanXiang.EditorTools
             frt.anchorMin = Vector2.zero; frt.anchorMax = Vector2.one;
             frt.offsetMin = frt.offsetMax = Vector2.zero;
 
-            // 小旅行者（AI 水墨小人物；底枢轴 ⇒ 脚踩在小路上）
+            // 小旅行者（AI 水墨小人物；底枢轴 ， 脚踩在小路上）
             // 2026-10-10 用户要求加大：48×64 → 78×120（图已重抠为 169×260 干净底）
             var flag = NewUI("Img_Flag", par.transform, 78f, 120f);
             var flagImg = flag.AddComponent<Image>();

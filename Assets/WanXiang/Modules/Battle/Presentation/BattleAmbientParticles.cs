@@ -65,7 +65,7 @@ namespace WanXiang.Battle.Presentation
         private P[] _ps;
         private Style _style;
         private float _t;
-        private float _halfW = 9.6f;      // 相机视野半宽（ortho 5.4 @16:9 ⇒ 宽 19.2）
+        private float _halfW = 9.6f;      // 相机视野半宽（ortho 5.4 @16:9 ， 宽 19.2）
         private float _halfH = 5.4f;
 
         public int ActiveCount => _ps != null ? _ps.Length : 0;
@@ -93,7 +93,7 @@ namespace WanXiang.Battle.Presentation
                 go.transform.SetParent(transform, false);
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = sp;
-                // 立绘 0~2 / 冲锋 20 / 名牌 12,14 / 前景 30 ⇒ 粒子走 8：
+                // 立绘 0~2 / 冲锋 20 / 名牌 12,14 / 前景 30 ， 粒子走 8：
                 // 压在立绘之上、名牌之下，免得雪花盖住单位名字。
                 sr.sortingOrder = 8;
                 go.transform.localScale = new Vector3(scale, scale, 1f);
@@ -139,7 +139,7 @@ namespace WanXiang.Battle.Presentation
 
                 // ⛔ 必须**增量积分**并把 y 写回结构体 —— 早期版本写成
                 //   `float y = p.BaseY - p.Speed * _t`（BaseY 永不更新），
-                //   粒子下落后每帧都被判成"仍在界外"而锁死在顶部 ⇒ 飘一会儿就没了。
+                //   粒子下落后每帧都被判成"仍在界外"而锁死在顶部 ， 飘一会儿就没了。
                 //   用户要求：只要战斗没结束就一直飘、且方向统一从上往下。
                 p.Y -= p.Speed * dt;
                 // 走出下边界 → 从顶部同速带回（不同 x，避免整排同时出现）

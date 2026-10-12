@@ -2,7 +2,7 @@
 //  万相 · 局外进度（GDD 1.3「局外层：长期 · 囤积」）
 //  ---------------------------------------------------------------------------
 //  GDD 对局外层只有一行：「孵蛋获得新宿主、解锁新灵魂、扩充图鉴、分享 Base64
-//  代码与他人的队伍对战」。**具体机制 GDD 没给** ⇒ 这里按项目一贯的补位方式做：
+//  代码与他人的队伍对战」。**具体机制 GDD 没给** ， 这里按项目一贯的补位方式做：
 //  数据驱动 + 全程确定性 + 一处可调数值，所有取舍写在注释里。
 //
 //  ⭐ 两条铁律（与战斗核心同源）：
@@ -40,14 +40,14 @@ namespace WanXiang.Meta
         public const int StarterHosts = 5;
 
         /// <summary>
-        /// 新档赠送的灵魂数。**2026-09-26 用户定案：魂魄只能从灵市购买** ⇒ 开局不再赠送（0）。
-        /// ⚠ 可预期的副作用：新档 0 魂 ⇒ **熔炼暂时用不了**，要等灵市买到第一个魂。
+        /// 新档赠送的灵魂数。**2026-09-26 用户定案：魂魄只能从灵市购买** ， 开局不再赠送（0）。
+        /// ⚠ 可预期的副作用：新档 0 魂 ， **熔炼暂时用不了**，要等灵市买到第一个魂。
         ///    这是用户明确选择的结果（"连开局赠送也去掉"），不是 bug。
         /// ⚠ 别再往别处加魂：孵蛋（<see cref="EggForge"/>）那条路已同步关闭。
         /// </summary>
         public const int StarterSouls = 0;
 
-        /// <summary>孵蛋的稀有度权重（GDD 没给数值 ⇒ 占位；待策划给表后改这一处）。</summary>
+        /// <summary>孵蛋的稀有度权重（GDD 没给数值 ， 占位；待策划给表后改这一处）。</summary>
         public static int WeightOf(Rarity r)
         {
             switch (r)
@@ -60,7 +60,7 @@ namespace WanXiang.Meta
         }
 
         /// <summary>
-        /// 一局结算的灵卵收益（GDD 没给数值 ⇒ 占位）：
+        /// 一局结算的灵卵收益（GDD 没给数值 ， 占位）：
         /// 普通节点 +1 / 守关 +3 / 通关额外 +5 / 首次抵达新幕 +2。
         /// </summary>
         public const int EggsPerNode = 1;
@@ -183,9 +183,9 @@ namespace WanXiang.Meta
 
         // ---- 觉醒材料（剧情碎片兑换，v6 新增）----
         //   探索中完成「相关异兽的异闻」掉落该异兽的剧情碎片；集齐 AwakenSoulThreshold 张后，
-        //   在残卷阁（剧情面板）领取该异兽的专属觉醒材料 ⇒ 解锁觉醒技装备。
+        //   在残卷阁（剧情面板）领取该异兽的专属觉醒材料 ， 解锁觉醒技装备。
         //   与 AwakenSkills/BeastEvolved 同属 per-slot（MetaStore 每槽一份）。
-        public const int AwakenSoulThreshold = 3;            // 相关碎片集齐数 ⇒ 可领取
+        public const int AwakenSoulThreshold = 3;            // 相关碎片集齐数 ， 可领取
         public const int FragmentTotal = 6;                  // ★ 每只异兽的剧情碎片总数（与 BeastLore 内容表 6 片/兽 一致）
         public readonly List<string> FragmentBeastIds = new List<string>(32);   // 哪只异兽
         public readonly List<int>    FragmentCounts   = new List<int>(32);       // 已得碎片数
@@ -235,7 +235,7 @@ namespace WanXiang.Meta
             int i = BeastIds.IndexOf(id);
             return i >= 0 && i < BeastLevels.Count ? BeastLevels[i] : 0;
         }
-        public int HatchCount;        // 已孵次数（进哈希 ⇒ 每次孵化结果不同且可复现）
+        public int HatchCount;        // 已孵次数（进哈希 ， 每次孵化结果不同且可复现）
         public int RunsPlayed;
         public int RunsCompleted;
         public int BestActReached;

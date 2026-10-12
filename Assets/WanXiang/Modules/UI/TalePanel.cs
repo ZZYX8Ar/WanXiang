@@ -147,21 +147,21 @@ namespace WanXiang.Modules.UI
             _picked = index;
             Apply(index);
             DropFragment(_current.FragmentBeast);   // ★ v6：做完异闻掉落相关异兽的剧情碎片
-            BackToMap(true);   // ★ 做出选择 = 异闻完成 ⇒ 保留 PendingCommit 让节点推进
+            BackToMap(true);   // ★ 做出选择 = 异闻完成 ， 保留 PendingCommit 让节点推进
         }
 
         private void OnDeclineClicked()
         {
             var run = WanXiang.Run.RunSave.Current;
             if (run != null) { run.Eggs += 1; WanXiang.Run.RunSave.SaveCurrent(); }   // GDD：拒绝换 1 灵卵
-            BackToMap(true);   // ★ 拒绝也是"完成"（GDD §4.7：拒绝拿 1 灵卵）⇒ 节点推进
+            BackToMap(true);   // ★ 拒绝也是"完成"（GDD §4.7：拒绝拿 1 灵卵）， 节点推进
         }
 
         /// <summary>异闻是节点图的子面板：返回 = 回节点地图继续探索，不是回主城。</summary>
         /// <param name="completed">
-        /// ★ true = 玩家已做出选择/拒绝（异闻完成，拒绝换 1 灵卵也是完成）⇒ 保留 PendingCommit，
-        ///   CampaignPanel.OnOpenAsync 会落地"通过"并推进；false = 左上角「返回」中途退出 ⇒ 节点不通过。
-        ///   ⚠ 之前无条件清 -1，把选完/拒绝也算"未完成"⇒ 异闻节点永远不推进、后续全锁（用户实测）。
+        /// ★ true = 玩家已做出选择/拒绝（异闻完成，拒绝换 1 灵卵也是完成）， 保留 PendingCommit，
+        ///   CampaignPanel.OnOpenAsync 会落地"通过"并推进；false = 左上角「返回」中途退出 ， 节点不通过。
+        ///   ⚠ 之前无条件清 -1，把选完/拒绝也算"未完成"， 异闻节点永远不推进、后续全锁（用户实测）。
         /// </param>
         private void BackToMap(bool completed)
         {

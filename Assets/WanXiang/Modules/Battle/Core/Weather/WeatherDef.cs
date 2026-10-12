@@ -115,7 +115,7 @@ namespace WanXiang.Battle.Core
         //  事件钩子型（GDD 3.3 里剩下那 8 条）—— 规则不在"回合开始/结束的原子"
         //  与"乘数修正"的表达范围内，必须挂在战斗过程的点上：命中 / 暴击 / 击杀 /
         //  受击 / 行动末 / 死亡。**默认全部关闭**，且每个落点先看字段为假就立即
-        //  返回 ⇒ 无天时与空天时战斗逐位不变（指纹红线）。
+        //  返回 ， 无天时与空天时战斗逐位不变（指纹红线）。
         //
         //  ⚠ "我方"口径：GDD 原文写"我方"的一律只对 Player 侧生效；
         //    只有立冬「受击时」是全场（见 FreezeOnHitChance 的注释）。
@@ -130,7 +130,7 @@ namespace WanXiang.Battle.Core
         public bool PursuitOnCrit;
         public float PursuitPower = 0.5f;
 
-        // 14 处暑「鹰击长空」：击杀时溢出伤害的 Ratio 转化为全队护盾（GDD 100% ⇒ 1.0）
+        // 14 处暑「鹰击长空」：击杀时溢出伤害的 Ratio 转化为全队护盾（GDD 100% ， 1.0）
         public bool KillOverflowShield;
         public float KillOverflowShieldRatio;
 
@@ -231,7 +231,7 @@ namespace WanXiang.Battle.Core
             };
         }
 
-        /// <summary>乘数向 1 收敛一半：1 + (m-1)/2。×1.25 ⇒ ×1.125；×0.8 ⇒ ×0.9。</summary>
+        /// <summary>乘数向 1 收敛一半：1 + (m-1)/2。×1.25 ， ×1.125；×0.8 ， ×0.9。</summary>
         private static float HalfToward1(float m) => 1f + (m - 1f) * 0.5f;
 
         /// <summary>

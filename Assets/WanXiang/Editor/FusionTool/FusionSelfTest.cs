@@ -144,16 +144,16 @@ namespace WanXiang.Editor.FusionTool
             float coefFused = ElementMatrix.Coefficient(fused.Element, Element.Earth,
                                                         ElementCoefficients.Default);
             Check(lines, fused.Element == Element.Water && hostWood.Element == Element.Wood,
-                  $"验收② 五行覆写：{hostWood.DisplayName}(木) + {soulWater.DisplayName} ⇒ {fused.DisplayName}({Cn.Of(fused.Element)})");
+                  $"验收② 五行覆写：{hostWood.DisplayName}(木) + {soulWater.DisplayName} ， {fused.DisplayName}({Cn.Of(fused.Element)})");
             Check(lines, coefHost > coefFused,
-                  $"验收② 克制系数随覆写变化：木 vs 土 {coefHost:0.00} ⇒ 水 vs 土 {coefFused:0.00}（相克环内被克）");
+                  $"验收② 克制系数随覆写变化：木 vs 土 {coefHost:0.00} ， 水 vs 土 {coefFused:0.00}（相克环内被克）");
 
             // 技能替换：融合体战技来自灵魂，id 带灵魂标记。
             string soulActiveId = soulWater.SourceBeastId + "_a";
             Check(lines,
                   fused.Active != null && fused.Active.Id != hostWood.Active.Id
                                        && fused.Active.Id.StartsWith(soulActiveId),
-                  $"验收② 战技替换：{hostWood.Active.Name} ⇒ {fused.Active.Name}（{fused.Active.Id}）");
+                  $"验收② 战技替换：{hostWood.Active.Name} ， {fused.Active.Name}（{fused.Active.Id}）");
 
             // 特性叠加。
             Check(lines,

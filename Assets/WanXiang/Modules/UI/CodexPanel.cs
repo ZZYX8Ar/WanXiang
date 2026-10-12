@@ -132,7 +132,7 @@ namespace WanXiang.Modules.UI
                 if (b == null) continue;
                 ownedTotal++;
                 // 页签过滤：统一走 ElementTabs（⚠ 别用 `(int)Element == tab - 1`：
-                //   Element 枚举是 None=0 起算，那样会把「木」映射到 None ⇒ 该页签恒空）。
+                //   Element 枚举是 None=0 起算，那样会把「木」映射到 None ， 该页签恒空）。
                 if (!ElementTabs.Matches(b.Element, _tab)) continue;
                 shown++;
                 bool has = WanXiang.Run.CodexUnlock.IsUnlocked(b.Id);

@@ -135,7 +135,7 @@ namespace WanXiang.Modules.UI
             // 灵魂：从宿主派生（v1.2 简化 —— 每只宿主一条「魂」；孵蛋/掉落后续再接）
             _souls.Clear();
             // ★★ 灵魂改为读【已获得的魂】（run.Souls，存主人 id）。
-            //    原来无条件对每只主兽派生一个魂 ⇒ 等于"魂免费无限"，玩家不需要在探索中获取
+            //    原来无条件对每只主兽派生一个魂 ， 等于"魂免费无限"，玩家不需要在探索中获取
             //    （用户指出："魂不需要在探索中获得吗"）。现在魂来自：
             //      A 灵市购买  B 战斗/事件掉落  C 铸魂台"炼魂"（消耗一只异兽）
             var bySoulId = new System.Collections.Generic.Dictionary<string, BeastDef>();
@@ -150,7 +150,7 @@ namespace WanXiang.Modules.UI
             }
             if (_souls.Count == 0 && run != null && run.Team != null)
             {
-                // 兜底：老存档没有 Souls 字段 ⇒ 临时用队伍派生的魂，保证铸魂台可用
+                // 兜底：老存档没有 Souls 字段 ， 临时用队伍派生的魂，保证铸魂台可用
                 for (int i = 0; i < run.Team.Count; i++)
                     if (bySoulId.TryGetValue(run.Team[i], out var ow)) _souls.Add(SoulForge.Derive(ow, i));
             }
@@ -409,7 +409,7 @@ namespace WanXiang.Modules.UI
                 rt.anchoredPosition = new Vector2(0f, -i * 92f);
                 // ★★ 这里原来是 sizeDelta = (-8, 84) —— 但上面用的是【水平单点锚】
                 //    (anchorMin.x == anchorMax.x == 0.5)，此时 sizeDelta.x 就是**实际宽度**，
-                //    写成负数 ⇒ 行宽 -8 ⇒ 行内文本更窄(-36) ⇒ 文字被挤成一列（竖排乱码）。
+                //    写成负数 ， 行宽 -8 ， 行内文本更窄(-36) ， 文字被挤成一列（竖排乱码）。
                 //    负边距只在【双向锚】下才有意义。这里用视口宽度算真实行宽。
                 float rowW = (scroll.viewport != null ? scroll.viewport.rect.width : 420f) - 8f;
                 if (rowW < 120f) rowW = 420f;      // 布局尚未算完时的兜底

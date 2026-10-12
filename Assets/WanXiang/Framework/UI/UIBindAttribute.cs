@@ -4,7 +4,7 @@
 //  数组字段的节点命名标注。编辑器校验器（UIBindValidationMenu）用它把
 //  「字段 ↔ 节点」契约变成一键检查：
 //      [BindArray("Cell_{0}", 9)]
-//      [SerializeField] private RectTransform[] _cells;   // ⇒ Cell_0 … Cell_8
+//      [SerializeField] private RectTransform[] _cells;   // ， Cell_0 … Cell_8
 //  拖漏一个节点，打包前就会得到红字，而不是运行时空引用。
 // ============================================================================
 

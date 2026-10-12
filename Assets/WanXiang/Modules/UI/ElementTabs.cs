@@ -7,8 +7,8 @@
 //  ⚠ `Element` 枚举的值是 **None=0, Wood=1, Fire=2, Earth=3, Metal=4, Water=5**
 //    （见 Battle/Core/Data/Types.cs），**不是** 0 起算的五元素！
 //    所以 `(int)Element == tab - 1` 是错的：
-//      tab=1（木）⇒ 比的是 0 = None ⇒ 永远筛不出东西（列表空白）
-//      tab=2（火）⇒ 比的是 1 = Wood ⇒ 点「火」显示木系
+//      tab=1（木）， 比的是 0 = None ， 永远筛不出东西（列表空白）
+//      tab=2（火）， 比的是 1 = Wood ， 点「火」显示木系
 //    （图鉴 Panel_Codex 与残卷阁 Panel_Archive 都栽在这行上。）
 //
 //  统一走这里：任何新面板做五行筛选，**只调 ElementTabs.Matches / Names**，别再自己推下标。
@@ -37,7 +37,7 @@ namespace WanXiang.Modules.UI
                 case 3: return e == WanXiang.Battle.Core.Element.Earth;
                 case 4: return e == WanXiang.Battle.Core.Element.Metal;
                 case 5: return e == WanXiang.Battle.Core.Element.Water;
-                default: return true;      // 0 或越界 ⇒ 全部
+                default: return true;      // 0 或越界 ， 全部
             }
         }
 

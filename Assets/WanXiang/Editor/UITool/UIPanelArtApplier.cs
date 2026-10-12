@@ -66,6 +66,7 @@ namespace WanXiang.EditorTools
             { "Root_TeamPreview", "panel_dialog" },
             { "Root_BottomBar", "panel_dialog" },
             { "Root_EnemyIntel", "panel_dialog" },
+            { "Root_BondTip", "panel_dialog" },
             { "Root_Roster", "panel_dialog" },
             { "Root_Hosts", "panel_dialog" },
             { "Root_Souls", "panel_dialog" },
@@ -75,7 +76,7 @@ namespace WanXiang.EditorTools
             { "Root_Audio", "panel_dialog" },
             { "Root_Video", "panel_dialog" },
             { "Root_Keybinds", "panel_dialog" },
-            // 原 Root_Share / Root_SaveLoad 已删（分享码归 Panel_Pvp、存取档归 Panel_Save）⇒ 映射一并去掉
+            // 原 Root_Share / Root_SaveLoad 已删（分享码归 Panel_Pvp、存取档归 Panel_Save）， 映射一并去掉
             { "Root_Log", "toast" },
             { "Root_Tracks", "panel_dialog" },
             { "Img_TrackLine", "divider" },

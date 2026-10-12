@@ -2,7 +2,7 @@
 //  Panel_Recruit —— 招募节点（每幕首层固定节点，用户 2026-09-29 重设计）
 //  ---------------------------------------------------------------------------
 //  布局参考【灵市】（Panel_Market）+【局外养成】（Panel_Meta）：
-//    左侧候选格子（五行各 2 只 ⇒ 最多 10 格）——单点格子看右侧详情；
+//    左侧候选格子（五行各 2 只 ， 最多 10 格）——单点格子看右侧详情；
 //    双击格子（或点右侧详情里的【选择】）即入队；
 //    顶部明确写「本幕可选至多 N 只 · 已选 M / N」，多选会被拦并提示。
 //  第一幕选 3 只、第二~四幕选 1 只；免费刷新 1 次，之后每次刷新消耗灵卵。
@@ -137,7 +137,7 @@ namespace WanXiang.Modules.UI
             _candidates.Clear();
             // ⚠⛔ 每只异兽**全局只出现一次**（用户实测：土池只有帝江一只时，
             //   旧写法"每五行独立抽 2 次、抽完不移除"会让 rng.Next(1) 两次都返回帝江
-            //   ⇒ 同一张卡出现 2~3 次，截图里"帝江×3"就是这么来的）。
+            //   ， 同一张卡出现 2~3 次，截图里"帝江×3"就是这么来的）。
             //   修法：五行循环内维护 taken 集合，已选中的 id 不再重复抽；
             //   池子抽空（n >= pool.Count）就少放一只，不硬凑 2 只。
             var taken = new HashSet<string>();
@@ -150,7 +150,7 @@ namespace WanXiang.Modules.UI
                 for (int tries = 0; tries < pool.Count * 2 && got < want; tries++)
                 {
                     var pick = pool[rng.Next(pool.Count)];
-                    if (!taken.Add(pick.Id)) continue;   // 已出现过 ⇒ 换一只
+                    if (!taken.Add(pick.Id)) continue;   // 已出现过 ， 换一只
                     _candidates.Add(pick);
                     got++;
                 }
@@ -360,7 +360,7 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>关闭：只回节点地图，**不通过该节点**（玩家想先看看地图、稍后再来招募）。
-        ///  与灵市/铸魂台的「返回」同口径：PendingCommit = -1 ⇒ 节点不推进、可再进。</summary>
+        ///  与灵市/铸魂台的「返回」同口径：PendingCommit = -1 ， 节点不推进、可再进。</summary>
         private void OnCloseClicked()
         {
             CampaignPanel.PendingCommit = -1;

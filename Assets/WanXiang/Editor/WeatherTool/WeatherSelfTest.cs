@@ -31,13 +31,13 @@ namespace WanXiang.Editor.WeatherTool
         //
         //   ⚠⚠ 这次重标**局况真的变了**：Draw／30 回合 → **EnemyWin／16 回合**。
         //     原因：2026-09-26 又改了一条 —— **第 1 回合不回灵**（用户要求"一进战斗就该是 0 灵力"）。
-        //     少 2 点起手灵力 ⇒ 这个脚本局直接翻盘。
-        //     ⇒ 这是一条**可测量的平衡信号**，不是单纯的指纹漂移：
+        //     少 2 点起手灵力 ， 这个脚本局直接翻盘。
+        //     ， 这是一条**可测量的平衡信号**，不是单纯的指纹漂移：
         //       若不想让"第 1 回合不回灵"削弱玩家，要么补偿（普攻回灵 +2 / 战记降价），要么接受。
         //       （注：普攻回灵 +1 已经在部分补偿 —— 每只兽普攻都在补。）
         //
         //   ⚠ 重标前必须做的两件事（别省这一步）：
-        //     ① **回退实验**：把 BattleSimulator 还原到该次改动前，指纹回到旧值 ⇒ 证明差异来自那次改动本身；
+        //     ① **回退实验**：把 BattleSimulator 还原到该次改动前，指纹回到旧值 ， 证明差异来自那次改动本身；
         //     ② 逐条核对改动清单，确认没有别的改动顺手带偏。
         //   ⚠ "全默认 30 回合平局"（v1.1 时代）是给策划的**独立信号**：定版数值下那局磨成僵局
         //     （与 PvP 5/5 平局同源）—— 别和基线重标混为一谈。
@@ -80,7 +80,7 @@ namespace WanXiang.Editor.WeatherTool
             var legacy = BattleSimulator.Run(
                 BattleSampleContent.BuildScenario(2, 20260914UL, legacyCfg));
             Check(lines, legacy.Fingerprint == LegacyBaselineFingerprint,
-                  $"R1b 旧基线可复现：关抖动 + 关连击 ⇒ 0x{legacy.Fingerprint:X8}"
+                  $"R1b 旧基线可复现：关抖动 + 关连击 ， 0x{legacy.Fingerprint:X8}"
                   + $"（= v1.0 基线，证明差异只来自这两条新规则）");
 
             Check(lines, baseline.Fingerprint == BaselineFingerprint,
@@ -124,7 +124,7 @@ namespace WanXiang.Editor.WeatherTool
             //     伤害变高会提前打死人，战斗动态整个变掉，总比值无意义。对 ComputeDamage
             //     （public static）做受控单笔对照，断言精确 ×1.25（取整误差 ≤1）。
             var xiazhi = WeatherCatalog.GetSolarTerm(10);
-            // ⚠ 所有"×0.7 就是 ×0.7"式对照都以它为基线 ⇒ 必须关抖动
+            // ⚠ 所有"×0.7 就是 ×0.7"式对照都以它为基线 ， 必须关抖动
             var sPlain = BattleFactory.Create(BattleConfig.Default.WithoutJitter(), 20260914UL,
                 new[] { DeployEntry.Player(BattleSampleContent.Make("wP", "平", Element.Metal, RoleType.Striker), 0) },
                 new[] { DeployEntry.Enemy(BattleSampleContent.Make("wQ", "和", Element.Wood, RoleType.Guard), 8) }, null);
@@ -138,7 +138,7 @@ namespace WanXiang.Editor.WeatherTool
                 sXiazhi.UnitsOf(TeamSide.Player)[0], sXiazhi.UnitsOf(TeamSide.Enemy)[0],
                 Element.Fire, 1.0f, false, false);
             Check(lines, System.Math.Abs(dHot - dPlain * 1.25) <= 1,
-                  $"③ 夏至单笔伤害对照：{dPlain} ⇒ {dHot}（精确 ×1.25，取整误差 ≤1）");
+                  $"③ 夏至单笔伤害对照：{dPlain} ， {dHot}（精确 ×1.25，取整误差 ≤1）");
 
             // ---- ④ 天气技覆盖：大寒（水）用祈晴（火），3 回合后回归原天时 ----
             //     Guard 对 Guard：高防低攻拖满回合，保证能观察到"回归"发生在第 4 回合。
@@ -154,21 +154,21 @@ namespace WanXiang.Editor.WeatherTool
                   $"④ 覆盖 3 回合后回归：祈晴在前 3 回合生效（{sunnyEarly} 条），" +
                   $"第 4 回合起寒气之逆极回归（{dahanLate} 条）");
 
-            // ---- ⑤ 逆天时：水节气（大寒）用祈晴（火）⇒ 反噬；用祷雨（水）⇒ 无反噬 ----
+            // ---- ⑤ 逆天时：水节气（大寒）用祈晴（火）， 反噬；用祷雨（水）， 无反噬 ----
             //     在覆盖生效窗口内判定（装配后立即读，不等战斗跑完）。
             var wFire = BuildOnly(
                 BattleSampleContent.Make("wS", "守", Element.Water, RoleType.Guard),
                 BattleSampleContent.Make("wE", "袭", Element.Earth, RoleType.Guard),
                 13, dahan, qiqing);
             Check(lines, wFire.BacklashActive && wFire.BacklashElement == Element.Fire,
-                  "⑤ 逆天时判定：水节气用祈晴 ⇒ 我方火属性单位 +15% 承伤（反噬激活）");
+                  "⑤ 逆天时判定：水节气用祈晴 ， 我方火属性单位 +15% 承伤（反噬激活）");
             var daoyu = WeatherCatalog.GetWeatherSkill("wskill_daoyu");
             var wWater = BuildOnly(
                 BattleSampleContent.Make("wS", "守", Element.Water, RoleType.Guard),
                 BattleSampleContent.Make("wE", "袭", Element.Earth, RoleType.Guard),
                 13, dahan, daoyu);
             Check(lines, !wWater.BacklashActive,
-                  "⑤ 对照：水节气用祷雨（同属性）⇒ 无逆天时反噬");
+                  "⑤ 对照：水节气用祷雨（同属性）， 无逆天时反噬");
 
             // ---- ⑥ 余气：原子减半、禁疗不继承、乘数向 1 收敛一半（GDD 3.2 规则一） ----
             var half = xiaoxue.ScaledHalf("half_xiaoxue");
@@ -177,10 +177,10 @@ namespace WanXiang.Editor.WeatherTool
             var halfQingyu = daoyu.Brings.ScaledHalf("half_rain");
             float orig = 0.02f, scaled = halfQingyu.TurnEnd[0].Atom.PercentOfMaxHp;
             Check(lines, System.Math.Abs(scaled - orig * 0.5f) < 0.0001f,
-                  $"⑥ 余气：原子数值减半（回复 {orig:0.00} ⇒ {scaled:0.000}）");
+                  $"⑥ 余气：原子数值减半（回复 {orig:0.00} ， {scaled:0.000}）");
             var halfXiazhi = xiazhi.ScaledHalf("half_xiazhi");
             Check(lines, System.Math.Abs(halfXiazhi.DamageAllMultiplier - 1.125f) < 0.0001f,
-                  $"⑥ 余气：乘数向 1 收敛一半（×1.25 ⇒ ×{halfXiazhi.DamageAllMultiplier:0.000}）");
+                  $"⑥ 余气：乘数向 1 收敛一半（×1.25 ， ×{halfXiazhi.DamageAllMultiplier:0.000}）");
 
             // ==================================================================
             //  规则修正型通路（本批新接）：每个结算点一条受控对照
@@ -198,7 +198,7 @@ namespace WanXiang.Editor.WeatherTool
             int dFire = BattleSimulator.ComputeDamage(sDashu, pD, eD, Element.Fire, 1f, false, false);
             int dEarth = BattleSimulator.ComputeDamage(sDashu, pD, eD, Element.Earth, 1f, false, false);
             Check(lines, System.Math.Abs(dFire - dFireBase * 0.7) <= 1 && System.Math.Abs(dEarth - dEarthBase * 1.3) <= 1,
-                  $"⑦ 大暑五行乘数：火 {dFireBase}⇒{dFire}（×0.7）、土 {dEarthBase}⇒{dEarth}（×1.3）");
+                  $"⑦ 大暑五行乘数：火 {dFireBase}，{dFire}（×0.7）、土 {dEarthBase}，{dEarth}（×1.3）");
 
             // ---- ⑧ 立秋：我方暴伤 +40%（与单位自身暴伤相加后再乘） ----
             var liqiu = WeatherCatalog.GetSolarTerm(13);
@@ -213,7 +213,7 @@ namespace WanXiang.Editor.WeatherTool
                 Element.Fire, 1f, false, crit: true);
             float expectCrit = dCritPlain * (1f + cd + 0.4f) / (1f + cd);
             Check(lines, System.Math.Abs(dCritLiqiu - expectCrit) <= 1,
-                  $"⑧ 立秋暴伤加成：{dCritPlain} ⇒ {dCritLiqiu}（自身暴伤 {cd:P0} + 40%）");
+                  $"⑧ 立秋暴伤加成：{dCritPlain} ， {dCritLiqiu}（自身暴伤 {cd:P0} + 40%）");
 
             // ---- ⑨ 秋分：AOE ×0.6 / 单体 ×1.25（按原子目标形状） ----
             var qiufen = WeatherCatalog.GetSolarTerm(16);
@@ -224,7 +224,7 @@ namespace WanXiang.Editor.WeatherTool
             int dAoe = BattleSimulator.ComputeDamage(sQiufen, pQ, eQ, Element.Fire, 1f, false, false, aoeSkill: true);
             int dSingle = BattleSimulator.ComputeDamage(sQiufen, pQ, eQ, Element.Fire, 1f, false, false, aoeSkill: false);
             Check(lines, System.Math.Abs(dAoe - dPlain * 0.6) <= 1 && System.Math.Abs(dSingle - dPlain * 1.25) <= 1,
-                  $"⑨ 秋分形态乘数：AOE ⇒{dAoe}（×0.6）、单体 ⇒{dSingle}（×1.25）");
+                  $"⑨ 秋分形态乘数：AOE ，{dAoe}（×0.6）、单体 ，{dSingle}（×1.25）");
 
             // ---- ⑩ 速度与先手：单方乘数改排序；大雪全场同乘不改序；冬至先手方判定 ----
             var enemyFirst = Make1v1("wP", "缓", Element.Metal, RoleType.Guard,
@@ -236,7 +236,7 @@ namespace WanXiang.Editor.WeatherTool
                                           SpeedMulPlayer = 2f });
             var firstBoost = playerBoost.BuildActionOrder()[0].Side;
             Check(lines, firstPlain == TeamSide.Enemy && firstBoost == TeamSide.Player,
-                  "⑩ 单方速度乘数：敌方先手 ⇒ 我方提速后反先（排序真被改了）");
+                  "⑩ 单方速度乘数：敌方先手 ， 我方提速后反先（排序真被改了）");
             var daxue = WeatherCatalog.GetSolarTerm(21);
             var sDaxue = Make1v1("wP", "缓", Element.Metal, RoleType.Guard,
                                  "wQ", "疾", Element.Wood, RoleType.Swift, daxue);
@@ -263,7 +263,7 @@ namespace WanXiang.Editor.WeatherTool
             int dBackNo = BattleSimulator.ComputeDamage(sA, backA, moverA, Element.Fire, 1f, false, false);
             int dBackWith = BattleSimulator.ComputeDamage(sB, backB, moverB, Element.Fire, 1f, false, false);
             Check(lines, System.Math.Abs(dWithBonus - dNoBonus * 1.5) <= 1 && dBackWith == dBackNo,
-                  $"⑩ 冬至首回合先手方伤害：先手 {dNoBonus}⇒{dWithBonus}（×1.5），后手 {dBackNo}⇒{dBackWith}（不变）");
+                  $"⑩ 冬至首回合先手方伤害：先手 {dNoBonus}，{dWithBonus}（×1.5），后手 {dBackNo}，{dBackWith}（不变）");
 
             // ---- ⑪ 小满：CD 推进 +30% ----
             //   ⚠ 度量已更换。原用"加速后战记次数 > 对照"，但它**不是干净度量**：
@@ -271,7 +271,7 @@ namespace WanXiang.Editor.WeatherTool
             //     （从 0 起 / 分阵营 / 普攻回灵）之后更是被灵力卡死 —— 实测放开灵力也还是 10 : 10。
             //     根因：cd=3 时 1.3 倍累积器每次只往 CdProgressExtra 攒 0.3，一局里几乎兑不满一格，
             //     所以"次数"上根本分不出来（不是功能坏了）。
-            //   ⇒ 改为直接验证**接线与作用域**（这是该天时能生效的前提）：
+            //   ， 改为直接验证**接线与作用域**（这是该天时能生效的前提）：
             //     我方乘数 >1、敌方 =1、无天时 =1。确定性，且不受战局影响。
             var xiaoman = WeatherCatalog.GetSolarTerm(8);
             var atk = BattleSampleContent.Make("wX", "攻", Element.Metal, RoleType.Striker);
@@ -290,7 +290,7 @@ namespace WanXiang.Editor.WeatherTool
             var sRain = Make1v1("wP", "雨", Element.Metal, RoleType.Guard,
                                 "wQ", "和", Element.Wood, RoleType.Guard, yushui);
             var pR = sRain.UnitsOf(TeamSide.Player)[0];
-            int chip = CoreMath.Max(1, pR.MaxHp / 100);          // 打掉 1%（< 3% 回复 ⇒ 有溢出）
+            int chip = CoreMath.Max(1, pR.MaxHp / 100);          // 打掉 1%（< 3% 回复 ， 有溢出）
             pR.TakeTrueDamage(chip);
             WeatherResolver.ResolveTurnEnd(sRain);
             int overflowExp = CoreMath.RoundDamage(pR.MaxHp * 0.03f) - chip;
@@ -306,7 +306,7 @@ namespace WanXiang.Editor.WeatherTool
                   $"⑫ 雨水溢出转盾：回复 {gotHeal}（=缺口 {chip}）、护盾 {gotShield}" +
                   $"（=溢出 {overflowExp} × 50%，期望 {shieldExp}）");
 
-            // ---- ⑬ 小雪：护盾获取 ×1.5（走溢出转盾链路验证乘数；全血 ⇒ 全额溢出） ----
+            // ---- ⑬ 小雪：护盾获取 ×1.5（走溢出转盾链路验证乘数；全血 ， 全额溢出） ----
             var sSnowShield = Make1v1("wP", "雪", Element.Metal, RoleType.Guard,
                                       "wQ", "和", Element.Wood, RoleType.Guard,
                                       new WeatherDef { Id = "t_shield", NodeName = "测", BuffName = "测雪",
@@ -321,7 +321,7 @@ namespace WanXiang.Editor.WeatherTool
                 if (e.Kind == BattleEventKind.Shield && e.TargetId == sSnowShield.UnitsOf(TeamSide.Player)[0].RuntimeId)
                     gotGain = e.Amount;
             Check(lines, gotGain == shieldGainExp,
-                  $"⑬ 护盾获取乘数：溢出 {fullOverflow} × 1.5 ⇒ 护盾 {gotGain}（期望 {shieldGainExp}）");
+                  $"⑬ 护盾获取乘数：溢出 {fullOverflow} × 1.5 ， 护盾 {gotGain}（期望 {shieldGainExp}）");
 
             // ---- ⑭ 春分：MinTurn —— 第 13 回合起回复翻倍（手动推两个回合，不受战局扰动） ----
             var chunfen = WeatherCatalog.GetSolarTerm(4);
@@ -448,7 +448,7 @@ namespace WanXiang.Editor.WeatherTool
             for (ulong s = 0; s < 8; s++)
             {
                 // ⚠ 阵容要让**我方真的会死**：灵品辅（1300 血 / 110 攻）对上神品攻
-                //   （208 攻）⇒ 十回合内被打死。第一版用"灵品攻 vs 神品御"，
+                //   （208 攻）， 十回合内被打死。第一版用"灵品攻 vs 神品御"，
                 //   两个都打不动对方，30 回合磨到平局，卵根本没机会留（断言红得没信息量）。
                 var b = Make1v1Seed("jb2", "脆", Element.Metal, RoleType.Support,
                                     "jd2", "狂", Element.Wood, RoleType.Striker, t3, s,
@@ -479,7 +479,7 @@ namespace WanXiang.Editor.WeatherTool
             Check(lines, j1 != j2 && jBase > 0,
                   $"㉔ 伤害抖动（v1.1 §3.1 Rand ±5%）：连掷两次 {j1} / {j2} 不同；关抖动基准 {jBase}");
 
-            // ---- ㉕ v1.1 §3.6：先手连击（速度 ≥ 对方最高速 × 1.50 ⇒ 本回合额外行动一次） ----
+            // ---- ㉕ v1.1 §3.6：先手连击（速度 ≥ 对方最高速 × 1.50 ， 本回合额外行动一次） ----
             var initHit = Make1v1("iA", "疾", Element.Metal, RoleType.Swift,
                                   "iB", "术", Element.Wood, RoleType.Caster, null);
             BattleSimulator.Run(initHit);
@@ -491,7 +491,7 @@ namespace WanXiang.Editor.WeatherTool
             Check(lines, initCount > 0 && initMissCount == 0,
                   $"㉕ 先手连击（门槛 1.50×）：疾 vs 术 触发 {initCount} 次；御 vs 术 触发 {initMissCount} 次");
 
-            // ---- ㉖ 大雪把连击门槛降到 1.20 ⇒ 攻（110）对御（90）= 1.22× 也该触发 ----
+            // ---- ㉖ 大雪把连击门槛降到 1.20 ， 攻（110）对御（90）= 1.22× 也该触发 ----
             var t21 = WeatherCatalog.GetSolarTerm(21);   // 大雪 · 闭塞成冬（门槛覆写 1.20）
             var initSnow = Make1v1("s1", "攻", Element.Metal, RoleType.Striker,
                                    "s2", "御", Element.Wood, RoleType.Guard, t21);

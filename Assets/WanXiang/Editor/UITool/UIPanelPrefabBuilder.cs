@@ -255,7 +255,7 @@ namespace WanXiang.EditorTools
             var rt = (RectTransform)root.transform;
 
             // ⚠ 2026-10-11：Root_TopBar（Tmp_Eggs / Tmp_Ink / Img_RealmBadge）已按用户要求整块删除，
-            //   灵卵在编阵/灵市看、墨铊在局外成长面板看，境界徽未使用 ⇒ 不再建。
+            //   灵卵在编阵/灵市看、墨铊在局外成长面板看，境界徽未使用 ， 不再建。
 
             var hero = UIBuild.Stretch(rt, "Root_Hero", 380, 140, 560, 230);
             UIBuild.Img(hero, new Color(1f, 1f, 1f, 0f));
@@ -743,7 +743,7 @@ namespace WanXiang.EditorTools
         /// <summary>结算面板的「掉落明细」行（放在【跳过】与【确认】之间的空档）。Ensure 语义。</summary>
         internal static void EnsureResultDropsNode(RectTransform rt, ResultPanel comp)
         {
-            // 实测几何：跳过 x 140..500、确认 x 850..1310 ⇒ 中间 500..850 是空的
+            // 实测几何：跳过 x 140..500、确认 x 850..1310 ， 中间 500..850 是空的
             var r = EnsureNode(rt, "Tmp_Drops", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                 Vector2.zero, Vector2.zero);
             r.pivot = new Vector2(0.5f, 0f);
@@ -974,7 +974,7 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_tmpTitle", tmpTitle);
             UIBuild.Bind(comp, "_tmpEggs", tmpEggs);
             // ⚠ scrollHosts 是 RectTransform，字段是 ScrollRect —— 直接 Bind 类型不匹配，
-            //   SerializedObject 赋值静默失败 ⇒ 运行时字段为 null（用户实测：列表全空）。
+            //   SerializedObject 赋值静默失败 ， 运行时字段为 null（用户实测：列表全空）。
             UIBuild.Bind(comp, "_scrollHosts", scrollHosts.GetComponentInParent<ScrollRect>());   // ⚠ ScrollVertical 返回的是 Content！
             UIBuild.Bind(comp, "_imgHost", imgHost);
             UIBuild.Bind(comp, "_imgVortex", imgVortex);
@@ -1470,9 +1470,9 @@ namespace WanXiang.EditorTools
             //   容易传错，曾导致"标题跑到正文下面、正文挤到底部"）。参数直白，不会再错。
             var title = UIBuild.Tmp(UIBuild.Fixed(card, "Tmp_Title", new Vector2(0.5f, 1f),
                 new Vector2(624, 64), new Vector2(0, -60)), "", 36, UIBuild.Ink, TextAlignmentOptions.Center);
-            // ⚠ 正文下移：标题框中心 (0,-60) 高 64 ⇒ 底边 -92；正文 TopLeft、高 180
-            //   ⇒ 若中心 -152 则文字首行在 -62，与标题重叠（用户："标题和正文挤在一起"）。
-            //   放到中心 -190 ⇒ 首行 -100，与标题底边 -92 留 8px 间隙。
+            // ⚠ 正文下移：标题框中心 (0,-60) 高 64 ， 底边 -92；正文 TopLeft、高 180
+            //   ， 若中心 -152 则文字首行在 -62，与标题重叠（用户："标题和正文挤在一起"）。
+            //   放到中心 -190 ， 首行 -100，与标题底边 -92 留 8px 间隙。
             var body = UIBuild.Tmp(UIBuild.Fixed(card, "Tmp_Body", new Vector2(0.5f, 1f),
                 new Vector2(592, 180), new Vector2(0, -190)), "", 26, UIBuild.Ink, TextAlignmentOptions.TopLeft);
 

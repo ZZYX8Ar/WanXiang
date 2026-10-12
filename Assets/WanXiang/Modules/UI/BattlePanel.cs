@@ -56,7 +56,7 @@ namespace WanXiang.Modules.UI
         private readonly System.Collections.Generic.List<int> _previewAllyCells = new System.Collections.Generic.List<int>(9);
         private readonly System.Collections.Generic.List<int> _previewFoeCells = new System.Collections.Generic.List<int>(9);
         // ⚠ 原 `private int _eventIndex` 已删：事件游标的真值只有 BattlePlayback.EventIndex 一份。
-        //   两份计数器必然漂移（Step() 等令时返回 true 却不推进）⇒ 循环卡死（实测：涨到 46 万）。
+        //   两份计数器必然漂移（Step() 等令时返回 true 却不推进）， 循环卡死（实测：涨到 46 万）。
 
         // ================================================================
         //  生命周期
@@ -364,7 +364,7 @@ namespace WanXiang.Modules.UI
         /// 阵亡处理：把本场战斗阵亡的我方异兽从「上阵队伍」与「拥有」中直接移除，
         /// 整局（这一趟旅程）失去该异兽，直到从灵市重新购买。
         /// ⚠ **只在打赢（= 过节点）时调用**，见 <see cref="HandOff"/>；战败/平局撤退/重新挑战都不调用。
-        /// 设计：异兽唯一且可重新购买 ⇒ 阵亡=本局失去，编阵界面自然选不到（无需额外禁用名单）。
+        /// 设计：异兽唯一且可重新购买 ， 阵亡=本局失去，编阵界面自然选不到（无需额外禁用名单）。
         /// 商店只卖你"还没有"的异兽，故阵亡兽会自动重新出现在货架上。
         /// PvP 是独立玩法、不消耗本局阵容；无战斗状态/无当前旅程时跳过。
         /// </summary>
@@ -507,7 +507,7 @@ namespace WanXiang.Modules.UI
         //  ------------------------------------------------------------------
         //  · 顺序取自核心 BuildActionOrderInto（按有效速度降序，我敌混排）= 单一真源
         //  · **刷新守卫**：只有"顺序或当前行动者变化"时才重建 UI。
-        //    之前每帧重建 TMP 文本 ⇒ 每帧触发 mesh 重建 + 大量 GC ⇒ Unity 卡死（用户实测）。
+        //    之前每帧重建 TMP 文本 ， 每帧触发 mesh 重建 + 大量 GC ， Unity 卡死（用户实测）。
         //    现在每帧只做一次 10 单位的排序 + 指纹比对，开销可忽略。
         // ================================================================
         private const int OrderRowCount = 8;
@@ -535,7 +535,7 @@ namespace WanXiang.Modules.UI
         private int _lastDecisionSeq = -1;   // 上次已刷新的决策序号（替代原"待令单位 id"，见 PlayLoop 注释）
 
         /// <summary>主循环"推进事件"步数的看门狗上限。**只统计事件步**，等令帧不计、且每轮等令清零。
-        /// 触顶只告警并清零，绝不中途退出循环（退出会把没打完的仗当成打完 ⇒ 没死却判负）。</summary>
+        /// 触顶只告警并清零，绝不中途退出循环（退出会把没打完的仗当成打完 ， 没死却判负）。</summary>
         private const int GuardLimit = 20000;
         private string _lastActorLine;
     }

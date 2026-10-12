@@ -74,7 +74,7 @@ namespace WanXiang.Modules.UI
         // ---- 敌方情报（悬浮介绍）----
         private System.Collections.Generic.List<WanXiang.Battle.Core.BeastDef> _enemyDefs;
         /// <summary>本场我方总倍率（来自真实战斗请求 req.PlayerMul：含遗物 + 孵穴/天象等）。
-        /// ★ 原战力只按裸面板算，漏了这层 ⇒ 玩家看到的战力比实战低一大截（用户 2026-10-12 报障）。</summary>
+        /// ★ 原战力只按裸面板算，漏了这层 ， 玩家看到的战力比实战低一大截（用户 2026-10-12 报障）。</summary>
         private float _relicPlayerMul = 1f;
 
         protected override void OnCreate()
@@ -147,7 +147,7 @@ namespace WanXiang.Modules.UI
 
         /// <summary>
         /// 敌方情报：★ 必须用**真实战斗请求**里的敌人。
-        /// 旧实现拿"图鉴数组后半段"当预览、强度写死 5.35 ⇒ 与实际开打的敌人完全不符（用户实测）。
+        /// 旧实现拿"图鉴数组后半段"当预览、强度写死 5.35 ， 与实际开打的敌人完全不符（用户实测）。
         /// </summary>
         private void FillEnemyIntel()
         {
@@ -156,7 +156,7 @@ namespace WanXiang.Modules.UI
             var run = WanXiang.Run.RunSave.Current;
             BattleRequest req;
             bool ok;
-            // 预览不能消耗挂起修正（孵穴回血/天象加成）⇒ 先记住、调完工厂再还原
+            // 预览不能消耗挂起修正（孵穴回血/天象加成）， 先记住、调完工厂再还原
             int hp = 0, pb = 0, eb = 0;
             if (run != null) { hp = run.HealPending; pb = run.PlayerBuffPct; eb = run.EnemyBuffPct; }
 
@@ -172,7 +172,7 @@ namespace WanXiang.Modules.UI
                 if (_imgEnemies[i] == null) continue;
                 if (i >= enemies.Count || enemies[i] == null)
                 {
-                    _imgEnemies[i].enabled = false;      // 敌人没那么多 ⇒ 隐藏空位
+                    _imgEnemies[i].enabled = false;      // 敌人没那么多 ， 隐藏空位
                     continue;
                 }
                 var sprite = _sprites != null ? _sprites.GetHead(enemies[i].Id) : null;
@@ -186,7 +186,7 @@ namespace WanXiang.Modules.UI
             }
             // 敌方总战力：与**我方/结算/历程共用同一份口径**（BattlePower）。
             // ⚠ 原来是 "敌方强度 BP 7.01"（EnemyBudget 的计价口径，是个"预算价格"不是战力）
-            //   ⇒ 玩家看不懂（用户实测报障）。改用战力：与上方我方数字同一把尺，可比。
+            //   ， 玩家看不懂（用户实测报障）。改用战力：与上方我方数字同一把尺，可比。
             if (_tmpEnemyPower != null)
                 _tmpEnemyPower.text = "敌方总战力 " + WanXiang.Battle.Core.BattlePower.Sum(enemies, req.EnemyMul)
                                     + "（" + enemies.Count + " 只）";
@@ -323,7 +323,7 @@ namespace WanXiang.Modules.UI
             {
                 int idx = _deployed[i];
                 // ⚠ 必须**同时挡上界**：`_all` 可能只是"已拥有"的子集（owned.ToArray()），
-                //   而 _deployed 里的索引来自存档/上一次布局 ⇒ 可能超出当前 _all.Length。
+                //   而 _deployed 里的索引来自存档/上一次布局 ， 可能超出当前 _all.Length。
                 //   这里原来只挡了 idx < 0，于是 `_all[idx]` 直接抛 IndexOutOfRange
                 //   （实测：从战役点"下一关"打开编成面板必崩在 318 行）。
                 if (_all == null || idx < 0 || idx >= _all.Length) continue;
@@ -384,8 +384,8 @@ namespace WanXiang.Modules.UI
                     int idx = _deployed[i];
                     // 与上面同一条不变量：索引可能超出当前 _all.Length
                     if (_all == null || idx < 0 || idx >= _all.Length) continue;
-                    // ★ 真实战力（原来是 `1100 + idx*37` 的占位假值 ⇒ 与敌方那串不可比，用户看不懂）
-                    // ★ 再乘本场总倍率（遗物 + 加成）⇒ 与实战/敌方同一把尺（用户 2026-10-12 报障）
+                    // ★ 真实战力（原来是 `1100 + idx*37` 的占位假值 ， 与敌方那串不可比，用户看不懂）
+                    // ★ 再乘本场总倍率（遗物 + 加成）， 与实战/敌方同一把尺（用户 2026-10-12 报障）
                     power += WanXiang.Battle.Core.BattlePower.Of(_all[idx], _relicPlayerMul);
                 }
                 _tmpPower.text = "我方总战力 " + power
@@ -409,7 +409,7 @@ namespace WanXiang.Modules.UI
         /// 取悬浮说明面板：**优先用 prefab 里的 Root_BondTip**（铁律：UI 必须在 prefab 里看得见改得着），
         /// 找不到才运行时兜底并打日志提醒补 prefab。
         /// ⛔ 之前踩坑：运行时创建时用了 `AddComponent<TMP_Text>()` —— TMP_Text 是抽象类，
-        ///   添加必失败返回 null ⇒ 下一行 NRE 打断 OnCreate ⇒ WireBondTips 没跑 ⇒ 悬浮全灭（用户实测）。
+        ///   添加必失败返回 null ， 下一行 NRE 打断 OnCreate ， WireBondTips 没跑 ， 悬浮全灭（用户实测）。
         ///   兜底路径也必须用具体类 TextMeshProUGUI。
         /// </summary>
         private void BuildBondTip()
@@ -467,7 +467,7 @@ namespace WanXiang.Modules.UI
                 var img = _imgBonds[i];
                 if (img == null) continue;
                 img.raycastTarget = true;     // 保证悬浮能命中
-                // ★ 名字文本浮在图标上方、TMP 默认 raycastTarget=true，会抢走射线 ⇒ 图标收不到悬浮
+                // ★ 名字文本浮在图标上方、TMP 默认 raycastTarget=true，会抢走射线 ， 图标收不到悬浮
                 if (_tmpBonds != null && i < _tmpBonds.Length && _tmpBonds[i] != null)
                     _tmpBonds[i].raycastTarget = false;
                 var trg = img.gameObject.GetComponent<EventTrigger>();
@@ -630,21 +630,30 @@ namespace WanXiang.Modules.UI
             {
                 var g = WanXiang.Battle.Core.ElementMatrix.GenerateRing;
                 string a = Cn.Of(g[i]), c = Cn.Of(g[(i + 1) % 5]);
-                title = "五行相生 · " + a + "→" + c;
+                title = "五行相生 · " + a + "生" + c;
                 body = "五行：木火土金水。相生 = 前者生后者（" + a + "生" + c + "）。\n" +
-                       "这一格亮起 ⇒ 你场上有相邻的「" + a + "属性 + " + c + "属性」一对异兽，触发相生羁绊增益。\n" +
-                       "相生链：木→火→土→金→水→木。";
+                       "这一格亮起，说明你场上有相邻的「" + a + "属性 + " + c + "属性」一对异兽，触发相生羁绊增益。\n" +
+                       "相生链：木生火、火生土、土生金、金生水、水生木。";
             }
             else
             {
                 int tier = i - 5;
                 int need = tier == 0 ? 2 : (tier == 1 ? 4 : 5);
                 title = "同属共鸣 · " + need + " 只";
-                body = "上阵同属性异兽达 " + need + " 只 ⇒ 全队攻击提升：\n" +
-                       "2 只 +8%、4 只 +16%（并解锁共鸣技）、5 只 +25%（共鸣技冷却 -2）。\n" +
-                       "每回合开局自动结算，数值实时显示在面板右侧。";
+                body = "上阵同属性异兽达 " + need + " 只，全队攻击提升：\n" +
+                       "2 只 +8%、4 只 +16%、5 只 +25%（同属 5 只时，该属性单位绝技冷却 -2）。\n" +
+                       "每回合开局自动结算，数值实时显示在面板右侧。\n\n" +
+                       "（共鸣技 = 同属 4 只解锁的专属合击，本版本尚未开放。）";
             }
             PresentBondTip("<size=24><b>" + title + "</b></size>\n" + body);
+        }
+
+        /// <summary>当前站在中宫（格 4）的那只异兽；没上阵返回 null。</summary>
+        private WanXiang.Battle.Core.BeastDef CenterBeast()
+        {
+            if (_all == null || _deployed == null || _deployed.Length <= 4) return null;
+            int idx = _deployed[4];
+            return (idx >= 0 && idx < _all.Length) ? _all[idx] : null;
         }
 
         private void ShowCenterTip()
@@ -652,21 +661,35 @@ namespace WanXiang.Modules.UI
             if (_bondTipPanel == null || _bondTipText == null) return;
             if (_bondTipSlot == 90 && _bondTipPanel.gameObject.activeSelf) return;
             _bondTipSlot = 90;
-            const string title = "九宫格中宫（中间格）";
             var sb = new System.Text.StringBuilder();
             sb.Append("中宫有特殊效果：\n");
             sb.Append("· 中宫土德：站中间的异兽受到伤害 -8%（全属性减伤）。\n");
             sb.Append("· 平息相冲：若相冲（相克）涉及中宫，该次相冲被化解。\n");
-            sb.Append("· 连携技必须由站中宫的主兽发动（句芒/祝融/蓐收）。\n");
-            sb.Append("所以把主兽放进中间格收益最大。\n\n");
-            sb.Append("【连携技一览】（主兽须站中宫，双方各耗 2 灵力，每场每条限一次）\n");
-            // ★ 直接读 ComboRules.All，保证说明与实战效果永远一致（用户 2026-09-29 要求写进中宫说明）
-            foreach (var c in WanXiang.Battle.Core.ComboRules.All)
+            sb.Append("· 连携技必须由站中宫的主兽发动。\n");
+            sb.Append("所以把主兽放进中间格收益最大。");
+
+            // ★ 只列**当前站中宫那只**能发动的连携（用户 2026-10-12：原来把 50 条全列出来太乱）
+            var center = CenterBeast();
+            sb.Append("\n\n【当前中宫连携】");
+            if (center == null)
             {
-                sb.Append("· ").Append(c.Name).Append("：")
-                  .Append(c.Note).Append("（倍率 ").Append((c.Power * 100f).ToString("0")).Append("%）\n");
+                sb.Append("\n（中宫还没有异兽 —— 拖一只主兽进来）");
             }
-            PresentBondTip("<size=24><b>" + title + "</b></size>\n" + sb);
+            else
+            {
+                int found = 0;
+                foreach (var c in WanXiang.Battle.Core.ComboRules.All)
+                {
+                    if (c == null || c.HostId != center.Id) continue;
+                    found++;
+                    sb.Append("\n· ").Append(c.Name).Append("：").Append(c.Note)
+                      .Append("（倍率 ").Append((c.Power * 100f).ToString("0")).Append("%）");
+                }
+                if (found == 0)
+                    sb.Append("\n（").Append(center.DisplayName)
+                      .Append(" 没有连携技。连携主兽为句芒 / 祝融 / 蓐收等）");
+            }
+            PresentBondTip("<size=24><b>九宫格中宫（中间格）</b></size>\n" + sb);
         }
 
         private void PresentBondTip(string text)
@@ -1094,12 +1117,13 @@ namespace WanXiang.Modules.UI
             {
                 // ★ 返回 = 取消这次出征：节点不该被算作通过（用户实测"返回也直接过了"）
                 CampaignPanel.PendingCommit = -1;
-                CloseSelf();
                 var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
                 Cysharp.Threading.Tasks.UniTask.Void(async () =>
                 {
-                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);
+                    // ★ 先开地图（立刻盖住屏幕）、再关编队 —— 原先是"先关编队 + DelayFrame(30) 再开地图"，
+                    //   中间那 30 帧空屏会露出主界面（用户 2026-10-12 报"点返回地图闪一下主界面"）。
                     await ui.OpenAsync<CampaignPanel>();
+                    CloseSelf();
                 });
             });
         }

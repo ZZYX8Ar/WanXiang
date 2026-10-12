@@ -145,9 +145,9 @@ namespace WanXiang.Framework.Samples.HotUpdate
             _lines.Add($"   当前阶段：{HotUpdateBootstrap.Stage}");
             _lines.Add($"   LastError：{HotUpdateBootstrap.LastError ?? "(无)"}");
             _lines.Add("   排查提示：");
-            _lines.Add("     · 若上面**连一条心跳都没有** ⇒ 游戏循环停了，不是热更的问题；");
+            _lines.Add("     · 若上面**连一条心跳都没有** ， 游戏循环停了，不是热更的问题；");
             _lines.Add("       本机编辑器不主动推进播放器循环，靠诊断通道的 KeepPlayModeAlive 代推。");
-            _lines.Add("     · 若心跳正常但卡住 ⇒ 看 HotUpdateBootstrap.Stage 停在第几段。");
+            _lines.Add("     · 若心跳正常但卡住 ， 看 HotUpdateBootstrap.Stage 停在第几段。");
 
             FinishAndWrite();
         }
@@ -267,15 +267,15 @@ namespace WanXiang.Framework.Samples.HotUpdate
 
                 // 字节流载入的程序集不对应磁盘路径，Location 是空串。
                 _lines.Add(string.IsNullOrEmpty(loaded.Location)
-                    ? "✅ Location 为空串 ⇒ 它是从**字节流**载入的（不是从磁盘路径加载）"
-                    : $"⚠ Location 非空：{loaded.Location} ⇒ 可能是从磁盘路径加载的，不是字节流");
+                    ? "✅ Location 为空串 ， 它是从**字节流**载入的（不是从磁盘路径加载）"
+                    : $"⚠ Location 非空：{loaded.Location} ， 可能是从磁盘路径加载的，不是字节流");
 
                 int sameName = AppDomain.CurrentDomain.GetAssemblies()
                     .Count(a => a.GetName().Name == name);
                 _lines.Add($"   当前域里同名程序集数量：{sameName}");
                 if (sameName >= 2)
                 {
-                    _lines.Add("   ✅ ≥2 份 ⇒ 编辑器自己编译的那份 + 本次从字节流加载的那份，"
+                    _lines.Add("   ✅ ≥2 份 ， 编辑器自己编译的那份 + 本次从字节流加载的那份，"
                                + "两者是**不同实例**。");
                     _lines.Add("      这就是「新读进来的字节真的生效了」的证据。");
                 }
@@ -318,7 +318,7 @@ namespace WanXiang.Framework.Samples.HotUpdate
             }
             else
             {
-                _lines.Add("⚠ 帧数没动 ⇒ 本机播放器循环停摆（环境问题，不是热更的问题）。");
+                _lines.Add("⚠ 帧数没动 ， 本机播放器循环停摆（环境问题，不是热更的问题）。");
                 _lines.Add("   这种环境下 Tick 看不了，但前面①~⑧全部走的是事件驱动的异步链，"
                            + "不受影响。");
             }

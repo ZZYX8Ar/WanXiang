@@ -50,13 +50,13 @@ namespace WanXiang.Modules.Boot
                 SceneFlow.PendingRechallengeNode = null;
                 SceneFlow.PendingBattleNode = node;   // 重新出征时还能再回到这个节点
                 // ★ 重新挑战修复（2026-09-29）：清掉"点节点时写的 PendingCommit"，
-                //   否则下面打开 CampaignPanel 会把它当成"已通过"落地 ⇒ 节点被误判通关。
+                //   否则下面打开 CampaignPanel 会把它当成"已通过"落地 ， 节点被误判通关。
                 //   真正的通过要等【重新出征打赢】后回地图才落地（见 FormationPanel.OnDeployClicked 重写 PendingCommit）。
                 CampaignPanel.PendingCommit = -1;
                 ui.Close<StartPanel>();
                 await ui.OpenAsync<CampaignPanel>();       // 底下垫节点地图
                 await ui.OpenAsync<FormationPanel>(node);  // 再叠编队界面（带节点上下文）
-                Debug.Log("[MainSceneEntry][调试] 重新挑战 ⇒ 已回到编队界面（节点：" +
+                Debug.Log("[MainSceneEntry][调试] 重新挑战 ， 已回到编队界面（节点：" +
                           (node != null ? node.Title : "null") + "）");
                 return;
             }
@@ -65,7 +65,7 @@ namespace WanXiang.Modules.Boot
             {
                 // ⚠ 旧的天阙触发条件（Act==4 && NodeOffset==11）已废弃并删除：
                 //   11 是"4 层 × 3 格"时代的遗留格号，与现在的 12 层图对不上；
-                //   而且幕推进会把 NodeOffset 重置为 -1 ⇒ 条件永远不成立 ⇒ 天阙永不触发。
+                //   而且幕推进会把 NodeOffset 重置为 -1 ， 条件永远不成立 ， 天阙永不触发。
                 //   现在改为：**幕推进到第 5 幕的那一刻**置位 PendingFinale（见 CampaignPanel）。
 
                 await ui.OpenAsync<ResultPanel>(result);
@@ -74,11 +74,11 @@ namespace WanXiang.Modules.Boot
             }
 
             // ⚠ 开始界面必须在这里关掉：StartPanel 与 Home 同在 Main 层，
-            //   它一直 Opened 就会一直"遮挡"Home ⇒ Home 永远 Paused，
+            //   它一直 Opened 就会一直"遮挡"Home ， Home 永远 Paused，
             //   表现就是「从节点地图返回主城，主界面是灰的/点不动」。
             ui.Close<StartPanel>();
 
-            // ★★ 登天阙：刚从天阙抉择选了"登天阙" ⇒ 直接在**第 5 幕天阙图**开局，
+            // ★★ 登天阙：刚从天阙抉择选了"登天阙" ， 直接在**第 5 幕天阙图**开局，
             //    而不是进主界面（用户要求：登天后直接进入第五幕节点地图）。
             //    放在这里是因为：场景已加载完成、UI 栈干净，不会像"Overlay 面板内切面板"那样被栈重算判掉。
             Debug.Log("[MainSceneEntry] 进入主城：EnterFinaleMap=" + SceneFlow.EnterFinaleMap +
@@ -87,18 +87,18 @@ namespace WanXiang.Modules.Boot
             {
                 SceneFlow.EnterFinaleMap = false;
                 // ★★ 关键：先关掉"残留的主界面"！
-                //    实测（日志）：场景被切了两次 ⇒ MainSceneEntry 跑了两次，
+                //    实测（日志）：场景被切了两次 ， MainSceneEntry 跑了两次，
                 //    第一次进 HomePanel 分支把主界面打开了；第二次虽然成功打开节点图，
-                //    但主界面还在栈里 ⇒ 下一次**栈重算**就把节点图判掉（2 帧后 active=False）。
+                //    但主界面还在栈里 ， 下一次**栈重算**就把节点图判掉（2 帧后 active=False）。
                 // ★★★ 用最硬的办法：**清空整个面板栈**再打开节点图。
-                //     实测：只关 HomePanel 不够 —— 场景被切两次 ⇒ MainSceneEntry 跑两次，
+                //     实测：只关 HomePanel 不够 —— 场景被切两次 ， MainSceneEntry 跑两次，
                 //     第一次遗留的面板会让 UISystem 的"栈重算"把刚打开的节点图判掉
                 //     （日志：打开成功但 2 帧后 active=False）。
                 ui.CloseAll();
                 await UniTask.DelayFrame(2);       // 等 CloseAll 引发的栈重算彻底跑完
                 Debug.Log("[MainSceneEntry] 已清空面板栈，准备打开天阙图");
                 var cp = await ui.OpenAsync<CampaignPanel>();
-                Debug.Log("[MainSceneEntry] 登天阙 ⇒ 已请求节点地图，结果=" +
+                Debug.Log("[MainSceneEntry] 登天阙 ， 已请求节点地图，结果=" +
                           (cp != null ? ("成功 " + cp.name) : "null（打开失败）"));
                 // ⚠ 打开后立刻复查它是否还活着（栈重算可能把它关掉）
                 await UniTask.DelayFrame(2);
@@ -118,7 +118,7 @@ namespace WanXiang.Modules.Boot
             {
                 var run0 = WanXiang.Run.RunSave.Current;
                 int act0 = run0 != null ? Mathf.Clamp(run0.Act, 1, 5) : 1;
-                // ⚠ 不传 coverSprite ⇒ 用按幕的纯色纸底（用户 2026-10-12：
+                // ⚠ 不传 coverSprite ， 用按幕的纯色纸底（用户 2026-10-12：
                 //   "从开始界面到主界面保留之前的黑色就行"）。
                 //   背景贯穿只留给「主界面→节点地图」那条（那里两张底图才需要接）。
                 await UiTransition.PlayAsync(UiTransition.Kind.Ink, act0, () =>

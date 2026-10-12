@@ -191,7 +191,7 @@ namespace WanXiang.EditorTools.Diagnostics
         /// 走反射而不是直接引用：诊断通道所在程序集（WanXiang.Editor）刻意
         /// **不依赖**任何具体工具程序集。这样某个工具编不过时，
         /// 通道本身还能活着把错误报出来 —— 否则会变成
-        /// "工具坏了 ⇒ 通道也编不过 ⇒ 连报告都看不到"，查不了。
+        /// "工具坏了 ， 通道也编不过 ， 连报告都看不到"，查不了。
         /// </remarks>
         private static void RunEditorTool(Report report, string command, string typeName, string missingHint)
         {

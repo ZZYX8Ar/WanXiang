@@ -7,7 +7,7 @@
 //  触发（两处，都走 CampaignPanel.OnOpenAsync 这一个口子）：
 //    · 从主界面出征进节点地图
 //    · 打通守关、推进到新的一幕后回图
-//  是否已播记在存档的 `RunState.IntroShownAct` ⇒ **同一幕只播一次**，读档回图不会重播。
+//  是否已播记在存档的 `RunState.IntroShownAct` ， **同一幕只播一次**，读档回图不会重播。
 //
 //  幕↔季节的对应沿用五行（项目的幕本就是按五行分的）：
 //    幕1 木=春 · 幕2 火=夏 · 幕3 金=秋 · 幕4 水=冬
@@ -17,7 +17,7 @@
 //     为了不引入"编辑器里能编、出包才报错"的风险，动画一律用 UniTask + 手动插值实现。
 //
 //  文字/配色/落叶都在下面的 `Titles` 表里 —— **改文案只改这张表**。
-//  美术替换：`Assets/Resources/UI/ActIntro/paper.png`（宣纸底）、`leaf.png`（落叶）⇒ 丢图即生效。
+//  美术替换：`Assets/Resources/UI/ActIntro/paper.png`（宣纸底）、`leaf.png`（落叶）， 丢图即生效。
 // ============================================================================
 
 using System.Collections.Generic;
@@ -49,7 +49,7 @@ namespace WanXiang.Modules.UI
             public int LeafCount = 30;
             /// <summary>落叶速度倍率（&gt;1 更快）。</summary>
             public float LeafSpeed = 1f;
-            /// <summary>背景染色（乘在底图上）。每季不同 ⇒ 一眼能看出换季了。</summary>
+            /// <summary>背景染色（乘在底图上）。每季不同 ， 一眼能看出换季了。</summary>
             public Color BgTint = Color.white;
         }
 
@@ -144,7 +144,7 @@ namespace WanXiang.Modules.UI
 
         /// <summary>
         /// 双击左键跳过整段开场。
-        /// 走 UGUI 的 Button（GraphicRaycaster）⇒ **不依赖输入后端**（新旧 Input 都能用），
+        /// 走 UGUI 的 Button（GraphicRaycaster）， **不依赖输入后端**（新旧 Input 都能用），
         /// 也不用在 Update 里轮询。单击不响应，必须两击间隔在 `_skipDoubleClickGap` 内。
         /// </summary>
         private void OnSkipClicked()
@@ -190,7 +190,7 @@ namespace WanXiang.Modules.UI
 
         /// <summary>
         /// 每幕专属美术：Resources/UI/ActIntro/bg_幕号.png（背景）、particle_幕号.png（粒子）。
-        /// **按幕号取文件** ⇒ 以后加幕/换图只要丢文件，不用改 prefab、不用改代码。
+        /// **按幕号取文件** ， 以后加幕/换图只要丢文件，不用改 prefab、不用改代码。
         /// 缺图时：背景回退到通用的 paper，粒子回退到模板原有的图。
         /// </summary>
         // 节点地图本幕背景（与 CampaignPanel.Img_MapBg / 转场遮盖层同一张，保证观感连贯）
@@ -206,7 +206,7 @@ namespace WanXiang.Modules.UI
             if (_imgPaper != null)
             {
                 // ★ 2026-10-12 用户要求："把这个写字转场的底图也换成节点底图的底图我看看"
-                //   ⇒ 写字开场与节点地图用**同一张幕背景**，观感连贯（不再"宣纸→地图"跳一下）。
+                //   ， 写字开场与节点地图用**同一张幕背景**，观感连贯（不再"宣纸→地图"跳一下）。
                 //   取不到才回退到原来的 ActIntro 专属宣纸。
                 var bg = Resources.Load<Sprite>(MapBgByAct[Mathf.Clamp(act, 1, 5) - 1]);
                 if (bg == null) bg = Resources.Load<Sprite>("UI/ActIntro/bg_" + act);
@@ -254,7 +254,7 @@ namespace WanXiang.Modules.UI
 
             ApplySeasonArt(act, t);   // ★ 每幕专属背景 + 粒子图 + 季节染色（缺图自动回退）
 
-            // ⛔ 不再叠「花边框」层（2026-10-10 用户实锤）：它比背景晚 0.55s 淡入 ⇒ 观感是
+            // ⛔ 不再叠「花边框」层（2026-10-10 用户实锤）：它比背景晚 0.55s 淡入 ， 观感是
             //    "先看到本幕季节背景、一下又被一层花纹盖住"（用户："每一幕的背景图有两张会变化"）。
             //    背景图 `bg_<act>` 本身已含四季装饰（竹/枫/雪/土 + 云纹），去掉这层后开场**只剩一张图**。
             var frameT = transform.Find("Img_Frame");
@@ -273,7 +273,7 @@ namespace WanXiang.Modules.UI
 
             // ---- 书写 ----
             //  用 **UGUI 内置 RectMask2D 从左到右扫过**（Unity 原生、零布局计算、零自定义 shader）。
-            //  遮罩宽度增长 ⇒ 整行字被连续"写"出来（不是一个一个蹦），而且文本位置完全交给 UGUI，
+            //  遮罩宽度增长 ， 整行字被连续"写"出来（不是一个一个蹦），而且文本位置完全交给 UGUI，
             //  不会再出现"每一字自己算坐标算歪"的问题。
             await WriteTitleAsync(t);
 
@@ -348,7 +348,7 @@ namespace WanXiang.Modules.UI
         {
             for (int i = 0; i < 3; i++)
             {
-                if (this == null) return;                       // ⛔ 面板已销毁 ⇒ 别再放音效
+                if (this == null) return;                       // ⛔ 面板已销毁 ， 别再放音效
                 PlaySfx("brush", 0.75f);
                 await UniTask.Delay(Ms(Mathf.Max(0.5f, total * 0.32f)));
             }
@@ -383,7 +383,7 @@ namespace WanXiang.Modules.UI
         //  背景墨韵：墨在纸上缓慢洇开
         //  ------------------------------------------------------------------
         //  静态宣纸显得"死"，所以叠几团**极淡**的墨晕，各自缓慢放大 + 游走 + 淡入淡出。
-        //  贴图程序化生成（`_tools/_make_inkblot.py`）⇒ 换风格只要换
+        //  贴图程序化生成（`_tools/_make_inkblot.py`）， 换风格只要换
         //  `Resources/UI/ActIntro/inkblot.png`，代码不用动。
         //  ⚠ 透明度压得很低（默认 0.11）—— 它是氛围，不能抢标题。
         // ==================================================================
@@ -406,7 +406,7 @@ namespace WanXiang.Modules.UI
         private void SpawnInkBlots()
         {
             var root = transform.Find("Root_Ink") as RectTransform;
-            // ⛔ Transform.Find 返回的是 **Transform**，不能 `as Image`（不相关的两个类型 ⇒ CS0039）
+            // ⛔ Transform.Find 返回的是 **Transform**，不能 `as Image`（不相关的两个类型 ， CS0039）
             var tplT = transform.Find("Root_Ink/Item_InkBlot");
             var tpl = tplT != null ? tplT.GetComponent<Image>() : null;
             if (root == null || tpl == null) return;          // 缺节点就跳过，不报错
@@ -461,7 +461,7 @@ namespace WanXiang.Modules.UI
 
                     b.Rt.anchoredPosition += b.Vel * dt;
                     b.Rt.localScale = Vector3.one * (b.BaseScale * Mathf.Lerp(1f, 1.75f, k));  // 洇开
-                    // 透明度：sin 包络（中段最浓），两端为 0 ⇒ 不出现硬边出现/消失
+                    // 透明度：sin 包络（中段最浓），两端为 0 ， 不出现硬边出现/消失
                     var c = b.Img.color;
                     c.a = b.Peak * Mathf.Sin(Mathf.PI * k);
                     b.Img.color = c;
@@ -482,7 +482,7 @@ namespace WanXiang.Modules.UI
         /// 书写：用**真实笔顺数据**逐笔写出。
         /// 帧图放在 `Resources/UI/TitleStroke/&lt;字&gt;/&lt;n&gt;.png`，**第 n 帧 = 画完前 n 笔**；
         /// 数据来源 Hanzi Writer / Make Me a Hanzi（1024 网格、y 向下，MIT）。
-        /// ⛔ 任一字符缺帧 ⇒ **整体回退**到 TMP 的 `maxVisibleCharacters` 扫出（宁可不好看，也不能不显示）。
+        /// ⛔ 任一字符缺帧 ， **整体回退**到 TMP 的 `maxVisibleCharacters` 扫出（宁可不好看，也不能不显示）。
         /// </summary>
         private async UniTask WriteTitleAsync(ActTitle t)
         {
@@ -503,7 +503,7 @@ namespace WanXiang.Modules.UI
                 counts.Add(c);
             }
             for (int i = 0; i < counts.Count; i++)
-                if (counts[i] <= 0) { Dbg("字「" + text[i] + "」无笔顺帧 ⇒ 回退 TMP 扫出"); await WriteByTmpAsync(text); return; }
+                if (counts[i] <= 0) { Dbg("字「" + text[i] + "」无笔顺帧 ， 回退 TMP 扫出"); await WriteByTmpAsync(text); return; }
 
             // ---- 布局：CJK 等宽，按字号步进、整体居中，纵向与 TMP 同一基准 ----
             float step = _tmpTitleMain.fontSize * 1.18f;
@@ -513,8 +513,8 @@ namespace WanXiang.Modules.UI
 
             for (int i = 0; i < text.Length; i++)
             {
-                // ⛔ Instantiate(tpl) 里 tpl 是 RectTransform ⇒ 返回的也是 RectTransform，
-                //   **不能直接取 .sprite/.enabled**（那是 Image 的成员）⇒ 分开取。
+                // ⛔ Instantiate(tpl) 里 tpl 是 RectTransform ， 返回的也是 RectTransform，
+                //   **不能直接取 .sprite/.enabled**（那是 Image 的成员）， 分开取。
                 var clone = Instantiate(tpl, tpl.parent);
                 clone.gameObject.SetActive(true);
                 clone.anchoredPosition = new Vector2(x0 + i * step, baseY);
@@ -522,7 +522,7 @@ namespace WanXiang.Modules.UI
                 if (img != null)
                 {
                     img.enabled = true;
-                    // 帧图是**白色**的 ⇒ 在这里用 Image.color 上该幕的颜色（改风格只改 Titles 里的 MainColor）
+                    // 帧图是**白色**的 ， 在这里用 Image.color 上该幕的颜色（改风格只改 Titles 里的 MainColor）
                     img.color = t.MainColor;
                     var s1 = Resources.Load<Sprite>("UI/TitleStroke/" + text[i] + "/1");
                     if (s1 != null) img.sprite = s1;
@@ -572,7 +572,7 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>
-        /// 秒 → 毫秒。跳过后统一压到 **6%** ⇒ 所有 await 几乎立刻返回，
+        /// 秒 → 毫秒。跳过后统一压到 **6%** ， 所有 await 几乎立刻返回，
         /// 于是一次检查就能让整段演出"快进到底"（不用在每个 await 上贴跳过判断）。
         /// </summary>
         private int Ms(float seconds)
@@ -591,7 +591,7 @@ namespace WanXiang.Modules.UI
                 if (s_Skip) break;
                 t += Time.unscaledDeltaTime;
                 // ⛔ await Yield 之后面板/CanvasGroup 可能已被关闭销毁
-                //   （用户 2026-10-12 报 MissingReferenceException）⇒ 每次用前都判空。
+                //   （用户 2026-10-12 报 MissingReferenceException）， 每次用前都判空。
                 if (g == null) return;
                 g.alpha = Mathf.Lerp(from, to, Mathf.Clamp01(t / dur));
                 await UniTask.Yield();
@@ -671,7 +671,7 @@ namespace WanXiang.Modules.UI
                 var rt = (RectTransform)leaf.transform;
                 // ★ 从**左上角**来、往**右下角**走（用户要求）。
                 //   出生点横跨左半边、纵向从顶部之上一点一直铺到画面中部偏下
-                //   ⇒ 一部分**开场就在画面里**，不会像以前那样动画结束了还没飘进来。
+                //   ， 一部分**开场就在画面里**，不会像以前那样动画结束了还没飘进来。
                 float x = -halfW + Random.Range(0f, halfW * 1.1f);
                 float y = halfH * 0.85f - Random.Range(0f, halfH * 2.1f);
                 rt.anchoredPosition = new Vector2(x, y);
@@ -684,7 +684,7 @@ namespace WanXiang.Modules.UI
                 leaf.color = c;
 
                 // ★ 1920×1080 下要从**左上角斜穿到右下角**：横向 1920、纵向 1080
-                //   ⇒ 横向速度必须约为纵向的 2 倍。之前反了（纵向快、横向慢）⇒ 没到右边就到底（用户实测）。
+                //   ， 横向速度必须约为纵向的 2 倍。之前反了（纵向快、横向慢）， 没到右边就到底（用户实测）。
                 float speed = Mathf.Max(0.1f, t.LeafSpeed);
                 float vx = Random.Range(420f, 620f) * speed;
                 float vy = Random.Range(300f, 430f) * speed;     // 约 4s 内走完整屏高度
@@ -709,7 +709,7 @@ namespace WanXiang.Modules.UI
             while (true)
             {
                 bool any = false;
-                if (this == null) return;                       // ⛔ 面板已销毁 ⇒ 直接收工
+                if (this == null) return;                       // ⛔ 面板已销毁 ， 直接收工
                 if (s_Skip) { _leaves.Clear(); break; }
                 float dt = Time.unscaledDeltaTime;
                 for (int i = 0; i < _leaves.Count; i++)
@@ -738,7 +738,7 @@ namespace WanXiang.Modules.UI
                     if (p.y < -halfH - 120f)
                     {
                         // ⛔ 必须**销毁**，不能只把引用置空：否则 GameObject 留在层级里，
-                        //   最后一个更新帧的位置被冻住 ⇒ 观感就是"粒子卡在半空"（用户截图里的现象）。
+                        //   最后一个更新帧的位置被冻住 ， 观感就是"粒子卡在半空"（用户截图里的现象）。
                         if (L.Rt != null) UnityEngine.Object.Destroy(L.Rt.gameObject);
                         L.Rt = null;
                     }

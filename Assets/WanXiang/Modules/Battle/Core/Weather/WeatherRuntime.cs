@@ -50,7 +50,7 @@ namespace WanXiang.Battle.Core
                 && skill.Brings.Element != Element.None
                 && ElementMatrix.Counters(season.Element, skill.Brings.Element))
             {
-                // 节气克引入属性（水节气召火）⇒ 反噬成立
+                // 节气克引入属性（水节气召火）， 反噬成立
                 BacklashActive = true;
                 BacklashElement = skill.Brings.Element;
             }

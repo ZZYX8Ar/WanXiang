@@ -78,7 +78,7 @@ namespace WanXiang.Editor.CampaignTool
             ResetRun();
             _loadNote = _beasts != null && _beasts.Length > 0
                 ? $"内容：{_beasts.Length} 只异兽（ContentCatalog）"
-                : "内容：未找到 ContentCatalog ⇒ 用灰盒样本单位";
+                : "内容：未找到 ContentCatalog ， 用灰盒样本单位";
         }
 
         private static BeastDef[] LoadBeasts()
@@ -125,7 +125,7 @@ namespace WanXiang.Editor.CampaignTool
         {
             var list = new List<BeastDef>(10);
             foreach (var b in beasts) if (b.Element == g.SeasonElement) list.Add(b);
-            if (list.Count == 0) list.AddRange(beasts);      // 该幕五行没有内容 ⇒ 退回全池
+            if (list.Count == 0) list.AddRange(beasts);      // 该幕五行没有内容 ， 退回全池
             return list.ToArray();
         }
 
@@ -340,7 +340,7 @@ namespace WanXiang.Editor.CampaignTool
                           + $"｜当前推算总时长 ≈ {projectedMin:F1} 分钟", Label(InkText));
             GUILayout.Label($"预算参照（GDD 1.3）：战斗 {RunBattles} 场 × {BudgetBattleSeconds:F0} 秒 = "
                           + $"{battleBudgetMin:F1} 分 + 节点 16 × {BudgetNodeMinutes:F0} 分 = {nodeBudgetMin:F0} 分"
-                          + $" ⇒ **目标 {battleBudgetMin + nodeBudgetMin:F0} 分钟**（区间 35–50）", Label(FadeText));
+                          + $" ， **目标 {battleBudgetMin + nodeBudgetMin:F0} 分钟**（区间 35–50）", Label(FadeText));
             GUILayout.Label(projectedMin < 35f ? "判定：当前推算**偏低** —— 决策太快通常是"
                           + "「节点信息量不够、玩家没什么可犹豫的」（GDD 卡点预警：节气要有记忆点）"
                           : projectedMin > 50f ? "判定：当前推算**偏高** —— 检查是否每个节点都值得 2 分钟"
@@ -366,7 +366,7 @@ namespace WanXiang.Editor.CampaignTool
                         + $"（平均 {( _decisions.Count > 0 ? total / _decisions.Count : 0f):F0} 秒/次）");
             sb.AppendLine($"推算总时长　{(total / 60f + battleBudgetMin):F1} 分钟"
                         + $"（= 实测决策 + 预算战斗 {battleBudgetMin:F1} 分）");
-            sb.AppendLine("说明　　灰盒窗口里战斗瞬时算完（无动画/前摇）⇒ 这里只有决策时间；"
+            sb.AppendLine("说明　　灰盒窗口里战斗瞬时算完（无动画/前摇）， 这里只有决策时间；"
                         + "战斗观看按 GDD 核心循环表 30 秒/场计入。真实时长要等表现层。");
             sb.AppendLine(new string('-', 72));
             foreach (var l in _timingLog) sb.AppendLine(l);

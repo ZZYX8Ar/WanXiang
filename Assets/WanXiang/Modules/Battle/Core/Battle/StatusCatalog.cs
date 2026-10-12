@@ -13,8 +13,8 @@
 //  ⭐ 一个必须交代的实现取舍：**持续伤害存的是"数值"而不是"公式"**。
 //  GDD 里灼烧写的是「每层每回合造成 4% **施加者**攻击的伤害」—— 它依赖施加者，
 //  而施加者可能已经死了。做法有两种：
-//     (a) 状态里存施加者引用，每回合去读它的攻击力 ⇒ 施加者死了要处理悬空引用
-//     (b) **施加瞬间**把倍率折算成具体数值存下来 ⇒ 之后与施加者无关
+//     (a) 状态里存施加者引用，每回合去读它的攻击力 ， 施加者死了要处理悬空引用
+//     (b) **施加瞬间**把倍率折算成具体数值存下来 ， 之后与施加者无关
 //  取 (b)。它更接近玩家直觉（"这一层烧就是这么多"），也免掉了悬空引用这一类
 //  只在特定顺序下才复现的 bug。代价是"施加者攻击力中途提高不会加强已有灼烧"，
 //  这个差异已记录，若策划要求实时联动，改 StatusInstance 一处即可。
@@ -88,7 +88,7 @@ namespace WanXiang.Battle.Core
         public const string Confuse     = "confuse";      // 混乱（不能行动）—— 清明免疫它
         public const string Silence     = "silence";      // 沉默（不能放技能）—— 清明免疫它
         public const string Root        = "root";         // 根缚（不能行动）—— 蝮魇 / 蔓娘
-        public const string Miasma      = "miasma";       // 瘴气（每层攻击 −3%）—— 魍魉
+        public const string Miasma      = "miasma";       // 瘴气（每层攻击 -3%）—— 魍魉
 
         // ---- 增益 ----
         public const string Qi          = "qi";           // 同气（相生相邻产出，每层 +2% 技能效果）
@@ -136,7 +136,7 @@ namespace WanXiang.Battle.Core
             new StatusDef { Id = Root, Name = "根缚", IsDebuff = true, MaxStacks = 1,
                 PreventsAction = true, Description = "被藤蔓缠住，本回合无法行动" },
             new StatusDef { Id = Miasma, Name = "瘴气", IsDebuff = true, MaxStacks = 10,
-                AttackDeltaPerStack = -0.03f, Description = "每层攻击 −3%（可叠，魍魉的瘴林）" },
+                AttackDeltaPerStack = -0.03f, Description = "每层攻击 -3%（可叠，魍魉的瘴林）" },
 
             new StatusDef { Id = Qi, Name = "同气", IsDebuff = false, MaxStacks = 5,
                 Description = "相生相邻产出。每层 +2% 技能效果" },

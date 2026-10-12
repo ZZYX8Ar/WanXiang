@@ -96,7 +96,7 @@ namespace WanXiang.Battle.Core
                     // ---- 规则 3：中宫土位（平息） ----
                     // GDD 2.5：「相邻四格的单位（无论什么属性）都不会触发相冲」。
                     // 那四格彼此并不正交相邻，唯一可能与它们相邻的就是中宫本身
-                    // ⇒ 这条规则的实际作用面只能是"涉及中宫的相冲被平息"。
+                    // ， 这条规则的实际作用面只能是"涉及中宫的相冲被平息"。
                     // 正文的举例也印证了这个读法：「把矛盾的属性放在中宫旁边，冲突被平息」。
                     if (cfg.CenterSuppressesAdjacentCounter && (a.Pos.IsCenter || b.Pos.IsCenter))
                     {
@@ -123,7 +123,7 @@ namespace WanXiang.Battle.Core
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve, note: report.ToString());
             }
 
-            // 共鸣加成可能在这一步变化（有人阵亡 ⇒ 掉档），而"没人阵亡但格对结算全空"
+            // 共鸣加成可能在这一步变化（有人阵亡 ， 掉档），而"没人阵亡但格对结算全空"
             // 时不会有事件、也就不会触发自动抓帧。补一次，保证画面不会显示过期的共鸣标记。
             st.CaptureFrame();
             return report;

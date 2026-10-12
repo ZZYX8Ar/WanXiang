@@ -6,7 +6,7 @@
 //
 //  本脚本的做法（**增量补丁，不是重建**）：
 //    ① 载入现有 Panel_Market.prefab（保留用户的一切手工调整）
-//    ② 若缺 Market_DetailCard / Btn_BuySoul 就补上（已存在则跳过 ⇒ 可反复跑）
+//    ② 若缺 Market_DetailCard / Btn_BuySoul 就补上（已存在则跳过 ， 可反复跑）
 //    ③ 存回同一个 prefab
 //
 //  之后 MarketPanel 里对应的字段改由 prefab 注入，代码只负责填数据。

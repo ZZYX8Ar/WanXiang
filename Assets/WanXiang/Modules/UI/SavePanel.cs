@@ -44,7 +44,7 @@ namespace WanXiang.Modules.UI
 
         /// <summary>
         /// 拥有的异兽数 = 图鉴(Collection) ∪ 出战队伍(Team) 去重。
-        /// 旧存档没有 Collection 字段（那时买到就直接进队伍）⇒ 只看 Collection 会显示成 0/5。
+        /// 旧存档没有 Collection 字段（那时买到就直接进队伍）， 只看 Collection 会显示成 0/5。
         /// </summary>
         private static int OwnedBeastCount(WanXiang.Run.RunState st)
         {
@@ -147,7 +147,7 @@ namespace WanXiang.Modules.UI
             // ⛔ 不能再 `await ui.OpenAsync<SavePanel>()` 指望它刷新 —— SavePanel 是 **Cached**，
             //    对"已经打开着的"面板再 Open 会走框架的 InternalRefresh（**不重放 OnOpenAsync**），
             //    槽位文字/重置按钮根本不会重画（用户实测："点重置后没有立马刷新 UI"）。
-            //    ⇒ 就地刷新：重画槽位 + 重挂重置按钮显隐。
+            //    ， 就地刷新：重画槽位 + 重挂重置按钮显隐。
             RefreshSlots();
             SyncSlotResetButtons();
             if (_tmpHint != null) _tmpHint.text = "存档 " + slot + " 已重置（回到第一幕，从头开始）。";

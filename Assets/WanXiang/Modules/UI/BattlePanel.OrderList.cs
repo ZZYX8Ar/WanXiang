@@ -219,7 +219,7 @@ namespace WanXiang.Modules.UI
             }
 
             // ⛔ 相机必须用**舞台自己那个**（BattleStage2D.Camera）：
-            //   舞台的相机是代码建的、**没打 MainCamera 标签** ⇒ Camera.main 会拿到 null，
+            //   舞台的相机是代码建的、**没打 MainCamera 标签** ， Camera.main 会拿到 null，
             //   然后这里静默 return —— 表现就是"悬停完全没反应"（本轮真因）。
             var cam = _stage.Camera != null ? _stage.Camera : Camera.main;
             if (cam == null)
@@ -265,7 +265,7 @@ namespace WanXiang.Modules.UI
                                          Mathf.Clamp(sp.y + 24f, 10f, Screen.height - 10f));
             Vector2 local;
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRt, screen, null, out local)) return;
-            // 面板锚点/轴心都是右上 (1,1) ⇒ anchoredPosition 是相对**父矩形右上角**的偏移
+            // 面板锚点/轴心都是右上 (1,1) ， anchoredPosition 是相对**父矩形右上角**的偏移
             _statusTip.anchoredPosition = new Vector2(
                 local.x - parentRt.rect.width * 0.5f,
                 local.y - parentRt.rect.height * 0.5f);
@@ -279,7 +279,7 @@ namespace WanXiang.Modules.UI
         /// <summary>
         /// 清掉上次克隆出来的行（模板行本身留着，它一直是 inactive）。
         /// ⛔ `Destroy` 是**延迟到帧末**的：若不立刻失活/脱离，同一帧里 <see cref="AddTipRow"/>
-        ///   统计"已用行"时会把待销毁的旧行也算进去 ⇒ 新区块整体向下错位（用户报"字乱跑"）。
+        ///   统计"已用行"时会把待销毁的旧行也算进去 ， 新区块整体向下错位（用户报"字乱跑"）。
         /// </summary>
         private void ClearTipRows()
         {
@@ -311,7 +311,7 @@ namespace WanXiang.Modules.UI
             }
 
             float rowW = _statusTipRows.rect.width;
-            if (rowW < 1f) rowW = 344f;              // 兜底：面板宽 360 − 左右内边距
+            if (rowW < 1f) rowW = 344f;              // 兜底：面板宽 360 - 左右内边距
             float textW = Mathf.Max(rowW - 12f, 80f);
 
             var row = UnityEngine.Object.Instantiate(_statusTipItem, _statusTipRows);
@@ -353,7 +353,7 @@ namespace WanXiang.Modules.UI
                 dsRt.sizeDelta = new Vector2(textW, descH);
             }
 
-            row.anchorMin = row.anchorMax = new Vector2(0f, 1f);         // 行顶部锚定 ⇒ 向下生长
+            row.anchorMin = row.anchorMax = new Vector2(0f, 1f);         // 行顶部锚定 ， 向下生长
             row.pivot = new Vector2(0f, 1f);
             row.sizeDelta = new Vector2(rowW, nameH + descH + 8f);
             row.anchoredPosition = new Vector2(0f, -y);

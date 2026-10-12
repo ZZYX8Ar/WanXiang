@@ -84,7 +84,7 @@ namespace WanXiang.Modules.UI
             _win = win;
             _isDraw = req != null && req.Draw;   // ★ 平局（回合上限打满）
             _selectedDraft = -1;
-            // ★ 天气地图效果层：胜利灵卵奖励受当前节点天时影响（LiveWeather.Current 为 null ⇒ ×1 ⇒ +1）。
+            // ★ 天气地图效果层：胜利灵卵奖励受当前节点天时影响（LiveWeather.Current 为 null ， ×1 ， +1）。
             _eggGain = win
                 ? System.Math.Max(0, (int)System.Math.Round(WanXiang.Campaign.WeatherMapEffects.Current.EggRewardMul))
                 : 0;
@@ -336,11 +336,11 @@ namespace WanXiang.Modules.UI
 
             // ★ 平局 = 打满回合上限（BattleConfig.MaxTurns=48，以 BattlePlayback 构造时写入为准）仍无人阵亡（用户 2026-09-29）。
             //   按**撤退**处理：不清进度、不计败场、节点不推进、本局继续。
-            //   旧实现落进"失败"分支 ⇒ 整局被清空，玩家"没人死却全没了"一头雾水。
+            //   旧实现落进"失败"分支 ， 整局被清空，玩家"没人死却全没了"一头雾水。
             if (_isDraw)
             {
                 CampaignPanel.PendingCommit = -1;      // 节点不通过（与撤退同口径，星移余气也不消耗）
-                Debug.Log("[ResultPanel] 平局（回合上限）⇒ 按撤退处理：本局继续，节点不推进");
+                Debug.Log("[ResultPanel] 平局（回合上限）， 按撤退处理：本局继续，节点不推进");
                 WanXiang.Run.RunSave.Save(cur);
                 return;
             }
@@ -357,7 +357,7 @@ namespace WanXiang.Modules.UI
 
                 // ★ 墨铊改为**每场胜利立即到账（局外）** —— 用户 2026-09-25 定案：
                 //   原来每胜 +1 给的是局内 `RunState.Ink`，而那个字段全项目**无人消费**（死数据），
-                //   局外墨铊却只在整局结束时一次性结算 ⇒ 玩家打到第 4 层看「异兽培养」永远是 0。
+                //   局外墨铊却只在整局结束时一次性结算 ， 玩家打到第 4 层看「异兽培养」永远是 0。
                 //   现在：每胜立刻 +1 到 MetaState.Ink（打完就能看到涨），
                 //   局末只再结算"守关/通关/新幕"那部分（MetaRewards.InkGain），不重复计数。
                 {
@@ -387,7 +387,7 @@ namespace WanXiang.Modules.UI
                     if (!cur.BeatFinale)
                     {
                         cur.BeatFinale = true;
-                        Debug.Log("[ResultPanel] ★ 终局战胜利 ⇒ 通关！解锁无尽模式与更高难度");
+                        Debug.Log("[ResultPanel] ★ 终局战胜利 ， 通关！解锁无尽模式与更高难度");
                     }
                 }
 
@@ -399,14 +399,14 @@ namespace WanXiang.Modules.UI
                     if (!cur.BeatFinale)
                     {
                         cur.BeatFinale = true;
-                        Debug.Log("[ResultPanel] ★ 终局战胜利 ⇒ 通关！解锁无尽模式与更高难度");
+                        Debug.Log("[ResultPanel] ★ 终局战胜利 ， 通关！解锁无尽模式与更高难度");
                     }
                 }
             }
             else
             {
                 // ★ 失败 = **这一局直接结束**（用户规则）。旧实现只给 2 灵卵保底、节点照样推进
-                //   ⇒ 失败没有代价（结构验证版占位）。现在清空本局进度，只保留胜败统计。
+                //   ， 失败没有代价（结构验证版占位）。现在清空本局进度，只保留胜败统计。
                 cur.Losses++;
                 PushRunHistory(cur);      // ★ 历程：一局结束（失败）
                 // ★ 局外结算：本局失败（cleared=false，但走过的路也算收益）
@@ -425,7 +425,7 @@ namespace WanXiang.Modules.UI
                 if (cur.QuestionRevealed != null) cur.QuestionRevealed.Clear();
                 cur.RunSeed = UnityEngine.Random.Range(1, int.MaxValue);   // 新一局 = 新路线
                 CampaignPanel.PendingCommit = -1;                          // 失败不推进节点
-                Debug.Log("[ResultPanel] 战斗失败 ⇒ 本局结束（保留胜败统计，进度已清空）");
+                Debug.Log("[ResultPanel] 战斗失败 ， 本局结束（保留胜败统计，进度已清空）");
             }
             WanXiang.Run.RunSave.Save(cur);
             Debug.Log("[ResultPanel] 旅程已保存：槽位 " + cur.Slot + " " + cur.RealmText +
@@ -441,8 +441,8 @@ namespace WanXiang.Modules.UI
             //          以前无条件回节点图，看起来像"进度被清还留在游戏里"（用户实测）。
             if (_win || _isDraw)
             {
-                // ★★ 终局战胜利 = 通关 ⇒ 回【主界面】，不能回节点图：
-                //    通关后 Act=5（天阙），那张图没有可走的节点 ⇒ 回节点图会是一片空白
+                // ★★ 终局战胜利 = 通关 ， 回【主界面】，不能回节点图：
+                //    通关后 Act=5（天阙），那张图没有可走的节点 ， 回节点图会是一片空白
                 //    （用户实测：选完通关奖励后画面全空）。
                 var r = WanXiang.Run.RunSave.Current;
                 if (r != null && r.BeatFinale) OpenPanelAsync<HomePanel>().Forget();
@@ -569,7 +569,7 @@ namespace WanXiang.Modules.UI
                                 ? WanXiang.Modules.UI.SceneFlow.LastAllyCells[i] : i;
 
                             // ★ 局内**养成快照**（等级 + 进化）—— 好友对战要体现"把异兽养成多厉害"
-                            //   （用户 2026-10-06。原先分享码完全没带养成 ⇒ 双方都是默认面板，
+                            //   （用户 2026-10-06。原先分享码完全没带养成 ， 双方都是默认面板，
                             //    那个玩法就失去意义了；这是缺口，不是设计取舍。）
                             {
                                 int glv = 1; bool gev = false;

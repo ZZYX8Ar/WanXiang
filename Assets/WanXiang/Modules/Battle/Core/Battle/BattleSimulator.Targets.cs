@@ -26,7 +26,7 @@ namespace WanXiang.Battle.Core
         /// 【预览】该技能会作用于哪些单位 —— **只读、不消费随机数、不改任何状态**
         /// （供战斗面板做九宫格高亮："打谁 / 给谁加盾"一眼可见）。
         /// 确定性选择器直接复用 <see cref="ResolveTargets"/>；
-        /// 随机类（RandomEnemy / RandomEnemyMultiHit）无法预测 ⇒ 返回该池**全部存活单位**
+        /// 随机类（RandomEnemy / RandomEnemyMultiHit）无法预测 ， 返回该池**全部存活单位**
         /// 并把 <paramref name="isRandom"/> 置 true，由调用方提示"随机"。
         /// ⚠ 这里**绝不能掷骰**：那会推进战斗随机流、改掉后续每一次结算
         ///   （同 ComputeDamage 的 forPreview 教训）。
@@ -36,8 +36,8 @@ namespace WanXiang.Battle.Core
         /// （v2.1 P4：棋盘的"前排/后排"必须决定谁先承伤，站位才有策略意义；
         ///  特殊技能保留各自规则，如刺客类打"生命最低"/后排）。
         ///
-        /// ⚠ 结算与预览（<see cref="PreviewTargets"/> ⇒ 面板九宫格高亮）**必须共用这一份**。
-        ///   曾经结算改了、预览没改 ⇒ 高亮按原始技能算（生命最低者）、实际打最前排，
+        /// ⚠ 结算与预览（<see cref="PreviewTargets"/> ， 面板九宫格高亮）**必须共用这一份**。
+        ///   曾经结算改了、预览没改 ， 高亮按原始技能算（生命最低者）、实际打最前排，
         ///   玩家看到"高亮在一格、伤害飘在另一格，而且目标会随血量跳"（用户实测报障）。
         /// ⚠ Clone() 是深拷贝 Effects（已确认），改副本不会污染技能定义。
         /// </summary>
@@ -181,7 +181,7 @@ namespace WanXiang.Battle.Core
         /// ⚠ 判据用 **Row 大小**，不是"与施法者的行距" —— 实测发现双方**共用同一套格位**
         /// （Player 现在用编阵传入的 PlayerCells；Enemy 走 BattleRequest.Cells）。
         /// 项目已有明确语义：<c>BattleStage2D</c> 里 <c>sortingOrder = Pos.Index / 3</c>
-        /// 且注释写明「row 0=后 1=中 2=前」，双方镜像绘制 ⇒ **Row 大 = 前排**，双方对称。
+        /// 且注释写明「row 0=后 1=中 2=前」，双方镜像绘制 ， **Row 大 = 前排**，双方对称。
         /// </para>
         /// </summary>
         private static void PickByRank(BattleState st, TeamSide side, List<BattleUnit> into,

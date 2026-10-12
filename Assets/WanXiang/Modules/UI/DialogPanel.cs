@@ -82,7 +82,7 @@ namespace WanXiang.Modules.UI
 
         /// <summary>
         /// 打开弹窗并重试：连续弹窗（如孵穴的 Choose → Tip）时，上一个还在淡出，
-        /// 重入保护会拒绝新的打开（返回 null）⇒ 调用方 NRE。这里等 30 帧重试最多 3 次。
+        /// 重入保护会拒绝新的打开（返回 null）， 调用方 NRE。这里等 30 帧重试最多 3 次。
         /// </summary>
         private static async UniTask<DialogPanel> OpenRetry(string title, string body, DialogKind kind,
                                                             string leftText, string rightText)

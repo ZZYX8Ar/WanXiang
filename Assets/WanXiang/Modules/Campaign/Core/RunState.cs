@@ -6,7 +6,7 @@
 //  节点时用 <see cref="ComposeCurrentWeather"/> 合成好递过去。
 //
 //  节气天时从哪来：本模块不依赖任何编辑器侧目录（WeatherCatalog 在 Editor），
-//  构造时注入 `Func<int, WeatherDef>`。未翻译的节气返回 null ⇒ 该场战斗没有
+//  构造时注入 `Func<int, WeatherDef>`。未翻译的节气返回 null ， 该场战斗没有
 //  本节点天时，但**余气照常生效**（内容缺口不该把地图系统一起拖死）。
 //
 //  已记录的取舍（GDD 歧义，待策划确认）：
@@ -26,7 +26,7 @@ namespace WanXiang.Campaign
     {
         /// <summary>一条余气：来源天时（已减半）+ 还剩几个节点生效。
         /// 计数在**通过节点时**消耗（出征/事件结算回地图才落地，进编队又返回不算通过）、
-        /// 扣到负数才移除 ⇒ 2 表示未来 2 个节点都生效。</summary>
+        /// 扣到负数才移除 ， 2 表示未来 2 个节点都生效。</summary>
         public struct LingerEntry
         {
             public WanXiang.Battle.Core.WeatherDef Weather;
@@ -51,7 +51,7 @@ namespace WanXiang.Campaign
 
         /// <summary>
         /// 当前幕的图。⚠ 通关后（CurrentAct = 幕数+1）会越界，这里**收敛到最后一幕**：
-        /// 最后一幕（长夏）是空幕 ⇒ IsEmpty=true ⇒ AtBoss 恒真、EnterNode 恒拒，
+        /// 最后一幕（长夏）是空幕 ， IsEmpty=true ， AtBoss 恒真、EnterNode 恒拒，
         /// 语义与"已通关"一致；配合 <see cref="DefeatBoss"/> 里先判 Finished 的顺序，
         /// 通关后的任何推进调用都被安全拒绝而不是抛异常。
         /// </summary>

@@ -80,8 +80,8 @@ namespace WanXiang.Battle.Core
                 {
                     int cost = BattleState.MpCostOf(slot);
                     // ★ 灵力**按阵营各自结算**（2026-09-25 用户定案）：
-                    //   以前双方共用 st.TeamMp ⇒ 敌方 AI 放战记花的是**玩家的**灵力
-                    //   ⇒ 玩家一直普攻也攒不出战记（用户实测报障）。
+                    //   以前双方共用 st.TeamMp ， 敌方 AI 放战记花的是**玩家的**灵力
+                    //   ， 玩家一直普攻也攒不出战记（用户实测报障）。
                     bool mine = u.Side == TeamSide.Player;
                     int pool = mine ? st.TeamMp : st.EnemyMp;
                     if (cost <= pool)

@@ -399,7 +399,7 @@ namespace WanXiang.Editor.BattleTool
                 var src = new BattleUnit(TeamSide.Enemy, enemy, "X0");
 
                 st.Turn = 1;
-                // 受控比值断言 ⇒ 必须关抖动（v1.1 的 ±5% Rand 会让 0.92 变成 0.88~0.96 里的任意值）
+                // 受控比值断言 ， 必须关抖动（v1.1 的 ±5% Rand 会让 0.92 变成 0.88~0.96 里的任意值）
                 st.Config.DamageJitter = 0f;
                 int dmgCenter = BattleSimulator.ComputeDamage(st, src, center, Element.Fire, 1f, false, false);
                 int dmgOff = BattleSimulator.ComputeDamage(st, src, off, Element.Fire, 1f, false, false);
@@ -667,7 +667,7 @@ namespace WanXiang.Editor.BattleTool
         //  当成结论，然后去改本来没错的逻辑。
         //
         //  所以这里做两件事：
-        //    ① 色板必须仍然来自 palette.json（改了颜色、忘了改文档 ⇒ 立刻报）
+        //    ① 色板必须仍然来自 palette.json（改了颜色、忘了改文档 ， 立刻报）
         //    ② 棋盘连线的判据（BoardPairScan）与结算（BoardRules）数出来的格对数必须相等
         // ================================================================
 
@@ -716,7 +716,7 @@ namespace WanXiang.Editor.BattleTool
             int scanCnt = Count(playerPairs, AdjacentPairKind.Counter) + Count(enemyPairs, AdjacentPairKind.Counter);
             int scanPac = Count(playerPairs, AdjacentPairKind.Pacified) + Count(enemyPairs, AdjacentPairKind.Pacified);
 
-            // 开局盘面：全员存活 ⇒ 结算里"跳过尸体"那条分支不生效，两份数应当严格相等
+            // 开局盘面：全员存活 ， 结算里"跳过尸体"那条分支不生效，两份数应当严格相等
             var rep = BoardRules.ResolveAdjacency(st);
 
             if (scanGen == rep.GeneratePairs && scanCnt == rep.CounterPairs && scanPac == rep.PacifiedPairs)

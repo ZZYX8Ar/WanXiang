@@ -4,7 +4,7 @@
 //  GDD 1.3 局外层「孵蛋获得新宿主、解锁新灵魂、扩充图鉴、分享 Base64 代码」的
 //  机器判据。核心是**口径**而不是实现细节：
 //    ① 灵卵经济：一局产出 = 节点 + 守关 + 通关 + 首达新幕（且败北也有产出）；
-//    ② 孵蛋确定性：同存档同操作序列 ⇒ 同结果；灵卵不足/池空**都不改档**；
+//    ② 孵蛋确定性：同存档同操作序列 ， 同结果；灵卵不足/池空**都不改档**；
 //    ③ 权重方向：占位权重 60/30/10 在统计上必须体现出来；
 //    ④ 存档码往返 + 防呆（截断/重复/版本不符一律拒）；
 //    ⑤ 端到端：新档 → 阵容 → 跑一局 → 结算灵卵 → 孵出新宿主 → 下一局能用它。
@@ -127,7 +127,7 @@ namespace WanXiang.Editor.MetaTool
             var outcome = driver.Play(squad.ToArray());
             var income = MetaRewards.Settle(driver, st);
             // ⚠ 口径（2026-09-25 校正）：局外收益进**墨铊**，灵卵只把**局内剩余**结转进钱包。
-            //   本断言原来写的是 `st.Eggs == income.Total`（早期"局外收益进灵卵"的旧口径）⇒ 长期恒红。
+            //   本断言原来写的是 `st.Eggs == income.Total`（早期"局外收益进灵卵"的旧口径）， 长期恒红。
             //   现在按现行口径验：Eggs 只等于结转的 RunEggsCarried；Ink 等于局末结算的 InkGain
             //   （每场胜利的 +1 由 ResultPanel 即时发放，不在 MetaRewards 里）。
             Check(lines, income.Total > 0 && st.RunsPlayed == 1
@@ -138,7 +138,7 @@ namespace WanXiang.Editor.MetaTool
                   + $"（每胜另 +1）｜灵卵结转 {income.RunEggsCarried}｜局数 {st.RunsPlayed}（{outcome}）");
 
             // 结算口径：同一份记录再算一次，**节点/守关/通关三项必须一模一样**，
-            // 而"首达新幕"奖励是一次性的（此刻 BestAct 已经推进）⇒ 第二次应当为 0。
+            // 而"首达新幕"奖励是一次性的（此刻 BestAct 已经推进）， 第二次应当为 0。
             var again = MetaRewards.IncomeOf(driver, st);
             Check(lines, again.NodeEggs == income.NodeEggs && again.BossEggs == income.BossEggs
                        && again.ClearBonus == income.ClearBonus && again.NewActBonus == 0,
@@ -156,22 +156,22 @@ namespace WanXiang.Editor.MetaTool
                         && st.HostUnlocked(hatch.Index);
             Check(lines, hatchOk, $"④ 孵蛋（宿主）：{hatch.Note}");
 
-            // 确定性：同种子同操作 ⇒ 同结果
+            // 确定性：同种子同操作 ， 同结果
             var stMirror = MetaState.NewGame(20260914UL, content);
             stMirror.Eggs = MetaDefaults.StarterHosts * 0 + eggsBefore;   // 与 st 同起始余额
             stMirror.RunsPlayed = st.RunsPlayed;
             stMirror.BestActReached = st.BestActReached;
             var hatchMirror = EggForge.Hatch(stMirror, content, EggKind.Host);
             Check(lines, hatchMirror.Ok && hatchMirror.Index == hatch.Index,
-                  $"④ 孵蛋确定性：同种子同操作序列 ⇒ 同结果（[{hatch.Index}]）");
+                  $"④ 孵蛋确定性：同种子同操作序列 ， 同结果（[{hatch.Index}]）");
 
-            // 灵魂：2026-09-26 起**只能从灵市购买** ⇒ 孵蛋应被显式拒绝，且不消耗任何状态
+            // 灵魂：2026-09-26 起**只能从灵市购买** ， 孵蛋应被显式拒绝，且不消耗任何状态
             var soulHatch = EggForge.Hatch(st, content, EggKind.Soul);
             Check(lines, !soulHatch.Ok && st.UnlockedSouls.Count == MetaDefaults.StarterSouls
                        && st.UnlockedHosts.Count == hostsBefore + 1,
                   $"④ 孵蛋（灵魂）已关闭、且不动状态：{soulHatch.Note}");
 
-            // ---- ⑤ 权重方向：反复整池重开不现实 ⇒ 用多个种子各孵一次做统计 ----
+            // ---- ⑤ 权重方向：反复整池重开不现实 ， 用多个种子各孵一次做统计 ----
             int rare = 0, epic = 0, legend = 0;
             for (ulong s = 0; s < 60; s++)
             {
@@ -186,7 +186,7 @@ namespace WanXiang.Editor.MetaTool
             Check(lines, rare >= epic && epic >= legend && rare > 0,
                   $"⑤ 权重方向（60 个种子）：灵品 {rare} ≥ 玄品 {epic} ≥ 神品 {legend}（占位权重 60/30/10）");
 
-            // ---- ⑥ 图鉴孵满：池空 ⇒ Empty 且不扣灵卵 ----
+            // ---- ⑥ 图鉴孵满：池空 ， Empty 且不扣灵卵 ----
             st.Eggs = EggForge.EggPrice * (content.HostCount + 5);
             for (int i = 0; i < content.HostCount + 5; i++)
                 if (!EggForge.Hatch(st, content, EggKind.Host).Ok) break;
@@ -198,10 +198,10 @@ namespace WanXiang.Editor.MetaTool
 
             // ---- ⑦ 存档码：往返 + 防呆 ----
             // ★ v6：把「剧情碎片 + 觉醒材料」也塞进这份档，一起验往返（否则新字段永远没被覆盖）
-            string fragA = beasts[0].Id;                 // 集齐 3 片 ⇒ 已领材料
+            string fragA = beasts[0].Id;                 // 集齐 3 片 ， 已领材料
             st.AddFragment(fragA); st.AddFragment(fragA); st.AddFragment(fragA);
             st.ClaimAwakenSoul(fragA);
-            string fragB = beasts[1].Id;                 // 只 1 片 ⇒ 未集齐、未领
+            string fragB = beasts[1].Id;                 // 只 1 片 ， 未集齐、未领
             st.AddFragment(fragB);
 
             var code = MetaSaveCode.Encode(st);
@@ -226,7 +226,7 @@ namespace WanXiang.Editor.MetaTool
 
             // ---- ⑦c 专属材料门槛（进化门的前置契约）----
             //   进化 = 精魄 + 墨铊 + 专属材料；材料 = 残卷阁集齐剧情碎片后领取。
-            //   这里验的是"门槛本身"：碎片不够 ⇒ 不能领（也就不能进化）；领过 ⇒ 不重复发。
+            //   这里验的是"门槛本身"：碎片不够 ， 不能领（也就不能进化）；领过 ， 不重复发。
             string fragC = beasts[2].Id;
             st.AddFragment(fragC);                                  // 仅 1 片
             bool gateBefore = !st.CanClaimAwakenSoul(fragC) && st.FragmentCountOf(fragC) == 1;
@@ -236,7 +236,7 @@ namespace WanXiang.Editor.MetaTool
             bool gateAfter = st.HasAwakenSoul(fragC) && !st.CanClaimAwakenSoul(fragC);
             Check(lines, gateBefore && gateAtFull && gateAfter
                        && !st.CanClaimAwakenSoul(beasts[3].Id),      // 0 片也领不到
-                  $"⑦c 专属材料门槛：碎片 1/{MetaState.AwakenSoulThreshold} 不可领 ⇒ 集齐可领 ⇒ 领后不重复");
+                  $"⑦c 专属材料门槛：碎片 1/{MetaState.AwakenSoulThreshold} 不可领 ， 集齐可领 ， 领后不重复");
 
             // ---- ⑧ 孵出的宿主能进下一局阵容 ----
             var squad2 = st.BuildSquadHosts(content, 5);
@@ -272,7 +272,7 @@ namespace WanXiang.Editor.MetaTool
 
             // ---- ⑩ 五行 tab 口径（唯一来源 ElementTabs）----
             //   ⚠ 这里锁住一个真实踩过的 bug：用 `(int)Element == tab - 1` 会把「木」映射到 None=0
-            //     ⇒ 该页签恒空、点「火」显示木系（图鉴与残卷阁都栽过）。
+            //     ， 该页签恒空、点「火」显示木系（图鉴与残卷阁都栽过）。
             {
                 int[] hit = new int[WanXiang.Modules.UI.ElementTabs.Count];
                 for (int tab = 0; tab < hit.Length; tab++)
@@ -287,7 +287,7 @@ namespace WanXiang.Editor.MetaTool
                 }
 
                 // ⚠ 每系应有的数量**按名单推导**，不写死。
-                //   原写死 6 ⇒ 名单从 30 只扩到 50 只后误报了两轮（"各应 6"而实际各 10）。
+                //   原写死 6 ， 名单从 30 只扩到 50 只后误报了两轮（"各应 6"而实际各 10）。
                 //   写死数字的断言挡不住"名单变了"这类回归，而这次要守的是**口径**
                 //   （tab 分类不重不漏），不是具体数量。
                 int nonNone = 0;

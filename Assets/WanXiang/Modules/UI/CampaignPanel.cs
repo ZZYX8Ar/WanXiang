@@ -47,7 +47,7 @@ namespace WanXiang.Modules.UI
         /// 是否**终局战**节点（第 5 幕 / 天阙的最后一格）。
         /// ★ 用户 2026-10-03 实测：点这一格出征，打出来的是**普通精英战**（诸怀/旱魃/毕方），
         ///   不是归墟之主/鸿蒙。根因是 `IsBoss` 只覆盖幕 1~4，第 5 幕终局格 IsBoss=false
-        ///   ⇒ FormationPanel 按普通遭遇建敌。终局战的构建方式（Boss + 我方镜像×3）与守关
+        ///   ， FormationPanel 按普通遭遇建敌。终局战的构建方式（Boss + 我方镜像×3）与守关
         ///   完全不同，所以**单独立一个标志**，由 FormationPanel.OnDeployClicked 分派到
         ///   TrialPanel.BuildFinaleBattle，而不是靠 IsBoss 兼管。
         /// </summary>
@@ -76,7 +76,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text _tmpJie;             // Tmp_JieCount  劫数
 
         /// <summary>待推进节点（跨面板共享）：出征时保留、返回地图时撤销。</summary>
-        public static int PendingCommit = -1;      // 事件类节点：完成后才推进（未完成就关游戏 ⇒ 节点不通过、奖励不丢）
+        public static int PendingCommit = -1;      // 事件类节点：完成后才推进（未完成就关游戏 ， 节点不通过、奖励不丢）
         [SerializeField] private ScrollRect _scrollNodes;      // Scroll_Nodes  节点长卷
         [SerializeField] private RectTransform _nodeItemTemplate;  // Item_Node（模板，默认隐藏）
         [SerializeField] private GameObject _rootNodeInfo;     // Root_NodeInfo 右侧信息卡
@@ -135,7 +135,7 @@ namespace WanXiang.Modules.UI
             else Debug.LogWarning("[Campaign] 缺 Btn_DebugFog（瘴雾调试按钮）");
         }
 
-        /// <summary>由 <see cref="HomePanel"/> 在“出征”开图前置位 ⇒ 让开场动画每次都播（用户要求）。</summary>
+        /// <summary>由 <see cref="HomePanel"/> 在“出征”开图前置位 ， 让开场动画每次都播（用户要求）。</summary>
         public static bool RequestIntroFromMenu;
 
         protected override UniTask OnOpenAsync(object payload)
@@ -162,7 +162,7 @@ namespace WanXiang.Modules.UI
                 {
                     // ★ 若转场还在播，**等它结束再开场**（用户 2026-10-12：
                     //   "我不是说了要前面这个转场完才开始写字吗"）。
-                    //   原来中点就打开 ActIntro ⇒ 写字与转场退场重叠，观感很乱。
+                    //   原来中点就打开 ActIntro ， 写字与转场退场重叠，观感很乱。
                     if (UiTransition.IsPlaying) DeferredIntroAsync().Forget();
                     else OpenPanelAsync<ActIntroPanel>().Forget();   // 开面板只能由面板自己调（protected）
                 }
@@ -177,10 +177,10 @@ namespace WanXiang.Modules.UI
 
             // ★ 待推进落地：从事件面板（灵市/孵穴/铸魂台/异闻/天象）返回节点图时，
             //   把之前未完成的节点记为通过 —— 玩家没处理完就关游戏的话，_pendingCommit 是内存变量、
-            //   不会持久化，节点也不会推进 ⇒ 下次进来还能重做（奖励不丢）。
+            //   不会持久化，节点也不会推进 ， 下次进来还能重做（奖励不丢）。
             if (PendingCommit >= 0)
             {
-                _justPassedNode = PendingCommit;   // ★ 真·通过（这里才把 NodeOffset 落地）⇒ 记下它供落印/画线动画
+                _justPassedNode = PendingCommit;   // ★ 真·通过（这里才把 NodeOffset 落地）， 记下它供落印/画线动画
                 var prun = WanXiang.Run.RunSave.Current;
                 if (prun != null)
                 {
@@ -188,26 +188,26 @@ namespace WanXiang.Modules.UI
                     // ★ 记一笔"真·通过"（落印✕ / 连线实线 只看它；VisitedNodes 只是"进入"，不算通过）
                     if (prun.PassedNodes == null) prun.PassedNodes = new System.Collections.Generic.List<int>();
                     if (!prun.PassedNodes.Contains(PendingCommit)) prun.PassedNodes.Add(PendingCommit);
-                    // ★ 瘴雾：真正通过一格 ⇒ 剩余雾 -1；扣到 0 雾就散。
+                    // ★ 瘴雾：真正通过一格 ， 剩余雾 -1；扣到 0 雾就散。
                     //   ⚠ 重掷记录（RerolledKinds）**不随雾散清掉** —— 地图被改过就该一直算数（本幕内），
                     //     否则"雾散了图又变回去"会很怪。它跟 VisitedNodes 一样在换幕/重开时清。
                     if (prun.FogLeft > 0)
                     {
                         if (PendingCommit == prun.FogTriggerNode)
                         {
-                            // ★ 起雾那一格（天象节点）**不算进 3 节**（用户定案："要后续 3 个节点"）⇒ 跳过这次扣减
+                            // ★ 起雾那一格（天象节点）**不算进 3 节**（用户定案："要后续 3 个节点"）， 跳过这次扣减
                             prun.FogTriggerNode = -1;
-                            Debug.Log("[Campaign] 瘴雾：通过「起雾格」（不计入）⇒ 仍剩 " + prun.FogLeft + " 节");
+                            Debug.Log("[Campaign] 瘴雾：通过「起雾格」（不计入）， 仍剩 " + prun.FogLeft + " 节");
                         }
                         else
                         {
                             prun.FogLeft--;
-                            Debug.Log("[Campaign] 瘴雾：通过节点 ⇒ 剩余 " + prun.FogLeft + " 节" +
+                            Debug.Log("[Campaign] 瘴雾：通过节点 ， 剩余 " + prun.FogLeft + " 节" +
                                       (prun.FogLeft == 0 ? "（雾散）" : ""));
                         }
                         if (prun.FogLeft == 0) { ShowFogBanner("雾散了，前路已非"); prun.FogTriggerNode = -1; }
                     }
-                    // ★ 节点真正「通过」（离开事件/战斗面板回地图落地）⇒ 所有星移余气 -1（扣到负移除）。
+                    // ★ 节点真正「通过」（离开事件/战斗面板回地图落地）， 所有星移余气 -1（扣到负移除）。
                     //   推迟到此处而非「出征」点击，保证「进编队又返回」不算通过、星移仍可撤销
                     //   （用户实测：出征→编队→返回后星移撤销不了，根因就是出征时就把余气 -1 了）。
                     WanXiang.Campaign.LiveWeather.OnNodeCommitted();
@@ -215,7 +215,7 @@ namespace WanXiang.Modules.UI
                     if (prun.VisitedNodes != null && !prun.VisitedNodes.Contains(PendingCommit))
                         prun.VisitedNodes.Add(PendingCommit);
 
-                    // ★★ 天阙（第 5 幕）最后一格 = 后土：通过它 ⇒ 打【终局战】（而非回主城/推进）。
+                    // ★★ 天阙（第 5 幕）最后一格 = 后土：通过它 ， 打【终局战】（而非回主城/推进）。
                     if (_graph != null && _graph.Act >= 5 && PendingCommit == _graph.NodeCount - 1)
                     {
                         var cat = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
@@ -232,10 +232,10 @@ namespace WanXiang.Modules.UI
                         }
                     }
 
-                    // ★★ 幕推进绑在"通过"这一刻：刚通过的是本幕最后一格 ⇒ 进下一幕。
+                    // ★★ 幕推进绑在"通过"这一刻：刚通过的是本幕最后一格 ， 进下一幕。
                     //    原先靠"人在最后一格(NodeOffset==NodeCount-1)"当判据是错的：
                     //    只要存档停在这个位置（不论是否真通过），一进节点图就会跳幕，
-                    //    而且它同时被当作"可达性锚点"⇒ 全图锁定灰（用户实测）。
+                    //    而且它同时被当作"可达性锚点"， 全图锁定灰（用户实测）。
                     int lastCell = _graph != null ? _graph.NodeCount - 1 : -1;
                     if (lastCell >= 0 && PendingCommit == lastCell && prun.Act < 5)
                     {
@@ -248,20 +248,20 @@ namespace WanXiang.Modules.UI
                         prun.FogGenAct = 0;                                           // 换幕：下一幕重新生成瘴雾节点
                         prun.FogTriggerNode = -1;
                         prun.FogLeft = 0; prun.FogRerolled = false;                   // 换幕：雾散
-                        Debug.Log("[Campaign] 通过本幕最后一格 ⇒ 推进到第 " + prun.Act + " 幕");
+                        Debug.Log("[Campaign] 通过本幕最后一格 ， 推进到第 " + prun.Act + " 幕");
                         WanXiang.Run.RunSave.SaveCurrent();
 
-                        // ★★ 第四幕通关 ⇒ 第 5 幕 = 天阙：挂起"天阙抉择"，并直接回主城等玩家选。
+                        // ★★ 第四幕通关 ， 第 5 幕 = 天阙：挂起"天阙抉择"，并直接回主城等玩家选。
                         //    旧实现靠 MainSceneEntry 里 `NodeOffset == 11` 判定（当时是 4 层×3 格的遗留），
-                        //    既与现在的 12 层图对不上，又会被幕推进重置成 -1 ⇒ 天阙永远不会触发。
+                        //    既与现在的 12 层图对不上，又会被幕推进重置成 -1 ， 天阙永远不会触发。
                         if (prun.Act >= 5)
                         {
                             // ★★ 关键：**不切场景**！就地重建天阙图 + 原地弹出天阙抉择。
-                            //    原来这里 EnterMain() 切场景 ⇒ MainSceneEntry 跑两次 ⇒
+                            //    原来这里 EnterMain() 切场景 ， MainSceneEntry 跑两次 ，
                             //    面板实例在"关闭中"状态被再次 OpenAsync，返回实例却不激活
-                            //    ⇒ 最后画面一片空白 / 主界面（日志实测：打开成功但 2 帧后 active=False）。
+                            //    ， 最后画面一片空白 / 主界面（日志实测：打开成功但 2 帧后 active=False）。
                             SceneFlow.PendingFinale = false;   // 不需要跨场景挂起了
-                            Debug.Log("[Campaign] 已到天阙 ⇒ 就地弹出天阙抉择（不切场景）");
+                            Debug.Log("[Campaign] 已到天阙 ， 就地弹出天阙抉择（不切场景）");
                             WanXiang.Run.RunSave.SaveCurrent();
                             RebuildGraphFor(prun.Act, prun.RunSeed);   // 换成天阙图（5 节点）
                             _currentOffset = -1;
@@ -381,7 +381,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// <summary>本幕"真·通过"的节点集合（= PassedNodes ∩ VisitedNodes）。落印✕ / 连线实线 只看它，
         ///  ⛔ 不看 _visited（那是"进入"）。</summary>
         private readonly HashSet<int> _passed = new HashSet<int>();
-        /// <summary>挂了「瘴雾」天时的节点（点"前往"走到它 ⇒ 起雾）。</summary>
+        /// <summary>挂了「瘴雾」天时的节点（点"前往"走到它 ， 起雾）。</summary>
         private readonly HashSet<int> _fogWeather = new HashSet<int>();
         /// <summary>本幕被强制成"整层都是 ？"的层（走进去必定起瘴雾）。</summary>
         private readonly HashSet<int> _forcedQLayers = new HashSet<int>();
@@ -397,7 +397,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// <summary>
         /// 等 UI 转场进入**退场/拨开**阶段再打开写字开场。
         /// ⚠ 不是等转场完全结束：用户 2026-10-12："粒子拨开转场就立马到写字了，没有衔接起来，
-        ///    要连贯"。⇒ 在退场那一刻就让写字淡入，与拨开重叠，视觉上是连续的。
+        ///    要连贯"。， 在退场那一刻就让写字淡入，与拨开重叠，视觉上是连续的。
         /// </summary>
         private async Cysharp.Threading.Tasks.UniTaskVoid DeferredIntroAsync()
         {
@@ -485,7 +485,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 }
             }
 
-            // ★ 本幕"全 ？ 层"：整层都是未知节点（四幕里 1~2 幕会有 1~2 层）⇒ 走进去必定起瘴雾
+            // ★ 本幕"全 ？ 层"：整层都是未知节点（四幕里 1~2 幕会有 1~2 层）， 走进去必定起瘴雾
             _forcedQLayers.Clear();
             {
                 var fl = new System.Collections.Generic.List<int>();
@@ -528,7 +528,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 foreach (var v in run.VisitedNodes) _visited.Add(v);
 
             // ★ "真·通过"集合 = PassedNodes ∩ VisitedNodes。
-            //   换幕/重开会把 VisitedNodes 清空 ⇒ 这边自动跟着空（不必去每处清 PassedNodes）。
+            //   换幕/重开会把 VisitedNodes 清空 ， 这边自动跟着空（不必去每处清 PassedNodes）。
             _fogWeather.Clear();
             if (run != null && run.FogWeatherNodes != null)
                 foreach (var o in run.FogWeatherNodes) _fogWeather.Add(o);
@@ -544,7 +544,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 else if (_visited.Count > 0)
                 {
                     // ★ 一次性迁移（老存档没有 PassedNodes 字段）：把"走过的"里**还能前往**的
-                    //   （= 从当前节点还走得到的，也就是"进去过但没通过"的那几格）剔掉 ⇒ 保留合法的通过格。
+                    //   （= 从当前节点还走得到的，也就是"进去过但没通过"的那几格）剔掉 ， 保留合法的通过格。
                     foreach (var v in _visited)
                         if (!IsReachable(v)) _passed.Add(v);
                     if (_currentOffset >= 0) _passed.Add(_currentOffset);   // 当前格本身就是"已通过到这一格"
@@ -626,7 +626,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             }
 
             // ★ 只对**真正通过**的那个节点挂起动画（等回到地图可见时才播，见 PlayPendingAnim）。
-            //   _justPassedNode 只在 OnOpenAsync 把 NodeOffset 落地那刻置位 ⇒ "进编队又返回""事件没做完就返回"
+            //   _justPassedNode 只在 OnOpenAsync 把 NodeOffset 落地那刻置位 ， "进编队又返回""事件没做完就返回"
             //   都不会误播（用户实锤）。这里再挂起，是为了避开"还在战斗/选择弹层里"的时机。
             if (_justPassedNode >= 0)
             {
@@ -705,7 +705,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     else
                     {
                         img.sprite = DashSprite();                           // 虚线笔触
-                        img.type = Image.Type.Tiled;                         // 沿线平铺 ⇒ 虚
+                        img.type = Image.Type.Tiled;                         // 沿线平铺 ， 虚
                         img.color = new Color(sa.r, sa.g, sa.b, 0.5f);
                     }
                     img.raycastTarget = false;
@@ -783,7 +783,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             if (rt == null || img == null) yield break;
             // 时长放缓（用户：动画可以慢一点）：0.30s → 0.55s
             float dur = 0.55f, e = 0f;
-            rt.localScale = Vector3.one * 2.6f;                 // ★ 从很大开始 ⇒ 缩放冲击明显
+            rt.localScale = Vector3.one * 2.6f;                 // ★ 从很大开始 ， 缩放冲击明显
             rt.localRotation = Quaternion.Euler(0f, 0f, -18f);
             var c0 = img.color; c0.a = 0f; img.color = c0;
             while (e < dur)
@@ -801,7 +801,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             if (img != null) { var c = img.color; c.a = 0.95f; img.color = c; }
         }
 
-        /// <summary>画线：新走通的边从左端"长"出来 + 淡入（配合节点落印 ⇒ "这条路刚打通"）。</summary>
+        /// <summary>画线：新走通的边从左端"长"出来 + 淡入（配合节点落印 ， "这条路刚打通"）。</summary>
         private System.Collections.IEnumerator LineDrawAnim(RectTransform rt, Image img)
         {
             if (rt == null || img == null) yield break;
@@ -835,13 +835,13 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         {
             base.OnResume();
             if (_ambientFx != null) _ambientFx.Running = true;
-            if (_pendingAnim) StartCoroutine(PlayPendingAnimAfter(0.30f));   // 被上层弹层（如开场）盖过再露出 ⇒ 这时才播
+            if (_pendingAnim) StartCoroutine(PlayPendingAnimAfter(0.30f));   // 被上层弹层（如开场）盖过再露出 ， 这时才播
         }
 
         // ================================================================
         //  按幕背景 + 飘落粒子（2026-10-11）
         //  ------------------------------------------------------------------
-        //  进图与换幕都会经过 OnOpenAsync ⇒ 那里调 RefreshAmbient()，
+        //  进图与换幕都会经过 OnOpenAsync ， 那里调 RefreshAmbient()，
         //  背景图与粒子就自动跟着幕变（春/夏/长夏/秋/冬）。
         // ================================================================
         private void RefreshAmbient()
@@ -862,7 +862,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private void PlayPendingAnim()
         {
             if (!_pendingAnim) return;
-            if (State == UIPanelState.Paused) return;   // 还被弹层盖着 ⇒ 等 OnResume
+            if (State == UIPanelState.Paused) return;   // 还被弹层盖着 ， 等 OnResume
             _pendingAnim = false;
             _justPassedNode = -1;                        // 播完就消费掉（后续重绘不再重播）
 
@@ -917,7 +917,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
 
         /// <summary>
         /// 【正式来源】本幕「瘴雾」节点生成：**天象节点按概率**挂 + **每幕再随机 0~2 个**（可能一个都没有）。
-        /// 由 run seed 派生 ⇒ 同一局同一幕结果稳定；生成一次即落盘（<c>FogGenAct</c> 记住已生成哪一幕），换幕重生成。
+        /// 由 run seed 派生 ， 同一局同一幕结果稳定；生成一次即落盘（<c>FogGenAct</c> 记住已生成哪一幕），换幕重生成。
         /// </summary>
         private void EnsureFogNodesGenerated(WanXiang.Run.RunState run, WanXiang.Campaign.ActGraph g)
         {
@@ -928,11 +928,11 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 run.FogWeatherNodes = new System.Collections.Generic.List<int>();
             run.FogWeatherNodes.Clear();
 
-            // ⛔ 独立随机源（别用 st.Random：会扰动战斗随机流）；用 run seed 派生 ⇒ 稳定可复现
+            // ⛔ 独立随机源（别用 st.Random：会扰动战斗随机流）；用 run seed 派生 ， 稳定可复现
             var rng = new System.Random((int)(CoreMath.Fnv1a("fog:" + run.RunSeed + ":" + g.Act) & 0x7fffffffUL));
             int last = g.NodeCount - 1;
 
-            // "全 ？ 层"（整层未知）⇒ 该层每个节点**必定**起雾
+            // "全 ？ 层"（整层未知）， 该层每个节点**必定**起雾
             var forced = new System.Collections.Generic.List<int>();
             ForcedQuestionLayers(run, g, forced);
             var forcedSet = new System.Collections.Generic.HashSet<int>(forced);
@@ -940,7 +940,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             for (int off = 0; off < g.NodeCount; off++)
             {
                 if (off == last) continue;                                           // 末层守关：不含
-                if (forcedSet.Contains(g.LayerOf(off)))                              // 整层未知 ⇒ 必定
+                if (forcedSet.Contains(g.LayerOf(off)))                              // 整层未知 ， 必定
                 {
                     run.FogWeatherNodes.Add(off);
                     continue;
@@ -958,7 +958,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
 
         /// <summary>
         /// 本幕哪些层被强制成"**整层都是 ？**"：**四幕（1~4）里选 1~2 幕**，每幕再选 **1~2 层**
-        /// （避开最前 4 层与末层、跳过单格结构层）。全部由 run seed 派生 ⇒ 同一局稳定、不必落盘。
+        /// （避开最前 4 层与末层、跳过单格结构层）。全部由 run seed 派生 ， 同一局稳定、不必落盘。
         /// ⛔ 只改 `Kinds`（"这格是什么"），**不动拓扑**。
         /// </summary>
         private static void ForcedQuestionLayers(WanXiang.Run.RunState run, WanXiang.Campaign.ActGraph g,
@@ -972,7 +972,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             int nActs = 1 + a.Next(0, 2);
             var acts = new System.Collections.Generic.List<int>();
             for (int i = 0; i < nActs; i++) { int x = a.Next(1, 5); if (!acts.Contains(x)) acts.Add(x); }
-            if (!acts.Contains(g.Act)) return;                          // 本幕不在名单 ⇒ 没有全？层
+            if (!acts.Contains(g.Act)) return;                          // 本幕不在名单 ， 没有全？层
 
             int lc = g.Layers.Length;
             if (lc < 8) return;                                         // 图太小（缺省图）跳过
@@ -1035,7 +1035,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
 
         /// <summary>
         /// 重掷"雾里"的节点类型。只动**没走过、非当前格、非关键**的节点，且**拓扑不动**
-        /// （层/边/节气序号全不变）⇒ 所有按下标存的存档字段（NodeOffset/VisitedNodes/Path/QuestionRevealed）全部有效。
+        /// （层/边/节气序号全不变）， 所有按下标存的存档字段（NodeOffset/VisitedNodes/Path/QuestionRevealed）全部有效。
         /// 结果写进 <c>RunState.RerolledKinds</c> 落盘（节点图每次由种子重建，不落盘就被冲掉，见 BuildNodeMap）。
         /// </summary>
         private static void RerollFoggedKinds(WanXiang.Run.RunState run)
@@ -1110,7 +1110,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             var cg = t.GetComponent<CanvasGroup>();
             if (cg == null) cg = t.gameObject.AddComponent<CanvasGroup>();
 
-            // 被上层弹层盖着（战斗/选择/开场）⇒ 先等，别在背后一闪而过（用户：别没看到就结束了）
+            // 被上层弹层盖着（战斗/选择/开场）， 先等，别在背后一闪而过（用户：别没看到就结束了）
             float w = 0f;
             while (State == UIPanelState.Paused && w < 8f) { if (t == null) yield break; w += Time.unscaledDeltaTime; yield return null; }
             float d0 = 0f;
@@ -1496,7 +1496,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     if (!rs.EnterNode(off) && rs.AtBoss) { rs.DefeatBoss(); rs.EnterNode(off); }
 
             // 预览当前选中的节点（只算天气、不写回 run.Path）：
-            // 先把可能跨幕的点推进，再进入；仍失败 = 异常（如还没通过的守关后续幕节点）⇒ 落到安全兜底。
+            // 先把可能跨幕的点推进，再进入；仍失败 = 异常（如还没通过的守关后续幕节点）， 落到安全兜底。
             if (!rs.EnterNode(offset) && rs.AtBoss) { rs.DefeatBoss(); rs.EnterNode(offset); }
 
             // ★ 合成「节点天时 + 幕间余气（rs.Lingers）+ 玩家星移余气（LiveWeather.Lingers）」。
@@ -1739,7 +1739,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private async Cysharp.Threading.Tasks.UniTaskVoid NestChoose(WanXiang.Run.RunState run)
         {
             if (run == null) return;
-            // ★ 天气地图效果层：孵穴受当前节点天时影响（LiveWeather.Current 为 null ⇒ 中性）。
+            // ★ 天气地图效果层：孵穴受当前节点天时影响（LiveWeather.Current 为 null ， 中性）。
             var wx = WanXiang.Campaign.WeatherMapEffects.Current;
             int healPct = System.Math.Max(0, 40 + wx.HealBonusPct);
             int eggGain = System.Math.Max(0, (int)System.Math.Round(2f * wx.EggRewardMul));
@@ -1749,7 +1749,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             if (pick == 0) run.HealPending = healPct;
             else run.Eggs += eggGain;
 
-            // 二选一完成 ⇒ 这时才把节点记为通过（未完成前不推进）
+            // 二选一完成 ， 这时才把节点记为通过（未完成前不推进）
             // ★ 同上：孵穴也只记"已处理"，推进交给 OnOpenAsync 的落地（PendingCommit）。
             if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                 run.VisitedNodes.Add(_selected);
@@ -1758,7 +1758,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 ? "全队状态回复！下一场战斗能力 ×1.4（回复 " + healPct + "%）"
                 : "获得 " + eggGain + " 枚灵卵（当前 " + run.Eggs + "）");
 
-            // ★ 处理完回节点地图继续探索（之前什么都不做 ⇒ 玩家以为被踢回主城界面）
+            // ★ 处理完回节点地图继续探索（之前什么都不做 ， 玩家以为被踢回主城界面）
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
             if (ui != null)
                 Cysharp.Threading.Tasks.UniTask.Void(async () =>
@@ -1835,13 +1835,13 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
 
                 // ★★ 「访问过」必须在**进入节点时**就记，不能跟着"通过"一起延后！
                 //    节点图的可达性依赖 VisitedNodes——之前把这段一起延后了，导致它永远是空的，
-                //    节点图认为"哪儿都没去过" ⇒ 只有第 0 层可达 ⇒ **点不动任何节点**（用户实测）。
+                //    节点图认为"哪儿都没去过" ， 只有第 0 层可达 ， **点不动任何节点**（用户实测）。
                 //    「访问」与「通过」是两件事：进入即访问，胜利/处理完才算通过。
                 if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                     run.VisitedNodes.Add(_selected);
                 WanXiang.Run.RunSave.SaveCurrent();
                 // ★ 事件类节点（灵市/孵穴/铸魂台/异闻/天象）**延后推进**：
-                //   点进去就写 NodeOffset 的话，玩家还没处理完就关游戏，再进来节点已通过 ⇒ 奖励丢失。
+                //   点进去就写 NodeOffset 的话，玩家还没处理完就关游戏，再进来节点已通过 ， 奖励丢失。
                 //   改为"离开事件面板、回到节点图时"才落地（见 OnOpenAsync 的 PendingCommit）。
                 //   战斗类保持立即推进（打完/撤退都会回到节点图，语义一致）。
                 // ★ **所有**节点都延后推进：点节点只是"进入"，真正通过要等
@@ -1863,14 +1863,14 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 //   节点真正通过时（见 OnOpenAsync 里对 PendingCommit 的落地）。
                 WanXiang.Run.RunSave.SaveCurrent();
 
-                // ★ 瘴雾天时：走到挂了「瘴雾」的节点 ⇒ **当场起雾**（跟真的一样：节点卡上就标着「·瘴雾」）
+                // ★ 瘴雾天时：走到挂了「瘴雾」的节点 ， **当场起雾**（跟真的一样：节点卡上就标着「·瘴雾」）
                 if (run.FogWeatherNodes != null && run.FogWeatherNodes.Contains(_selected))
                 {
                     run.FogWeatherNodes.Remove(_selected);
                     if (run.FogLeft > 0)
                     {
-                        // ★ 已经在雾里 ⇒ **不叠加、不续期**（用户定案：不该出现叠加）
-                        Debug.Log("[Campaign] 已在瘴雾中 ⇒ 这一格不再起雾（不叠加）");
+                        // ★ 已经在雾里 ， **不叠加、不续期**（用户定案：不该出现叠加）
+                        Debug.Log("[Campaign] 已在瘴雾中 ， 这一格不再起雾（不叠加）");
                     }
                     else
                     {
@@ -1909,7 +1909,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 }
                 kind = revealed;
                 // ★ 揭晓成战斗类（遭遇/精英）时，必须把真实 kind 写回 _current，
-                //   否则 FormationPanel 仍按 Question 建敌 ⇒ 精英缩放失效、战斗甚至不触发。
+                //   否则 FormationPanel 仍按 Question 建敌 ， 精英缩放失效、战斗甚至不触发。
                 //   （图里的原始 kind 仍是 Question，揭晓结果只存在 QuestionRevealed 存档里，
                 //     所以这里必须显式用揭晓后的值覆盖。）
                 _current.Kind = kind;

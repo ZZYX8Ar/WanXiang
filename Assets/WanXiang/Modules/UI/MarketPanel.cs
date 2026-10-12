@@ -155,7 +155,7 @@ namespace WanXiang.Modules.UI
                 used.Add(b.Id);
                 // 价格随稀有度与幕数上浮（GDD：价格随幕数与劫数上浮）
                 int baseP = b.Rarity == Rarity.Rare ? 8 : (b.Rarity == Rarity.Epic ? 12 : 5);
-                // ★ 天气地图效果层：当前节点天时影响物价（LiveWeather.Current 为 null ⇒ ×1，旧行为）。
+                // ★ 天气地图效果层：当前节点天时影响物价（LiveWeather.Current 为 null ， ×1，旧行为）。
                 float priceMul = WanXiang.Campaign.WeatherMapEffects.Current.PriceMul;
                 _goods.Add(new Good
                 {

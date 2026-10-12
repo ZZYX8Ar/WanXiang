@@ -215,7 +215,7 @@ namespace WanXiang.Modules.UI
                 int actIdx = System.Math.Max(0, System.Math.Min(BossCatalog.Pool.Length - 1, act - 1));
                 UnityEngine.Debug.Log("[BattleRequestFactory] 守关首领战：第" + act +
                     "幕 抽出 " + bossId + "（BossFor(seed) 确定性；轮回 " + ascension +
-                    " ⇒ 池开 " + BossCatalog.UnlockedCount(act, ascension) + "/" +
+                    " ， 池开 " + BossCatalog.UnlockedCount(act, ascension) + "/" +
                     BossCatalog.Pool[actIdx].Length + "）");
             }
 
@@ -235,7 +235,7 @@ namespace WanXiang.Modules.UI
             }
             if (ascMul > 1f)
                 UnityEngine.Debug.Log("[BattleRequestFactory] 轮回 " + (runAsc != null ? runAsc.Ascension : 0) +
-                                      " ⇒ 敌人属性 ×" + ascMul.ToString("0.00"));
+                                      " ， 敌人属性 ×" + ascMul.ToString("0.00"));
 
             // ★★ 轮回难度（"续劫"）：每轮回**敌人数量 +1**，上限 **9 只**（棋盘共 9 格）。
             //    与上面的"属性 +15%/轮回"叠加 —— 数量 + 强度双重递增。
@@ -247,7 +247,7 @@ namespace WanXiang.Modules.UI
                 for (int i = 0; i < extra; i++)
                 {
                     var pick = all[rng2.Next(all.Length)];
-                    // 格号：基础敌人占前几格 ⇒ 额外敌人从它们的后面接着排（0..8 共 9 格）
+                    // 格号：基础敌人占前几格 ， 额外敌人从它们的后面接着排（0..8 共 9 格）
                     int cell = (req.EnemyEntries.Count + i) % 9;
                     var add = DeployEntry.Enemy(pick, cell).WithMul(0.9f * ascMul);
                     req.EnemyEntries.Add(add);
@@ -255,7 +255,7 @@ namespace WanXiang.Modules.UI
                     req.EnemyMul.Add(add.StatMul);
                 }
                 UnityEngine.Debug.Log("[BattleRequestFactory] 轮回 " + runAsc.Ascension +
-                                      " ⇒ 敌人额外 +" + extra + " 只");
+                                      " ， 敌人额外 +" + extra + " 只");
             }
 
             // ★★ 遗物（杀戮尖塔式局内成长）：把本局已持有遗物折叠成战斗增益。

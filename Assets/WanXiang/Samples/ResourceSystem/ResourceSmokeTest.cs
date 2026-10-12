@@ -149,7 +149,7 @@ namespace WanXiang.Framework.Samples.ResourceSystem
         ///     B. 游戏循环整个停了（编辑器被暂停 / Play 没真正跑起来）。
         ///   两者都表现为"Update 不打日志"。
         ///
-        ///   有心跳就能一刀切开：心跳持续 ⇒ 是 A；心跳停了 ⇒ 是 B。
+        ///   有心跳就能一刀切开：心跳持续 ， 是 A；心跳停了 ， 是 B。
         ///   注意 A 情况下本方法会一直跑，所以心跳是可靠的"游戏循环存活"证明。
         /// </remarks>
         private void Update()

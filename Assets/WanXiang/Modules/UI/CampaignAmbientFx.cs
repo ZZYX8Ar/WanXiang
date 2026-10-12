@@ -7,7 +7,7 @@
 //   · 背景图按幕加载 Resources/UI/Campaign/map_bg_act{n}_*.png（春/夏/长夏/秋/冬），
 //     复用战斗那套"按幕选图"的口径（bg 一律铺满 stretch）。
 //   · 粒子复用战斗的 FX_particle_act{n}_*.png（同一套美术，不重复出图），
-//     但节点地图是 **UGUI** ⇒ 不能用世界空间的 SpriteRenderer 版本，
+//     但节点地图是 **UGUI** ， 不能用世界空间的 SpriteRenderer 版本，
 //     这里用 Image + RectTransform 做一套 UGUI 粒子。
 //   · ⛔ 增量积分 + 回绕（早期战斗版写成 y = BaseY - Speed*_t 导致粒子飘一会儿
 //     就锁死在顶部，用户报"飘动一些就没有了"）—— 这里一开始就写对。

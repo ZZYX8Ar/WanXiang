@@ -4,7 +4,7 @@
 //  对应 GDD 第 7 章 STEP 3 验收③：「分享码长度控制在 90 字符以内，
 //  导入后能 1:1 复现对方阵容与对局结果」，外加防篡改口径的合法性校验。
 //
-//  1:1 复现的判据与战斗自检同源：同一份载荷 + 同一个种子 ⇒ 事件流指纹一致。
+//  1:1 复现的判据与战斗自检同源：同一份载荷 + 同一个种子 ， 事件流指纹一致。
 //  Edit 模式同步跑（不进 Play，理由同 battle/fusion 自检）。
 //  报告：Temp/WanXiangDiag/share_selftest.txt
 // ============================================================================
@@ -96,19 +96,19 @@ namespace WanXiang.Editor.FusionTool
 
             // ---- 防篡改：各类损坏输入必须被拒 ----
             Check(lines, !ShareCode.TryDecode("0" + code.Substring(1), beasts.Length, souls.Length, out _),
-                  "防篡改：版本号被改 ⇒ 拒绝");
+                  "防篡改：版本号被改 ， 拒绝");
             Check(lines, !ShareCode.TryDecode(code + "AAAA", beasts.Length, souls.Length, out _),
-                  "防篡改：尾部塞数据 ⇒ 拒绝");
+                  "防篡改：尾部塞数据 ， 拒绝");
             Check(lines, !ShareCode.TryDecode("不是分享码", beasts.Length, souls.Length, out _),
-                  "防篡改：非 Base64 输入 ⇒ 拒绝");
+                  "防篡改：非 Base64 输入 ， 拒绝");
             var tampered = original;
             tampered.BoardSlots = new[] { 0, 1, 2, 3, 3 };   // 落位重复
             Check(lines, ShareCode.Encode(tampered) == null,
-                  "防篡改：落位重复的载荷 ⇒ 编码期拒绝");
+                  "防篡改：落位重复的载荷 ， 编码期拒绝");
 
             // ---- 越界：内容表比 byte 小的场合（用小目录做边界校验） ----
             bool rejected = !ShareCode.TryDecode(code, 5, souls.Length, out _);
-            Check(lines, rejected, "防篡改：异兽下标越界（内容表变小）⇒ 拒绝");
+            Check(lines, rejected, "防篡改：异兽下标越界（内容表变小）， 拒绝");
 
             return Finish(lines);
         }

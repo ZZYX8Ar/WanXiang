@@ -41,7 +41,7 @@ namespace WanXiang.Battle.Core
         /// 本回合**已确定**的出手序列（回合开始时构建一次，模拟与 UI 共用同一份）。
         /// <para>
         /// 为什么要存下来：行动条若自己按"当前速度"重排，会与模拟真正用的序列不一致
-        /// （核心的 buf.Order 在回合开始就定死了）。存这份 ⇒ 界面显示的就是实际会发生的顺序。
+        /// （核心的 buf.Order 在回合开始就定死了）。存这份 ， 界面显示的就是实际会发生的顺序。
         /// </para>
         /// </summary>
         /// <summary>本场已发动的连携 Id（每条每场限一次，v2.1 P4）。</summary>
@@ -87,7 +87,7 @@ namespace WanXiang.Battle.Core
 
         /// <summary>
         /// 敌方灵力池（2026-09-25 起与玩家**分开**）。
-        /// ⚠ 曾经双方共用 <see cref="TeamMp"/> ⇒ 敌方 AI 放战记花的是玩家的灵力，
+        /// ⚠ 曾经双方共用 <see cref="TeamMp"/> ， 敌方 AI 放战记花的是玩家的灵力，
         ///   玩家一直普攻也攒不起来（用户实测报障）。与玩家同规则（从 0 起、同上限与回复节奏）。
         /// </summary>
         public int EnemyMp = 0;
@@ -269,7 +269,7 @@ namespace WanXiang.Battle.Core
             // ⚠ 中途增员会让名册变长：**只扩容、不清空**。
             //   原来那句 `if (长度不等) 重新 new` 会在增员时把上一帧的比对基准全丢掉，
             //   于是下一帧把全战场都当成"有变化"重发一遍（帧体积暴涨）。
-            //   扩容后新增槽位 = default ⇒ 与真实快照必然不等 ⇒ 该单位自然出现在下一帧的
+            //   扩容后新增槽位 = default ， 与真实快照必然不等 ， 该单位自然出现在下一帧的
             //   Changed 里，表现层据此补建 view。这正是"召唤物在其入场那一刻才出现"的机制。
             if (_lastSnapshot.Length < _allEver.Count)
             {
@@ -308,10 +308,10 @@ namespace WanXiang.Battle.Core
         /// 运行期新增单位的**唯一** RuntimeId（中途召唤 / 分身专用）。
         ///
         /// ⛔ 绝不能用 "E+序号"：<c>BattleFactory.Deploy(st, entries, "E")</c> 的计数器**每次调用都从 0 起**
-        ///   ⇒ 召唤物会拿到 "E0"，与开场第一个敌人**撞号**。
+        ///   ， 召唤物会拿到 "E0"，与开场第一个敌人**撞号**。
         ///   而 RuntimeId 既是表现层 `_views` 的键，也是日志里的 actorId / targetId：
         ///   撞号的后果就是——召唤物**没有自己的 view（战场上看不见）**，而它的伤害事件
-        ///   （targetId="E0"）被算到撞号那个单位头上 ⇒ **伤害数字 / 血条全飘到 Boss 身上**。
+        ///   （targetId="E0"）被算到撞号那个单位头上 ， **伤害数字 / 血条全飘到 Boss 身上**。
         /// </summary>
         public string NextRuntimeId()
         {
@@ -361,7 +361,7 @@ namespace WanXiang.Battle.Core
         /// 03 惊蛰：把"刚阵亡且本场还没用过卵"的我方单位转成虫卵。
         /// ⚠ 放在 <see cref="CheckOutcome"/> 里是刻意的：判负的每一道关口都会先经过这里，
         ///   所以"死亡 → 留卵 → 继续打"的顺序天然成立，不会出现"全灭先判负、卵来不及留"。
-        ///   天时为空时立即返回 ⇒ 无天时战斗零影响。
+        ///   天时为空时立即返回 ， 无天时战斗零影响。
         /// </summary>
         private void SpawnEggsIfNeeded()
         {
@@ -380,7 +380,7 @@ namespace WanXiang.Battle.Core
             }
         }
 
-        /// <summary>某方是否有"待孵化的虫卵"（惊蛰）。有卵 ⇒ 我方全灭也不判负。</summary>
+        /// <summary>某方是否有"待孵化的虫卵"（惊蛰）。有卵 ， 我方全灭也不判负。</summary>
         public bool AnyPendingRevive(TeamSide side)
         {
             var list = _units[(int)side];

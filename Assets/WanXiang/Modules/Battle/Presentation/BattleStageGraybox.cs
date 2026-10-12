@@ -69,7 +69,7 @@ namespace WanXiang.Battle.Presentation
         private const float BoardY = 0f;
         // ⚠ 对阵方向：**左右**而不是前后。
         //   一开始按"我方在下、敌方在上"摆，结果 16:9 画面里两块棋盘被压成中间一条窄柱
-        //   （正交相机的宽度 = 高 × 宽高比 ⇒ 前后摆等于把纵深塞进高度，横向全浪费）。
+        //   （正交相机的宽度 = 高 × 宽高比 ， 前后摆等于把纵深塞进高度，横向全浪费）。
         private const float PlayerX = -3.05f;
         private const float EnemyX = 3.05f;
 

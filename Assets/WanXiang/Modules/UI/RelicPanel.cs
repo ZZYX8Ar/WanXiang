@@ -28,7 +28,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text[] _tmpDraftDescs;
         /// <summary>
         /// 每张卡右上角的「本队」角标（与本队异兽相关的遗物才显示）。
-        /// 节点由 prefab 提供（`Draft_i/Mark_Team_i`，含底色 Image + 文字 Tmp_Mark）⇒ 可在 prefab 里改配色/换图。
+        /// 节点由 prefab 提供（`Draft_i/Mark_Team_i`，含底色 Image + 文字 Tmp_Mark）， 可在 prefab 里改配色/换图。
         /// </summary>
         [BindArray("Mark_Team_{0}", 3)]
         [SerializeField] private UnityEngine.GameObject[] _markTeam;

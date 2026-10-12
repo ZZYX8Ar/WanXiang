@@ -90,21 +90,21 @@ namespace WanXiang.Modules.UI
                 // ⛔ 此处**不再**有任何 Boss 机制提示的刷新逻辑：提示已改由战场表现层
                 //   （BattleStage2D）画成单位头顶的**世界空间文字**，内容随帧流（UnitSnapshot.StateHint）更新。
                 //   历次踩坑：① 曾写进 _tipText —— 那是【技能/连携 tooltip】的控件，会互相覆盖，
-                //   且 _tipPanel 默认隐藏 ⇒ 根本看不见；② 曾想每帧读 _play.State 的单位取 StateHint ——
+                //   且 _tipPanel 默认隐藏 ， 根本看不见；② 曾想每帧读 _play.State 的单位取 StateHint ——
                 //   自动模式下 state 是整场跑完的终局态（终局提示会从第 1 帧就贴上）。
                 //
                 // ★ 顺序铁律：**先把已产生的事件全部播完，再考虑等令**。
                 //   模拟推进是"跑一段"（可能一次性产生多个事件），若一看到 AwaitingCommand
                 //   就停住等令，那段事件会被跳过 —— 表现就是"第一次攻击没效果、之后才补播"（实测）。
                 // ⚠⚠ guard 只统计"**推进事件**"的步数，**绝不能把等玩家下令的帧算进去**。
-                //   以前写成 `while (... && guard++ < 20000)` ⇒ 每轮都 ++（含 await Yield 的等令帧）
-                //   ⇒ 一场长仗 + 玩家思考时间就把 20000 用完 ⇒ 主循环**中途退出**：
-                //      · 旧版：掉进 DrainRest 的 while(StepOnce()) ⇒ 死循环 = 卡死
-                //      · 新版：DrainRest 立刻退出 ⇒ FinishAndLeave ⇒ **没死却判负**（用户实测报障）
+                //   以前写成 `while (... && guard++ < 20000)` ， 每轮都 ++（含 await Yield 的等令帧）
+                //   ， 一场长仗 + 玩家思考时间就把 20000 用完 ， 主循环**中途退出**：
+                //      · 旧版：掉进 DrainRest 的 while(StepOnce()) ， 死循环 = 卡死
+                //      · 新版：DrainRest 立刻退出 ， FinishAndLeave ， **没死却判负**（用户实测报障）
                 //   实测日志："主循环步数触顶(20000) 但战斗未结束 —— awaiting=True seq=57"。
                 //   触顶只告警并清零，**绝不中途结算**。
-                // ★ 等令 ⇒ **立刻**亮出操作区，不等"开局那一串棋盘结算"播完。
-                //   以前这段放在"播事件"分支之后 ⇒ 玩家要干等约 1.5 秒（TurnStart + 相生回复 + 出手序列）
+                // ★ 等令 ， **立刻**亮出操作区，不等"开局那一串棋盘结算"播完。
+                //   以前这段放在"播事件"分支之后 ， 玩家要干等约 1.5 秒（TurnStart + 相生回复 + 出手序列）
                 //   才看到面板，观感是"异兽自动打了一下才轮到我"（用户实测报障；
                 //   实测出手次数其实是 0/0，那串只是棋盘结算没有攻击）。
                 // ⚠ 这里**不 continue**：事件必须继续往下播，否则会出现"第一次攻击没效果"（旧踩坑）。
@@ -143,7 +143,7 @@ namespace WanXiang.Modules.UI
                         _lastDecisionSeq = -1;                // 自动推进：下一轮必然重刷
                         RefreshActionBar();
                     }
-                    guard = 0;                                // ★ 等玩家下令：合法且时长不可控 ⇒ 计数清零
+                    guard = 0;                                // ★ 等玩家下令：合法且时长不可控 ， 计数清零
                     await UniTask.Yield(PlayerLoopTiming.Update, ct);
                     continue;                                 // 不推进事件、不退出循环
                 }
@@ -251,7 +251,7 @@ namespace WanXiang.Modules.UI
                 case BattleEventKind.Death: _tmpLog.text = target + " 阵亡"; break;
                 // ★ 2026-10-12：补 RoundResolve 分支 —— 所有 Boss 机制提示（双子同命倒下/双杀/复活、
                 //   破壳、引爆、余烬…）都是走这个事件类型写 note 的。以前 switch 里没有这一支
-                //   ⇒ 机制照常生效，但玩家在日志行**一个字都看不到**（用户报障：'双子复活我怎么没看到'）。
+                //   ， 机制照常生效，但玩家在日志行**一个字都看不到**（用户报障：'双子复活我怎么没看到'）。
                 case BattleEventKind.RoundResolve:
                     if (!string.IsNullOrEmpty(e.Note)) _tmpLog.text = e.Note;
                     break;
@@ -301,7 +301,7 @@ namespace WanXiang.Modules.UI
 
             // ★★ 结算前兜底判定胜负：Outcome 只在 BattleSimulator 的循环里由 CheckOutcome 赋值，
             //    手动操作路径若没跑到判负点，Outcome 会停在 Ongoing
-            //    ⇒ PlayerWin = false ⇒ **明明赢了却按失败结算**（用户实测 A 情况）。
+            //    ， PlayerWin = false ， **明明赢了却按失败结算**（用户实测 A 情况）。
             //    这里在结算前补一次判定；CheckOutcome 会据"敌方全灭/我方全灭"给出正确结果。
             if (_play != null && _play.State != null)
             {
@@ -344,13 +344,13 @@ namespace WanXiang.Modules.UI
         /// <summary>
         /// 收尾排空：把剩余事件/帧走完，但**每 8 步让出一帧**。
         /// ★ 原来这里是 `while (StepOnce()) { }` —— 纯同步空转，一场战斗几千个事件
-        ///   全挤在一帧里跑完 ⇒ 主线程占死、Unity 整个界面无响应（用户实测"战斗卡死"）。
+        ///   全挤在一帧里跑完 ， 主线程占死、Unity 整个界面无响应（用户实测"战斗卡死"）。
         /// </summary>
         private async UniTask DrainRest(CancellationToken ct)
         {
             int n = 0;
             // ⚠⚠ 必须同时判"不在等令"：`BattlePlayback.Step()` 在等令状态下会**返回 true 却不推进**
-            //   （它把"在等玩家下令"也当作"还有事没做完"）⇒ 只看 StepOnce() 会**无限空转**，
+            //   （它把"在等玩家下令"也当作"还有事没做完"）， 只看 StepOnce() 会**无限空转**，
             //   表现就是"操作区再也不出现、战斗冻结"（实测：面板游标涨到 463667，核心一步没走）。
             while (!_play.AwaitingCommand && StepOnce())
             {

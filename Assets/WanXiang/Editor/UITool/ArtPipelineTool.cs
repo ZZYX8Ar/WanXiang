@@ -124,7 +124,7 @@ namespace WanXiang.EditorTools
 
             catalog.Entries.Clear();
             // ⚠ 必须递归：立绘按五行分在 Beasts/Wood|Fire|Earth|Metal|Water 子目录里，
-            //   非递归扫描会一张都扫不到 ⇒ SpriteCatalog 被清空 ⇒ 战斗里全是色块。
+            //   非递归扫描会一张都扫不到 ， SpriteCatalog 被清空 ， 战斗里全是色块。
             var files = Directory.GetFiles(dir, "*.png", SearchOption.AllDirectories);
             System.Array.Sort(files, System.StringComparer.Ordinal);
             foreach (var abs in files)

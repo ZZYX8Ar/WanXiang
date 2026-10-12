@@ -8,7 +8,7 @@
 //  之所以分得这么干净，是因为融合系统（GDD 6.2 的 Fuse）要在运行时造出
 //  "宿主 + 灵魂"的新单位：它的外形来自宿主、五行与技能可能被灵魂改写。
 //  如果运行时直接改 BeastDef，第二场战斗就会读到被上一场改脏的定义。
-//  ⇒ **BeastDef 永远只读，所有可变状态都在 BattleUnit 上。**
+//  ， **BeastDef 永远只读，所有可变状态都在 BattleUnit 上。**
 // ============================================================================
 
 namespace WanXiang.Battle.Core
@@ -121,7 +121,7 @@ namespace WanXiang.Battle.Core
         /// <summary>
         /// 本次阵亡是否已向钩子系统上报（<c>BattleHooks.UnitKilled</c>）。
         /// 用于「死亡对账」：有些伤害路径（共鸣分摊 DamageSplitHook / 伤害反弹 / 连携 / 天时 /
-        /// 棋盘结算）**直接扣血、不走完整伤害管线** ⇒ 必须由 <c>BattleHooks.SweepDeaths</c> 兜底补报，
+        /// 棋盘结算）**直接扣血、不走完整伤害管线** ， 必须由 <c>BattleHooks.SweepDeaths</c> 兜底补报，
         /// 否则 KillLinkHook 等同命/假死/击杀成长钩子收不到阵亡信号（双子被分摊磨死不复活、无提示）。
         /// 复活（<see cref="ReviveAtHp"/> / <see cref="SetHp"/> 回到正血）时复位。
         /// </summary>
@@ -149,9 +149,9 @@ namespace WanXiang.Battle.Core
         /// 内容 = 按 key 排序拼成的 "A · B · C"。
         ///
         /// 为什么需要它：<see cref="StateHint"/> 只有**一个字符串**，多个钩子写同一只首领会
-        /// **按注册顺序互相覆盖**（后注册的赢）⇒ 一只首领只能显示一条机制。
+        /// **按注册顺序互相覆盖**（后注册的赢）， 一只首领只能显示一条机制。
         /// 有了分段，多个机制就能共存（"组装 +25% · 护盾 12%"）。
-        /// ⚠ **懒创建**：绝大多数单位一辈子不写提示 ⇒ 别在字段初始化里 new（每单位一份字典太贵）。
+        /// ⚠ **懒创建**：绝大多数单位一辈子不写提示 ， 别在字段初始化里 new（每单位一份字典太贵）。
         ///   用 <c>BossHint.SetPart</c> 写，不要直接碰这个字段。
         /// </summary>
         public System.Collections.Generic.SortedDictionary<string, string> HintParts;
@@ -329,7 +329,7 @@ namespace WanXiang.Battle.Core
             Modifiers.Clear();
             EggTurnsLeft = 0;
             Hp = CoreMath.Clamp(hp, 1, MaxHp);
-            DeathReported = false;                  // 复活 ⇒ 复位上报标记，再死能再报
+            DeathReported = false;                  // 复活 ， 复位上报标记，再死能再报
         }
 
         public bool CanBeHealed
@@ -549,7 +549,7 @@ namespace WanXiang.Battle.Core
         public void SetHp(int hp)
         {
             Hp = CoreMath.Clamp(hp, 0, MaxHp);
-            if (Hp > 0) DeathReported = false;      // 拉回正血（假死/冰晶救援）= 未死 ⇒ 复位上报标记
+            if (Hp > 0) DeathReported = false;      // 拉回正血（假死/冰晶救援）= 未死 ， 复位上报标记
         }
 
         // ================================================================

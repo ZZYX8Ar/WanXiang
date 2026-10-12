@@ -922,7 +922,7 @@ namespace WanXiang.EditorTools.Diagnostics
             report.results.Add($"{tag} -> ⭐ 判定："
                                + (anyIl2Cpp
                                    ? "找到了 IL2CPP 变体，后端应该可用"
-                                   : "Variations 下清一色 mono ⇒ **没装 “Windows Build Support (IL2CPP)” 模块**。"
+                                   : "Variations 下清一色 mono ， **没装 “Windows Build Support (IL2CPP)” 模块**。"
                                      + "去 Unity Hub → 安装 → 2022.3.62f3c1 右侧「添加模块」→ "
                                      + "勾选 Windows Build Support (IL2CPP) → 安装后重启编辑器。"
                                      + "（已装 Mono 版构建支持**不等于**装了 IL2CPP 版）"));

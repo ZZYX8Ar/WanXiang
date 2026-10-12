@@ -183,7 +183,7 @@ namespace WanXiang.Modules.UI
 
             if (_tmpName != null) _tmpName.text = b.DisplayName + (evolved ? " · 觉醒" : "");
 
-            // ★ 立绘：之前只声明了 _imgBig 却从没赋过图 ⇒ 详情永远白块（用户实测反馈）。
+            // ★ 立绘：之前只声明了 _imgBig 却从没赋过图 ， 详情永远白块（用户实测反馈）。
             //   与图鉴 CodexPanel 同源：SpriteCatalog.GetHead(id)（256 头像图集，缺 Head 回退 Body）。
             if (_imgBig != null)
             {
@@ -231,7 +231,7 @@ namespace WanXiang.Modules.UI
                 string eq = meta != null ? meta.AwakenOf(b.Id) : "";
                 if (string.IsNullOrEmpty(eq))
                 {
-                    // 专属材料已在**进化**那步卡住（见 EvolveConditionText）⇒ 这里只说"可装备"，
+                    // 专属材料已在**进化**那步卡住（见 EvolveConditionText）， 这里只说"可装备"，
                     // 不重复提示材料，避免玩家以为有两道门。
                     _tmpSkill4.text = "④ 觉醒技：――（觉醒后可装备，仅限终结技）";
                 }
@@ -266,7 +266,7 @@ namespace WanXiang.Modules.UI
             }
             if (_btnEvolve != null)
             {
-                // ★ 同理：只有"已进化"才禁用；材料/精魄/墨铊不足一律可点 ⇒ 弹窗告知。
+                // ★ 同理：只有"已进化"才禁用；材料/精魄/墨铊不足一律可点 ， 弹窗告知。
                 _btnEvolve.interactable = !evolved;
                 var l = _btnEvolve.transform.Find("Tmp_Label") != null
                         ? _btnEvolve.transform.Find("Tmp_Label").GetComponent<TMP_Text>() : null;
@@ -328,7 +328,7 @@ namespace WanXiang.Modules.UI
 
             // ★ v6：进化 = 精魄 + 墨铊 + **该异兽专属材料**（在残卷阁集齐剧情碎片后领取）。
             //   材料是"一次性钥匙"，领取后永久持有、**不消耗** —— 所以不会和觉醒装备形成双门槛：
-            //   觉醒技槽本就只有进化后才开放，进化已要求材料 ⇒ 装备时不必再查一遍。
+            //   觉醒技槽本就只有进化后才开放，进化已要求材料 ， 装备时不必再查一遍。
             if (!meta.HasAwakenSoul(b.Id))
             {
                 int fragNow = meta.FragmentCountOf(b.Id);
@@ -367,7 +367,7 @@ namespace WanXiang.Modules.UI
             SetEvolved(b.Id);
             WanXiang.Meta.MetaStore.Save();
             Debug.Log("[MetaPanel] ★ 进化「" + b.DisplayName + "」（-精魄" + EvolveEssenceCost +
-                      " -墨铊" + EvolveInkCost + "，专属材料已持有不消耗）⇒ 觉醒，开放第 3 技能槽；剩精魄 " + meta.Essence);
+                      " -墨铊" + EvolveInkCost + "，专属材料已持有不消耗）， 觉醒，开放第 3 技能槽；剩精魄 " + meta.Essence);
             Refresh();
         }
 
@@ -418,7 +418,7 @@ namespace WanXiang.Modules.UI
         }
 
         // ⚠ 原 `LevelBonusOf(id) = LevelOf(id) * PerLevelBonus` 已删：它声明后全项目无人调用，
-        //   而真正生效的是 BattleRequestFactory 里的口径 ⇒ 留着就是第二份公式，迟早漂移。
+        //   而真正生效的是 BattleRequestFactory 里的口径 ， 留着就是第二份公式，迟早漂移。
         //   现在统一走 MetaDefaults.CombatBonusMul（UI 与战斗共用）。
 
         // --------------------------------------------------- 觉醒技选择（批次B）
@@ -434,7 +434,7 @@ namespace WanXiang.Modules.UI
             string beastId = _shown[_selected].Id;
 
             // ⚠ v6 起**不在这里**校验专属材料：材料是**进化**的前置（OnEvolveClicked 已卡）。
-            //   而本弹层只有进化后才够得着（_btnAwakenPick 仅在 evolved 时显示）⇒
+            //   而本弹层只有进化后才够得着（_btnAwakenPick 仅在 evolved 时显示），
             //   在这里再查一遍就成了重复门（用户明确反对双门槛）。
 
             // 候选 = ① 已解锁异兽的终结技  ② 探索收集到的技能
@@ -598,7 +598,7 @@ namespace WanXiang.Modules.UI
                 return index + " " + sk.Name + "（" + typeCn + cd + "）　" + numbers
                      + (SkillMath.HasDamage(sk) ? "（" + SkillMath.DamageNote + "）" : "");
 
-            // 全是状态/驱散这类算不出点数的效果 ⇒ 退回内容原文
+            // 全是状态/驱散这类算不出点数的效果 ， 退回内容原文
             string desc = string.IsNullOrEmpty(sk.Description) ? "" : ("　" + sk.Description);
             return index + " " + sk.Name + "（" + typeCn + cd + "）" + desc;
         }

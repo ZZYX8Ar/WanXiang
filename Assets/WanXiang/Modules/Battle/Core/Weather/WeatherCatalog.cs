@@ -321,7 +321,7 @@ namespace WanXiang.Battle.Core
             },
 
             // ---- 03 惊蛰：我方阵亡后留「虫卵」，2 回合后以 30% 生命复活（每单位每场限 1 次）
-            //      ⚠ 配套改动：CheckOutcome 认可"待孵化虫卵" ⇒ 我方全灭但有卵不判负，
+            //      ⚠ 配套改动：CheckOutcome 认可"待孵化虫卵" ， 我方全灭但有卵不判负，
             //        否则卵永远来不及孵（判定在死亡结算之后、孵化之前）。
             new TermEntry
             {
@@ -465,7 +465,7 @@ namespace WanXiang.Battle.Core
             },
 
             // 祈晴（火）：全场 2%/回合灼烧 + 火伤 +25%。
-            // Element=Fire 必填 —— 逆天时判定靠它（水节气用它 ⇒ 反噬）
+            // Element=Fire 必填 —— 逆天时判定靠它（水节气用它 ， 反噬）
             new WeatherSkillDef
             {
                 Id = "wskill_qiqing", Name = "祈晴",

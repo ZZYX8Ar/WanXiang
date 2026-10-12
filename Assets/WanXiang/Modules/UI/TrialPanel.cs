@@ -99,7 +99,7 @@ namespace WanXiang.Modules.UI
         public static BattleRequest BuildFinaleBattle(WanXiang.Run.RunState run, BeastDef[] all)
         {
             // ⚠⚠ 终局 Boss 必须是 **BossCatalog 的幕五首领**（归墟之主/鸿蒙），不是"内容表里稀有度最高的"。
-            //   旧写法 `all[0]` 取 Rarity 最高 ⇒ 会挑到玩家侧的普通神品异兽（如后土/句芒），
+            //   旧写法 `all[0]` 取 Rarity 最高 ， 会挑到玩家侧的普通神品异兽（如后土/句芒），
             //   于是终局战没有首领感、立绘也不放大（用户实测"第五幕的 Boss 还是小异兽"）。
             //   后土/句芒这些是**玩家**用的异兽，不该出现在敌方终局位。
             var finaleBoss = WanXiang.Battle.Core.BossCatalog.BossForBeastDef(5, (ulong)run.RunSeed, 2);
@@ -122,7 +122,7 @@ namespace WanXiang.Modules.UI
 
             var entries = new System.Collections.Generic.List<DeployEntry>();
             // ★ 终局 Boss 站**中宫**（格 4）—— 用户 2026-10-03："boss 站在九宫格中间"。
-            //   ⚠ 旧写法用 `BattleRequest.Cells[4]`（那个数组是 {0,3,4,5,8}，索引4 ⇒ **格8**），
+            //   ⚠ 旧写法用 `BattleRequest.Cells[4]`（那个数组是 {0,3,4,5,8}，索引4 ， **格8**），
             //     既不在中宫、又和下面镜像用的 `Cells[i]`(0/3/4) 撞格。
             //   统一用 SeededEnemyProvider.BossCell（=4，守关同款口径）。
             entries.Add(DeployEntry.Enemy(boss, WanXiang.Campaign.SeededEnemyProvider.BossCell).WithMul(1.5f));
@@ -204,10 +204,10 @@ namespace WanXiang.Modules.UI
                         }
                         // ★★ 进入天阙图（第 5 幕节点地图）。
                         //    难点：本面板在 **Overlay 层**，CloseSelf() 会触发 UISystem 的"栈重算"，
-                        //    若同一帧就打开节点图，它会被这次重算一起判掉 ⇒ 8 个面板全关、画面全空（MCP 实测）。
-                        //    ⇒ 必须**先关自己，等两帧、栈重算完成后再打开节点图**。
+                        //    若同一帧就打开节点图，它会被这次重算一起判掉 ， 8 个面板全关、画面全空（MCP 实测）。
+                        //    ， 必须**先关自己，等两帧、栈重算完成后再打开节点图**。
                         // ★★ 现在天阙图是【就地】生成的（CampaignPanel 没切场景），
-                        //    本面板关掉后自然回到下面的节点图 ⇒ 什么都不用切。
+                        //    本面板关掉后自然回到下面的节点图 ， 什么都不用切。
                         var run5 = WanXiang.Run.RunSave.Current;
                         if (run5 != null)
                         {
@@ -226,7 +226,7 @@ namespace WanXiang.Modules.UI
                         run.Act = 1;
                         run.NodeOffset = -1;
                         run.RunSeed = UnityEngine.Random.Range(1, int.MaxValue);   // 新劫新图
-                        run.Ascension++;                                          // ★ 轮回 +1 ⇒ 敌人 +15%
+                        run.Ascension++;                                          // ★ 轮回 +1 ， 敌人 +15%
                         if (run.QuestionRevealed != null) run.QuestionRevealed.Clear();
                         WanXiang.Run.RunSave.SaveCurrent();
 
@@ -234,7 +234,7 @@ namespace WanXiang.Modules.UI
                         //    节点图（CampaignPanel）就在栈里 —— 本弹窗关掉后会自然露出来。
                         //    所以只要让它**按新的 Act=1 重排**即可，不需要切场景/切面板
                         //    （切面板会踩 UISystem 的栈重算，今天已经踩过很多次）。
-                        Debug.Log("[TrialPanel] 续劫 ⇒ 第 1 幕（队伍/资源继承，敌强+3%）");
+                        Debug.Log("[TrialPanel] 续劫 ， 第 1 幕（队伍/资源继承，敌强+3%）");
                         var cp = UnityEngine.Object.FindObjectOfType<CampaignPanel>();
                         if (cp != null) cp.ReloadForCurrentAct();
                         else Debug.LogWarning("[TrialPanel] 续劫：找不到 CampaignPanel，节点图无法重排");
@@ -264,7 +264,7 @@ namespace WanXiang.Modules.UI
                             if (runEnd.QuestionRevealed != null) runEnd.QuestionRevealed.Clear();
                             WanXiang.Run.RunSave.SaveCurrent();
                         }
-                        Debug.Log("[TrialPanel] 归元 ⇒ 结束本局（进度已重置为第 1 幕），回主城");
+                        Debug.Log("[TrialPanel] 归元 ， 结束本局（进度已重置为第 1 幕），回主城");
                         // ★★ 必须先关掉**节点图面板**！CampaignPanel 是跨场景缓存的，
                         //    不关就会盖住回主城后新打开的主界面 —— 表现就是"点了归元，
                         //    画面还停在天阙图"（用户实测，日志显示 Act=1 但视图未变）。

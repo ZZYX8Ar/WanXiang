@@ -46,7 +46,7 @@ namespace WanXiang.Editor.UITool
                 so.ApplyModifiedPropertiesWithoutUndo();
 
                 PrefabUtility.SaveAsPrefabAsset(root, Path);
-                Debug.Log("[ActIntro] 已挂组件并绑定 " + bound + "/5 个引用 ⇒ " + Path);
+                Debug.Log("[ActIntro] 已挂组件并绑定 " + bound + "/5 个引用 ， " + Path);
             }
             finally
             {
@@ -63,7 +63,7 @@ namespace WanXiang.Editor.UITool
             var panelType = FindType("WanXiang.Modules.UI.ActIntroPanel");
             if (panelType == null) { Debug.LogError("[ActIntro] 找不到 ActIntroPanel 类型"); return; }
             var comp = prefab.GetComponent(panelType);
-            if (comp == null) { Debug.LogWarning("[ActIntro] prefab 上还没有 ActIntroPanel 组件 ⇒ 跑一次「构建开场面板」"); return; }
+            if (comp == null) { Debug.LogWarning("[ActIntro] prefab 上还没有 ActIntroPanel 组件 ， 跑一次「构建开场面板」"); return; }
 
             var so = new SerializedObject(comp);
             string[] fields = { "_imgPaper", "_tmpTitleMain", "_tmpTitleSub", "_rootLeaves", "_itemLeaf" };
@@ -75,7 +75,7 @@ namespace WanXiang.Editor.UITool
                 if (good) ok++;
                 Debug.Log("[ActIntro] " + f + " = " + (good ? p.objectReferenceValue.name : "❌ 空"));
             }
-            Debug.Log("[ActIntro] 绑定 " + ok + "/5" + (ok == 5 ? " ✓ 正常" : " ⇒ 需要重跑「构建开场面板」"));
+            Debug.Log("[ActIntro] 绑定 " + ok + "/5" + (ok == 5 ? " ✓ 正常" : " ， 需要重跑「构建开场面板」"));
         }
 
         private static int Bind(SerializedObject so, GameObject root, string field, string node, Type compType)

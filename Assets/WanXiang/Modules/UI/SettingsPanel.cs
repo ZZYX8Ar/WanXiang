@@ -34,7 +34,7 @@ namespace WanXiang.Modules.UI
             // ⚠ 这里**不再**做任何"兜底建 UI"（原 EnsureBackToStart 已删）。
             //   项目铁律：UI 一律在 prefab 里可见可改，禁止运行时 new GameObject 搭界面。
             //   那个兜底正是"面板里出现两个 Btn_BackToStart"的原因：
-            //   prefab 里本来就有按钮，只是字段没接线 ⇒ 兜底又建了一个（用户实测报障）。
+            //   prefab 里本来就有按钮，只是字段没接线 ， 兜底又建了一个（用户实测报障）。
             if (_sldBgm != null) _sldBgm.onValueChanged.AddListener(OnBgmChanged);
             if (_sldSfx != null) _sldSfx.onValueChanged.AddListener(OnSfxChanged);
             if (_tglFullscreen != null) _tglFullscreen.onValueChanged.AddListener(OnFullscreenChanged);
@@ -96,7 +96,7 @@ namespace WanXiang.Modules.UI
         /// 删它的两个理由：
         ///   ① 违反项目铁律「UI 一律做成 prefab」—— 运行时建的按钮在 prefab 里看不见、改不了；
         ///   ② 它就是"面板里出现两个 Btn_BackToStart"的直接原因：
-        ///      prefab 里本来就有这个按钮，只是 `_btnBackToStart` 没接线 ⇒ 兜底又建了一个。
+        ///      prefab 里本来就有这个按钮，只是 `_btnBackToStart` 没接线 ， 兜底又建了一个。
         /// 现在接线已修（prefab 里 Btn_BackToStart → 字段），运行时会走到上面 OnCreate 的绑定。
         /// </summary>
         // （原方法体已删，留此说明避免日后有人"顺手加回兜底"）

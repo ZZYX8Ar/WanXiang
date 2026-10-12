@@ -182,12 +182,12 @@ namespace WanXiang.EditorTools.Diagnostics
         ///     ┌ 玩家编译引用 **编辑器版**（3 参 ctor）→ 宏必须 **开**
         ///     │   这是「平台 IL2CPP 模块没装」时的退路：安装里没有 il2cpp 变体目录，
         ///     │   Unity 只能退回 Data/Managed/UnityEngine/。此时若不补宏，
-        ///     │   集合包走 #else 去要 2 参构造，编辑器版里没有 ⇒ CS7036。
+        ///     │   集合包走 #else 去要 2 参构造，编辑器版里没有 ， CS7036。
         ///     └ 玩家编译引用 **Variations/&lt;后端&gt;**（2 参 ctor）→ 宏必须 **关**
         ///         装上 Windows Build Support (IL2CPP) 后走这条（实测已确认引用路径
         ///         变成 Variations/il2cpp/Managed/，玩家 rsp 里有 67 处 Variations）。
         ///         此时若还留着宏，集合包走 #if 去要 3 参构造，变体版里没有
-        ///         ⇒ CS7036 原样复发。
+        ///         ， CS7036 原样复发。
         ///
         ///   实测（metaprobe 只读元数据）三份 UnityEngine.CoreModule.dll，
         ///   里 NativeArray&lt;T&gt;.ReadOnly 的形状不同：
@@ -199,7 +199,7 @@ namespace WanXiang.EditorTools.Diagnostics
         ///     · il2cpp 变体  1,395,536 B：只有 ctor(void* buffer, int length)
         ///                                 字段 m_Buffer / m_Length
         ///
-        ///   ⇒ **两个平台变体都只有 2 参构造**，3 参构造只存在于编辑器版。
+        ///   ， **两个平台变体都只有 2 参构造**，3 参构造只存在于编辑器版。
         ///     所以「缺宏」本身不是错误信号 —— 要看引用的是哪一份。
         ///     判定实现见 <see cref="ProbePlayerReferences"/> 里的 CoreModule 引用探测。
         ///

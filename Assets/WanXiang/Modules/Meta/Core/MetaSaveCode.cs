@@ -57,7 +57,7 @@ namespace WanXiang.Meta
             }
 
             // ⚠ 必须算准：写入的是  BeastCount(1) + beastBytes + HostCount(1) + hosts + SoulCount(1) + souls
-            //   ⇒ 固定头 21 + beastBytes + hosts + souls + 2（曾少算 2 字节 → IndexOutOfRange，存档写不进去）
+            //   ， 固定头 21 + beastBytes + hosts + souls + 2（曾少算 2 字节 → IndexOutOfRange，存档写不进去）
             // ⚠ 固定字节要逐个数清：头 22 + BeastCount(1) + HostCount(1) + SoulCount(1) = 25
             // 觉醒技段字节数：AwakenSkills(1 + Σ(1+len)) + EquipCount(1) + Σ(1+len+1+len)
             int awakenBytes = 1;

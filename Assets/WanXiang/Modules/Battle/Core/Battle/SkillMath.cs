@@ -135,7 +135,7 @@ namespace WanXiang.Battle.Core
         ///
         /// ⚠⚠ 全程以 <c>forPreview: true</c> 调用 —— **绝不消费战斗随机数**。
         ///   `ComputeDamage` 末尾会掷"±5% 抖动"，预览若掷骰就会推进随机流、改掉后续所有结算。
-        ///   代价是预览值不带抖动 ⇒ 这里按 `Config.DamageJitter` 把区间**撑开**，实战结果必落在区间内。
+        ///   代价是预览值不带抖动 ， 这里按 `Config.DamageJitter` 把区间**撑开**，实战结果必落在区间内。
         /// </summary>
         /// <returns>true = 至少算出一个值（false 时调用方退回战前预览口径）</returns>
         public static bool TryDamageRange(BattleState st, BattleUnit src, SkillDef sk,

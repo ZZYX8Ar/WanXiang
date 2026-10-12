@@ -13,7 +13,7 @@
 //       —— 玩家永远有"打法"与"绕法"两条路，且两条路拿到的战斗只差 1 场；
 //    ② 第三层**固定为精英战** —— 每一幕都有一场不可回避的强度检定；
 //    ③ 第四层**固定为非战斗节点**，且必是土属性季末节点（传统历法每季末十八天土旺）。
-//    ⇒ 每幕战斗 2~3 场，四幕 8~12 场；加 4 场守关与 1 场天阙 = **单局 13~17 场**。
+//    ， 每幕战斗 2~3 场，四幕 8~12 场；加 4 场守关与 1 场天阙 = **单局 13~17 场**。
 //    （v1.0 写的"16 常�� + 5 守关 = 21"是把 16 个节点全当战斗节点算的，GDD v1.1
 //      明确纠正了这一点。）
 //
@@ -381,7 +381,7 @@ namespace WanXiang.Campaign
             var allowed = UnlockKinds(act);
             // ？始终可抽：约束要求每图 2~5 个 ？节点，但它不参与「配额」
             // （配额只考核计划类节点，见 MeetsV12Constraints）。若从解锁表排除 ？，
-            // 会与 ？数量约束自相矛盾 ⇒ 64 次重试全失败、回退缺省图（自检 ⑳ 抓到的真 bug）。
+            // 会与 ？数量约束自相矛盾 ， 64 次重试全失败、回退缺省图（自检 ⑳ 抓到的真 bug）。
             allowed.Add(NodeKind.Question);
             int total = 0;
             foreach (var kv in KindWeights) if (allowed.Contains(kv.kind)) total += kv.weight;
@@ -467,7 +467,7 @@ namespace WanXiang.Campaign
                 },
                 Layers = new[] { new[] { 0 }, new[] { 1 }, new[] { 2 }, new[] { 3 }, new[] { 4 } },
                 // ★★ 必须给 Edges！HasEdge 在 Edges==null 时**恒返回 false**
-                //    ⇒ 整张图除了第 0 层全部不可达（用户实测："通关第一个下一个没解锁"）。
+                //    ， 整张图除了第 0 层全部不可达（用户实测："通关第一个下一个没解锁"）。
                 Edges = new System.Collections.Generic.List<System.Collections.Generic.List<int>>
                 {
                     new System.Collections.Generic.List<int> { 1 },

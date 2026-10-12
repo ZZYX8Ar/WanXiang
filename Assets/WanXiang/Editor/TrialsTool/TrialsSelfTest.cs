@@ -65,7 +65,7 @@ namespace WanXiang.Editor.TrialsTool
             float enemyMul = 1f + 0.03f * 4;
             Check(lines, System.Math.Abs(t15.JieGuardMul - 1.08f) < 0.0001f
                        && System.Math.Abs(enemyMul - 1.12f) < 0.0001f,
-                  $"② 劫数加护：劫 5 ⇒ 我方 ×{t15.JieGuardMul:F2}、敌方 ×{enemyMul:F2}（净差 +1%/劫，§7.4 的绞索）");
+                  $"② 劫数加护：劫 5 ， 我方 ×{t15.JieGuardMul:F2}、敌方 ×{enemyMul:F2}（净差 +1%/劫，§7.4 的绞索）");
 
             // ---- ③ 战斗类劫律 → 独占配置 ----
             var hardCfg = new TrialState(1, 6).BuildRoundConfig();   // 5 条生效
@@ -106,10 +106,10 @@ namespace WanXiang.Editor.TrialsTool
                   "⑤ 续劫：灵卵保留在局内、劫数 +1（劫数加护自动生效）");
             var sR = new TrialState(1, 3).Resolve(TrialState.Verdict.Return, 20, 5, false);
             Check(lines, sR.EggsFromSettle == -10 && sR.NewTrial == 1,
-                  "⑤ 归元：剩余 ×0.5（20 ⇒ 10）、不推进境数");
+                  "⑤ 归元：剩余 ×0.5（20 ， 10）、不推进境数");
             var sD = TrialState.DefeatSettlement(20, 4);
             Check(lines, sD.EggsFromSettle == -6,
-                  "⑤ 全灭：剩余 ×0.5 + 幕数（20 ⇒ 10 + 4）");
+                  "⑤ 全灭：剩余 ×0.5 + 幕数（20 ， 10 + 4）");
 
             // ---- ⑥ 20 条劫律表完整性 ----
             Check(lines, TrialLaws.Order.Length == 20 && TrialLaws.Order[19] == TrialLaws.AllIsOne,

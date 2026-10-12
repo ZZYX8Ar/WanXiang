@@ -29,7 +29,7 @@ namespace WanXiang.Modules.UI
         public void OnBeginDrag(PointerEventData eventData)
         {
             if (Owner == null || BeastIndex < 0) return;
-            // ★ 关键：卡池在 ScrollRect 里，拖拽事件会同时被 ScrollRect 消费 ⇒ 拖不动。
+            // ★ 关键：卡池在 ScrollRect 里，拖拽事件会同时被 ScrollRect 消费 ， 拖不动。
             //   开始拖时先让 ScrollRect 让位，拖完再恢复（用户实测"右边异兽不能拖动"）。
             Owner.SetRosterScrollEnabled(false);
             Owner.OnDragBegin(BeastIndex, -1, eventData);

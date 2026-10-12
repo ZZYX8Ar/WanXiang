@@ -107,7 +107,7 @@ namespace WanXiang.Editor.BattleTool
         }
 
         // ================================================================
-        //  0) 静态初始化冒烟（防"类型初始化失败 ⇒ 整个战斗场景搭不起来"回归）
+        //  0) 静态初始化冒烟（防"类型初始化失败 ， 整个战斗场景搭不起来"回归）
         // ================================================================
 
         /// <summary>
@@ -115,9 +115,9 @@ namespace WanXiang.Editor.BattleTool
         ///
         /// ⛔⛔ 血泪教训（2026-10-03）：`BattleStage2D` 里
         ///   `BossScaleIds = BuildBossScaleIds()` 被声明在它内部要读的 `TwinIds` **之前**
-        ///   —— C# 静态字段按**声明顺序**初始化 ⇒ 执行 BuildBossScaleIds 时 TwinIds 还是 null
-        ///   ⇒ NullReferenceException ⇒ TypeInitializationException
-        ///   ⇒ `[BattleSceneDriver] 舞台搭建失败，本场只有 HUD` + 相机无内容
+        ///   —— C# 静态字段按**声明顺序**初始化 ， 执行 BuildBossScaleIds 时 TwinIds 还是 null
+        ///   ， NullReferenceException ， TypeInitializationException
+        ///   ， `[BattleSceneDriver] 舞台搭建失败，本场只有 HUD` + 相机无内容
         ///   （用户报障："现在看不到战斗场景了啊，你在干什么"）。
         ///
         /// ⚠ 这类错误**编译期不报、跑不到就发现不了**（自检原本也不实例化表现层），
@@ -629,7 +629,7 @@ namespace WanXiang.Editor.BattleTool
         //  ⚠ 队伍口径**沿用 CampaignSelfTest ⑪ 的既有约定**（别另外发明）：
         //    我方 = 5 只神品（Legend）满编进攻型 + BattleConfig.LegendMultiplier 成长倍率，
         //    敌方随从 = 灵品（Rare）灰盒，与真实游戏里"玩家养成后打同级敌人"同构。
-        //    之前一版用"默认稀有度 + 无成长"当玩家 ⇒ 连普通遭遇都 0% 胜，量到的是脚手架没配对。
+        //    之前一版用"默认稀有度 + 无成长"当玩家 ， 连普通遭遇都 0% 胜，量到的是脚手架没配对。
         //
         //  ⚠ **对照的选法**：必须用与守关**同规模**的节点，即 `NodeKind.Elite`
         //    （规模表 §5.5：精英 4/5/5/5 = 守关 4/5/5/5；遭遇只有 3/4/4/5）。
@@ -643,7 +643,7 @@ namespace WanXiang.Editor.BattleTool
         private const float NoRelicMul = 1.00f;
         private const float MidRelicMul = 1.15f;
 
-        /// <summary>每档每幕跑多少局（固定种子序列 ⇒ 可复现）。</summary>
+        /// <summary>每档每幕跑多少局（固定种子序列 ， 可复现）。</summary>
         private const int WinnabilityRuns = 60;
 
         /// <summary>
@@ -704,7 +704,7 @@ namespace WanXiang.Editor.BattleTool
                     // ★★ v1.4 守关改「单 Boss 中宫」后，「守关有代价」这条结构性质**不再成立**：
                     //   去掉 3~4 个随从后难度大降，实测四幕在神品满编面前全打满 100%（= 白给）。
                     //   这是**真实的平衡信号**（随从原本承担了大部分强度），不是脚手架问题。
-                    //   灰盒数值本就是占位、绝对胜率不做断言 ⇒ 把「白给」从 Bad 降为校准观测，
+                    //   灰盒数值本就是占位、绝对胜率不做断言 ， 把「白给」从 Bad 降为校准观测，
                     //   机器只守与数值无关的三条：① 单 Boss 中宫 ② 机制钩子在 ③ 遗物正收益。
                     bool soloBoss = SoloBossHolds(c, act, U);
                     bool hooksIntact = BossHooksIntact(c, act, U);
@@ -726,9 +726,9 @@ namespace WanXiang.Editor.BattleTool
 
                 c.Info("口径：灰盒对手 + 神品满编（沿用 CampaignSelfTest ⑪）。胜率是【校准数据】（供策划调 A 系数/首领面板），");
                 c.Info("      ⚠ v1.4.1 守关口径：单 Boss 站中宫 + 2 随从(半倍率)。纯单 Boss 时四幕对神品满编全打满 100%。");
-                c.Info("        这是真实平衡信号（随从原本承担了大部分强度）⇒ 已降为校准待办；断言只机器守：");
+                c.Info("        这是真实平衡信号（随从原本承担了大部分强度）， 已降为校准待办；断言只机器守：");
                 c.Info("        ① 单 Boss 中宫(随从≤2且不堵中列)　② 机制钩子仍在　③ 遗物有正收益。");
-                c.Info("      ⚠ 轮回解锁池 ⇒ 低轮回（2 只）/全开（3 只）抽到不同首领，两档都测。");
+                c.Info("      ⚠ 轮回解锁池 ， 低轮回（2 只）/全开（3 只）抽到不同首领，两档都测。");
                 c.Info($"      校准目标区间（暂不断言）：{WinRateTargetLo:P0} ~ {WinRateTargetHi:P0}；"
                      + $"神品成长倍率 {LegendGrowth:0.00}；每题 ×{NoRelicMul:0.00}/{MidRelicMul:0.00} 两档遗物。");
                 c.Info("      ★ 数值校准（Task #72）：BossMul 已由 1.35 上调至 1.75（单 Boss 独占中宫后随从消失，");
@@ -896,7 +896,7 @@ namespace WanXiang.Editor.BattleTool
         /// <summary>
         /// 断言首领的机制钩子仍挂在 boss 上（BattleFactory.Create 内 AttachAllBossHooks）。
         /// v1.4 把守关改成"单 Boss、无随从"后，最容易出的回归是：
-        /// 随从没了 ⇒ 某些"打召唤物/打随从"的钩子找不到目标而静默失效。
+        /// 随从没了 ， 某些"打召唤物/打随从"的钩子找不到目标而静默失效。
         /// 这里用同一批种子跑几局，扫战斗日志里该 boss 的机制 Note。
         /// </summary>
         private static bool BossHooksIntact(Ctx c, int act, int ascension)
@@ -949,7 +949,7 @@ namespace WanXiang.Editor.BattleTool
         private static BeastDef[] SamplePoolFor(int act)
         {
             // ⚠ 随从用 Element.None 而非该幕元素 —— 隔离"首领机制强度"这个量，不让五行克制混进来。
-            //   首领本体元素是 BossDef 定死的固有属性，我方也 None ⇒ 双方对首领恒 1.0×，
+            //   首领本体元素是 BossDef 定死的固有属性，我方也 None ， 双方对首领恒 1.0×，
             //   量到的差异只来自"首领的面板 + 机制"。
             return BattleSampleContent.TeamOf(Element.None, RoleType.Striker, 6, $"wp{act}_");
         }

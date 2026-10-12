@@ -104,7 +104,7 @@ namespace WanXiang.Editor.CampaignTool
             {
                 var l = lingers[i];
                 string name = l.Weather != null ? l.Weather.BuffName : "（空）";
-                int applies = System.Math.Max(0, l.NodesLeft + 1);   // -1 才移除 ⇒ 生效数 = 计数 + 1
+                int applies = System.Math.Max(0, l.NodesLeft + 1);   // -1 才移除 ， 生效数 = 计数 + 1
                 lines.Add($"余气 · {SolarTermName(l.FromTerm)}　{name}"
                         + $"（强度减半，还剩 {applies} 个节点）");
             }

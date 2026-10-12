@@ -22,7 +22,7 @@
 //  ⚠⚠ `.bytes` 后缀不是可选的美化，是**必需**的
 //
 //  `Assets/` 下任何 `*.dll` 都会被 Unity 的托管插件导入器接管，
-//  于是热更 DLL 会被当成一个**程序集**参与编译 ⇒ 同一个类型存在两份 ⇒
+//  于是热更 DLL 会被当成一个**程序集**参与编译 ， 同一个类型存在两份 ，
 //  `CS0433: The type 'X' exists in both ...`。
 //
 //  加 `.bytes` 之后 Unity 只当普通二进制资产处理，插件语义消失。
@@ -33,7 +33,7 @@
 //  ---------------------------------------------------------------------------
 //  ⚠ 为什么 AOT 名单要从 AOTGenericReferences.cs **抄出来**，而不是让运行期直接读
 //
-//    那个文件在 `Assets/HybridCLRGenerate/` 下、没有 asmdef ⇒ 落在预定义程序集
+//    那个文件在 `Assets/HybridCLRGenerate/` 下、没有 asmdef ， 落在预定义程序集
 //    `Assembly-CSharp` 里。而 asmdef 程序集**不能引用预定义程序集**（Unity 硬规则），
 //    所以 WanXiang.Runtime 编译期根本拿不到 PatchedAOTAssemblyList。
 //    绕开的三种办法与取舍，写在 HotUpdateLocations.AotManifestName 的注释里。
@@ -206,7 +206,7 @@ namespace WanXiang.Editor.HotUpdateTool
             var aotNames = ReadPatchedAotAssemblyList(report);
             if (aotNames == null)
             {
-                // 读不到名单 ⇒ **不写清单**。理由见文件头。
+                // 读不到名单 ， **不写清单**。理由见文件头。
                 report.Add("⚠ ④ 拿不到 AOT 泛型名单，本次**不写清单、不复制 AOT DLL**。");
                 report.Add("   运行期读不到清单会明确报「没找到 AOT 元数据清单」，"
                            + "不会假装补过元数据。");
@@ -237,7 +237,7 @@ namespace WanXiang.Editor.HotUpdateTool
                     if (!File.Exists(src))
                     {
                         report.Add($"   ❌ 缺 strip 产物：{src}");
-                        report.Add("      ⇒ `AssembliesPostIl2CppStrip` 是整个 AOT 集成的裁剪结果。"
+                        report.Add("      ， `AssembliesPostIl2CppStrip` 是整个 AOT 集成的裁剪结果。"
                                    + "跑一次完整的「HybridCLR/Generate/All」再发布。");
                         continue;
                     }
@@ -298,7 +298,7 @@ namespace WanXiang.Editor.HotUpdateTool
         ///   原因：泛型分析器要解析"被引用的 AOT 类型"，而它**从
         ///   <c>HybridCLRData/AssembliesPostIl2CppStrip/</c> 里读 AOT 程序集**。
         ///   那份 strip 产物是**上一次出包时**生成的，里面根本没有新加的探针类型
-        ///   ⇒ 解析失败 ⇒ 整个泛型实例化被**静默**丢弃 ⇒ 名单为空。
+        ///   ， 解析失败 ， 整个泛型实例化被**静默**丢弃 ， 名单为空。
         ///
         ///   ⭐ 关键教训：**strip 产物会过期；过期时不报错，只会让名单变空。**
         ///      而"空名单"有两种含义 ——
@@ -318,7 +318,7 @@ namespace WanXiang.Editor.HotUpdateTool
             {
                 lines.Add($"⚠⚠ AOT strip 目录不存在：{stripDir}");
                 lines.Add("    任何「AOT 泛型 + 值类型实参」的分析结果都不可信（必然为空）。");
-                lines.Add("    ⇒ 先跑一次完整的「HybridCLR/Generate/All」，再发布。");
+                lines.Add("    ， 先跑一次完整的「HybridCLR/Generate/All」，再发布。");
                 return lines;
             }
 
@@ -329,7 +329,7 @@ namespace WanXiang.Editor.HotUpdateTool
                 if (dlls.Length == 0)
                 {
                     lines.Add($"⚠⚠ AOT strip 目录是空的：{stripDir}");
-                    lines.Add("    ⇒ 先跑一次完整的「HybridCLR/Generate/All」，再发布。");
+                    lines.Add("    ， 先跑一次完整的「HybridCLR/Generate/All」，再发布。");
                     return lines;
                 }
 
@@ -384,7 +384,7 @@ namespace WanXiang.Editor.HotUpdateTool
                           + "名单会**静默变空**");
                 lines.Add("    （HybridCLR 只会打一条 ResolveTypeDef() == null 的警告，"
                           + "很容易被淹没）。");
-                lines.Add("    ⇒ 先跑一次完整的「HybridCLR/Generate/All」"
+                lines.Add("    ， 先跑一次完整的「HybridCLR/Generate/All」"
                           + "（它要出一次包才能生成 strip 产物），再跑本命令。");
             }
             else if (newestSource != default)
@@ -471,7 +471,7 @@ namespace WanXiang.Editor.HotUpdateTool
                 report.Add($"✅ AOT 清单已发布：{manifestPath}（{names.Count} 项）");
                 report.Add(names.Count > 0
                     ? $"   名单：{string.Join("、", names)}"
-                    : "   名单为空 ⇒ 当前热更代码没有 AOT 泛型需求，补元数据链路本次未被验证。");
+                    : "   名单为空 ， 当前热更代码没有 AOT 泛型需求，补元数据链路本次未被验证。");
             }
             else
             {
@@ -574,7 +574,7 @@ namespace WanXiang.Editor.HotUpdateTool
                 if (!File.Exists(full))
                 {
                     report.Add($"   ❌ AOTGenericReferences.cs 不存在：{full}");
-                    report.Add("      ⇒ 跑一次「HybridCLR/Generate/AOTGenericReference」。");
+                    report.Add("      ， 跑一次「HybridCLR/Generate/AOTGenericReference」。");
                     return null;
                 }
 

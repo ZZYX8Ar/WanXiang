@@ -32,7 +32,7 @@ namespace WanXiang.Campaign
         public static readonly System.Collections.Generic.List<RunState.LingerEntry> Lingers
             = new System.Collections.Generic.List<RunState.LingerEntry>();
 
-        /// <summary>玩家通过一节节点 ⇒ 所有星移余气 -1，扣到负数移除（与 RunState 余气同口径）。</summary>
+        /// <summary>玩家通过一节节点 ， 所有星移余气 -1，扣到负数移除（与 RunState 余气同口径）。</summary>
         public static void OnNodeCommitted()
         {
             for (int i = Lingers.Count - 1; i >= 0; i--)
@@ -50,7 +50,7 @@ namespace WanXiang.Campaign
 
     /// <summary>
     /// 天气对「地图玩法」的修正解析（Batch 2 天气地图效果层）。
-    /// 读 <see cref="LiveWeather.Current"/>（当前节点真实天时）；为 null ⇒ 全部中性（旧行为逐位一致）。
+    /// 读 <see cref="LiveWeather.Current"/>（当前节点真实天时）；为 null ， 全部中性（旧行为逐位一致）。
     /// ⚠ 数值为占位平衡（待策划确认），集中在这里方便一处调参；不要散落到各面板。
     /// </summary>
     public static class WeatherMapEffects

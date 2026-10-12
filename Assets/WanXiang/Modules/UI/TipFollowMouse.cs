@@ -5,17 +5,17 @@
 //  这样就不会闪烁了"
 //
 //  ⛔ 闪烁的真正根因（两层，都要治）：
-//    ① 提示面板是 UGUI Image，`raycastTarget` **默认 true** ⇒ 鼠标一移到面板上
+//    ① 提示面板是 UGUI Image，`raycastTarget` **默认 true** ， 鼠标一移到面板上
 //       就触发来源控件的 PointerExit → 面板隐藏 → 鼠标又落回来源 → PointerEnter
 //       → 面板显示 …… 无限循环 = 闪烁。
-//    ② 面板固定位置且紧贴来源控件 ⇒ 更容易被鼠标"踩"到。
+//    ② 面板固定位置且紧贴来源控件 ， 更容易被鼠标"踩"到。
 //  ✅ 治法：① 面板及子节点全部 `raycastTarget=false`；② 面板跟随鼠标 + 位移偏移。
 //
 //  ⛔⛔ 第一版跟随"看不见"的坑（务必记住）：
 //     面板的 anchor 是 **(0,1) 左上角**（pivot 也是 (0,1)），而
 //     `ScreenPointToLocalPointInRectangle` 返回的是**相对父节点中心**的坐标。
 //     我直接把后者赋给 `anchoredPosition` —— 但 anchoredPosition 是相对 **anchor**
-//     的偏移 ⇒ 基准差了一个"父节点半尺寸"，鼠标在左半边时面板被算到屏幕外。
+//     的偏移 ， 基准差了一个"父节点半尺寸"，鼠标在左半边时面板被算到屏幕外。
 //     ✅ 正确做法：先把 anchoredPosition 的基准**统一成父节点中心**
 //        （把 anchorMin/Max 设为 0.5,0.5），再赋 local 坐标；或直接用 position。
 //        本组件采用前者（同时兼顾 pivot 带来的展开方向），并做屏幕边缘钳制。

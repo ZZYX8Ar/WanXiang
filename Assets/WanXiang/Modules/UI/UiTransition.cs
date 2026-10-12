@@ -8,12 +8,12 @@
 //    · "根据不同的幕，转场前有不同的开场"
 //
 //  实现要点：
-//   · 独立 Canvas（overrideSorting + sortingOrder=32000）⇒ 永远盖在所有面板之上，
+//   · 独立 Canvas（overrideSorting + sortingOrder=32000）， 永远盖在所有面板之上，
 //     不受 UIRoot 内 sibling 顺序影响。
 //   · 时间轴：进场(42%) → 切换面板(onSwitch) → 停留(10%) → 退场(48%)，
 //     默认总时长 2.4s（用户要"2-3 秒"）。
 //   · 转场期间有一层全屏透明 Image 吃点击（防误触），其余元素 raycastTarget=false。
-//   · ⛔ 本项目禁用 ParticleSystem ⇒ 全部用 Image。
+//   · ⛔ 本项目禁用 ParticleSystem ， 全部用 Image。
 // ============================================================================
 
 using System.Collections;
@@ -94,7 +94,7 @@ namespace WanXiang.Modules.UI
         /// <summary>播放转场；到中点时回调 onSwitch（在那里打开目标面板）。</summary>
         /// <param name="coverSprite">
         /// 遮盖层用的背景图路径（Resources.Load）。**传目标界面的背景图**，
-        /// 转场盖住时就是同一张底图、退场淡出露出的也是它 ⇒ 全程一张底图，不跳变
+        /// 转场盖住时就是同一张底图、退场淡出露出的也是它 ， 全程一张底图，不跳变
         /// （用户 2026-10-12："因为转场完又有一个背景图，能不能把这个背景图贯穿"）。
         /// 传 null 则用按幕的纯色纸底兜底。
         /// </param>
@@ -122,9 +122,9 @@ namespace WanXiang.Modules.UI
             var rt = gameObject.AddComponent<RectTransform>();
 
             // ⛔⛔ 上一版的错（用户截图："Scene 场景左下角怎么这么小一个"）：
-            //    new GameObject 的 RectTransform 挂在 **DontDestroyOnLoad 根**下 ⇒ parent 为 null。
+            //    new GameObject 的 RectTransform 挂在 **DontDestroyOnLoad 根**下 ， parent 为 null。
             //    **根级 RectTransform 的 anchorMin/anchorMax 不生效**，实际尺寸由 sizeDelta 决定，
-            //    而它还是默认 (0,0) ⇒ Canvas 渲染区域几乎为 0，墨团/粒子绝大部分被裁掉，
+            //    而它还是默认 (0,0) ， Canvas 渲染区域几乎为 0，墨团/粒子绝大部分被裁掉，
             //    只剩中间一小点（所以"开始→主界面只能看到一点"）。
             // ✅ 正解：把转场层**挂到 UIRoot 主 Canvas 之下**，由子 Canvas(overrideSorting) 独立置顶。
             //    这样尺寸/缩放口径完全继承主 Canvas（1280x720 参考分辨率），不用自己猜。
@@ -158,7 +158,7 @@ namespace WanXiang.Modules.UI
                       " size=" + rt.rect.width + "x" + rt.rect.height);
 
             // ★ 前置遮盖层（用户 2026-10-12："从主界面到节点地图转场时，我不想看到这个主界面"）。
-            //   双帘/墨团合拢前屏幕是空的，旧界面会从缝里露出来 ⇒ 进场第一帧就用一层
+            //   双帘/墨团合拢前屏幕是空的，旧界面会从缝里露出来 ， 进场第一帧就用一层
             //   不透明"纸/墨"底色把旧界面盖掉，转场效果在这层之上演，退场最后才撤。
             _cover = NewImage("Cover", 0);
             _cover.rectTransform.anchorMin = Vector2.zero;
@@ -194,7 +194,7 @@ namespace WanXiang.Modules.UI
         private Image NewImage(string name, int order)
         {
             // ⛔ 这里原本有一行 `while (_pool.Count > order) { }`（空循环体）——
-            //   第二次调用起条件恒真 ⇒ **主线程死循环**，转场一播就整个卡住
+            //   第二次调用起条件恒真 ， **主线程死循环**，转场一播就整个卡住
             //   （用户现象："开始→主界面只有一片黑"，因为墨团铺开后卡死）。
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(_root, false);
@@ -310,7 +310,7 @@ namespace WanXiang.Modules.UI
             float tOut = total * 0.48f;
 
             // ---- 阶段 0：盖住旧界面（0.12s，越快越看不出"旧界面残留"）----
-            //  ★ 优先用**目标界面的背景图**当遮盖 ⇒ 全程一张底图、不跳变；
+            //  ★ 优先用**目标界面的背景图**当遮盖 ， 全程一张底图、不跳变；
             //    拿不到图才退到按幕的纯色纸底。
             if (_cover != null)
             {
@@ -495,7 +495,7 @@ namespace WanXiang.Modules.UI
         /// 完整重置遮盖层：sprite / 颜色 / transform 全部归位。
         /// ⚠ 转场层是**常驻**对象，两条链路（开始→主界面、主界面→节点地图）共用它。
         ///   用户 2026-10-12 两次强调："从开始界面到主界面的转场是独立的，不要混用"。
-        ///   ⇒ 每次播放前必须把上一场残留（尤其是 sprite 和 transform）清干净，
+        ///   ， 每次播放前必须把上一场残留（尤其是 sprite 和 transform）清干净，
         ///     否则主界面→节点地图设的背景图会"残留到"开始→主界面那场。
         /// </summary>
         private void ResetCover()
@@ -591,13 +591,13 @@ namespace WanXiang.Modules.UI
 
             // ★ 给每个粒子配一条尾迹（用户："横扫转场能不能让这些粒子带一些尾迹"）。
             //   尾迹是横向拉长的图 + UIStreak shader（头部实、尾部渐隐），
-            //   位置钉在粒子**后方**（粒子向左运动 ⇒ 尾迹拖在右侧）。
+            //   位置钉在粒子**后方**（粒子向左运动 ， 尾迹拖在右侧）。
             var streakSp = Resources.Load<Sprite>("UI/Trans/trans_streak");
             for (int i = 0; i < parts.Count; i++)
             {
                 if (streakSp == null || StreakShader() == null) break;
                 float sz = szs[i];
-                // v1 用 sz*2.6~4.4 长 / sz*0.55 粗 ⇒ 在 1280 画布上能拖出 600px 白棍。
+                // v1 用 sz*2.6~4.4 长 / sz*0.55 粗 ， 在 1280 画布上能拖出 600px 白棍。
                 // v2 收紧到 sz*1.5~2.6 长 / sz*0.20 粗，并按幕染色。
                 var st = NewStreak("St" + i, sz * Random.Range(1.5f, 2.6f), Mathf.Max(4f, sz * 0.20f),
                                    StreakColorOf(act));

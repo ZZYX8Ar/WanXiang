@@ -38,7 +38,7 @@ namespace WanXiang.Battle.Presentation
         public SpriteRenderer ShieldPlate;
         /// <summary>护盾数值（独立对象，**不能挂在蓝牌下** —— 蓝牌有缩放，会把字一起放大）。</summary>
         public TextMesh ShieldText;
-        /// <summary>状态外观层（冰封/束缚/燃烧…），是 <see cref="Body"/> 的子节点 ⇒ 跟着立绘走。</summary>
+        /// <summary>状态外观层（冰封/束缚/燃烧…），是 <see cref="Body"/> 的子节点 ， 跟着立绘走。</summary>
         public SpriteRenderer Overlay;
         /// <summary>当前覆盖层显示的状态 id（变了才重设，别每帧换 sprite）。</summary>
         public string OverlayShown;
@@ -92,7 +92,7 @@ namespace WanXiang.Battle.Presentation
         /// <summary>
         /// 首领**召唤物/分身**的身量倍数（如镜影等，非双子）。
         /// ⚠ 白魍双子**不走这里** —— 用户 2026-10-03 明确："他们两个都是 Boss 啊，
-        ///   不是召唤出来的，他们是一起出现的" ⇒ 双子按 <see cref="BossScaleMul"/> 同级放大。
+        ///   不是召唤出来的，他们是一起出现的" ， 双子按 <see cref="BossScaleMul"/> 同级放大。
         /// 这里留给真正的"分身/小召唤物"（1.15 = 比普通异兽略大，表明是 boss 阵营）。
         /// </summary>
         private const float BossSidekickScaleMul = 1.15f;
@@ -101,8 +101,8 @@ namespace WanXiang.Battle.Presentation
         /// 白魍双子（与本体一起出场、同为 Boss 级，但不在守关抽签池里）。
         /// ⛔⛔ **声明顺序不能挪到 BossScaleIds 后面**：C# 静态字段按声明顺序初始化，
         ///   而 `BossScaleIds = BuildBossScaleIds()` 内部要读 `TwinIds` ——
-        ///   若 TwinIds 在后面，此刻还是 null ⇒ `TypeInitializationException`
-        ///   ⇒ BattleStage2D 整个类型初始化失败 ⇒ **舞台搭建失败、只有 HUD、看不到战斗场景**
+        ///   若 TwinIds 在后面，此刻还是 null ， `TypeInitializationException`
+        ///   ， BattleStage2D 整个类型初始化失败 ， **舞台搭建失败、只有 HUD、看不到战斗场景**
         ///   （用户实测"看不到战斗场景了 / No cameras rendering"）。
         /// </summary>
         private static readonly string[] TwinIds = { "b_suren" };
@@ -136,7 +136,7 @@ namespace WanXiang.Battle.Presentation
         private readonly SpriteRenderer[] _cellsEnemy = new SpriteRenderer[9];
         private readonly Color[] _cellBasePlayer = new Color[9];
         private readonly Color[] _cellBaseEnemy = new Color[9];
-                                                        //   （原来写死 1.9 > 行距 1.155 ⇒ 视觉挤在一起）
+                                                        //   （原来写死 1.9 > 行距 1.155 ， 视觉挤在一起）
 
         // ---- 单位标签（名字 / 血条）的美术点位：直接在 Inspector 里改，不用动代码、不用改 prefab ----
         /// <summary>血条相对立绘容器的 y 偏移。</summary>
@@ -161,7 +161,7 @@ namespace WanXiang.Battle.Presentation
         public float ShieldGap = 0.80f;
         /// <summary>护盾数值的字号（TextMesh.characterSize）。
         /// ⚠ 实测口径：该值是**root 局部单位**，而 root 有缩放（普通单位≈0.10、首领 2.5×≈0.26）
-        ///   ⇒ 0.012 时文字只有 0.02 世界宽（等于看不见）。0.14 时普通单位约 0.05/字、首领约 0.13/字，
+        ///   ， 0.012 时文字只有 0.02 世界宽（等于看不见）。0.14 时普通单位约 0.05/字、首领约 0.13/字，
         ///   三位的护盾值正好落在牌内。</summary>
         public float ShieldTextSize = 0.22f;
         /// <summary>护盾牌底色。</summary>
@@ -173,8 +173,8 @@ namespace WanXiang.Battle.Presentation
         //  状态外观（冰封 / 束缚 / 燃烧…）—— 覆盖在立绘上的那一层
         //  -------------------------------------------------------------------
         //  用户诉求："被冻结要做出冰块冻住异兽、木条束缚、燃烧等等"。
-        //  · 每个状态可挂一张 **PNG**（文件名 = 状态 id，放 ArtRes/UI/StatusArt/）⇒ 后期替换美术；
-        //  · **没挂图也能跑**：自动用该状态的**半透明色块**兜底（冰蓝 / 苔绿 / 火橙）⇒ 现在就看得见；
+        //  · 每个状态可挂一张 **PNG**（文件名 = 状态 id，放 ArtRes/UI/StatusArt/）， 后期替换美术；
+        //  · **没挂图也能跑**：自动用该状态的**半透明色块**兜底（冰蓝 / 苔绿 / 火橙）， 现在就看得见；
         //  · 同一单位同时多个状态时，按 `Priority`（小者优先）**只显示最重要的一个**。
         // ====================================================================
         [System.Serializable]
@@ -223,7 +223,7 @@ namespace WanXiang.Battle.Presentation
                                 WaveAmp = 0.016f, WaveSpeed = 3.0f, PulseAmp = 0.14f, PulseSpeed = 4.0f,
                                 Scale = 0.9f, OffsetY = 0f },
             // 燃烧：**静态图**（用户 2026-10-08："燃烧的动画给我删了，效果不好"）。
-            //   动画参数全 0 ⇒ shader 不起作用、只剩一张静态火焰；其它状态不受影响。
+            //   动画参数全 0 ， shader 不起作用、只剩一张静态火焰；其它状态不受影响。
             new StatusOverlay { Id = "burn",        Tint = new Color(1.00f, 0.44f, 0.14f, 0.34f), Priority = 3,
                                 WaveAmp = 0f, PulseAmp = 0f, RiseAmp = 0f, SwayDeg = 0f,
                                 Scale = 0.80f, OffsetY = -0.10f },
@@ -249,7 +249,7 @@ namespace WanXiang.Battle.Presentation
             new System.Collections.Generic.Dictionary<string, Material>();
         private static Shader _overlayShader;
 
-        /// <summary>取状态特效 shader（Resources 优先 ⇒ 保证进包；再退回 Shader.Find）。</summary>
+        /// <summary>取状态特效 shader（Resources 优先 ， 保证进包；再退回 Shader.Find）。</summary>
         private static Shader OverlayShader()
         {
             if (_overlayShader != null) return _overlayShader;
@@ -325,7 +325,7 @@ namespace WanXiang.Battle.Presentation
         /// <summary>状态图标之间的间距（世界单位）。
         /// ⚠ 必须**大于字宽**，否则相邻两格的缩写会视觉上连成一片（用户截图反馈"气和裂糊在一起"）。</summary>
         public float StatusIconGap = 0.16f;
-        /// <summary>状态图标排相对立绘容器的 y 偏移。**局部单位**（立绘自身高 10.24，头顶在 +5.12）⇒ 7.4 = 刚好贴在头顶上方。</summary>
+        /// <summary>状态图标排相对立绘容器的 y 偏移。**局部单位**（立绘自身高 10.24，头顶在 +5.12）， 7.4 = 刚好贴在头顶上方。</summary>
         public float StatusRowY = 7.4f;
         /// <summary>状态图标文字大小倍率。</summary>
         public float StatusLabelSize = 1f;
@@ -405,9 +405,9 @@ namespace WanXiang.Battle.Presentation
                 fgSr.sprite = fgDecor;
                 var fb = fgDecor.bounds;
                 // ⚠ 必须**超铺**：原本正好铺满视口(19.2x10.8)，而 Step() 里会绕自身中心
-                //   旋转 ±0.5° 做"风吹摇曳" ⇒ 矩形四角会翘出视口、露出底色边缘
+                //   旋转 ±0.5° 做"风吹摇曳" ， 矩形四角会翘出视口、露出底色边缘
                 //   （用户 2026-10-12："晃动的时候有点暴露边缘，太贴近边缘，可以往边缘外放一下"）。
-                //   超铺 12% ⇒ 每边多出 ~1.0 世界单位，旋转 0.5° 的角部翘出仅 ~0.09，余量充足。
+                //   超铺 12% ， 每边多出 ~1.0 世界单位，旋转 0.5° 的角部翘出仅 ~0.09，余量充足。
                 const float over = 1.12f;
                 fg.transform.localScale = new Vector3(19.2f * over / fb.size.x, 10.8f * over / fb.size.y, 1f);
                 fgSr.sortingOrder = 30;
@@ -444,7 +444,7 @@ namespace WanXiang.Battle.Presentation
             _ambient = null;   // 粒子子物体已被上面销毁；Build 里重新 GetComponent/AddComponent
         }
 
-        // player=true 我方（左，不镜像）；player=false 敌方（右，列镜像 ⇒ 与我方对称）
+        // player=true 我方（左，不镜像）；player=false 敌方（右，列镜像 ， 与我方对称）
         private void BuildBoard(string boardName, float cx, float cy, bool player)
         {
             var board = new GameObject(boardName);
@@ -457,7 +457,7 @@ namespace WanXiang.Battle.Presentation
                 var sr = cell.AddComponent<SpriteRenderer>();
                 // 格子：程序化纯色 + 墨色描边（用户换图点位：Cell_x 的 sprite 直接换）
                 // 格子：**尺寸必须与行间距一致**，否则上下行互相压边、看着"九宫格大小不齐"
-                //（原先是 1.75×1.75 正方形 + 1.26 行距 ⇒ 每行压掉 0.49，用户实测就是这个现象）。
+                //（原先是 1.75×1.75 正方形 + 1.26 行距 ， 每行压掉 0.49，用户实测就是这个现象）。
                 // ⚠ 单位落位用同一套公式（（1-row)*Cell*BoardRowGap），改这里必须同步改 CellPos。
                 // 🔧 换美术：把 `Assets/Resources/UI/Board/cell.png`（+ `cell_center.png`）丢进去即可替换，缺图回退程序化纯色。
                 var cellArt = Resources.Load<Sprite>("UI/Board/" + (center ? "cell_center" : "cell"));
@@ -509,8 +509,8 @@ namespace WanXiang.Battle.Presentation
         ///   （= 真的入场那一刻）再显示，见 <see cref="ApplyFrame"/>。
         /// ⚠⚠ **但只靠"开演时预建"是不够的**：手动模式（非 PvP 的正常战斗）下
         ///   <c>BattlePlayback</c> 构造函数只 <c>AdvanceSim()</c> 跑到**第一个决策点**，
-        ///   开演那一刻冰晶还不在名册里 ⇒ 预建无从谈起（用户 2026-10-04 报"还是什么都没有"就是这个原因）。
-        ///   ⇒ 所以 <see cref="ApplyFrame"/> 里还有一条 <see cref="EnsureView"/> 惰性补建兜底。
+        ///   开演那一刻冰晶还不在名册里 ， 预建无从谈起（用户 2026-10-04 报"还是什么都没有"就是这个原因）。
+        ///   ， 所以 <see cref="ApplyFrame"/> 里还有一条 <see cref="EnsureView"/> 惰性补建兜底。
         /// </summary>
         private void BuildUnitsFor(IReadOnlyList<BattleUnit> units)
         {
@@ -569,13 +569,13 @@ namespace WanXiang.Battle.Presentation
                     {
                         // ★ 首领 2.5 倍身量（用户 2026-10-03："boss 整的大一点，起码是普通异兽的 2-3 倍"）。
                         //   ⚠ 放大后可能超出单格视觉范围 —— 中宫（格 4）左右都有空档，正是给它腾的；
-                        //   sortingOrder 用行号，中宫=row1 ⇒ 会盖住后排(row0)、被前排(row2)压，符合"大个子"直觉。
+                        //   sortingOrder 用行号，中宫=row1 ， 会盖住后排(row0)、被前排(row2)压，符合"大个子"直觉。
                         //
                         // ⚠⚠ 判据必须用 `BossScaleIds`（= 14 守关本体 + 双子），**不能**用 `IsBoss(id)`：
                         //   白魍双子复用 `b_suren` 当立绘 id（否则 summon_ 前缀查不到图会"乱分配"），
                         //   它也是 b_ 前缀 —— 用 IsBoss 会把**所有** b_ 前缀都放大（含真分身，太宽）。
                         //   ★ 用户 2026-10-03 更正："他们两个都是 Boss 啊，不是召唤出来的，他们是一起出现的"
-                        //     ⇒ 双子（b_suren）与本体同级放大，不再用 1.15 的小尺寸。
+                        //     ， 双子（b_suren）与本体同级放大，不再用 1.15 的小尺寸。
                         bool isBossTier = u.Side == TeamSide.Enemy && BossScaleIds.Contains(u.Def.Id);
                         float unitH = isBossTier ? UnitHeight * BossScaleMul
                                   : IsBossSidekick(u.Def.Id) ? UnitHeight * BossSidekickScaleMul
@@ -591,11 +591,11 @@ namespace WanXiang.Battle.Presentation
                                                 new Color(0.16f, 0.13f, 0.09f));
                 }
                 bodySr.sortingOrder = u.Pos.Index / 3;   // row 0=后 1=中 2=前
-                // 敌方整体镜像：立绘原画统一朝右，敌阵镜像后朝左 ⇒ 面向我方，自然。
+                // 敌方整体镜像：立绘原画统一朝右，敌阵镜像后朝左 ， 面向我方，自然。
                 // ⛔ **例外：素刃（白魍双子）不镜像**。它的原画是**刻意朝左**画的
-                //   （早期为双子"背靠背"并排设计的），再统一镜像就变成朝右 ⇒ **背对玩家**
+                //   （早期为双子"背靠背"并排设计的），再统一镜像就变成朝右 ， **背对玩家**
                 //   （用户实测："b_suren 这个的朝向反了"）。它现在站后排中(格7)，
-                //   与中宫本体是前后关系，本来就该朝前 ⇒ 跳过镜像即可与其它敌方朝向一致。
+                //   与中宫本体是前后关系，本来就该朝前 ， 跳过镜像即可与其它敌方朝向一致。
                 bodySr.flipX = !player && u.Def.Id != BossCatalog.TwinBeastId;
                 // 敌方压暗一档（§4.4 敌我同源 + 浊化的轻量版）
                 if (!player) bodySr.color = new Color(0.72f, 0.72f, 0.80f);
@@ -603,8 +603,8 @@ namespace WanXiang.Battle.Presentation
                 view.BaseColor = bodySr.color;
 
                 // ---- 状态外观层（冰封 / 束缚 / 燃烧…）----
-                //  挂在 **Body 之下** ⇒ 自动跟随立绘的位置、缩放与左右镜像，不用另算。
-                //  sortingOrder 比立绘大 1 ⇒ 盖在立绘上。缺图时 `SetOverlay2D` 用半透明色块兜底。
+                //  挂在 **Body 之下** ， 自动跟随立绘的位置、缩放与左右镜像，不用另算。
+                //  sortingOrder 比立绘大 1 ， 盖在立绘上。缺图时 `SetOverlay2D` 用半透明色块兜底。
                 //  ★ 2026-10-09 用户定案：StatusArtEnabled=false 时**连对象都不创建**——
                 //    防止"Play 中途热重载/异常中断后旧视觉残留"（SetOverlay2D 的 enabled 闸门
                 //    只在每帧 Tick 时生效，建对象时就不给才是彻底的关）。
@@ -626,7 +626,7 @@ namespace WanXiang.Battle.Presentation
                 var hitCol = root.AddComponent<BoxCollider2D>();
                 hitCol.isTrigger = true;
                 // ⚠ 尺寸必须用 **SpriteRenderer.bounds（渲染器实际世界尺寸）**换算回 root 的局部空间：
-                //   `sprite.bounds.size` 是**贴图原始尺寸**（本例 10.24），而立绘被缩放显示成 ~1.5 ⇒
+                //   `sprite.bounds.size` 是**贴图原始尺寸**（本例 10.24），而立绘被缩放显示成 ~1.5 ，
                 //   直接拿它当命中框会**误选邻居**（格子间距才 1.75）。bounds 由渲染器算，不依赖物理。
                 {
                     var b = bodySr.bounds;
@@ -644,7 +644,7 @@ namespace WanXiang.Battle.Presentation
                 SetHpBar2D(view, u.Hp, u.MaxHp);
 
                 // ---- 护盾指示（血条**右侧**）----
-                //  护盾**不会自然消退**（只被伤害消耗）⇒ 不显示就等于一管隐形的血。
+                //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
                 float shX = HpBarWidth * 0.5f + ShieldGap + ShieldPlateW * 0.5f;
                 view.ShieldPlate = MakeChildSprite(root, "ShieldPlate", ShieldColor,
                                                    new Vector2(ShieldPlateW, ShieldPlateH),
@@ -666,7 +666,7 @@ namespace WanXiang.Battle.Presentation
                 view.ShieldText.anchor = TextAnchor.MiddleCenter;
                 view.ShieldText.alignment = TextAlignment.Center;
                 view.ShieldText.color = ShieldTextColor;
-                SetShield2D(view, 0);   // 开场无护盾 ⇒ 收起
+                SetShield2D(view, 0);   // 开场无护盾 ， 收起
 
                 var nameGo = new GameObject("Name");
                 nameGo.transform.SetParent(root.transform, false);
@@ -721,8 +721,8 @@ namespace WanXiang.Battle.Presentation
                     rowGo.transform.SetParent(root.transform, false);
                     rowGo.transform.localScale = Vector3.one / rsHint;              // 世界尺寸恒定
                     // ⛔ 位置用**局部单位**（与 NameY / HpBarY 同一套语义）。
-                    //   原来写的是 `StatusRowY / rsHint` ⇒ 除了一次缩放 ⇒ 实际飞到 2.05 世界高，
-                    //   而立绘顶只有 0.53 ⇒ 徽标飘在头顶 1.5 个身位（用户实测："状态太高了"）。
+                    //   原来写的是 `StatusRowY / rsHint` ， 除了一次缩放 ， 实际飞到 2.05 世界高，
+                    //   而立绘顶只有 0.53 ， 徽标飘在头顶 1.5 个身位（用户实测："状态太高了"）。
                     rowGo.transform.localPosition = new Vector3(0f, StatusRowY, 0f);
                     view.StatusRow = rowGo;
                     int slots = (StatusIcons != null && StatusIcons.Length > 0) ? Mathf.Min(8, StatusIcons.Length) : 1;
@@ -753,7 +753,7 @@ namespace WanXiang.Battle.Presentation
                         //   表现为"字看不见"（字号大时因为溢出底板边缘反而看得见，会误导成字号问题）。
                         if (mr != null) mr.sortingOrder = 14;
                         // 字号实测（TextMesh: characterSize × fontSize=48）：0.022→0.165 宽 / 0.032→0.24 宽 /
-                        // 0.05→0.375 宽（已超过 0.36 的底板）⇒ 取 0.032（约 0.27，含格容器缩放）。
+                        // 0.05→0.375 宽（已超过 0.36 的底板）， 取 0.032（约 0.27，含格容器缩放）。
                         tm.characterSize = 0.032f * Mathf.Max(0.01f, StatusLabelSize);
                         tm.fontSize = 48;
                         tm.anchor = TextAnchor.MiddleCenter;
@@ -803,7 +803,7 @@ namespace WanXiang.Battle.Presentation
                     v = EnsureView(s.UnitId);
                     if (v == null) continue;
                 }
-                // 该单位第一次出现在帧流里 = 真的入场了 ⇒ 把（预建但隐藏 / 刚补建的）view 显出来。
+                // 该单位第一次出现在帧流里 = 真的入场了 ， 把（预建但隐藏 / 刚补建的）view 显出来。
                 if (v.Root != null && !v.Root.activeSelf) v.Root.SetActive(true);
                 // Boss 机制提示（冰晶期倒数等）：随帧流更新（空串 = 隐藏）
                 if (v.Hint != null)
@@ -875,8 +875,8 @@ namespace WanXiang.Battle.Presentation
 
         /// <summary>
         /// 重画某单位的**状态图标排**。<paramref name="ids"/> 形如 `burn:3|root:1`。
-        /// 图标查 <see cref="StatusIcons"/>（Id 同时也是 `ArtRes/UI/Status/<id>.png` 的文件名 ⇒ 换图即换美术）；
-        /// 查不到或没拖图 ⇒ 回退成「色块 + 缩写 + 层数」，绝不空白。
+        /// 图标查 <see cref="StatusIcons"/>（Id 同时也是 `ArtRes/UI/Status/<id>.png` 的文件名 ， 换图即换美术）；
+        /// 查不到或没拖图 ， 回退成「色块 + 缩写 + 层数」，绝不空白。
         /// </summary>
         private void UpdateStatusRow(UnitView2D v, string ids)
         {
@@ -914,9 +914,9 @@ namespace WanXiang.Battle.Presentation
                                        + (stacks > 1 ? stacks.ToString() : "");
                     }
                     // ★ 按图的实际尺寸归一化（2026-10-09 根因修复）：
-                    //   槽位缩放 = StatusIconSize / 图宽 ⇒ 图标世界尺寸恒等于 StatusIconSize。
+                    //   槽位缩放 = StatusIconSize / 图宽 ， 图标世界尺寸恒等于 StatusIconSize。
                     //   此前槽位缩放写死按"底图 32px"算（0.36/0.32≈1.13），而 StatusIcon/*.png 实为
-                    //   256×256（2.56 世界单位）⇒ 图标被放大 8 倍 ≈2.9 单位、盖满整格 ——
+                    //   256×256（2.56 世界单位）， 图标被放大 8 倍 ≈2.9 单位、盖满整格 ——
                     //   用户看到的"巨大盾牌/漩涡/火焰"就是它们（不是特效 overlay，那个一直是正常的）。
                     {
                         var drawn = plate.sprite;
@@ -936,7 +936,7 @@ namespace WanXiang.Battle.Presentation
 
             // 居中排布。⛔ **不要再除以行缩放**：`rowGo.localScale = 1/rootScale` 的存在意义
             //   正是让**它的局部空间 == 世界单位**（rowGo.lossyScale = (1/rootScale) × rootScale = 1）。
-            //   再除一次就缩小了 ~rootScale 倍（实测 9.75×）⇒ 三个状态挤在同一处看不出区别（用户截图报的"叠加"）。
+            //   再除一次就缩小了 ~rootScale 倍（实测 9.75×）， 三个状态挤在同一处看不出区别（用户截图报的"叠加"）。
             if (used > 0 && v.StatusRow != null)
             {
                 float step = StatusIconSize + StatusIconGap;
@@ -1024,7 +1024,7 @@ namespace WanXiang.Battle.Presentation
                     // 纯增益）时退化为"朝敌方方向冲一段"，不影响观感。
                     StartLunge(e.ActorId, e.TargetId);
                     // ★ 技能名飘字（用户 2026-10-06："怎么体现这些技能效果"）：
-                    //   普攻每回合都放，飘了会刷屏 ⇒ 只飘战技/绝技。技能名事件里本来就有（skillName）。
+                    //   普攻每回合都放，飘了会刷屏 ， 只飘战技/绝技。技能名事件里本来就有（skillName）。
                     if (!string.IsNullOrEmpty(e.SkillName) && e.SkillName != "普攻" &&
                         e.ActorId != null && _views.TryGetValue(e.ActorId, out var scv))
                         SpawnNumber(scv, e.SkillName, SkillNameColor);
@@ -1139,7 +1139,7 @@ namespace WanXiang.Battle.Presentation
                 // 血条跟随立绘（相机 2D 朝 -Z，直接摆即可）
                 if (v.HpBg != null) v.HpBg.transform.localPosition = new Vector3(0f, HpBarY, -0.01f);
                 // ⛔ 填充条**只改 y，必须保留 x**：x 是 SetHpBar2D 算的"左端固定"偏移，
-                //   这里每帧归零的话填充就永远居中 ⇒ 观感变成"血从两边一起掉"（用户实测两轮的真因）。
+                //   这里每帧归零的话填充就永远居中 ， 观感变成"血从两边一起掉"（用户实测两轮的真因）。
                 if (v.HpFill != null)
                 {
                     var flp = v.HpFill.transform.localPosition;
@@ -1183,7 +1183,7 @@ namespace WanXiang.Battle.Presentation
                 if (_tempLife[i] <= 0f)
                 {
                     // ⚠⚠ 这里在 Step(dt) 里，是**每帧路径** —— 原来用 DestroyImmediate
-                    //   （强制同步销毁，Unity 运行时明令禁用）⇒ 战斗越久触发次数越多、越来越卡，
+                    //   （强制同步销毁，Unity 运行时明令禁用）， 战斗越久触发次数越多、越来越卡，
                     //   最后卡死（用户实测"战斗久一点就卡死"）。必须用 Destroy（延迟销毁）。
                     if (go != null) Destroy(go);
                     _tempTexts.RemoveAt(i); _tempLife.RemoveAt(i);
@@ -1242,11 +1242,11 @@ namespace WanXiang.Battle.Presentation
 
             // ⛔ 缩放必须走**归一化比例**，不能再乘 `full`：`MakeChildSprite` 是把尺寸
             //   **烘进 sprite 本身**的（贴图 = size×100 像素，localScale 保持 1）
-            //   ⇒ 再乘一次 `full`(3.34) 就是**双重应用**，填充条会宽 3.34 倍、从血槽两边冒出来。
+            //   ， 再乘一次 `full`(3.34) 就是**双重应用**，填充条会宽 3.34 倍、从血槽两边冒出来。
             //   用户实测的两个现象都出自这里："血怎么两边同时扣" + "护盾和血重叠看不清"。
             var t = v.HpFill.transform;
             t.localScale = new Vector3(ratio, 1f, 1f);
-            // 左端固定 ⇒ 只从**右边**往回缩（掉血观感正确）
+            // 左端固定 ， 只从**右边**往回缩（掉血观感正确）
             t.localPosition = new Vector3(-(full - full * ratio) * 0.5f, t.localPosition.y, t.localPosition.z);
             v.HpFill.color = ratio > 0.5f ? BattlePalette.Vital
                           : ratio > 0.25f ? BattlePalette.Gold : BattlePalette.Crimson;
@@ -1302,7 +1302,7 @@ namespace WanXiang.Battle.Presentation
 
         /// <summary>
         /// 取某状态的外观图：优先用表里拖进去的 `Art`，没有就去 `Resources/UI/StatusArt/&lt;id&gt;` 找。
-        /// 「**文件名 = 状态 id**」⇒ 出图后直接丢进那个目录即可生效，不用改任何代码/引用。
+        /// 「**文件名 = 状态 id**」， 出图后直接丢进那个目录即可生效，不用改任何代码/引用。
         /// </summary>
         private static Sprite ResolveStatusArt(string id, Sprite fromTable)
         {
@@ -1334,7 +1334,7 @@ namespace WanXiang.Battle.Presentation
             Vector2 bodySize = v.Body.sprite != null ? v.Body.sprite.bounds.size : new Vector2(1f, 1.4f);
             // 说明：这里用的是**贴图本地尺寸**，看着“比显示尺寸大”，但**不用乘缩放** ——
             //   因为 Overlay 是 Body 的**子物体**（见创建处 SetParent(bodySr.transform)），
-            //   父级缩放会自动乘进去 ⇒ 最终显示尺寸 = 贴图尺寸 × localScale × 立绘缩放 = 立绘显示尺寸。
+            //   父级缩放会自动乘进去 ， 最终显示尺寸 = 贴图尺寸 × localScale × 立绘缩放 = 立绘显示尺寸。
             //   （曾误判“少了 lossyScale”而乘了一次，结果特效反而小了近 4 倍，已回滚。）
             if (art != null)
             {
@@ -1387,15 +1387,15 @@ namespace WanXiang.Battle.Presentation
         /// <summary>
         /// 单位落位：★ 必须与 <see cref="BuildBoard"/> 的格子公式**完全一致**，
         /// 否则单位站不进格子（用户反馈"九宫格站不对"的真因：网格用 1.00/0.72，
-        /// 单位却用 0.82/0.66 且双方 y 基准相反 ⇒ 永远对不上）。
+        /// 单位却用 0.82/0.66 且双方 y 基准相反 ， 永远对不上）。
         /// 网格格子中心 = (cx + (col-1)*Cell, BoardY + (1-row)*Cell*0.72)。
-        /// 单位枢轴在底部中点、Step 会再加 FootOffset 抬脚 ⇒ 这里先减去它。
+        /// 单位枢轴在底部中点、Step 会再加 FootOffset 抬脚 ， 这里先减去它。
         /// 敌方做列镜像（col→2-col）与我方对称；BuildBoard 用同一镜像公式，单位与格子始终对齐。
         /// </summary>
         private static Vector2 CellPos(bool player, int cell)
         {
             int col = cell % 3;
-            if (!player) col = 2 - col;   // 敌方列镜像 ⇒ 同码两侧呈镜像对称
+            if (!player) col = 2 - col;   // 敌方列镜像 ， 同码两侧呈镜像对称
             int row = cell / 3;
             float cx = player ? PlayerX : EnemyX;
             return new Vector2(cx + (col - 1) * Cell,

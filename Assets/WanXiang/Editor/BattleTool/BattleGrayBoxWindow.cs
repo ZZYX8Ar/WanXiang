@@ -594,7 +594,7 @@ namespace WanXiang.Editor.BattleTool
 
             GUI.Label(new Rect(area.x + 6f, y, area.width - 12f, 40f),
                 "我方/敌方各自一块 3×3 棋盘。\n" +
-                "上阵 5 人 ⇒ 必有空位 —— 空位是布局，不是浪费。", BattleHud.Small);
+                "上阵 5 人 ， 必有空位 —— 空位是布局，不是浪费。", BattleHud.Small);
         }
 
         private void DrawBottom(Rect area)
@@ -617,9 +617,9 @@ namespace WanXiang.Editor.BattleTool
                 _result.Summary() + "\n\n" +
                 "【验收②怎么用这个窗口】勾上「连播」，把速度调到 8~12 帧/秒，\n" +
                 "让它自己跑 10 场。每场结束后问自己三个问题：\n" +
-                "  ① 这一场我看到了什么新东西？（没有 ⇒ 内容同质）\n" +
-                "  ② 伤害数字与出手序列能不能一眼读懂？（不能 ⇒ 表现层缺失）\n" +
-                "  ③ 打完想不想知道为什么输？（不想 ⇒ 策略不可见）", BattleHud.Small);
+                "  ① 这一场我看到了什么新东西？（没有 ， 内容同质）\n" +
+                "  ② 伤害数字与出手序列能不能一眼读懂？（不能 ， 表现层缺失）\n" +
+                "  ③ 打完想不想知道为什么输？（不想 ， 策略不可见）", BattleHud.Small);
         }
 
         // ---- 帧与事件 ----

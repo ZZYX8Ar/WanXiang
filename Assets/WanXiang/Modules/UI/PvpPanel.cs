@@ -177,7 +177,7 @@ namespace WanXiang.Modules.UI
             ulong seed = WanXiang.Pvp.PvpMatch.SeedOf(mine, opp);
 
             // ★ 好友对战带上双方**养成**（用户 2026-10-06 定案：这个玩法要体现"把异兽养成多厉害"）。
-            //   分享码 v2 每只带一个"等级 + 进化"字节；老的 v1 码没有这一段 ⇒ 按默认（倍率 1）。
+            //   分享码 v2 每只带一个"等级 + 进化"字节；老的 v1 码没有这一段 ， 按默认（倍率 1）。
             var payMine = new WanXiang.Fusion.SharePayload();
             var payOpp = new WanXiang.Fusion.SharePayload();
             WanXiang.Fusion.ShareCode.TryDecode(mine, beasts.Length, souls.Count, out payMine);

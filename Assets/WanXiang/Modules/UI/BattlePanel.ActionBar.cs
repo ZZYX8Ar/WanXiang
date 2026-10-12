@@ -68,7 +68,7 @@ namespace WanXiang.Modules.UI
                 if (_btnAutoBattle != null) _btnAutoBattle.onClick.AddListener(OnAutoBattleClicked);
                 if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
                 // ⚠ 这里**只能注册一次**！原来连着写了 3 行 AddListener(OnComboClicked)
-                //   ⇒ 点一次连携触发 3 次 SubmitCombo（灵力多扣 / 效果重复，用户实测报障）。
+                //   ， 点一次连携触发 3 次 SubmitCombo（灵力多扣 / 效果重复，用户实测报障）。
                 HookTipCombo();
                 EnsureAutoSpin();
                 _actionBar.gameObject.SetActive(false);
@@ -203,7 +203,7 @@ namespace WanXiang.Modules.UI
             //   敌方回合间隙）时不刷新，按钮会一直露着（prefab 默认是显示的）。
             //   hasAwaken 的唯一判据 = BattleDef.Awaken 非空；该字段只在
             //   BattleRequestFactory 里由 `run.SnapAwakenOf(id)` 非空时注入，
-            //   未觉醒/未装备的异兽拿到的是 null ⇒ 自然隐藏。
+            //   未觉醒/未装备的异兽拿到的是 null ， 自然隐藏。
             if (_skillBtns != null && _skillBtns.Length > 3 && _skillBtns[3] != null)
             {
                 bool hasAwaken = u != null && u.GetSkill(SkillType.Awaken) != null;

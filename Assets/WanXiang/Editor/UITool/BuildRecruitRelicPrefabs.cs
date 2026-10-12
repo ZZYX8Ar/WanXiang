@@ -92,7 +92,7 @@ namespace WanXiang.EditorTools
         }
 
         // ---------------------------------------------------------------- 招募
-        //  布局参考【灵市】：左侧候选格子（五行各 2 ⇒ 最多 10 格，2 列自动排），
+        //  布局参考【灵市】：左侧候选格子（五行各 2 ， 最多 10 格，2 列自动排），
         //  点格子看右侧详情，双击格子（或点详情里的【选择】）入队。
         //  ⚠ 一律用 Place()（显式 pivot）而不是 UIBuild.Fixed：
         //    Fixed 的 pivot 是 0.5（"偏移=元素中心"），做角对齐时头像/文字会溢出卡片与详情框（实测踩过）。
@@ -110,7 +110,7 @@ namespace WanXiang.EditorTools
                 "本幕必须选满 3 只才能开始 · 已选 0 / 3", 19, UIBuild.Ink2, TextAlignmentOptions.Center);
 
             // 左：候选格子滚动区（Content 带 GridLayoutGroup，2 列；Viewport 已内置受击层）
-            //   5 行 × 76 + 4×8 = 412 ≤ 区高 428 ⇒ 10 个候选一屏放下，不必滚动
+            //   5 行 × 76 + 4×8 = 412 ≤ 区高 428 ， 10 个候选一屏放下，不必滚动
             var content = UIBuild.ScrollGrid(rt, "Scroll_Candidates",
                 Vector2.zero, Vector2.one, new Vector2(28f, 100f), new Vector2(-484f, -112f),
                 new Vector2(178f, 76f), new Vector2(8f, 8f), 2, out var _sr);

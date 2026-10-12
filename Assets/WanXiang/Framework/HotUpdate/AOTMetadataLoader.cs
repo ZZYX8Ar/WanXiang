@@ -33,7 +33,7 @@
 //      · 传空字节 → OK
 //      · 传根本不是 DLL 的垃圾 → OK
 //      · 传错程序集的 DLL → OK
-//  ⇒ **编辑器里的"补元数据成功"完全不能作为链路正确的证据。**
+//  ， **编辑器里的"补元数据成功"完全不能作为链路正确的证据。**
 //    真正的验证只能在玩家包（IL2CPP）里做。
 //
 //  所以本类的报告里专门有一个 `EditorNoOp` 标记，并且摘要文字会**明说**
@@ -131,7 +131,7 @@ namespace WanXiang.Framework.HotUpdate
                 if (Missing.Count > 0)
                 {
                     sb.Append("\n  缺的资源：").Append(string.Join("、", Missing));
-                    sb.Append("\n  ⇒ 这些 AOT DLL 没被发布到资源目录。"
+                    sb.Append("\n  ， 这些 AOT DLL 没被发布到资源目录。"
                             + "跑「万相/热更/发布热更产物」看看它有没有报「没找到 strip 产物」。");
                 }
 
@@ -336,7 +336,7 @@ namespace WanXiang.Framework.HotUpdate
             if (!found)
             {
                 log?.Invoke("[热更] 资源系统里没有 AOT 元数据清单。试过：\n" + tried
-                            + "\n  ⇒ 若热更代码确实需要补元数据，说明还没发布过，"
+                            + "\n  ， 若热更代码确实需要补元数据，说明还没发布过，"
                             + "跑「万相/热更/发布热更产物」。");
                 return null;
             }

@@ -80,7 +80,7 @@ namespace WanXiang.Battle.Core
         /// 补发 <see cref="BattleEventKind.Death"/> 事件并派发 <see cref="UnitKilled"/>。
         /// <para>
         /// 为什么必须要它：共鸣分摊（<c>DamageSplitHook</c>）/ 伤害反弹 / 连携 / 天时 / 棋盘结算等
-        /// 路径**直接调 <c>TakeDamage</c> 扣血、不经过完整伤害管线** ⇒ 若没人补报，KillLinkHook
+        /// 路径**直接调 <c>TakeDamage</c> 扣血、不经过完整伤害管线** ， 若没人补报，KillLinkHook
         /// 等同命 / 假死 / 击杀成长钩子收不到阵亡信号（用户 2026-10-12 报：双子被共鸣分摊磨死，
         /// 不复活、也没"倒下"提示，只因分摊扣血那一步既不发 Death 也不调 UnitKilled）。
         /// </para>
@@ -168,8 +168,8 @@ namespace WanXiang.Battle.Core
         private readonly string _text;
         private readonly string _partKey;
         /// <param name="partKey">
-        /// 非空 ⇒ 走 <c>BossHint.SetPart</c>（**分段**，可与其它机制共存）；
-        /// 空 ⇒ 走 <c>BossHint.Set</c>（整条覆盖，会清掉已有分段）。</param>
+        /// 非空 ， 走 <c>BossHint.SetPart</c>（**分段**，可与其它机制共存）；
+        /// 空 ， 走 <c>BossHint.Set</c>（整条覆盖，会清掉已有分段）。</param>
         public StaticHintHook(BattleUnit boss, string text, string partKey = null)
         { _boss = boss; _text = text; _partKey = partKey; }
 
@@ -188,7 +188,7 @@ namespace WanXiang.Battle.Core
         public override void OnDamageDealt(BattleState st, BattleUnit src, BattleUnit dst, int dmg, int dealt, bool trueDmg)
         {
             if (src == null || src == dst || !src.IsAlive || dealt <= 0) return;
-            // ⛔ 只反弹"**敌人挨打**"这一侧。原实现不看 dst 的阵营 ⇒ 首领用 AOE 打我方时，
+            // ⛔ 只反弹"**敌人挨打**"这一侧。原实现不看 dst 的阵营 ， 首领用 AOE 打我方时，
             //    会把自己打出去的伤害按比例"反弹"给自己（等于自伤），与设计"受到的伤害反弹给攻击者"相反。
             if (dst == null || dst.Side != TeamSide.Enemy) return;
             int r = CoreMath.RoundDamage(dealt * _ratio);
@@ -264,7 +264,7 @@ namespace WanXiang.Battle.Core
         private static void BattleFactoryDeploy(BattleState st, DeployEntry e)
         {
             // ⛔ 必须用 DeploySpawn（唯一 id）：用 "E" 前缀会让召唤物拿到 "E0" 与开场第一个敌人撞号，
-            //   表现层按 RuntimeId 建 view ⇒ 召唤物不可见、伤害数字/血条错位到 Boss 身上。
+            //   表现层按 RuntimeId 建 view ， 召唤物不可见、伤害数字/血条错位到 Boss 身上。
             BattleFactory.DeploySpawn(st, new[] { e });
         }
     }
@@ -291,7 +291,7 @@ namespace WanXiang.Battle.Core
         }
     }
 
-    /// <summary>硬性 DPS 检查：到第 turnLimit 回合 boss 还活着 ⇒ 全场 AOE 直接灭团（归墟之主 / 鸿蒙）。</summary>
+    /// <summary>硬性 DPS 检查：到第 turnLimit 回合 boss 还活着 ， 全场 AOE 直接灭团（归墟之主 / 鸿蒙）。</summary>
     public sealed class DpsTimeoutHook : BattleHook
     {
         private readonly int _turnLimit;
@@ -312,7 +312,7 @@ namespace WanXiang.Battle.Core
                 if (list[i].IsAlive) list[i].TakeTrueDamage(list[i].Hp + 1);
             st.Outcome = BattleOutcome.EnemyWin;
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                       note: $"未在第 {_turnLimit} 回合前击杀首领 ⇒ 灭团");
+                       note: $"未在第 {_turnLimit} 回合前击杀首领 ， 灭团");
         }
     }
 
@@ -340,12 +340,12 @@ namespace WanXiang.Battle.Core
         }
     }
 
-    /// <summary>同回合双杀：a/b 任一死亡记录，回合末若仅死一个且另一个存活 ⇒ 复活死者（白魍双子同命）。</summary>
+    /// <summary>同回合双杀：a/b 任一死亡记录，回合末若仅死一个且另一个存活 ， 复活死者（白魍双子同命）。</summary>
     /// <summary>
     /// 双子同命（用户 2026-10-03 定案机制）：
     /// 一只倒下后**不是立刻复活**，而是开启一个 <c>windowTurns</c> 回合的击杀窗口 ——
-    ///   · 窗口内把另一只也打倒 ⇒ 双杀成立，两只真正陨落（战斗结束）；
-    ///   · 窗口结束仍没杀掉另一只 ⇒ 倒下的那只以 <c>revivePct</c> 血复活。
+    ///   · 窗口内把另一只也打倒 ， 双杀成立，两只真正陨落（战斗结束）；
+    ///   · 窗口结束仍没杀掉另一只 ， 倒下的那只以 <c>revivePct</c> 血复活。
     /// 旧实现是"同回合单杀即复活"（窗口 0 回合），玩家几乎来不及反应，且不符合"几回合内"的口径。
     /// </summary>
     public sealed class KillLinkHook : BattleHook
@@ -384,11 +384,11 @@ namespace WanXiang.Battle.Core
             }
             else
             {
-                // 窗口内另一只也倒下 ⇒ 双杀成立，两只都真死
+                // 窗口内另一只也倒下 ， 双杀成立，两只都真死
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                            note: $"双子同命：双杀成立 —— {victim.DisplayName} 与 {_pendingDead.DisplayName} 同命陨落");
                 var s = Survivor;
-                if (s != null) BossHint.SetPart(st, s, HintKey, null);   // 双杀 ⇒ 不会复活，撤掉倒计时
+                if (s != null) BossHint.SetPart(st, s, HintKey, null);   // 双杀 ， 不会复活，撤掉倒计时
                 _pendingDead = null;
                 _deadTurn = -1;
             }
@@ -419,13 +419,13 @@ namespace WanXiang.Battle.Core
                 {
                     _pendingDead.ReviveAtHp(CoreMath.Max(1, (int)(_pendingDead.MaxHp * _revivePct)));
                     // ★ 显式广播 Revive 事件（与 Action.cs 的灵卵复活同口径）：
-                    //   之前只写 RoundResolve note ⇒ 舞台没有"复活"事件可处理、DeadBlend 不复位，
+                    //   之前只写 RoundResolve note ， 舞台没有"复活"事件可处理、DeadBlend 不复位，
                     //   复活的双子可能仍以"灰尸"状态出现，玩家以为没复活（用户 2026-10-12 报障）。
                     st.Log.Add(st.Turn, BattleEventKind.Revive,
                                actorId: _pendingDead.RuntimeId, targetId: _pendingDead.RuntimeId,
                                note: $"双子同命：{_pendingDead.DisplayName} 以 {(_revivePct * 100f):F0}% 血复活");
                 }
-                BossHint.SetPart(st, other, HintKey, null);   // 窗口结束 ⇒ 撤掉倒计时分段
+                BossHint.SetPart(st, other, HintKey, null);   // 窗口结束 ， 撤掉倒计时分段
             }
             _pendingDead = null;
             _deadTurn = -1;
@@ -470,19 +470,19 @@ namespace WanXiang.Battle.Core
             if (!_phantom) return;
             _phantom = false;
             _boss.Invulnerable = false;
-            _boss.StateHint = null;   // 冰核期结束 ⇒ 清掉 HUD 提示
+            _boss.StateHint = null;   // 冰核期结束 ， 清掉 HUD 提示
             if (_accum >= _boss.MaxHp * _dmgFrac)
             {
                 _used = true;
                 _boss.SetHp(0);
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                           note: $"{_boss.DisplayName} 冰核被击碎 ⇒ 真死");
+                           note: $"{_boss.DisplayName} 冰核被击碎 ， 真死");
             }
             else
             {
                 _boss.ReviveAtHp(CoreMath.Max(1, (int)(_boss.MaxHp * _revivePct)));
                 st.Log.Add(st.Turn, BattleEventKind.Revive, actorId: _boss.RuntimeId, targetId: _boss.RuntimeId,
-                           note: $"{_boss.DisplayName} 未被破核 ⇒ 以 {(_revivePct * 100f):F0}% 血复活");
+                           note: $"{_boss.DisplayName} 未被破核 ， 以 {(_revivePct * 100f):F0}% 血复活");
             }
         }
 
@@ -490,7 +490,7 @@ namespace WanXiang.Battle.Core
         private int NeedDmg() => CoreMath.Max(1, (int)(_boss.MaxHp * _dmgFrac));
     }
 
-    /// <summary>共享生命：首领死亡时若敌方还有存活的召唤物（id 以 summon_ 开头）⇒ 以 revivePct 复活（赤魃火种同源）。</summary>
+    /// <summary>共享生命：首领死亡时若敌方还有存活的召唤物（id 以 summon_ 开头）， 以 revivePct 复活（赤魃火种同源）。</summary>
     public sealed class SharedLifeHook : BattleHook
     {
         private readonly BattleUnit _boss;
@@ -511,7 +511,7 @@ namespace WanXiang.Battle.Core
                 if (u != null && u.IsAlive && u != _boss && u.Def != null &&
                     u.Def.Id != null && u.Def.Id.StartsWith("summon_")) { anySummon = true; break; }
             }
-            if (!anySummon) return;   // 火种全灭 ⇒ 真死
+            if (!anySummon) return;   // 火种全灭 ， 真死
             _used = true;
             _boss.ReviveAtHp(CoreMath.Max(1, (int)(_boss.MaxHp * _revivePct)));
             st.Log.Add(st.Turn, BattleEventKind.Revive, actorId: _boss.RuntimeId, targetId: _boss.RuntimeId,
@@ -519,7 +519,7 @@ namespace WanXiang.Battle.Core
         }
     }
 
-    /// <summary>击杀成长：场上有单位阵亡（非首领自身）⇒ 首领永久 +攻击 / +生命上限（归墟吞噬 / 烬蛟余烬）。</summary>
+    /// <summary>击杀成长：场上有单位阵亡（非首领自身）， 首领永久 +攻击 / +生命上限（归墟吞噬 / 烬蛟余烬）。</summary>
     public sealed class DevourGrowthHook : BattleHook
     {
         private readonly BattleUnit _boss;
@@ -540,11 +540,11 @@ namespace WanXiang.Battle.Core
     }
 
     /// <summary>
-    /// 组装：回合末若仍持有护盾 ⇒ 下回合攻击 +atkPerTurn（千机傀儡铩）。**受 maxBonus 封顶**。
+    /// 组装：回合末若仍持有护盾 ， 下回合攻击 +atkPerTurn（千机傀儡铩）。**受 maxBonus 封顶**。
     /// ⛔ 文档写"可叠、无上限"，但实测那是**滚雪球致死**：护盾每回合刷新 25% 最大生命，
-    ///   玩家破不掉就每回合 +15% 攻击、永不回头 ⇒ 铩对满编神品队胜率恒为 0%，
+    ///   玩家破不掉就每回合 +15% 攻击、永不回头 ， 铩对满编神品队胜率恒为 0%，
     ///   且把玩家成长倍率从 1.6 拉到 2.2 **仍然是 0%**（机制不可解，不是数值问题）。
-    ///   ⇒ 加上限；只在上限那一回合记一条日志，避免刷屏。
+    ///   ， 加上限；只在上限那一回合记一条日志，避免刷屏。
     /// </summary>
     public sealed class AssembleHook : BattleHook
     {
@@ -667,19 +667,19 @@ namespace WanXiang.Battle.Core
     /// 冰晶重生（玄溟专属；用户 2026-10-03 定案，**替代旧的"碎冰重生"**）。
     ///
     /// 流程：
-    ///   ① 玄溟被打死 ⇒ **本体退场**（保持阵亡，不在棋盘上、不再是攻击目标），
+    ///   ① 玄溟被打死 ， **本体退场**（保持阵亡，不在棋盘上、不再是攻击目标），
     ///      同时在**十字格**（中宫格 4 的上下左右 = 1 / 7 / 3 / 5）生成 4 枚**冰晶**；
     ///   ② 冰晶是**可被攻击的独立单位**，每枚 HP = Boss 满血 × <c>crystalHpFrac</c>（默认 25%）
-    ///      ⇒ 4 枚合计 ≈ 1 个 Boss 的血量，必须拿出 AOE 才清得完；
-    ///   ③ 玩家须在 <c>windowTurns</c> 回合内打光全部冰晶 ⇒ Boss **真死**；
-    ///   ④ 超时未打光 ⇒ Boss 复活回归中宫，血量依次 <c>revivePcts</c>
+    ///      ， 4 枚合计 ≈ 1 个 Boss 的血量，必须拿出 AOE 才清得完；
+    ///   ③ 玩家须在 <c>windowTurns</c> 回合内打光全部冰晶 ， Boss **真死**；
+    ///   ④ 超时未打光 ， Boss 复活回归中宫，血量依次 <c>revivePcts</c>
     ///      = **50% → 25% → 0%（第 3 次直接陨落，不再复活）**；
     ///      冰晶**不消失**（继续留在场上），且 Boss 每次复活时**冰晶满血**。
     ///
     /// ⚠ 与旧 <see cref="PhantomDeathHook"/> 的关键区别：
     ///   · 旧版"1 回合无敌 + 本回合打出 25% 伤害破核"，玩家**看不到目标**（用户报"打不死"）；
-    ///   · 旧版 `_used` 只在破核成功时置位 ⇒ **理论上可无限假死**。
-    ///     新版用 <c>revivePcts</c> 的长度封顶 ⇒ 第 3 次必定真死，**结构上不可能无限循环**。
+    ///   · 旧版 `_used` 只在破核成功时置位 ， **理论上可无限假死**。
+    ///     新版用 <c>revivePcts</c> 的长度封顶 ， 第 3 次必定真死，**结构上不可能无限循环**。
     /// </summary>
     public sealed class IceCrystalRebirthHook : BattleHook
     {
@@ -706,7 +706,7 @@ namespace WanXiang.Battle.Core
 
         /// <summary>
         /// 写 Boss 头顶的机制提示（表现层读 <c>BattleUnit.StateHint</c>，随帧流走）。
-        /// ⛔ 必须**顺手抓一帧**：提示不进日志，而帧只在 `Log.Add` 时抓 ⇒
+        /// ⛔ 必须**顺手抓一帧**：提示不进日志，而帧只在 `Log.Add` 时抓 ，
         ///   若只赋值不抓帧，这条提示要等到**下一个事件**才进帧流（约 0.3~1 秒），
         ///   如果死亡恰好是该回合最后一步、或玩家同回合把冰晶清完，观感就是"提示根本没出现"。
         ///   （`BoardRules` 也有直接调 `st.CaptureFrame()` 的先例，这里是同一手法。）
@@ -735,17 +735,17 @@ namespace WanXiang.Battle.Core
         {
             if (!_active) return;
 
-            // ① 冰晶全灭 ⇒ 真死（Boss 保持阵亡）
+            // ① 冰晶全灭 ， 真死（Boss 保持阵亡）
             if (AllCrystalsDead())
             {
                 _active = false;
                 SetHint(st, null);
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                           note: $"冰晶尽碎 ⇒ {_boss.DisplayName} 真正陨落");
+                           note: $"冰晶尽碎 ， {_boss.DisplayName} 真正陨落");
                 return;
             }
 
-            // ② 窗口未满 ⇒ 继续等玩家清冰晶
+            // ② 窗口未满 ， 继续等玩家清冰晶
             int elapsed = st.Turn - _deadTurn;
             if (elapsed < _windowTurns)
             {
@@ -753,7 +753,7 @@ namespace WanXiang.Battle.Core
                 return;
             }
 
-            // ③ 超时 ⇒ 按序列复活（<=0 则直接陨落）
+            // ③ 超时 ， 按序列复活（<=0 则直接陨落）
             float pct = (_revivePcts != null && _revivePcts.Length > 0)
                 ? _revivePcts[System.Math.Min(_cycle, _revivePcts.Length - 1)] : 0f;
             _cycle++;
@@ -763,7 +763,7 @@ namespace WanXiang.Battle.Core
             if (pct <= 0f)
             {
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                           note: $"冰晶第 {_cycle} 次未被破 ⇒ {_boss.DisplayName} 力竭陨落（不再复活）");
+                           note: $"冰晶第 {_cycle} 次未被破 ， {_boss.DisplayName} 力竭陨落（不再复活）");
                 return;   // Boss 保持阵亡
             }
 
@@ -836,7 +836,7 @@ namespace WanXiang.Battle.Core
         }
     }
 
-    /// <summary>附烧：boss 每次命中玩家 ⇒ 给目标叠 1 层灼烧（烬蛟灼烧叠层）。</summary>
+    /// <summary>附烧：boss 每次命中玩家 ， 给目标叠 1 层灼烧（烬蛟灼烧叠层）。</summary>
     public sealed class BurnOnHitHook : BattleHook
     {
         private readonly BattleUnit _boss;
@@ -986,7 +986,7 @@ namespace WanXiang.Battle.Core
     //  （召唤 / 反弹 / 护盾 / 阶段），凡是要「叠状态 + 判阈值 + 周期 AOE」的一律没做。
     //  这里全部用**现成的状态系统**实现，不新增系统：
     //    · 根缚 = StatusCatalog.Root（PreventsAction，无法行动）
-    //    · 瘴气 = StatusCatalog.Miasma（每层攻击 −3%）
+    //    · 瘴气 = StatusCatalog.Miasma（每层攻击 -3%）
     //    · 灼烧 / 冰蚀 = 现成 DoT；冻结 / 沉默 = 现成
     // ============================================================================
 
@@ -1012,7 +1012,7 @@ namespace WanXiang.Battle.Core
 
     /// <summary>
     /// 首领**开场给灵力**（否则前两回合只能普攻：EnemyMp 从 0 起、每回合 +2、战技要 3）。
-    /// ⚠ 只对首领生效（在 AttachHooks 里挂）⇒ 普通遭遇战的敌人行为完全不变。
+    /// ⚠ 只对首领生效（在 AttachHooks 里挂）， 普通遭遇战的敌人行为完全不变。
     /// </summary>
     public sealed class BossOpeningMpHook : BattleHook
     {
@@ -1041,13 +1041,13 @@ namespace WanXiang.Battle.Core
             for (int i = 0; i < list.Count; i++) if (list[i].IsAlive) alive.Add(list[i]);
             if (alive.Count == 0) return;
             var t = alive[st.Random.NextInt(0, alive.Count)];
-            t.ApplyStatus(StatusCatalog.Root, 1, 1);   // PreventsAction 会把 turns 自动 +1 ⇒ 覆盖本回合
+            t.ApplyStatus(StatusCatalog.Root, 1, 1);   // PreventsAction 会把 turns 自动 +1 ， 覆盖本回合
             st.Log.Add(st.Turn, BattleEventKind.StatusApplied, targetId: t.RuntimeId,
                        note: $"{t.DisplayName} 被根缚缠住（本回合无法行动）");
         }
     }
 
-    /// <summary>瘴气：每回合结束给全体我方叠 stacks 层「瘴气」（每层攻击 −3%，可叠到 10）。魍魉。</summary>
+    /// <summary>瘴气：每回合结束给全体我方叠 stacks 层「瘴气」（每层攻击 -3%，可叠到 10）。魍魉。</summary>
     public sealed class MiasmaHook : BattleHook
     {
         private readonly int _stacks;
@@ -1060,7 +1060,7 @@ namespace WanXiang.Battle.Core
                 if (list[i].IsAlive) { list[i].ApplyStatus(StatusCatalog.Miasma, _stacks, 99); n++; }
             if (n > 0)
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                           note: $"瘴气弥漫：全体我方 +{_stacks} 层（攻击 −{_stacks * 3}%/层，共 {n} 人）");
+                           note: $"瘴气弥漫：全体我方 +{_stacks} 层（攻击 -{_stacks * 3}%/层，共 {n} 人）");
         }
     }
 
@@ -1132,7 +1132,7 @@ namespace WanXiang.Battle.Core
     /// 连环斩：对**同一目标**连续攻击时，每次伤害递增 +perHit（换目标立刻清零）。白魍 / 霜锋。
     /// 实现：只保留"最后一个被打的目标"计数 —— 这就是"连续"的语义。
     /// ⛔ **连击数封顶 maxStreak**：原实现无上限，而首领的普攻/战技都是 AOE，
-    ///   一轮下来"最后一个被打的目标"固定 ⇒ 连击数**每回合 +1、永不回头**，
+    ///   一轮下来"最后一个被打的目标"固定 ， 连击数**每回合 +1、永不回头**，
     ///   十几回合后就是 +100% 起步。实测霜锋 12 回合就打穿满编神品队。
     /// </summary>
     public sealed class StreakDamageHook : BattleHook
@@ -1150,7 +1150,7 @@ namespace WanXiang.Battle.Core
             string id = dst.RuntimeId;
             int n;
             _streak.TryGetValue(id, out n);
-            _streak.Clear();                 // 只留最后一个目标 ⇒ 换人就断连击
+            _streak.Clear();                 // 只留最后一个目标 ， 换人就断连击
             if (n < _maxStreak) _streak[id] = n + 1;
             else _streak[id] = _maxStreak;
             if (n > 0) dmg = CoreMath.RoundDamage(dmg * (1f + _perHit * n));
@@ -1239,7 +1239,7 @@ namespace WanXiang.Battle.Core
     /// 引燃：**我方任一单位的灼烧层数** ≥ threshold 时引爆 —— 该单位每层受 pct 最大生命伤害并清空其灼烧。烬蛟。
     ///
     /// ⛔ 判据用"**单人最高层数**"而不是文档写的"全场总层数"：烬蛟的附烧是 AOE 命中，
-    ///   一次出手就给 5 人各叠 1~2 层 ⇒ 按总层数判（≥8）等于**第一回合就引爆、之后每回合都炸**，
+    ///   一次出手就给 5 人各叠 1~2 层 ， 按总层数判（≥8）等于**第一回合就引爆、之后每回合都炸**，
     ///   实测把第 2 幕胜率直接压到 0%（且加大玩家成长倍率也救不回来 = 机制不可解）。
     ///   按单人口径后：玩家只需盯住"谁的灼烧最高"去治/净化 —— 与文档"别让单人叠太高"的应对一致。
     /// 检查点放在回合末：玩家有整个回合决定"清层还是硬吃"。
@@ -1267,7 +1267,7 @@ namespace WanXiang.Battle.Core
             if (worst < _threshold) return;
 
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                       note: $"{_boss.DisplayName} 引燃！最高灼烧 {worst} 层 ⇒ 引爆");
+                       note: $"{_boss.DisplayName} 引燃！最高灼烧 {worst} 层 ， 引爆");
             for (int i = 0; i < list.Count; i++)
             {
                 var u = list[i];
@@ -1287,9 +1287,9 @@ namespace WanXiang.Battle.Core
 
     /// <summary>
     /// Boss 机制提示的统一写入口（表现层读 BattleUnit.StateHint → 画在单位头顶）。
-    /// ⛔ 写完**必须抓帧**：提示不进日志，而帧只在 Log.Add 时抓 ⇒ 不抓就得等下一个事件才显示
+    /// ⛔ 写完**必须抓帧**：提示不进日志，而帧只在 Log.Add 时抓 ， 不抓就得等下一个事件才显示
     ///   （观感是"提示晚一拍 / 干脆没出现"，冰晶那轮踩过）。
-    /// ⚠ StateHint 每单位只有**一个**字符串 ⇒ 同一只首领身上多个机制会互相覆盖，
+    /// ⚠ StateHint 每单位只有**一个**字符串 ， 同一只首领身上多个机制会互相覆盖，
     ///   所以每只首领只挑**最关键的那一条**写（尤其"倒计时类"）。
     /// </summary>
     public static class BossHint
@@ -1315,10 +1315,10 @@ namespace WanXiang.Battle.Core
 
         /// <summary>
         /// **分段**写提示：同一只首领的多个机制可以共存，最终显示成 "A · B · C"。
-        /// <paramref name="key"/> 决定顺序（按 key 字典序排，⇒ 显示顺序稳定、可预期）。
+        /// <paramref name="key"/> 决定顺序（按 key 字典序排，， 显示顺序稳定、可预期）。
         /// 传空文本 = 移除该段。
         /// ⚠ 与 <see cref="Set"/> 混用会互相干扰：<c>Set</c> 是"整条覆盖"，会把已有分段清掉。
-        ///   ⇒ 一只首领要么全用 SetPart，要么全用 Set，别混。
+        ///   ， 一只首领要么全用 SetPart，要么全用 Set，别混。
         /// </summary>
         public static void SetPart(BattleState st, BattleUnit u, string key, string text)
         {
@@ -1336,7 +1336,7 @@ namespace WanXiang.Battle.Core
                 u.HintParts[key] = text;
             }
 
-            // 重拼：SortedDictionary 的枚举顺序 = key 字典序 ⇒ 稳定
+            // 重拼：SortedDictionary 的枚举顺序 = key 字典序 ， 稳定
             string composed = null;
             if (u.HintParts.Count > 0)
             {
@@ -1439,7 +1439,7 @@ namespace WanXiang.Battle.Core
 
     /// <summary>
     /// 吞舟：每 interval 回合对**当前生命最高**的我方造成其**当前生命** × pct 的伤害。溟鲲。
-    /// （旧实现误用了 LowestHpNukeHook ⇒ 打的是血最少的，与设计相反。）
+    /// （旧实现误用了 LowestHpNukeHook ， 打的是血最少的，与设计相反。）
     /// </summary>
     public sealed class HighestHpNukeHook : BattleHook
     {
@@ -1499,7 +1499,7 @@ namespace WanXiang.Battle.Core
 
     /// <summary>
     /// 虚实：每 interval 回合随机让 1 个存活单位**本回合免疫伤害**（可能落在真身）。霜影。
-    /// ⚠ 这是**输出税**：每回合 1 个人免疫 ≈ 抹掉 20% 队伍输出 ⇒ 太密会让战斗变成"打不死"（实测霜影平局 100%）。
+    /// ⚠ 这是**输出税**：每回合 1 个人免疫 ≈ 抹掉 20% 队伍输出 ， 太密会让战斗变成"打不死"（实测霜影平局 100%）。
     /// </summary>
     public sealed class RandomImmunityHook : BattleHook
     {
@@ -1521,7 +1521,7 @@ namespace WanXiang.Battle.Core
             pick.StateHint = "虚实：本回合免疫伤害";
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                        note: $"虚实：{pick.DisplayName} 本回合免疫伤害");
-            st.CaptureFrame();   // 提示不进日志之外的帧 ⇒ 见 BossHooks 顶部 SetHint 的说明
+            st.CaptureFrame();   // 提示不进日志之外的帧 ， 见 BossHooks 顶部 SetHint 的说明
         }
         public override void OnTurnEnd(BattleState st)
         {
@@ -1571,7 +1571,7 @@ namespace WanXiang.Battle.Core
         public override void OnTurnStart(BattleState st)
         {
             if (_boss == null || !_boss.IsAlive || st.Turn % _interval != 0) return;
-            // ⚠ 灵力是"我方团队池"（st.TeamMp），不是每单位资源 ⇒ "灵力最高"用**元气最高的单位**近似。
+            // ⚠ 灵力是"我方团队池"（st.TeamMp），不是每单位资源 ， "灵力最高"用**元气最高的单位**近似。
             var list = st.UnitsOf(TeamSide.Player);
             BattleUnit pick = null;
             for (int i = 0; i < list.Count; i++)
@@ -1585,7 +1585,7 @@ namespace WanXiang.Battle.Core
             int stolen = CoreMath.Min(_steal, st.TeamMp);
             st.TeamMp -= stolen;
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                       note: $"{_boss.DisplayName} 冰封：{pick.DisplayName} 被冻结 1 回合，灵力 −{stolen}");
+                       note: $"{_boss.DisplayName} 冰封：{pick.DisplayName} 被冻结 1 回合，灵力 -{stolen}");
         }
     }
 }

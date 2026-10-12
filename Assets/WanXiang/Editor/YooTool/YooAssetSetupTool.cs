@@ -472,7 +472,7 @@ namespace WanXiang.Editor.YooTool
         ///   然后模拟构建时那个组是空的 —— 报出来的东西很像配置错误，
         ///   但真实原因只是"还没发布过热更产物"。
         ///   与其让使用者去猜这条空组是什么意思，不如干脆不建：
-        ///   没发布 ⇒ 没有这个组 ⇒ 报告里说"热更产物目录是空的，先跑发布"。
+        ///   没发布 ， 没有这个组 ， 报告里说"热更产物目录是空的，先跑发布"。
         ///
         ///   发布工具复制完文件后会再调一次本方法把组补上，所以顺序不会错。
         /// </remarks>
@@ -483,12 +483,12 @@ namespace WanXiang.Editor.YooTool
             bool hasContent = HasAnyFile(HotUpdateFolder);
             if (!hasContent)
             {
-                // 没有产物 ⇒ 不该有这个组。
+                // 没有产物 ， 不该有这个组。
                 // ⚠ 不只是"不新建"，还要**删掉已有的** —— 因为收集器配置是持久化数据，
                 //   而热更产物目录**不入库**（生成的二进制，见 .gitignore）。
                 //   于是别人 clone 下来时：配置里有这个组、磁盘上没有那个目录。
                 //   一个指向不存在目录的收集器，会让 YooAsset 的收集阶段行为不可预期
-                //   （最坏情况又变成"资源初始化失败 ⇒ 看起来像热更坏了"）。
+                //   （最坏情况又变成"资源初始化失败 ， 看起来像热更坏了"）。
                 //   让它俩**始终一致**：有产物才有组，没产物就没组。
                 if (existing != null)
                 {
@@ -521,7 +521,7 @@ namespace WanXiang.Editor.YooTool
             //    子目录已经被父收集器收进去了；再加一个子收集器会让同一批文件被收两遍，
             //    YooAsset 直接抛：
             //        The collecting asset file is existed : <路径> in group : HotUpdate
-            //    而这个异常会把**整条资源初始化**打死（模拟构建失败 ⇒ 资源不就绪 ⇒
+            //    而这个异常会把**整条资源初始化**打死（模拟构建失败 ， 资源不就绪 ，
             //    热更链路连第一段都过不去），表现成"热更坏了"。
             //    第一版就是这么写的，被 hot_smoke 的 ① 报错抓出来的。
             // 热更 DLL 必须按**原生文件**打包：
@@ -768,7 +768,7 @@ namespace WanXiang.Editor.YooTool
                 {
                     if (i == j) continue;
 
-                    // paths[i] 落在 paths[j] 之下 ⇒ 会重复收集
+                    // paths[i] 落在 paths[j] 之下 ， 会重复收集
                     if (paths[i].StartsWith(paths[j] + "/", System.StringComparison.Ordinal))
                     {
                         lines.Add($"    ⚠⚠ 嵌套收集器：{paths[i]} 在 {paths[j]} 之下 —— "

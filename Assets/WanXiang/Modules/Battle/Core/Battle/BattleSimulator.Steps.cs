@@ -37,7 +37,7 @@ namespace WanXiang.Battle.Core
                 // 灵力自然回复（v2.1 §3）：超出上限的部分丢失 —— 逼玩家在回合内花掉
                 // ★ 第 1 回合**不回灵**（2026-09-26 用户定案）：
                 //   否则玩家一进战斗、还没动手就看见"灵力 2/12"，与"从 0 开始攒"的观感冲突
-                //   （实测：初值确实是 0，但 TurnStart 先回灵再等令 ⇒ 玩家第一眼看到 2）。
+                //   （实测：初值确实是 0，但 TurnStart 先回灵再等令 ， 玩家第一眼看到 2）。
                 //   双方同规则，保持对称。
                 if (turn > 1)
                 {
@@ -92,7 +92,7 @@ namespace WanXiang.Battle.Core
                     //   若还停下来等指令，玩家会被要求给一个"无法行动"的单位下令
                     //   （下令后又会被 ExecuteAction 拒掉、只留一条「无法行动」日志）
                     //   —— 用户实测："已经被冻结了为什么还能行动，玩起来很奇怪"。
-                    //   不停 ⇒ 直接走 ExecuteAction 记一条「无法行动」，流程自然跳过。
+                    //   不停 ， 直接走 ExecuteAction 记一条「无法行动」，流程自然跳过。
                     if (st.PlayerControlled && u.Side == TeamSide.Player && u.CanAct)
                         yield return new BattleStep { Kind = BattleStepKind.NeedDecision, Unit = u };
                     ExecuteAction(st, u, buf);
@@ -264,7 +264,7 @@ namespace WanXiang.Battle.Core
                         st.Log.Add(st.Turn, BattleEventKind.Death, targetId: u.RuntimeId,
                                    note: $"{s.Def.Name}致死");
                         // ★ DoT 致死也必须派发 UnitKilled 钩子：双子同命 / 假死 / 击杀成长 /
-                        //   共享生命等都挂在 OnUnitKilled 上。之前只写 Death 事件 ⇒ 钩子收不到
+                        //   共享生命等都挂在 OnUnitKilled 上。之前只写 Death 事件 ， 钩子收不到
                         //   阵亡信号，双子被持续伤害跳死时不会进复活窗口、也没"倒下"提示
                         //   （用户 2026-10-12 报：第6回合死、第11回合仍未复活且全程无提示）。
                         //   DoT 无明确施法者，killer 传 null（现有钩子体均不依赖 killer 参数）。

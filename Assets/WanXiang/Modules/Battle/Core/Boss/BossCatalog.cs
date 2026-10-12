@@ -56,17 +56,17 @@ namespace WanXiang.Battle.Core
     /// 首领默认技组（让首领在自动战斗里会动）。元素随首领，伤害按攻击力倍率。
     /// ★ 2026-10-04：**三招全部改群体攻击（AllEnemies）** —— 守关改「单 Boss 独占中宫」后，
     ///   首领只剩自己一只，必须靠 AOE 才能压制玩家整队（用户定案："给首领技能加 AOE"）。
-    ///   单体技组下首领每回合只削一个目标 ⇒ 五只满编队可以无视它慢慢打。
+    ///   单体技组下首领每回合只削一个目标 ， 五只满编队可以无视它慢慢打。
     ///
     /// ⛔ **不能只改目标选择器而保留原倍率** —— 单体倍率 × 5 个目标 = 总输出直接翻 5 倍。
     ///   实测（boss.selftest [7/7]）：1.00/0.80/2.00 全 AOE 后，四幕「无遗物」胜率全部掉到 **0%**。
-    ///   ⇒ 原则：**压低单体倍率换取群体形态**。实测三档（boss.selftest [7/7]，四幕「无遗物」胜率）：
-    ///     · 1.00/0.80/2.00 全 AOE（= 原倍率）⇒ 四幕全 0%（**必然过强**，总输出翻 5 倍）；
-    ///     · 0.20/0.80/0.40（只改形态/总输出守恒）⇒ 偏软（第2幕中等 100%、第3幕 98%）：
+    ///   ， 原则：**压低单体倍率换取群体形态**。实测三档（boss.selftest [7/7]，四幕「无遗物」胜率）：
+    ///     · 1.00/0.80/2.00 全 AOE（= 原倍率）， 四幕全 0%（**必然过强**，总输出翻 5 倍）；
+    ///     · 0.20/0.80/0.40（只改形态/总输出守恒）， 偏软（第2幕中等 100%、第3幕 98%）：
     ///       **集火 > 分摊** —— 把致命伤害摊平，治疗奶得回来，反而杀不掉人；
-    ///     · 0.40/0.80/0.80（本档）⇒ 取中间值，兼顾"能压制全队"与"不秒全队"。
+    ///     · 0.40/0.80/0.80（本档）， 取中间值，兼顾"能压制全队"与"不秒全队"。
     ///   ⚠ 第2幕（火 · 烬蛟「附烧」）偏难的原因**不是伤害**：附烧是**每命中一次**就叠一层，
-    ///     AOE 普攻 ⇒ 每回合给全队叠灼烧 ⇒ 被放大 5 倍。要治它得把"命中类钩子"改成每行动只触发一次，
+    ///     AOE 普攻 ， 每回合给全队叠灼烧 ， 被放大 5 倍。要治它得把"命中类钩子"改成每行动只触发一次，
     ///     属独立任务（不在本次改动内）。
     /// </summary>
     public static class BossSkills
@@ -74,7 +74,7 @@ namespace WanXiang.Battle.Core
         public static SkillDef[] Default(Element element) { return Default(element, null); }
 
         /// <param name="flavor">战技/绝技附带的状态 id（<c>StatusCatalog</c>；空 = 纯伤害）。
-        /// ★ 2026-10-06：用户"首领只会普攻、三招看起来一模一样"⇒ 让**每只首领的战技/绝技带上专属状态**
+        /// ★ 2026-10-06：用户"首领只会普攻、三招看起来一模一样"， 让**每只首领的战技/绝技带上专属状态**
         ///   （木=根缚、火=灼烧、金=裂甲、水=侵蚀/冰霜、鸿蒙=沉默 …），这样打出来**一眼能看出是谁**。</param>
         public static SkillDef[] Default(Element element, string flavor)
         {
@@ -91,12 +91,12 @@ namespace WanXiang.Battle.Core
                 if (string.IsNullOrEmpty(sn)) sn = flavor;
                 // ⛔⛔ **专属状态只挂「绝技」**，战技保持纯全体伤害。
                 //   实测证据（2026-10-06，逐只首领 24 局 × 两档遗物）：
-                //     · 战技**几乎每回合都能放**（`UseCooldown = false` ⇒ 填的 Cd=2 根本不生效，
+                //     · 战技**几乎每回合都能放**（`UseCooldown = false` ， 填的 Cd=2 根本不生效，
                 //       只有 EnemyMp 在限速：+2/回合、战技要 3）；
-                //     · 于是任何 ≥2 回合的状态都被**永久覆盖** ⇒ 全队常驻根缚/灼烧/易伤。
+                //     · 于是任何 ≥2 回合的状态都被**永久覆盖** ， 全队常驻根缚/灼烧/易伤。
                 //     · 铁证：把玩家成长倍率从 1.60 拉到 2.20（巨幅加强）胜率**纹丝不动仍是 0%**
                 //       —— 机制不可解，加数值救不回来。
-                //   绝技受"元气满"门槛限制（`UltimateNeedsRage` + `RageMax=100`）⇒ 天然稀有，
+                //   绝技受"元气满"门槛限制（`UltimateNeedsRage` + `RageMax=100`）， 天然稀有，
                 //   这才是"招牌技能"该出现的位置：不常来，一来就是大事。
                 ult.Add(EffectAtom.Status(TargetSelector.SingleFrontMost, flavor, 2, 3));
                 ultDesc = "全体重击 + 单体" + sn + " ×2";
@@ -124,7 +124,7 @@ namespace WanXiang.Battle.Core
         /// <summary>
         /// 造一个召唤物原型。
         /// ⚠ <paramref name="id"/> **要能查到立绘**，否则 `BattleStage2D` 会走"按 catalog 序号
-        ///   随便分配一张"的兜底 ⇒ 画面上显示成别的异兽（用户实测"双子只有一个"就是这个）。
+        ///   随便分配一张"的兜底 ， 画面上显示成别的异兽（用户实测"双子只有一个"就是这个）。
         ///   所以召唤物**直接复用首领的 b_ id**（如 b_suren 素刃），既能查到立绘、
         ///   又因为不是 IsBoss 前缀判断的重点而不会跟着放大。
         /// </summary>
@@ -149,15 +149,15 @@ namespace WanXiang.Battle.Core
         private static readonly BeastDef ZaoHua   = Summon("summon_zaohua", "造化兽", Element.Wood, RoleType.Striker, 800, 140, 50, 100);
         private static readonly BeastDef ShouHu   = Summon("summon_shouhu", "守卫卵", Element.Earth, RoleType.Guard, 500, 40, 80, 60);
         // ⚠ id 用 **b_suren**（素刃的真实立绘 id），不是 summon_subai：
-        //   summon_ 前缀在 SpriteCatalog 里查不到图 ⇒ 表现层会"按序号随便分配"⇒ 双子看起来只有一个。
+        //   summon_ 前缀在 SpriteCatalog 里查不到图 ， 表现层会"按序号随便分配"， 双子看起来只有一个。
         // ⚠ id 用 **b_suren**（素刃的真实立绘 id，见 TwinBeastId），不是 summon_subai：
-        //   summon_ 前缀在 SpriteCatalog 里查不到图 ⇒ 表现层"按序号随便分配"⇒ 双子看起来只有一个。
+        //   summon_ 前缀在 SpriteCatalog 里查不到图 ， 表现层"按序号随便分配"， 双子看起来只有一个。
         private static readonly BeastDef SuBai   = Summon(TwinBeastId, "素刃", Element.Metal, RoleType.Striker, 1820, 266, 84, 110); // 白魍双子（×0.7 基准）
 
         // 玄溟「冰晶重生」用的冰晶：**面板只是占位** —— 实际 HP 由
         // IceCrystalRebirthHook 用 GrowMaxHp 对齐到「玄溟满血 × 25%」，
         // 这样它在不同幕/劫数下的比例都是恒定的。
-        // id 用 summon_ 前缀 ⇒ 表现层走五行色块（无专属立绘时不做"乱分配"）。
+        // id 用 summon_ 前缀 ， 表现层走五行色块（无专属立绘时不做"乱分配"）。
         private static readonly BeastDef IceCrystal = Summon("summon_icecrystal", "冰晶", Element.Water, RoleType.Guard, 800, 100, 60, 90);
 
         // ---- 14 个首领定义 ----
@@ -175,8 +175,8 @@ namespace WanXiang.Battle.Core
             // ⚠ 白魍的 id 用 **b_bairen**（白刃），不是 b_baiwang ——
             //   设计上"肃杀之君·白魍"就是**双子本身**（白刃 + 素刃），没有第三个"白魍本体"立绘。
             //   b_baiwang 从来不是立绘 CSV 里的 id（那份表只有 b_bairen / b_suren）。
-            //   历史坑：曾用 b_baiwang 当 id，SpriteCatalog 查不到图 ⇒ 表现层"按序号随便分配"
-            //   ⇒ 最后靠 cp b_bairen.png 补了个副本，结果两张立绘一模一样（用户发现）。
+            //   历史坑：曾用 b_baiwang 当 id，SpriteCatalog 查不到图 ， 表现层"按序号随便分配"
+            //   ， 最后靠 cp b_bairen.png 补了个副本，结果两张立绘一模一样（用户发现）。
             new BossDef { Id="b_bairen", DisplayName="白魍·白刃", Element=Element.Metal, Role=RoleType.Striker, BaseHp=5900, BaseAtk=420, BaseDef=120, BaseSpeed=110, FlavorStatus=StatusCatalog.ArmorBreak },
             new BossDef { Id="b_shai",   DisplayName="千机傀儡·铩",   Element=Element.Metal, Role=RoleType.Guard,    BaseHp=1760, BaseAtk=215, BaseDef=110, BaseSpeed=80,  FlavorStatus=StatusCatalog.ArmorBreak },
             new BossDef { Id="b_shuangfeng", DisplayName="断刃游侠·霜锋", Element=Element.Metal, Role=RoleType.Swift, BaseHp=1880, BaseAtk=295, BaseDef=110, BaseSpeed=140, FlavorStatus=StatusCatalog.Marked },
@@ -208,7 +208,7 @@ namespace WanXiang.Battle.Core
         ///
         /// ⛔ 格号行语义（别搞反）：`row = Pos.Index / 3`，**row0 = 后排（远离玩家）、
         ///   row2 = 前排（贴近玩家）**（见 BattleStage2D 的 `sortingOrder = Pos.Index / 3; // row 0=后 1=中 2=前`）。
-        ///   ⇒ 后排中的格号是 **1**；**格 7 是前排中**（离玩家最近），别把它当后排。
+        ///   ， 后排中的格号是 **1**；**格 7 是前排中**（离玩家最近），别把它当后排。
         /// ⛔ 唯一口径：BossCatalog 挂钩子、BossSelfTest 断言都读这个常量，别各写一个数字。
         /// </summary>
         public const int TwinCell = 1;
@@ -229,8 +229,8 @@ namespace WanXiang.Battle.Core
         /// <summary>
         /// 该首领的**双子搭档**原型（与本体一起出场的第二只 Boss）；没有搭档返回 null。
         /// ★ 用户 2026-10-03 口径："他们两个都是 Boss 啊，不是召唤出来的，他们是一起出现的"
-        ///   ⇒ 双子由布阵阶段（BossSquadFor）直接放进敌方阵容，
-        ///     这样**编队预览也能看到两只**（此前只在开场钩子里部署 ⇒ 预览只有 1 只，用户报障）。
+        ///   ， 双子由布阵阶段（BossSquadFor）直接放进敌方阵容，
+        ///     这样**编队预览也能看到两只**（此前只在开场钩子里部署 ， 预览只有 1 只，用户报障）。
         /// </summary>
         public static BeastDef TwinFor(string bossId) => bossId == "b_bairen" ? SuBai : null;
 
@@ -340,7 +340,7 @@ namespace WanXiang.Battle.Core
                 case "b_fuman":   // 蝮魇：蔓生 + 生机 + 根缚 + 枯荣（教学首领）
                     st.Hooks.Add(new BossOpeningMpHook(3));       // 开局给灵力，否则前两回合只能普攻
                     st.Hooks.Add(new SummonHook(2, new[]{ TengNu, TengNu }, new[]{ 3, 5 }));
-                    // 生机（被动）：场上每存活 1 只召唤物，伤害 +6%（可叠）⇒ 清场 = 直接削弱它
+                    // 生机（被动）：场上每存活 1 只召唤物，伤害 +6%（可叠）， 清场 = 直接削弱它
                     st.Hooks.Add(new OutgoingDamageBonusHook(boss,
                         (s, d) => 0.04f * System.Math.Min(3, CountSummons(s, boss))));
                     st.Hooks.Add(new RootHook(4));                // 根缚：每 3 回合缚住 1 人 1 回合
@@ -374,7 +374,7 @@ namespace WanXiang.Battle.Core
 
                 case "b_wangliang": // 魍魉：瘴气 + 隐遁 + 瘴爆 + 散瘴（拖越久你越弱）
                     st.Hooks.Add(new BossOpeningMpHook(3));
-                    st.Hooks.Add(new MiasmaHook(1));               // 每回合末全体 +1 层瘴气（每层攻 −3%）
+                    st.Hooks.Add(new MiasmaHook(1));               // 每回合末全体 +1 层瘴气（每层攻 -3%）
                     st.Hooks.Add(new FirstHitReduceHook(0.60f));   // 隐遁
                     st.Hooks.Add(new ScatterMiasmaHook(boss, 3));  // 散瘴：清自身负面 + 瘴气翻倍
                     st.Hooks.Add(new MiasmaBurstHook(boss, 0.02f));// 瘴爆：死亡时按层数 ×4% 最大生命
@@ -421,7 +421,7 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new BossOpeningMpHook(3));
                     st.Hooks.Add(new TwinSpawnHook(boss, SuBai, TwinCell, 0.30f, 0.50f, 2));
                     st.Hooks.Add(new StreakDamageHook(boss, 0.10f));      // 连环斩：压同一目标越打越痛
-                    st.Hooks.Add(new FirstHitReduceHook(0.70f));          // 金身：每回合首次受伤 −70%
+                    st.Hooks.Add(new FirstHitReduceHook(0.70f));          // 金身：每回合首次受伤 -70%
                     break;
 
                 case "b_shai":     // 铩：机关护盾 + 齿轮反击 + 组装 + 过载
@@ -503,18 +503,18 @@ namespace WanXiang.Battle.Core
             {
                 case "b_fuman":   return "蔓生：每 2 回合召唤藤奴。生机：每存活 1 只召唤物，其伤害 +6%（可叠）。根缚：每 3 回合缚住 1 人 1 回合。枯荣：血量 ≤50% 吞噬召唤物回血。";
                 case "b_manman":  return "荆棘：受击反弹，且被同一单位连续攻击时反弹递增。汲养：吸取造成伤害的一部分回血。根缚：每 2 回合缚 1 人。";
-                case "b_wangliang": return "瘴气：每回合末全体 +1 层（每层攻 −3%）。散瘴：清自身负面并把瘴气翻倍。瘴爆：死亡时按瘴气层数造成伤害。拖越久越难打。";
+                case "b_wangliang": return "瘴气：每回合末全体 +1 层（每层攻 -3%）。散瘴：清自身负面并把瘴气翻倍。瘴爆：死亡时按瘴气层数造成伤害。拖越久越难打。";
                 case "b_chiba":   return "燎原：每层灼烧使其伤害 +3%（封顶 +120%）。分身：血量 75/50/25% 各分裂一只，分身崩解时波及全体。火种同源：死亡时若仍有分身存活，以 50% 血复活。";
                 case "b_jinjiao": return "灼烧叠层（血量 ≤40% 时叠层翻倍）。引燃：灼烧总层 ≥8 时引爆。余烬：持续成长加深。";
                 case "b_jiaozhi": return "硬壳：有护盾时大幅减伤，打破后进入破壳窗口。岩浆喷发：每 3 回合对全体造成伤害。熔核：死亡时召唤熔岩幼体。";
-                case "b_bairen":  return "同命·双子：任一只倒下后 2 回合内未击杀另一只 ⇒ 以 50% 血复活。共鸣分摊：任一只受到的伤害 30% 转移给另一只。金身：每回合首次受伤 −70%。连环斩：连续攻击同一目标越打越痛。";
+                case "b_bairen":  return "同命·双子：任一只倒下后 2 回合内未击杀另一只，则以 50% 血复活。共鸣分摊：任一只受到的伤害 30% 转移给另一只。金身：每回合首次受伤 -70%。连环斩：连续攻击同一目标越打越痛。";
                 case "b_shai":    return "机关护盾：开场生成护盾。齿轮反击：破盾时反弹伤害。组装：逐渐增强自身。过载：与护盾相关的爆发。";
                 case "b_shuangfeng": return "连环斩：压同一目标越打越痛。剜心：每 2 回合重击生命最低者。残刃：血量 75/50/25% 各触发一次全体 AoE。";
-                case "b_xuanming": return "寒狱镜面：受击反弹 30%。冰封：每 3 回合冻结 1 人并偷取灵力。冰晶重生：死亡后本体退场、化为 4 枚冰晶，3 回合内打光冰晶才真死，否则复活（50%→25%→真死）。";
+                case "b_xuanming": return "寒狱镜面：受击反弹 30%。冰封：每 3 回合冻结 1 人并偷取灵力。冰晶重生：死亡后本体退场、化为 4 枚冰晶，3 回合内打光冰晶才真死，否则复活（50%、25%、真死，依次递减）。";
                 case "b_mingkun": return "潮汐：每 2 回合吸取我方灵力。吞舟：每 2 回合对生命最高者造成其 35% 当前生命。鲸落：死亡时对全体造成伤害。深潜：血量 ≤35% 每回合额外行动。";
                 case "b_shuangying": return "镜像分身：每 5 回合召唤镜影。虚实：每回合随机 1 个单位免疫。寒渊：全体提速 +20%。镜碎：分身受击伤害 30% 分摊给本体。";
                 case "b_guixu":   return "五行轮转：每 3 回合切换自身属性。吞噬：逐渐成长。终焉之卵：血量 ≤30% 召唤守卫卵。终焉限时：25 回合内不击杀即团灭。";
-                case "b_hongmeng": return "混元：免疫五行克制。造化：每 3 回合召唤造化兽。混沌护持：每回合首次受伤 −40%。湮灭：25 回合硬性限时。";
+                case "b_hongmeng": return "混元：免疫五行克制。造化：每 3 回合召唤造化兽。混沌护持：每回合首次受伤 -40%。湮灭：25 回合硬性限时。";
                 default: return null;
             }
         }

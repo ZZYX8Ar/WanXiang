@@ -62,10 +62,10 @@ namespace WanXiang.Run
         //  --------------------------------------------------------------------
         //  用户 2026-09-25 定案：**开局那一刻锁定**。局内中途回主城在「异兽培养」里
         //  升级 / 进化 / 换觉醒技，**都不影响进行中的这一局**，要下一局才吃到。
-        //  ⚠ 之前是"每次出征都现读 MetaStore" ⇒ 局内换觉醒技、升级都会立刻漏进本局。
+        //  ⚠ 之前是"每次出征都现读 MetaStore" ， 局内换觉醒技、升级都会立刻漏进本局。
         // ====================================================================
 
-        /// <summary>快照对应的 RunSeed。换局（重开/失败重来/新档）时 RunSeed 会变 ⇒ 自动重拍。</summary>
+        /// <summary>快照对应的 RunSeed。换局（重开/失败重来/新档）时 RunSeed 会变 ， 自动重拍。</summary>
         public int SnapshotSeed = 0;
         public List<string> SnapBeastIds = new List<string>();
         public List<int>    SnapLevels   = new List<int>();
@@ -97,7 +97,7 @@ namespace WanXiang.Run
         }
 
         /// <summary>
-        /// 若本局还没拍过快照（或已经换了一局）⇒ 按当前局外存档拍一份；**整局不再更新**。
+        /// 若本局还没拍过快照（或已经换了一局）， 按当前局外存档拍一份；**整局不再更新**。
         /// 以 RunSeed 为界：任何"新一局"都会换 RunSeed，所以不必在每个重开点手动调用。
         /// </summary>
         public void EnsureMetaSnapshot()
@@ -185,7 +185,7 @@ namespace WanXiang.Run
         /// <summary>本批瘴雾是否已经重掷过节点类型（防止反复开关面板时节点变来变去）。</summary>
         public bool FogRerolled = false;
         /// <summary>被瘴雾重掷过的节点类型，形如 "7:3"（节点下标:NodeKind）。
-        ///  ⛔ 节点图每次都由种子重建 ⇒ 重掷结果**必须落盘并在 BuildRoute 之后覆盖回去**（照 QuestionRevealed 的做法）。</summary>
+        ///  ⛔ 节点图每次都由种子重建 ， 重掷结果**必须落盘并在 BuildRoute 之后覆盖回去**（照 QuestionRevealed 的做法）。</summary>
         public System.Collections.Generic.List<string> RerolledKinds =
             new System.Collections.Generic.List<string>();
 
@@ -193,7 +193,7 @@ namespace WanXiang.Run
         public System.Collections.Generic.List<int> FogWeatherNodes =
             new System.Collections.Generic.List<int>();
 
-        /// <summary>已经为哪一幕生成过瘴雾节点（0 = 还没生成）。换幕置 0 ⇒ 下一幕重新生成。</summary>
+        /// <summary>已经为哪一幕生成过瘴雾节点（0 = 还没生成）。换幕置 0 ， 下一幕重新生成。</summary>
         public int FogGenAct = 0;
 
         /// <summary>"起雾的那一格"（走到它才起的雾）：**雾期间它自己也显示成「？？迷雾」**。-1 = 无。</summary>
@@ -219,7 +219,7 @@ namespace WanXiang.Run
         /// <summary>
         /// 已经播过开场动画的幕号（0 = 一幕都没播）。见 <c>ActIntroPanel</c>。
         /// ⛔ 必须落盘：否则每次读档回节点地图都会重播（用户要的是"每到新的一幕才播"）。
-        /// 老存档没这个字段 ⇒ 反序列化后为 0 ⇒ 补播一次当前幕（可接受的自愈）。
+        /// 老存档没这个字段 ， 反序列化后为 0 ， 补播一次当前幕（可接受的自愈）。
         /// </summary>
         public int IntroShownAct;
 

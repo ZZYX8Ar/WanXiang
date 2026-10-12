@@ -460,7 +460,7 @@ namespace WanXiang.Battle.Core
             v *= (1f - mitigation);
             v *= dst.DamageTakenMultiplier;
 
-            // ---- 天时修正（GDD 3.1/3.4）。st.Weather 为 null 时零改动 ⇒ 指纹不变 ----
+            // ---- 天时修正（GDD 3.1/3.4）。st.Weather 为 null 时零改动 ， 指纹不变 ----
             if (st.Weather != null)
             {
                 // 全场伤害乘数（夏至「极阳」：造成的与受到的同时 +25%）
@@ -498,7 +498,7 @@ namespace WanXiang.Battle.Core
             }
 
             // 抖动（GDD v1.1 §3.1：Rand ∈ [0.95, 1.05]）。
-            // 只在这里消费一次随机数 ⇒ 同种子逐位可复现；DamageJitter=0 时完全不掷骰
+            // 只在这里消费一次随机数 ， 同种子逐位可复现；DamageJitter=0 时完全不掷骰
             //（对照实验用：证明其他结算路径没有被抖动污染）。
             //
             // ⚠⚠ forPreview = true 时**绝不掷骰** —— 面板/悬浮提示这类"只是看看"的调用

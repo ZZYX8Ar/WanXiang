@@ -122,7 +122,7 @@ namespace WanXiang.EditorTools.Diagnostics
             // ENABLE_UNITY_COLLECTIONS_CHECKS 必须两侧一致，否则 com.unity.collections
             // 的 NativeList<T>.AsParallelReader() 会在玩家侧走 #else 分支，去编辑器版
             // CoreModule 里找**不存在**的 2 参构造 NativeArray<T>.ReadOnly(void*, int)
-            // ⇒ CS7036。完整根因见 CollectionChecksDefine 的长注释。
+            // ， CS7036。完整根因见 CollectionChecksDefine 的长注释。
             //
             // 用 Player 侧任意一个程序集读宏就行（宏是编译命令级别的，全图一致），
             // 这里固定用 Unity.Collections.rsp 优先，没有就退回样本。
@@ -181,7 +181,7 @@ namespace WanXiang.EditorTools.Diagnostics
                                                + $"应为 {(wantChecks ? "有" : "无")}，"
                                                + $"实际 {(checks ? "有" : "无")}。"
                                                + "两侧不一致时 Unity.Collections 会走与 ctor "
-                                               + $"元数不匹配的分支 ⇒ CS7036。修复："
+                                               + $"元数不匹配的分支 ， CS7036。修复："
                                                + (wantChecks ? "csc.defines.on" : "csc.defines.off"));
                             report.results.Add($"{tag} -> ⚠ 注意：改 .rsp 后**必须重新编译玩家脚本**"
                                                + "才生效（请求文件里在本命令前写一行 refresh）");
@@ -251,7 +251,7 @@ namespace WanXiang.EditorTools.Diagnostics
         ///
         /// 三条编译路径的门面供给各不相同：
         ///   · 编辑器编译      —— 引用集里**有**门面（Editor/Data/Managed/UnityEngine/
-        ///                        UnityEngine.dll，121 KB，纯类型转发）⇒ 从不报错。
+        ///                        UnityEngine.dll，121 KB，纯类型转发）， 从不报错。
         ///   · Mono 玩家编译   —— **有**，来自 PlaybackEngines/WindowsStandaloneSupport/
         ///                        Variations/mono/Managed/UnityEngine.dll。
         ///                        （对照工程 Learn_XLua 的 500b0aP.dag 实测如此。）
@@ -263,8 +263,8 @@ namespace WanXiang.EditorTools.Diagnostics
         /// 实测受影响 8 个程序集：DOTween.Modules、UniTask.DOTween、
         /// Unity.2D.Animation.Runtime、Unity.Collections、WanXiang.Runtime、
         /// WanXiang.HotUpdate、WanXiang.Integration.QFramework、WanXiang.Samples。
-        /// 其中 `WanXiang.HotUpdate.dll` 不产出 ⇒ 第 3 步 LinkGeneratorCommand 抛
-        /// "resolve Hot update dll:WanXiang.HotUpdate failed" ⇒ Generate/All 失败。
+        /// 其中 `WanXiang.HotUpdate.dll` 不产出 ， 第 3 步 LinkGeneratorCommand 抛
+        /// "resolve Hot update dll:WanXiang.HotUpdate failed" ， Generate/All 失败。
         ///
         /// **为什么走 csc.rsp**：
         ///   ① asmdef 没有「额外引用」字段；precompiledReferences 只能填工程内的插件

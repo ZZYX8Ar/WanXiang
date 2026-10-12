@@ -122,7 +122,7 @@ namespace WanXiang.Editor.CampaignTool
             ok &= run2.Lingers.Count == 1 && run2.Lingers[0].FromTerm == 1
                && run2.Lingers[0].NodesLeft == 2
                && run2.Lingers[0].Weather.BuffName.Contains("余气")
-               && run2.Lingers[0].Weather.TurnStart[0].Atom.StatusStacks == 1;   // 生机 2 层减半 ⇒ 1 层
+               && run2.Lingers[0].Weather.TurnStart[0].Atom.StatusStacks == 1;   // 生机 2 层减半 ， 1 层
             Check(lines, ok, "⑤ 跨幕：余气=上一幕首节点（立春·东风解冻）减半版，残留 2 节点");
 
             // 幕 2 节点 1（小满·8）：节点无原子 + 立春余气的生机
@@ -135,7 +135,7 @@ namespace WanXiang.Editor.CampaignTool
                && w1.TurnStart[0].Atom.Kind == EffectAtomKind.ApplyStatus;
             Check(lines, ok, "⑤ 节点1（小满）：节点 CD+30% 保留，余气生机原子拼入，元素/名字取节点");
 
-            // 节点 2（夏至·10）：余气仍在场（残留 2 节点 ⇒ 前两个节点都算）
+            // 节点 2（夏至·10）：余气仍在场（残留 2 节点 ， 前两个节点都算）
             ok = run2.EnterNode(3);
             var w2 = run2.ComposeCurrentWeather();
             ok &= run2.Lingers[0].NodesLeft == 0
@@ -178,7 +178,7 @@ namespace WanXiang.Editor.CampaignTool
             //     ⚠ 空注在节气 7（立夏）——别注 1（立春），它是余气来源，注空了整条余气链就断。
             var run3 = new RunState(acts, i => i == 7 ? null : WeatherCatalog.GetSolarTerm(i));
             ok = run3.EnterNode(0) && run3.EnterNode(2) && run3.EnterNode(4) && run3.EnterNode(5)
-                 && run3.DefeatBoss() && run3.EnterNode(0);              // 幕2 节点1 = 立夏（未翻 ⇒ null）
+                 && run3.DefeatBoss() && run3.EnterNode(0);              // 幕2 节点1 = 立夏（未翻 ， null）
             var w5 = run3.ComposeCurrentWeather();
             ok &= w5 != null && w5.TurnStart != null && w5.TurnStart.Length == 1   // 只剩立春余气
                && w5.BuffName == "余气";                                  // 无节点名可取
@@ -187,11 +187,11 @@ namespace WanXiang.Editor.CampaignTool
             // ---- ⑧ 非法推进：0/1 个节点打 Boss 被拒、走满放行、通关后再打被拒 ----
             //     拆成逐步断言：链式 && 一处挂了不知道挂在哪。
             var run4 = new RunState(acts, WeatherCatalog.GetSolarTerm);
-            Check(lines, !run4.DefeatBoss(), "⑧a 0 个节点打 Boss ⇒ 拒");
-            Check(lines, run4.EnterNode(0) && !run4.DefeatBoss(), "⑧b 走 1 个节点打 Boss ⇒ 拒");
+            Check(lines, !run4.DefeatBoss(), "⑧a 0 个节点打 Boss ， 拒");
+            Check(lines, run4.EnterNode(0) && !run4.DefeatBoss(), "⑧b 走 1 个节点打 Boss ， 拒");
             Check(lines, run4.EnterNode(2) && run4.EnterNode(4) && run4.EnterNode(5)
-                       && run4.DefeatBoss(), "⑧c 走满 4 个节点 ⇒ 打 Boss 放行（进第 2 幕）");
-            Check(lines, !run4.DefeatBoss(), "⑧d 新幕 0 个节点 ⇒ 再打被拒");
+                       && run4.DefeatBoss(), "⑧c 走满 4 个节点 ， 打 Boss 放行（进第 2 幕）");
+            Check(lines, !run4.DefeatBoss(), "⑧d 新幕 0 个节点 ， 再打被拒");
             Check(lines, run4.EnterNode(0) && run4.EnterNode(2) && run4.EnterNode(4) && run4.EnterNode(5)
                        && run4.DefeatBoss()
                        && run4.EnterNode(0) && run4.EnterNode(2) && run4.EnterNode(4) && run4.EnterNode(5)
@@ -242,7 +242,7 @@ namespace WanXiang.Editor.CampaignTool
 
             // 我方：一套神品**进攻型**满编。
             // ⚠ 刻意不带 Support 位：灰盒内容里治疗 + 护盾能互相拖住（实测：5 神品带辅助
-            //   对上 5 灵品，第 1 幕守关打成 30 回合平局 ⇒ 按"平局=没打过"这局就结束了）。
+            //   对上 5 灵品，第 1 幕守关打成 30 回合平局 ， 按"平局=没打过"这局就结束了）。
             //   本自检验的是编排链路能不能跑通 21 战，阵容取能分出胜负的那种。
             //   ⚠ 同一条实测也给策划一个信号：**回合上限 30 + 治疗护盾体系容易产生僵局**，
             //   正式数值表出来时要专门看这件事。
@@ -342,7 +342,7 @@ namespace WanXiang.Editor.CampaignTool
                 { bossOk = s.TermIndex == -1 && s.WeatherId == null; break; }
             Check(lines, bossOk, "⑬ 守关战：不挂节点天时（WeatherId=null），也不占节气节点");
 
-            // ---- ⑭ 败北终止：单只灵品后卫对上满编 ⇒ 早于 21 战结束 ----
+            // ---- ⑭ 败北终止：单只灵品后卫对上满编 ， 早于 21 战结束 ----
             var weak = new DeployEntry[]
             {
                 DeployEntry.Player(BattleSampleContent.Make("solo", "独", Element.Wood, RoleType.Guard), 4),

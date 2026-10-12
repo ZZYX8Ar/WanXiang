@@ -590,7 +590,7 @@ namespace WanXiang.Editor.BattleTool
         /// 把双方灵力顶满 —— 连携技要花 MpCost*2，不够就发动不了。
         ///
         /// ⚠ TeamMp / TeamMpMax 是 **public 字段**（不是属性）。第一版用反射按属性读，
-        ///   取到的 PropertyInfo 是 null，异常又被 catch 吞掉 ⇒ 灵力一直是 0，
+        ///   取到的 PropertyInfo 是 null，异常又被 catch 吞掉 ， 灵力一直是 0，
         ///   于是 15 条连携技全报"条件不满足"。**吞异常的 catch 会让自检说谎**，
         ///   所以这里改成直接写字段，不再包 try。
         /// </summary>

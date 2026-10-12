@@ -32,7 +32,7 @@ namespace WanXiang.Battle.Core
             if (st == null || host == null || combo == null) return;
 
             var foeSide = BattleState.Opponent(host.Side);
-            // ⚠ `CollectAlive` **会先清空列表** ⇒ 多池必须各自收进临时表再合并。
+            // ⚠ `CollectAlive` **会先清空列表** ， 多池必须各自收进临时表再合并。
             var tmp = new List<BattleUnit>(8);
             switch (combo.Effect)
             {

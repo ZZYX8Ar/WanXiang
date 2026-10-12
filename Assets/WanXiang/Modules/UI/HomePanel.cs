@@ -91,7 +91,7 @@ namespace WanXiang.Modules.UI
 
             // ---- 3D 层：背景 + 出战异兽走动 + 天气粒子（2026-10-11 混合方案）----
             // ⛔ 背景必须由 3D 层画：UIRoot 的 Canvas 是 ScreenSpaceOverlay，
-            //   Overlay 永远渲染在所有相机之上 ⇒ UI 层只要有一张全屏不透明图，
+            //   Overlay 永远渲染在所有相机之上 ， UI 层只要有一张全屏不透明图，
             //   就会把 3D 的异兽/天气整个盖住（第一版就是这样，什么都看不见）。
             var ambRun = WanXiang.Run.RunSave.Current;
             if (_scene3D == null) _scene3D = GetComponent<HomeScene3D>();
@@ -139,7 +139,7 @@ namespace WanXiang.Modules.UI
             // ★ 未出发（NodeOffset = -1）时显示"第 1 层"，不要显示"第 0 层"
             int layer = run != null ? Mathf.Max(1, run.NodeOffset + 1) : 1;
             // ★ 判据放宽：以前只认 NodeOffset>=0 / Act>1，但"进过节点却没通过"时
-            //   NodeOffset 仍是 -1（节点改为延后推进）⇒ 判定成"无进度"，直接进图不弹窗
+            //   NodeOffset 仍是 -1（节点改为延后推进）， 判定成"无进度"，直接进图不弹窗
             //   （用户实测）。现在只要有过任何探索痕迹就算有进度。
             bool hasProgress = run != null && (
                 run.NodeOffset >= 0 || run.Act > 1
@@ -197,7 +197,7 @@ namespace WanXiang.Modules.UI
         /// 带**转场**进入节点地图（2026-10-11 用户："从主界面进入节点地图也生硬，
         /// 加一些动效"）。转场方式按当前幕自动选：春·水墨铺开 / 夏·粒子右→左横扫 /
         /// 秋·双帘拨开 / 冬·粒子横扫 / 长夏·双帘拨开。
-        /// ⚠ 转场中点才真正打开 CampaignPanel ⇒ 用户看到的顺序是
+        /// ⚠ 转场中点才真正打开 CampaignPanel ， 用户看到的顺序是
         ///   "特效盖住屏幕 → 换页 → 特效退去露出节点地图（并开始写字开场）"。
         /// </summary>
         // 节点地图本幕背景（与 CampaignPanel 的 Img_MapBg 同一张，做转场贯穿底图用）
@@ -215,8 +215,8 @@ namespace WanXiang.Modules.UI
             var r = WanXiang.Run.RunSave.Current;
             int act = r != null ? Mathf.Clamp(r.Act, 1, 5) : 1;
             Debug.Log("[Home] 出征 → 播转场 act=" + act + " kind=" + UiTransition.KindForAct(act));
-            // ★ 遮盖层用**节点地图本幕的背景图**当底 ⇒ 转场盖住时就是同一张底图，
-            //   退场淡出露出的也是它 ⇒ 全程一张底图、不跳变
+            // ★ 遮盖层用**节点地图本幕的背景图**当底 ， 转场盖住时就是同一张底图，
+            //   退场淡出露出的也是它 ， 全程一张底图、不跳变
             //   （用户 2026-10-12：'因为转场完又有一个背景图，能不能把这个背景图贯穿'）。
             // tag=Home2Map：与「开始→主界面」链路在 Console 里可区分，互不混淆
             UiTransition.PlayAuto(act, () => OpenPanelAsync<CampaignPanel>().Forget(),
@@ -230,7 +230,7 @@ namespace WanXiang.Modules.UI
         /// </summary>
         private void OnDisable()
         {
-            // 主城被隐藏（进战斗等）⇒ 停掉 3D 层：相机与 3D 内容挂在 Canvas 之外，
+            // 主城被隐藏（进战斗等）， 停掉 3D 层：相机与 3D 内容挂在 Canvas 之外，
             // 不随面板隐藏，必须显式停，否则在别的界面后面空转。
             if (_scene3D != null) _scene3D.Running = false;
         }

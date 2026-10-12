@@ -130,9 +130,9 @@ namespace WanXiang.Campaign
         public readonly Dictionary<Element, float> EnemyElemWeak = new Dictionary<Element, float>();
 
         // ---- 阻尼（2026-09-29 平衡自检后加）----
-        //   遗物是**纯累乘**：+8% 与 +6% ⇒ ×1.08×1.06。件数一多就指数爆炸
+        //   遗物是**纯累乘**：+8% 与 +6% ， ×1.08×1.06。件数一多就指数爆炸
         //   （自检实测：幕五 3 件 20% → 6 件 95%，等于一个 6 件的硬开关）。
-        //   软上限：前几件几乎全额生效，越叠收益越薄 ⇒ 把"碾压阈值"推到 8~10 件。
+        //   软上限：前几件几乎全额生效，越叠收益越薄 ， 把"碾压阈值"推到 8~10 件。
         public const float MaxPlayerMul = 2.20f;   // 全队倍率软上限
         public const float MinEnemyMul = 0.45f;    // 敌方倍率软下限
         public const float MaxUnitMul = 2.00f;     // 单只（五行/定位/异兽）倍率软上限
@@ -187,7 +187,7 @@ namespace WanXiang.Campaign
         {
             // ⚠ 必须在静态构造函数里 Build：下面的 Elements/Roles/… 是**内联**静态数组，
             //   若写成 `All = Build()` 的字段初始化器，它会按声明顺序先于那些数组执行
-            //   ⇒ Build() 里读到 null 数组 ⇒ TypeInitializationException（实测踩过）。
+            //   ， Build() 里读到 null 数组 ， TypeInitializationException（实测踩过）。
             All = Build();
             foreach (var d in All) _byId[d.Id] = d;
         }
@@ -357,7 +357,7 @@ namespace WanXiang.Campaign
             return trait;
         }
 
-        // ---- 技能改写小工具（EffectAtom 是 struct ⇒ 改了必须写回数组，别只改副本）----
+        // ---- 技能改写小工具（EffectAtom 是 struct ， 改了必须写回数组，别只改副本）----
 
         private static void Retarget(SkillDef sk, TargetSelector t)
         {
@@ -433,7 +433,7 @@ namespace WanXiang.Campaign
                 a.IgnoreShield = false;
                 a.StatusId = null;
                 a.StatKey = null;
-                if (!hadAmount) a.PercentOfMaxHp = 0.15f;   // 原本无威力（纯状态/护盾）⇒ 给个基础治疗量
+                if (!hadAmount) a.PercentOfMaxHp = 0.15f;   // 原本无威力（纯状态/护盾）， 给个基础治疗量
                 sk.Effects[i] = a;
             }
         }
@@ -700,7 +700,7 @@ namespace WanXiang.Campaign
             into.Add(role.ToString());
         }
 
-        /// <summary>单个遗物在抽取里的权重：作用域命中队伍 ⇒ <paramref name="teamWeight"/>，否则 1。</summary>
+        /// <summary>单个遗物在抽取里的权重：作用域命中队伍 ， <paramref name="teamWeight"/>，否则 1。</summary>
         private static int WeightOf(RelicDef d, ICollection<string> teamScopes, int teamWeight)
         {
             if (teamScopes != null && teamScopes.Count > 0 && !string.IsNullOrEmpty(d.ScopeId)

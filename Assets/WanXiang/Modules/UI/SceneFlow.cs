@@ -58,7 +58,7 @@ namespace WanXiang.Modules.UI
         public static bool IsFinaleBattle;
 
         /// <summary>
-        /// 「登天阙 ⇒ 进入第 5 幕天阙图」的跨场景标记：TrialPanel 置位，
+        /// 「登天阙 ， 进入第 5 幕天阙图」的跨场景标记：TrialPanel 置位，
         /// MainSceneEntry 在主城加载完成后消费并直接打开节点图。
         /// （不能在 TrialPanel 里直接切面板：它是 Overlay 层，关闭时栈重算会把新面板一起判掉。）
         /// </summary>

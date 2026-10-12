@@ -30,7 +30,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private RectTransform _nodesRoot; // Map_Nodes    24 个烘焙节点
         [SerializeField] private Image      _marker;       // Img_Flag     旅行者小旗
         [SerializeField] private Image      _far;          // Img_Far      远山层（大气透视，视差最慢）
-        [SerializeField] private Image      _near;         // Img_Near     近景层（视差最快 ⇒ 伪3D）
+        [SerializeField] private Image      _near;         // Img_Near     近景层（视差最快 ， 伪3D）
         [SerializeField] private Image      _finale;       // Img_Finale   终幕「归墟之门」（仅 act≥5 显示）
         [SerializeField] private TMP_Text   _label;        // Tmp_MapLabel 中央文案
 
@@ -108,7 +108,7 @@ namespace WanXiang.Modules.UI
             _finale.gameObject.SetActive(finale);
 
             // ⚠ 2026-10-11 地图加长（1320→1600）：归墟之门原本是 prefab 里写死的
-            //   anchoredPosition.x = 628（按旧宽度调好的），加长后会脱离右端 ⇒ 改成按
+            //   anchoredPosition.x = 628（按旧宽度调好的），加长后会脱离右端 ， 改成按
             //   实际宽度换算贴到右端内侧，保证任何宽度下都跟着走。
             if (finale)
             {
@@ -235,7 +235,7 @@ namespace WanXiang.Modules.UI
                 _par.anchoredPosition = _hoverSmooth * _shiftPx + drift;
             }
 
-            // 伪3D：远山慢、近景快 ⇒ 悬浮/漂移时三层错动产生纵深
+            // 伪3D：远山慢、近景快 ， 悬浮/漂移时三层错动产生纵深
             if (_far != null)
                 _far.rectTransform.anchoredPosition = _farBase +
                     new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _farParallax)

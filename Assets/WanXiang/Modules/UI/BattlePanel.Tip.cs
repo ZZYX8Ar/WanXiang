@@ -41,7 +41,7 @@ namespace WanXiang.Modules.UI
             _tipPanel.SetParent(transform, false);           // 挂在本面板下，不受操作区显隐影响
             // ★ 左上角锚定（pivot 也左上）：高度随内容自动向下生长，文字永远从左上角起排
             //   （用户 2026-10-12："悬浮面板的字位置会动来动去，从左上角对齐，多的往下加不就行了"）。
-            //   之前固定 260 高 + 左中 pivot ⇒ 长文本溢出、短文本留白，内容一变视觉就乱跳。
+            //   之前固定 260 高 + 左中 pivot ， 长文本溢出、短文本留白，内容一变视觉就乱跳。
             _tipPanel.anchorMin = _tipPanel.anchorMax = new Vector2(0f, 1f);
             _tipPanel.pivot = new Vector2(0f, 1f);
             _tipPanel.sizeDelta = new Vector2(430f, 100f);   // 宽度固定；高度由 ContentSizeFitter 撑开
@@ -90,9 +90,9 @@ namespace WanXiang.Modules.UI
         private void ShowComboTip()
         {
             if (_tipPanel == null || _tipText == null) return;
-            // ★ 防抖（与 ShowSkillTip 同款）：同一槽位且面板已显示 ⇒ 直接返回。
+            // ★ 防抖（与 ShowSkillTip 同款）：同一槽位且面板已显示 ， 直接返回。
             //   反复 PointerEnter 会 Kill+重建 DOTween Sequence（1 容器 + 3 Tweener），
-            //   淡入永远走不完 ⇒ 表现就是"连携悬浮提示有时候不显示"（用户报障）。
+            //   淡入永远走不完 ， 表现就是"连携悬浮提示有时候不显示"（用户报障）。
             if (_tipShowingSlot == 90 && _tipPanel.gameObject.activeSelf) return;
             _tipShowingSlot = 90;          // 连携（不复用战记槽位）
             var combos = _play != null ? _play.AvailableCombos : null;
@@ -104,7 +104,7 @@ namespace WanXiang.Modules.UI
                 title = "连携·" + c.Name;
                 body = c.Note;
                 // ★ 伤害实算（用户 2026-09-28：可发动时"没看见描述伤害"）：连携是**固定系数、无随机**，
-                //   与 ExecuteCombo 完全同公式 RoundDamage(攻击 × Power) ⇒ 面板数字 = 实战数字。
+                //   与 ExecuteCombo 完全同公式 RoundDamage(攻击 × Power) ， 面板数字 = 实战数字。
                 if (pendingUnit != null)
                     body += "\n伤害实算：每个目标 " + WanXiang.Battle.Core.CoreMath.RoundDamage(pendingUnit.Attack * c.Power)
                           + " 点（主兽攻击 " + (int)pendingUnit.Attack + " × " + (c.Power * 100f).ToString("0") + "%）";
@@ -119,16 +119,16 @@ namespace WanXiang.Modules.UI
                 var why = pendingUnit != null && _play.State != null
                     ? ComboRules.WhyNot(_play.State, pendingUnit)
                     : "没有待令单位";
-                body = "两只特定异兽同场时解锁的双人合击（例如：句芒+任何木属性伙伴 ⇒ 青阳共鸣）。\n主兽【必须站在九宫格中宫（中间格）】才能发动。\n\n当前："
+                body = "两只特定异兽同场时解锁的双人合击（例如：句芒 + 任何木属性伙伴，即青阳共鸣）。\n主兽【必须站在九宫格中宫（中间格）】才能发动。\n\n当前："
                      + (why ?? "可以发动")
                      + "\n\n发动时机：连携占用主兽本次行动。";
             }
 
             // ★ 修复（用户 2026-09-28 报障："连携可以释放时悬浮提示就没了"）：
-            //   原来填字+显示+淡入这段被缩进了 else 分支 ⇒ 可发动分支只赋值 title/body 就结束，
+            //   原来填字+显示+淡入这段被缩进了 else 分支 ， 可发动分支只赋值 title/body 就结束，
             //   面板根本没显示。两个分支都必须走到这里。
             _tipText.text = "<size=26><b>" + title + "</b></size>\n" + body;
-            // 内容变了 ⇒ 立即按新文本重算面板高度（左上锚定下向下生长），避免当帧还是旧尺寸
+            // 内容变了 ， 立即按新文本重算面板高度（左上锚定下向下生长），避免当帧还是旧尺寸
             UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(_tipPanel);
 
             _tipPanel.gameObject.SetActive(true);
@@ -198,7 +198,7 @@ namespace WanXiang.Modules.UI
                 if (sk != null)
                 {
                     if (!string.IsNullOrEmpty(sk.Name)) title = sk.Name;
-                    // ★ 用户要求：面板数字要与实战**对得上** ⇒ 伤害走**战斗公式实算**：
+                    // ★ 用户要求：面板数字要与实战**对得上** ， 伤害走**战斗公式实算**：
                     //   对场上每个存活敌人用 BattleSimulator.ComputeDamage 各算一遍
                     //   （含五行克制 / 目标防御 / 天时），显示**区间**；暴击是随机的，单独标出。
                     //   ⚠ 公式与战斗同源（同一个 ComputeDamage），不产生第二份实现。
@@ -211,13 +211,13 @@ namespace WanXiang.Modules.UI
                     else if (WanXiang.Battle.Core.SkillMath.TryDescribe(
                                  sk, (int)u.Attack, u.MaxHp, false, out string nums))
                     {
-                        // 场上没有存活敌人等算不了实算的情形 ⇒ 退回战前预览口径（基础值 + 免责说明）
+                        // 场上没有存活敌人等算不了实算的情形 ， 退回战前预览口径（基础值 + 免责说明）
                         desc = nums + (WanXiang.Battle.Core.SkillMath.HasDamage(sk)
                                      ? "（" + WanXiang.Battle.Core.SkillMath.DamageNote + "）" : "");
                     }
                     else
                     {
-                        // 全是状态/驱散这类算不出点数的效果 ⇒ 退回内容原文
+                        // 全是状态/驱散这类算不出点数的效果 ， 退回内容原文
                         desc = string.IsNullOrEmpty(sk.Description) ? "（暂无描述）" : sk.Description;
                         // 原文里可能出现百分比，此时才需要那句解释
                         if (desc.Contains("%"))
@@ -253,7 +253,7 @@ namespace WanXiang.Modules.UI
             }
 
             _tipText.text = "<size=26><b>" + title + "</b></size>\n" + body;
-            // 内容变了 ⇒ 立即按新文本重算面板高度（左上锚定下向下生长），避免当帧还是旧尺寸
+            // 内容变了 ， 立即按新文本重算面板高度（左上锚定下向下生长），避免当帧还是旧尺寸
             UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(_tipPanel);
 
             _tipPanel.gameObject.SetActive(true);
@@ -267,7 +267,7 @@ namespace WanXiang.Modules.UI
 
         /// <summary>
         /// 技能预览：把"会被作用到的九宫格格子"点亮 —— 解决"打谁 / 给谁治盾"看不见的问题。
-        /// 敌方格暖红、"我方格柔绿；随机类目标（RandomEnemy）无法预测 ⇒ 点亮该侧全部存活格。
+        /// 敌方格暖红、"我方格柔绿；随机类目标（RandomEnemy）无法预测 ， 点亮该侧全部存活格。
         /// ⚠ 目标预测走 <see cref="WanXiang.Battle.Core.BattleSimulator.PreviewTargets"/>
         ///   （只读、不掷骰），**不在这里另写一套目标选择逻辑**（否则必然与实战漂移）。
         /// </summary>

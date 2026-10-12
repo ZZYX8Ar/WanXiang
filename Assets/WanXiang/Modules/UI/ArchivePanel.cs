@@ -5,9 +5,9 @@
 //    · 顶部五行分类 tab（全部 / 木 / 火 / 土 / 金 / 水）—— 与图鉴、异兽培养一致；
 //      五行 == 剧情文档的「五册」，所以按五行筛就是按册筛。
 //    · 网格卡片（模板 Item_BeastCard 克隆）：左 = 异兽立绘，右 = 6 个待点亮碎片格；
-//      收集到第 N 片 ⇒ 第 N 格自动点亮。
-//    · 点击**已点亮**的碎片 ⇒ 弹剧情面板（章节标题 + 正文 2~3 句）。
-//    · 集齐前 3 片（MetaState.AwakenSoulThreshold）⇒ 卡片上「领取材料」可点，
+//      收集到第 N 片 ， 第 N 格自动点亮。
+//    · 点击**已点亮**的碎片 ， 弹剧情面板（章节标题 + 正文 2~3 句）。
+//    · 集齐前 3 片（MetaState.AwakenSoulThreshold）， 卡片上「领取材料」可点，
 //      领到该兽的**专属材料**（**进化**的前置；领材料是附加，主线是看剧情）。
 //
 //  ⚠ 铁律（用户反复强调）：**所有 UI 节点都在 prefab 里**，本类只负责填数据与显隐 ——
@@ -114,7 +114,7 @@ namespace WanXiang.Modules.UI
                 var b = all[i];
                 if (b == null) continue;
                 // ⚠ 五行筛选必须走 ElementTabs（Element 枚举是 None=0/Wood=1/…，
-                //   自己推 `tab - 1` 会把「木」映射到 None ⇒ 列表空白，踩过）。
+                //   自己推 `tab - 1` 会把「木」映射到 None ， 列表空白，踩过）。
                 if (!ElementTabs.Matches(b.Element, _tab)) continue;
                 BuildCard(b, meta);
             }

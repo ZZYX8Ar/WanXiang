@@ -5,7 +5,7 @@
 //  为音频单独引入会把架构劈成两半；AudioKit 的价值在设计而非代码）：
 //    · Sound / Music **两路音量**，各自独立、立即生效、自动持久化
 //    · 音效走**池化 AudioSource**（可同时播多声，不互相打断）
-//    · 取不到音频资源 ⇒ **静默跳过**（绝不报错、绝不卡流程）
+//    · 取不到音频资源 ， **静默跳过**（绝不报错、绝不卡流程）
 //    · 任何地方都通过静态入口 `AudioSystem.*` 调用，不需要在场景里摆对象
 //
 //  资源约定（文件名 = id，丢进目录即生效）：
@@ -38,7 +38,7 @@ namespace WanXiang.Framework.Audio
         private static bool _loaded;
         private static AudioHost _host;
         /// <summary>⛔ 建宿主期间的护栏： 会**同步**执行新组件的 Awake，
-        /// 而那一刻  还没被赋值 ⇒ Awake 里若再读 AudioSystem 的属性就会**无限递归**
+        /// 而那一刻  还没被赋值 ， Awake 里若再读 AudioSystem 的属性就会**无限递归**
         /// （实测：StackOverflowException）。有了它，创建过程中任何重入都会直接返回。</summary>
         private static bool _creatingHost;
         private static readonly Dictionary<string, AudioClip> _sfxCache = new Dictionary<string, AudioClip>();
@@ -168,7 +168,7 @@ namespace WanXiang.Framework.Audio
                 _pool.Add(s);
             }
             // ⛔ 这里**绝不能**读 AudioSystem.SfxVolume / MusicVolume：
-            //   此刻静态字段尚未完成初始化（宿主正在被创建）⇒ 会递归回 EnsureLoaded ⇒ 栈溢出。
+            //   此刻静态字段尚未完成初始化（宿主正在被创建）， 会递归回 EnsureLoaded ， 栈溢出。
             //   音量统一由 AudioSystem 在宿主建好后调 Apply() 设置。
         }
 

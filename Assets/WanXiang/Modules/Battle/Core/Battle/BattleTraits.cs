@@ -9,7 +9,7 @@
 //    · 坚韧 tenacity    生命 +25%，速度 -15%        （Apply 直接改面板属性）
 //    · 锐锋 sharpedge   攻击 +25%；受真实伤害 +20%   （BattleUnit.TraitSharpedge）
 //    · 疾影 swiftshadow 速度 +25%；受控制时长 +1     （BattleUnit.TraitSwiftshadow）
-//    · 厚壁 thickwall   防御 +25%；无法被治疗        （BattleUnit.NoHeal ⇒ 治疗量直接为 0）
+//    · 厚壁 thickwall   防御 +25%；无法被治疗        （BattleUnit.NoHeal ， 治疗量直接为 0）
 //    · 复苏 revive      阵亡后以 30% 生命复活 1 次    （复用惊蛰虫卵 Egg*）
 //    · 吞噬 devour      行动时剥离对侧 1 个增益，自身每回合 -4% 生命（BattleSimulator.DevourAfterAction）
 //

@@ -4,15 +4,15 @@
 //  ⛔ 为什么从 3D 改成 UGUI（用户 2026-10-11："元素应该显示在中央地图的前面，
 //     不能被它挡住"）：
 //     UIRoot 的 Canvas 是 ScreenSpaceOverlay，**Overlay Canvas 永远渲染在所有
-//     相机之上** ⇒ 3D 相机里的内容（云/鸟/花草）永远在地图**后面**，
+//     相机之上** ， 3D 相机里的内容（云/鸟/花草）永远在地图**后面**，
 //     想显示在地图前面是**不可能**的。要"在地图前面"就必须待在 UI 层里。
 //
 //  ✅ 结构：Panel_Home 下两个铺满层，靠 siblingIndex 决定前后关系
 //       Root_HomeBack   （紧随 Img_Plate，在地图**之前**）→ 背景图 + 雾
 //       Root_HomeNature （最后一个，在地图**之后**）→ 云/鸟/蝴蝶/植被/水/雨雪/闪电
-//     ⇒ 背景在地图后面、动态元素在地图前面，两边都能看见。
+//     ， 背景在地图后面、动态元素在地图前面，两边都能看见。
 //
-//  ⛔ 本项目禁用 ParticleSystem（内置管线材质缺失 ⇒ 渲染成洋红）——
+//  ⛔ 本项目禁用 ParticleSystem（内置管线材质缺失 ， 渲染成洋红）——
 //     全部用 Image（本文件）/ SpriteRenderer（战斗侧用）。
 // ============================================================================
 
@@ -100,7 +100,7 @@ namespace WanXiang.Modules.UI
             // 背景层：紧跟 Img_Plate → 在地图**之前**（更靠后渲染 = 被地图盖住，符合"背景"语义）
             _backRoot = EnsureLayer("Root_HomeBack", 1);
             // 氛围层：插在 Root_Hero（中央地图）**之后**、底部按钮**之前**
-            //   ⇒ 元素盖住地图（用户要的"显示在地图前面"），但不会挡按钮。
+            //   ， 元素盖住地图（用户要的"显示在地图前面"），但不会挡按钮。
             int heroIdx = -1;
             var hero = transform.Find("Root_Hero");
             if (hero != null) heroIdx = hero.GetSiblingIndex();
@@ -561,7 +561,7 @@ namespace WanXiang.Modules.UI
             tex.Apply();
             _flash.sprite = Sprite.Create(tex, new Rect(0, 0, 2, 2), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
             // ⛔ MakeImage 默认 preserveAspect=true，而闪电是 2x2 白纹理 + 全屏矩形
-            //   ⇒ 保持 1:1 后不铺满，而是缩成一个"居中的白色小方块"
+            //   ， 保持 1:1 后不铺满，而是缩成一个"居中的白色小方块"
             //   （用户 2026-10-12："主界面突然闪一下，看到一个白色的小面板"）。
             _flash.preserveAspect = false;
             _flash.type = Image.Type.Simple;

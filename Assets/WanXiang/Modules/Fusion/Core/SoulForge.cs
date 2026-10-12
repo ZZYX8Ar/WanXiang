@@ -5,7 +5,7 @@
 //    是本工程补的，改动前先想清楚对内容量的影响）：
 //
 //  GDD 4.1：「灵品 Rare 易获得，是**融合与技能草稿的消耗素材**」；
-//  GDD 1 章：「收集异兽、融合灵魂」。⇒ 灵魂从异兽**派生**：
+//  GDD 1 章：「收集异兽、融合灵魂」。， 灵魂从异兽**派生**：
 //  每只异兽都有对应的灵魂，融合 = 把一只异兽的「魂」注进另一只异兽的「体」。
 //  这与美术方案 2 章「N 张宿主图 + M 个灵魂色板 = N×M 外观，资源量 N+M」
 //  完全同构 —— 内容侧零新增美术。
@@ -42,7 +42,7 @@ namespace WanXiang.Fusion
         /// </summary>
         /// <param name="beast">来源异兽。</param>
         /// <param name="ordinal">该异兽在内容表中的序号（0 起），用于稳定选魄名。
-        /// 同一只异兽无论哪次导入都传同一个序号 ⇒ 魄名稳定。</param>
+        /// 同一只异兽无论哪次导入都传同一个序号 ， 魄名稳定。</param>
         public static SoulDef Derive(BeastDef beast, int ordinal)
         {
             var pool = EpithetPool(beast.Element);

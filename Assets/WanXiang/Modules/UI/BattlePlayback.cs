@@ -55,8 +55,8 @@ namespace WanXiang.Modules.UI
 
         /// <summary>
         /// 与 <see cref="Player"/> 一一对应的**每只异兽**的劫象 id（遗物「授予劫象」用）。
-        /// 空串 / 列表比 Player 短 ⇒ 该单位不额外挂劫象（仍可能吃 PlayerReviveOn 的「复苏」）。
-        /// ⚠ DeployEntry 只有一个劫象槽 ⇒ 被授予劫象的单位**不再**挂「复苏」（打算给玩家的取舍）。
+        /// 空串 / 列表比 Player 短 ， 该单位不额外挂劫象（仍可能吃 PlayerReviveOn 的「复苏」）。
+        /// ⚠ DeployEntry 只有一个劫象槽 ， 被授予劫象的单位**不再**挂「复苏」（打算给玩家的取舍）。
         /// </summary>
         public List<string> PlayerTrait = new List<string>();
 
@@ -141,7 +141,7 @@ namespace WanXiang.Modules.UI
         /// 决策点序号：**每产生一个新的"等待下令"就自增**。
         /// ⚠ UI 必须用它判断"要不要刷新操作区"，不要用"待令单位 id"：
         ///   同一单位连续两次决策（先手连击 / 追击）时 id 不变，
-        ///   用 id 判断会漏刷 ⇒ 操作区停在上一次被隐藏的状态 ⇒ 玩家点不到技能，看起来是卡死（实测踩过）。
+        ///   用 id 判断会漏刷 ， 操作区停在上一次被隐藏的状态 ， 玩家点不到技能，看起来是卡死（实测踩过）。
         /// </summary>
         public int DecisionSeq { get; private set; }
 
@@ -169,7 +169,7 @@ namespace WanXiang.Modules.UI
                 float perMul = (req.PlayerMulPer != null && i < req.PlayerMulPer.Count)
                     ? req.PlayerMulPer[i] : 1f;
                 var pe = DeployEntry.Player(req.Player[i], cell).WithMul(req.PlayerMul * perMul);
-                // ★ 遗物劫象：该单位被授予的劫象优先（只有一个槽 ⇒ 就不再挂「复苏」）；
+                // ★ 遗物劫象：该单位被授予的劫象优先（只有一个槽 ， 就不再挂「复苏」）；
                 //   否则吃全局的「复活 1 次」（BattleFactory.Deploy 会据此设虫卵复活）。
                 string granted = (req.PlayerTrait != null && i < req.PlayerTrait.Count) ? req.PlayerTrait[i] : null;
                 if (!string.IsNullOrEmpty(granted)) pe = pe.WithTrait(granted);
@@ -318,7 +318,7 @@ namespace WanXiang.Modules.UI
             else
             {
                 _awaiting = true;     // 有单位等待下令
-                DecisionSeq++;        // ★ 新决策点 ⇒ 序号自增（UI 据此刷新操作区，见 DecisionSeq 注释）
+                DecisionSeq++;        // ★ 新决策点 ， 序号自增（UI 据此刷新操作区，见 DecisionSeq 注释）
             }
         }
 
