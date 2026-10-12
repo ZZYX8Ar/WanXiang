@@ -66,8 +66,39 @@ namespace WanXiang.Battle.Core
         }
         public static void UnitKilled(BattleState st, BattleUnit killer, BattleUnit victim)
         {
+            if (victim != null)
+            {
+                if (victim.DeathReported) return;   // 一次死亡只报一次（防重复 Death 事件 / 重复钩子）
+                victim.DeathReported = true;
+            }
             if (st.Hooks.Count == 0) return;
             for (int i = 0; i < st.Hooks.Count; i++) st.Hooks[i].OnUnitKilled(st, killer, victim);
+        }
+
+        /// <summary>
+        /// 死亡对账（每回合末调用）：扫描战斗名册里「已阵亡但从未上报」的单位，
+        /// 补发 <see cref="BattleEventKind.Death"/> 事件并派发 <see cref="UnitKilled"/>。
+        /// <para>
+        /// 为什么必须要它：共鸣分摊（<c>DamageSplitHook</c>）/ 伤害反弹 / 连携 / 天时 / 棋盘结算等
+        /// 路径**直接调 <c>TakeDamage</c> 扣血、不经过完整伤害管线** ⇒ 若没人补报，KillLinkHook
+        /// 等同命 / 假死 / 击杀成长钩子收不到阵亡信号（用户 2026-10-12 报：双子被共鸣分摊磨死，
+        /// 不复活、也没"倒下"提示，只因分摊扣血那一步既不发 Death 也不调 UnitKilled）。
+        /// </para>
+        /// 幂等：靠 <see cref="BattleUnit.DeathReported"/> 去重；正常击杀路径（Damage.cs）已上报的
+        /// 单位不会被重复补报。
+        /// </summary>
+        public static void SweepDeaths(BattleState st)
+        {
+            if (st == null || st.IsOver || st.Hooks.Count == 0) return;
+            var all = st.AllUnits;   // 战斗名册（双子等预置单位都在这；_allEver 仅表现层）
+            for (int i = 0; i < all.Count; i++)
+            {
+                var u = all[i];
+                if (u == null || u.IsAlive || u.DeathReported) continue;
+                st.Log.Add(st.Turn, BattleEventKind.Death, targetId: u.RuntimeId,
+                           note: $"{u.DisplayName} 阵亡");
+                UnitKilled(st, null, u);   // 内部会置 DeathReported
+            }
         }
     }
 

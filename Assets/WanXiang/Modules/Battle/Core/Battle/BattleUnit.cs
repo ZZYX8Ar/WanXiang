@@ -119,6 +119,15 @@ namespace WanXiang.Battle.Core
         public bool Invulnerable;
 
         /// <summary>
+        /// 本次阵亡是否已向钩子系统上报（<c>BattleHooks.UnitKilled</c>）。
+        /// 用于「死亡对账」：有些伤害路径（共鸣分摊 DamageSplitHook / 伤害反弹 / 连携 / 天时 /
+        /// 棋盘结算）**直接扣血、不走完整伤害管线** ⇒ 必须由 <c>BattleHooks.SweepDeaths</c> 兜底补报，
+        /// 否则 KillLinkHook 等同命/假死/击杀成长钩子收不到阵亡信号（双子被分摊磨死不复活、无提示）。
+        /// 复活（<see cref="ReviveAtHp"/> / <see cref="SetHp"/> 回到正血）时复位。
+        /// </summary>
+        public bool DeathReported;
+
+        /// <summary>
         /// 本回合是否还有一次**额外行动**（溟鲲「深潜」等阶段技）。
         /// 由钩子在回合始置位，<c>BattleSimulator.Steps</c> 的行动循环在它常规行动后再执行一次。
         /// 用"标志"而不是"复制一套行动逻辑" —— 额外行动必须与常规行动走完全相同的规则。
@@ -320,6 +329,7 @@ namespace WanXiang.Battle.Core
             Modifiers.Clear();
             EggTurnsLeft = 0;
             Hp = CoreMath.Clamp(hp, 1, MaxHp);
+            DeathReported = false;                  // 复活 ⇒ 复位上报标记，再死能再报
         }
 
         public bool CanBeHealed
@@ -539,6 +549,7 @@ namespace WanXiang.Battle.Core
         public void SetHp(int hp)
         {
             Hp = CoreMath.Clamp(hp, 0, MaxHp);
+            if (Hp > 0) DeathReported = false;      // 拉回正血（假死/冰晶救援）= 未死 ⇒ 复位上报标记
         }
 
         // ================================================================

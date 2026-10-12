@@ -163,6 +163,9 @@ namespace WanXiang.Modules.UI
         {
             if (_statusTip == null || _statusTipRows == null || _statusTipItem == null) return;
 
+            // ★ 先激活：行高按"文本实宽"自适应要求布局是活的（inactive 时 rect 宽度会失准）。
+            _statusTip.gameObject.SetActive(true);
+
             string ids = null;
             if (_stage != null) _stage.TryGetViewStatusIds(unitId, out ids);
 
@@ -189,7 +192,7 @@ namespace WanXiang.Modules.UI
                     AddTipRow(nm, def.Description);
                 }
             }
-            _statusTip.gameObject.SetActive(true);
+            FitStatusTipHeight();   // ★ 面板高度随行数/文本高度向下生长（不再固定 300 高、内容溢出）
         }
 
         private void HideStatusTip()
@@ -268,31 +271,110 @@ namespace WanXiang.Modules.UI
                 local.y - parentRt.rect.height * 0.5f);
         }
 
-        /// <summary>清掉上次克隆出来的行（模板行本身留着，它一直是 inactive）。</summary>
+        // 行排版常量：名称一行高度 / 行间距 / 描述最小高度
+        private const float TipNameH = 26f;
+        private const float TipRowGap = 6f;
+        private const float TipDescMinH = 22f;
+
+        /// <summary>
+        /// 清掉上次克隆出来的行（模板行本身留着，它一直是 inactive）。
+        /// ⛔ `Destroy` 是**延迟到帧末**的：若不立刻失活/脱离，同一帧里 <see cref="AddTipRow"/>
+        ///   统计"已用行"时会把待销毁的旧行也算进去 ⇒ 新区块整体向下错位（用户报"字乱跑"）。
+        /// </summary>
         private void ClearTipRows()
         {
             for (int i = _statusTipRows.childCount - 1; i >= 0; i--)
             {
                 var c = _statusTipRows.GetChild(i);
                 if (c == _statusTipItem) continue;
+                c.gameObject.SetActive(false);   // 立刻失活（不再被计入"已用行"）
+                c.SetParent(null, false);        // 立刻脱离父节点（Destroy 帧末才生效，仍占 childCount）
                 UnityEngine.Object.Destroy(c.gameObject);
             }
         }
 
+        /// <summary>
+        /// 加一行状态（名称 + 描述），**左上对齐、行高随文本自适应、自上而下堆叠**。
+        /// 用户 2026-10-12："从左上角对齐，多的往下加" —— 不再用固定 44 高（长描述会溢出叠行）。
+        /// 高度用 <see cref="TMP_Text.GetPreferredValues(string,float,float)"/> 直接按文本量出来，
+        /// 不依赖布局系统的重建时机（面板刚激活当帧也能量准）。
+        /// </summary>
         private void AddTipRow(string name, string desc)
         {
-            int used = 0;
+            // 已排下来的高度（只数真正显示的行；模板行 inactive 不计）
+            float y = 0f;
             for (int i = 0; i < _statusTipRows.childCount; i++)
-                if (_statusTipRows.GetChild(i).gameObject.activeSelf) used++;
+            {
+                var c = _statusTipRows.GetChild(i) as RectTransform;
+                if (c == null || c == _statusTipItem || !c.gameObject.activeSelf) continue;
+                y += c.sizeDelta.y + TipRowGap;
+            }
+
+            float rowW = _statusTipRows.rect.width;
+            if (rowW < 1f) rowW = 344f;              // 兜底：面板宽 360 − 左右内边距
+            float textW = Mathf.Max(rowW - 12f, 80f);
 
             var row = UnityEngine.Object.Instantiate(_statusTipItem, _statusTipRows);
             row.gameObject.SetActive(true);
-            row.anchoredPosition = new Vector2(0f, -used * 46f);
 
-            var nm = row.Find("Tmp_StatusName");
-            if (nm != null) { var t = nm.GetComponent<TMP_Text>(); if (t != null) t.text = name; }
-            var ds = row.Find("Tmp_StatusDesc");
-            if (ds != null) { var t2 = ds.GetComponent<TMP_Text>(); if (t2 != null) t2.text = desc; }
+            var nmRt = row.Find("Tmp_StatusName") as RectTransform;
+            var dsRt = row.Find("Tmp_StatusDesc") as RectTransform;
+
+            float nameH = TipNameH;
+            float descH = TipDescMinH;
+
+            if (nmRt != null)
+            {
+                nmRt.anchorMin = nmRt.anchorMax = new Vector2(0f, 1f);   // 左上
+                nmRt.pivot = new Vector2(0f, 1f);
+                nmRt.anchoredPosition = Vector2.zero;
+                nmRt.sizeDelta = new Vector2(textW, TipNameH);
+                var t = nmRt.GetComponent<TMP_Text>();
+                if (t != null)
+                {
+                    t.text = name;
+                    t.alignment = TextAlignmentOptions.TopLeft;
+                    nameH = Mathf.Max(TipNameH, t.GetPreferredValues(name, textW, 0f).y);
+                }
+            }
+
+            if (dsRt != null)
+            {
+                dsRt.anchorMin = dsRt.anchorMax = new Vector2(0f, 1f);   // 左上，接在名称下方
+                dsRt.pivot = new Vector2(0f, 1f);
+                dsRt.anchoredPosition = new Vector2(0f, -nameH);
+                var t2 = dsRt.GetComponent<TMP_Text>();
+                if (t2 != null)
+                {
+                    t2.text = desc;
+                    t2.alignment = TextAlignmentOptions.TopLeft;
+                    descH = Mathf.Max(TipDescMinH, t2.GetPreferredValues(desc, textW, 0f).y);
+                }
+                dsRt.sizeDelta = new Vector2(textW, descH);
+            }
+
+            row.anchorMin = row.anchorMax = new Vector2(0f, 1f);         // 行顶部锚定 ⇒ 向下生长
+            row.pivot = new Vector2(0f, 1f);
+            row.sizeDelta = new Vector2(rowW, nameH + descH + 8f);
+            row.anchoredPosition = new Vector2(0f, -y);
+        }
+
+        /// <summary>把面板高度调到刚好包住标题 + 所有行（不再固定 300 高、内容溢出）。</summary>
+        private void FitStatusTipHeight()
+        {
+            if (_statusTip == null) return;
+            float rowsH = 0f;
+            for (int i = 0; i < _statusTipRows.childCount; i++)
+            {
+                var c = _statusTipRows.GetChild(i) as RectTransform;
+                if (c == null || c == _statusTipItem || !c.gameObject.activeSelf) continue;
+                rowsH += c.sizeDelta.y + TipRowGap;
+            }
+            float titleH = _statusTipTitle != null ? Mathf.Max(_statusTipTitle.preferredHeight, 30f) : 30f;
+            float target = titleH + rowsH + 28f;                        // 上下留白
+            target = Mathf.Min(target, Screen.height - 24f);            // 别高过屏幕
+            var sz = _statusTip.sizeDelta;
+            _statusTip.sizeDelta = new Vector2(sz.x, Mathf.Max(target, 120f));
         }
     }
 }

@@ -119,6 +119,10 @@ namespace WanXiang.Battle.Core
                 // ---- 4) 回合末（天时·回合末在 EndOfTurn 之后、TurnEnd 事件之前） ----
                 EndOfTurn(st);
                 PassiveHooks.ApplyTurnEnd(st);     // v2.1 P3b：回合末被动（回复类）
+                // ★ 死亡对账：把本回合内"被分摊/反弹/连携/天时/棋盘结算静默扣血致死"的
+                //   单位补报到钩子系统（否则双子被共鸣分摊磨死时 KillLinkHook 收不到信号）。
+                //   必须在 TurnEnd 之前 —— 双子复活窗口按 _deadTurn 起算，先登记再判窗口。
+                BattleHooks.SweepDeaths(st);
                 BattleHooks.TurnEnd(st);           // 首领战：回合末机制（硬性DPS灭团 / 双子复活判定 / 组装成长）
                 WeatherEndExtraActions(st, buf);   // 23 小寒：速度最高者额外普攻（判空短路）
                 WeatherResolver.ResolveTurnEnd(st);
