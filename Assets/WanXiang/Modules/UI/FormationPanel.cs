@@ -761,6 +761,33 @@ namespace WanXiang.Modules.UI
             if (_scrollRoster != null) _scrollRoster.enabled = on;
         }
 
+        // ---- 卡池"列表内=滚动 / 拖出=上阵"（见 RosterDragItem）----
+        /// <summary>把拖拽转发给卡池 ScrollRect（列表内拖动 = 滚动）。</summary>
+        public void RosterScrollInit(PointerEventData e)
+        {
+            if (_scrollRoster != null && _scrollRoster.enabled) _scrollRoster.OnInitializePotentialDrag(e);
+        }
+        public void RosterScrollBegin(PointerEventData e)
+        {
+            if (_scrollRoster != null && _scrollRoster.enabled) _scrollRoster.OnBeginDrag(e);
+        }
+        public void RosterScrollDrag(PointerEventData e)
+        {
+            if (_scrollRoster != null && _scrollRoster.enabled) _scrollRoster.OnDrag(e);
+        }
+        public void RosterScrollEnd(PointerEventData e)
+        {
+            if (_scrollRoster != null) _scrollRoster.OnEndDrag(e);
+        }
+
+        /// <summary>指针是否已离开卡池区域（离开 = 意图拖到棋盘上阵）。</summary>
+        public bool IsPointerOutsideRoster(Vector2 screenPos)
+        {
+            var rt = _scrollRoster != null ? _scrollRoster.transform as RectTransform : null;
+            if (rt == null) return true;
+            return !RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);
+        }
+
         /// <summary>空手点击格子：有兽 → 下阵。</summary>
         public void OnCellClicked(int cell)
         {
@@ -833,16 +860,19 @@ namespace WanXiang.Modules.UI
                         return;
                     }
                 }
+                // ★ 落到**占用格** = 直接替换（换一只上去、原兽回卡池）—— 不算新增，满员也允许；
+                //   只有落到**空格**时才受"最多 5 只"限制（用户 2026-10-12 报"不同异兽替换不了"）。
+                bool occupied = _deployed[target] >= 0;
                 int used = 0;
                 for (int c = 0; c < _deployed.Length; c++) if (_deployed[c] >= 0) used++;
-                if (used >= MaxDeploy)
+                if (!occupied && used >= MaxDeploy)
                 {
                     Debug.Log("[FormationPanel] 最多上阵 " + MaxDeploy + " 只，请先下阵一只。");
                     _dragBeast = -1; _dragFromCell = -1;
                     CommitLayout();
                     return;
                 }
-                _deployed[target] = beastIndex;
+                _deployed[target] = beastIndex;   // 空格=上阵；占用格=替换（原兽自动回卡池）
             }
 
             _dragBeast = -1;
