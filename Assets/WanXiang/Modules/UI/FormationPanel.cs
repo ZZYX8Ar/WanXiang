@@ -71,6 +71,12 @@ namespace WanXiang.Modules.UI
         private int _dragBeast = -1;        // 从卡池拖出来的异兽序号（-1 = 不是）
         private int _dragFromCell = -1;     // 从哪个格子拖出来的（-1 = 不是）
 
+        // ---- 敌方情报（悬浮介绍）----
+        private System.Collections.Generic.List<WanXiang.Battle.Core.BeastDef> _enemyDefs;
+        /// <summary>本场我方总倍率（来自真实战斗请求 req.PlayerMul：含遗物 + 孵穴/天象等）。
+        /// ★ 原战力只按裸面板算，漏了这层 ⇒ 玩家看到的战力比实战低一大截（用户 2026-10-12 报障）。</summary>
+        private float _relicPlayerMul = 1f;
+
         protected override void OnCreate()
         {
             if (_imgCellHi != null) _imgCellHi.gameObject.SetActive(false);
@@ -83,6 +89,7 @@ namespace WanXiang.Modules.UI
             WireBondTips();
             WireCenterTip();
             WireWeatherTip();    // 右上角天时（含谷/生机等状态）说明
+            WireEnemyTips();     // 敌方阵容悬浮介绍（名称/五行定位/四维/图鉴描述）
         }
 
         protected override UniTask OnOpenAsync(object payload)
@@ -158,6 +165,8 @@ namespace WanXiang.Modules.UI
             if (!ok || req == null) return;
 
             var enemies = req.Enemy;
+            _enemyDefs = enemies;
+            _relicPlayerMul = req.PlayerMul > 0f ? req.PlayerMul : 1f;   // ★ 我方战力要乘它（含遗物）
             for (int i = 0; i < _imgEnemies.Length; i++)
             {
                 if (_imgEnemies[i] == null) continue;
@@ -376,9 +385,11 @@ namespace WanXiang.Modules.UI
                     // 与上面同一条不变量：索引可能超出当前 _all.Length
                     if (_all == null || idx < 0 || idx >= _all.Length) continue;
                     // ★ 真实战力（原来是 `1100 + idx*37` 的占位假值 ⇒ 与敌方那串不可比，用户看不懂）
-                    power += WanXiang.Battle.Core.BattlePower.Of(_all[idx]);
+                    // ★ 再乘本场总倍率（遗物 + 加成）⇒ 与实战/敌方同一把尺（用户 2026-10-12 报障）
+                    power += WanXiang.Battle.Core.BattlePower.Of(_all[idx], _relicPlayerMul);
                 }
-                _tmpPower.text = "我方总战力 " + power;
+                _tmpPower.text = "我方总战力 " + power
+                               + (Mathf.Abs(_relicPlayerMul - 1f) > 0.005f ? "（含遗物/加成）" : "");
             }
         }
 
@@ -527,6 +538,55 @@ namespace WanXiang.Modules.UI
                 body = "本场无天时（节点不在节气上或天气未翻译）。";
             }
             PresentBondTip("<size=24><b>" + title + "</b></size>\n" + body);
+        }
+
+        /// <summary>给敌方阵容缩略图挂悬浮：显示该敌人的介绍（名称 / 五行定位 / 四维 / 图鉴描述）。</summary>
+        private void WireEnemyTips()
+        {
+            if (_imgEnemies == null) return;
+            for (int i = 0; i < _imgEnemies.Length; i++)
+            {
+                var img = _imgEnemies[i];
+                if (img == null) continue;
+                img.raycastTarget = true;   // 缩略图必须能命中射线才能收到悬浮
+                var trg = img.gameObject.GetComponent<EventTrigger>();
+                if (trg == null) trg = img.gameObject.AddComponent<EventTrigger>();
+                int slot = 200 + i;         // 200+ 避开羁绊(0..7)/中宫(90)/天时(91)
+                var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+                enter.callback.AddListener(_ => ShowEnemyTip(slot - 200));
+                trg.triggers.Add(enter);
+                var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+                exit.callback.AddListener(_ => HideBondTip());
+                trg.triggers.Add(exit);
+            }
+        }
+
+        /// <summary>敌方单位介绍面板（走与羁绊/天时同一块 Root_BondTip）。</summary>
+        private void ShowEnemyTip(int i)
+        {
+            if (_bondTipPanel == null || _bondTipText == null) return;
+            int slot = 200 + i;
+            if (_bondTipSlot == slot && _bondTipPanel.gameObject.activeSelf) return;
+            _bondTipSlot = slot;
+
+            var d = (_enemyDefs != null && i >= 0 && i < _enemyDefs.Count) ? _enemyDefs[i] : null;
+            if (d == null) { HideBondTip(); return; }
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append(Cn.Of(d.Element)).Append('属').Append(" · ").Append(Cn.Of(d.Role));
+            if (WanXiang.Battle.Core.BossCatalog.Get(d.Id) != null) sb.Append(" · 首领");
+            sb.Append('\n');
+            sb.Append("生命 ").Append(d.BaseHp)
+              .Append("　攻 ").Append(d.BaseAtk)
+              .Append("　防 ").Append(d.BaseDef)
+              .Append("　速 ").Append(d.BaseSpeed);
+            string desc = !string.IsNullOrEmpty(d.Lore) ? d.Lore
+                        : (!string.IsNullOrEmpty(d.Codex) ? d.Codex : null);
+            if (!string.IsNullOrEmpty(desc)) sb.Append("\n\n").Append(desc);
+            if (!string.IsNullOrEmpty(d.Source)) sb.Append("\n\n出处：").Append(d.Source);
+            if (!string.IsNullOrEmpty(d.Quote)) sb.Append("\n「").Append(d.Quote).Append("」");
+
+            PresentBondTip("<size=24><b>" + d.DisplayName + "</b></size>\n" + sb);
         }
 
         private void ShowBondTip(int i)

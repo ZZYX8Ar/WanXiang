@@ -504,7 +504,7 @@ namespace WanXiang.EditorTools
             var tmpTotalPower = UIBuild.Tmp(UIBuild.Fixed(bottom, "Tmp_TotalPower", new Vector2(0f, 0.5f),
                 new Vector2(360, 56), new Vector2(130, 0)), "总战力 0", 34, UIBuild.Ink, TextAlignmentOptions.Left);
             var bAutoFill = UIBuild.MakeBtn(bottom, "Btn_AutoFill", new Vector2(1f, 0.5f),
-                new Vector2(230, 100), new Vector2(-560, 0), "托管", UIBuild.Card, 26f);
+                new Vector2(230, 100), new Vector2(-560, 0), "自动布阵", UIBuild.Card, 26f);
             var bClear = UIBuild.MakeBtn(bottom, "Btn_Clear", new Vector2(1f, 0.5f),
                 new Vector2(200, 100), new Vector2(-310, 0), "清空", UIBuild.Card, 26f);
             var bDeploy = UIBuild.MakeBtn(bottom, "Btn_Deploy", new Vector2(1f, 0.5f),

@@ -117,7 +117,9 @@ namespace WanXiang.Battle.Core
             _hitThisTurn.Clear();
             // ★ 首击减伤（白魍·金身 / 魍魉·隐遁 / 鸿蒙·混沌护持）——
             //   玩家必须知道"每回合第一击会被削"，否则会以为自己的爆发没用。
-            BossHint.SetOnBoss(st, "首击减伤：" + (_reduce * 100f).ToString("F0") + "%（每回合首次受伤）");
+            // ⚠ 用 **SetPart**（不是 Set）：同一只首领身上的多个机制提示要能共存
+            //   （例如白魍双子：首击减伤 + N 回合后复活）。用 Set 会整条覆盖、把别人的分段清掉。
+            BossHint.SetPartOnBoss(st, "fh", "首击减伤：" + (_reduce * 100f).ToString("F0") + "%（每回合首次受伤）");
         }
         public override void ModifyIncoming(BattleState st, BattleUnit src, BattleUnit dst, ref int dmg, Element el)
         {
@@ -363,6 +365,12 @@ namespace WanXiang.Battle.Core
             _windowTurns = windowTurns < 0 ? 0 : windowTurns;
         }
 
+        /// <summary>复活倒计时提示的分段 key（走 BossHint 分段，和"首击减伤"等共存）。</summary>
+        private const string HintKey = "kl";
+
+        /// <summary>窗口期内仍活着的那一只 —— 倒计时提示写在它头顶（死掉那只头顶是灰的，看不见）。</summary>
+        private BattleUnit Survivor => _pendingDead == null ? null : (_pendingDead == _a ? _b : _a);
+
         public override void OnUnitKilled(BattleState st, BattleUnit killer, BattleUnit victim)
         {
             if (victim != _a && victim != _b) return;
@@ -374,15 +382,31 @@ namespace WanXiang.Battle.Core
                 _deadTurn = st.Turn;
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                            note: $"双子同命：{victim.DisplayName} 倒下 —— {_windowTurns} 回合内击杀另一只可双杀，否则复活");
+                RefreshHint(st);   // ★ 立刻在存活那只头顶显示"N 回合后复活"（用户要能看见）
             }
             else
             {
                 // 窗口内另一只也倒下 ⇒ 双杀成立，两只都真死
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                            note: $"双子同命：双杀成立 —— {victim.DisplayName} 与 {_pendingDead.DisplayName} 同命陨落");
+                var s = Survivor;
+                if (s != null) BossHint.SetPart(st, s, HintKey, null);   // 双杀 ⇒ 不会复活，撤掉倒计时
                 _pendingDead = null;
                 _deadTurn = -1;
             }
+        }
+
+        /// <summary>回合始刷新倒计时（窗口期内每回合递减），玩家能一眼看到"还剩几回合复活"。</summary>
+        public override void OnTurnStart(BattleState st) { if (_pendingDead != null) RefreshHint(st); }
+
+        private void RefreshHint(BattleState st)
+        {
+            var s = Survivor;
+            if (s == null || !s.IsAlive) return;
+            int left = _windowTurns - (st.Turn - _deadTurn);
+            BossHint.SetPart(st, s, HintKey,
+                left > 0 ? $"{_pendingDead.DisplayName} 倒下：{left} 回合后复活"
+                         : $"{_pendingDead.DisplayName} 本回合复活");
         }
 
         public override void OnTurnEnd(BattleState st)
@@ -390,16 +414,20 @@ namespace WanXiang.Battle.Core
             if (_pendingDead == null) return;
             if (st.Turn - _deadTurn < _windowTurns) return;   // 窗口尚未结束，继续等玩家双杀
 
-            var other = _pendingDead == _a ? _b : _a;
-            if (other != null && other.IsAlive && !_pendingDead.IsAlive)
+            var other = Survivor;
+            if (other != null)
             {
-                _pendingDead.ReviveAtHp(CoreMath.Max(1, (int)(_pendingDead.MaxHp * _revivePct)));
-                // ★ 显式广播 Revive 事件（与 Action.cs 的灵卵复活同口径）：
-                //   之前只写 RoundResolve note ⇒ 舞台没有"复活"事件可处理、DeadBlend 不复位，
-                //   复活的双子可能仍以"灰尸"状态出现，玩家以为没复活（用户 2026-10-12 报障）。
-                st.Log.Add(st.Turn, BattleEventKind.Revive,
-                           actorId: _pendingDead.RuntimeId, targetId: _pendingDead.RuntimeId,
-                           note: $"双子同命：{_pendingDead.DisplayName} 以 {(_revivePct * 100f):F0}% 血复活");
+                if (other.IsAlive && !_pendingDead.IsAlive)
+                {
+                    _pendingDead.ReviveAtHp(CoreMath.Max(1, (int)(_pendingDead.MaxHp * _revivePct)));
+                    // ★ 显式广播 Revive 事件（与 Action.cs 的灵卵复活同口径）：
+                    //   之前只写 RoundResolve note ⇒ 舞台没有"复活"事件可处理、DeadBlend 不复位，
+                    //   复活的双子可能仍以"灰尸"状态出现，玩家以为没复活（用户 2026-10-12 报障）。
+                    st.Log.Add(st.Turn, BattleEventKind.Revive,
+                               actorId: _pendingDead.RuntimeId, targetId: _pendingDead.RuntimeId,
+                               note: $"双子同命：{_pendingDead.DisplayName} 以 {(_revivePct * 100f):F0}% 血复活");
+                }
+                BossHint.SetPart(st, other, HintKey, null);   // 窗口结束 ⇒ 撤掉倒计时分段
             }
             _pendingDead = null;
             _deadTurn = -1;
