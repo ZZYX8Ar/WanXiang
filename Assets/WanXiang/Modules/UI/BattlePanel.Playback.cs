@@ -111,7 +111,6 @@ namespace WanXiang.Modules.UI
                 if (_play.AwaitingCommand && _play.DecisionSeq != _lastDecisionSeq)
                 {
                     _lastDecisionSeq = _play.DecisionSeq;
-                    LogActionBarState("新决策点 seq=" + _play.DecisionSeq);   // ★ 临时诊断
                     RefreshActionBar();                   // 亮出操作区
                     RefreshComboButton();                 // 连携按钮同步刷一次
                     RefreshOrderList();                   // ⚠ 行动条也要刷 —— 等令期间没有事件推进，

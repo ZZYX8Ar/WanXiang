@@ -95,19 +95,42 @@ namespace WanXiang.Modules.UI
         private void Build()
         {
             var rt = gameObject.AddComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+
+            // ⛔⛔ 上一版的错（用户截图："Scene 场景左下角怎么这么小一个"）：
+            //    new GameObject 的 RectTransform 挂在 **DontDestroyOnLoad 根**下 ⇒ parent 为 null。
+            //    **根级 RectTransform 的 anchorMin/anchorMax 不生效**，实际尺寸由 sizeDelta 决定，
+            //    而它还是默认 (0,0) ⇒ Canvas 渲染区域几乎为 0，墨团/粒子绝大部分被裁掉，
+            //    只剩中间一小点（所以"开始→主界面只能看到一点"）。
+            // ✅ 正解：把转场层**挂到 UIRoot 主 Canvas 之下**，由子 Canvas(overrideSorting) 独立置顶。
+            //    这样尺寸/缩放口径完全继承主 Canvas（1280x720 参考分辨率），不用自己猜。
+            var host = FindMainCanvas();
+            if (host != null)
+            {
+                rt.SetParent(host.transform, false);
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero;
+                rt.offsetMax = Vector2.zero;
+                rt.localScale = Vector3.one;
+                rt.localPosition = Vector3.zero;
+            }
+            else
+            {
+                // 兜底：找不到主 Canvas 就自己做，但**必须显式给尺寸**
+                // （根级 RectTransform 的 sizeDelta 就是实际尺寸）。
+                rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+                rt.sizeDelta = new Vector2(1280f, 720f);
+            }
+
             _canvas = gameObject.AddComponent<Canvas>();
             _canvas.overrideSorting = true;
             _canvas.sortingOrder = 32000;          // 盖过所有面板
             gameObject.AddComponent<GraphicRaycaster>();
-            // 与 UIRoot 用同一参考分辨率，保证转场元素的尺寸口径和其它面板一致
-            var scaler = gameObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1280f, 720f);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
             _root = rt;
             gameObject.SetActive(true);
+            Debug.Log("[UiTransition] 层已建 host=" + (host != null ? host.name : "(独立Canvas)") +
+                      " size=" + rt.rect.width + "x" + rt.rect.height);
 
             // 全屏拦截层（透明但吃点击，防止转场期间误触）
             _blocker = NewImage("Blocker", 0);
@@ -117,6 +140,19 @@ namespace WanXiang.Modules.UI
             _blocker.rectTransform.offsetMax = Vector2.zero;
             _blocker.color = new Color(0f, 0f, 0f, 0f);
             _blocker.raycastTarget = false;        // 平时不吃；转场时打开
+        }
+
+        /// <summary>找 UIRoot 的主 Canvas（sortingOrder 最高的那个激活 Canvas）。</summary>
+        private Canvas FindMainCanvas()
+        {
+            Canvas best = null;
+            foreach (var c in Object.FindObjectsOfType<Canvas>())
+            {
+                if (c == null || !c.isActiveAndEnabled) continue;
+                if (c == _canvas) continue;
+                if (best == null || c.sortingOrder > best.sortingOrder) best = c;
+            }
+            return best;
         }
 
         private Image NewImage(string name, int order)

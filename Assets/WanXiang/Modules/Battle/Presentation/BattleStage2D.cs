@@ -415,13 +415,6 @@ namespace WanXiang.Battle.Presentation
             _ambient.Build(act);
 
             BuildBoard("BoardP", PlayerX, BoardY, true);
-#if UNITY_EDITOR
-                // ---- 临时诊断（排查“有个东西特别大”，查完删）----
-                //  ⚠ 两个要点：
-                //   ① 扫**所有 Renderer**（不只是 SpriteRenderer）——UGUI 的 Image/Mesh 都算；
-                //   ② **延后一帧**再扫 —— 状态特效是后来才赋值的，紧跟 BuildBoard 扫会漏掉。
-                StartCoroutine(DiagScanBigRender());
-#endif
 
             BuildBoard("BoardE", EnemyX, BoardY, false);
             BuildUnits();
@@ -1309,53 +1302,6 @@ namespace WanXiang.Battle.Presentation
         /// 状态外观：把优先级最高的那条覆盖到立绘上（冰封 = 冰蓝罩 / 束缚 = 苔绿罩 / 燃烧 = 火橙罩…）。
         /// 有美术图就显示美术图（按立绘尺寸自动缩放，`Scale`/`OffsetY` 可调），
         /// 没图则用该状态的半透明色块兜底 —— **不挂任何美术也看得见**。
-        /// </summary>
-#if UNITY_EDITOR
-        /// <summary>临时诊断：延后一帧，列出所有"显示尺寸 &gt; 3 世界单位"的渲染物（含 UGUI）。</summary>
-        private string DiagPath(UnityEngine.Transform x)
-        {
-            // 全场景扫描 ⇒ 路径一直走到根（原来以 BattleStage2D 为界，UI 树完全看不见）
-            string p = x.name;
-            var q = x.parent;
-            while (q != null) { p = q.name + "/" + p; q = q.parent; }
-            return p;
-        }
-
-        private System.Collections.IEnumerator DiagScanBigRender()
-        {
-            yield return null;
-            yield return null;
-            // 1) 普通 Renderer（SpriteRenderer / MeshRenderer …）
-            foreach (var r in UnityEngine.Object.FindObjectsOfType<Renderer>(true))
-            {
-                var b = r.bounds;
-                if (Mathf.Max(b.size.x, b.size.y) <= 3f) continue;
-                Debug.Log("[BigRender] " + r.GetType().Name + "  " + DiagPath(r.transform)
-                    + "  世界尺寸=" + b.size.x.ToString("F2") + "x" + b.size.y.ToString("F2")
-                    + "  enabled=" + r.enabled);
-            }
-            // 2) UGUI —— Image/Text 用的是 CanvasRenderer，它「不是」Renderer！
-            //    前两次扫描就是漏了这一类（用户看到的巨大特效其实是 UGUI）。
-            foreach (var g in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Graphic>(true))
-            {
-                var rt = g.rectTransform;
-                Vector3 c0 = rt.TransformPoint(rt.rect.min);
-                Vector3 c2 = rt.TransformPoint(rt.rect.max);
-                float w = Mathf.Abs(c2.x - c0.x), h = Mathf.Abs(c2.y - c0.y);
-                if (Mathf.Max(w, h) <= 3f) continue;
-                string sp = "-";
-                var im = g as UnityEngine.UI.Image;
-                if (im != null && im.sprite != null) sp = im.sprite.name;
-                Debug.Log("[BigRender] UGUI:" + g.GetType().Name + "  " + DiagPath(g.transform)
-                    + "  世界尺寸=" + w.ToString("F2") + "x" + h.ToString("F2")
-                    + "  贴图=" + sp + "  enabled=" + g.enabled);
-            }
-            // 说明：TMP_Text 段已删（所在程序集未引用 TextMeshPro，CS0246）。
-            // 世界空间文字极少 >3 单位，漏扫不影响定位"巨大特效"。
-            Debug.Log("[BigRender] 扫描结束");
-        }
-#endif
-
         private void SetOverlay2D(UnitView2D v, string ids)
         {
             if (v.Overlay == null || v.Body == null) return;
