@@ -118,11 +118,14 @@ namespace WanXiang.Modules.Boot
             {
                 var run0 = WanXiang.Run.RunSave.Current;
                 int act0 = run0 != null ? Mathf.Clamp(run0.Act, 1, 5) : 1;
+                // ⚠ 不传 coverSprite ⇒ 用按幕的纯色纸底（用户 2026-10-12：
+                //   "从开始界面到主界面保留之前的黑色就行"）。
+                //   背景贯穿只留给「主界面→节点地图」那条（那里两张底图才需要接）。
                 await UiTransition.PlayAsync(UiTransition.Kind.Ink, act0, () =>
                 {
                     ui.Close<StartPanel>();
                     _ = ui.OpenAsync<HomePanel>();
-                });
+                }, null);
             }
             Debug.Log("[MainSceneEntry] 已进入主界面（带水墨转场，开始界面已关闭）。");
         }

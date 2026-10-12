@@ -193,11 +193,23 @@ namespace WanXiang.Modules.UI
         /// **按幕号取文件** ⇒ 以后加幕/换图只要丢文件，不用改 prefab、不用改代码。
         /// 缺图时：背景回退到通用的 paper，粒子回退到模板原有的图。
         /// </summary>
+        // 节点地图本幕背景（与 CampaignPanel.Img_MapBg / 转场遮盖层同一张，保证观感连贯）
+        private static readonly string[] MapBgByAct =
+        {
+            "UI/Campaign/map_bg_act1_spring", "UI/Campaign/map_bg_act2_summer",
+            "UI/Campaign/map_bg_act3_autumn", "UI/Campaign/map_bg_act4_winter",
+            "UI/Campaign/map_bg_act5_latesummer",
+        };
+
         private void ApplySeasonArt(int act, ActTitle t)
         {
             if (_imgPaper != null)
             {
-                var bg = Resources.Load<Sprite>("UI/ActIntro/bg_" + act);
+                // ★ 2026-10-12 用户要求："把这个写字转场的底图也换成节点底图的底图我看看"
+                //   ⇒ 写字开场与节点地图用**同一张幕背景**，观感连贯（不再"宣纸→地图"跳一下）。
+                //   取不到才回退到原来的 ActIntro 专属宣纸。
+                var bg = Resources.Load<Sprite>(MapBgByAct[Mathf.Clamp(act, 1, 5) - 1]);
+                if (bg == null) bg = Resources.Load<Sprite>("UI/ActIntro/bg_" + act);
                 if (bg == null) bg = Resources.Load<Sprite>("UI/ActIntro/paper");
                 if (bg != null) _imgPaper.sprite = bg;
             }

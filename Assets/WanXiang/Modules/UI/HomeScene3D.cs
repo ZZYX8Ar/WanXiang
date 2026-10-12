@@ -560,6 +560,11 @@ namespace WanXiang.Modules.UI
             for (int i = 0; i < 4; i++) tex.SetPixel(i % 2, i / 2, Color.white);
             tex.Apply();
             _flash.sprite = Sprite.Create(tex, new Rect(0, 0, 2, 2), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+            // ⛔ MakeImage 默认 preserveAspect=true，而闪电是 2x2 白纹理 + 全屏矩形
+            //   ⇒ 保持 1:1 后不铺满，而是缩成一个"居中的白色小方块"
+            //   （用户 2026-10-12："主界面突然闪一下，看到一个白色的小面板"）。
+            _flash.preserveAspect = false;
+            _flash.type = Image.Type.Simple;
             var rt = _flash.rectTransform;
             rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
             rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
