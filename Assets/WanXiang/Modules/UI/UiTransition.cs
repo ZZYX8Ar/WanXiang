@@ -40,6 +40,7 @@ namespace WanXiang.Modules.UI
         private Canvas _canvas;
         private RectTransform _root;
         private Image _blocker;              // 全屏拦截层（吃点击）
+        private Image _cover;                // 前置遮盖层（进场先盖住旧界面）
         private readonly List<Image> _pool = new List<Image>();
         private bool _busy;
         private float _deadline;
@@ -132,8 +133,19 @@ namespace WanXiang.Modules.UI
             Debug.Log("[UiTransition] 层已建 host=" + (host != null ? host.name : "(独立Canvas)") +
                       " size=" + rt.rect.width + "x" + rt.rect.height);
 
+            // ★ 前置遮盖层（用户 2026-10-12："从主界面到节点地图转场时，我不想看到这个主界面"）。
+            //   双帘/墨团合拢前屏幕是空的，旧界面会从缝里露出来 ⇒ 进场第一帧就用一层
+            //   不透明"纸/墨"底色把旧界面盖掉，转场效果在这层之上演，退场最后才撤。
+            _cover = NewImage("Cover", 0);
+            _cover.rectTransform.anchorMin = Vector2.zero;
+            _cover.rectTransform.anchorMax = Vector2.one;
+            _cover.rectTransform.offsetMin = Vector2.zero;
+            _cover.rectTransform.offsetMax = Vector2.zero;
+            _cover.raycastTarget = false;                 // 不吃点击（拦截层负责）
+            _cover.color = new Color(0f, 0f, 0f, 0f);
+
             // 全屏拦截层（透明但吃点击，防止转场期间误触）
-            _blocker = NewImage("Blocker", 0);
+            _blocker = NewImage("Blocker", 1);
             _blocker.rectTransform.anchorMin = Vector2.zero;
             _blocker.rectTransform.anchorMax = Vector2.one;
             _blocker.rectTransform.offsetMin = Vector2.zero;
@@ -182,11 +194,15 @@ namespace WanXiang.Modules.UI
 
         private void ClearExtra()
         {
+            // ⚠ _cover（前置遮盖层）和 _blocker（拦截层）是常驻基础设施，不能清。
             for (int i = _pool.Count - 1; i >= 0; i--)
             {
                 if (_pool[i] == null) { _pool.RemoveAt(i); continue; }
-                if (_pool[i].gameObject == _blocker.gameObject) continue;
-                Destroy(_pool[i].gameObject);
+                GameObject g = _pool[i].gameObject;
+                if (g == null) { _pool.RemoveAt(i); continue; }
+                if (_blocker != null && g == _blocker.gameObject) continue;
+                if (_cover != null && g == _cover.gameObject) continue;
+                Destroy(g);
                 _pool.RemoveAt(i);
             }
         }
@@ -217,12 +233,43 @@ namespace WanXiang.Modules.UI
             float tHold = total * 0.10f;
             float tOut = total * 0.48f;
 
+            // ---- 阶段 0：瞬间盖住旧界面（0.12s，越快越看不出"旧界面残留"）----
+            if (_cover != null)
+            {
+                Color cc = SeasonCoverColor(act);
+                _cover.color = new Color(cc.r, cc.g, cc.b, 0f);
+                float e0 = 0f;
+                while (e0 < 0.12f)
+                {
+                    e0 += Time.deltaTime;
+                    if (Time.realtimeSinceStartup > _deadline) break;
+                    _cover.color = new Color(cc.r, cc.g, cc.b, Mathf.Clamp01(e0 / 0.12f));
+                    yield return null;
+                }
+                _cover.color = new Color(cc.r, cc.g, cc.b, 1f);
+            }
+
             switch (kind)
             {
                 case Kind.Ink: yield return InkSequence(act, onSwitch, tIn, tHold, tOut); break;
                 case Kind.Split: yield return SplitSequence(act, onSwitch, tIn, tHold, tOut); break;
                 case Kind.Cloud: yield return CloudSequence(act, onSwitch, tIn, tHold, tOut); break;
                 default: yield return SweepSequence(act, onSwitch, tIn, tHold, tOut); break;
+            }
+
+            // ---- 收尾：撤掉遮盖层（最后 0.3s 淡出，露出新界面）----
+            if (_cover != null)
+            {
+                Color cc = _cover.color;
+                float e2 = 0f;
+                while (e2 < 0.30f)
+                {
+                    e2 += Time.deltaTime;
+                    if (Time.realtimeSinceStartup > _deadline + 2f) break;
+                    _cover.color = new Color(cc.r, cc.g, cc.b, 1f - Mathf.Clamp01(e2 / 0.30f));
+                    yield return null;
+                }
+                _cover.color = new Color(cc.r, cc.g, cc.b, 0f);
             }
 
             ClearExtra();
@@ -342,6 +389,19 @@ namespace WanXiang.Modules.UI
                     petals[i].color = new Color(1f, 1f, 1f, a * 0.9f);
                 }
                 yield return null;
+            }
+        }
+
+        /// <summary>遮盖层的"纸/墨"底色（按幕），盖住旧界面时不像纯黑那么硬。</summary>
+        private static Color SeasonCoverColor(int act)
+        {
+            switch (act)
+            {
+                case 1: return new Color(0.905f, 0.915f, 0.898f, 1f);  // 春·青纸
+                case 2: return new Color(0.855f, 0.862f, 0.845f, 1f);  // 夏·灰纸
+                case 3: return new Color(0.925f, 0.900f, 0.858f, 1f);  // 秋·暖纸
+                case 4: return new Color(0.885f, 0.900f, 0.920f, 1f);  // 冬·冷纸
+                default: return new Color(0.915f, 0.888f, 0.808f, 1f); // 长夏·麦纸
             }
         }
 
