@@ -249,6 +249,12 @@ namespace WanXiang.Modules.UI
                 case BattleEventKind.Heal: _tmpLog.text = target + " 回复 " + e.Amount; break;
                 case BattleEventKind.Shield: _tmpLog.text = target + " 护盾 " + e.Amount; break;
                 case BattleEventKind.Death: _tmpLog.text = target + " 阵亡"; break;
+                // ★ 2026-10-12：补 RoundResolve 分支 —— 所有 Boss 机制提示（双子同命倒下/双杀/复活、
+                //   破壳、引爆、余烬…）都是走这个事件类型写 note 的。以前 switch 里没有这一支
+                //   ⇒ 机制照常生效，但玩家在日志行**一个字都看不到**（用户报障：'双子复活我怎么没看到'）。
+                case BattleEventKind.RoundResolve:
+                    if (!string.IsNullOrEmpty(e.Note)) _tmpLog.text = e.Note;
+                    break;
                 case BattleEventKind.BattleEnd: _tmpLog.text = _play.Summary(); break;
             }
         }

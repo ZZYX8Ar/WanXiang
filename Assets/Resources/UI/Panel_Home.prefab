@@ -4268,20 +4268,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 81a93915343f0324ea8c00b1a5de57eb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _orthoSize: 5.4
-  _camZ: 10
-  _bgZ: 6
-  _birdCount: 10
-  _cloudCount: 8
-  _butterflyCount: 6
-  _groundCount: 12
+  _globalScale: 1.25
+  _globalSpeed: 1.45
   _rainCount: 150
   _snowCount: 90
   _fallCount: 60
-  _globalScale: 1.25
-  _globalSpeed: 1.45
-  _fogBase: 0.35
-  _windBase: 0.35
 --- !u!1 &7474396270210542915
 GameObject:
   m_ObjectHideFlags: 0
