@@ -561,7 +561,11 @@ namespace WanXiang.Modules.UI
             }
         }
 
-        /// <summary>敌方单位介绍面板（走与羁绊/天时同一块 Root_BondTip）。</summary>
+        /// <summary>
+        /// 敌方单位介绍面板（走与羁绊/天时同一块 Root_BondTip）。
+        /// ★ 内容只放**战斗相关**：四维 + （首领）机制介绍 / （异兽）四个技能。
+        ///   用户 2026-10-12：不要图鉴典故文案（"共工的臣属…"），要的是属性 / 技能 / 辅助攻击这类能指导出战的。
+        /// </summary>
         private void ShowEnemyTip(int i)
         {
             if (_bondTipPanel == null || _bondTipText == null) return;
@@ -572,21 +576,47 @@ namespace WanXiang.Modules.UI
             var d = (_enemyDefs != null && i >= 0 && i < _enemyDefs.Count) ? _enemyDefs[i] : null;
             if (d == null) { HideBondTip(); return; }
 
+            bool isBoss = WanXiang.Battle.Core.BossCatalog.Get(d.Id) != null;
             var sb = new System.Text.StringBuilder();
             sb.Append(Cn.Of(d.Element)).Append('属').Append(" · ").Append(Cn.Of(d.Role));
-            if (WanXiang.Battle.Core.BossCatalog.Get(d.Id) != null) sb.Append(" · 首领");
+            if (isBoss) sb.Append(" · 首领");
             sb.Append('\n');
             sb.Append("生命 ").Append(d.BaseHp)
               .Append("　攻 ").Append(d.BaseAtk)
               .Append("　防 ").Append(d.BaseDef)
               .Append("　速 ").Append(d.BaseSpeed);
-            string desc = !string.IsNullOrEmpty(d.Lore) ? d.Lore
-                        : (!string.IsNullOrEmpty(d.Codex) ? d.Codex : null);
-            if (!string.IsNullOrEmpty(desc)) sb.Append("\n\n").Append(desc);
-            if (!string.IsNullOrEmpty(d.Source)) sb.Append("\n\n出处：").Append(d.Source);
-            if (!string.IsNullOrEmpty(d.Quote)) sb.Append("\n「").Append(d.Quote).Append("」");
+
+            if (isBoss)
+            {
+                sb.Append("\n\n【首领机制】\n");
+                string mech = WanXiang.Battle.Core.BossCatalog.MechanicText(d.Id);
+                sb.Append(string.IsNullOrEmpty(mech) ? "（暂无机制说明）" : mech);
+            }
+            else
+            {
+                sb.Append("\n\n【技能】");
+                AppendSkillLine(sb, "普攻", d.Basic);
+                AppendSkillLine(sb, "战技", d.Active);
+                AppendSkillLine(sb, "绝技", d.Ultimate);
+                AppendSkillLine(sb, "觉醒", d.Awaken);
+            }
 
             PresentBondTip("<size=24><b>" + d.DisplayName + "</b></size>\n" + sb);
+        }
+
+        /// <summary>把一条技能的"名称 + 目标 + 效果"写进说明文本（目标优先取效果的目标，与战斗口径一致）。</summary>
+        private static void AppendSkillLine(System.Text.StringBuilder sb, string slotName, WanXiang.Battle.Core.SkillDef sk)
+        {
+            if (sk == null) return;
+            sb.Append("\n· ").Append(slotName).Append(' ').Append(sk.Name);
+            var target = sk.PrimaryTarget;
+            if (sk.Effects != null)
+                for (int k = 0; k < sk.Effects.Length; k++)
+                    if (sk.Effects[k].Target != WanXiang.Battle.Core.TargetSelector.Self)
+                    { target = sk.Effects[k].Target; break; }
+            string tgt = WanXiang.Battle.Core.SkillMath.TargetCn(target);
+            if (!string.IsNullOrEmpty(tgt)) sb.Append(tgt);
+            if (!string.IsNullOrEmpty(sk.Description)) sb.Append('：').Append(sk.Description);
         }
 
         private void ShowBondTip(int i)
@@ -641,8 +671,14 @@ namespace WanXiang.Modules.UI
 
         private void PresentBondTip(string text)
         {
-            _bondTipText.text = text;
             _bondTipPanel.gameObject.SetActive(true);
+            _bondTipText.text = text;
+            // ★ 高度自适应：首领机制/技能列表可能很长，面板固定高会溢出。按文本实宽量高度再撑开。
+            float w = _bondTipText.rectTransform.rect.width;
+            if (w < 1f) w = Mathf.Max(_bondTipPanel.sizeDelta.x - 32f, 200f);
+            float h = _bondTipText.GetPreferredValues(text, w, 0f).y + 32f;
+            var sz = _bondTipPanel.sizeDelta;
+            _bondTipPanel.sizeDelta = new Vector2(sz.x, Mathf.Min(Mathf.Max(h, 120f), Screen.height - 40f));
             _bondTipGroup.alpha = 1f;
         }
 

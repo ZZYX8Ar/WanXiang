@@ -115,11 +115,9 @@ namespace WanXiang.Battle.Core
         public override void OnTurnStart(BattleState st)
         {
             _hitThisTurn.Clear();
-            // ★ 首击减伤（白魍·金身 / 魍魉·隐遁 / 鸿蒙·混沌护持）——
-            //   玩家必须知道"每回合第一击会被削"，否则会以为自己的爆发没用。
-            // ⚠ 用 **SetPart**（不是 Set）：同一只首领身上的多个机制提示要能共存
-            //   （例如白魍双子：首击减伤 + N 回合后复活）。用 Set 会整条覆盖、把别人的分段清掉。
-            BossHint.SetPartOnBoss(st, "fh", "首击减伤：" + (_reduce * 100f).ToString("F0") + "%（每回合首次受伤）");
+            // ★ 首击减伤**不再**写战斗头顶提示（用户 2026-10-12 定案：属于静态机制，
+            //   在编队面板的"首领机制"里一次讲清楚即可，战斗里常驻提示反而干扰；
+            //   战斗头顶只留"倒计时类"提示，如双子 N 回合后复活）。见 BossCatalog.MechanicText。
         }
         public override void ModifyIncoming(BattleState st, BattleUnit src, BattleUnit dst, ref int dmg, Element el)
         {
