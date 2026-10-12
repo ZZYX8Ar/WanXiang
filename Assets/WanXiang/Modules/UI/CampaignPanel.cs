@@ -159,8 +159,15 @@ namespace WanXiang.Modules.UI
                 bool fromMenu = RequestIntroFromMenu;      // 由 HomePanel 出征时置位
                 RequestIntroFromMenu = false;              // 一次性：消费掉，避免战后回图也重播
                 if (ActIntroPanel.ShouldPlay(introAct, fromMenu))
-                    OpenPanelAsync<ActIntroPanel>().Forget();   // 开面板只能由面板自己调（protected）
+                {
+                    // ★ 若转场还在播，**等它结束再开场**（用户 2026-10-12：
+                    //   "我不是说了要前面这个转场完才开始写字吗"）。
+                    //   原来中点就打开 ActIntro ⇒ 写字与转场退场重叠，观感很乱。
+                    if (UiTransition.IsPlaying) DeferredIntroAsync().Forget();
+                    else OpenPanelAsync<ActIntroPanel>().Forget();   // 开面板只能由面板自己调（protected）
+                }
             }
+
 
             // 遗物 HUD（左上角一排小牌，悬浮看说明）
             var hudRun = WanXiang.Run.RunSave.Current;
@@ -386,6 +393,20 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private readonly List<int> _edgeA = new List<int>();
         private readonly List<int> _edgeB = new List<int>();
         private readonly List<RectTransform> _nodeItems = new List<RectTransform>(8);
+
+        /// <summary>等 UI 转场播完再打开写字开场（避免两个演出叠在一起）。</summary>
+        private async Cysharp.Threading.Tasks.UniTaskVoid DeferredIntroAsync()
+        {
+            int guard = 0;
+            while (UiTransition.IsPlaying && guard < 600)     // 最多等 ~10s，防卡死
+            {
+                guard++;
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
+            }
+            await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);   // 等栈重算稳定
+            Debug.Log("[Campaign] 转场已结束 → 开始写字开场");
+            OpenPanelAsync<ActIntroPanel>().Forget();
+        }
 
         private void BuildNodeMap()
         {

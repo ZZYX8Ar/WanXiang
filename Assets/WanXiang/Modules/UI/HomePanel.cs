@@ -200,13 +200,25 @@ namespace WanXiang.Modules.UI
         /// ⚠ 转场中点才真正打开 CampaignPanel ⇒ 用户看到的顺序是
         ///   "特效盖住屏幕 → 换页 → 特效退去露出节点地图（并开始写字开场）"。
         /// </summary>
+        // 节点地图本幕背景（与 CampaignPanel 的 Img_MapBg 同一张，做转场贯穿底图用）
+        // ⚠ 命名规则 map_bg_act{1..5}_{season}，season 顺序与 SeasonPalette 一致
+        private static readonly string[] MapBgByAct =
+        {
+            "UI/Campaign/map_bg_act1_spring", "UI/Campaign/map_bg_act2_summer",
+            "UI/Campaign/map_bg_act3_autumn", "UI/Campaign/map_bg_act4_winter",
+            "UI/Campaign/map_bg_act5_latesummer",
+        };
+
         private void GoCampaign()
         {
             CampaignPanel.RequestIntroFromMenu = true;
             var r = WanXiang.Run.RunSave.Current;
             int act = r != null ? Mathf.Clamp(r.Act, 1, 5) : 1;
             Debug.Log("[Home] 出征 → 播转场 act=" + act + " kind=" + UiTransition.KindForAct(act));
-            UiTransition.PlayAuto(act, () => OpenPanelAsync<CampaignPanel>().Forget());
+            // ★ 遮盖层用**节点地图本幕的背景图**当底 ⇒ 转场盖住时就是同一张底图，
+            //   退场淡出露出的也是它 ⇒ 全程一张底图、不跳变
+            //   （用户 2026-10-12：'因为转场完又有一个背景图，能不能把这个背景图贯穿'）。
+            UiTransition.PlayAuto(act, () => OpenPanelAsync<CampaignPanel>().Forget(), MapBgByAct[act - 1]);
         }
 
 

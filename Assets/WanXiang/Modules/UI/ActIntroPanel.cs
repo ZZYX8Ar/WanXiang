@@ -578,9 +578,13 @@ namespace WanXiang.Modules.UI
             {
                 if (s_Skip) break;
                 t += Time.unscaledDeltaTime;
+                // ⛔ await Yield 之后面板/CanvasGroup 可能已被关闭销毁
+                //   （用户 2026-10-12 报 MissingReferenceException）⇒ 每次用前都判空。
+                if (g == null) return;
                 g.alpha = Mathf.Lerp(from, to, Mathf.Clamp01(t / dur));
                 await UniTask.Yield();
             }
+            if (g == null) return;
             g.alpha = to;
         }
 
@@ -594,10 +598,12 @@ namespace WanXiang.Modules.UI
             {
                 if (s_Skip) break;
                 t += Time.unscaledDeltaTime;
+                if (img == null) return;      // ⛔ await 后可能已销毁
                 c.a = Mathf.Lerp(from, to, Mathf.Clamp01(t / dur));
                 img.color = c;
                 await UniTask.Yield();
             }
+            if (img == null) return;
             c.a = to;
             img.color = c;
         }

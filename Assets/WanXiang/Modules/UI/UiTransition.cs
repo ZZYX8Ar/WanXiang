@@ -45,6 +45,9 @@ namespace WanXiang.Modules.UI
         private bool _busy;
         private float _deadline;
 
+        /// <summary>是否正在播转场（供外部等转场结束再触发后续演出，如写字开场）。</summary>
+        public static bool IsPlaying { get { return _inst != null && _inst._busy; } }
+
         private static readonly string[] FallByAct =
         {
             "Battle/FX_particle_act1_petal", "Battle/FX_particle_act2_firefly",
@@ -69,18 +72,24 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>按幕自动选方式播放。</summary>
-        public static void PlayAuto(int act, System.Action onSwitch, float total = 2.4f)
+        public static void PlayAuto(int act, System.Action onSwitch, string coverSprite = null, float total = 2.4f)
         {
-            Play(KindForAct(act), act, onSwitch, total);
+            Play(KindForAct(act), act, onSwitch, coverSprite, total);
         }
 
         /// <summary>播放转场；到中点时回调 onSwitch（在那里打开目标面板）。</summary>
-        public static void Play(Kind kind, int act, System.Action onSwitch, float total = 2.4f)
+        /// <param name="coverSprite">
+        /// 遮盖层用的背景图路径（Resources.Load）。**传目标界面的背景图**，
+        /// 转场盖住时就是同一张底图、退场淡出露出的也是它 ⇒ 全程一张底图，不跳变
+        /// （用户 2026-10-12："因为转场完又有一个背景图，能不能把这个背景图贯穿"）。
+        /// 传 null 则用按幕的纯色纸底兜底。
+        /// </param>
+        public static void Play(Kind kind, int act, System.Action onSwitch, string coverSprite = null, float total = 2.4f)
         {
             var inst = Ensure();
             if (inst == null) { if (onSwitch != null) onSwitch(); return; }
             if (inst._busy) { if (onSwitch != null) onSwitch(); return; }   // 防重入
-            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), null));
+            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), null, coverSprite));
         }
 
         private static UiTransition Ensure()
@@ -211,17 +220,19 @@ namespace WanXiang.Modules.UI
         private float CH { get { return _root.rect.height > 1f ? _root.rect.height : 720f; } }
 
         /// <summary>UniTask 版（给 MainSceneEntry 这类 async 流程用）：播完才返回。</summary>
-        public static async UniTask PlayAsync(Kind kind, int act, System.Action onSwitch, float total = 2.4f)
+        public static async UniTask PlayAsync(Kind kind, int act, System.Action onSwitch,
+                                              string coverSprite = null, float total = 2.4f)
         {
             var inst = Ensure();
             if (inst == null) { if (onSwitch != null) onSwitch(); return; }
             if (inst._busy) { if (onSwitch != null) onSwitch(); return; }
             bool done = false;
-            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), () => done = true));
+            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), () => done = true, coverSprite));
             await UniTask.WaitUntil(() => done);
         }
 
-        private IEnumerator Run(Kind kind, int act, System.Action onSwitch, float total, System.Action onDone)
+        private IEnumerator Run(Kind kind, int act, System.Action onSwitch, float total,
+                                System.Action onDone, string coverSprite)
         {
             _busy = true;
             _blocker.raycastTarget = true;
@@ -233,11 +244,20 @@ namespace WanXiang.Modules.UI
             float tHold = total * 0.10f;
             float tOut = total * 0.48f;
 
-            // ---- 阶段 0：瞬间盖住旧界面（0.12s，越快越看不出"旧界面残留"）----
+            // ---- 阶段 0：盖住旧界面（0.12s，越快越看不出"旧界面残留"）----
+            //  ★ 优先用**目标界面的背景图**当遮盖 ⇒ 全程一张底图、不跳变；
+            //    拿不到图才退到按幕的纯色纸底。
             if (_cover != null)
             {
-                Color cc = SeasonCoverColor(act);
-                _cover.color = new Color(cc.r, cc.g, cc.b, 0f);
+                var cs = coverSprite != null ? Resources.Load<Sprite>(coverSprite) : null;
+                if (cs != null)
+                {
+                    _cover.sprite = cs;
+                    _cover.type = Image.Type.Simple;
+                    _cover.preserveAspect = false;
+                    _cover.color = new Color(1f, 1f, 1f, 0f);
+                }
+                Color cc = cs != null ? Color.white : SeasonCoverColor(act);
                 float e0 = 0f;
                 while (e0 < 0.12f)
                 {
@@ -247,6 +267,7 @@ namespace WanXiang.Modules.UI
                     yield return null;
                 }
                 _cover.color = new Color(cc.r, cc.g, cc.b, 1f);
+                Debug.Log("[UiTransition] 遮盖层 " + (cs != null ? ("图 " + coverSprite) : "纯色纸底"));
             }
 
             switch (kind)
@@ -260,7 +281,7 @@ namespace WanXiang.Modules.UI
             // ---- 收尾：撤掉遮盖层（最后 0.3s 淡出，露出新界面）----
             if (_cover != null)
             {
-                Color cc = _cover.color;
+                Color cc = _cover.color;   // 已是 white(有图) 或纸色(纯色)，直接用
                 float e2 = 0f;
                 while (e2 < 0.30f)
                 {
