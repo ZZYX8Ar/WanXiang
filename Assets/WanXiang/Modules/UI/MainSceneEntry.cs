@@ -125,7 +125,7 @@ namespace WanXiang.Modules.Boot
                 {
                     ui.Close<StartPanel>();
                     _ = ui.OpenAsync<HomePanel>();
-                }, null);
+                }, null, 2.4f, "Start2Home");   // ⚠ 独立标识：与 Home→Map 链路区分
             }
             Debug.Log("[MainSceneEntry] 已进入主界面（带水墨转场，开始界面已关闭）。");
         }

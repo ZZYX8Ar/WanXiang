@@ -218,7 +218,9 @@ namespace WanXiang.Modules.UI
             // ★ 遮盖层用**节点地图本幕的背景图**当底 ⇒ 转场盖住时就是同一张底图，
             //   退场淡出露出的也是它 ⇒ 全程一张底图、不跳变
             //   （用户 2026-10-12：'因为转场完又有一个背景图，能不能把这个背景图贯穿'）。
-            UiTransition.PlayAuto(act, () => OpenPanelAsync<CampaignPanel>().Forget(), MapBgByAct[act - 1]);
+            // tag=Home2Map：与「开始→主界面」链路在 Console 里可区分，互不混淆
+            UiTransition.PlayAuto(act, () => OpenPanelAsync<CampaignPanel>().Forget(),
+                                  MapBgByAct[act - 1], 2.4f, "Home2Map");
         }
 
 

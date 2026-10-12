@@ -45,6 +45,11 @@ namespace WanXiang.Modules.UI
         private bool _busy;
         private float _deadline;
         private bool _exitStarted;
+        private readonly List<Streak> _streaks = new List<Streak>();   // 横扫转场的粒子尾迹
+        private static Shader _streakShader;                            // WanXiang/UI/Streak（拖尾）
+
+        /// <summary>粒子尾迹：一个 Image（材质用 UIStreak shader）。</summary>
+        private struct Streak { public RectTransform T; public Image Img; public float Len; }
 
         /// <summary>是否正在播转场（供外部等转场结束再触发后续演出，如写字开场）。</summary>
         public static bool IsPlaying { get { return _inst != null && _inst._busy; } }
@@ -80,9 +85,10 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>按幕自动选方式播放。</summary>
-        public static void PlayAuto(int act, System.Action onSwitch, string coverSprite = null, float total = 2.4f)
+        public static void PlayAuto(int act, System.Action onSwitch, string coverSprite = null,
+                                    float total = 2.4f, string tag = "")
         {
-            Play(KindForAct(act), act, onSwitch, coverSprite, total);
+            Play(KindForAct(act), act, onSwitch, coverSprite, total, tag);
         }
 
         /// <summary>播放转场；到中点时回调 onSwitch（在那里打开目标面板）。</summary>
@@ -92,12 +98,13 @@ namespace WanXiang.Modules.UI
         /// （用户 2026-10-12："因为转场完又有一个背景图，能不能把这个背景图贯穿"）。
         /// 传 null 则用按幕的纯色纸底兜底。
         /// </param>
-        public static void Play(Kind kind, int act, System.Action onSwitch, string coverSprite = null, float total = 2.4f)
+        public static void Play(Kind kind, int act, System.Action onSwitch, string coverSprite = null,
+                                float total = 2.4f, string tag = "")
         {
             var inst = Ensure();
             if (inst == null) { if (onSwitch != null) onSwitch(); return; }
             if (inst._busy) { if (onSwitch != null) onSwitch(); return; }   // 防重入
-            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), null, coverSprite));
+            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), null, coverSprite, tag));
         }
 
         private static UiTransition Ensure()
@@ -199,6 +206,36 @@ namespace WanXiang.Modules.UI
             return img;
         }
 
+        private static Shader StreakShader()
+        {
+            if (_streakShader == null) _streakShader = Shader.Find("WanXiang/UI/Streak");
+            if (_streakShader == null) Debug.LogWarning("[UiTransition] 找不到 shader WanXiang/UI/Streak");
+            return _streakShader;
+        }
+
+        /// <summary>建一条尾迹（透明底 + UIStreak shader + 横向拉长）。</summary>
+        private Streak NewStreak(string name, float length, float thick, Color col)
+        {
+            var sh = StreakShader();
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(_root, false);
+            var img = go.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.preserveAspect = true;
+            if (sh != null)
+            {
+                var mat = new Material(sh);
+                mat.SetColor("_Color", col);
+                mat.SetFloat("_Head", 0.30f);
+                mat.SetFloat("_FadePow", 1.9f);
+                mat.SetFloat("_StreakAlpha", 0.85f);
+                img.material = mat;
+            }
+            img.color = new Color(1f, 1f, 1f, 1f);
+            img.rectTransform.sizeDelta = new Vector2(length, thick);
+            return new Streak { T = img.rectTransform, Img = img, Len = length };
+        }
+
         private Image NewImage(string name)
         {
             var go = new GameObject(name, typeof(RectTransform));
@@ -222,6 +259,7 @@ namespace WanXiang.Modules.UI
                 Destroy(g);
                 _pool.RemoveAt(i);
             }
+            _streaks.Clear();
         }
 
         private float CW { get { return _root.rect.width > 1f ? _root.rect.width : 1280f; } }
@@ -229,25 +267,27 @@ namespace WanXiang.Modules.UI
 
         /// <summary>UniTask 版（给 MainSceneEntry 这类 async 流程用）：播完才返回。</summary>
         public static async UniTask PlayAsync(Kind kind, int act, System.Action onSwitch,
-                                              string coverSprite = null, float total = 2.4f)
+                                              string coverSprite = null, float total = 2.4f, string tag = "")
         {
             var inst = Ensure();
             if (inst == null) { if (onSwitch != null) onSwitch(); return; }
             if (inst._busy) { if (onSwitch != null) onSwitch(); return; }
             bool done = false;
-            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), () => done = true, coverSprite));
+            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), () => done = true, coverSprite, tag));
             await UniTask.WaitUntil(() => done);
         }
 
         private IEnumerator Run(Kind kind, int act, System.Action onSwitch, float total,
-                                System.Action onDone, string coverSprite)
+                                System.Action onDone, string coverSprite, string tag)
         {
+            string tg = string.IsNullOrEmpty(tag) ? "" : ("[" + tag + "]");
             _busy = true;
             _blocker.raycastTarget = true;
-            ClearExtra();
+            ClearExtra();          // 清掉上一场的临时元素
+            ResetCover();          // ⛔ 清掉上一场的遮盖层状态（sprite/transform）
             _deadline = Time.realtimeSinceStartup + total * 3f + 3f;   // ⛔ 硬超时保护
             _exitStarted = false;
-            Debug.Log("[UiTransition] 播放 " + kind + " act=" + act + " 总时长=" + total + "s");
+            Debug.Log("[UiTransition]" + tg + " 播放 " + kind + " act=" + act + " 总时长=" + total + "s");
 
             float tIn = total * 0.42f;
             float tHold = total * 0.10f;
@@ -266,6 +306,16 @@ namespace WanXiang.Modules.UI
                     _cover.preserveAspect = false;
                     _cover.color = new Color(1f, 1f, 1f, 0f);
                 }
+                else
+                {
+                    // ⛔ 不传背景图时必须**清掉上次的 sprite**！
+                    //   _cover 是常驻对象，上一场（主界面→节点地图）可能已把 sprite 设成
+                    //   map_bg 图；不清理的话，这次走纯色分支仍会把那张图染浅显示出来
+                    //   —— 用户 2026-10-12：'导致后面背景图残留到前面的了'。
+                    _cover.sprite = null;
+                    _cover.type = Image.Type.Simple;
+                    _cover.preserveAspect = false;
+                }
                 Color cc = cs != null ? Color.white : SeasonCoverColor(act);
                 float e0 = 0f;
                 while (e0 < 0.12f)
@@ -276,7 +326,7 @@ namespace WanXiang.Modules.UI
                     yield return null;
                 }
                 _cover.color = new Color(cc.r, cc.g, cc.b, 1f);
-                Debug.Log("[UiTransition] 遮盖层 " + (cs != null ? ("图 " + coverSprite) : "纯色纸底"));
+                Debug.Log("[UiTransition]" + tg + " 遮盖层 " + (cs != null ? ("图 " + coverSprite) : "纯色纸底"));
             }
 
             switch (kind)
@@ -306,7 +356,7 @@ namespace WanXiang.Modules.UI
             _blocker.raycastTarget = false;
             _busy = false;
             _exitStarted = false;
-            Debug.Log("[UiTransition] 转场结束 " + kind);
+            Debug.Log("[UiTransition]" + tg + " 转场结束 " + kind);
             if (onDone != null) onDone();
         }
 
@@ -425,6 +475,33 @@ namespace WanXiang.Modules.UI
             }
         }
 
+        /// <summary>
+        /// 完整重置遮盖层：sprite / 颜色 / transform 全部归位。
+        /// ⚠ 转场层是**常驻**对象，两条链路（开始→主界面、主界面→节点地图）共用它。
+        ///   用户 2026-10-12 两次强调："从开始界面到主界面的转场是独立的，不要混用"。
+        ///   ⇒ 每次播放前必须把上一场残留（尤其是 sprite 和 transform）清干净，
+        ///     否则主界面→节点地图设的背景图会"残留到"开始→主界面那场。
+        /// </summary>
+        private void ResetCover()
+        {
+            if (_cover == null) return;
+            _cover.sprite = null;
+            _cover.type = Image.Type.Simple;
+            _cover.preserveAspect = false;
+            _cover.color = new Color(1f, 1f, 1f, 0f);
+            var rt = _cover.rectTransform;
+            if (rt != null)
+            {
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero;
+                rt.offsetMax = Vector2.zero;
+                rt.localScale = Vector3.one;
+                rt.localRotation = Quaternion.identity;
+                rt.anchoredPosition = Vector2.zero;
+            }
+        }
+
         /// <summary>遮盖层的"纸/墨"底色（按幕），盖住旧界面时不像纯黑那么硬。</summary>
         private static Color SeasonCoverColor(int act)
         {
@@ -496,6 +573,20 @@ namespace WanXiang.Modules.UI
                 spds.Add(UnityEngine.Random.Range(1.15f, 1.75f));
             }
 
+            // ★ 给每个粒子配一条尾迹（用户："横扫转场能不能让这些粒子带一些尾迹"）。
+            //   尾迹是横向拉长的图 + UIStreak shader（头部实、尾部渐隐），
+            //   位置钉在粒子**后方**（粒子向左运动 ⇒ 尾迹拖在右侧）。
+            var streakSp = Resources.Load<Sprite>("UI/Trans/trans_streak");
+            for (int i = 0; i < parts.Count; i++)
+            {
+                if (streakSp == null || StreakShader() == null) break;
+                float sz = szs[i];
+                var st = NewStreak("St" + i, sz * Random.Range(2.6f, 4.4f), sz * 0.55f, Color.white);
+                st.Img.sprite = streakSp;
+                st.T.SetSiblingIndex(100 + i);          // 尾迹在粒子之下
+                _streaks.Add(st);
+            }
+
             float travel = CW * 2.1f;      // 需要移动的总距离（从右外到左外）
             float e = 0f;
             while (e < tIn)
@@ -508,6 +599,13 @@ namespace WanXiang.Modules.UI
                 {
                     float d = travel * ke * spds[i];
                     parts[i].rectTransform.anchoredPosition = new Vector2(xs[i] - d, ys[i]);
+                    // 尾迹跟着粒子，并随速度拉长
+                    if (i < _streaks.Count && _streaks[i].T != null)
+                    {
+                        float grow = 1f + ke * 1.6f;
+                        _streaks[i].T.anchoredPosition = new Vector2(xs[i] - d + _streaks[i].Len * 0.5f * grow, ys[i]);
+                        _streaks[i].T.sizeDelta = new Vector2(_streaks[i].Len * grow, _streaks[i].T.sizeDelta.y);
+                    }
                 }
                 for (int i = 0; i < washImgs.Count; i++)
                 {
@@ -536,6 +634,12 @@ namespace WanXiang.Modules.UI
                 {
                     parts[i].rectTransform.anchoredPosition = new Vector2(xs[i] - d * spds[i], ys[i]);
                     var c = parts[i].color; parts[i].color = new Color(c.r, c.g, c.b, a);
+                    if (i < _streaks.Count && _streaks[i].T != null)
+                    {
+                        _streaks[i].T.anchoredPosition = new Vector2(xs[i] - d * spds[i] + _streaks[i].Len * 0.5f, ys[i]);
+                        var mc = _streaks[i].Img.material;
+                        if (mc != null) mc.SetFloat("_StreakAlpha", 0.85f * a);
+                    }
                 }
                 for (int i = 0; i < washImgs.Count; i++)
                 {
