@@ -259,6 +259,12 @@ namespace WanXiang.Battle.Core
                     {
                         st.Log.Add(st.Turn, BattleEventKind.Death, targetId: u.RuntimeId,
                                    note: $"{s.Def.Name}致死");
+                        // ★ DoT 致死也必须派发 UnitKilled 钩子：双子同命 / 假死 / 击杀成长 /
+                        //   共享生命等都挂在 OnUnitKilled 上。之前只写 Death 事件 ⇒ 钩子收不到
+                        //   阵亡信号，双子被持续伤害跳死时不会进复活窗口、也没"倒下"提示
+                        //   （用户 2026-10-12 报：第6回合死、第11回合仍未复活且全程无提示）。
+                        //   DoT 无明确施法者，killer 传 null（现有钩子体均不依赖 killer 参数）。
+                        if (st.Hooks.Count > 0) BattleHooks.UnitKilled(st, null, u);
                         break;
                     }
                 }

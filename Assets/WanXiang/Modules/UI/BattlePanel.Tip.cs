@@ -39,10 +39,16 @@ namespace WanXiang.Modules.UI
             var go = new GameObject("Root_SkillTip", typeof(RectTransform));
             _tipPanel = (RectTransform)go.transform;
             _tipPanel.SetParent(transform, false);           // 挂在本面板下，不受操作区显隐影响
-            _tipPanel.anchorMin = _tipPanel.anchorMax = new Vector2(0f, 0.5f);
-            _tipPanel.pivot = new Vector2(0f, 0.5f);
-            _tipPanel.sizeDelta = new Vector2(430f, 260f);
-            _tipPanel.anchoredPosition = new Vector2(30f, 40f);   // 屏幕左侧
+            // ★ 左上角锚定（pivot 也左上）：高度随内容自动向下生长，文字永远从左上角起排
+            //   （用户 2026-10-12："悬浮面板的字位置会动来动去，从左上角对齐，多的往下加不就行了"）。
+            //   之前固定 260 高 + 左中 pivot ⇒ 长文本溢出、短文本留白，内容一变视觉就乱跳。
+            _tipPanel.anchorMin = _tipPanel.anchorMax = new Vector2(0f, 1f);
+            _tipPanel.pivot = new Vector2(0f, 1f);
+            _tipPanel.sizeDelta = new Vector2(430f, 100f);   // 宽度固定；高度由 ContentSizeFitter 撑开
+            _tipPanel.anchoredPosition = new Vector2(30f, -40f);   // 屏幕左上，向下偏移 40
+            var fit = go.AddComponent<ContentSizeFitter>();
+            fit.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             var bg = go.AddComponent<Image>();
             bg.color = new Color(0.11f, 0.09f, 0.07f, 0.95f);    // 墨底，和战斗 HUD 一致
@@ -122,13 +128,15 @@ namespace WanXiang.Modules.UI
             //   原来填字+显示+淡入这段被缩进了 else 分支 ⇒ 可发动分支只赋值 title/body 就结束，
             //   面板根本没显示。两个分支都必须走到这里。
             _tipText.text = "<size=26><b>" + title + "</b></size>\n" + body;
+            // 内容变了 ⇒ 立即按新文本重算面板高度（左上锚定下向下生长），避免当帧还是旧尺寸
+            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(_tipPanel);
 
             _tipPanel.gameObject.SetActive(true);
             _tipTween?.Kill();
             _tipGroup.alpha = 0f;
-            _tipPanel.anchoredPosition = new Vector2(30f, 40f);
+            _tipPanel.anchoredPosition = new Vector2(30f, -40f);
             _tipTween = DOTween.Sequence()
-                .Join(_tipPanel.DOAnchorPos(new Vector2(52f, 40f), 0.18f).SetEase(Ease.OutQuad))
+                .Join(_tipPanel.DOAnchorPos(new Vector2(52f, -40f), 0.18f).SetEase(Ease.OutQuad))
                 .Join(_tipGroup.DOFade(1f, 0.18f));
         }
 
@@ -245,13 +253,15 @@ namespace WanXiang.Modules.UI
             }
 
             _tipText.text = "<size=26><b>" + title + "</b></size>\n" + body;
+            // 内容变了 ⇒ 立即按新文本重算面板高度（左上锚定下向下生长），避免当帧还是旧尺寸
+            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(_tipPanel);
 
             _tipPanel.gameObject.SetActive(true);
             _tipTween?.Kill();
             _tipGroup.alpha = 0f;
-            _tipPanel.anchoredPosition = new Vector2(30f, 40f);          // 起点：略靠左（滑入）
+            _tipPanel.anchoredPosition = new Vector2(30f, -40f);          // 起点：左上、略靠左（滑入）
             _tipTween = DOTween.Sequence()
-                .Join(_tipPanel.DOAnchorPos(new Vector2(52f, 40f), 0.18f).SetEase(Ease.OutQuad))
+                .Join(_tipPanel.DOAnchorPos(new Vector2(52f, -40f), 0.18f).SetEase(Ease.OutQuad))
                 .Join(_tipGroup.DOFade(1f, 0.18f));
         }
 
