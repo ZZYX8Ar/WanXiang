@@ -85,7 +85,6 @@ namespace WanXiang.Modules.UI
         /// </summary>
         private void ApplyPvpUiMode()
         {
-            Debug.Log("[BattlePanel][调试] ApplyPvpUiMode 调用：LastWasPvp=" + SceneFlow.LastWasPvp);
             if (SceneFlow.LastWasPvp)
             {
                 // ★ PvP：隐藏全部手动操作 + 强制自动（面板是 Cached 复用的，上一局 PvE 亮出的按钮要收掉）

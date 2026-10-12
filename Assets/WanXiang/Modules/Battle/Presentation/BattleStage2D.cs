@@ -404,7 +404,12 @@ namespace WanXiang.Battle.Presentation
                 var fgSr = fg.AddComponent<SpriteRenderer>();
                 fgSr.sprite = fgDecor;
                 var fb = fgDecor.bounds;
-                fg.transform.localScale = new Vector3(19.2f / fb.size.x, 10.8f / fb.size.y, 1f);
+                // ⚠ 必须**超铺**：原本正好铺满视口(19.2x10.8)，而 Step() 里会绕自身中心
+                //   旋转 ±0.5° 做"风吹摇曳" ⇒ 矩形四角会翘出视口、露出底色边缘
+                //   （用户 2026-10-12："晃动的时候有点暴露边缘，太贴近边缘，可以往边缘外放一下"）。
+                //   超铺 12% ⇒ 每边多出 ~1.0 世界单位，旋转 0.5° 的角部翘出仅 ~0.09，余量充足。
+                const float over = 1.12f;
+                fg.transform.localScale = new Vector3(19.2f * over / fb.size.x, 10.8f * over / fb.size.y, 1f);
                 fgSr.sortingOrder = 30;
                 _fgDecor = fg.transform;
             }

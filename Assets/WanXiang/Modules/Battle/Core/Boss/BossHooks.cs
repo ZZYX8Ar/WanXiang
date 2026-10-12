@@ -334,6 +334,11 @@ namespace WanXiang.Battle.Core
 
         public override void OnUnitKilled(BattleState st, BattleUnit killer, BattleUnit victim)
         {
+            // ⚠⚠ 临时诊断（2026-10-12 用户报"双子打了好几回合还没复活"）—— 定位后删
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve, note: "[KillLinkDBG] OnUnitKilled victim="
+                + (victim != null ? victim.DisplayName : "null") + " isA=" + (victim == _a) + " isB=" + (victim == _b)
+                + " pending=" + (_pendingDead != null ? _pendingDead.DisplayName : "null") + " turn=" + st.Turn);
+
             if (victim != _a && victim != _b) return;
 
             if (_pendingDead == null)
@@ -356,6 +361,13 @@ namespace WanXiang.Battle.Core
 
         public override void OnTurnEnd(BattleState st)
         {
+            // ⚠⚠ 临时诊断（同上）—— 定位后删
+            if (_pendingDead != null)
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve, note: "[KillLinkDBG] OnTurnEnd pending="
+                    + _pendingDead.DisplayName + " pendingAlive=" + _pendingDead.IsAlive
+                    + " turn=" + st.Turn + " deadTurn=" + _deadTurn + " win=" + _windowTurns
+                    + " => " + ((st.Turn - _deadTurn >= _windowTurns) ? "窗口已到(应复活)" : "窗口未到"));
+
             if (_pendingDead == null) return;
             if (st.Turn - _deadTurn < _windowTurns) return;   // 窗口尚未结束，继续等玩家双杀
 
@@ -597,6 +609,9 @@ namespace WanXiang.Battle.Core
             st.Hooks.Add(new DamageSplitHook(_boss, _linkRatio));
             st.Hooks.Add(new DamageSplitHook(twin, _linkRatio));
             st.Hooks.Add(new KillLinkHook(_boss, twin, _revivePct, _windowTurns));
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve, note: "[KillLinkDBG] TwinSpawnHook 挂钩子完成 boss="
+                + _boss.DisplayName + " twin=" + twin.DisplayName + " cell=" + _twinCell
+                + " win=" + _windowTurns + " revivePct=" + _revivePct);
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                        note: $"{_boss.DisplayName} 与双子 {twin.DisplayName} 同时入场（共鸣分摊 / 同命）");
         }

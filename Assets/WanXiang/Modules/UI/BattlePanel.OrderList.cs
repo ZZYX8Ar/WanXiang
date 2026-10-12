@@ -234,24 +234,12 @@ namespace WanXiang.Modules.UI
             string uid, uname; Vector3 anchor;
             bool hit = _stage.TryPickUnit(world, out uid, out uname, out anchor);
 
-            // 诊断日志（节流 1 秒一次，别刷屏）：相机名 / 鼠标世界点 / 命中结果
-            _hoverDbgTimer -= Time.deltaTime;
-            if (_hoverDbgTimer <= 0f)
-            {
-                _hoverDbgTimer = 1f;
-                Debug.Log("[BattlePanel][悬停] 相机=" + cam.name + " 鼠标世界点=" +
-                          world.x.ToString("F2") + "," + world.y.ToString("F2") +
-                          " 命中=" + (hit ? uid + "(" + uname + ")" : "空") +
-                          " 当前显示=" + (_hoverUnitId ?? "-"));
-            }
-
             if (hit)
             {
                 if (uid != _hoverUnitId)
                 {
                     _hoverUnitId = uid;
-                    ShowStatusTipFor(uid, uname);
-                    Debug.Log("[BattlePanel][悬停] 显示状态列表：" + uid + " / " + uname);
+                    ShowStatusTipFor(uid, uname);   // 悬停诊断日志已清（2026-10-12：Console 被它刷屏）
                 }
                 else if (!_statusTip.gameObject.activeSelf) _statusTip.gameObject.SetActive(true);
                 PlaceTipNear(cam, anchor);
@@ -260,7 +248,6 @@ namespace WanXiang.Modules.UI
             {
                 _hoverUnitId = null;
                 HideStatusTip();
-                Debug.Log("[BattlePanel][悬停] 离开单位 → 收起列表");
             }
         }
 
