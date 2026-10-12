@@ -2871,6 +2871,7 @@ GameObject:
   - component: {fileID: 3255106368145874810}
   - component: {fileID: 7400023922493768013}
   - component: {fileID: 2589387826935060490}
+  - component: {fileID: 2727828234171647972}
   m_Layer: 0
   m_Name: Item_Roster
   m_TagString: Untagged
@@ -2938,6 +2939,26 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &2727828234171647972
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3972539408547882219}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 306cc8c2b49d7114eaa3623786fc2126, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_IgnoreLayout: 0
+  m_MinWidth: 410
+  m_MinHeight: 112
+  m_PreferredWidth: 410
+  m_PreferredHeight: 112
+  m_FlexibleWidth: 0
+  m_FlexibleHeight: 0
+  m_LayoutPriority: 1
 --- !u!1 &4118637907682111966
 GameObject:
   m_ObjectHideFlags: 0
@@ -5118,7 +5139,7 @@ MonoBehaviour:
     m_Top: 72
     m_Bottom: 12
   m_ChildAlignment: 1
-  m_Spacing: 109.6
+  m_Spacing: 8
   m_ChildForceExpandWidth: 0
   m_ChildForceExpandHeight: 0
   m_ChildControlWidth: 1

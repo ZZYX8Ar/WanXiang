@@ -484,10 +484,15 @@ namespace WanXiang.EditorTools
             var rosterZone = UIBuild.Right(rt, "Root_Roster", 460, 24, 140, 200);
             UIBuild.Img(rosterZone, UIBuild.Card);
             var rosterContent = UIBuild.ScrollVertical(rosterZone, "Scroll_Roster",
-                new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(12, 12), new Vector2(-12, -12));
+                new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(12, 12), new Vector2(-12, -12), 8f);
             var srRoster = rosterContent.parent.parent.GetComponent<ScrollRect>();
             var rosterTpl = UIBuild.Fixed(rosterContent.parent.parent, "Item_Roster",
-                new Vector2(0.5f, 0.5f), new Vector2(410, 120), Vector2.zero);
+                new Vector2(0.5f, 0.5f), new Vector2(410, 112), Vector2.zero);
+            // ★ 给模板行固定尺寸：VerticalLayoutGroup 的 childControl* 会按"首选尺寸"排版，
+            //   没有 LayoutElement 时行高/尺寸不可控（曾出现 spacing 被撑到 100+、只显示 2 行）。
+            var rosterLe = rosterTpl.gameObject.AddComponent<LayoutElement>();
+            rosterLe.preferredWidth = 410f; rosterLe.minWidth = 410f;
+            rosterLe.preferredHeight = 112f; rosterLe.minHeight = 112f;
             rosterTpl.gameObject.SetActive(false);
             UIBuild.Img(rosterTpl, UIBuild.Card, true);
             var head = UIBuild.Fixed(rosterTpl, "Img_Head", new Vector2(0f, 0.5f),
