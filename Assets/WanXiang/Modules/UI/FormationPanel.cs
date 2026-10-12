@@ -780,14 +780,6 @@ namespace WanXiang.Modules.UI
             if (_scrollRoster != null) _scrollRoster.OnEndDrag(e);
         }
 
-        /// <summary>指针是否已离开卡池区域（离开 = 意图拖到棋盘上阵）。</summary>
-        public bool IsPointerOutsideRoster(Vector2 screenPos)
-        {
-            var rt = _scrollRoster != null ? _scrollRoster.transform as RectTransform : null;
-            if (rt == null) return true;
-            return !RectTransformUtility.RectangleContainsScreenPoint(rt, screenPos, null);
-        }
-
         /// <summary>空手点击格子：有兽 → 下阵。</summary>
         public void OnCellClicked(int cell)
         {
