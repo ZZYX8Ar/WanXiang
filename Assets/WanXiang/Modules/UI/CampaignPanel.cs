@@ -394,17 +394,21 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private readonly List<int> _edgeB = new List<int>();
         private readonly List<RectTransform> _nodeItems = new List<RectTransform>(8);
 
-        /// <summary>等 UI 转场播完再打开写字开场（避免两个演出叠在一起）。</summary>
+        /// <summary>
+        /// 等 UI 转场进入**退场/拨开**阶段再打开写字开场。
+        /// ⚠ 不是等转场完全结束：用户 2026-10-12："粒子拨开转场就立马到写字了，没有衔接起来，
+        ///    要连贯"。⇒ 在退场那一刻就让写字淡入，与拨开重叠，视觉上是连续的。
+        /// </summary>
         private async Cysharp.Threading.Tasks.UniTaskVoid DeferredIntroAsync()
         {
             int guard = 0;
-            while (UiTransition.IsPlaying && guard < 600)     // 最多等 ~10s，防卡死
+            // 等退场开始；若转场异常没在播（ guard 耗尽）也继续，别卡住不进图
+            while (UiTransition.IsPlaying && !UiTransition.ExitStarted && guard < 900)
             {
                 guard++;
                 await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
             }
-            await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);   // 等栈重算稳定
-            Debug.Log("[Campaign] 转场已结束 → 开始写字开场");
+            Debug.Log("[Campaign] 转场退场中 → 开始写字开场（与拨开重叠）");
             OpenPanelAsync<ActIntroPanel>().Forget();
         }
 

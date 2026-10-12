@@ -44,9 +44,17 @@ namespace WanXiang.Modules.UI
         private readonly List<Image> _pool = new List<Image>();
         private bool _busy;
         private float _deadline;
+        private bool _exitStarted;
 
         /// <summary>是否正在播转场（供外部等转场结束再触发后续演出，如写字开场）。</summary>
         public static bool IsPlaying { get { return _inst != null && _inst._busy; } }
+
+        /// <summary>
+        /// 转场是否已进入"退场/拨开"阶段。**写字这类后续演出应该等这个而不是等
+        /// IsPlaying 变 false** —— 在退场那一刻就开始淡入，才能与"粒子拨开/双帘退去"
+        /// 重叠，观感连贯（用户 2026-10-12："粒子拨开转场就立马到写字了，没有衔接起来"）。
+        /// </summary>
+        public static bool ExitStarted { get { return _inst != null && _inst._exitStarted; } }
 
         private static readonly string[] FallByAct =
         {
@@ -64,7 +72,7 @@ namespace WanXiang.Modules.UI
         {
             switch (Mathf.Clamp(act, 1, 5))
             {
-                case 1: return Kind.Ink;
+                case 1: return Kind.Sweep;   // ⚠ 2026-10-12 用户：第一幕不要水墨，和其他幕一样
                 case 3: return Kind.Split;
                 case 5: return Kind.Split;
                 default: return Kind.Sweep;
@@ -238,6 +246,7 @@ namespace WanXiang.Modules.UI
             _blocker.raycastTarget = true;
             ClearExtra();
             _deadline = Time.realtimeSinceStartup + total * 3f + 3f;   // ⛔ 硬超时保护
+            _exitStarted = false;
             Debug.Log("[UiTransition] 播放 " + kind + " act=" + act + " 总时长=" + total + "s");
 
             float tIn = total * 0.42f;
@@ -296,6 +305,7 @@ namespace WanXiang.Modules.UI
             ClearExtra();
             _blocker.raycastTarget = false;
             _busy = false;
+            _exitStarted = false;
             Debug.Log("[UiTransition] 转场结束 " + kind);
             if (onDone != null) onDone();
         }
@@ -387,6 +397,8 @@ namespace WanXiang.Modules.UI
             if (onSwitch != null) onSwitch();
             yield return new WaitForSeconds(tHold);
 
+            // ★ 退场起点：通知外部可以开始后续演出（与拨开重叠，观感连贯）
+            _exitStarted = true;
             // 退场：继续放大并淡出
             e = 0f;
             while (e < tOut)
@@ -509,6 +521,8 @@ namespace WanXiang.Modules.UI
             if (onSwitch != null) onSwitch();
             yield return new WaitForSeconds(tHold);
 
+            // ★ 退场起点：通知外部可以开始后续演出（与拨开重叠，观感连贯）
+            _exitStarted = true;
             // 退场：继续左移并淡出
             e = 0f;
             while (e < tOut)
@@ -603,6 +617,8 @@ namespace WanXiang.Modules.UI
             if (onSwitch != null) onSwitch();
             yield return new WaitForSeconds(tHold);
 
+            // ★ 退场起点：通知外部可以开始后续演出（与拨开重叠，观感连贯）
+            _exitStarted = true;
             // 退场：从中缝向两侧拨开 + 淡出
             e = 0f;
             while (e < tOut)
@@ -666,6 +682,7 @@ namespace WanXiang.Modules.UI
             }
             if (onSwitch != null) onSwitch();
             yield return new WaitForSeconds(tHold);
+            _exitStarted = true;   // ★ 退场起点（云过）
             e = 0f;
             while (e < tOut)
             {
