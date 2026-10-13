@@ -383,7 +383,7 @@ namespace WanXiang.Battle.Core
             {
                 var u = ours[i];
                 if (!u.IsAlive) continue;
-                int added = u.AddShield(amt);
+                int added = u.AddShield(amt, st.Turn);
                 if (added > 0)
                     st.Log.Add(st.Turn, BattleEventKind.Shield, actorId: host.RuntimeId,
                                targetId: u.RuntimeId, amount: added, element: host.Element,

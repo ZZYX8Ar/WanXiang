@@ -60,6 +60,9 @@ namespace WanXiang.Battle.Core
         public int MaxHp { get; private set; }
         public int Hp { get; private set; }
         public int Shield { get; private set; }
+        /// <summary>护盾是**第几回合**获得的（用户 2026-10-13：护盾改为一个回合后自动消失）。
+        /// TickStatuses 在每回合开始时把上一回合的旧盾清掉。0 = 无盾/未记录。</summary>
+        public int ShieldTurn;
 
         public bool IsAlive => Hp > 0;
         public float HpPercent => MaxHp <= 0 ? 0f : (float)Hp / MaxHp;
@@ -526,11 +529,21 @@ namespace WanXiang.Battle.Core
             return Hp - before;
         }
 
-        public int AddShield(int amount)
+        public int AddShield(int amount, int turn)
         {
             if (amount <= 0 || !IsAlive) return 0;
             Shield += amount;
+            ShieldTurn = turn;   // 记录获得回合，供"一个回合后自动消失"判定
             return amount;
+        }
+
+        /// <summary>清空护盾（一个回合后自动消失用）。返回被清掉的量。</summary>
+        public int ClearShield()
+        {
+            int s = Shield;
+            Shield = 0;
+            ShieldTurn = 0;
+            return s;
         }
 
         /// <summary>直接改生命上限（吞噬 / 巴蛇的"永久生命上限"）。当前生命按同比例保留。</summary>

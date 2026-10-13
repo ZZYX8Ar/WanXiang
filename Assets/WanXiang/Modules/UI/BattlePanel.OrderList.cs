@@ -40,6 +40,12 @@ namespace WanXiang.Modules.UI
                     var n = _orderRows[i].Find("Tmp_Name");
                     if (n != null) _orderNames[i] = n.GetComponent<TMP_Text>();
                 }
+                // 标题（运行时按名取，显示"第 N 回合 · 行动顺序"——用户 2026-10-13 要求加回合数）
+                if (_orderTitle == null)
+                {
+                    var t = _orderPanel.Find("Tmp_OrderTitle");
+                    if (t != null) _orderTitle = t.GetComponent<TMP_Text>();
+                }
                 // ★ 状态悬浮框（prefab 节点）：默认收起；模板行也收起来，运行时按需克隆
                 if (_statusTip != null) _statusTip.gameObject.SetActive(false);
                 if (_statusTipItem != null) _statusTipItem.gameObject.SetActive(false);
@@ -68,24 +74,23 @@ namespace WanXiang.Modules.UI
             // ⚠ 显示"**接下来**轮到谁"：以当前事件的 actorId 在本回合序列中的位置为界，
             //   只展示它之后（含它自己）的单位 —— 已行动过的不再列出来（用户实测嫌乱）。
             _orderBuf.AddRange(stt.TurnOrder);
-            // ⚠ "当前行动者"的语义**分两种**（都实测过，别合并）：
-            //   · 演出中 → 跟随画面（当前事件的 actorId）
-            //   · 等玩家下令 → **待令单位就是"该行动的"** —— 此时 _play.Current 还停留在
-            //     上一单位的收尾事件（ActionEnd）上，若按它找 cur，高亮永远慢一拍（用户实测）。
+            // ⚠ "当前行动者"两种来源（都实测过，别合并）：
+            //   · 等玩家下令 → 待令单位就是"该行动的"（PendingUnit）
+            //   · 演出中 → **只在 ActionBegin 更新**的 _orderActorId（不是每条事件的 actorId！）
+            //     以前用每条事件的 actorId，回合末一堆 Damage/Heal/RoundResolve（actor 各不相同）
+            //     会让高亮/起点反复跳 ⇒ 行动面板"疯狂刷新几下"（用户 2026-10-13 报障）。
             BattleUnit cur = null;
-            if (_play.AwaitingCommand)
+            if (_play.AwaitingCommand && _play.PendingUnit != null)
             {
                 cur = _play.PendingUnit;
             }
-            else
+            else if (!string.IsNullOrEmpty(_orderActorId))
             {
-                var ev = _play.Current;   // BattleEvent 是 struct，无需 null 检查
-                if (!string.IsNullOrEmpty(ev.ActorId))
-                    for (int i = 0; i < _orderBuf.Count; i++)
-                        if (_orderBuf[i].RuntimeId == ev.ActorId) { cur = _orderBuf[i]; break; }
+                for (int i = 0; i < _orderBuf.Count; i++)
+                    if (_orderBuf[i].RuntimeId == _orderActorId) { cur = _orderBuf[i]; break; }
             }
 
-            // 指纹：顺序（RuntimeId 的 hash 组合）+ 当前行动者
+            // 指纹：顺序（RuntimeId 的 hash 组合）+ 当前行动者 + 回合
             int stamp = 17;
             for (int i = 0; i < _orderBuf.Count; i++)
                 stamp = stamp * 31 + (_orderBuf[i].RuntimeId != null ? _orderBuf[i].RuntimeId.GetHashCode() : 0);
@@ -94,6 +99,13 @@ namespace WanXiang.Modules.UI
             if (same && _orderPanel.gameObject.activeSelf) return;   // ★ 守卫：没变化就什么都不做
             _lastOrderStamp = stamp;
             _lastActorId = curId;
+
+            // ★ 标题带回合数（用户 2026-10-13："行动面板加一行字显示第几回合"）
+            if (_orderTitle != null)
+            {
+                string title = "第 " + stt.Turn + " 回合 · 行动顺序";
+                if (title != _lastOrderTitle) { _lastOrderTitle = title; _orderTitle.text = title; }
+            }
 
             if (_orderBuf.Count == 0) { _orderPanel.gameObject.SetActive(false); return; }
             _orderPanel.gameObject.SetActive(true);
@@ -115,9 +127,9 @@ namespace WanXiang.Modules.UI
                 if (!u.IsAlive) continue;
 
                 bool mine = u.Side == WanXiang.Battle.Core.TeamSide.Player;
-                // 用户要求：**只高亮我方**。敌方出手不必高亮（玩家只需知道"还没轮到我"），
-                // 高亮跳到敌人身上反而误导成"该我操作了"。
-                bool isCur = mine && cur != null && u.RuntimeId == cur.RuntimeId;
+                // ★ 当前行动者**不分敌我都高亮**（用户 2026-10-13：轮到敌人时要能看见是谁在行动，
+                //   以前只高亮我方 ⇒ 敌人出手时面板像把敌人清了、看不出谁在打）。
+                bool isCur = cur != null && u.RuntimeId == cur.RuntimeId;
 
                 _orderRows[shown].gameObject.SetActive(true);
                 if (_orderHeads[shown] != null && _sprites != null && u.Def != null)

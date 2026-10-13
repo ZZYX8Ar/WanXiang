@@ -27,7 +27,8 @@ namespace WanXiang.Modules.UI
         {
             if (_btnCombo == null || _play == null) return;
             var combos = _play.AvailableCombos;
-            _btnCombo.interactable = combos.Count > 0;
+            // ★ 只有"等我方下令"时才可点连携；敌人回合/伤害结算一律置灰（用户 2026-10-13）
+            _btnCombo.interactable = _play.AwaitingCommand && combos.Count > 0;
             var label = _btnCombo.GetComponentInChildren<TMPro.TMP_Text>();
             if (label != null)
                 label.text = combos.Count > 0 ? "连携·" + combos[0].Name : "连携";
@@ -69,6 +70,24 @@ namespace WanXiang.Modules.UI
                 if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
                 // ⚠ 这里**只能注册一次**！原来连着写了 3 行 AddListener(OnComboClicked)
                 //   ， 点一次连携触发 3 次 SubmitCombo（灵力多扣 / 效果重复，用户实测报障）。
+                // ★ 统一的"不可行动"置灰色（用户 2026-10-13：敌人回合/伤害结算时按钮要点不了，
+                //   且要有"能点/不能点"的颜色变化，不靠隐藏）。设 colorBlock.disabledColor，
+                //   interactable=false 时 Unity 自动应用。
+                var disabledCol = new Color(0.40f, 0.38f, 0.34f, 0.55f);
+                if (_skillBtns != null)
+                    for (int i = 0; i < _skillBtns.Length; i++)
+                        if (_skillBtns[i] != null)
+                        {
+                            var cb = _skillBtns[i].colors; cb.disabledColor = disabledCol;
+                            _skillBtns[i].colors = cb;
+                            _skillBtns[i].transition = Selectable.Transition.ColorTint;
+                        }
+                if (_btnCombo != null)
+                {
+                    var cb = _btnCombo.colors; cb.disabledColor = disabledCol;
+                    _btnCombo.colors = cb;
+                    _btnCombo.transition = Selectable.Transition.ColorTint;
+                }
                 HookTipCombo();
                 EnsureAutoSpin();
                 _actionBar.gameObject.SetActive(false);
@@ -150,15 +169,15 @@ namespace WanXiang.Modules.UI
         private void RefreshActionBar()
         {
             if (_actionBar == null || _play == null) return;
-            // ⚠ 自动模式下也要显示操作区：否则按钮消失后再也点不到「自动战斗」开关，
-            //    玩家就被卡在自动里出不来（用户实测反馈：打着打着自动了、按钮没了）。
-            bool show = _play.AwaitingCommand || _autoBattle;
-            bool before = _actionBar.gameObject.activeSelf;
-            if (before != show)
-            {
+            // ★ 战斗中操作区**常驻可见**（不再随回合显隐 —— 用户 2026-10-13：老是显隐观感差）。
+            //   "能不能点"用 interactable + 置灰色表达，不靠隐藏。show=_playing 整场稳定，不逐回合翻。
+            bool show = _playing;
+            if (_actionBar.gameObject.activeSelf != show)
                 _actionBar.gameObject.SetActive(show);
-            }
             if (!show) return;
+
+            // 只有"等我方下令"的决策点才能行动；敌人行动/伤害结算/自动推进中一律置灰不可点。
+            bool canAct = _play.AwaitingCommand && !_play.Finished;
 
             var u = _play.PendingUnit;
             if (_autoBattle && u == null)
@@ -168,6 +187,7 @@ namespace WanXiang.Modules.UI
                 var stAuto = _play.State;
                 if (_tmpActor != null) _tmpActor.text = "自动战斗中…… 第 " + (stAuto != null ? stAuto.Turn : 0) + "/" +
                     (stAuto != null && stAuto.Config != null ? stAuto.Config.MaxTurns : 48) + " 回合（点任意战记即可接管）";
+                SetSkillButtonsInteractable(false);   // 自动推进中技能/连携不可点（要接管先关自动或等我方回合）
                 return;
             }
             var stt = _play.State;
@@ -199,33 +219,41 @@ namespace WanXiang.Modules.UI
             }
 
             // ⛔ 觉醒技（第 4 槽）：**未觉醒 / 未装备就隐藏**（用户 2026-10-11 要求）。
-            //   必须放在 `u != null` 判断之外 —— 否则轮到"无行动单位"（开局、结算、
-            //   敌方回合间隙）时不刷新，按钮会一直露着（prefab 默认是显示的）。
-            //   hasAwaken 的唯一判据 = BattleDef.Awaken 非空；该字段只在
-            //   BattleRequestFactory 里由 `run.SnapAwakenOf(id)` 非空时注入，
-            //   未觉醒/未装备的异兽拿到的是 null ， 自然隐藏。
+            bool hasAwaken = u != null && u.GetSkill(SkillType.Awaken) != null;
             if (_skillBtns != null && _skillBtns.Length > 3 && _skillBtns[3] != null)
             {
-                bool hasAwaken = u != null && u.GetSkill(SkillType.Awaken) != null;
                 if (_skillBtns[3].gameObject.activeSelf != hasAwaken)
                     _skillBtns[3].gameObject.SetActive(hasAwaken);
-                if (hasAwaken)
-                    _skillBtns[3].interactable = cfg != null && u.CanCast(SkillType.Awaken, cfg);
             }
 
-            if (_skillBtns != null && u != null)
+            if (_skillBtns != null)
             {
-                _skillBtns[0].interactable = true;      // 普攻永远可用（0 耗兜底）
-                // 战记：有技能 + 灵力够 —— 灵力不足时置灰，让"取舍"看得见
-                _skillBtns[1].interactable = u.GetSkill(SkillType.Active) != null
-                                          && mp >= WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active);
-                // 终结技：直接复用核心的 CanCast（CD + 怒气满），单一真源，不重复判断规则
-                _skillBtns[2].interactable = u.GetSkill(SkillType.Ultimate) != null
-                                          && cfg != null
-                                          && u.CanCast(SkillType.Ultimate, cfg);
+                // ★ 不能行动（敌人回合/伤害结算）时全部置灰；能行动时按规则逐条判。
+                //   以前 u==null（非待令）时整段跳过 ⇒ 按钮停在上一个我方单位的可用态，
+                //   敌人回合还能点却没反应（用户 2026-10-13 报障）。
+                _skillBtns[0].interactable = canAct;      // 普攻：能行动即可用（0 耗兜底）
+                _skillBtns[1].interactable = canAct && u != null
+                                              && u.GetSkill(SkillType.Active) != null
+                                              && mp >= WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active);
+                _skillBtns[2].interactable = canAct && u != null
+                                              && u.GetSkill(SkillType.Ultimate) != null
+                                              && cfg != null
+                                              && u.CanCast(SkillType.Ultimate, cfg);
+                if (_skillBtns.Length > 3 && _skillBtns[3] != null)
+                    _skillBtns[3].interactable = hasAwaken && canAct && cfg != null && u.CanCast(SkillType.Awaken, cfg);
             }
 
             // 连携按钮不在每帧路径里刷新（见 RefreshComboButton，避免每帧 GC/查子节点）
+        }
+
+        /// <summary>批量置灰/恢复技能按钮（自动推进、敌人回合用）。</summary>
+        private void SetSkillButtonsInteractable(bool on)
+        {
+            if (_skillBtns == null) return;
+            for (int i = 0; i < _skillBtns.Length; i++)
+                if (_skillBtns[i] != null && _skillBtns[i].gameObject.activeSelf)
+                    _skillBtns[i].interactable = on;
+            if (_btnCombo != null) _btnCombo.interactable = on && _play != null && _play.AwaitingCommand && _play.AvailableCombos.Count > 0;
         }
 
         private void OnSkillClicked(int skillIndex)

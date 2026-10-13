@@ -247,8 +247,8 @@ namespace WanXiang.Battle.Presentation
                 var pSr = pGo.AddComponent<SpriteRenderer>();
                 pSr.sprite = portrait;
                 pSr.sortingOrder = 500;
-                // 立绘高度约 0.8 屏高
-                float ph = halfH * (isAwaken ? 1.5f : 1.35f);
+                // 立绘高度约 0.55 屏高（用户 2026-10-13：以前 1.35 屏高太大看不清，缩小）
+                float ph = halfH * (isAwaken ? 0.72f : 0.62f);
                 float pw = ph;
                 if (portrait.texture != null)
                     pw = ph * ((float)portrait.texture.width / Mathf.Max(1, portrait.texture.height));

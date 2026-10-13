@@ -93,7 +93,7 @@ namespace WanXiang.Battle.Core
                             if (shieldMul != 1f) amount = CoreMath.RoundDamage(amount * shieldMul);
                         }
 
-                        int added = dst.AddShield(amount);
+                        int added = dst.AddShield(amount, st.Turn);
                         if (added <= 0) continue;
                         st.Log.Add(st.Turn, BattleEventKind.Shield, actorId: src.RuntimeId,
                                    targetId: dst.RuntimeId, skillName: skill?.Name,
@@ -342,7 +342,7 @@ namespace WanXiang.Battle.Core
                 int amount = share + (first ? remainder : 0);
                 first = false;
                 if (amount <= 0) continue;
-                int added = u.AddShield(amount);
+                int added = u.AddShield(amount, st.Turn);
                 if (added <= 0) continue;
                 st.Log.Add(st.Turn, BattleEventKind.Shield, actorId: killer.RuntimeId,
                            targetId: u.RuntimeId, amount: added, element: u.Element,

@@ -47,6 +47,7 @@ namespace WanXiang.Modules.UI
         private bool _playing;      // 回放中（控制舞台是否逐帧推进）
         private float _hitStop;     // 命中顿帧剩余时间（>0 时冻结舞台动画，制造打击"顿"感）
         private const float HitStopSec = 0.055f;   // 命中/暴击顿帧时长（受倍速缩放）
+        private bool _actionEnabled = true;        // 技能/连携按钮当前是否可点（每帧兜底：非我方决策点就置灰）
 
         // ---- 战斗场景模式（单位由 BattleStage2D 渲染，本面板只当 HUD）----
         private bool _sceneMode;
@@ -84,6 +85,13 @@ namespace WanXiang.Modules.UI
         protected override UniTask OnOpenAsync(object payload)
         {
             ApplyPvpUiMode();   // ★ 每次进入战斗面板都重新应用 PvP UI 模式（时机修正）
+            // ★ 清掉可能从**上一场残留**的技能悬浮提示 + 觉醒技槽（用户 2026-10-13 报障：
+            //   重新挑战→回节点地图→再进场，白魍这种没觉醒的怪却弹出"觉醒技/没有装备觉醒技"提示）。
+            //   根因：_tipPanel 只在 PointerExit 隐藏，面板关闭时没清；觉醒技槽在 prefab 默认显示。
+            if (_tipPanel != null) _tipPanel.gameObject.SetActive(false);
+            _tipShowingSlot = -1;
+            if (_skillBtns != null && _skillBtns.Length > 3 && _skillBtns[3] != null)
+                _skillBtns[3].gameObject.SetActive(false);   // 进场先收起，RefreshActionBar 按"是否装备"再放
             // ★ 每场战斗重置 自动/倍速：面板是 Cached 复用的，字段会带过来。
             //   放在 OnOpenAsync（每次打开必然经过）比放在 PlayLoop 更可靠（用户实测未生效）。
             _autoBattle = SceneFlow.LastWasPvp;   // ★ PvP=自动；正常战斗=手动(玩家自己下令)，与回放 manual 一致
@@ -327,6 +335,25 @@ namespace WanXiang.Modules.UI
                 sdt = 0f;                                  // 冻结：单位抖动/冲锋/下沉全停一拍
             }
             _stage.Step(sdt);
+
+            // ★ 每帧兜底：不是"等我方下令"的决策点（敌人行动/伤害结算/自动推进）就立刻置灰
+            //   技能/连携（提交指令后那一帧就生效，不用等下一次 AwaitingCommand 才刷）。
+            //   恢复可点由 RefreshActionBar（等令分支）按规则逐条设，这里只管"置灰"这一方向。
+            if (_play != null)
+            {
+                bool canAct = _play.AwaitingCommand && !_play.Finished;
+                if (canAct != _actionEnabled)
+                {
+                    _actionEnabled = canAct;
+                    if (!canAct)
+                    {
+                        SetSkillButtonsInteractable(false);
+                        // 觉醒技槽一并收起：敌人回合/结算时不该露着（避免误悬浮弹出"没有装备觉醒技"）
+                        if (_skillBtns != null && _skillBtns.Length > 3 && _skillBtns[3] != null)
+                            _skillBtns[3].gameObject.SetActive(false);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -532,6 +559,9 @@ namespace WanXiang.Modules.UI
         [SerializeField] private RectTransform[] _orderRows;    // OrderRow_0..7
         private Image[] _orderHeads;                            // 行内引用：生成器产物里按名字取
         private TMP_Text[] _orderNames;
+        private TMP_Text _orderTitle;                           // Tmp_OrderTitle（运行时按名取，显示"第 N 回合 · 行动顺序"）
+        private string _orderActorId;                           // 当前"正在行动"的单位（只在 ActionBegin 更新，避免伤害结算刷屏）
+        private string _lastOrderTitle;
 
         // 状态悬浮列表（Root_StatusTip）—— 悬停「行动顺序」的行 → 列出该单位的全部状态 + 效果说明。
         //   参考《杀戮尖塔》：它把 buff/debuff 摊成一个列表，玩家不用猜图标。

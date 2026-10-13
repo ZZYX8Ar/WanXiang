@@ -79,6 +79,9 @@ namespace WanXiang.Modules.UI
             ApplyFrames();
             if (_tmpLog != null) _tmpLog.text = "战斗开始";
             _playing = true;
+            _orderActorId = null;          // 面板是 Cached 复用的：清掉上一场的"当前行动者"，别串场
+            _lastOrderStamp = -1;          // 强制行动顺序面板重建一次
+            _actionEnabled = true;         // 让首帧把技能/连携置灰（开局还没到我方决策点）
             // ★ 每场战斗重置自动/倍速：面板是 Cached 复用的，字段会从上场带过来。
             //   PvP 必须保持自动战斗（否则异兽卡在等令、不动）；单机正常战斗=手动（玩家自己下令）。
             _autoBattle = SceneFlow.LastWasPvp;
@@ -248,6 +251,9 @@ namespace WanXiang.Modules.UI
             {
                 case BattleEventKind.BattleStart: _tmpLog.text = "战斗开始"; break;
                 case BattleEventKind.TurnStart: _tmpLog.text = "第 " + e.Turn + " 回合"; break;
+                // ★ 只在"某单位开始行动"时记录当前行动者（供行动顺序面板高亮）——
+                //   不用每条事件的 actorId，否则回合末一堆伤害/结算事件会让面板疯狂刷新（用户 2026-10-13）。
+                case BattleEventKind.ActionBegin: _orderActorId = e.ActorId; break;
                 case BattleEventKind.SkillCast: _tmpLog.text = actor + " 施放 " + (e.SkillName ?? "技能"); break;
                 case BattleEventKind.Damage: _tmpLog.text = actor + " → " + target + " 伤害 " + e.Amount; break;
                 case BattleEventKind.Heal: _tmpLog.text = target + " 回复 " + e.Amount; break;

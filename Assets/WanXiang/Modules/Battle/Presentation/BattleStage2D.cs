@@ -1515,8 +1515,8 @@ namespace WanXiang.Battle.Presentation
 
         /// <summary>
         /// 护盾指示：护盾 &gt; 0 时显示血条右侧的蓝牌 + 数值，否则整块收起。
-        /// ⚠ 护盾**没有持续回合数、也不会自然消退** —— 只被伤害消耗
-        /// （见 <c>BattleUnit.TakeDamage</c> 的 `Shield -= toShield`），也没有任何"回合末清空"的逻辑。
+        /// ⚠ 2026-10-13 起护盾**一个回合后自动消失**（BattleUnit.ShieldTurn + TickStatuses 清旧盾），
+        ///    也会被伤害消耗；无论哪种归零，这里都靠帧流 s.Shield 自动收牌（见 ApplyFrame→SetShield2D）。
         /// 所以它是"还剩多少"的真实信息，必须显示。
         /// </summary>
         private void SetShield2D(UnitView2D v, int shield)

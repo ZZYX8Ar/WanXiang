@@ -159,7 +159,7 @@ namespace WanXiang.Battle.Core
         {
             int amount = CoreMath.RoundDamage(overflow * ratio);
             if (st.Weather.ShieldGainMul != 1f) amount = CoreMath.RoundDamage(amount * st.Weather.ShieldGainMul);
-            int added = u.AddShield(amount);
+            int added = u.AddShield(amount, st.Turn);
             if (added <= 0) return;
             st.Log.Add(st.Turn, BattleEventKind.Shield, actorId: u.RuntimeId,
                        targetId: u.RuntimeId, amount: added, element: u.Element,

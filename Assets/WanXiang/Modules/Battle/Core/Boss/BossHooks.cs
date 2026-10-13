@@ -588,7 +588,7 @@ namespace WanXiang.Battle.Core
         public override void OnTurnStart(BattleState st)
         {
             if (_boss == null || !_boss.IsAlive) return;
-            _boss.AddShield((int)(_boss.MaxHp * _shieldFrac));
+            _boss.AddShield((int)(_boss.MaxHp * _shieldFrac), st.Turn);
             _hadShield = true;
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                        note: $"{_boss.DisplayName} 获得护盾（{_shieldFrac * 100f:F0}% 最大生命）");

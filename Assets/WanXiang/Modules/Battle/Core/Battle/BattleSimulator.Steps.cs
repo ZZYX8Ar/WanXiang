@@ -230,6 +230,16 @@ namespace WanXiang.Battle.Core
                 var u = all[i];
                 if (!u.IsAlive) continue;
 
+                // 护盾一个回合后自动消失（用户 2026-10-13）：本回合始把**上一回合及更早**获得的旧盾清掉。
+                //   ShieldTurn 记录"第几回合获得"，ShieldTurn < st.Turn ⇒ 已撑过至少一整回合 → 消退。
+                //   （Boss 破壳盾在 OnTurnStart 每回合重发、ShieldTurn=当前回合，天然不会被误清。）
+                if (u.Shield > 0 && u.ShieldTurn > 0 && u.ShieldTurn < st.Turn)
+                {
+                    int gone = u.ClearShield();
+                    st.Log.Add(st.Turn, BattleEventKind.RoundResolve, targetId: u.RuntimeId,
+                               note: $"{u.DisplayName} 的护盾（{gone}）已消退");
+                }
+
                 // 跳伤。存的是数值而不是公式（见 StatusCatalog 文件头）。
                 // 这里只调 TakeTrueDamage，它不碰 Statuses 列表，所以可以在列表上直接遍历。
                 for (int k = 0; k < u.Statuses.Count; k++)

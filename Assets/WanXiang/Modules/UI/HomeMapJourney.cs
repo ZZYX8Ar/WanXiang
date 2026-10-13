@@ -81,6 +81,8 @@ namespace WanXiang.Modules.UI
         // 终幕「到达之光」（prefab Img_FinaleGlow 光晕 / Img_FinaleBeam 光柱，跟归墟之门一起点亮）
         private Image _finaleGlow;
         private Image _finaleBeam;
+        private Sprite _nodeBead;     // 节气节点·立体珠子（未来/未到达；运行时 Resources 取，可染色）
+        private Sprite _nodePassed;   // 节气节点·带小旗（已通过；参考同类游戏"插旗"）
 
         // ---- 常量表 ----
         private static readonly string[] Terms =
@@ -108,6 +110,8 @@ namespace WanXiang.Modules.UI
             new Color(0.91f, 0.96f, 1.00f),   // 冬 · 冷蓝
         };
         private static readonly Color DimColor    = new Color(0.70f, 0.73f, 0.76f, 0.72f);
+        // 未到达的节气节点：素色立体珠子 + 沉稳灰调（alpha 拉高到 0.9，别再"时有时无"——用户 2026-10-13）
+        private static readonly Color NodeLocked  = new Color(0.58f, 0.55f, 0.50f, 0.90f);
 
         // 远景山峦的季色（比底图 tint 强得多 —— 远山就是要"看得出季节"）。
         // ⚠ 2026-10-13：以前 _farPeaks 写死偏蓝 (0.88,0.91,0.95)，秋天也发蓝，和秋景打架。
@@ -137,6 +141,9 @@ namespace WanXiang.Modules.UI
             if (_near != null) _nearBase = _near.rectTransform.anchoredPosition;
             SetupPerspectiveMaterial();
             SetupLumaLayers();
+            // 节气节点美术：立体珠子 + 已通过"插旗"（用户 2026-10-13）。运行时取，进度重置时好切回。
+            if (_nodeBead == null)   _nodeBead   = Resources.Load<Sprite>("UI/Home/map_node");
+            if (_nodePassed == null) _nodePassed = Resources.Load<Sprite>("UI/Home/map_node_passed");
             EnsureLayerOrder();          // 远山/雾山垫到地形之后（背后），别挡住地图（用户 2026-10-13）
             ResolveNowGlow();
             ApplyMapScale();
@@ -415,15 +422,20 @@ namespace WanXiang.Modules.UI
                 child.localScale = new Vector3(sc, sc, 1f);
 
                 float xFrac = (k + 1) / NodeXDenom;
-                if (finale || xFrac <= p + 0.0001f)
+                bool passed = finale || xFrac <= p + 0.0001f;
+                if (passed)
                 {
                     var c = finale ? FinaleColor : SeasonColors[k / TermsPerSeason];
                     c.a = 1f;
                     img.color = c;
+                    // 已通过：换"带小旗的立体珠子"（参考同类游戏插旗；进度重置时下面会切回珠子）
+                    if (_nodePassed != null) img.sprite = _nodePassed;
                 }
                 else
                 {
-                    img.color = DimColor;
+                    // 未到达：素色立体珠子 + 稳定的灰调（以前 alpha 0.72 太淡 ⇒ 看着"时有时无"，用户报障）
+                    img.color = NodeLocked;
+                    if (_nodeBead != null) img.sprite = _nodeBead;
                 }
             }
         }
