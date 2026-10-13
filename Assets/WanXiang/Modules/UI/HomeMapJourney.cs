@@ -62,6 +62,12 @@ namespace WanXiang.Modules.UI
         private Material _perspMat;
         private Vector3 _mapScale0 = Vector3.one;
         private bool _scaleCaptured;
+        // 当前节点"呼吸光晕"（prefab 节点 Img_NowGlow，按名字取，不做运行时构建）
+        [SerializeField] private float _glowSize = 300f;      // 光晕直径（px）
+        [SerializeField] private float _travelerScale = 1.30f; // 旅行者放大（更醒目）
+        private RectTransform _nowGlow;
+        private Image _nowGlowImg;
+        private float _nowGlowScale = 1f;
 
         // ---- 常量表 ----
         private static readonly string[] Terms =
@@ -106,6 +112,7 @@ namespace WanXiang.Modules.UI
             if (_far != null) _farBase = _far.rectTransform.anchoredPosition;
             if (_near != null) _nearBase = _near.rectTransform.anchoredPosition;
             SetupPerspectiveMaterial();
+            ResolveNowGlow();
             ApplyMapScale();
             Refresh();
         }
@@ -143,6 +150,16 @@ namespace WanXiang.Modules.UI
                 var pimg = path != null ? path.GetComponent<Image>() : null;
                 if (pimg != null) pimg.material = _perspMat;
             }
+        }
+
+        /// <summary>取"当前节点光晕"节点（prefab 里 Img_NowGlow，与 Map_Nodes 同级、排在节点之上）。</summary>
+        private void ResolveNowGlow()
+        {
+            if (_nowGlow != null || _terrain == null || _terrain.transform.parent == null) return;
+            var g = _terrain.transform.parent.Find("Img_NowGlow");
+            _nowGlow = g as RectTransform;
+            _nowGlowImg = g != null ? g.GetComponent<Image>() : null;
+            if (_nowGlow != null) _nowGlow.sizeDelta = new Vector2(_glowSize, _glowSize);
         }
 
         /// <summary>旅程曲线上的点（未透视）。<paramref name="kk"/> = 连续节气相位 0..23。
@@ -232,6 +249,12 @@ namespace WanXiang.Modules.UI
             if (_far != null) _far.color = c;
             if (_terrain != null) _terrain.color = c;
             if (_near != null) _near.color = new Color(c.r, c.g, c.b, Mathf.Max(0.6f, _near.color.a));
+            // 当前节点光晕 = 该幕季节色
+            if (_nowGlowImg != null)
+            {
+                var gc = act >= 5 ? FinaleColor : SeasonColors[s];
+                _nowGlowImg.color = new Color(gc.r, gc.g, gc.b, _nowGlowImg.color.a);
+            }
         }
 
         // ------------------------------------------------------------------ 节点染色
@@ -274,13 +297,20 @@ namespace WanXiang.Modules.UI
 
             // 旅行者：连续节气相位 t∈[0,23]（P=0 → 立春；P=1 → 大寒）
             float t = Mathf.Clamp(p, 0f, 1f) * (TotalTerms - 1);
+            Vector2 mp = PathPointWarped(t);
+            float ms = Mathf.Lerp(_nearScale, _farScale, Mathf.Clamp01(t / (TotalTerms - 1)));
             if (_marker != null)
             {
                 _marker.gameObject.SetActive(true);
-                Vector2 mp = PathPointWarped(t);
                 _marker.rectTransform.anchoredPosition = mp + new Vector2(0f, 4f); // 底枢轴：脚踩小路
-                float ms = Mathf.Lerp(_nearScale, _farScale, Mathf.Clamp01(t / (TotalTerms - 1)));
-                _marker.rectTransform.localScale = new Vector3(ms, ms, 1f);       // 近大远小
+                float tsc = ms * _travelerScale;                                  // 近大远小 + 放大更醒目
+                _marker.rectTransform.localScale = new Vector3(tsc, tsc, 1f);
+            }
+            // 当前节点呼吸光晕：跟着旅行者
+            if (_nowGlow != null)
+            {
+                _nowGlow.anchoredPosition = mp;
+                _nowGlowScale = ms;
             }
 
             // 迷雾：从当前位置盖到最右；走完消失。左缘自带 150px 渐隐
@@ -376,6 +406,19 @@ namespace WanXiang.Modules.UI
                 float sway = 1.5f * Mathf.Sin(Time.unscaledTime * 2.6f);
                 var e2 = _marker.rectTransform.localEulerAngles;
                 _marker.rectTransform.localEulerAngles = new Vector3(e2.x, e2.y, sway);
+            }
+
+            // 当前节点光晕：呼吸（缩放 + 透明度）
+            if (_nowGlow != null)
+            {
+                float ph = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 2.2f);
+                _nowGlow.localScale = Vector3.one * (_nowGlowScale * (0.9f + 0.30f * ph));
+                if (_nowGlowImg != null)
+                {
+                    var gc = _nowGlowImg.color;
+                    gc.a = Mathf.Lerp(0.50f, 0.92f, ph);
+                    _nowGlowImg.color = gc;
+                }
             }
 
             // 归墟之门：终幕时轻微呼吸（没有就跳过）
