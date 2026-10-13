@@ -323,22 +323,12 @@ namespace WanXiang.Modules.UI
             // ★ 悬停棋盘上的异兽 → 状态列表（用户定案：触发走世界空间，鼠标直接指单位）
             UpdateUnitStatusHover();
 
-            if (!_playing || _stage == null) return;
+            if (!_playing) return;
             if (State != UIPanelState.Opened) return;      // 被上层盖住/暂停时不推进
-            // ★ 命中顿帧：受击/暴击的瞬间冻结舞台动画几帧（dt=0），打出"顿"的打击感。
-            //   倍速越高顿帧越短（除以 _speed），避免高速下变成长时间卡顿。
-            float sdt = Time.deltaTime * Mathf.Max(1f, _speed);
-            if (_hitStop > 0f)
-            {
-                _hitStop -= Time.deltaTime;
-                if (_hitStop < 0f) _hitStop = 0f;
-                sdt = 0f;                                  // 冻结：单位抖动/冲锋/下沉全停一拍
-            }
-            _stage.Step(sdt);
 
-            // ★ 每帧兜底：不是"等我方下令"的决策点（敌人行动/伤害结算/自动推进）就立刻置灰
-            //   技能/连携（提交指令后那一帧就生效，不用等下一次 AwaitingCommand 才刷）。
-            //   恢复可点由 RefreshActionBar（等令分支）按规则逐条设，这里只管"置灰"这一方向。
+            // ★ 每帧兜底按钮状态（**不分场景/非场景模式** —— 以前这段在 `_stage==null` 之后，
+            //   主城内直接打（无舞台）时永远跑不到，敌人回合按钮还亮着。用户 2026-10-13）：
+            //   不是"等我方下令"的决策点（敌人行动/伤害结算/自动推进）就立刻置灰技能/连携。
             if (_play != null)
             {
                 bool canAct = _play.AwaitingCommand && !_play.Finished;
@@ -354,6 +344,18 @@ namespace WanXiang.Modules.UI
                     }
                 }
             }
+
+            if (_stage == null) return;                    // 舞台推进才需要 _stage
+            // ★ 命中顿帧：受击/暴击的瞬间冻结舞台动画几帧（dt=0），打出"顿"的打击感。
+            //   倍速越高顿帧越短（除以 _speed），避免高速下变成长时间卡顿。
+            float sdt = Time.deltaTime * Mathf.Max(1f, _speed);
+            if (_hitStop > 0f)
+            {
+                _hitStop -= Time.deltaTime;
+                if (_hitStop < 0f) _hitStop = 0f;
+                sdt = 0f;                                  // 冻结：单位抖动/冲锋/下沉全停一拍
+            }
+            _stage.Step(sdt);
         }
 
         /// <summary>

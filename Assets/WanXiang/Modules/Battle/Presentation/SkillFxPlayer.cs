@@ -169,7 +169,7 @@ namespace WanXiang.Battle.Presentation
             float aw = isAwaken ? 1.35f : 1.0f;
 
             // 时间线（秒）
-            float cutInDur  = (isAwaken ? 0.72f : 0.55f) * (portrait != null ? 1f : 0f); // 无立绘则不播特写
+            float cutInDur  = (isAwaken ? 1.30f : 1.05f) * (portrait != null ? 1f : 0f); // 无立绘则不播特写
             float chargeDur = (isAwaken ? 0.70f : 0.50f);
             float burstDur  = 0.35f * aw;
             float ringDur   = (isAwaken ? 1.00f : 0.80f);
@@ -247,12 +247,13 @@ namespace WanXiang.Battle.Presentation
                 var pSr = pGo.AddComponent<SpriteRenderer>();
                 pSr.sprite = portrait;
                 pSr.sortingOrder = 500;
-                // 立绘高度约 0.55 屏高（用户 2026-10-13：以前 1.35 屏高太大看不清，缩小）
-                float ph = halfH * (isAwaken ? 0.72f : 0.62f);
-                float pw = ph;
-                if (portrait.texture != null)
-                    pw = ph * ((float)portrait.texture.width / Mathf.Max(1, portrait.texture.height));
-                pGo.transform.localScale = new Vector3(pw, ph, 1f);
+                // ★ 立绘按"目标世界高度"缩放：立绘是 1024² 精灵，自然尺寸 = 像素/PPU（≈10.24 世界单位），
+                //   以前直接把 halfH*0.62 当 localScale 用 ⇒ 放大到 30+ 单位、只露肚子（用户 2026-10-13 报障）。
+                //   正确做法：localScale = 目标高度 / 精灵自然高度。
+                float targetH = halfH * (isAwaken ? 1.00f : 0.86f);   // 约 0.43~0.5 屏高，整个人都看得到
+                float natH = portrait.rect.height / Mathf.Max(1f, portrait.pixelsPerUnit);
+                float s = targetH / Mathf.Max(0.0001f, natH);
+                pGo.transform.localScale = new Vector3(s, s, 1f);
             }
 
             // 名字（LegacyRuntime 中文字体）
@@ -435,7 +436,7 @@ namespace WanXiang.Battle.Presentation
 
             float x;
             float alpha = 1f;
-            const float In = 0.40f, Out = 0.72f;   // 切入段 / 甩出段起点
+            const float In = 0.28f, Out = 0.80f;   // 切入段 / 甩出段起点（中间 0.52 段为停驻，看得清）
             if (p < In)
             {
                 //  easeOutBack：冲过头再回弹，P5R 切入的"啪"一下
