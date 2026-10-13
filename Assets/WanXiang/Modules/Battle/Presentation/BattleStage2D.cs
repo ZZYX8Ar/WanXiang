@@ -369,6 +369,11 @@ namespace WanXiang.Battle.Presentation
         /// <summary>环境粒子（按幕：春花瓣/夏萤火/长夏花粉/秋落叶/冬雪花）。</summary>
         private BattleAmbientParticles _ambient;
 
+        // ---- 终结技 / 觉醒技 大演出 + 镜头震动（2026-10-13）----
+        private SkillFxPlayer _skillFx;
+        private Vector3 _camBase;                 // 相机基准位（震动围绕它抖）
+        private float _shakeAmp, _shakeT, _shakeDur;
+
         public Camera Camera => _cam;
 
         // ================================================================
@@ -442,6 +447,8 @@ namespace WanXiang.Battle.Presentation
             _cam = null;
             _fgDecor = null;
             _ambient = null;   // 粒子子物体已被上面销毁；Build 里重新 GetComponent/AddComponent
+            _skillFx = null;   // SkillFx 子物体一并销毁；下次 EnsureSkillFx 重建（否则持已毁对象）
+            _shakeDur = 0f; _shakeAmp = 0f;
         }
 
         // player=true 我方（左，不镜像）；player=false 敌方（右，列镜像 ， 与我方对称）
@@ -783,6 +790,58 @@ namespace WanXiang.Battle.Presentation
             _cam.clearFlags = CameraClearFlags.SolidColor;
             _cam.backgroundColor = BattlePalette.Paper;
             go.transform.localPosition = new Vector3(0f, 0f, -10f);
+            _camBase = go.transform.localPosition;   // 震动基准
+        }
+
+        // ================================================================
+        //  终结技 / 觉醒技 大演出（SkillFxPlayer）
+        // ================================================================
+
+        /// <summary>惰性创建特效播放器（挂在舞台根下，与舞台同一时钟由 Step 驱动）。</summary>
+        private void EnsureSkillFx()
+        {
+            if (_skillFx != null) return;
+            var go = new GameObject("SkillFx");
+            go.transform.SetParent(transform, false);
+            _skillFx = go.AddComponent<SkillFxPlayer>();
+            _skillFx.Bind(_cam, TriggerShake);
+        }
+
+        /// <summary>触发一次终结技/觉醒技演出。仅 Ultimate/Awaken 调用（大招要稀有）。</summary>
+        private void PlaySkillFx(string actorId, Element element, bool isAwaken)
+        {
+            if (string.IsNullOrEmpty(actorId)) return;
+            if (!_views.TryGetValue(actorId, out var v) || v.Root == null || !v.Alive) return;
+            EnsureSkillFx();
+            if (_skillFx == null) return;
+            var col = BattlePalette.OfElement(element);
+            _skillFx.Play(v.Root.transform.position, actorId, col, isAwaken);
+        }
+
+        /// <summary>镜头震动（由 SkillFxPlayer 在大招起爆点回调）。</summary>
+        public void TriggerShake(float amp, float dur)
+        {
+            if (_cam == null) return;
+            _shakeAmp = Mathf.Max(_shakeAmp, amp);
+            _shakeDur = Mathf.Max(_shakeDur, dur);
+            _shakeT = 0f;
+        }
+
+        /// <summary>推进震动衰减（在 Step 内调用）。</summary>
+        private void StepShake(float dt)
+        {
+            if (_cam == null || _shakeDur <= 0f) return;
+            _shakeT += dt;
+            float k = 1f - Mathf.Clamp01(_shakeT / _shakeDur);
+            float a = _shakeAmp * k * k;
+            float nx = (Mathf.PerlinNoise(_animT * 42f, 0.5f) - 0.5f) * 2f;
+            float ny = (Mathf.PerlinNoise(0.5f, _animT * 42f) - 0.5f) * 2f;
+            _cam.transform.localPosition = _camBase + new Vector3(nx * a, ny * a, 0f);
+            if (_shakeT >= _shakeDur)
+            {
+                _shakeDur = 0f; _shakeAmp = 0f;
+                _cam.transform.localPosition = _camBase;
+            }
         }
 
         // ================================================================
@@ -1028,6 +1087,10 @@ namespace WanXiang.Battle.Presentation
                     if (!string.IsNullOrEmpty(e.SkillName) && e.SkillName != "普攻" &&
                         e.ActorId != null && _views.TryGetValue(e.ActorId, out var scv))
                         SpawnNumber(scv, e.SkillName, SkillNameColor);
+                    // ★ 终结技 / 觉醒技 大演出（2026-10-13）：每个异兽都有，元素色 + id 哈希定造型。
+                    //   只给 Ultimate/Awaken 播（大招要稀有、要炸）；普攻/战技保持轻量不刷屏。
+                    if (e.Skill == SkillType.Ultimate || e.Skill == SkillType.Awaken)
+                        PlaySkillFx(e.ActorId, e.Element, e.Skill == SkillType.Awaken);
                     break;
 
                 case BattleEventKind.Damage:
@@ -1094,6 +1157,10 @@ namespace WanXiang.Battle.Presentation
 
             // 环境粒子（同一动画时钟，别用 Time.time）
             if (_ambient != null) _ambient.Step(dt);
+
+            // 终结技 / 觉醒技 特效 + 镜头震动（同一时钟）
+            if (_skillFx != null) _skillFx.Step(dt);
+            StepShake(dt);
 
             foreach (var v in _views.Values)
             {
