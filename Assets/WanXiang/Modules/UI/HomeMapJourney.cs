@@ -57,7 +57,11 @@ namespace WanXiang.Modules.UI
         [SerializeField] private float _haze       = 0.45f;  // 空气透视雾强度
         [SerializeField] private float _edgeFadeY  = 0.18f;  // 上下边缘渐隐比例（消掉"硬边矩形"）
         [SerializeField] private float _edgeFadeX  = 0.06f;  // 左右边缘渐隐比例
+        [SerializeField] private float _nodeSize   = 104f;   // 节气节点基准尺寸（px，越大越醒目）
+        [SerializeField] private float _mapScale   = 1.16f;  // 整张地图放大（铺满屏幕）
         private Material _perspMat;
+        private Vector3 _mapScale0 = Vector3.one;
+        private bool _scaleCaptured;
 
         // ---- 常量表 ----
         private static readonly string[] Terms =
@@ -76,7 +80,15 @@ namespace WanXiang.Modules.UI
             new Color(0.48f, 0.70f, 0.95f),   // 冬 · 冰蓝
         };
         private static readonly Color FinaleColor = new Color(0.95f, 0.84f, 0.50f); // 终幕 · 琥珀
-        private static readonly Color DimColor    = new Color(0.72f, 0.75f, 0.78f, 0.50f);
+        // 四季氛围色调：给地图底图整体上色（轻，别盖掉水彩本身）
+        private static readonly Color[] SeasonTint =
+        {
+            new Color(0.94f, 1.00f, 0.94f),   // 春 · 淡芽绿
+            new Color(1.00f, 0.98f, 0.91f),   // 夏 · 暖阳
+            new Color(1.00f, 0.93f, 0.83f),   // 秋 · 金
+            new Color(0.91f, 0.96f, 1.00f),   // 冬 · 冷蓝
+        };
+        private static readonly Color DimColor    = new Color(0.70f, 0.73f, 0.76f, 0.72f);
 
         private const int TermsPerSeason = 6;
         private const int TotalTerms     = 24;
@@ -90,10 +102,18 @@ namespace WanXiang.Modules.UI
 
         private void OnEnable()
         {
+            if (!_scaleCaptured) { _mapScale0 = transform.localScale; _scaleCaptured = true; }
             if (_far != null) _farBase = _far.rectTransform.anchoredPosition;
             if (_near != null) _nearBase = _near.rectTransform.anchoredPosition;
             SetupPerspectiveMaterial();
+            ApplyMapScale();
             Refresh();
+        }
+
+        /// <summary>把整张地图放大到铺满屏幕（prefab 原始缩放 × _mapScale；节点会跟着一起放大）。</summary>
+        public void ApplyMapScale()
+        {
+            transform.localScale = _mapScale0 * Mathf.Max(0.1f, _mapScale);
         }
 
         // ------------------------------------------------------------------ 斜俯视：背景地面透视
@@ -173,6 +193,7 @@ namespace WanXiang.Modules.UI
             // 全程进度：4 季（幕）铺满整条；终幕 Act5 = 全亮
             float p = act >= 5 ? 1f : ((act - 1) + prog) / 4f;
 
+            ApplySeasonTint(act);
             ApplyNodes(p, act >= 5);
             LayoutSeasonLabels();
             ApplyFogAndMarker(p, act, prog);
@@ -202,6 +223,17 @@ namespace WanXiang.Modules.UI
             }
         }
 
+        // ------------------------------------------------------------------ 四季色调
+        /// <summary>给地图底图整体上季色（春淡绿/夏暖/秋金/冬冷蓝），一幕一色，氛围随进度走。</summary>
+        private void ApplySeasonTint(int act)
+        {
+            int s = Mathf.Clamp(act - 1, 0, SeasonTint.Length - 1);
+            var c = SeasonTint[s];
+            if (_far != null) _far.color = c;
+            if (_terrain != null) _terrain.color = c;
+            if (_near != null) _near.color = new Color(c.r, c.g, c.b, Mathf.Max(0.6f, _near.color.a));
+        }
+
         // ------------------------------------------------------------------ 节点染色
         private void ApplyNodes(float p, bool finale)
         {
@@ -217,6 +249,7 @@ namespace WanXiang.Modules.UI
                 // ---- 斜俯视：沿"左下(近) → 右上(远)"的曲线排布，并按进度缩小（近大远小）----
                 float tk = n > 1 ? (float)k / (n - 1) : 0f;
                 child.anchoredPosition = PathPointWarped(tk * (TotalTerms - 1));
+                child.sizeDelta = new Vector2(_nodeSize, _nodeSize);          // 放大节点，让 journey 更醒目
                 float sc = Mathf.Lerp(_nearScale, _farScale, tk);
                 child.localScale = new Vector3(sc, sc, 1f);
 

@@ -575,6 +575,17 @@ MonoBehaviour:
   _shiftPx: 8
   _farParallax: 0.35
   _nearParallax: 1.7
+  _keystone: 0.28
+  _nearScale: 1.22
+  _farScale: 0.62
+  _pathMargin: 100
+  _depthNear: -170
+  _depthFar: 60
+  _haze: 0.45
+  _edgeFadeY: 0.18
+  _edgeFadeX: 0.06
+  _nodeSize: 64
+  _mapScale: 1.16
 --- !u!1 &1441983100484469379
 GameObject:
   m_ObjectHideFlags: 0
@@ -1032,8 +1043,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 70}
-  m_SizeDelta: {x: 1600, y: 400}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 1600, y: 560}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &70960352370850257
 CanvasRenderer:
