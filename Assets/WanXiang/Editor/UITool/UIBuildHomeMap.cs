@@ -159,6 +159,21 @@ namespace WanXiang.EditorTools
             terrainImg.sprite = LoadSprite("journey_pano.png");
             terrainImg.raycastTarget = true;
 
+            // 极远雾山层（最远最淡；LumaKey 阈值在 HomeMapJourney.SetupLumaLayers 下发）
+            var farMist = NewUI("Img_FarHaze", par.transform, StripW, 400f);
+            var farMistImg = farMist.AddComponent<Image>();
+            farMistImg.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/ArtRes/UI/HomeMapHD/journey_farmist.png");
+            farMistImg.raycastTarget = false;
+            farMistImg.color = new Color(1f, 1f, 1f, 0.85f);
+            ((RectTransform)farMist.transform).anchoredPosition = new Vector2(0f, 150f);
+
+            // 远景山峰层（青灰；LumaKey 抠白 + 大气透视淡蓝染色）
+            var farPeaks = NewUI("Img_FarPeaks", par.transform, StripW, 400f);
+            var farPeaksImg = farPeaks.AddComponent<Image>();
+            farPeaksImg.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/ArtRes/UI/HomeMapHD/journey_farpeaks.png");
+            farPeaksImg.raycastTarget = false;
+            ((RectTransform)farPeaks.transform).anchoredPosition = new Vector2(0f, 120f);
+
             // 白虚线小路（程序化，位置公式与节点一致；盖在画卷上）
             var pathGo = NewUI("Img_Path", par.transform, StripW, StripH);
             var pathImg = pathGo.AddComponent<Image>();
@@ -208,12 +223,12 @@ namespace WanXiang.EditorTools
                 ((RectTransform)lab.transform).anchoredPosition = new Vector2(x, 115f);
             }
 
-            // 近景墨丘（AI 出图抠透明；条带底部，视差最快 —— 伪3D 前层）
-            var near = NewUI("Img_Near", par.transform, StripW, 150f);
+            // 近景前景层（多变水彩：芦苇/枯石野花/茅草竹坡；LumaKey 抠白；条带底部，视差最快）
+            var near = NewUI("Img_Near", par.transform, StripW, 400f);
             var nearImg = near.AddComponent<Image>();
-            nearImg.sprite = LoadSprite("journey_near.png");
+            nearImg.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/ArtRes/UI/HomeMapHD/journey_foreground.png");
             nearImg.raycastTarget = false;
-            ((RectTransform)near.transform).anchoredPosition = new Vector2(0f, -80f);
+            ((RectTransform)near.transform).anchoredPosition = new Vector2(0f, -235f);
 
             // 终幕「归墟之门」到达之光（光柱 + 光晕；仅 act≥5 由 HomeMapJourney 一起点亮）
             var finBeam = NewUI("Img_FinaleBeam", par.transform, 190f, 430f);

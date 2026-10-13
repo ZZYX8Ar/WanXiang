@@ -214,6 +214,7 @@ namespace WanXiang.Modules.UI
             public int Birds; public bool BirdFlock;
             public int Butterflies;
             public string Ground; public int GroundNum; public float GroundScale;
+            public string Ground2;   // 第二种植被（交替混排，免得一片全是同一个图）
         }
 
         private static Eco EcoForAct(int act)
@@ -225,16 +226,18 @@ namespace WanXiang.Modules.UI
                 //   用户："你这个云怎么还变大了，第五幕的太大了" —— 长夏原本 0.72 最大是主因。
                 //   现在**长夏不再最大**，各幕只靠"数量/透明度"区分云的季节形态：
                 //     春·淡云疏 / 夏·积云厚白 / 秋·高云疏淡 / 冬·阴云灰密 / 长夏·低云压顶
+                // ⚠ 2026-10-13 用户"近景都一个样"：植被两两混排（Ground+Ground2 交替）+ 数量/尺寸调小，
+                //   别再一整排 13 丛同一个图顶到半屏。
                 case 1: return new Eco { Clouds = 10, CloudScale = 0.26f, CloudAlpha = 0.62f, Birds = 14, BirdFlock = false, Butterflies = 10,
-                                         Ground = "home_flower_1", GroundNum = 12, GroundScale = 0.95f };
+                                         Ground = "home_flower_1", Ground2 = "home_grass", GroundNum = 8, GroundScale = 0.82f };
                 case 2: return new Eco { Clouds = 12, CloudScale = 0.30f, CloudAlpha = 0.86f, Birds = 10, BirdFlock = false, Butterflies = 8,
-                                         Ground = "home_flower_2", GroundNum = 13, GroundScale = 1.00f };
+                                         Ground = "home_flower_2", Ground2 = "home_flower_1", GroundNum = 8, GroundScale = 0.85f };
                 case 3: return new Eco { Clouds = 7,  CloudScale = 0.22f, CloudAlpha = 0.52f, Birds = 16, BirdFlock = true, Butterflies = 0,
-                                         Ground = "home_reeds", GroundNum = 13, GroundScale = 1.05f };
+                                         Ground = "home_reeds", Ground2 = "home_grass", GroundNum = 8, GroundScale = 0.78f };
                 case 4: return new Eco { Clouds = 14, CloudScale = 0.28f, CloudAlpha = 0.90f, Birds = 5, BirdFlock = false, Butterflies = 0,
-                                         Ground = "home_grass", GroundNum = 12, GroundScale = 0.95f };
+                                         Ground = "home_grass", Ground2 = "home_flower_2", GroundNum = 8, GroundScale = 0.82f };
                 default: return new Eco { Clouds = 11, CloudScale = 0.26f, CloudAlpha = 0.80f, Birds = 8, BirdFlock = false, Butterflies = 0,
-                                          Ground = "home_wheat", GroundNum = 14, GroundScale = 1.05f };
+                                          Ground = "home_wheat", Ground2 = "home_reeds", GroundNum = 9, GroundScale = 0.82f };
             }
         }
 
@@ -355,13 +358,15 @@ namespace WanXiang.Modules.UI
         private void BuildGround(Eco eco)
         {
             DestroyNodes<Swayer>(_swayers, RToS);
-            var sp = Resources.Load<Sprite>("UI/Home/" + eco.Ground);
+            var sp  = Resources.Load<Sprite>("UI/Home/" + eco.Ground);
+            var sp2 = string.IsNullOrEmpty(eco.Ground2) ? null : Resources.Load<Sprite>("UI/Home/" + eco.Ground2);
             if (sp == null) { Debug.LogWarning("[Home] 地面植被缺图 " + eco.Ground); return; }
 
             for (int i = 0; i < eco.GroundNum; i++)
             {
                 var img = MakeImage(_natureRoot, "Ground" + i, i);
-                img.sprite = sp;
+                // 两两混排：偶数丛用主植被、奇数丛用第二植被（缺图就退回主植被）
+                img.sprite = (i % 2 == 1 && sp2 != null) ? sp2 : sp;
                 SetSizeBySprite(img, eco.GroundScale * _globalScale * Random.Range(0.85f, 1.35f));
                 float hh = img.rectTransform.sizeDelta.y;
                 float x = -HalfW + (i + 0.5f) * (W / eco.GroundNum) + Random.Range(-30f, 30f);
@@ -370,7 +375,7 @@ namespace WanXiang.Modules.UI
                 _swayers.Add(new Swayer { T = img.rectTransform,
                                           Amp = Random.Range(2.4f, 6.0f), Freq = Random.Range(0.65f, 1.25f), Phase = Random.Range(0f, 6.28f) });
             }
-            Debug.Log("[Home] 地面植被 " + _swayers.Count + " 丛（" + eco.Ground + "）");
+            Debug.Log("[Home] 地面植被 " + _swayers.Count + " 丛（" + eco.Ground + " + " + (sp2 != null ? eco.Ground2 : "-") + "）");
         }
 
         // ---------------- 水（常驻） ----------------

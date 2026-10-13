@@ -59,12 +59,17 @@ namespace WanXiang.Modules.UI
         [SerializeField] private float _edgeFadeX  = 0.10f;  // 左右边缘渐隐比例
         [SerializeField] private Sprite[] _seasonArt;        // 春/夏/秋/冬 四张水彩底图（按幕切，空则退回默认）
         [SerializeField] private float _nodeSize   = 104f;   // 节气节点基准尺寸（px，越大越醒目）
-        [SerializeField] private float _mapScale   = 1.16f;  // 整张地图放大（铺满屏幕）
+        [SerializeField] private float _mapScale   = 1.26f;  // 整张地图放大（铺满屏幕）
+        [SerializeField] private float _raiseY     = 55f;    // 整张地图上移（露出更多天/远山）
         private Material _perspMat;   // 透视材质（中景底图/地面/小路）
         private Material _lumaMat;    // 亮度抠白材质（远景山峰层 / 近景前景层）
+        private Material _lumaMatMist; // 极远雾山专用（阈值更宽：雾山本来就极淡）
         private Image _farPeaks;      // Img_FarPeaks 远景山峰层
         private Vector2 _peaksBase;   // 远景山峰层基准位
+        private Image _farMist;       // Img_FarHaze 极远雾山层（最远、最淡、视差最慢）
+        private Vector2 _mistBase;    // 极远雾山层基准位
         private Vector3 _mapScale0 = Vector3.one;
+        private Vector3 _pos0;        // 地图根节点原始位置（上移叠加用）
         private bool _scaleCaptured;
         // 当前节点"呼吸光晕"（prefab 节点 Img_NowGlow，按名字取，不做运行时构建）
         [SerializeField] private float _glowSize = 300f;      // 光晕直径（px）
@@ -115,7 +120,7 @@ namespace WanXiang.Modules.UI
 
         private void OnEnable()
         {
-            if (!_scaleCaptured) { _mapScale0 = transform.localScale; _scaleCaptured = true; }
+            if (!_scaleCaptured) { _mapScale0 = transform.localScale; _pos0 = transform.localPosition; _scaleCaptured = true; }
             if (_far != null) _farBase = _far.rectTransform.anchoredPosition;
             if (_near != null) _nearBase = _near.rectTransform.anchoredPosition;
             SetupPerspectiveMaterial();
@@ -125,10 +130,11 @@ namespace WanXiang.Modules.UI
             Refresh();
         }
 
-        /// <summary>把整张地图放大到铺满屏幕（prefab 原始缩放 × _mapScale；节点会跟着一起放大）。</summary>
+        /// <summary>把整张地图放大到铺满屏幕并整体上移（prefab 原始缩放 × _mapScale；节点会跟着一起放大）。</summary>
         public void ApplyMapScale()
         {
             transform.localScale = _mapScale0 * Mathf.Max(0.1f, _mapScale);
+            transform.localPosition = _pos0 + new Vector3(0f, _raiseY, 0f);
         }
 
         // ------------------------------------------------------------------ 斜俯视：背景地面透视
@@ -173,6 +179,8 @@ namespace WanXiang.Modules.UI
             _lumaMat.SetFloat("_KeyWhite", 0.86f);
             _lumaMat.SetFloat("_KeyBlack", 0.52f);
             _lumaMat.SetFloat("_Opacity", 1f);
+            // 上下边缘渐隐：前景"芦苇墙"的顶边化开，不会一条硬线切在画面上
+            _lumaMat.SetFloat("_EdgeFadeY", 0.16f);
 
             if (_terrain != null && _terrain.transform.parent != null)
             {
@@ -180,8 +188,35 @@ namespace WanXiang.Modules.UI
                 _farPeaks = pk != null ? pk.GetComponent<Image>() : null;
                 if (_farPeaks != null) _peaksBase = _farPeaks.rectTransform.anchoredPosition;
             }
-            if (_farPeaks != null) _farPeaks.material = _lumaMat;
+            if (_farPeaks != null)
+            {
+                _farPeaks.material = _lumaMat;
+                // 大气透视：远峰整体压淡偏蓝（离得远，颜色被空气"洗淡"）
+                _farPeaks.color = new Color(0.88f, 0.91f, 0.95f, 1f);
+            }
             if (_near != null) _near.material = _lumaMat;
+
+            // 极远雾山层：阈值放宽（雾山本来就极淡，用普通山峰阈值会整个被抠没）
+            if (_terrain != null && _terrain.transform.parent != null)
+            {
+                var mi = _terrain.transform.parent.Find("Img_FarHaze");
+                _farMist = mi != null ? mi.GetComponent<Image>() : null;
+                if (_farMist != null)
+                {
+                    _mistBase = _farMist.rectTransform.anchoredPosition;
+                    var shM = Resources.Load<Shader>("Shaders/UILumaKey");
+                    if (shM == null) shM = Shader.Find("WanXiang/UI/LumaKey");
+                    if (shM != null)
+                    {
+                        _lumaMatMist = new Material(shM);
+                        _lumaMatMist.hideFlags = HideFlags.HideAndDontSave;
+                        _lumaMatMist.SetFloat("_KeyWhite", 0.97f);
+                        _lumaMatMist.SetFloat("_KeyBlack", 0.86f);
+                        _lumaMatMist.SetFloat("_Opacity", 1f);
+                        _farMist.material = _lumaMatMist;
+                    }
+                }
+            }
         }
 
         /// <summary>取终幕「到达之光」两个节点（prefab Img_FinaleGlow / Img_FinaleBeam，与门同在 Map_Par 下）。</summary>
@@ -457,6 +492,11 @@ namespace WanXiang.Modules.UI
                 _farPeaks.rectTransform.anchoredPosition = _peaksBase +
                     new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _farParallax * 1.15f)
                     + drift * (_farParallax * 1.15f);
+            // 极远雾山层：比远峰更慢（最远），四层错动 = 真正的大气纵深
+            if (_farMist != null)
+                _farMist.rectTransform.anchoredPosition = _mistBase +
+                    new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _farParallax * 0.75f)
+                    + drift * (_farParallax * 0.75f);
             if (_near != null)
                 _near.rectTransform.anchoredPosition = _nearBase +
                     new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _nearParallax)
