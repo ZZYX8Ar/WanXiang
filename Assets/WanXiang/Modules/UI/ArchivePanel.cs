@@ -24,7 +24,8 @@ using WanXiang.Framework.UI;
 
 namespace WanXiang.Modules.UI
 {
-    [UIPanel("Panel_Archive", Layer = UILayer.Popup, CachePolicy = UICachePolicy.Transient, FullScreen = false,
+    // ★ 2026-10-13 用户：残卷阁要和「成长 / 图鉴」等一样是**全屏面板**（原来是居中弹窗）。
+    [UIPanel("Panel_Archive", Layer = UILayer.Normal, CachePolicy = UICachePolicy.Cached,
              CloseOnMaskClick = false)]
     public sealed class ArchivePanel : UIPanelBase
     {

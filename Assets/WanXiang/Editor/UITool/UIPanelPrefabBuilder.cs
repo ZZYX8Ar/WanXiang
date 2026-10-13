@@ -1146,7 +1146,7 @@ namespace WanXiang.EditorTools
 
         private static void BuildArchive()
         {
-            var root = NewPanelRoot("Panel_Archive", false, new Vector2(1240, 900));
+            var root = NewPanelRoot("Panel_Archive", true, Vector2.zero);   // ★ 全屏（与成长/图鉴一致）
             var comp = root.AddComponent<ArchivePanel>();
             var rt = (RectTransform)root.transform;
             UIBuild.Img(rt, UIBuild.Card, false);
@@ -1208,7 +1208,7 @@ namespace WanXiang.EditorTools
             grid.cellSize = new Vector2(CardW, CardH);
             grid.spacing = new Vector2(16f, 16f);
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 3;
+            grid.constraintCount = 4;          // 全屏：4 列更能铺满
             grid.childAlignment = TextAnchor.UpperCenter;
             grid.padding = new RectOffset(12, 12, 12, 12);
             var fitter = EnsureComp<ContentSizeFitter>(content.gameObject);
