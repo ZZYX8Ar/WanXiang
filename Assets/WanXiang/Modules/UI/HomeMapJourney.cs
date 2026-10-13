@@ -55,6 +55,8 @@ namespace WanXiang.Modules.UI
         [SerializeField] private float _depthNear  = -170f;  // 起点 y（近·低）
         [SerializeField] private float _depthFar   = 60f;    // 终点 y（远·高）
         [SerializeField] private float _haze       = 0.45f;  // 空气透视雾强度
+        [SerializeField] private float _edgeFadeY  = 0.18f;  // 上下边缘渐隐比例（消掉"硬边矩形"）
+        [SerializeField] private float _edgeFadeX  = 0.06f;  // 左右边缘渐隐比例
         private Material _perspMat;
 
         // ---- 常量表 ----
@@ -108,6 +110,8 @@ namespace WanXiang.Modules.UI
             _perspMat.SetFloat("_Haze", _haze);
             _perspMat.SetColor("_HazeColor", new Color(0.93f, 0.91f, 0.87f, 1f));
             _perspMat.SetFloat("_HazeStart", 0.30f);
+            _perspMat.SetFloat("_EdgeFadeY", _edgeFadeY);
+            _perspMat.SetFloat("_EdgeFadeX", _edgeFadeX);
 
             if (_far != null) _far.material = _perspMat;
             if (_terrain != null) _terrain.material = _perspMat;

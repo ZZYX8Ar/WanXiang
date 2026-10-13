@@ -30,6 +30,10 @@ Shader "WanXiang/UI/Perspective"
         _HazeColor  ("Haze Color", Color) = (0.93, 0.91, 0.86, 1)
         _Haze       ("Haze Strength", Range(0, 1)) = 0.45
         _HazeStart  ("Haze Start (uv.y)", Range(0, 1)) = 0.30
+
+        // 边缘渐隐：把图四周几成比例的部分渐隐成透明 ⇒ 消掉"硬边矩形/贴画感"，化进背景
+        _EdgeFadeY  ("Edge Fade Y", Range(0, 0.5)) = 0.16
+        _EdgeFadeX  ("Edge Fade X", Range(0, 0.5)) = 0.05
     }
 
     SubShader
@@ -69,6 +73,8 @@ Shader "WanXiang/UI/Perspective"
             fixed4 _HazeColor;
             float  _Haze;
             float  _HazeStart;
+            float  _EdgeFadeY;
+            float  _EdgeFadeX;
 
             v2f vert(appdata_t v)
             {
@@ -93,6 +99,13 @@ Shader "WanXiang/UI/Perspective"
                 // 空气透视：远处向雾色靠（近处保持原色）
                 float hz = smoothstep(_HazeStart, 1.0, v) * _Haze;
                 col.rgb = lerp(col.rgb, _HazeColor.rgb, hz);
+
+                // 边缘渐隐：四周成比例渐隐成透明 ⇒ 地图化进背景，不再是一块硬边矩形
+                float fy = max(_EdgeFadeY, 0.0001);
+                float fx = max(_EdgeFadeX, 0.0001);
+                float ey = smoothstep(0.0, fy, v) * smoothstep(0.0, fy, 1.0 - v);
+                float ex = smoothstep(0.0, fx, i.uv.x) * smoothstep(0.0, fx, 1.0 - i.uv.x);
+                col.a *= ey * ex;
 
                 return col;
             }
