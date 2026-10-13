@@ -205,6 +205,10 @@ namespace WanXiang.Modules.UI
             var e = _play.Current;
             ApplyEvent(e);
             if (_stage != null) _stage.ApplyEvent(_play.EventIndex, e);
+            // ★ 命中顿帧：受击/暴击瞬间置顿帧（Update 里冻结舞台动画几帧）——打击感核心。
+            if (e.Kind == WanXiang.Battle.Core.BattleEventKind.Damage ||
+                e.Kind == WanXiang.Battle.Core.BattleEventKind.Crit)
+                _hitStop = HitStopSec;
 
             // ⚠ 行动条必须**随事件推进刷新**，不能只在"等玩家下令"时刷 ——
             //   否则敌方行动期间高亮不动，玩家看到的是"敌人打完了指针还停在我方/敌人身上"

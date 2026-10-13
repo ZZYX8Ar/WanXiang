@@ -45,6 +45,8 @@ namespace WanXiang.Modules.UI
         private BattleRequest _req;
         private float _speed = 1f;   // 默认 1x：先能看清，再谈加速
         private bool _playing;      // 回放中（控制舞台是否逐帧推进）
+        private float _hitStop;     // 命中顿帧剩余时间（>0 时冻结舞台动画，制造打击"顿"感）
+        private const float HitStopSec = 0.055f;   // 命中/暴击顿帧时长（受倍速缩放）
 
         // ---- 战斗场景模式（单位由 BattleStage2D 渲染，本面板只当 HUD）----
         private bool _sceneMode;
@@ -315,7 +317,16 @@ namespace WanXiang.Modules.UI
 
             if (!_playing || _stage == null) return;
             if (State != UIPanelState.Opened) return;      // 被上层盖住/暂停时不推进
-            _stage.Step(Time.deltaTime * Mathf.Max(1f, _speed));
+            // ★ 命中顿帧：受击/暴击的瞬间冻结舞台动画几帧（dt=0），打出"顿"的打击感。
+            //   倍速越高顿帧越短（除以 _speed），避免高速下变成长时间卡顿。
+            float sdt = Time.deltaTime * Mathf.Max(1f, _speed);
+            if (_hitStop > 0f)
+            {
+                _hitStop -= Time.deltaTime;
+                if (_hitStop < 0f) _hitStop = 0f;
+                sdt = 0f;                                  // 冻结：单位抖动/冲锋/下沉全停一拍
+            }
+            _stage.Step(sdt);
         }
 
         /// <summary>

@@ -57,6 +57,9 @@ namespace WanXiang.Battle.Presentation
         public float DeadBlend;
         public float ShakePulse;         // 受击回弹（>0 时向基色回退）
         public Color BaseColor = Color.white;
+        public Vector2 KickVec;          // 受击位移（沿受击方向小踹一脚，衰减）
+        public float KickT;              // 受击位移剩余时间
+        public float HitFlash;           // 受击白闪剩余时间（>0 时往白色插值）
 
         // ---- 出手冲锋（表现层演出，不改战斗数据）----
         // 战斗核心只有事件流，没有"动画"概念；冲上去再回来完全由表现层决定。
@@ -359,10 +362,12 @@ namespace WanXiang.Battle.Presentation
         private readonly Dictionary<string, UnitView2D> _views = new Dictionary<string, UnitView2D>(16);
         private readonly List<GameObject> _tempTexts = new List<GameObject>(16);
         private readonly List<float> _tempLife = new List<float>(16);
+        private readonly List<float> _tempBaseScale = new List<float>(16);   // 每个飘字的基准缩放（暴击更大）
         private Camera _cam;
         /// <summary>舞台动画时钟（Step 里按 dt 累加）。表现层所有周期动画都用它，别用 Time.time。</summary>
         private float _animT;
         private string _actingId;
+        private bool _critNext;        // 下一条伤害数字是否按暴击放大（Crit 事件先于 Damage 到）
 
         // ---- 四周前景装饰（2026-10-11 战斗美化：随幕变化 + 轻微摇曳）----
         private Transform _fgDecor;
@@ -373,6 +378,8 @@ namespace WanXiang.Battle.Presentation
         private SkillFxPlayer _skillFx;
         private Vector3 _camBase;                 // 相机基准位（震动围绕它抖）
         private float _shakeAmp, _shakeT, _shakeDur;
+        private float _zoomBase = 5.4f;           // 相机基准 orthographicSize（BuildCamera 覆写）
+        private float _zoomDip, _zoomT, _zoomDur; // 起爆点 Zoom Punch（推近再弹回）
 
         public Camera Camera => _cam;
 
@@ -443,6 +450,7 @@ namespace WanXiang.Battle.Presentation
             _views.Clear();
             _tempTexts.Clear();
             _tempLife.Clear();
+            _tempBaseScale.Clear();
             _state = null;
             _cam = null;
             _fgDecor = null;
@@ -791,6 +799,7 @@ namespace WanXiang.Battle.Presentation
             _cam.backgroundColor = BattlePalette.Paper;
             go.transform.localPosition = new Vector3(0f, 0f, -10f);
             _camBase = go.transform.localPosition;   // 震动基准
+            _zoomBase = _cam.orthographicSize;        // Zoom Punch 基准
         }
 
         // ================================================================
@@ -804,7 +813,7 @@ namespace WanXiang.Battle.Presentation
             var go = new GameObject("SkillFx");
             go.transform.SetParent(transform, false);
             _skillFx = go.AddComponent<SkillFxPlayer>();
-            _skillFx.Bind(_cam, TriggerShake);
+            _skillFx.Bind(_cam, TriggerShake, TriggerZoom);
         }
 
         /// <summary>触发一次终结技/觉醒技演出。仅 Ultimate/Awaken 调用（大招要稀有）。</summary>
@@ -815,7 +824,10 @@ namespace WanXiang.Battle.Presentation
             EnsureSkillFx();
             if (_skillFx == null) return;
             var col = BattlePalette.OfElement(element);
-            _skillFx.Play(v.Root.transform.position, actorId, col, isAwaken);
+            // P5R 式 cut-in：把该异兽的立绘 + 名字传进去，先特写再特效（玩家才知道是谁开大）
+            var portrait = v.Body != null ? v.Body.sprite : null;
+            var beastName = v.NameText != null ? v.NameText.text : null;
+            _skillFx.Play(v.Root.transform.position, actorId, col, isAwaken, portrait, beastName);
         }
 
         /// <summary>镜头震动（由 SkillFxPlayer 在大招起爆点回调）。</summary>
@@ -841,6 +853,31 @@ namespace WanXiang.Battle.Presentation
             {
                 _shakeDur = 0f; _shakeAmp = 0f;
                 _cam.transform.localPosition = _camBase;
+            }
+        }
+
+        /// <summary>起爆点 Zoom Punch：相机迅速推近再弹回（由 SkillFxPlayer 在爆发那下调用）。</summary>
+        public void TriggerZoom(float dip, float dur)
+        {
+            if (_cam == null || !_cam.orthographic) return;
+            _zoomDip = Mathf.Max(_zoomDip, dip);
+            _zoomDur = Mathf.Max(_zoomDur, dur);
+            _zoomT = 0f;
+        }
+
+        /// <summary>推进 Zoom Punch 衰减（在 Step 内调用，与震动叠加）。</summary>
+        private void StepZoom(float dt)
+        {
+            if (_cam == null || _zoomDur <= 0f) return;
+            _zoomT += dt;
+            float k = Mathf.Clamp01(_zoomT / _zoomDur);
+            // sin 曲线：0→峰值(k=0.5)→0，推近再平滑弹回
+            float dip = _zoomDip * Mathf.Sin(k * Mathf.PI);
+            _cam.orthographicSize = _zoomBase - dip;
+            if (_zoomT >= _zoomDur)
+            {
+                _zoomDur = 0f; _zoomDip = 0f;
+                _cam.orthographicSize = _zoomBase;
             }
         }
 
@@ -1096,9 +1133,18 @@ namespace WanXiang.Battle.Presentation
                 case BattleEventKind.Damage:
                     if (e.TargetId != null && _views.TryGetValue(e.TargetId, out var hit))
                     {
-                        SpawnDamageNumber(hit, e.Amount, e.Note != null && e.Note.Contains("融冰"));
-                        hit.Body.color = new Color(1f, 0.55f, 0.5f);
+                        bool crit = _critNext; _critNext = false;
+                        SpawnDamageNumber(hit, e.Amount, e.Note != null && e.Note.Contains("融冰"), crit);
+                        hit.Body.color = Color.white;      // 受击白闪（HitFlash 在 Step 里衰减回基色）
+                        hit.HitFlash = 0.10f;
                         hit.ShakePulse = 0.16f;
+                        // 受击方向小踹一脚（打击"推力"感，衰减快）
+                        if (e.ActorId != null && _views.TryGetValue(e.ActorId, out var atk))
+                        {
+                            Vector2 dir = hit.HomePos - atk.HomePos;
+                            if (dir.sqrMagnitude > 0.0001f) hit.KickVec = dir.normalized * 0.22f;
+                            hit.KickT = 0.12f;
+                        }
                     }
                     break;
 
@@ -1119,8 +1165,13 @@ namespace WanXiang.Battle.Presentation
                     break;
 
                 case BattleEventKind.Crit:
+                    // Crit 先于 Damage 到：置标记让下一条伤害数字放大，并飘"暴击!"
+                    _critNext = true;
                     if (e.TargetId != null && _views.TryGetValue(e.TargetId, out var cv))
-                        cv.Body.color = new Color(1f, 0.25f, 0.2f);
+                    {
+                        cv.Body.color = new Color(1f, 0.35f, 0.28f);
+                        SpawnNumber(cv, "暴击!", new Color(1f, 0.85f, 0.35f));
+                    }
                     break;
 
                 case BattleEventKind.Revive:
@@ -1161,6 +1212,7 @@ namespace WanXiang.Battle.Presentation
             // 终结技 / 觉醒技 特效 + 镜头震动（同一时钟）
             if (_skillFx != null) _skillFx.Step(dt);
             StepShake(dt);
+            StepZoom(dt);
 
             foreach (var v in _views.Values)
             {
@@ -1174,6 +1226,12 @@ namespace WanXiang.Battle.Presentation
                     var c = v.Body.color;
                     float g = Mathf.Lerp(1f, 0.35f, v.DeadBlend);
                     v.Body.color = new Color(v.BaseColor.r * g, v.BaseColor.g * g, v.BaseColor.b * g, 1f - 0.5f * v.DeadBlend);
+                }
+                else if (v.HitFlash > 0f)
+                {
+                    // 受击白闪：往白色插值，闪完再回基色（用户 2026-10-13："受击闪白"）
+                    v.HitFlash -= dt;
+                    v.Body.color = Color.Lerp(v.Body.color, Color.white, Mathf.Clamp01(dt * 20f));
                 }
                 else if (v.Body.color != v.BaseColor)
                 {
@@ -1200,8 +1258,17 @@ namespace WanXiang.Battle.Presentation
                     }
                 }
 
+                // 受击位移：沿受击方向小踹一脚，快速衰减（打击"推力"感）
+                Vector2 kick = Vector2.zero;
+                if (v.KickT > 0f)
+                {
+                    v.KickT -= dt;
+                    float kk = Mathf.Clamp01(v.KickT / 0.12f);
+                    kick = v.KickVec * kk;
+                }
+
                 v.Root.transform.localPosition = new Vector3(
-                    v.HomePos.x + lunge.x, v.HomePos.y + FootOffset + lunge.y + bob + sink, 0f);
+                    v.HomePos.x + lunge.x + kick.x, v.HomePos.y + FootOffset + lunge.y + bob + sink + kick.y, 0f);
 
                 // 血条跟随立绘（相机 2D 朝 -Z，直接摆即可）
                 if (v.HpBg != null) v.HpBg.transform.localPosition = new Vector3(0f, HpBarY, -0.01f);
@@ -1232,7 +1299,7 @@ namespace WanXiang.Battle.Presentation
                 }
             }
 
-            // 伤害数字上浮 + 回收
+            // 伤害数字上浮 + 弹出缩放 + 回收
             for (int i = _tempTexts.Count - 1; i >= 0; i--)
             {
                 _tempLife[i] -= dt;
@@ -1240,6 +1307,18 @@ namespace WanXiang.Battle.Presentation
                 if (go != null)
                 {
                     go.transform.localPosition += new Vector3(0f, dt * 0.9f, 0f);
+                    // 弹出：起手 1.5× 快速回落（easeOutBack 手感），暴击基准更大
+                    float age = 0.7f - _tempLife[i];
+                    float pop = 1f;
+                    if (age < 0.18f)
+                    {
+                        float k = age / 0.18f;
+                        float c1 = 1.70158f, c3 = c1 + 1f;
+                        float e = 1f + c3 * (k - 1f) * (k - 1f) * (k - 1f) + c1 * (k - 1f) * (k - 1f);
+                        pop = Mathf.Lerp(1.5f, 1f, Mathf.Clamp01(e));
+                    }
+                    float bs = i < _tempBaseScale.Count ? _tempBaseScale[i] : 1f;
+                    go.transform.localScale = Vector3.one * (bs * pop);
                     var tm = go.GetComponent<TextMesh>();
                     if (tm != null)
                     {
@@ -1254,6 +1333,7 @@ namespace WanXiang.Battle.Presentation
                     //   最后卡死（用户实测"战斗久一点就卡死"）。必须用 Destroy（延迟销毁）。
                     if (go != null) Destroy(go);
                     _tempTexts.RemoveAt(i); _tempLife.RemoveAt(i);
+                    if (i < _tempBaseScale.Count) _tempBaseScale.RemoveAt(i);
                 }
             }
         }
@@ -1263,19 +1343,23 @@ namespace WanXiang.Battle.Presentation
         /// <summary>通用飘字（伤害/恢复/护盾共用）。美术替换：改这里的字体/字号/描边即可。</summary>
         private void SpawnNumber(UnitView2D v, string text, Color color)
         {
-            SpawnNumberInternal(v, text, color);
+            SpawnNumberInternal(v, text, color, 1f);
         }
 
-        private void SpawnDamageNumber(UnitView2D v, int amount, bool isMelt)
+        private void SpawnDamageNumber(UnitView2D v, int amount, bool isMelt, bool crit)
         {
-            SpawnNumberInternal(v, amount.ToString(), isMelt ? BattlePalette.GoldRich : BattlePalette.Crimson);
+            // 暴击：字号放大 1.6× + 换金白色（更亮更跳）；融冰保持鎏金
+            float scale = crit ? 1.6f : 1f;
+            Color col = crit ? new Color(1f, 0.92f, 0.55f) : (isMelt ? BattlePalette.GoldRich : BattlePalette.Crimson);
+            SpawnNumberInternal(v, amount.ToString(), col, scale);
         }
 
-        private void SpawnNumberInternal(UnitView2D v, string text, Color color)
+        private void SpawnNumberInternal(UnitView2D v, string text, Color color, float baseScale)
         {
             var go = new GameObject("Dmg");
             go.transform.SetParent(transform, false);
             go.transform.localPosition = v.Root.transform.position + new Vector3(0f, 1.5f, -1f);
+            go.transform.localScale = Vector3.one * baseScale;   // 暴击更大（弹出动画在此基础上叠加）
             var f = LegacyFont();
             var tm = go.AddComponent<TextMesh>();
             if (f != null)
@@ -1291,6 +1375,7 @@ namespace WanXiang.Battle.Presentation
             tm.color = color;
             _tempTexts.Add(go);
             _tempLife.Add(0.7f);
+            _tempBaseScale.Add(baseScale);
             // ⚠ 运行时不能用 DestroyImmediate（强制同步销毁，长战斗里反复触发会卡）；
             //   改用 Destroy 并把上限放宽到 24，给延迟销毁留出缓冲。
             while (_tempTexts.Count > 24)
