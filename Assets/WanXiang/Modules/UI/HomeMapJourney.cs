@@ -60,7 +60,10 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Sprite[] _seasonArt;        // 春/夏/秋/冬 四张水彩底图（按幕切，空则退回默认）
         [SerializeField] private float _nodeSize   = 104f;   // 节气节点基准尺寸（px，越大越醒目）
         [SerializeField] private float _mapScale   = 1.16f;  // 整张地图放大（铺满屏幕）
-        private Material _perspMat;
+        private Material _perspMat;   // 透视材质（中景底图/地面/小路）
+        private Material _lumaMat;    // 亮度抠白材质（远景山峰层 / 近景前景层）
+        private Image _farPeaks;      // Img_FarPeaks 远景山峰层
+        private Vector2 _peaksBase;   // 远景山峰层基准位
         private Vector3 _mapScale0 = Vector3.one;
         private bool _scaleCaptured;
         // 当前节点"呼吸光晕"（prefab 节点 Img_NowGlow，按名字取，不做运行时构建）
@@ -113,6 +116,7 @@ namespace WanXiang.Modules.UI
             if (_far != null) _farBase = _far.rectTransform.anchoredPosition;
             if (_near != null) _nearBase = _near.rectTransform.anchoredPosition;
             SetupPerspectiveMaterial();
+            SetupLumaLayers();
             ResolveNowGlow();
             ApplyMapScale();
             Refresh();
@@ -143,7 +147,7 @@ namespace WanXiang.Modules.UI
 
             if (_far != null) _far.material = _perspMat;
             if (_terrain != null) _terrain.material = _perspMat;
-            if (_near != null) _near.material = _perspMat;
+            // ⚠ _near / _farPeaks 改用「亮度抠白」材质（见 SetupLumaLayers），不再套透视材质
             // 小路与地面同材质：保证"路贴在地面上"一起透视
             if (_terrain != null && _terrain.transform.parent != null)
             {
@@ -151,6 +155,30 @@ namespace WanXiang.Modules.UI
                 var pimg = path != null ? path.GetComponent<Image>() : null;
                 if (pimg != null) pimg.material = _perspMat;
             }
+        }
+
+        // ------------------------------------------------------------------ 远/近水彩图层（亮度抠白）
+        /// <summary>给"远景山峰层 Img_FarPeaks""近景前景层 Img_Near"套亮度抠白材质（白底 → 透明，图层自然叠加）。</summary>
+        private void SetupLumaLayers()
+        {
+            var sh = Resources.Load<Shader>("Shaders/UILumaKey");
+            if (sh == null) sh = Shader.Find("WanXiang/UI/LumaKey");
+            if (sh == null) return;   // 取不到就退回普通渲染（不崩）
+
+            _lumaMat = new Material(sh);
+            _lumaMat.hideFlags = HideFlags.HideAndDontSave;
+            _lumaMat.SetFloat("_KeyWhite", 0.86f);
+            _lumaMat.SetFloat("_KeyBlack", 0.52f);
+            _lumaMat.SetFloat("_Opacity", 1f);
+
+            if (_terrain != null && _terrain.transform.parent != null)
+            {
+                var pk = _terrain.transform.parent.Find("Img_FarPeaks");
+                _farPeaks = pk != null ? pk.GetComponent<Image>() : null;
+                if (_farPeaks != null) _peaksBase = _farPeaks.rectTransform.anchoredPosition;
+            }
+            if (_farPeaks != null) _farPeaks.material = _lumaMat;
+            if (_near != null) _near.material = _lumaMat;
         }
 
         /// <summary>取"当前节点光晕"节点（prefab 里 Img_NowGlow，与 Map_Nodes 同级、排在节点之上）。</summary>
@@ -399,6 +427,11 @@ namespace WanXiang.Modules.UI
                 _far.rectTransform.anchoredPosition = _farBase +
                     new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _farParallax)
                     + drift * _farParallax;
+            // 远景山峰层：与远山同倍率（慢）视差，营造"山后还有山"的纵深，但比远山稍快一点点
+            if (_farPeaks != null)
+                _farPeaks.rectTransform.anchoredPosition = _peaksBase +
+                    new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _farParallax * 1.15f)
+                    + drift * (_farParallax * 1.15f);
             if (_near != null)
                 _near.rectTransform.anchoredPosition = _nearBase +
                     new Vector2(_hoverSmooth.x, _hoverSmooth.y * 0.5f) * (_shiftPx * _nearParallax)
