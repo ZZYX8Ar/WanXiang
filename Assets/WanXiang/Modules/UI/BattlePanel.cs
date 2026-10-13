@@ -326,16 +326,22 @@ namespace WanXiang.Modules.UI
             if (!_playing) return;
             if (State != UIPanelState.Opened) return;      // 被上层盖住/暂停时不推进
 
-            // ★ 每帧兜底按钮状态（**不分场景/非场景模式** —— 以前这段在 `_stage==null` 之后，
-            //   主城内直接打（无舞台）时永远跑不到，敌人回合按钮还亮着。用户 2026-10-13）：
-            //   不是"等我方下令"的决策点（敌人行动/伤害结算/自动推进）就立刻置灰技能/连携。
+            // ★ 每帧兜底按钮状态（**不分场景/非场景模式**）：
+            //   只有"等我方下令 + 回合始结算事件已播完"才给点（CanCommandNow），否则置灰。
+            //   以前只看 AwaitingCommand ⇒ 结算还在飘字时就能点（用户 2026-10-13 报障）。
+            //   这里管**两个方向**：给点 → 按规则点亮(RefreshActionBar)；不给点 → 全置灰 + 收觉醒槽。
             if (_play != null)
             {
-                bool canAct = _play.AwaitingCommand && !_play.Finished;
+                bool canAct = CanCommandNow();
                 if (canAct != _actionEnabled)
                 {
                     _actionEnabled = canAct;
-                    if (!canAct)
+                    if (canAct)
+                    {
+                        RefreshActionBar();        // 结算播完、轮到我方 → 按规则逐条点亮
+                        RefreshComboButton();
+                    }
+                    else
                     {
                         SetSkillButtonsInteractable(false);
                         // 觉醒技槽一并收起：敌人回合/结算时不该露着（避免误悬浮弹出"没有装备觉醒技"）

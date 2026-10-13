@@ -47,6 +47,7 @@ namespace WanXiang.Battle.Presentation
         // ---- CutIn 专用子物体 ----
         public SpriteRenderer Portrait;  // 异兽立绘
         public SpriteRenderer Slash;     // 元素色斜切背板
+        public SpriteRenderer Mask;      // 背后变黑的遮罩（聚焦主体）
         public TextMesh NameTm;          // 异兽名（LegacyRuntime 字体，支持中文）
         public Vector3 CutInFrom;        // cut-in 入场起点（屏幕外）
         public Vector3 CutInTo;          // cut-in 停驻点（立绘落点）
@@ -72,6 +73,7 @@ namespace WanXiang.Battle.Presentation
 
         private readonly List<SkillFxClip> _clips = new List<SkillFxClip>(16);
         private float _t;                 // 本地时钟（由 Step 累加）
+        private float _playStart;         // 本次 Play 起播时的 _t 值（片段 StartAt 都加上它）
         private bool _ready;
 
         /// <summary>舞台相机（用于全屏闪的尺寸与爆心换算）。BattleStage2D.Bind 时注入。</summary>
@@ -136,8 +138,11 @@ namespace WanXiang.Battle.Presentation
             _whiteTex = MakeWhite();
             _glowSprite = Sprite.Create(_glowTex, new Rect(0, 0, _glowTex.width, _glowTex.height),
                                         new Vector2(0.5f, 0.5f), 100f);
+            // ⚠ 白块用 **PPU=1**：这样 1×1 精灵的自然尺寸 = 1 世界单位，
+            //   Flash / CutIn 遮罩 / 斜切背板 都能直接按"世界单位"设 localScale。
+            //   以前 PPU=100 ⇒ 自然尺寸 0.01，按 halfW 缩放只有 0.2 单位，遮罩/背板/闪全看不见（用户 2026-10-13）。
             _whiteSprite = Sprite.Create(_whiteTex, new Rect(0, 0, _whiteTex.width, _whiteTex.height),
-                                         new Vector2(0.5f, 0.5f), 100f);
+                                         new Vector2(0.5f, 0.5f), 1f);
         }
 
         // ------------------------------------------------------------------
@@ -154,6 +159,11 @@ namespace WanXiang.Battle.Presentation
         {
             Ensure();
             if (_shaders == null || _shaders[0] == null) return;   // shader 没加载上就别播
+
+            // ★ 记下本次起播时刻：_t 是全局累加时钟（无片段时不涨），若不记偏移，
+            //   第二次放技能时新片段 StartAt=0 会被当成"已过期"秒回收 —— 用户 2026-10-13
+            //   报"第二次释放终结技就消失了，只能生效一次"。片段 StartAt 一律加 _playStart。
+            _playStart = _t;
 
             int seed = StableHash(actorId);
 
@@ -220,12 +230,24 @@ namespace WanXiang.Battle.Presentation
             float halfH = cam != null && cam.orthographic ? cam.orthographicSize : 5.4f;
             float halfW = halfH * (cam != null ? cam.aspect : 1.7f);
 
-            // 立绘落点：画面右侧（P5R 的 cut-in 多在右侧/居中），从更右的屏外切入
-            float targetX = halfW * 0.42f;
+            // 立绘落点：画面略偏右但不贴边（用户 2026-10-13："有点居右了" → 往里收）
+            float targetX = halfW * 0.12f;
             float fromX    = halfW * 1.15f;
             var portraitPos = new Vector3(targetX, worldPos.y * 0.3f + 0.2f, worldPos.z - 0.2f);
             go.transform.position = portraitPos;
             go.transform.SetParent(transform, true);   // 挂到播放器名下（保持世界坐标）
+
+            // ★ 背后变黑的遮罩（用户 2026-10-13："背后应该要有点变黑的遮罩"，聚焦主体）。
+            //   全屏黑块，sortingOrder 最低（画在最底），透明度由 UpdateCutIn 淡入淡出。
+            var maskGo = new GameObject("Mask");
+            maskGo.transform.SetParent(go.transform, false);
+            var camPos = cam != null ? cam.transform.position : new Vector3(0f, 0f, -10f);
+            maskGo.transform.position = new Vector3(camPos.x, camPos.y, portraitPos.z - 0.5f);
+            var mask = maskGo.AddComponent<SpriteRenderer>();
+            mask.sprite = _whiteSprite;
+            mask.color = new Color(0f, 0f, 0f, 0f);   // 初始透明
+            mask.sortingOrder = 450;
+            maskGo.transform.localScale = new Vector3(halfW * 2.4f, halfH * 2.4f, 1f);
 
             // 元素色斜切背板（立在立绘后面，给"卡片"感）
             var slashGo = new GameObject("Slash");
@@ -277,8 +299,8 @@ namespace WanXiang.Battle.Presentation
 
             var clip = new SkillFxClip
             {
-                Kind = SkillFxKind.CutIn, StartAt = 0f, Dur = Mathf.Max(0.2f, dur),
-                Col = core, Go = go, Slash = slash, NameTm = nameTm,
+                Kind = SkillFxKind.CutIn, StartAt = _playStart, Dur = Mathf.Max(0.2f, dur),
+                Col = core, Go = go, Slash = slash, Mask = mask, NameTm = nameTm,
                 CutInFrom = new Vector3(fromX, portraitPos.y, portraitPos.z),
                 CutInTo = portraitPos,
             };
@@ -293,7 +315,7 @@ namespace WanXiang.Battle.Presentation
         {
             var clip = new SkillFxClip
             {
-                Kind = kind, StartAt = startAt, Dur = Mathf.Max(0.02f, dur),
+                Kind = kind, StartAt = _playStart + startAt, Dur = Mathf.Max(0.02f, dur),
                 Pos = pos, SizeMul = size, RayCount = Mathf.Clamp(rayCount, 3, 24),
                 RaySharp = raySharp, Seed = seed, Intensity = intensity, Col = col,
                 RingCount = Mathf.Max(1, ringCount),
@@ -435,7 +457,8 @@ namespace WanXiang.Battle.Presentation
             float halfW = (Cam != null ? Cam.aspect : 1.7f) * (Cam != null && Cam.orthographic ? Cam.orthographicSize : 5.4f);
 
             float x;
-            float alpha = 1f;
+            float alpha = 1f;          // 立绘/名字/背板整体透明度（甩出时淡出）
+            float maskA = 0.62f;       // 背后黑遮罩目标透明度
             const float In = 0.28f, Out = 0.80f;   // 切入段 / 甩出段起点（中间 0.52 段为停驻，看得清）
             if (p < In)
             {
@@ -444,6 +467,7 @@ namespace WanXiang.Battle.Presentation
                 float c1 = 1.70158f, c3 = c1 + 1f;
                 float e = 1f + c3 * Mathf.Pow(k - 1f, 3f) + c1 * Mathf.Pow(k - 1f, 2f);
                 x = Mathf.Lerp(c.CutInFrom.x, c.CutInTo.x, e);
+                maskA = 0.62f * Mathf.Clamp01(k * 1.5f);   // 遮罩抢先压黑（比立绘先到位）
             }
             else if (p < Out)
             {
@@ -453,6 +477,7 @@ namespace WanXiang.Battle.Presentation
                 tr.localPosition = new Vector3(x, c.CutInTo.y + Mathf.Sin(k * Mathf.PI * 2f) * 0.05f, c.CutInTo.z);
                 // 背板呼吸高亮
                 if (c.Slash != null) c.Slash.color = new Color(c.Col.r, c.Col.g, c.Col.b, 0.45f + 0.18f * Mathf.Sin(k * Mathf.PI));
+                if (c.Mask != null) c.Mask.color = new Color(0f, 0f, 0f, 0.62f);
                 return;
             }
             else
@@ -461,6 +486,7 @@ namespace WanXiang.Battle.Presentation
                 float k = (p - Out) / (1f - Out);
                 x = Mathf.Lerp(c.CutInTo.x, -halfW * 1.1f, k * k);
                 alpha = 1f - k;
+                maskA = 0.62f * (1f - k);
             }
 
             tr.localPosition = new Vector3(x, c.CutInTo.y, c.CutInTo.z);
@@ -469,6 +495,7 @@ namespace WanXiang.Battle.Presentation
             if (c.Portrait != null) { var cc = c.Portrait.color; c.Portrait.color = new Color(cc.r, cc.g, cc.b, alpha); }
             if (c.Slash != null)    { var cc = c.Slash.color;    c.Slash.color    = new Color(cc.r, cc.g, cc.b, cc.a * alpha); }
             if (c.NameTm != null)   { var cc = c.NameTm.color;   c.NameTm.color   = new Color(cc.r, cc.g, cc.b, alpha); }
+            if (c.Mask != null)     c.Mask.color = new Color(0f, 0f, 0f, maskA * alpha);
         }
 
         private void Recycle(int i)

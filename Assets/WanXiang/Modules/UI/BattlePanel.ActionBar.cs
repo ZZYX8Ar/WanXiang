@@ -166,6 +166,17 @@ namespace WanXiang.Modules.UI
             }
         }
 
+        /// <summary>
+        /// 现在能不能下令：正等我方下令 + **没有"已产生但还没播完"的事件**。
+        /// ★ 关键：回合开始那一串棋盘/天时结算（回血扣血、相生、出手序列）是"待令之后才播完"的，
+        ///   只看 AwaitingCommand 的话，玩家会在结算还在飘字时就能点按钮 → 出手被浪费（用户 2026-10-13 报障）。
+        ///   HasPendingEvent() 为真 = 还有事件在播 → 此时一律不给点。
+        /// </summary>
+        private bool CanCommandNow()
+        {
+            return _play != null && _play.AwaitingCommand && !_play.Finished && !HasPendingEvent();
+        }
+
         private void RefreshActionBar()
         {
             if (_actionBar == null || _play == null) return;
@@ -176,8 +187,8 @@ namespace WanXiang.Modules.UI
                 _actionBar.gameObject.SetActive(show);
             if (!show) return;
 
-            // 只有"等我方下令"的决策点才能行动；敌人行动/伤害结算/自动推进中一律置灰不可点。
-            bool canAct = _play.AwaitingCommand && !_play.Finished;
+            // 只有"等我方下令 + 结算事件已播完"才能行动；敌人行动/伤害结算/自动推进中一律置灰不可点。
+            bool canAct = CanCommandNow();
 
             var u = _play.PendingUnit;
             if (_autoBattle && u == null)
