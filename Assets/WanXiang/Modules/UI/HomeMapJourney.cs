@@ -56,7 +56,8 @@ namespace WanXiang.Modules.UI
         [SerializeField] private float _depthFar   = 60f;    // 终点 y（远·高）
         [SerializeField] private float _haze       = 0.45f;  // 空气透视雾强度
         [SerializeField] private float _edgeFadeY  = 0.18f;  // 上下边缘渐隐比例（消掉"硬边矩形"）
-        [SerializeField] private float _edgeFadeX  = 0.06f;  // 左右边缘渐隐比例
+        [SerializeField] private float _edgeFadeX  = 0.10f;  // 左右边缘渐隐比例
+        [SerializeField] private Sprite[] _seasonArt;        // 春/夏/秋/冬 四张水彩底图（按幕切，空则退回默认）
         [SerializeField] private float _nodeSize   = 104f;   // 节气节点基准尺寸（px，越大越醒目）
         [SerializeField] private float _mapScale   = 1.16f;  // 整张地图放大（铺满屏幕）
         private Material _perspMat;
@@ -245,6 +246,9 @@ namespace WanXiang.Modules.UI
         private void ApplySeasonTint(int act)
         {
             int s = Mathf.Clamp(act - 1, 0, SeasonTint.Length - 1);
+            // 按幕换底图（春/夏/秋/冬各一张水彩）
+            if (_far != null && _seasonArt != null && _seasonArt.Length > s && _seasonArt[s] != null)
+                _far.sprite = _seasonArt[s];
             var c = SeasonTint[s];
             if (_far != null) _far.color = c;
             if (_terrain != null) _terrain.color = c;

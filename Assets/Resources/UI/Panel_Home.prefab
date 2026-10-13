@@ -584,8 +584,15 @@ MonoBehaviour:
   _haze: 0.45
   _edgeFadeY: 0.18
   _edgeFadeX: 0.06
+  _seasonArt:
+  - {fileID: 21300000, guid: fdcf244c60a14ec438f89cb8d796db94, type: 3}
+  - {fileID: 21300000, guid: 285386864c01ee542bdc32c05788bf01, type: 3}
+  - {fileID: 21300000, guid: ed9881af78c44dc4ebbb8bac8286e1a4, type: 3}
+  - {fileID: 21300000, guid: c69817a335bf45c4cbe47f44bb4ea60f, type: 3}
   _nodeSize: 64
   _mapScale: 1.16
+  _glowSize: 300
+  _travelerScale: 1.3
 --- !u!1 &1441983100484469379
 GameObject:
   m_ObjectHideFlags: 0
