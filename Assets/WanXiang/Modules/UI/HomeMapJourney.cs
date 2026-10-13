@@ -62,6 +62,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private float _mapScale   = 1.26f;  // 整张地图放大（铺满屏幕）
         [SerializeField] private float _raiseY     = 55f;    // 整张地图上移（露出更多天/远山）
         private Material _perspMat;   // 透视材质（中景底图/地面/小路）
+        private Material _terrainMat; // 地形专用（同透视，但顶部渐隐更强 ⇒ 上部分化进远山）
         private Material _lumaMat;    // 亮度抠白材质（远景山峰层 / 近景前景层）
         private Material _lumaMatMist; // 极远雾山专用（阈值更宽：雾山本来就极淡）
         private Image _farPeaks;      // Img_FarPeaks 远景山峰层
@@ -108,6 +109,17 @@ namespace WanXiang.Modules.UI
         };
         private static readonly Color DimColor    = new Color(0.70f, 0.73f, 0.76f, 0.72f);
 
+        // 远景山峦的季色（比底图 tint 强得多 —— 远山就是要"看得出季节"）。
+        // ⚠ 2026-10-13：以前 _farPeaks 写死偏蓝 (0.88,0.91,0.95)，秋天也发蓝，和秋景打架。
+        //    现在按幕给暖/冷：春竹青、夏浓绿、秋赭金、冬冷蓝白 —— 远山跟着季节走。
+        private static readonly Color[] FarTint =
+        {
+            new Color(0.74f, 0.86f, 0.78f, 0.85f),   // 春 · 竹青（远山含绿）
+            new Color(0.60f, 0.79f, 0.66f, 0.85f),   // 夏 · 浓绿
+            new Color(1.00f, 0.78f, 0.54f, 0.88f),   // 秋 · 赭金（暖，别再发蓝）
+            new Color(0.80f, 0.87f, 0.97f, 0.82f),   // 冬 · 冷蓝白
+        };
+
         private const int TermsPerSeason = 6;
         private const int TotalTerms     = 24;
         private const float NodeXDenom   = 25f;   // xFrac=(k+1)/25（首尾留边）
@@ -125,6 +137,7 @@ namespace WanXiang.Modules.UI
             if (_near != null) _nearBase = _near.rectTransform.anchoredPosition;
             SetupPerspectiveMaterial();
             SetupLumaLayers();
+            EnsureLayerOrder();          // 远山/雾山垫到地形之后（背后），别挡住地图（用户 2026-10-13）
             ResolveNowGlow();
             ApplyMapScale();
             Refresh();
@@ -155,7 +168,15 @@ namespace WanXiang.Modules.UI
             _perspMat.SetFloat("_EdgeFadeX", _edgeFadeX);
 
             if (_far != null) _far.material = _perspMat;
-            if (_terrain != null) _terrain.material = _perspMat;
+            // 地形单独一份材质：顶部渐隐拉强（_TopFade）⇒ 地图"上部分"溶进背后的远山/天空，
+            // 不再是一堵硬边挡住远景（用户 2026-10-13："地图的上部分透明一点"）。
+            if (_terrain != null)
+            {
+                if (_terrainMat == null) _terrainMat = new Material(_perspMat);
+                _terrainMat.hideFlags = HideFlags.HideAndDontSave;
+                _terrainMat.SetFloat("_TopFade", 0.34f);
+                _terrain.material = _terrainMat;
+            }
             // ⚠ _near / _farPeaks 改用「亮度抠白」材质（见 SetupLumaLayers），不再套透视材质
             // 小路与地面同材质：保证"路贴在地面上"一起透视
             if (_terrain != null && _terrain.transform.parent != null)
@@ -216,6 +237,27 @@ namespace WanXiang.Modules.UI
                         _farMist.material = _lumaMatMist;
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// 把三层远景（极远雾山 Img_FarHaze → 远景山峰 Img_FarPeaks → 远山 Img_Far）
+        /// 统统垫到地形 Img_Terrain **之前**（= 画面背后）。UGUI 里同级后者画在前，
+        /// 以前 FarHaze/FarPeaks 建在地形之后 ⇒ 远山盖住地图背景（用户 2026-10-13 报障）。
+        /// 运行时兜底：即便 prefab 顺序没改对，这里也纠正回来（幂等）。
+        /// </summary>
+        private void EnsureLayerOrder()
+        {
+            if (_terrain == null) return;
+            int t = _terrain.transform.GetSiblingIndex();
+            var back = new[] { _farMist, _farPeaks, _far };   // 最远 → 较近，依次插到地形前
+            int at = t;
+            for (int i = 0; i < back.Length; i++)
+            {
+                var layer = back[i];
+                if (layer == null) continue;
+                layer.transform.SetSiblingIndex(at);
+                at++;
             }
         }
 
@@ -341,6 +383,10 @@ namespace WanXiang.Modules.UI
             if (_far != null) _far.color = c;
             if (_terrain != null) _terrain.color = c;
             if (_near != null) _near.color = new Color(c.r, c.g, c.b, Mathf.Max(0.6f, _near.color.a));
+            // 远景山峦按幕上季色（春绿/夏浓/秋赭金/冬冷蓝）—— 以前写死偏蓝，秋天也发蓝（用户报障）。
+            var fc = FarTint[s];
+            if (_farPeaks != null) _farPeaks.color = fc;
+            if (_farMist  != null) _farMist.color  = new Color(fc.r, fc.g, fc.b, 0.55f);  // 雾山更淡
             // 当前节点光晕 = 该幕季节色
             if (_nowGlowImg != null)
             {

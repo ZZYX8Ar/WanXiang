@@ -153,13 +153,7 @@ namespace WanXiang.EditorTools
             farImg.raycastTarget = false;
             ((RectTransform)far.transform).anchoredPosition = new Vector2(0f, 66f);
 
-            // 主景画卷（AI 四季水墨长卷；raycast 入口）
-            var terrain = NewUI("Img_Terrain", par.transform, StripW, StripH);
-            var terrainImg = terrain.AddComponent<Image>();
-            terrainImg.sprite = LoadSprite("journey_pano.png");
-            terrainImg.raycastTarget = true;
-
-            // 极远雾山层（最远最淡；LumaKey 阈值在 HomeMapJourney.SetupLumaLayers 下发）
+            // 极远雾山层（最远最淡；垫在地形背后；LumaKey 阈值在 HomeMapJourney.SetupLumaLayers 下发）
             var farMist = NewUI("Img_FarHaze", par.transform, StripW, 400f);
             var farMistImg = farMist.AddComponent<Image>();
             farMistImg.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/ArtRes/UI/HomeMapHD/journey_farmist.png");
@@ -167,12 +161,18 @@ namespace WanXiang.EditorTools
             farMistImg.color = new Color(1f, 1f, 1f, 0.85f);
             ((RectTransform)farMist.transform).anchoredPosition = new Vector2(0f, 150f);
 
-            // 远景山峰层（青灰；LumaKey 抠白 + 大气透视淡蓝染色）
+            // 远景山峰层（垫在地形背后；季色由 HomeMapJourney.ApplySeasonTint 下发，别在此写死蓝）
             var farPeaks = NewUI("Img_FarPeaks", par.transform, StripW, 400f);
             var farPeaksImg = farPeaks.AddComponent<Image>();
             farPeaksImg.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/ArtRes/UI/HomeMapHD/journey_farpeaks.png");
             farPeaksImg.raycastTarget = false;
             ((RectTransform)farPeaks.transform).anchoredPosition = new Vector2(0f, 120f);
+
+            // 主景画卷（AI 四季水墨长卷；raycast 入口）—— 远山诸层已垫在其后（背后）
+            var terrain = NewUI("Img_Terrain", par.transform, StripW, StripH);
+            var terrainImg = terrain.AddComponent<Image>();
+            terrainImg.sprite = LoadSprite("journey_pano.png");
+            terrainImg.raycastTarget = true;
 
             // 白虚线小路（程序化，位置公式与节点一致；盖在画卷上）
             var pathGo = NewUI("Img_Path", par.transform, StripW, StripH);

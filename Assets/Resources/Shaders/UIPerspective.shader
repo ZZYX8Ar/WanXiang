@@ -34,6 +34,9 @@ Shader "WanXiang/UI/Perspective"
         // 边缘渐隐：把图四周几成比例的部分渐隐成透明 ⇒ 消掉"硬边矩形/贴画感"，化进背景
         _EdgeFadeY  ("Edge Fade Y", Range(0, 0.5)) = 0.16
         _EdgeFadeX  ("Edge Fade X", Range(0, 0.5)) = 0.05
+        // 顶部额外渐隐（0=用 _EdgeFadeY）：让地图"上部分"单独化得更开，
+        // 溶进背后的远山/天空，消除地图与远景的硬接缝（用户 2026-10-13）
+        _TopFade    ("Top Fade (extra)", Range(0, 0.6)) = 0.0
     }
 
     SubShader
@@ -75,6 +78,7 @@ Shader "WanXiang/UI/Perspective"
             float  _HazeStart;
             float  _EdgeFadeY;
             float  _EdgeFadeX;
+            float  _TopFade;
 
             v2f vert(appdata_t v)
             {
@@ -103,7 +107,8 @@ Shader "WanXiang/UI/Perspective"
                 // 边缘渐隐：四周成比例渐隐成透明 ⇒ 地图化进背景，不再是一块硬边矩形
                 float fy = max(_EdgeFadeY, 0.0001);
                 float fx = max(_EdgeFadeX, 0.0001);
-                float ey = smoothstep(0.0, fy, v) * smoothstep(0.0, fy, 1.0 - v);
+                float ty = max(fy, _TopFade);              // 顶部可单独化得更开（0=与底边一致）
+                float ey = smoothstep(0.0, fy, v) * smoothstep(0.0, ty, 1.0 - v);
                 float ex = smoothstep(0.0, fx, i.uv.x) * smoothstep(0.0, fx, 1.0 - i.uv.x);
                 col.a *= ey * ex;
 
