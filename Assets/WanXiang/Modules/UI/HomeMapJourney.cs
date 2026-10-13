@@ -44,6 +44,19 @@ namespace WanXiang.Modules.UI
         [SerializeField] private float _farParallax  = 0.35f; // 远山随悬浮移动的倍率（慢）
         [SerializeField] private float _nearParallax = 1.70f; // 近景随悬浮移动的倍率（快）
 
+        [Header("斜俯视（大世界）")]
+        // ★ 2026-10-13 用户：把"横条长卷"改成斜俯视大世界地图。
+        //   旅程从左下（近）走到右上（远）：节点沿新曲线排布 + 按进度缩小（透视），
+        //   背景地面用 WanXiang/UI/Perspective 做梯形透视 + 空气透视雾。
+        [SerializeField] private float _keystone   = 0.28f;  // 背景地面横向收缩（0=关；近宽远窄）
+        [SerializeField] private float _nearScale  = 1.22f;  // 起点（近）节点缩放
+        [SerializeField] private float _farScale   = 0.62f;  // 终点（远）节点缩放
+        [SerializeField] private float _pathMargin = 100f;   // 路径左右留边（px）
+        [SerializeField] private float _depthNear  = -170f;  // 起点 y（近·低）
+        [SerializeField] private float _depthFar   = 60f;    // 终点 y（远·高）
+        [SerializeField] private float _haze       = 0.45f;  // 空气透视雾强度
+        private Material _perspMat;
+
         // ---- 常量表 ----
         private static readonly string[] Terms =
         {
@@ -77,7 +90,70 @@ namespace WanXiang.Modules.UI
         {
             if (_far != null) _farBase = _far.rectTransform.anchoredPosition;
             if (_near != null) _nearBase = _near.rectTransform.anchoredPosition;
+            SetupPerspectiveMaterial();
             Refresh();
+        }
+
+        // ------------------------------------------------------------------ 斜俯视：背景地面透视
+        /// <summary>给背景层（远山 / 地面 / 近景 / 小路）套上透视 shader 材质（近宽远窄 + 空气透视雾）。</summary>
+        private void SetupPerspectiveMaterial()
+        {
+            var sh = Resources.Load<Shader>("Shaders/UIPerspective");
+            if (sh == null) sh = Shader.Find("WanXiang/UI/Perspective");
+            if (sh == null) return;   // 取不到就退回普通渲染（不崩）
+
+            _perspMat = new Material(sh);
+            _perspMat.hideFlags = HideFlags.HideAndDontSave;
+            _perspMat.SetFloat("_Keystone", _keystone);
+            _perspMat.SetFloat("_Haze", _haze);
+            _perspMat.SetColor("_HazeColor", new Color(0.93f, 0.91f, 0.87f, 1f));
+            _perspMat.SetFloat("_HazeStart", 0.30f);
+
+            if (_far != null) _far.material = _perspMat;
+            if (_terrain != null) _terrain.material = _perspMat;
+            if (_near != null) _near.material = _perspMat;
+            // 小路与地面同材质：保证"路贴在地面上"一起透视
+            if (_terrain != null && _terrain.transform.parent != null)
+            {
+                var path = _terrain.transform.parent.Find("Img_Path");
+                var pimg = path != null ? path.GetComponent<Image>() : null;
+                if (pimg != null) pimg.material = _perspMat;
+            }
+        }
+
+        /// <summary>旅程曲线上的点（未透视）。<paramref name="kk"/> = 连续节气相位 0..23。
+        /// ⚠ 必须与 _tools/_gen_journey_path_perspective.py 的常量一致（margin / depthNear / depthFar / amp / freq）。</summary>
+        private Vector2 PathPoint(float kk)
+        {
+            float w = StripW();
+            float t = Mathf.Clamp01(kk / (TotalTerms - 1));
+            float x = -w * 0.5f + _pathMargin + t * (w - 2f * _pathMargin);
+            float y = Mathf.Lerp(_depthNear, _depthFar, t) + Mathf.Sin(kk * _waveFreq) * _waveAmp;
+            return new Vector2(x, y);
+        }
+
+        /// <summary>叠加梯形透视后的落点（与 UIPerspective.shader 同一公式：屏幕 x = 原始 x * s，s = 1-keystone*v）。</summary>
+        private Vector2 PathPointWarped(float kk)
+        {
+            Vector2 p = PathPoint(kk);
+            float h = _terrain != null ? _terrain.rectTransform.rect.height : 560f;
+            float v = Mathf.Clamp01((p.y + h * 0.5f) / h);
+            float s = 1f - _keystone * v;
+            return new Vector2(p.x * s, p.y);
+        }
+
+        /// <summary>四个季节标签（春/夏/秋/冬）跟到对应季首的曲线点上（浮在路线上方）。</summary>
+        private void LayoutSeasonLabels()
+        {
+            if (_terrain == null || _terrain.transform.parent == null) return;
+            var par = _terrain.transform.parent;      // Map_Par
+            for (int s = 0; s < SeasonNames.Length; s++)
+            {
+                var rt = par.Find("Tmp_Season_" + s) as RectTransform;
+                if (rt == null) continue;
+                Vector2 p = PathPointWarped(s * TermsPerSeason);
+                rt.anchoredPosition = new Vector2(p.x, p.y + 46f);
+            }
         }
 
         // ------------------------------------------------------------------
@@ -94,6 +170,7 @@ namespace WanXiang.Modules.UI
             float p = act >= 5 ? 1f : ((act - 1) + prog) / 4f;
 
             ApplyNodes(p, act >= 5);
+            LayoutSeasonLabels();
             ApplyFogAndMarker(p, act, prog);
             ApplyFinaleGate(act >= 5);
             ApplyLabel(act, prog);
@@ -112,10 +189,11 @@ namespace WanXiang.Modules.UI
             //   实际宽度换算贴到右端内侧，保证任何宽度下都跟着走。
             if (finale)
             {
-                float w = StripW();
-                float gateW = _finale.rectTransform.sizeDelta.x;
+                // 斜俯视：归墟之门放到旅程终点（右上·远）之外一点，跟着新曲线走
+                Vector2 end = PathPointWarped(TotalTerms - 1);
                 var p = _finale.rectTransform.anchoredPosition;
-                p.x = (w * 0.5f) - gateW * 0.5f - 40f;   // 贴右端，留 40px 内边距
+                p.x = end.x + 70f;
+                p.y = end.y - 6f;
                 _finale.rectTransform.anchoredPosition = p;
             }
         }
@@ -127,8 +205,17 @@ namespace WanXiang.Modules.UI
             int n = _nodesRoot.childCount;
             for (int k = 0; k < n; k++)
             {
-                var img = _nodesRoot.GetChild(k).GetComponent<Image>();
+                var child = _nodesRoot.GetChild(k) as RectTransform;
+                if (child == null) continue;
+                var img = child.GetComponent<Image>();
                 if (img == null) continue;
+
+                // ---- 斜俯视：沿"左下(近) → 右上(远)"的曲线排布，并按进度缩小（近大远小）----
+                float tk = n > 1 ? (float)k / (n - 1) : 0f;
+                child.anchoredPosition = PathPointWarped(tk * (TotalTerms - 1));
+                float sc = Mathf.Lerp(_nearScale, _farScale, tk);
+                child.localScale = new Vector3(sc, sc, 1f);
+
                 float xFrac = (k + 1) / NodeXDenom;
                 if (finale || xFrac <= p + 0.0001f)
                 {
@@ -150,12 +237,13 @@ namespace WanXiang.Modules.UI
 
             // 旅行者：连续节气相位 t∈[0,23]（P=0 → 立春；P=1 → 大寒）
             float t = Mathf.Clamp(p, 0f, 1f) * (TotalTerms - 1);
-            float mx = ((t + 1) / NodeXDenom) * w - w * 0.5f;
-            float my = Mathf.Sin(t * _waveFreq) * _waveAmp;
             if (_marker != null)
             {
                 _marker.gameObject.SetActive(true);
-                _marker.rectTransform.anchoredPosition = new Vector2(mx, my + 4f); // 底枢轴：脚踩小路
+                Vector2 mp = PathPointWarped(t);
+                _marker.rectTransform.anchoredPosition = mp + new Vector2(0f, 4f); // 底枢轴：脚踩小路
+                float ms = Mathf.Lerp(_nearScale, _farScale, Mathf.Clamp01(t / (TotalTerms - 1)));
+                _marker.rectTransform.localScale = new Vector3(ms, ms, 1f);       // 近大远小
             }
 
             // 迷雾：从当前位置盖到最右；走完消失。左缘自带 150px 渐隐
