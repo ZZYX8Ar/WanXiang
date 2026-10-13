@@ -215,8 +215,28 @@ namespace WanXiang.EditorTools
             nearImg.raycastTarget = false;
             ((RectTransform)near.transform).anchoredPosition = new Vector2(0f, -80f);
 
+            // 终幕「归墟之门」到达之光（光柱 + 光晕；仅 act≥5 由 HomeMapJourney 一起点亮）
+            var finBeam = NewUI("Img_FinaleBeam", par.transform, 190f, 430f);
+            var finBeamImg = finBeam.AddComponent<Image>();
+            finBeamImg.sprite = LoadSprite("finale_beam.png");
+            finBeamImg.raycastTarget = false;
+            finBeamImg.color = new Color(1f, 0.90f, 0.62f, 0.42f);
+            finBeam.SetActive(false);                          // 默认隐藏，终幕才亮出
+            var finBeamRt = (RectTransform)finBeam.transform;
+            finBeamRt.pivot = new Vector2(0.5f, 0.06f);
+            finBeamRt.anchoredPosition = new Vector2(StripW * 0.5f - 32f, Mathf.Sin(23f * 0.9f) * 24f - 2f);
+
+            var finGlow = NewUI("Img_FinaleGlow", par.transform, 340f, 340f);
+            var finGlowImg = finGlow.AddComponent<Image>();
+            finGlowImg.sprite = LoadSprite("map_glow.png");
+            finGlowImg.raycastTarget = false;
+            finGlowImg.color = new Color(1f, 0.84f, 0.50f, 0.55f);
+            finGlow.SetActive(false);                          // 默认隐藏，终幕才亮出
+            ((RectTransform)finGlow.transform).anchoredPosition =
+                new Vector2(StripW * 0.5f - 32f, Mathf.Sin(23f * 0.9f) * 24f + 65f);
+
             // 终幕「归墟之门」（仅 act≥5 由 HomeMapJourney 显示；小路右端终点）
-            var fin = NewUI("Img_Finale", par.transform, 96f, 105f);
+            var fin = NewUI("Img_Finale", par.transform, 150f, 164f);
             var finImg = fin.AddComponent<Image>();
             finImg.sprite = LoadSprite("journey_finale.png");
             finImg.raycastTarget = false;

@@ -72,6 +72,9 @@ namespace WanXiang.Modules.UI
         private RectTransform _nowGlow;
         private Image _nowGlowImg;
         private float _nowGlowScale = 1f;
+        // 终幕「到达之光」（prefab Img_FinaleGlow 光晕 / Img_FinaleBeam 光柱，跟归墟之门一起点亮）
+        private Image _finaleGlow;
+        private Image _finaleBeam;
 
         // ---- 常量表 ----
         private static readonly string[] Terms =
@@ -181,6 +184,18 @@ namespace WanXiang.Modules.UI
             if (_near != null) _near.material = _lumaMat;
         }
 
+        /// <summary>取终幕「到达之光」两个节点（prefab Img_FinaleGlow / Img_FinaleBeam，与门同在 Map_Par 下）。</summary>
+        private void ResolveFinaleLight()
+        {
+            if (_finaleGlow != null && _finaleBeam != null) return;
+            if (_terrain == null || _terrain.transform.parent == null) return;
+            var par = _terrain.transform.parent;      // Map_Par
+            var g = par.Find("Img_FinaleGlow");
+            var b = par.Find("Img_FinaleBeam");
+            _finaleGlow = g != null ? g.GetComponent<Image>() : null;
+            _finaleBeam = b != null ? b.GetComponent<Image>() : null;
+        }
+
         /// <summary>取"当前节点光晕"节点（prefab 里 Img_NowGlow，与 Map_Nodes 同级、排在节点之上）。</summary>
         private void ResolveNowGlow()
         {
@@ -252,8 +267,11 @@ namespace WanXiang.Modules.UI
         //  旅行者走到门前 —— 终局目的地可视化，别的东西不用改。
         private void ApplyFinaleGate(bool finale)
         {
+            if (_finaleGlow == null || _finaleBeam == null) ResolveFinaleLight();
             if (_finale == null) return;
             _finale.gameObject.SetActive(finale);
+            if (_finaleGlow != null) _finaleGlow.gameObject.SetActive(finale);
+            if (_finaleBeam != null) _finaleBeam.gameObject.SetActive(finale);
 
             // ⚠ 2026-10-11 地图加长（1320→1600）：归墟之门原本是 prefab 里写死的
             //   anchoredPosition.x = 628（按旧宽度调好的），加长后会脱离右端 ， 改成按
@@ -266,6 +284,13 @@ namespace WanXiang.Modules.UI
                 p.x = end.x + 70f;
                 p.y = end.y - 6f;
                 _finale.rectTransform.anchoredPosition = p;
+
+                // 到达之光：光晕贴门心、光柱立门后（脚踩地面）
+                float gh = _finale.rectTransform.rect.height;
+                if (_finaleGlow != null)
+                    _finaleGlow.rectTransform.anchoredPosition = new Vector2(p.x, p.y + gh * 0.42f);
+                if (_finaleBeam != null)
+                    _finaleBeam.rectTransform.anchoredPosition = new Vector2(p.x, p.y - 2f);
             }
         }
 
@@ -463,6 +488,23 @@ namespace WanXiang.Modules.UI
             {
                 float br = 1f + 0.025f * Mathf.Sin(Time.unscaledTime * 1.7f);
                 _finale.rectTransform.localScale = new Vector3(br, br, 1f);
+
+                // 到达之光：光晕 + 光柱缓慢呼吸（相位错开，像门里透出的活光）
+                if (_finaleGlow != null)
+                {
+                    float pg = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 1.3f);
+                    _finaleGlow.rectTransform.localScale = Vector3.one * (0.92f + 0.10f * pg);
+                    var gc = _finaleGlow.color;
+                    gc.a = Mathf.Lerp(0.38f, 0.72f, pg);
+                    _finaleGlow.color = gc;
+                }
+                if (_finaleBeam != null)
+                {
+                    float pb = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 0.9f + 1.6f);
+                    var bc = _finaleBeam.color;
+                    bc.a = Mathf.Lerp(0.26f, 0.55f, pb);
+                    _finaleBeam.color = bc;
+                }
             }
         }
 
