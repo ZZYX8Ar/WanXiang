@@ -176,14 +176,6 @@ namespace WanXiang.Battle.Core
         /// <summary>大寒「寒气之逆极」：火属性技能命中触发融冰。</summary>
         public bool IceMeltOnFireSkill => Active?.IceMeltOnFireSkill == true;
 
-        /// <summary>
-        /// 先手连击门槛（大雪把它降到 1.20；其余天时用 BattleConfig 默认 1.50）。
-        /// 无天时时返回默认值 —— 调用方不必判空。
-        /// </summary>
-        public float InitiativeRatioOrDefault(float fallback)
-            => Active != null && Active.InitiativeRatioOverride > 0f
-               ? Active.InitiativeRatioOverride : fallback;
-
         /// <summary>小寒：回合末是否给速度最高者一次额外普攻。</summary>
         public bool ExtraBasicAttackOnTurnEnd => Active?.ExtraBasicAttackOnTurnEnd == true;
 

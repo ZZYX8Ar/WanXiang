@@ -4,7 +4,7 @@
 //  STEP 3 天时系统的机器判据。核心思路是**对照实验**：
 //  同种子同阵容，只差"有没有天时/天时是什么"，差异必须可观察且方向正确。
 //
-//  ⭐ 第 1 项是全系统最重要的回归保护：基准局指纹必须仍是 0x265422D8 ——
+//  ⭐ 第 1 项是全系统最重要的回归保护：基准局指纹必须仍是 0x3B4E64BF（先手连击已移除）——
 //  天时层挂在战斗主循环上，若它改动了无天时战斗的任何一位，这里先红。
 // ============================================================================
 
@@ -22,8 +22,8 @@ namespace WanXiang.Editor.WeatherTool
     {
         private const string ReportPath = "Temp/WanXiangDiag/weather_selftest.txt";
         // ⚠ 指纹纪元（**重标于 2026-09-26**）：
-        //   0xC7B10EE7 = 当前基线，局况 **EnemyWin／16 回合**
-        //   0x7A301FC8 = 当前"关抖动 + 关连击"基线
+        //   0x3B4E64BF = 当前基线（先手连击已移除），局况 **EnemyWin／16 回合**
+        //   0x3441864B = 当前"关抖动"基线（先手连击机制已移除，默认即无连击）
         //   —— 历史值（仅留对照）：
         //      0x265422D8 = v1.0（无伤害抖动、无先手连击）
         //      0xA91139D0 = v1.1（抖动 ±5% + 先手连击 + 疾速度 130→150）｜局况 Draw／30 回合
@@ -41,10 +41,10 @@ namespace WanXiang.Editor.WeatherTool
         //     ② 逐条核对改动清单，确认没有别的改动顺手带偏。
         //   ⚠ "全默认 30 回合平局"（v1.1 时代）是给策划的**独立信号**：定版数值下那局磨成僵局
         //     （与 PvP 5/5 平局同源）—— 别和基线重标混为一谈。
-        private const uint BaselineFingerprint = 0xC7B10EE7u;
+        private const uint BaselineFingerprint = 0x3B4E64BFu;
 
-        /// <summary>当前"关抖动 + 关连击"的基线 —— 用来做"抖动/连击各自贡献"的对照。</summary>
-        private const uint LegacyBaselineFingerprint = 0x7A301FC8u;
+        /// <summary>当前"关抖动"的基线（先手连击机制已移除，默认即无连击）—— 用来做"抖动贡献"的对照。</summary>
+        private const uint LegacyBaselineFingerprint = 0x3441864Bu;
 
         private static int _pass, _fail;
         private static readonly List<string> Failures = new List<string>();
@@ -76,12 +76,12 @@ namespace WanXiang.Editor.WeatherTool
             var baseline = BattleSimulator.Run(
                 BattleSampleContent.BuildScenario(2, 20260914UL, BattleConfig.Default));
             var legacyCfg = BattleConfig.Default.WithoutJitter();
-            legacyCfg.InitiativeRatio = 99f;      // 关连击
+            // （先手连击机制已于 2026-10-14 移除，Default 默认即无连击；legacy 仅作"关抖动"对照）
             var legacy = BattleSimulator.Run(
                 BattleSampleContent.BuildScenario(2, 20260914UL, legacyCfg));
             Check(lines, legacy.Fingerprint == LegacyBaselineFingerprint,
-                  $"R1b 旧基线可复现：关抖动 + 关连击 ， 0x{legacy.Fingerprint:X8}"
-                  + $"（= v1.0 基线，证明差异只来自这两条新规则）");
+                  $"R1b 旧基线可复现：关抖动（先手连击已移除） ， 0x{legacy.Fingerprint:X8}"
+                  + $"（= 关抖动基线，证明差异只来自抖动这一条规则）");
 
             Check(lines, baseline.Fingerprint == BaselineFingerprint,
                   $"R1 基准局指纹回归：0x{baseline.Fingerprint:X8}（期望 0x{BaselineFingerprint:X8}）"
@@ -479,30 +479,8 @@ namespace WanXiang.Editor.WeatherTool
             Check(lines, j1 != j2 && jBase > 0,
                   $"㉔ 伤害抖动（v1.1 §3.1 Rand ±5%）：连掷两次 {j1} / {j2} 不同；关抖动基准 {jBase}");
 
-            // ---- ㉕ v1.1 §3.6：先手连击（速度 ≥ 对方最高速 × 1.50 ， 本回合额外行动一次） ----
-            var initHit = Make1v1("iA", "疾", Element.Metal, RoleType.Swift,
-                                  "iB", "术", Element.Wood, RoleType.Caster, null);
-            BattleSimulator.Run(initHit);
-            int initCount = CountNoteKind(initHit.Log, BattleEventKind.RoundResolve, "先手连击");
-            var initMiss = Make1v1("m1", "御", Element.Metal, RoleType.Guard,
-                                   "m2", "术", Element.Wood, RoleType.Caster, null);
-            BattleSimulator.Run(initMiss);
-            int initMissCount = CountNoteKind(initMiss.Log, BattleEventKind.RoundResolve, "先手连击");
-            Check(lines, initCount > 0 && initMissCount == 0,
-                  $"㉕ 先手连击（门槛 1.50×）：疾 vs 术 触发 {initCount} 次；御 vs 术 触发 {initMissCount} 次");
+            // ---- ㉕/㉖ 先手连击机制已于 2026-10-14 移除（用户认为额外行动观感怪异），相关用例随之删除 ----
 
-            // ---- ㉖ 大雪把连击门槛降到 1.20 ， 攻（110）对御（90）= 1.22× 也该触发 ----
-            var t21 = WeatherCatalog.GetSolarTerm(21);   // 大雪 · 闭塞成冬（门槛覆写 1.20）
-            var initSnow = Make1v1("s1", "攻", Element.Metal, RoleType.Striker,
-                                   "s2", "御", Element.Wood, RoleType.Guard, t21);
-            BattleSimulator.Run(initSnow);
-            int snowInit = CountNoteKind(initSnow.Log, BattleEventKind.RoundResolve, "先手连击");
-            var initPlain2 = Make1v1("s3", "攻", Element.Metal, RoleType.Striker,
-                                     "s4", "御", Element.Wood, RoleType.Guard, null);
-            BattleSimulator.Run(initPlain2);
-            int plainInit2 = CountNoteKind(initPlain2.Log, BattleEventKind.RoundResolve, "先手连击");
-            Check(lines, snowInit > 0 && plainInit2 == 0,
-                  $"㉖ 大雪门槛 1.20×：同一对阵无天时 {plainInit2} 次、大雪下 {snowInit} 次");
 
             // ---- ㉗ 目录：P2 补齐的三条字段（夏至双向 / 小雪护盾 / 大寒融冰） ----
             var t10 = WeatherCatalog.GetSolarTerm(10);

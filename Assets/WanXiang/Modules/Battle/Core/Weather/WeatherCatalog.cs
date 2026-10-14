@@ -275,9 +275,6 @@ namespace WanXiang.Battle.Core
                 {
                     Id = "solar_daxue", NodeName = "大雪", BuffName = "闭塞成冬",
                     Element = Element.Water,
-                    // v1.1 §3.6：大雪把「先手连击」门槛从 1.50 降到 1.20 ——
-                    // 冬季三节点（大雪/冬至/小寒）都落在同一条速度轴上。
-                    InitiativeRatioOverride = 1.20f,
                     SpeedMulPlayer = 0.8f,
                     SpeedMulEnemy = 0.8f,
                 },

@@ -164,10 +164,6 @@ namespace WanXiang.Battle.Core
         // 5% 最大生命的额外伤害 —— 「火能融冰」（固定数值，GDD 给死了）。
         public bool IceMeltOnFireSkill;
 
-        // 21 大雪「闭塞成冬」：全场速度 -20%（已有 SpeedMul），并把「先手连击」门槛
-        // 从 1.50 降到 1.20 —— 0 = 用 BattleConfig 的默认门槛。
-        public float InitiativeRatioOverride;
-
         /// <summary>
         /// 余气版：原子数值减半（GDD 3.2 规则一：强度减半，残留 2 个节点）。
         /// 规则修正型里**离散的**（禁疗）不继承 —— 全有全无的规则没有"半禁"；
@@ -225,9 +221,6 @@ namespace WanXiang.Battle.Core
                 ExtraBasicAttackOnTurnEnd = ExtraBasicAttackOnTurnEnd,
                 DamageTakenMul = HalfToward1(DamageTakenMul),
                 IceMeltOnFireSkill = IceMeltOnFireSkill,   // 开关类余气照常继承
-                // 门槛类的余气：向默认值回收一半（1.20 → 1.35），不照搬也不取消
-                InitiativeRatioOverride = InitiativeRatioOverride <= 0f
-                    ? 0f : (InitiativeRatioOverride + 1.50f) * 0.5f,
             };
         }
 
@@ -282,7 +275,6 @@ namespace WanXiang.Battle.Core
             if (ImmuneConfuseSilence) lines.Add("· 我方免疫混乱与沉默");
             if (ExtraBasicAttackOnTurnEnd) lines.Add("· 每回合结束我方最快单位额外普攻 1 次");
             if (IceMeltOnFireSkill) lines.Add("· 火属性技能命中融冰（额外 5% 最大生命伤害）");
-            if (InitiativeRatioOverride > 0f) lines.Add("· 先手连击门槛调整");
 
             if (lines.Count == 0) return "（无特殊规则，仅常规战斗）";
             // 叠了多条余气时同一效果会出现多次 —— 相同行合并成「×N」，免得信息卡刷屏（用户实测）

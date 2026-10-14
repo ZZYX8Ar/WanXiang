@@ -162,73 +162,9 @@ namespace WanXiang.Battle.Core
             chosen = u.GetSkill(SkillType.Basic);
             return SkillType.Basic;
         }
-        // ================================================================
-        //  先手连击（GDD v1.1 §3.6，v1.1 新增规则）
-        //  ----------------------------------------------------------------
-        //  为什么要有这条：回合制里"先出手"本身价值有限（早 0.1 秒行动还是一回合），
-        //  导致「疾」这个职业拿 1100 生命 / 130 攻击换来一个几乎没价值的属性。
-        //  这条规则给速度确权 —— 跨过门槛直接**多打一次**。
-        //
-        //  判定：每回合生成出手序列前，若某单位速度 ≥ 敌方当前最高速度 × 门槛，
-        //        该单位本回合常规行动后额外行动一次；**每方每回合最多 1 次**。
-        //  门槛：BattleConfig.InitiativeRatio（1.50）；大雪节点降到 1.20。
-        //
-        //  ⚠ 「敌方当前最高速度」取**本回合开始时**的快照（含天时/状态修正），
-        //    不取行动过程中的动态值 —— 否则先手方打掉对方最快的单位时，
-        //    连击资格会凭空出现，规则变得不可预测、也无法在回合开始时预告给玩家。
-        // ================================================================
+        // （先手连击机制已于 2026-10-14 移除：用户认为"每回合额外行动一次"观感怪异，
+        //   且会让速度快的单位每回合行动两次。现每个单位每回合固定只行动一次。）
 
-        private static void ResolveInitiativeChain(BattleState st, Buffers buf)
-        {
-            float ratio = st.Weather != null
-                ? st.Weather.InitiativeRatioOrDefault(st.Config.InitiativeRatio)
-                : st.Config.InitiativeRatio;
-
-            // ★ 追加到行动序列**末尾**：这样额外行动也走主循环的决策点，
-            //   我方的先手连击由玩家下令（不再"回合末自己普攻一下"）。用户 2026-10-14。
-            var p = PickInitiativeUnit(st, TeamSide.Player, ratio);
-            var e = PickInitiativeUnit(st, TeamSide.Enemy, ratio);
-
-            if (p != null)
-            {
-                buf.Order.Add(p);
-                st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: p.RuntimeId,
-                           note: $"先手连击：{p.DisplayName} 本回合额外行动（门槛 {ratio:F2}×）");
-            }
-            if (e != null)
-            {
-                buf.Order.Add(e);
-                st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: e.RuntimeId,
-                           note: $"先手连击（敌）：{e.DisplayName} 本回合额外行动（门槛 {ratio:F2}×）");
-            }
-        }
-        /// <summary>挑出本回合获得额外行动的单位：速度达标者里最快的那个（每方最多 1 个）。</summary>
-        private static BattleUnit PickInitiativeUnit(BattleState st, TeamSide side, float ratio)
-        {
-            float oppMax = 0f;
-            var opp = st.UnitsOf(side == TeamSide.Player ? TeamSide.Enemy : TeamSide.Player);
-            for (int i = 0; i < opp.Count; i++)
-            {
-                var u = opp[i];
-                if (!u.IsAlive) continue;
-                float sp = st.EffectiveSpeed(u);
-                if (sp > oppMax) oppMax = sp;
-            }
-            if (oppMax <= 0f) return null;
-
-            BattleUnit best = null;
-            float bestSpeed = 0f;
-            var mine = st.UnitsOf(side);
-            for (int i = 0; i < mine.Count; i++)
-            {
-                var u = mine[i];
-                if (!u.IsAlive) continue;
-                float sp = st.EffectiveSpeed(u);
-                if (sp < oppMax * ratio) continue;
-                if (best == null || sp > bestSpeed) { best = u; bestSpeed = sp; }
-            }
-            return best;
-        }
         /// <summary>
         /// 「吞噬」劫象（§5.5）：行动结束后剥离对侧 1 个增益（第一个非减益状态），
         /// 自身损失 4% 最大生命（真实伤害）。解法：速攻 —— 别给它行动机会。

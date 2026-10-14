@@ -123,17 +123,6 @@ namespace WanXiang.Battle.Core
         public float DefenseConstant = 100f;
 
         /// <summary>
-        /// 先手连击门槛（GDD v1.1 §3.6，INITIATIVE_RATIO=1.50）：
-        /// 每回合生成出手序列前判定，某单位速度 ≥ 敌方最高速度 × 本值 ， 本回合常规行动后
-        /// 额外获得一次行动；**每方每回合最多 1 次**（防高速队无限连）。
-        /// 「大雪 · 闭塞成冬」把它降到 1.20（见 WeatherDef.InitiativeRatioOverride）。
-        /// </summary>
-        public float InitiativeRatio = 1.50f;
-
-        /// <summary>大雪节点的连击门槛（INITIATIVE_RATIO_SNOW）。</summary>
-        public float InitiativeRatioSnow = 1.20f;
-
-        /// <summary>
         /// 伤害抖动幅度（GDD v1.1 §3.1 的 Rand ∈ [0.95, 1.05]，即 ±5%）。
         /// 用途不是"随机性"，而是让同种子回放的日志不像复读机 —— 全程走
         /// DeterministicRandom，同种子逐位可复现。设为 0 = 关掉抖动（对照实验用）。

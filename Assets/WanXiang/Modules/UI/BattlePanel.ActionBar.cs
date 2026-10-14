@@ -191,6 +191,11 @@ namespace WanXiang.Modules.UI
             bool canAct = CanCommandNow();
 
             var u = _play.PendingUnit;
+
+            // 行动箭头：等待下令期间 ActionBegin 还没发，主动把舞台"当前行动者"指向待令单位，
+            // 否则箭头停在上一个行动者头上（用户 2026-10-14：要一眼看出现在轮到谁）。
+            if (_stage != null && u != null) _stage.SetTurnActor(u.RuntimeId);
+
             if (_autoBattle && u == null)
             {
                 // 自动推进中（不是在等某个单位）：给一句可回退的提示

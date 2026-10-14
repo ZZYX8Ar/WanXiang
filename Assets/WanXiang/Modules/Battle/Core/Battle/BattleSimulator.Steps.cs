@@ -73,12 +73,8 @@ namespace WanXiang.Battle.Core
                 TickStatuses(st);
                 if (st.CheckOutcome()) break;
 
-                // ---- 2) 出手序列 ----（先手连击：额外行动的单位**再追加进序列末尾**，GDD v1.1 §3.6）
-                //   ⚠ 用户 2026-10-14：以前先手连击的额外行动是"回合末 ExecuteAction 直接跑"，
-                //     绕过决策点 ⇒ 我方单位会**自己普攻一下、每回合动两次**，玩家一脸懵。
-                //     改成把额外行动单位追加进行动序列 → 走主循环的决策点，我方额外行动也由玩家下令。
+                // ---- 2) 出手序列 ----
                 st.BuildActionOrderInto(buf.Order);
-                ResolveInitiativeChain(st, buf);   // 追加先手连击单位（含日志）
 
                 // 同步给 UI：行动条显示"本回合实际会发生的顺序"，而不是自己重排
                 st.TurnOrder.Clear();

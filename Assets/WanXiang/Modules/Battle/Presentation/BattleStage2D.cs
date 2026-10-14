@@ -367,6 +367,8 @@ namespace WanXiang.Battle.Presentation
         /// <summary>舞台动画时钟（Step 里按 dt 累加）。表现层所有周期动画都用它，别用 Time.time。</summary>
         private float _animT;
         private string _actingId;
+        private SpriteRenderer _turnArrow;          // 当前行动者头顶向下箭头（Build 时创建）
+        private static Sprite _turnArrowSprite;     // 向下箭头贴图（战斗间共享，懒构建）
         private bool _critNext;        // 下一条伤害数字是否按暴击放大（Crit 事件先于 Damage 到）
 
         // 大招特写期间押后的伤害反馈（cut-in 播完、起爆那一下再统一飘出来）
@@ -441,11 +443,58 @@ namespace WanXiang.Battle.Presentation
             BuildBoard("BoardE", EnemyX, BoardY, false);
             BuildUnits();
             BuildCamera();
+            BuildTurnArrow();
 
             // ⚠ 必须套第 0 帧（初始快照）。BattleState 传进来时**这场战斗已经跑完了**
             //   （BattlePlayback 构造里一次 Run 到底），所以 BuildUnits 拿到的是终局
             //   HP/存活状态 —— 不套初帧的话，开局画面就是"一半人已经死了"。
             if (st.Frames.Count > 0) ApplyFrame(st.Frames[0]);
+        }
+
+        // ================================================================
+        //  当前行动者指示器：头顶向下箭头
+        // ================================================================
+        /// <summary>
+        /// 外部（BattlePanel）告知"当前轮到谁"—— 等待下令期间 ActionBegin 还没发，
+        /// 不调用的话箭头会停在上一个行动者头上（用户要的是"当前是谁在行动"）。
+        /// </summary>
+        public void SetTurnActor(string unitId) { _actingId = unitId; }
+
+        private void BuildTurnArrow()
+        {
+            var go = new GameObject("TurnArrow");
+            go.transform.SetParent(transform, false);
+            var sr = go.AddComponent<SpriteRenderer>();
+            if (_turnArrowSprite == null) _turnArrowSprite = BuildArrowSprite();
+            sr.sprite = _turnArrowSprite;
+            sr.sortingOrder = 25;            // 压过立绘(20)，低于前景(30)
+            sr.enabled = false;             // 默认隐藏，等 ActionBegin 出现再显示
+            sr.transform.localScale = new Vector3(1.15f, 1.15f, 1f);
+            _turnArrow = sr;
+        }
+
+        // 程序化生成"向下箭头"贴图（64×64，白色，运行时按阵营染色）
+        private static Sprite BuildArrowSprite()
+        {
+            const int W = 64, H = 64;
+            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false);
+            var px = new Color[W * H];
+            for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+            {
+                bool inside = false;
+                if (y >= 30 && y <= 54)                          // 杆（上部）
+                    inside = Mathf.Abs(x - 32) <= 5;
+                else if (y >= 10 && y < 30)                      // 箭头头部（下部，向下）
+                {
+                    float t = (y - 10) / (30f - 10f);            // 0=底 1=顶
+                    float halfW = 5f + t * 24f;                  // 底 5 -> 顶 29
+                    inside = Mathf.Abs(x - 32) <= halfW;
+                }
+                px[y * W + x] = inside ? Color.white : Color.clear;
+            }
+            tex.SetPixels(px); tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), 100f);
         }
 
         private void Clear()
@@ -463,6 +512,7 @@ namespace WanXiang.Battle.Presentation
             _fgDecor = null;
             _ambient = null;   // 粒子子物体已被上面销毁；Build 里重新 GetComponent/AddComponent
             _skillFx = null;   // SkillFx 子物体一并销毁；下次 EnsureSkillFx 重建（否则持已毁对象）
+            _turnArrow = null; // 箭头子物体已被上面销毁；Build 里重建
             _shakeDur = 0f; _shakeAmp = 0f;
         }
 
@@ -1126,6 +1176,11 @@ namespace WanXiang.Battle.Presentation
                     _actingId = e.ActorId;
                     break;
 
+                case BattleEventKind.TurnStart:
+                case BattleEventKind.BattleEnd:
+                    _actingId = null;   // 回合结算 / 战斗结束期间不显示行动箭头
+                    break;
+
                 case BattleEventKind.SkillCast:
                     // ★ 终结技 / 觉醒技 大演出（2026-10-13）：每个异兽都有，元素色 + id 哈希定造型。
                     //   只给 Ultimate/Awaken 播（大招要稀有、要炸）；普攻/战技保持轻量不刷屏。
@@ -1218,6 +1273,7 @@ namespace WanXiang.Battle.Presentation
             // 舞台自己的动画时钟：由 dt 累加（**不用 `Time.time`**）——
             // 这样表现层动画与"推进了多少帧"严格对应，编辑器里连调 Step 也能被验证到。
             _animT += dt;
+            if (_turnArrow != null) _turnArrow.enabled = false;   // 每帧默认隐藏，循环里再为行动者点亮
 
             // 前景轻微摇曳（呼吸感；幅度很小，不干扰战斗阅读）
             if (_fgDecor != null)
@@ -1289,6 +1345,19 @@ namespace WanXiang.Battle.Presentation
 
                 v.Root.transform.localPosition = new Vector3(
                     v.HomePos.x + lunge.x + kick.x, v.HomePos.y + FootOffset + lunge.y + bob + sink + kick.y, 0f);
+
+                // 当前行动者头顶向下箭头（跟随其头部，带轻微浮动；颜色按阵营）
+                if (_turnArrow != null && v.UnitId == _actingId && v.Alive)
+                {
+                    float bodyH = (v.Body != null && v.Body.sprite != null)
+                        ? v.Body.sprite.bounds.size.y * Mathf.Abs(v.Root.transform.localScale.y) : UnitHeight;
+                    float topY = v.Root.transform.position.y + bodyH * 0.5f + 0.28f;
+                    float bobA = Mathf.Sin(_animT * 4.5f) * 0.07f;
+                    _turnArrow.transform.position = new Vector3(v.Root.transform.position.x, topY + bobA, 0f);
+                    bool isPlayer = v.HomePos.x < 0f;
+                    _turnArrow.color = isPlayer ? new Color(0.36f, 0.86f, 0.92f) : new Color(0.97f, 0.46f, 0.40f);
+                    _turnArrow.enabled = true;
+                }
 
                 // 血条跟随立绘（相机 2D 朝 -Z，直接摆即可）
                 if (v.HpBg != null) v.HpBg.transform.localPosition = new Vector3(0f, HpBarY, -0.01f);
