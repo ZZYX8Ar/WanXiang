@@ -79,11 +79,20 @@ namespace WanXiang.Battle.Core
         public static SkillDef[] Default(Element element, string flavor)
         {
             var basics = new[] { EffectAtom.Damage(TargetSelector.AllEnemies, 0.40f) };
+            // ★ 多段攻击（2026-10-14 二轮，用户："制作一些 boss 或者怪物异兽的多段攻击，
+            //   这样就能按几个键了"）。QTE 多段连击就靠这个 Hits 生效：
+            //   格挡窗口会**每段弹一次**（Steps 里 comboHits = PeekActionHitCount），
+            //   玩家得连按 N 次，漏按一段按最差档算 ⇒ 单段威力必须下调，否则总伤爆炸。
+            //   设计：战技 2 段 × 0.30（总 0.60，低于原来的 0.80 单段）；
+            //        绝技 3 段 × 0.24（总 0.72）。总伤刻意低于旧值 —— 旧值是"一发 0.80"，
+            //   现在变成"要连按三次才吃满"，难度曲线更陡但绝对值没涨。
+            //   ⛔ 关掉 ParryEnabled 时（自检/自动战斗）多段依然生效，只是没有窗口 ——
+            //   所以 Boss 自检的同种子一致性仍成立（不引入额外随机流）。
             var act = new System.Collections.Generic.List<EffectAtom>
-                { EffectAtom.Damage(TargetSelector.AllEnemies, 0.80f) };
+                { EffectAtom.Damage(TargetSelector.AllEnemies, 0.30f, 2) };
             var ult = new System.Collections.Generic.List<EffectAtom>
-                { EffectAtom.Damage(TargetSelector.AllEnemies, 0.80f) };
-            string actDesc = "全体攻击", ultDesc = "全体重击";
+                { EffectAtom.Damage(TargetSelector.AllEnemies, 0.24f, 3) };
+            string actDesc = "全体攻击 ×2 段", ultDesc = "全体重击 ×3 段";
 
             if (!string.IsNullOrEmpty(flavor))
             {

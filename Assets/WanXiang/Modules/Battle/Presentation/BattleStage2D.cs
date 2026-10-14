@@ -509,6 +509,7 @@ namespace WanXiang.Battle.Presentation
         private float _parryK;                   // 环收缩进度（0→1，由面板每帧喂）
         private static Sprite _parryRingSprite;  // 环贴图（跨战斗共享）
         private static Sprite _parryTargetSprite;
+        private static Sprite _qteBgSprite;   // QTE 提示条底衬贴图（实心方块，跨战斗共享）
 
         /// <summary>打开格挡提示（面板在 NeedParry 时调；跟随与点亮在 Step 里做）。</summary>
         public void ShowParryPrompt(string attackerId)
@@ -531,16 +532,84 @@ namespace WanXiang.Battle.Presentation
             if (_parryTarget != null) _parryTarget.enabled = false;
         }
 
-        /// <summary>判定反馈：在攻击者头顶飘字（完美格挡! / 格挡 / 未挡）。</summary>
-        public void ParryFeedback(string attackerId, int grade)
+      /// <summary>判定反馈：在被判定者头顶飘字。格挡 = 完美格挡!/格挡/未挡；终结技 = 共鸣/失谐。</summary>
+        public void ParryFeedback(string attackerId, int grade, bool finisher = false)
         {
-            if (string.IsNullOrEmpty(attackerId) || _views == null) return;
-            UnitView2D v;
-            if (!_views.TryGetValue(attackerId, out v) || v == null || v.Root == null) return;
-            if (grade == 2) SpawnNumberInternal(v, "完美格挡!", new Color(1f, 0.85f, 0.35f), 1.5f);
-            else if (grade == 1) SpawnNumberInternal(v, "格挡", new Color(0.72f, 0.88f, 1f), 1.15f);
+   if (string.IsNullOrEmpty(attackerId) || _views == null) return;
+      UnitView2D v;
+          if (!_views.TryGetValue(attackerId, out v) || v == null || v.Root == null) return;
+       if (finisher)
+  {
+       // 终结技 QTE：飘在被施放者（我方）头上
+     if (grade == 2) SpawnNumberInternal(v, "共鸣! 强化", new Color(1f, 0.82f, 0.42f), 1.5f);
+        else if (grade == 1) SpawnNumberInternal(v, "共鸣", new Color(1f, 0.90f, 0.62f), 1.2f);
+                else SpawnNumberInternal(v, "失谐! 威力减弱", new Color(0.68f, 0.60f, 0.66f), 1.15f);
+    return;
+        }
+      if (grade == 2) SpawnNumberInternal(v, "完美格挡!", new Color(1f, 0.85f, 0.35f), 1.5f);
+   else if (grade == 1) SpawnNumberInternal(v, "格挡", new Color(0.72f, 0.88f, 1f), 1.15f);
             else SpawnNumberInternal(v, "未挡", new Color(0.62f, 0.58f, 0.55f), 1f);
         }
+
+        // ================================================================
+        //  QTE 提示条（2026-10-14，用户："这个 qte 是按什么按键的啊，都没有提示"）
+        // ================================================================
+        private TextMesh _qteHint;              // 屏幕中央的按键提示文字
+        private MeshRenderer _qteHintMr;       // 提示文字的渲染器（显隐开关；TextMesh 本身没有 enabled）
+        private SpriteRenderer _qteHintBg;     // 提示条的深色底衬（白字压在浅背景上看不清）
+        private float _qteHintAlpha;            // 淡入淡出用（窗口期常亮）
+        private string _qteHintText = "";
+
+        /// <summary>
+        /// 设置 QTE 提示条文案。
+        /// <paramref name="hitsTotal"/> = 0 表示单发（普通格挡）；&gt;0 表示多段连击，显示"第 k/n 段"。
+        /// </summary>
+        public void SetQteHint(string text, int hitsTotal = 0, int hitsDone = 0)
+        {
+            _qteHintText = hitsTotal > 1
+          ? text + "　（连击 " + (hitsDone + 1) + "/" + hitsTotal + "）"
+    : text;
+      EnsureQteHint();
+    if (_qteHint != null) _qteHint.text = _qteHintText;
+        }
+
+        private void EnsureQteHint()
+        {
+      if (_qteHint != null) return;
+
+     // ---- 底衬：半透明深色圆角条（白字压在浅色背景上几乎看不见，实测踩过）----
+    if (_qteHintBg == null)
+       {
+      if (_qteBgSprite == null) _qteBgSprite = BuildSolidSprite(64);   // 实心方块（不是圆环）
+ var bgGo = new GameObject("QteHintBg");
+      bgGo.transform.SetParent(transform, false);
+         bgGo.transform.localPosition = new Vector3(0f, 2.42f, -3f);   // 比文字再靠后
+       _qteHintBg = bgGo.AddComponent<SpriteRenderer>();
+         _qteHintBg.sprite = _qteBgSprite;
+    _qteHintBg.sortingOrder = 39;
+   _qteHintBg.color = new Color(0.06f, 0.05f, 0.07f, 0.72f);
+    }
+
+       var go = new GameObject("QteHint");
+  go.transform.SetParent(transform, false);
+            go.transform.localPosition = new Vector3(0f, 2.42f, -2f);   // 屏幕中央偏上（别压棋盘格子）
+            var f = LegacyFont();
+         _qteHint = go.AddComponent<TextMesh>();
+ _qteHintMr = go.GetComponent<MeshRenderer>();
+        if (f != null)
+   {
+     _qteHint.font = f;
+      if (_qteHintMr != null) { _qteHintMr.sharedMaterial = f.material; _qteHintMr.sortingOrder = 40; }
+            }
+            _qteHint.anchor = TextAnchor.MiddleCenter;
+            _qteHint.alignment = TextAlignment.Center;
+    _qteHint.characterSize = 0.10f;
+            _qteHint.fontSize = 64;
+    _qteHint.color = new Color(1f, 0.93f, 0.70f, 0f);
+        }
+
+        /// <summary>淡出并收起提示条。</summary>
+        public void ClearQteHint() { _qteHintText = ""; }
 
         private void EnsureParryRings()
         {
@@ -578,14 +647,24 @@ namespace WanXiang.Battle.Presentation
             float rIn = rOut - thickness;
             for (int y = 0; y < size; y++)
             for (int x = 0; x < size; x++)
-            {
-                float dx = x - c, dy = y - c;
-                float d = Mathf.Sqrt(dx * dx + dy * dy);
-                px[y * size + x] = (d <= rOut && d >= rIn) ? Color.white : Color.clear;
-            }
-            tex.SetPixels(px); tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+ {
+ float dx = x - c, dy = y - c;
+            float d = Mathf.Sqrt(dx * dx + dy * dy);
+       px[y * size + x] = (d <= rOut && d >= rIn) ? Color.white : Color.clear;
         }
+   tex.SetPixels(px); tex.Apply();
+    return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
+        /// <summary>程序化**实心方块**贴图（白色；给 QTE 提示条当底衬用）。</summary>
+        private static Sprite BuildSolidSprite(int size)
+   {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        var px = new Color[size * size];
+            for (int i = 0; i < px.Length; i++) px[i] = Color.white;
+       tex.SetPixels(px); tex.Apply();
+return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+   }
 
         private void Clear()
         {
@@ -600,6 +679,11 @@ namespace WanXiang.Battle.Presentation
             _parryRing = null;      // 提示圈子物体已被上面销毁；标记清空等下次重建
             _parryTarget = null;
             _parryActorId = null;
+            _qteHint = null;    // 提示条同理由上面统一销毁
+            _qteHintMr = null;
+            _qteHintBg = null;
+            _qteHintAlpha = 0f;
+            _qteHintText = "";
             _state = null;
             _cam = null;
             _fgDecor = null;
@@ -1383,6 +1467,40 @@ namespace WanXiang.Battle.Presentation
             if (_skillFx != null) _skillFx.Step(fxDt);
             StepShake(fxDt);
             StepZoom(fxDt);
+
+      // QTE 提示条淡入淡出（有文案就淡入保持，清掉就淡出隐藏）
+            if (_qteHint != null)
+            {
+         float targetA = string.IsNullOrEmpty(_qteHintText) ? 0f : 1f;
+   _qteHintAlpha = Mathf.MoveTowards(_qteHintAlpha, targetA, dt * 6f);
+    var c = _qteHint.color;
+ _qteHint.color = new Color(c.r, c.g, c.b, _qteHintAlpha);
+// ⚠ TextMesh 没有 enabled（它不是 Renderer）—— 显隐走 MeshRenderer。
+     if (_qteHintMr != null) _qteHintMr.enabled = _qteHintAlpha > 0.01f;
+     // 底衬同步淡入淡出 + 每帧跟随文字实际宽度
+     if (_qteHintBg != null)
+     {
+      var bc = _qteHintBg.color;
+      _qteHintBg.color = new Color(bc.r, bc.g, bc.b, 0.72f * _qteHintAlpha);
+    _qteHintBg.enabled = _qteHintAlpha > 0.01f;
+      // ⚠ 宽度按 **实际渲染宽度** 算，不能按字数估 ——
+      //   估出来会短一截（实测盖到"格挡"就断了）。
+      //   用 MeshRenderer.bounds（世界 AABB）÷ 父级缩放换算回本地单位。
+      //   ⚠ 原生 TextMesh.textBounds / GetPixelSize 在本工程不可用（CS1061），
+      //     GetPixelSize 是 TextMeshPro 的 API，别再试。
+      //   每帧算：设 text 的当帧网格当帧还没更新。
+      if (_qteHintMr != null && _qteHintAlpha > 0.01f)
+      {
+        float w = 1.2f;
+        float tw = _qteHintMr.bounds.size.x;
+        float ps = _qteHintBg.transform.parent != null ? _qteHintBg.transform.parent.lossyScale.x : 1f;
+        if (ps > 0.0001f) tw /= ps;
+        if (tw > 0.01f) w = tw + 0.30f;
+        w = Mathf.Clamp(w, 1.2f, 8.0f);
+        _qteHintBg.transform.localScale = new Vector3(w, 0.46f, 1f);
+      }
+        }
+}
 
             foreach (var v in _views.Values)
             {

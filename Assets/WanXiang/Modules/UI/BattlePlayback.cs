@@ -347,8 +347,13 @@ namespace WanXiang.Modules.UI
         public void SubmitParry(WanXiang.Battle.Core.ParryGrade grade)
         {
             if (!_awaitingParry || State == null) return;
-            BattleSimulator.ApplyParry(State, grade);
-            _awaitingParry = false;
+            // ⚠ 按窗口类型分派：`ApplyParry` 硬设 Guard，会把终结技窗口的 Finisher 类型冲掉
+            //   （进而走错伤害分支 —— 完美"加强"会变成"减伤"）。所以这里显式分流。
+            if (State.ParryQteKind == WanXiang.Battle.Core.ParryQteKind.Finisher)
+                BattleSimulator.ApplyFinisherQte(State, State.ParryPendingUnit, grade);
+            else
+       BattleSimulator.ApplyParry(State, grade);
+  _awaitingParry = false;
         }
 
         public bool PlayerWin => State != null && State.Outcome == BattleOutcome.PlayerWin;

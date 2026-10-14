@@ -155,13 +155,23 @@ namespace WanXiang.Modules.UI
                     continue;                                 // 不推进事件、不退出循环
                 }
 
-                // ★ 格挡窗口（QTE，2026-10-14）：敌方带伤害的行动前，弹出时机圈等玩家判定。
+                // ★ QTE 窗口（2026-10-14）：两类时机 —— 敌方带伤害行动前的格挡窗口
+                //   （多段攻击 = 模拟层连排 N 个 NeedParry ⇒ 这里天然连播 N 次，玩家连按 N 次）、
+                //   我方终结技打出前的输出窗口（完美加强 / 失败减弱）。
                 //   原地等（同等令）：不推进事件、不退出循环；判定/超时后 SubmitParry 让模拟继续。
                 if (_play.AwaitingParry)
                 {
+                    _qteHintShown = true;
                     await RunParryWindowAsync(ct);
                     guard = 0;
                     continue;
+                }
+                // 整段收口：模拟层不再等窗口时（下一个决策点/行动开始）把提示条淡出。
+                //   ⛔ 必须在这里清而不是在窗口里清 —— 连击的下一段紧接着就弹，中途清会闪一下。
+                if (_qteHintShown)
+                {
+                    _qteHintShown = false;
+                    if (_stage != null) _stage.ClearQteHint();
                 }
 
                 if (!StepOnce()) break;

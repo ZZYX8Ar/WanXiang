@@ -115,9 +115,12 @@ namespace WanXiang.Modules.Boot
             // ★ 转场进主界面（2026-10-11 用户："从开始界面进入主界面太生硬，
             //   加一点转场，比如一点或几滴水墨铺开"）。
             //   顺序：墨团从中心铺开盖住屏幕 → 关闭开始界面并打开主界面 → 墨团继续放大淡出。
-            // ★ 预热节点地图/幕开场（2026-10-14）：趁这次转场遮盖期把两个大面板先建好，
-            //   把"首次进节点地图会卡一下"的实例化成本挪到看不见的时候（详见方法注释）。
-            PrewarmFirstMapPanelsAsync();
+            // ⚠⚠ 2026-10-14 回归修复（用户实测"从开始界面进主界面这个水墨转场第一次变卡了"）：
+            //   预热**不能**在转场遮盖期内跑。那一坨重活（两个大面板彩排 + 笔顺帧纹理上传 ≈1.2s）
+            //   会把主线程占满，这条 Start2Home 转场只有 2.4s，退场拨开正好撞在重活里 → 可见段大帧。
+            //   （Home→Map 那条链路有 `HomePanel.coldPre` 在遮盖期彩排 + `SettleWait` 退场门限，不受影响。）
+            //   改为：**等这条转场彻底播完、Home 稳了两帧之后**再去后台预热。
+            //   预热晚一点无所谓——玩家点"出征"之前有足够时间，收益（首次进图不卡）完全保留。
             {
                 var run0 = WanXiang.Run.RunSave.Current;
                 int act0 = run0 != null ? Mathf.Clamp(run0.Act, 1, 5) : 1;
@@ -130,6 +133,10 @@ namespace WanXiang.Modules.Boot
                     _ = ui.OpenAsync<HomePanel>();
                 }, null, 2.4f, "Start2Home");   // ⚠ 独立标识：与 Home→Map 链路区分
             }
+            // ★ 转场播完再预热（见上方回归修复注释）。Delay 让 Home 先把首帧渲染完，
+            //   否则预热的大帧会打在主界面刚出现的那一下（同样会被玩家当成"卡"）。
+            await UniTask.Delay(400);
+            PrewarmFirstMapPanelsAsync();
             Debug.Log("[MainSceneEntry] 已进入主界面（带水墨转场，开始界面已关闭）。");
         }
 
@@ -140,20 +147,24 @@ namespace WanXiang.Modules.Boot
         /// 播放剖面定位：首次打开的停顿 ≈ 节点地图面板的打开流程 + 内容首帧渲染/贴图上传
         /// （合计 ~1s，第二次起被缓存/已上传，所以流畅）。
         ///
-        /// 这里趁 Start→主界面 水墨转场把屏幕盖满的窗口（约 2 秒全遮盖）：
+        /// ⚠⚠ **调用位置很重要（2026-10-14 回归修复）**：必须等 Start2Home 转场**播完之后**才调，
+        ///   绝不能塞进它的遮盖期 —— 实测那样会把这条 2.4s 转场的退场拨开挤成大帧。
+        ///   现在由上面的 `await UniTask.Delay(400)` 之后触发，Home 首帧已稳定。
+        ///
+        /// 预热内容（Home→Map 链路之外做的那部分）：
         ///  · 节点地图面板 → **完整彩排**（真开一遍再关掉，GhostSilent 静默，不播音/不触发开场/不写档）
         ///    —— 把首次打开的全部成本藏进转场；玩家第一次真进图 = 热路径。
         ///  · 幕开场面板 → 轻量预热（实例化 + 隐藏激活）——它自身的冷成本仅 ~0.1s，
         ///    且首次打开已被 CampaignPanel.DeferredIntroAsync 挪进遮盖期。
         ///
-        /// ⚠ 只在"从开始界面进主城"这条路上调（转场遮盖期）；战后回城无转场遮盖、不调。
+        /// ⚠ 只在"从开始界面进主城"这条路上调一次；战后回城无转场遮盖、不调。
         /// </summary>
         private static async UniTaskVoid PrewarmFirstMapPanelsAsync()
         {
             var ui = UIBootstrap.UI;
             if (ui == null) return;
 
-            await UniTask.Delay(250);   // 等水墨转场遮盖层盖满（0.12s 起生效，留裕量）
+            await UniTask.Delay(250);   // 让主界面先稳一会儿，别把大帧打在刚出现的那一下
             int actNow = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
             var strokePaths = new System.Collections.Generic.List<string>();   // 笔顺帧路径（彩排销毁前收集）
             if (ui.Get<CampaignPanel>() == null)

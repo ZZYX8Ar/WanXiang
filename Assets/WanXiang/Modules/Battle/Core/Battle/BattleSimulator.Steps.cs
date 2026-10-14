@@ -95,15 +95,53 @@ namespace WanXiang.Battle.Core
                     if (st.PlayerControlled && u.Side == TeamSide.Player && u.CanAct)
                         yield return new BattleStep { Kind = BattleStepKind.NeedDecision, Unit = u };
 
-                    // ★ 格挡窗口（QTE，2026-10-14）：敌方"带伤害的行动"前，等玩家提交判定。
+                    // ★ 终结技 QTE（进攻向，2026-10-14 二轮）：玩家下令放了终结技，
+                    //   在真正打出之前弹一个输出窗口 —— 完美 ⇒ 伤害加强，没按准 ⇒ 减弱。
+                    //   ⚠ 读的是 PendingCommand.SkillIndex = SkillType.Ultimate（还没被 ExecuteAction 消费）。
+                    bool finisherQte = false;
+                    if (st.ParryEnabled && u.Side == TeamSide.Player && u.CanAct
+                        && st.PendingCommand.SkillIndex == (int)SkillType.Ultimate
+                        && u.GetSkill(SkillType.Ultimate) != null)
+                    {
+                        finisherQte = true;
+                        st.ParriedGrade = ParryGrade.None;      // 待判定（超时 = 失败 = 减弱）
+                        st.ParryActorId = u.RuntimeId;
+                        st.ParryQteKind = ParryQteKind.Finisher;
+                        st.ParrySegmentIndex = 0;
+                        st.ParrySegmentTotal = 1;   // 终结技是单发窗口
+                        // ⚠ 终结技窗口**要**设 ParryPendingUnit：BattlePlayback 靠它取 ParryAttacker
+                        //   （提示圈要画在我方出手者头上）。格挡窗口由 AdvanceToNextDecision 的 NeedParry 分支统一设。
+                        st.ParryPendingUnit = u;
+                        yield return new BattleStep { Kind = BattleStepKind.NeedParry, Unit = u };
+                    }
+
+                    // ★ 格挡窗口（防守向，QTE）：敌方"带伤害的行动"前，等玩家提交判定。
                     //   st.ParryEnabled 默认 false ⇒ 不 yield、零事件、指纹逐位不变（自检红线）。
+                    //   ★ 多段连击（2026-10-14 二轮，用户："制作一些多段攻击，这样就能按几个键了"）：
+                    //     伤害段数 > 1 时**每段开一个窗口**、逐段取最差档 —— 漏按一段就得吃一下。
                     bool parryOpened = false;
-                    if (st.ParryEnabled && u.Side == TeamSide.Enemy && u.CanAct && PeekActionIsDamaging(st, u))
+                    int comboHits = 1;
+                    if (st.ParryEnabled && !finisherQte && u.Side == TeamSide.Enemy && u.CanAct
+                        && PeekActionIsDamaging(st, u))
                     {
                         parryOpened = true;
-                        st.ParriedGrade = ParryGrade.None;    // 待判定（超时/异常都会落到"未挡"）
-                        st.ParryActorId = u.RuntimeId;
-                        yield return new BattleStep { Kind = BattleStepKind.NeedParry, Unit = u };
+                        comboHits = PeekActionHitCount(st, u);
+                        var comboWorst = ParryGrade.Perfect;
+                        for (int h = 0; h < comboHits; h++)
+   {
+    st.ParriedGrade = ParryGrade.None;    // 待判定（超时/异常都会落到"未挡"）
+        st.ParryActorId = u.RuntimeId;
+           st.ParryQteKind = ParryQteKind.Guard;
+        st.ParrySegmentIndex = h;
+        st.ParrySegmentTotal = comboHits;   // UI 显示"第 k/n 段"
+   // ⚠ 必须设 ParryPendingUnit，否则 UI 侧 `ApplyParry` 第一行就 return，
+    //   档位永远停在上面那个 None ⇒ 减伤完全不生效（实测踩过：全完美也记"未挡"）。
+      st.ParryPendingUnit = u;
+            yield return new BattleStep { Kind = BattleStepKind.NeedParry, Unit = u };
+      // UI 提交后档位落在 st.ParriedGrade，逐段并进"最差档"
+     AccumulateParryComboSegment(ref comboWorst, st.ParriedGrade);
+      }
+                        st.ParriedGrade = comboWorst;         // 整次行动用合并档位算减伤
                     }
 
                     ExecuteAction(st, u, buf);
@@ -128,10 +166,23 @@ namespace WanXiang.Battle.Core
                             }
                         }
                         st.Log.Add(st.Turn, BattleEventKind.ParryResult, actorId: u.RuntimeId,
-                                   note: GradeCn(st.ParriedGrade));
+                                   note: comboHits > 1
+                                        ? GradeCn(st.ParriedGrade) + "·连挡" + comboHits + "段"
+                                        : GradeCn(st.ParriedGrade));
                         st.ParriedGrade = ParryGrade.None;
                         st.ParryActorId = null;
+                        st.ParryQteKind = ParryQteKind.None;
                         if (st.CheckOutcome()) break;
+                    }
+
+                    // ★ 终结技 QTE 收口：只发结果事件 + 清状态（无反震，加强/减弱已过伤害）。
+                    if (finisherQte)
+                    {
+                        st.Log.Add(st.Turn, BattleEventKind.ParryResult, actorId: u.RuntimeId,
+                                   note: "终结技·" + (st.ParriedGrade == ParryGrade.Perfect ? "共鸣" : "失谐"));
+                        st.ParriedGrade = ParryGrade.None;
+                        st.ParryActorId = null;
+                        st.ParryQteKind = ParryQteKind.None;
                     }
 
                     DevourAfterAction(st, u);      // 「吞噬」劫象：行动结束剥离对侧 1 增益 + 自损

@@ -73,22 +73,32 @@ namespace WanXiang.Battle.Core
         /// <summary>玩家最近一次下发的指令（由 ApplyPlayerCommand 写入）。</summary>
         public PlayerCommand PendingCommand;
 
-        // ---- 格挡（QTE，2026-10-14）----
+     // ---- 格挡（QTE，2026-10-14）----
 
-        /// <summary>
-        /// 格挡开关：只由"玩家手动的 PvE 战斗"UI 打开。
-        /// 默认 false ⇒ 不 yield（NeedParry）、不写格挡事件、不折伤害，指纹逐位不变（自检红线）。
-        /// </summary>
+    /// <summary>
+        /// QTE 开关：只由"玩家手动的 PvE 战斗"UI 打开。
+        /// 默认 false ⇒ 不 yield（NeedParry）、不写 QTE 事件、不改伤害，指纹逐位不变（自检红线）。
+        /// 同时门控**格挡（防守）**与**终结技（进攻）**两种窗口。
+  /// </summary>
         public bool ParryEnabled;
 
-        /// <summary>等待玩家格挡的攻击者（AdvanceToNextDecision 因 NeedParry 返回 true 时非空）。</summary>
+        /// <summary>等待玩家判定的单位（AdvanceToNextDecision 因 NeedParry 返回 true 时非空）。</summary>
         public BattleUnit ParryPendingUnit;
 
-        /// <summary>本次敌方行动已判定的格挡档位（DealDamage 收口折减用）。</summary>
-        public ParryGrade ParriedGrade;
+        /// <summary>本次行动已判定的 QTE 档位（DealDamage 收口折减用）。</summary>
+  public ParryGrade ParriedGrade;
 
-        /// <summary>本次被格挡行动的攻击者 id（null = 不在格挡行动中，折减恒 1）。</summary>
+     /// <summary>本次被判定行动的行动者 id（null = 不在 QTE 行动中，折减恒 1）。</summary>
         public string ParryActorId;
+
+        /// <summary>当前窗口的种类（None = 无窗口；DealDamage 据此走"护我方"还是"我方输出"分支）。</summary>
+        public ParryQteKind ParryQteKind;
+
+        /// <summary>当前窗口是本次行动的第几段（从 0 开始）。UI 只读，用于显示"第 k/n 段"。</summary>
+        public int ParrySegmentIndex;
+
+        /// <summary>本次行动的总段数（1 = 单发；多段攻击 &gt; 1 ⇒ 玩家要连按这么多次）。</summary>
+        public int ParrySegmentTotal = 1;
 
         /// <summary>本场结算（手动模式下战斗结束时由 AdvanceToNextDecision 写入）。</summary>
         public BattleResult Result;
