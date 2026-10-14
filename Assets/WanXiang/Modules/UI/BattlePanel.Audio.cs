@@ -42,6 +42,11 @@ namespace WanXiang.Modules.UI
             {
                 case BattleEventKind.BattleStart:
                     Sfx("sfx_bt_start");
+                    // 异兽登场音：开着场那一下，给队伍一个"亮相"的仪式感。
+                    // ⚠ 这一条本来想放 BattleStage2D 的单位创建处（更贴"入场"时机），
+                    //   但 Battle 表现层所在程序集**不引用 WanXiang.Framework**，拿不到 AudioSystem
+                    //   （实测报 CS0234）。所以由 UI 层在 BattleStart 事件代播 —— 时机几乎一致。
+                    Sfx("sfx_beast_enter_small", 0.7f);
                     break;
 
                 case BattleEventKind.TurnStart:
@@ -81,7 +86,8 @@ namespace WanXiang.Modules.UI
                     break;
 
                 case BattleEventKind.Death:
-                    Sfx("sfx_bt_death_unit", 0.85f);
+                    // 我方异兽阵亡用「哀鸣」（玩家对自家队伍有感情），敌方用中性的倒地音。
+                    Sfx(IsPlayerUnit(e.TargetId) ? "sfx_beast_death_cry" : "sfx_bt_death_unit", 0.85f);
                     break;
 
                 case BattleEventKind.Revive:
@@ -152,6 +158,18 @@ namespace WanXiang.Modules.UI
                 case Element.Earth: return "sfx_bt_poison";   // 瘴气 / 中毒
                 default:            return null;
             }
+        }
+
+        /// <summary>某个 RuntimeId 是不是我方单位（用来给"我方阵亡"选更贴的哀鸣音）。</summary>
+        private bool IsPlayerUnit(string runtimeId)
+        {
+            var st = _play != null ? _play.State : null;
+            if (st == null || string.IsNullOrEmpty(runtimeId)) return false;
+
+            var mine = st.UnitsOf(TeamSide.Player);
+            for (int i = 0; i < mine.Count; i++)
+                if (mine[i] != null && mine[i].RuntimeId == runtimeId) return true;
+            return false;
         }
 
         /// <summary>收尾音：胜 / 败 / 平局（打满回合数按 Draw 结算）。</summary>

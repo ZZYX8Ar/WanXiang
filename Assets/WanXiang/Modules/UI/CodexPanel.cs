@@ -194,6 +194,24 @@ namespace WanXiang.Modules.UI
                 _tmpSchool.text = unlocked
                     ? (b.Element + " · " + b.Role + " · " + b.Rarity)
                     : "获得后解锁图鉴";
+
+            // 五行气场音：按异兽属性播对应的一档（木火土金水各有专属音色）。
+            // ⚠ 只在**已解锁**时播 —— 未解锁显示的是剪影，配个气场音等于把它的五行剧透了。
+            if (unlocked) SfxThrottled(ElementAuraSfx(b.Element));
+        }
+
+        /// <summary>五行 → 气场音 id。None / 未知返回 null（静默，不硬塞一个别的属性音误导玩家）。</summary>
+        private static string ElementAuraSfx(WanXiang.Battle.Core.Element el)
+        {
+            switch (el)
+            {
+                case WanXiang.Battle.Core.Element.Wood:  return "sfx_elem_wood_aura";
+                case WanXiang.Battle.Core.Element.Fire:  return "sfx_elem_fire_aura";
+                case WanXiang.Battle.Core.Element.Earth: return "sfx_elem_earth_aura";
+                case WanXiang.Battle.Core.Element.Metal: return "sfx_elem_metal_aura";
+                case WanXiang.Battle.Core.Element.Water: return "sfx_elem_water_aura";
+                default:                                 return null;
+            }
         }
     }
 }
