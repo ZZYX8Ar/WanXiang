@@ -76,6 +76,11 @@ namespace WanXiang.Battle.Core
             NeedDecision = 1,
             /// <summary>战斗结束（Result 有效）。</summary>
             Finished = 2,
+            /// <summary>
+            /// 敌方"带伤害的行动"前，等待玩家提交格挡判定（QTE，2026-10-14）。
+            /// 只在 st.ParryEnabled = true 时出现；UI 用 ApplyParry 提交后继续。
+            /// </summary>
+            NeedParry = 3,
         }
         // ================================================================
         //  目标选择

@@ -40,6 +40,13 @@ namespace WanXiang.Battle.Core
         /// 它排在 Damage **之前**，这样表现层可以按事件顺序先收到暴击标记再播伤害。
         /// </summary>
         Crit = 16,
+
+        /// <summary>
+        /// 格挡结果（QTE，2026-10-14）：Note = 完美格挡/格挡/未挡。
+        /// 只在开了格挡的战斗（PlayerControlled + ParryEnabled）里出现 ——
+        /// 自检基线不含它，指纹不受影响。
+        /// </summary>
+        ParryResult = 17,
     }
 
     public struct BattleEvent

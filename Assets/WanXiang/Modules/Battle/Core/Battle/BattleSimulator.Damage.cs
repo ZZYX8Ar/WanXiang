@@ -191,6 +191,12 @@ namespace WanXiang.Battle.Core
             // 空列表短路：普通战斗不进函数体，逐位不变。
             if (st.Hooks.Count > 0) BattleHooks.ModifyIncoming(st, src, dst, ref dmg, el);
 
+            // ---- 格挡（QTE，2026-10-14）：本次被格挡的敌方行动 → 对我方伤害按档位折减 ----
+            // ⚠ 不在格挡行动中（ParryActorId 为空）恒为 1 —— 零副作用，指纹红线（见 Parry 文件头）。
+            //   放在 Boss 钩子之后：玩家的时机判定对这次伤害有"最后一票"。
+            float parryMul = ParryDamageMulFor(st, src, dst);
+            if (parryMul != 1f) dmg = CoreMath.RoundDamage(dmg * parryMul);
+
             int dealt;
             if (atom.TrueDamage) dealt = dst.TakeTrueDamage(dmg);
             else dealt = dst.TakeDamage(dmg, atom.IgnoreShield);

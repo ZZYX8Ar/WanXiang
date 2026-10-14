@@ -314,6 +314,8 @@ namespace WanXiang.Modules.UI
             if (_play == null) return;
             _autoBattle = !_autoBattle;
             if (_autoBattle) _play.SubmitCommand(-1, -1);   // -1 = 交给 AI（自动战斗）
+            // ★ 格挡 QTE（2026-10-14）：自动战斗关格挡（AI 不会替玩家按时机圈）
+            if (_play.State != null) _play.State.ParryEnabled = !_autoBattle;
             if (_tmpLog != null) _tmpLog.text = _autoBattle ? "自动战斗：开" : "自动战斗：关（等你下令）";
             Sfx("sfx_bt_auto_toggle");
             RefreshActionBar();

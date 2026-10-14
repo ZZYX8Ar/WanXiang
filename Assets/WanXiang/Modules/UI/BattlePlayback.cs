@@ -131,11 +131,19 @@ namespace WanXiang.Modules.UI
         private bool _manualMode;
         /// <summary>当前是否在等我方下令。</summary>
         private bool _awaiting;
+        /// <summary>当前是否在等我方格挡（QTE，2026-10-14）。</summary>
+        private bool _awaitingParry;
         /// <summary>模拟是否已跑完（事件流播完 ≠ 模拟结束：手动模式下会在决策点停住）。</summary>
         private bool _simDone;
 
         /// <summary>是否在等玩家下令（UI 据此显示战记操作区）。</summary>
         public bool AwaitingCommand => _awaiting && !_simDone;
+
+        /// <summary>是否在等玩家格挡判定（QTE，UI 据此弹时机圈）。</summary>
+        public bool AwaitingParry => _awaitingParry && !_simDone;
+
+        /// <summary>等待格挡的攻击者（AwaitingParry 为 true 时非空）。</summary>
+        public BattleUnit ParryAttacker { get; private set; }
 
         /// <summary>等待下令的单位（AwaitingCommand 为 true 时非空）。</summary>
         public BattleUnit PendingUnit => State != null ? State.PendingUnit : null;
@@ -238,7 +246,7 @@ namespace WanXiang.Modules.UI
             // 事件流播到头了：分三种情况（手动模式的分片推进全在这里）
             if (_eventIndex + 1 >= State.Log.Count)
             {
-                if (_awaiting) return true;      // 在等玩家下令 → 停住（UI 看 AwaitingCommand）
+                if (_awaiting || _awaitingParry) return true;   // 等令 / 等格挡 → 停住（UI 看 Awaiting*）
                 if (_simDone) return false;      // 模拟跑完 → 真正结束
                 AdvanceSim();                    // 否则继续跑下一段
                 if (_eventIndex + 1 >= State.Log.Count) return _awaiting && !_simDone;
@@ -316,13 +324,31 @@ namespace WanXiang.Modules.UI
             {
                 _simDone = true;
                 _awaiting = false;
+                _awaitingParry = false;
                 Result = State.Result;
+            }
+            else if (State.ParryPendingUnit != null)
+            {
+                // ★ 格挡窗口（QTE）：等 UI 弹时机圈、提交判定（SubmitParry）
+                _awaitingParry = true;
+                ParryAttacker = State.ParryPendingUnit;
             }
             else
             {
                 _awaiting = true;     // 有单位等待下令
                 DecisionSeq++;        // ★ 新决策点 ， 序号自增（UI 据此刷新操作区，见 DecisionSeq 注释）
             }
+        }
+
+        /// <summary>
+        /// 提交格挡判定（QTE，2026-10-14）：只写状态、不推进 ——
+        /// 与 SubmitCommand 同理，由 Step() 在"事件播完"后自己 AdvanceSim 让模拟继续。
+        /// </summary>
+        public void SubmitParry(WanXiang.Battle.Core.ParryGrade grade)
+        {
+            if (!_awaitingParry || State == null) return;
+            BattleSimulator.ApplyParry(State, grade);
+            _awaitingParry = false;
         }
 
         public bool PlayerWin => State != null && State.Outcome == BattleOutcome.PlayerWin;

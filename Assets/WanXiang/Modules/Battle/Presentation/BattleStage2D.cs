@@ -497,6 +497,96 @@ namespace WanXiang.Battle.Presentation
             return Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), 100f);
         }
 
+        // ================================================================
+        //  格挡 QTE 提示圈（2026-10-14，用户点名参考 33号远征队）
+        //  ----------------------------------------------------------------
+        //  收缩环 + 固定目标圈：环套上目标圈的那一拍 = 完美区间（判定在 BattlePanel，
+        //  这里只负责"跟随攻击者 + 按进度收缩染色"）。贴图程序化生成，与行动箭头同套路。
+        // ================================================================
+        private SpriteRenderer _parryRing;       // 收缩环
+        private SpriteRenderer _parryTarget;     // 目标圈（固定尺寸）
+        private string _parryActorId;            // 窗口归属的攻击者（null = 无窗口）
+        private float _parryK;                   // 环收缩进度（0→1，由面板每帧喂）
+        private static Sprite _parryRingSprite;  // 环贴图（跨战斗共享）
+        private static Sprite _parryTargetSprite;
+
+        /// <summary>打开格挡提示（面板在 NeedParry 时调；跟随与点亮在 Step 里做）。</summary>
+        public void ShowParryPrompt(string attackerId)
+        {
+            _parryActorId = attackerId;
+            _parryK = 0f;
+            EnsureParryRings();
+            if (_parryRing != null) _parryRing.enabled = false;
+            if (_parryTarget != null) _parryTarget.enabled = false;
+        }
+
+        /// <summary>喂环收缩进度（0..1）。</summary>
+        public void SetParryProgress(float k) { _parryK = Mathf.Clamp01(k); }
+
+        /// <summary>关闭提示圈。</summary>
+        public void HideParryPrompt()
+        {
+            _parryActorId = null;
+            if (_parryRing != null) _parryRing.enabled = false;
+            if (_parryTarget != null) _parryTarget.enabled = false;
+        }
+
+        /// <summary>判定反馈：在攻击者头顶飘字（完美格挡! / 格挡 / 未挡）。</summary>
+        public void ParryFeedback(string attackerId, int grade)
+        {
+            if (string.IsNullOrEmpty(attackerId) || _views == null) return;
+            UnitView2D v;
+            if (!_views.TryGetValue(attackerId, out v) || v == null || v.Root == null) return;
+            if (grade == 2) SpawnNumberInternal(v, "完美格挡!", new Color(1f, 0.85f, 0.35f), 1.5f);
+            else if (grade == 1) SpawnNumberInternal(v, "格挡", new Color(0.72f, 0.88f, 1f), 1.15f);
+            else SpawnNumberInternal(v, "未挡", new Color(0.62f, 0.58f, 0.55f), 1f);
+        }
+
+        private void EnsureParryRings()
+        {
+            if (_parryRing == null)
+            {
+                if (_parryRingSprite == null) _parryRingSprite = BuildRingSprite(128, 6);
+                var go = new GameObject("ParryRing");
+                go.transform.SetParent(transform, false);
+                _parryRing = go.AddComponent<SpriteRenderer>();
+                _parryRing.sprite = _parryRingSprite;
+                _parryRing.sortingOrder = 26;             // 与行动箭头同层，压过立绘
+                _parryRing.color = new Color(1f, 0.90f, 0.55f, 0.95f);
+                _parryRing.enabled = false;
+            }
+            if (_parryTarget == null)
+            {
+                if (_parryTargetSprite == null) _parryTargetSprite = BuildRingSprite(128, 3);
+                var go = new GameObject("ParryTarget");
+                go.transform.SetParent(transform, false);
+                _parryTarget = go.AddComponent<SpriteRenderer>();
+                _parryTarget.sprite = _parryTargetSprite;
+                _parryTarget.sortingOrder = 26;
+                _parryTarget.color = new Color(1f, 1f, 1f, 0.45f);
+                _parryTarget.enabled = false;
+            }
+        }
+
+        // 程序化"圆环"贴图（白色；尺寸与线宽像素级，运行时靠 localScale 缩放）
+        private static Sprite BuildRingSprite(int size, int thickness)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var px = new Color[size * size];
+            float c = (size - 1) * 0.5f;
+            float rOut = size * 0.5f - 1f;
+            float rIn = rOut - thickness;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - c, dy = y - c;
+                float d = Mathf.Sqrt(dx * dx + dy * dy);
+                px[y * size + x] = (d <= rOut && d >= rIn) ? Color.white : Color.clear;
+            }
+            tex.SetPixels(px); tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
         private void Clear()
         {
             for (int i = transform.childCount - 1; i >= 0; i--)
@@ -507,6 +597,9 @@ namespace WanXiang.Battle.Presentation
             _tempBaseScale.Clear();
             _pendingDmg.Clear();
             _pendingCritFloat = null;
+            _parryRing = null;      // 提示圈子物体已被上面销毁；标记清空等下次重建
+            _parryTarget = null;
+            _parryActorId = null;
             _state = null;
             _cam = null;
             _fgDecor = null;
@@ -1358,6 +1451,36 @@ namespace WanXiang.Battle.Presentation
                     bool isPlayer = v.HomePos.x < 0f;
                     _turnArrow.color = isPlayer ? new Color(0.36f, 0.86f, 0.92f) : new Color(0.97f, 0.46f, 0.40f);
                     _turnArrow.enabled = true;
+                }
+
+                // 格挡提示圈（QTE）：环收缩、套上目标圈的那一拍 = 完美区间（判定在面板）
+                if (_parryRing != null && _parryActorId != null && v.UnitId == _parryActorId && v.Alive)
+                {
+                    float bodyH2 = (v.Body != null && v.Body.sprite != null)
+                        ? v.Body.sprite.bounds.size.y * Mathf.Abs(v.Root.transform.localScale.y) : UnitHeight;
+                    float cx = v.Root.transform.position.x;
+                    float cy = v.Root.transform.position.y + bodyH2 * 0.42f;
+                    float baseS = bodyH2 * 0.62f;   // 环直径 ≈ 0.62 个身位（太大会贴屏缘被裁）
+                    // 环：1.0 → 0.40（到 k=0.8 正好收缩到目标圈大小，随后略过冲）
+                    float ringS = Mathf.Lerp(1.0f, 0.40f, Mathf.Clamp01(_parryK / 0.80f));
+                    _parryRing.transform.position = new Vector3(cx, cy, -0.05f);
+                    _parryRing.transform.localScale = Vector3.one * (baseS * ringS);
+                    // 进入完美区间时环变亮（给玩家一眼可读的"就是现在"信号）
+                    bool inPerfect = Mathf.Abs(_parryK - 0.80f) <= 0.06f;
+                    _parryRing.color = inPerfect
+                        ? new Color(1f, 0.97f, 0.72f, 1f)
+                        : new Color(1f, 0.90f, 0.55f, 0.85f);
+                    _parryRing.enabled = true;
+
+                    if (_parryTarget != null)
+                    {
+                        _parryTarget.transform.position = new Vector3(cx, cy, -0.06f);
+                        _parryTarget.transform.localScale = Vector3.one * (baseS * 0.40f);
+                        _parryTarget.color = inPerfect
+                            ? new Color(0.72f, 1f, 0.72f, 0.85f)
+                            : new Color(1f, 1f, 1f, 0.45f);
+                        _parryTarget.enabled = true;
+                    }
                 }
 
                 // 血条跟随立绘（相机 2D 朝 -Z，直接摆即可）

@@ -73,6 +73,23 @@ namespace WanXiang.Battle.Core
         /// <summary>玩家最近一次下发的指令（由 ApplyPlayerCommand 写入）。</summary>
         public PlayerCommand PendingCommand;
 
+        // ---- 格挡（QTE，2026-10-14）----
+
+        /// <summary>
+        /// 格挡开关：只由"玩家手动的 PvE 战斗"UI 打开。
+        /// 默认 false ⇒ 不 yield（NeedParry）、不写格挡事件、不折伤害，指纹逐位不变（自检红线）。
+        /// </summary>
+        public bool ParryEnabled;
+
+        /// <summary>等待玩家格挡的攻击者（AdvanceToNextDecision 因 NeedParry 返回 true 时非空）。</summary>
+        public BattleUnit ParryPendingUnit;
+
+        /// <summary>本次敌方行动已判定的格挡档位（DealDamage 收口折减用）。</summary>
+        public ParryGrade ParriedGrade;
+
+        /// <summary>本次被格挡行动的攻击者 id（null = 不在格挡行动中，折减恒 1）。</summary>
+        public string ParryActorId;
+
         /// <summary>本场结算（手动模式下战斗结束时由 AdvanceToNextDecision 写入）。</summary>
         public BattleResult Result;
 

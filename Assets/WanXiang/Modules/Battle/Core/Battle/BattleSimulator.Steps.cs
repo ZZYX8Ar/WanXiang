@@ -94,7 +94,46 @@ namespace WanXiang.Battle.Core
                     //   不停 ， 直接走 ExecuteAction 记一条「无法行动」，流程自然跳过。
                     if (st.PlayerControlled && u.Side == TeamSide.Player && u.CanAct)
                         yield return new BattleStep { Kind = BattleStepKind.NeedDecision, Unit = u };
+
+                    // ★ 格挡窗口（QTE，2026-10-14）：敌方"带伤害的行动"前，等玩家提交判定。
+                    //   st.ParryEnabled 默认 false ⇒ 不 yield、零事件、指纹逐位不变（自检红线）。
+                    bool parryOpened = false;
+                    if (st.ParryEnabled && u.Side == TeamSide.Enemy && u.CanAct && PeekActionIsDamaging(st, u))
+                    {
+                        parryOpened = true;
+                        st.ParriedGrade = ParryGrade.None;    // 待判定（超时/异常都会落到"未挡"）
+                        st.ParryActorId = u.RuntimeId;
+                        yield return new BattleStep { Kind = BattleStepKind.NeedParry, Unit = u };
+                    }
+
                     ExecuteAction(st, u, buf);
+
+                    // ★ 格挡收口：完美 → 反震；发结果事件；清状态（下次行动重新开窗）。
+                    if (parryOpened)
+                    {
+                        if (st.ParriedGrade == ParryGrade.Perfect && u.IsAlive)
+                        {
+                            int back = CoreMath.RoundDamage(u.MaxHp * ParryCounterMaxHpPercent);
+                            if (back > 0)
+                            {
+                                int dealtBack = u.TakeTrueDamage(back);
+                                st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: u.RuntimeId,
+                                           targetId: u.RuntimeId, amount: dealtBack, note: "完美格挡·反震");
+                                if (dealtBack > 0 && !u.IsAlive)
+                                {
+                                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: u.RuntimeId,
+                                               note: $"{u.DisplayName} 被反震击倒");
+                                    if (st.Hooks.Count > 0) BattleHooks.UnitKilled(st, null, u);
+                                }
+                            }
+                        }
+                        st.Log.Add(st.Turn, BattleEventKind.ParryResult, actorId: u.RuntimeId,
+                                   note: GradeCn(st.ParriedGrade));
+                        st.ParriedGrade = ParryGrade.None;
+                        st.ParryActorId = null;
+                        if (st.CheckOutcome()) break;
+                    }
+
                     DevourAfterAction(st, u);      // 「吞噬」劫象：行动结束剥离对侧 1 增益 + 自损
                     if (st.CheckOutcome()) break;
 
@@ -172,17 +211,27 @@ namespace WanXiang.Battle.Core
                 var step = st.Stepper.Current;
                 if (step.Kind == BattleStepKind.NeedDecision)
                 {
+                    st.ParryPendingUnit = null;
                     st.PendingUnit = step.Unit;
+                    return true;
+                }
+                if (step.Kind == BattleStepKind.NeedParry)
+                {
+                    // ★ 格挡窗口（QTE）：等待 ApplyParry 提交判定（UI 侧带着时机圈时限）
+                    st.PendingUnit = null;
+                    st.ParryPendingUnit = step.Unit;
                     return true;
                 }
                 if (step.Kind == BattleStepKind.Finished)
                 {
                     st.Result = step.Result;
                     st.PendingUnit = null;
+                    st.ParryPendingUnit = null;
                     return false;
                 }
             }
             st.PendingUnit = null;
+            st.ParryPendingUnit = null;
             return false;
         }
         /// <summary>

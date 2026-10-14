@@ -87,6 +87,10 @@ namespace WanXiang.Modules.UI
             _autoBattle = SceneFlow.LastWasPvp;
             _speed = 1f;
 
+            // ★ 格挡 QTE（2026-10-14）：只在"玩家手动的 PvE 战斗"里开。
+            //   关（自动/PvP）⇒ 模拟层不 yield、零事件、零修正（指纹红线，见 BattleSimulator.Parry.cs）。
+            if (_play.State != null) _play.State.ParryEnabled = !_autoBattle;
+
             int guard = 0;
             while (!_play.Finished)
             {
@@ -149,6 +153,15 @@ namespace WanXiang.Modules.UI
                     guard = 0;                                // ★ 等玩家下令：合法且时长不可控 ， 计数清零
                     await UniTask.Yield(PlayerLoopTiming.Update, ct);
                     continue;                                 // 不推进事件、不退出循环
+                }
+
+                // ★ 格挡窗口（QTE，2026-10-14）：敌方带伤害的行动前，弹出时机圈等玩家判定。
+                //   原地等（同等令）：不推进事件、不退出循环；判定/超时后 SubmitParry 让模拟继续。
+                if (_play.AwaitingParry)
+                {
+                    await RunParryWindowAsync(ct);
+                    guard = 0;
+                    continue;
                 }
 
                 if (!StepOnce()) break;
