@@ -49,6 +49,7 @@ namespace WanXiang.Battle.Presentation
         public SpriteRenderer Slash;     // 元素色斜切背板
         public SpriteRenderer Mask;      // 背后变黑的遮罩（聚焦主体）
         public TextMesh NameTm;          // 异兽名（LegacyRuntime 字体，支持中文）
+        public TextMesh SkillTm;         // 终结技名
         public Vector3 CutInFrom;        // cut-in 入场起点（屏幕外）
         public Vector3 CutInTo;          // cut-in 停驻点（立绘落点）
         // 起爆点镜头反馈（挂在 Burst 片段上，激活那一下才触发，而不是 Play 时）
@@ -82,6 +83,9 @@ namespace WanXiang.Battle.Presentation
         public System.Action<float, float> OnShake;
         /// <summary>镜头推近回调 (dip, dur)。BattleStage2D 绑到 TriggerZoom（起爆点 Zoom Punch）。</summary>
         public System.Action<float, float> OnZoom;
+        /// <summary>起爆点"命中"回调：大招的冲锋放在这一下，避免在 cut-in 期间就冲完
+        /// （用户 2026-10-14："攻击完才出现冲击波"）。BattleStage2D 绑到 StartLunge。</summary>
+        public System.Action OnImpact;
 
         /// <summary>是否还有特效在播（诊断/自检用）。</summary>
         public bool Busy => _clips.Count > 0;
@@ -155,7 +159,7 @@ namespace WanXiang.Battle.Presentation
         //    beastName = 异兽名（CutIn 显示，中文）
         // ------------------------------------------------------------------
         public void Play(Vector3 worldPos, string actorId, Color element, bool isAwaken,
-                         Sprite portrait = null, string beastName = null)
+                         Sprite portrait = null, string beastName = null, string skillName = null)
         {
             Ensure();
             if (_shaders == null || _shaders[0] == null) return;   // shader 没加载上就别播
@@ -187,7 +191,7 @@ namespace WanXiang.Battle.Presentation
 
             // ⓪ 异兽头像特写（P5R 式 cut-in）：先让玩家看清"是谁开大"，再进特效
             if (cutInDur > 0f)
-                AddCutIn(worldPos, cutInDur, core, portrait, beastName, isAwaken);
+                AddCutIn(worldPos, cutInDur, core, portrait, beastName, skillName, isAwaken);
 
             float t0 = cutInDur;   // 特写之后，特效才起
 
@@ -223,7 +227,7 @@ namespace WanXiang.Battle.Presentation
         // ------------------------------------------------------------------
         //  异兽头像特写（P5R 式 cut-in）：立绘从屏边切入 + 元素色斜切背板 + 名字，随后甩出
         // ------------------------------------------------------------------
-        private void AddCutIn(Vector3 worldPos, float dur, Color core, Sprite portrait, string beastName, bool isAwaken)
+        private void AddCutIn(Vector3 worldPos, float dur, Color core, Sprite portrait, string beastName, string skillName, bool isAwaken)
         {
             var go = new GameObject("SkillFx_CutIn");
             var cam = Cam != null ? Cam : Camera.main;
@@ -278,17 +282,18 @@ namespace WanXiang.Battle.Presentation
                 pGo.transform.localScale = new Vector3(s, s, 1f);
             }
 
-            // 名字（LegacyRuntime 中文字体）
+            // 名字（LegacyRuntime 中文字体）：异兽名 + 终结技名（用户 2026-10-14："还要他那个终结技的名字"）
             TextMesh nameTm = null;
+            TextMesh skillTm = null;
+            var f2 = LegacyFont();
             if (!string.IsNullOrEmpty(beastName))
             {
                 var nGo = new GameObject("CutName");
                 nGo.transform.SetParent(go.transform, false);
-                nGo.transform.localPosition = new Vector3(-halfW * 0.30f, -halfH * 0.34f, -0.1f);
+                nGo.transform.localPosition = new Vector3(-halfW * 0.30f, -halfH * 0.30f, -0.1f);
                 nameTm = nGo.AddComponent<TextMesh>();
-                var f = LegacyFont();
                 var nmr = nGo.GetComponent<MeshRenderer>();
-                if (f != null) { nameTm.font = f; if (nmr != null) nmr.sharedMaterial = f.material; }
+                if (f2 != null) { nameTm.font = f2; if (nmr != null) nmr.sharedMaterial = f2.material; }
                 if (nmr != null) nmr.sortingOrder = 520;
                 nameTm.text = beastName;
                 nameTm.characterSize = 0.22f;
@@ -296,11 +301,27 @@ namespace WanXiang.Battle.Presentation
                 nameTm.anchor = TextAnchor.MiddleLeft;
                 nameTm.color = new Color(1f, 0.97f, 0.90f);
             }
+            if (!string.IsNullOrEmpty(skillName))
+            {
+                var sGo = new GameObject("CutSkill");
+                sGo.transform.SetParent(go.transform, false);
+                sGo.transform.localPosition = new Vector3(-halfW * 0.30f, -halfH * 0.40f, -0.1f);
+                skillTm = sGo.AddComponent<TextMesh>();
+                var smr = sGo.GetComponent<MeshRenderer>();
+                if (f2 != null) { skillTm.font = f2; if (smr != null) smr.sharedMaterial = f2.material; }
+                if (smr != null) smr.sortingOrder = 520;
+                skillTm.text = "◆ " + skillName;
+                skillTm.characterSize = 0.15f;
+                skillTm.fontSize = 48;
+                skillTm.anchor = TextAnchor.MiddleLeft;
+                // 元素色（提亮一点，压黑底上更跳）
+                skillTm.color = new Color(Mathf.Min(1f, core.r + 0.25f), Mathf.Min(1f, core.g + 0.25f), Mathf.Min(1f, core.b + 0.25f));
+            }
 
             var clip = new SkillFxClip
             {
                 Kind = SkillFxKind.CutIn, StartAt = _playStart, Dur = Mathf.Max(0.2f, dur),
-                Col = core, Go = go, Slash = slash, Mask = mask, NameTm = nameTm,
+                Col = core, Go = go, Slash = slash, Mask = mask, NameTm = nameTm, SkillTm = skillTm,
                 CutInFrom = new Vector3(fromX, portraitPos.y, portraitPos.z),
                 CutInTo = portraitPos,
             };
@@ -395,6 +416,7 @@ namespace WanXiang.Battle.Presentation
                     {
                         if (OnShake != null && c.ShakeDur > 0f) OnShake(c.ShakeAmp, c.ShakeDur);
                         if (OnZoom  != null && c.ZoomDur  > 0f) OnZoom(c.ZoomDip, c.ZoomDur);
+                        if (OnImpact != null) OnImpact();   // 大招冲锋放到起爆那一下
                     }
                 }
                 UpdateClip(c, p);
@@ -495,6 +517,7 @@ namespace WanXiang.Battle.Presentation
             if (c.Portrait != null) { var cc = c.Portrait.color; c.Portrait.color = new Color(cc.r, cc.g, cc.b, alpha); }
             if (c.Slash != null)    { var cc = c.Slash.color;    c.Slash.color    = new Color(cc.r, cc.g, cc.b, cc.a * alpha); }
             if (c.NameTm != null)   { var cc = c.NameTm.color;   c.NameTm.color   = new Color(cc.r, cc.g, cc.b, alpha); }
+            if (c.SkillTm != null)  { var cc = c.SkillTm.color;  c.SkillTm.color  = new Color(cc.r, cc.g, cc.b, alpha); }
             if (c.Mask != null)     c.Mask.color = new Color(0f, 0f, 0f, maskA * alpha);
         }
 

@@ -81,8 +81,9 @@ namespace WanXiang.Modules.UI
         // 终幕「到达之光」（prefab Img_FinaleGlow 光晕 / Img_FinaleBeam 光柱，跟归墟之门一起点亮）
         private Image _finaleGlow;
         private Image _finaleBeam;
-        private Sprite _nodeBead;     // 节气节点·立体珠子（未来/未到达；运行时 Resources 取，可染色）
-        private Sprite _nodePassed;   // 节气节点·带小旗（已通过；参考同类游戏"插旗"）
+        // 节气节点美术：圆形的"小世界"节点（每幕一套：春/夏/秋/冬），运行时 Resources 取（用户 2026-10-14 用 AI 生成）
+        private Sprite[] _nodeSeasonArt;
+        private const int NodeSeasons = 4;
 
         // ---- 常量表 ----
         private static readonly string[] Terms =
@@ -141,9 +142,13 @@ namespace WanXiang.Modules.UI
             if (_near != null) _nearBase = _near.rectTransform.anchoredPosition;
             SetupPerspectiveMaterial();
             SetupLumaLayers();
-            // 节气节点美术：立体珠子 + 已通过"插旗"（用户 2026-10-13）。运行时取，进度重置时好切回。
-            if (_nodeBead == null)   _nodeBead   = Resources.Load<Sprite>("UI/Home/map_node");
-            if (_nodePassed == null) _nodePassed = Resources.Load<Sprite>("UI/Home/map_node_passed");
+            // 节气节点美术：每幕一个"圆形小世界"（春/夏/秋/冬）。运行时取，进度重置时好切。
+            if (_nodeSeasonArt == null || _nodeSeasonArt.Length != NodeSeasons)
+            {
+                _nodeSeasonArt = new Sprite[NodeSeasons];
+                for (int i = 0; i < NodeSeasons; i++)
+                    _nodeSeasonArt[i] = Resources.Load<Sprite>("UI/Home/map_node_s" + (i + 1));
+            }
             EnsureLayerOrder();          // 远山/雾山垫到地形之后（背后），别挡住地图（用户 2026-10-13）
             ResolveNowGlow();
             ApplyMapScale();
@@ -423,20 +428,12 @@ namespace WanXiang.Modules.UI
 
                 float xFrac = (k + 1) / NodeXDenom;
                 bool passed = finale || xFrac <= p + 0.0001f;
-                if (passed)
-                {
-                    var c = finale ? FinaleColor : SeasonColors[k / TermsPerSeason];
-                    c.a = 1f;
-                    img.color = c;
-                    // 已通过：换"带小旗的立体珠子"（参考同类游戏插旗；进度重置时下面会切回珠子）
-                    if (_nodePassed != null) img.sprite = _nodePassed;
-                }
-                else
-                {
-                    // 未到达：素色立体珠子 + 稳定的灰调（以前 alpha 0.72 太淡 ⇒ 看着"时有时无"，用户报障）
-                    img.color = NodeLocked;
-                    if (_nodeBead != null) img.sprite = _nodeBead;
-                }
+                // 每幕一个"圆形小世界"节点（春/夏/秋/冬各自一张 AI 生成的水彩图）
+                int season = Mathf.Clamp(k / TermsPerSeason, 0, NodeSeasons - 1);
+                if (_nodeSeasonArt != null && _nodeSeasonArt[season] != null)
+                    img.sprite = _nodeSeasonArt[season];
+                // 已通过：原色（亮）；未到达：压暗去饱和（一眼看出没走到）
+                img.color = passed ? Color.white : NodeLocked;
             }
         }
 

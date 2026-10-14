@@ -178,27 +178,29 @@ namespace WanXiang.Battle.Core
         //    连击资格会凭空出现，规则变得不可预测、也无法在回合开始时预告给玩家。
         // ================================================================
 
-        private static BattleUnit _initiativePlayer;
-        private static BattleUnit _initiativeEnemy;
-        private static bool _initiativePlayerUsed;
-        private static bool _initiativeEnemyUsed;
         private static void ResolveInitiativeChain(BattleState st, Buffers buf)
         {
             float ratio = st.Weather != null
                 ? st.Weather.InitiativeRatioOrDefault(st.Config.InitiativeRatio)
                 : st.Config.InitiativeRatio;
 
-            _initiativePlayer = PickInitiativeUnit(st, TeamSide.Player, ratio);
-            _initiativeEnemy = PickInitiativeUnit(st, TeamSide.Enemy, ratio);
-            _initiativePlayerUsed = false;
-            _initiativeEnemyUsed = false;
+            // ★ 追加到行动序列**末尾**：这样额外行动也走主循环的决策点，
+            //   我方的先手连击由玩家下令（不再"回合末自己普攻一下"）。用户 2026-10-14。
+            var p = PickInitiativeUnit(st, TeamSide.Player, ratio);
+            var e = PickInitiativeUnit(st, TeamSide.Enemy, ratio);
 
-            if (_initiativePlayer != null)
-                st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: _initiativePlayer.RuntimeId,
-                           note: $"先手连击：{_initiativePlayer.DisplayName} 本回合额外行动（门槛 {ratio:F2}×）");
-            if (_initiativeEnemy != null)
-                st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: _initiativeEnemy.RuntimeId,
-                           note: $"先手连击（敌）：{_initiativeEnemy.DisplayName} 本回合额外行动（门槛 {ratio:F2}×）");
+            if (p != null)
+            {
+                buf.Order.Add(p);
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: p.RuntimeId,
+                           note: $"先手连击：{p.DisplayName} 本回合额外行动（门槛 {ratio:F2}×）");
+            }
+            if (e != null)
+            {
+                buf.Order.Add(e);
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: e.RuntimeId,
+                           note: $"先手连击（敌）：{e.DisplayName} 本回合额外行动（门槛 {ratio:F2}×）");
+            }
         }
         /// <summary>挑出本回合获得额外行动的单位：速度达标者里最快的那个（每方最多 1 个）。</summary>
         private static BattleUnit PickInitiativeUnit(BattleState st, TeamSide side, float ratio)
@@ -226,20 +228,6 @@ namespace WanXiang.Battle.Core
                 if (best == null || sp > bestSpeed) { best = u; bestSpeed = sp; }
             }
             return best;
-        }
-        /// <summary>常规行动结束后补上那次额外行动（同一回合内只补一次）。</summary>
-        private static void ResolveInitiativeExtraAction(BattleState st, Buffers buf)
-        {
-            ExtraActionFor(st, buf, _initiativePlayer, TeamSide.Player, ref _initiativePlayerUsed);
-            ExtraActionFor(st, buf, _initiativeEnemy, TeamSide.Enemy, ref _initiativeEnemyUsed);
-        }
-        private static void ExtraActionFor(BattleState st, Buffers buf, BattleUnit u,
-                                           TeamSide side, ref bool used)
-        {
-            if (used || u == null) return;
-            used = true;
-            if (!u.IsAlive || !u.CanAct) return;      // 这回合被打死/被控就不补了
-            ExecuteAction(st, u, buf);
         }
         /// <summary>
         /// 「吞噬」劫象（§5.5）：行动结束后剥离对侧 1 个增益（第一个非减益状态），

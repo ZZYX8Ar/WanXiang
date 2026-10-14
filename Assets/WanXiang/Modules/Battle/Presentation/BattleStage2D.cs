@@ -817,17 +817,20 @@ namespace WanXiang.Battle.Presentation
         }
 
         /// <summary>触发一次终结技/觉醒技演出。仅 Ultimate/Awaken 调用（大招要稀有）。</summary>
-        private void PlaySkillFx(string actorId, Element element, bool isAwaken)
+        private void PlaySkillFx(string actorId, string targetId, Element element, bool isAwaken, string skillName)
         {
             if (string.IsNullOrEmpty(actorId)) return;
             if (!_views.TryGetValue(actorId, out var v) || v.Root == null || !v.Alive) return;
             EnsureSkillFx();
-            if (_skillFx == null) return;
+            if (_skillFx == null) { StartLunge(actorId, targetId); return; }
             var col = BattlePalette.OfElement(element);
-            // P5R 式 cut-in：把该异兽的立绘 + 名字传进去，先特写再特效（玩家才知道是谁开大）
+            // P5R 式 cut-in：把该异兽的立绘 + 名字 + 终结技名传进去，先特写再特效
             var portrait = v.Body != null ? v.Body.sprite : null;
             var beastName = v.NameText != null ? v.NameText.text : null;
-            _skillFx.Play(v.Root.transform.position, actorId, col, isAwaken, portrait, beastName);
+            // ★ 冲锋等到"起爆"那一下才冲（否则特写期间就冲完 ⇒ 玩家看到"攻击完才出现冲击波"）
+            string a = actorId, t = targetId;
+            _skillFx.OnImpact = () => StartLunge(a, t);
+            _skillFx.Play(v.Root.transform.position, actorId, col, isAwaken, portrait, beastName, skillName);
         }
 
         /// <summary>镜头震动（由 SkillFxPlayer 在大招起爆点回调）。</summary>
@@ -1116,18 +1119,24 @@ namespace WanXiang.Battle.Presentation
                     break;
 
                 case BattleEventKind.SkillCast:
-                    // 出手：冲上去（GDD 的"跑到目标面前"）。目标 id 缺失（群体技/
-                    // 纯增益）时退化为"朝敌方方向冲一段"，不影响观感。
-                    StartLunge(e.ActorId, e.TargetId);
+                    // ★ 终结技 / 觉醒技 大演出（2026-10-13）：每个异兽都有，元素色 + id 哈希定造型。
+                    //   只给 Ultimate/Awaken 播（大招要稀有、要炸）；普攻/战技保持轻量不刷屏。
+                    if (e.Skill == SkillType.Ultimate || e.Skill == SkillType.Awaken)
+                    {
+                        // 大招：冲锋**延后到 cut-in 之后的起爆那一下**（PlaySkillFx 里绑 OnImpact）
+                        PlaySkillFx(e.ActorId, e.TargetId, e.Element, e.Skill == SkillType.Awaken, e.SkillName);
+                    }
+                    else
+                    {
+                        // 出手：冲上去（GDD 的"跑到目标面前"）。目标 id 缺失（群体技/
+                        // 纯增益）时退化为"朝敌方方向冲一段"，不影响观感。
+                        StartLunge(e.ActorId, e.TargetId);
+                    }
                     // ★ 技能名飘字（用户 2026-10-06："怎么体现这些技能效果"）：
                     //   普攻每回合都放，飘了会刷屏 ， 只飘战技/绝技。技能名事件里本来就有（skillName）。
                     if (!string.IsNullOrEmpty(e.SkillName) && e.SkillName != "普攻" &&
                         e.ActorId != null && _views.TryGetValue(e.ActorId, out var scv))
                         SpawnNumber(scv, e.SkillName, SkillNameColor);
-                    // ★ 终结技 / 觉醒技 大演出（2026-10-13）：每个异兽都有，元素色 + id 哈希定造型。
-                    //   只给 Ultimate/Awaken 播（大招要稀有、要炸）；普攻/战技保持轻量不刷屏。
-                    if (e.Skill == SkillType.Ultimate || e.Skill == SkillType.Awaken)
-                        PlaySkillFx(e.ActorId, e.Element, e.Skill == SkillType.Awaken);
                     break;
 
                 case BattleEventKind.Damage:
