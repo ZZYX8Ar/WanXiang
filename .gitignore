@@ -183,3 +183,13 @@ Assets/ArtRes/Fonts/*.ttc
 /_prefab_手改备份/
 /_prefab*备份*/
 _*备份*/
+
+# ---------- 大体积音频源文件（不入库，用脚本复现）----------
+# 14 首 Incompetech（Kevin MacLeod, CC BY 4.0）曲目，源码率 160~320kbps，合计约 90MB。
+# 不入库的理由：① 体积大  ② 授权与 URL 稳定，可完美复现  ③ 不影响 build 包体
+#    （Unity 导入时本来就会重新编码，包体由导入设置决定，与源文件大小无关）。
+# 复现：在仓库根执行  python Tools/audio/_fetch_incompetech.py
+#   —— 脚本会按固定 URL 拉回同名文件；若只想要其中几首，编辑脚本里的 PICKS 清单即可。
+# ⚠ 删掉这些文件后 Unity 里的引用会丢（.meta 一并忽略），克隆仓库后先跑一次脚本再打开工程。
+/Assets/Resources/Audio/BGM/bgm_km_*.mp3
+/Assets/Resources/Audio/BGM/bgm_km_*.mp3.meta

@@ -217,6 +217,12 @@ namespace WanXiang.Modules.UI
                               "（战记 " + WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active) + " 点）";
                 if (u.GetSkill(SkillType.Ultimate) != null)
                     line += "　元气 " + (int)u.Rage + "/" + (int)u.RageCap;
+
+                // 元气刚攒满 → 提示音（"终结技 / 觉醒技可以放了"的信号）。
+                // ⚠ 只在"由不满变满"的那一帧播；RefreshActionBar 是逐帧调的，每帧都响会变成噪音。
+                bool rageFull = u.RageCap > 0 && u.Rage >= u.RageCap;
+                if (rageFull && !_lastRageFull) Sfx("sfx_bt_rage_full", 0.9f);
+                _lastRageFull = rageFull;
                 // 守卫：文本没变就不重设（TMP 每次 SetText 都会重建 mesh，逐帧设置会卡）
                 if (line != _lastActorLine) { _lastActorLine = line; _tmpActor.text = line; }
             }
@@ -276,12 +282,14 @@ namespace WanXiang.Modules.UI
             {
                 _autoBattle = false;
                 if (_tmpLog != null) _tmpLog.text = "已接管 —— 从下一个单位开始由你下令";
+                Sfx("sfx_bt_cmd_select");               // 接管是一次"选中/接管"动作
                 RefreshActionBar();
                 return;
             }
 
             _autoBattle = false;                        // 手动下令即视为关自动
             _play.SubmitCommand(skillIndex, -1);        // 下标 = SkillType；目标暂交 AI
+            Sfx("sfx_bt_cmd_confirm");                  // 下令音（施法音随后由战斗事件流播）
             RefreshActionBar();
         }
 
@@ -292,6 +300,7 @@ namespace WanXiang.Modules.UI
             if (combos.Count == 0) return;
             _autoBattle = false;
             _play.SubmitCombo(combos[0].Id);      // v1：发第一条可用连携（多条选择下一轮做）
+            Sfx("sfx_bt_cmd_confirm");            // 下令音（连携的"发动"音由事件流补）
             RefreshActionBar();
         }
 
@@ -301,6 +310,7 @@ namespace WanXiang.Modules.UI
             _autoBattle = !_autoBattle;
             if (_autoBattle) _play.SubmitCommand(-1, -1);   // -1 = 交给 AI（自动战斗）
             if (_tmpLog != null) _tmpLog.text = _autoBattle ? "自动战斗：开" : "自动战斗：关（等你下令）";
+            Sfx("sfx_bt_auto_toggle");
             RefreshActionBar();
         }
     }

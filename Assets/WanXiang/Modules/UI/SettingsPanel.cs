@@ -58,7 +58,7 @@ namespace WanXiang.Modules.UI
         {
             AudioSystem.SfxVolume = value;
             AudioSystem.Save();
-            AudioSystem.PlaySfx("ui_click", 0.7f);   // 顺手放一声，让玩家听到当前音量
+            AudioSystem.PlaySfx("sfx_ui_btn_click", 0.7f);   // 顺手放一声，让玩家听到当前音量
         }
 
         private void OnFullscreenChanged(bool on)

@@ -207,6 +207,7 @@ namespace WanXiang.Modules.UI
 
             var e = _play.Current;
             ApplyEvent(e);
+            PlayEventSfx(e);   // 事件 → 音效（见 BattlePanel.Audio.cs）
             if (_stage != null) _stage.ApplyEvent(_play.EventIndex, e);
             // ★ 命中顿帧：受击/暴击瞬间置顿帧（Update 里冻结舞台动画几帧）——打击感核心。
             if (e.Kind == WanXiang.Battle.Core.BattleEventKind.Damage ||

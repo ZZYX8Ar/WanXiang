@@ -27,6 +27,7 @@ using Cysharp.Threading.Tasks;
 using DG.Tweening;      // 面板动效（见 TrackTween）
 using UnityEngine;
 using UnityEngine.UI;   // CanvasGroup
+using WanXiang.Framework.Audio;   // 面板背景音乐（BgmId）
 
 namespace WanXiang.Framework.UI
 {
@@ -206,6 +207,14 @@ namespace WanXiang.Framework.UI
             gameObject.SetActive(true);
             SetInteractive(true);
 
+            // 音乐先起，不等 OnOpenAsync 里的加载/网络 —— 界面一露脸就该有氛围。
+            // （AudioSystem.PlayMusic 对"同一首正在播"会直接返回，不会重启，重复调用是安全的）
+            ApplyPanelBgm();
+
+            // 界面音效：全屏面板才播开合音；按钮点击音统一挂上（见文件末尾「界面音效」注释）
+            if (FullScreen) AudioSystem.PlaySfx("sfx_ui_panel_open");
+            HookButtonSfx();
+
             State = UIPanelState.Opening;
             try
             {
@@ -266,6 +275,11 @@ namespace WanXiang.Framework.UI
 
             State = UIPanelState.Opened;
             SetInteractive(true);
+
+            // 上层弹窗关掉了，把自己那首音乐放回来。
+            // 少了这一句，就会出现"打开过灵市之后，主界面一直没音乐"。
+            ApplyPanelBgm();
+
             try
             {
                 OnResume();
@@ -284,6 +298,9 @@ namespace WanXiang.Framework.UI
 
             State = UIPanelState.Closing;
             SetInteractive(false);
+
+            // 与打开音配对（同样只给全屏面板 —— 弹层关闭太频繁，加音效会吵）
+            if (FullScreen) AudioSystem.PlaySfx("sfx_ui_panel_close");
 
             try
             {
@@ -341,6 +358,7 @@ namespace WanXiang.Framework.UI
         {
             DisposeSubscriptions();
             KillTrackedTweens();
+            UnhookButtonSfx();   // 把挂在子按钮上的点击音监听摘掉，避免悬挂引用
 
             try
             {
@@ -402,6 +420,149 @@ namespace WanXiang.Framework.UI
                 }
             }
             _trackedTweens.Clear();
+        }
+
+        // ==================================================================
+        //  背景音乐（BGM）
+        //  -------------------------------------------------------------------
+        //  面板 → 音乐 的映射集中放在这一处，而不是散落在二十多个面板里。三个理由：
+        //    ① 想换某个界面的音乐只改一行，不用翻遍业务代码；
+        //    ② 配错、漏配一目了然（表就在眼前，而不是藏在各面板的覆写里）；
+        //    ③ "配乐"属于表现层调度，不该让每个业务面板都关心。
+        //
+        //  生效时机有两条：打开时、以及"被上层弹窗遮挡后重新可见"时。
+        //  后者是必须的 —— 打开灵市会把主界面压成 Paused，关掉灵市时若不重放一次，
+        //  主界面的音乐就再也回不来了（战斗 → 结算 → 回主界面 同理）。
+        // ==================================================================
+
+        /// <summary>
+        /// 本面板要播放的背景音乐 id（对应 <c>Resources/Audio/BGM/&lt;id&gt;</c> 的文件名）。
+        /// 返回 null 或空字符串 = 不改变当前音乐 —— 未在表中列出的面板都属于这一类
+        /// （例如结算界面应当延续战斗音乐，而不是切歌）。
+        ///
+        /// 个别面板可覆写本属性自行决定（战斗面板按对手是否为守关首领分流，就是这么做的）。
+        /// </summary>
+        public virtual string BgmId
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(Key)) return null;
+                string id;
+                return PanelBgmTable.TryGetValue(Key, out id) ? id : null;
+            }
+        }
+
+        /// <summary>
+        /// 面板 → 背景音乐 映射表。
+        ///
+        /// ⚠ id 必须与 <c>Assets/Resources/Audio/BGM/</c> 下的文件名完全一致。
+        /// 写错**不会报错**（AudioSystem 取不到资源会静默跳过），但那个界面就是没声音 ——
+        /// 所以改完表建议调一次 <see cref="ValidatePanelBgm"/> 核对。
+        /// </summary>
+        private static readonly Dictionary<string, string> PanelBgmTable =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                // ---- 标题 / 主界面 / 旅途 ----
+                { "Panel_Start",     "bgm_km_ripples" },         // 古筝冥想 · 标题
+                { "Panel_Home",      "bgm_km_guzheng_city" },    // 古筝明亮 · 主界面
+                { "Panel_Campaign",  "bgm_km_shenyang" },        // 二胡民俗 · 幕选择
+                { "Panel_Tale",      "bgm_km_shenyang" },        // 节点地图 / 残卷
+                { "Panel_ActIntro",  "bgm_km_snow_queen" },      // 神秘 · 幕间开场
+                // ---- 战斗 ----
+                { "Panel_Battle",    "bgm_km_clash_defiant" },   // 普通战（首领由 BattlePanel 覆写分流）
+                { "Panel_Pvp",       "bgm_km_mountain_emperor" },// 太鼓 · 好友对战
+                { "Panel_Trial",     "bgm_km_frost_waltz" },     // 冰霜 · 试炼
+                // ---- 功能面板 ----
+                { "Panel_Market",    "bgm_cc0_chinese_chip" },   // 轻快中国风 · 灵市
+                { "Panel_Formation", "bgm_ccby_calm" },          // 安静 · 编队
+                { "Panel_Codex",     "bgm_km_zen_moment" },      // 禅意 · 图鉴
+                { "Panel_Archive",   "bgm_km_zen_moment" },      // 禅意 · 档案
+                { "Panel_History",   "bgm_km_zen_moment" },      // 禅意 · 战记
+                { "Panel_Forge",     "bgm_km_wizardtorium" },    // 诡异 · 锻造 / 觉醒
+                { "Panel_Recruit",   "bgm_cc0_oriental1" },      // 东方 · 招募
+                { "Panel_Relic",     "bgm_ccby_arukas" },        // 神秘 · 遗物
+                { "Panel_Meta",      "bgm_km_temple_manes" },    // 暗黑 · 局外养成
+                { "Panel_Omen",      "bgm_km_wizardtorium" },    // 诡异 · 天时 / 征兆
+                { "Panel_Settings",  "bgm_km_zen_moment" },      // 禅意 · 设置
+                { "Panel_Dialog",    "bgm_km_senbazuru" },       // 温暖 · 对话
+                // 未列出的面板（面板_Result / Panel_Save 等）保持当前音乐不切换。
+            };
+
+        /// <summary>播放本面板的背景音乐。取不到资源会静默跳过（这是 AudioSystem 的既定行为）。</summary>
+        private void ApplyPanelBgm()
+        {
+            var id = BgmId;
+            if (!string.IsNullOrEmpty(id))
+            {
+                AudioSystem.PlayMusic(id);
+            }
+        }
+
+        /// <summary>
+        /// 自检：核对映射表里的每个 id 是否真的存在于 <c>Resources/Audio/BGM/</c>。
+        /// 返回问题列表（空 = 全部正常）。排查"某个界面没声音"时先调它 ——
+        /// 能立刻区分"id 写错"和"音乐没导入"这两种完全不同的原因。
+        /// </summary>
+        public static List<string> ValidatePanelBgm()
+        {
+            var problems = new List<string>();
+            foreach (var kv in PanelBgmTable)
+            {
+                if (string.IsNullOrEmpty(kv.Value)) continue;
+                if (Resources.Load<AudioClip>("Audio/BGM/" + kv.Value) == null)
+                {
+                    problems.Add($"{kv.Key} → 找不到音乐 \"{kv.Value}\"" +
+                                 $"（期望文件：Assets/Resources/Audio/BGM/{kv.Value}.mp3 或 .ogg）");
+                }
+            }
+            return problems;
+        }
+
+        // ==================================================================
+        //  界面音效（SFX）
+        //  -------------------------------------------------------------------
+        //  两件事都放在框架层解决，业务面板一行都不用写：
+        //    ① 全屏面板的开 / 合音 —— 弹层（Popup）**不播**，否则"点开一个确认框"
+        //       也来一声卷轴音，听感很吵；弹层的反馈交给按钮点击音。
+        //    ② 面板内所有按钮的点击音 —— 打开面板时自动挂。
+        //       让 20 多个面板各自记得去挂，结果必然是"总有某个界面点着没声"。
+        //       战斗面板例外（AutoButtonSfx = false）：它内部有专门的技能 / 指令音效，
+        //       再叠一层通用点击音只会糊在一起。
+        // ==================================================================
+
+        /// <summary>是否自动给本面板内的按钮挂点击音效。战斗面板覆写为 false。</summary>
+        protected virtual bool AutoButtonSfx => true;
+
+        private readonly HashSet<Button> _sfxHookedButtons = new HashSet<Button>();
+
+        /// <summary>给本面板下所有按钮挂点击音。幂等 —— 同一个按钮只会挂一次。</summary>
+        private void HookButtonSfx()
+        {
+            if (!AutoButtonSfx) return;
+
+            var btns = GetComponentsInChildren<Button>(true);
+            for (int i = 0; i < btns.Length; i++)
+            {
+                var b = btns[i];
+                if (b == null || _sfxHookedButtons.Contains(b)) continue;
+                _sfxHookedButtons.Add(b);
+                b.onClick.AddListener(OnAnyButtonClicked);
+            }
+        }
+
+        private void OnAnyButtonClicked()
+        {
+            AudioSystem.PlaySfx("sfx_ui_btn_click");
+        }
+
+        /// <summary>面板真正销毁时把挂上去的监听摘掉（Cached 面板关闭时不销毁，所以不在这里清）。</summary>
+        private void UnhookButtonSfx()
+        {
+            foreach (var b in _sfxHookedButtons)
+            {
+                if (b != null) b.onClick.RemoveListener(OnAnyButtonClicked);
+            }
+            _sfxHookedButtons.Clear();
         }
 
         // ==================================================================

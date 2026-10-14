@@ -109,6 +109,7 @@ namespace WanXiang.Modules.UI
                 Weather = WanXiang.Campaign.LiveWeather.Current,
                 Seed = seed,
                 AiProfile = profile,
+                IsBoss = boss,
             };
 
             // ★ 真机验证用：本场实际带入战斗的天时。id 由 WeatherComposer.BuildId 拼出，

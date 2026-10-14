@@ -43,6 +43,37 @@ namespace WanXiang.Modules.UI
         private readonly Dictionary<string, UnitView> _views = new Dictionary<string, UnitView>(12);
         private BattlePlayback _play;
         private BattleRequest _req;
+
+        /// <summary>
+        /// 战斗背景音乐：守关首领与好友对战各自换曲，普通 / 精英沿用基类表里的战斗曲。
+        ///
+        /// ⛔ 这里必须**只看 Payload**，不能读 <c>_req</c>：本属性由框架在 InternalOpenAsync 中、
+        /// 执行 OnOpenAsync **之前**调用（刻意如此 —— 音乐不该等资源加载），
+        /// 那一刻 _req 还是上一场的残留值，读它会让首领战放着普通战的曲子。
+        /// </summary>
+        public override string BgmId
+        {
+            get
+            {
+                var req = Payload as BattleRequest;
+                if (req == null)
+                {
+                    var ctx = Payload as BattleSceneContext;
+                    if (ctx != null) req = ctx.Request;
+                }
+                if (req == null) return base.BgmId;
+                if (req.IsPvpMatch) return "bgm_km_mountain_emperor";
+                if (req.IsBoss) return "bgm_km_goblin_king";
+                return base.BgmId;   // 普通 / 精英 → 表里的 bgm_km_clash_defiant
+            }
+        }
+
+        /// <summary>
+        /// 战斗面板**不**挂通用按钮点击音。
+        /// 理由：战斗内部的反馈由事件流驱动（技能、命中、指令各有专门音效），
+        /// 再叠一层 「click」 只会让"点技能"听起来糊成两声响。
+        /// </summary>
+        protected override bool AutoButtonSfx => false;
         private float _speed = 1f;   // 默认 1x：先能看清，再谈加速
         private bool _playing;      // 回放中（控制舞台是否逐帧推进）
         private float _hitStop;     // 命中顿帧剩余时间（>0 时冻结舞台动画，制造打击"顿"感）
