@@ -33,7 +33,13 @@ namespace WanXiang.Modules.UI
         public void OnPointerClick(PointerEventData eventData)
         {
             if (Owner == null || BeastIndex < 0) return;
-            if (eventData.clickCount < 2) return;      // 只在双击（clickCount==2）上阵
+            // ★ 上阵 = **双击**（用户 2026-10-12 定案：拖动一律用于滚动，否则"滑列表时会误上阵"）。
+            //   ★ 单击 = 看战斗详情（用户 2026-10-14：卡池单击无既有语义，用来驱动中上详情区）。
+            if (eventData.clickCount < 2)
+            {
+                Owner.ShowBeastDetailByIndex(BeastIndex);
+                return;
+            }
             Owner.OnRosterClicked(BeastIndex);
         }
 

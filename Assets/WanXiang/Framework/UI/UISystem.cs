@@ -26,6 +26,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
+using WanXiang.Framework.Audio;   // 面板 BGM 预热（AudioSystem.Preload）
 
 namespace WanXiang.Framework.UI
 {
@@ -175,6 +176,102 @@ namespace WanXiang.Framework.UI
         {
             var panel = await OpenInternalAsync(typeof(T), payload);
             return panel as T;
+        }
+
+        /// <summary>
+        /// 预热：加载 Prefab + 实例化 + OnCreate，再**隐藏激活 2 帧**（烤热 OnEnable 级联 /
+        /// TMP 字形图集 / 首帧布局与贴图上传），全程 <b>不打开、不触发 OnOpenAsync</b>，
+        /// 结束后隐藏等待真正的 OpenAsync。
+        ///
+        /// 目的：把大面板（节点地图 / 幕开场）的**首次实例化成本**从"玩家看得见的
+        /// 首次打开"挪到一个更早的隐藏窗口（如 Start→主界面 转场的遮盖期）。
+        /// 用户 2026-10-14 实测："从主界面到节点地图的转场第一次会卡" ——
+        /// 播放剖面显示首个大停顿时长 ≈ Panel_Campaign 首建 + Panel_ActIntro 首建，
+        /// 转场粒子本身只占小头。
+        ///
+        /// 真正 OpenAsync 时命中已建实例 ⇒ 只剩打开成本（打开流程本身不变）。
+        /// ⚠ 只对 Cached / Resident 策略的面板有意义（Transient 随关随毁，预热白费）。
+        /// ⚠ 实例建好后立刻 SetActive(false)：绝不让它在本帧被渲染出来；
+        ///    若期间玩家已经点了打开（State 已变化）则保持原样，别跟正常流程抢实例。
+        /// </summary>
+        public async UniTask<T> PrewarmAsync<T>() where T : UIPanelBase
+        {
+            if (_disposed) return null;
+
+            var type = typeof(T);
+            if (_instancesByType.TryGetValue(type, out var exist) && exist != null)
+            {
+                return exist as T;                  // 已建过：无事可做
+            }
+
+            var meta = UIPanelRegistry.Get(type);
+            var layer = GetLayer(meta.Layer);
+            if (layer == null) return null;
+
+            var panel = await GetOrCreateInstanceAsync(type, meta, layer);
+            if (panel == null) return null;
+
+            // ★ 顺带预热该面板的 BGM（2026-10-14）：ApplyPanelBgm 首次会从
+            //   Resources 加载整段音乐（实测要 200~300ms），是"首次打开卡一下"的
+            //   另一块来源。这里先把 clip 灌进 AudioSystem 缓存，真开时直接命中。
+            var bgmId = panel.BgmId;
+            if (!string.IsNullOrEmpty(bgmId)) AudioSystem.Preload("BGM", bgmId);
+
+            // ★ 隐藏激活一遍（2026-10-14 实测补强）：只实例化还不够 ——
+            //   第一次 SetActive(true) 的 OnEnable 级联 + TMP 字形图集生成 +
+            //   首帧布局/批量重建/贴图上传，实测要 200~300ms（"首次打开大面板卡一下"
+            //   的一大来源；实例化本身只有 ~10ms）。这里在调用方的遮盖窗口里先激活
+            //   渲染 2 帧再隐藏，把这些一次性成本烤热。
+            //   ⚠ 必须在屏幕被盖住时调用（目前唯一调用点：Start→主界面 的水墨转场遮盖期）。
+            //   ⚠ 若期间玩家已经点了打开（State 变了）就保持原样，别跟正常流程抢实例。
+            if (panel.State == UIPanelState.Created)
+            {
+                panel.gameObject.SetActive(true);
+                await UniTask.DelayFrame(2);
+                if (panel.State == UIPanelState.Created)
+                {
+                    panel.gameObject.SetActive(false);  // 恢复隐藏，等真正的 OpenAsync
+                }
+            }
+            return panel as T;
+        }
+
+        /// <summary>
+        /// 彩排：在调用方的**遮盖窗口**里把面板"完整真开一遍再关掉"，把首次打开的全部
+        /// 一次性成本烤热（打开流程 OnOpenAsync / OnEnable 级联 / TMP 图集 / 内容首帧
+        /// 渲染与贴图上传）—— 2026-10-14 实测这些合计要 ~1s，只做"实例化 + 空壳激活"
+        /// 烤不热（内容是打开时才构建的：31 个节点、文字、氛围粒子都在 OnOpenAsync 里建）。
+        ///
+        /// 用途：玩家第一次进节点地图前，趁 Start→主界面 水墨转场把屏幕盖满，
+        /// 先彩排一遍 —— 首次真实打开的卡顿就消失了（用户："第一次会有一点卡，
+        /// 后面就流畅了，怎么解决"）。
+        ///
+        /// ⚠ 彩排期间 <see cref="UIPanelBase.GhostSilent"/> = true：不播开/关界面音、
+        ///    不切 BGM；面板自身要在 OnOpenAsync 里跳过有副作用的块（见其注释）。
+        /// ⚠ 必须在屏幕被盖住时调用；面板已开过（State 不是 Created）则直接跳过。
+        /// </summary>
+        public async UniTask GhostOpenCloseAsync<T>() where T : UIPanelBase
+        {
+            if (_disposed) return;
+
+            var panel = await PrewarmAsync<T>();
+            // 真开过就别再彩排：只有"从未打开"（Created）或"彩排关掉后缓存着"（Closed）才继续
+            // （若 Closed 但玩家其实开过，调用方的 SessionOpened/SessionPlayed 判断会拦住，不会走到这里）
+            if (panel == null ||
+                (panel.State != UIPanelState.Created && panel.State != UIPanelState.Closed)) return;
+
+            UIPanelBase.GhostSilent = true;
+            try
+            {
+                var opened = await OpenInternalAsync(typeof(T), null);
+                // 留 3 帧：让"内容首帧渲染 + 贴图上传"那个最重的帧真正跑完
+                await UniTask.DelayFrame(3);
+                if (opened != null) Close(opened);
+            }
+            finally
+            {
+                UIPanelBase.GhostSilent = false;
+            }
         }
 
         public void Close<T>() where T : UIPanelBase

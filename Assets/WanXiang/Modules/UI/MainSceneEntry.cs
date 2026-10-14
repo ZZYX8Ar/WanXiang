@@ -115,6 +115,9 @@ namespace WanXiang.Modules.Boot
             // ★ 转场进主界面（2026-10-11 用户："从开始界面进入主界面太生硬，
             //   加一点转场，比如一点或几滴水墨铺开"）。
             //   顺序：墨团从中心铺开盖住屏幕 → 关闭开始界面并打开主界面 → 墨团继续放大淡出。
+            // ★ 预热节点地图/幕开场（2026-10-14）：趁这次转场遮盖期把两个大面板先建好，
+            //   把"首次进节点地图会卡一下"的实例化成本挪到看不见的时候（详见方法注释）。
+            PrewarmFirstMapPanelsAsync();
             {
                 var run0 = WanXiang.Run.RunSave.Current;
                 int act0 = run0 != null ? Mathf.Clamp(run0.Act, 1, 5) : 1;
@@ -128,6 +131,74 @@ namespace WanXiang.Modules.Boot
                 }, null, 2.4f, "Start2Home");   // ⚠ 独立标识：与 Home→Map 链路区分
             }
             Debug.Log("[MainSceneEntry] 已进入主界面（带水墨转场，开始界面已关闭）。");
+        }
+
+        /// <summary>
+        /// ★ 预热「节点地图 + 幕开场」两个大面板（2026-10-14）。
+        ///
+        /// 用户实测："从主界面到节点地图的这个转场第一次会卡，后面就流畅了"。
+        /// 播放剖面定位：首次打开的停顿 ≈ 节点地图面板的打开流程 + 内容首帧渲染/贴图上传
+        /// （合计 ~1s，第二次起被缓存/已上传，所以流畅）。
+        ///
+        /// 这里趁 Start→主界面 水墨转场把屏幕盖满的窗口（约 2 秒全遮盖）：
+        ///  · 节点地图面板 → **完整彩排**（真开一遍再关掉，GhostSilent 静默，不播音/不触发开场/不写档）
+        ///    —— 把首次打开的全部成本藏进转场；玩家第一次真进图 = 热路径。
+        ///  · 幕开场面板 → 轻量预热（实例化 + 隐藏激活）——它自身的冷成本仅 ~0.1s，
+        ///    且首次打开已被 CampaignPanel.DeferredIntroAsync 挪进遮盖期。
+        ///
+        /// ⚠ 只在"从开始界面进主城"这条路上调（转场遮盖期）；战后回城无转场遮盖、不调。
+        /// </summary>
+        private static async UniTaskVoid PrewarmFirstMapPanelsAsync()
+        {
+            var ui = UIBootstrap.UI;
+            if (ui == null) return;
+
+            await UniTask.Delay(250);   // 等水墨转场遮盖层盖满（0.12s 起生效，留裕量）
+            int actNow = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
+            var strokePaths = new System.Collections.Generic.List<string>();   // 笔顺帧路径（彩排销毁前收集）
+            if (ui.Get<CampaignPanel>() == null)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                await ui.GhostOpenCloseAsync<CampaignPanel>();
+                Debug.Log("[MainSceneEntry] 彩排 Panel_Campaign 完成 " + sw.ElapsedMilliseconds + "ms");
+            }
+            if (ui.Get<ActIntroPanel>() == null)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var intro = await ui.PrewarmAsync<ActIntroPanel>();
+                // ★ 大标题字形（150 号 simkai SDF，动态图集）也在这里先烘好 ——
+                //   否则首次真打开时会在渲染那一帧现烘、卡 ~0.5s（实测）。
+                //   ⚠ 笔顺帧路径也在这里收集：下面的彩排会把本面板销毁（Transient），之后拿不到实例。
+                if (intro != null)
+                {
+                    intro.WarmTitleGlyphs();
+                    intro.AppendStrokeSpritePaths(actNow, strokePaths);
+                }
+                // ★ 彩排开场（与节点地图同理）：它的**首次渲染那一帧**实测要 ~0.4s
+                //   （字形材质首编译 / 首帧布局与贴图上传），真开时正落在转场"拨开退场"里。
+                //   这里先真开一遍、渲染出来、立刻关掉（静默、不记账、Play 遇关闭干净中止）。
+                await ui.GhostOpenCloseAsync<ActIntroPanel>();
+                Debug.Log("[MainSceneEntry] 彩排 Panel_ActIntro 完成 " + sw.ElapsedMilliseconds + "ms");
+            }
+
+            // ★ 写字笔顺帧的**纹理上传**预热（2026-10-14）：写字演出是逐帧换图，
+            //   贴图首次显示要在渲染那一帧上传，首跑前几笔会一顿一顿（实测前 7 笔各卡 10~60ms）。
+            //   趁本转场还在遮盖期，把当前幕标题的笔顺帧先上传烤热。
+            {
+                if (strokePaths.Count == 0)
+                {
+                    var ip = ui.Get<ActIntroPanel>();
+                    if (ip != null) ip.AppendStrokeSpritePaths(actNow, strokePaths);
+                }
+                var sprites = new System.Collections.Generic.List<Sprite>(strokePaths.Count);
+                for (int i = 0; i < strokePaths.Count; i++)
+                {
+                    var sp = Resources.Load<Sprite>(strokePaths[i]);
+                    if (sp != null) sprites.Add(sp);
+                }
+                await UiTransition.WarmSpriteUploadsAsync(sprites);
+                Debug.Log("[MainSceneEntry] 笔顺帧纹理预热 " + sprites.Count + " 张（幕" + actNow + "）");
+            }
         }
     }
 }

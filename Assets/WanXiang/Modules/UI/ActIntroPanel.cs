@@ -66,6 +66,13 @@ namespace WanXiang.Modules.UI
         /// <summary>⛔ 静态：静态的渐变辅助方法也要能感知"用户要跳过"。</summary>
         private static bool s_Skip;
 
+        /// <summary>
+        /// 本进程内是否已播过开场（2026-10-14 首播优化用）。
+        /// false = 写字用的笔顺帧/字形图集/首帧布局还是冷的，那一次打开会卡 ~0.5s ——
+        /// 调用方（CampaignPanel.DeferredIntroAsync）据此把"首次打开"提前到转场遮盖期里。
+        /// </summary>
+        public static bool SessionPlayed;
+
         // ---- 诊断（用户要求：看不到效果时先看 Console）----
         [Header("诊断")]
         [SerializeField] private bool _debugLog = false;   // 排查完关掉（需要时在 Inspector 勾上）
@@ -132,6 +139,50 @@ namespace WanXiang.Modules.UI
             WanXiang.Run.RunSave.SaveCurrent();
         }
 
+        /// <summary>
+        /// 收集**某幕标题的笔顺帧 sprite 资源路径**（2026-10-14 首播优化）。
+        /// 供预热门在转场遮盖期把这些贴图的**纹理上传**先烤热 —— 写字是逐帧换图，
+        /// 首跑前几笔会因首次上传一顿一顿（实测前 7 笔各卡 10~60ms）。
+        /// </summary>
+        public void AppendStrokeSpritePaths(int act, List<string> outPaths)
+        {
+            if (outPaths == null) return;
+            if (act < 1 || act > Titles.Length) act = 1;
+            var t = Titles[act - 1];
+            string text = t != null ? t.Main : null;
+            if (string.IsNullOrEmpty(text)) return;
+            for (int i = 0; i < text.Length; i++)
+            {
+                for (int k = 1; k <= 60; k++)   // 探到没有为止（笔顺帧一般 < 40）
+                {
+                    string p = "UI/TitleStroke/" + text[i] + "/" + k;
+                    if (Resources.Load<Sprite>(p) == null) break;
+                    outPaths.Add(p);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 预热大标题字形（2026-10-14 首播优化）。
+        /// simkai SDF 是**动态图集**：150 号大标题的字形会在**首次渲染那一帧**
+        /// 才烘进图集（实测那一帧卡 ~0.5s，正好落在转场"拨开退场"里、肉眼可见）。
+        /// 提前把各幕标题/副标题的字形烘进图集，首次真实打开就只剩渲染。
+        /// 由预热门（MainSceneEntry）在转场遮盖期调用。
+        /// </summary>
+        public void WarmTitleGlyphs()
+        {
+            var f = _tmpTitleMain != null ? _tmpTitleMain.font : null;
+            if (f == null) return;
+            var sw = System.Diagnostics.Stopwatch.StartNew();   // 临时性能日志（验证完删）
+            for (int i = 0; i < Titles.Length; i++)
+            {
+                var t = Titles[i];
+                if (t == null) continue;
+                if (!string.IsNullOrEmpty(t.Main)) f.TryAddCharacters(t.Main);
+                if (!string.IsNullOrEmpty(t.Sub)) f.TryAddCharacters(t.Sub);
+            }
+        }
+
         protected override void OnCreate()
         {
             s_Skip = false;                       // 每次创建归零（面板是 Transient，一般只开一次）
@@ -167,7 +218,12 @@ namespace WanXiang.Modules.UI
                 ? Titles[act - 1]
                 : (Titles != null && Titles.Length > 0 ? Titles[0] : new ActTitle());
 
-            MarkShown(act);        // ★ 这里才记账（见 MarkShown 注释）
+            // ⚠ 彩排（GhostSilent）：不记账、不算"已播" —— 这只是把首帧成本烤热，不是真的开场
+            if (!UIPanelBase.GhostSilent)
+            {
+                MarkShown(act);        // ★ 这里才记账（见 MarkShown 注释）
+                SessionPlayed = true;  // ★ 本进程已播过（之后打开不再是"冷启动"，见字段注释）
+            }
             s_Skip = false;        // 每次开场重置跳过标志
             Dbg("打开 act=" + act + " 标题=\"" + (t != null ? t.Main : "?") + "\""
                 + " 主文本=" + (_tmpTitleMain != null ? "有" : "null✗")
@@ -260,7 +316,9 @@ namespace WanXiang.Modules.UI
             var frameT = transform.Find("Img_Frame");
             if (frameT != null) frameT.gameObject.SetActive(false);
             if (group != null) await FadeAsync(group, 0f, 1f, _fadeIn);
+            if (this == null) return;   // ★ 彩排（GhostSilent 开完即关）时干净中止（2026-10-14）
             await UniTask.Delay(Ms(_titleStart));
+            if (this == null) return;   // ★ 同上
 
             SpawnLeaves(t);
             UpdateLeavesLoop().Forget();
@@ -276,6 +334,7 @@ namespace WanXiang.Modules.UI
             //  遮罩宽度增长 ， 整行字被连续"写"出来（不是一个一个蹦），而且文本位置完全交给 UGUI，
             //  不会再出现"每一字自己算坐标算歪"的问题。
             await WriteTitleAsync(t);
+            if (this == null) return;   // ★ 彩排中止守卫
 
             // ---- 小字 ----
             await UniTask.Delay(Ms(_subDelay));
@@ -285,6 +344,7 @@ namespace WanXiang.Modules.UI
             await PlaySealAsync();                     // 落款：印章落到纸上
             await UniTask.Delay(Ms(_hold * 0.5f));
             if (group != null) await FadeAsync(group, 1f, 0f, _fadeOut);
+            if (this == null) return;   // ★ 彩排中止守卫
 
             _leaves.Clear();
             if (_rootLeaves != null) _rootLeaves.gameObject.SetActive(false);
@@ -297,6 +357,7 @@ namespace WanXiang.Modules.UI
         /// </summary>
         private async UniTask PlaySealAsync()
         {
+            if (this == null) return;   // ★ 彩排中止守卫：面板已销毁就别再 Find
             var sealT = transform.Find("Img_Seal");
             if (sealT == null) return;
             var rt = sealT as RectTransform;

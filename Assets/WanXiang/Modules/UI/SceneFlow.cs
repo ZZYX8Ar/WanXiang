@@ -85,7 +85,11 @@ namespace WanXiang.Modules.UI
         {
             LastWasPvp = request != null && request.IsPvpMatch;
             PendingBattle = request;
-            Load(BattleScene);
+            // ★ 2026-10-14 用户："从编队进战斗老是闪一下主界面/节点地图，观感很差" ——
+            //   在转场中点（屏幕被当幕纸/墨盖满）时才同步切场景，中间帧用户看不见；
+            //   切完由 UiTransition 重建层、纸底淡出露出战场（见 RebuildAfterSceneSwitch）。
+            int act = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
+            UiTransition.PlayAuto(act, () => Load(BattleScene), total: 2.2f, tag: "出征");
         }
 
         /// <summary>战斗结束（或被撤退）：回主城并带结算。</summary>
@@ -93,7 +97,9 @@ namespace WanXiang.Modules.UI
         {
             PendingBattle = null;
             PendingResult = result;
-            Load(MainScene);
+            // 同上：回城也走转场，不闪节点地图。
+            int act = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
+            UiTransition.PlayAuto(act, () => Load(MainScene), total: 2.2f, tag: "凯旋");
         }
 
         /// <summary>主城入口消费结算：有则弹结算，没有则正常进主界面。</summary>

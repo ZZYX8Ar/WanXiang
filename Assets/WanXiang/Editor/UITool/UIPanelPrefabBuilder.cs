@@ -515,6 +515,31 @@ namespace WanXiang.EditorTools
             var bDeploy = UIBuild.MakeBtn(bottom, "Btn_Deploy", new Vector2(1f, 0.5f),
                 new Vector2(280, 110), new Vector2(-40, 0), "出征", UIBuild.Gold, 32f);
 
+            // ---- 异兽战斗详情区（中上空白区，用户 2026-10-14：点击卡池 / 悬停格子显示）----
+            // ⚠ 与 Panel_Formation.prefab 手改版的 Root_BeastDetail 参数逐项一致（锚点/ pivot/坐标），
+            //   改这里必须同步 prefab 补丁，反之亦然（强制重建全部面板时才以这里为准）。
+            var detailGo = new GameObject("Root_BeastDetail", typeof(RectTransform));
+            var detail = (RectTransform)detailGo.transform;
+            detail.SetParent(rt, false);
+            detail.anchorMin = detail.anchorMax = new Vector2(0f, 1f);
+            detail.pivot = new Vector2(0f, 1f);
+            detail.anchoredPosition = new Vector2(508f, -288f);
+            detail.sizeDelta = new Vector2(920f, 250f);
+            var detailBg = UIBuild.Img(detail, UIBuild.Card);
+            detailBg.raycastTarget = false;
+            var deco = UIBuild.Stretch(detail, "Img_DetailDeco", 0, 0, 0, 246);
+            UIBuild.Img(deco, UIBuild.Gold).raycastTarget = false;   // 顶部 4px 金压边
+            var headGo = new GameObject("Img_DetailHead", typeof(RectTransform));
+            var detailHead = (RectTransform)headGo.transform;
+            detailHead.SetParent(detail, false);
+            detailHead.anchorMin = detailHead.anchorMax = new Vector2(0f, 1f);
+            detailHead.pivot = new Vector2(0f, 1f);
+            detailHead.anchoredPosition = new Vector2(14f, -16f);
+            detailHead.sizeDelta = new Vector2(158f, 158f);
+            UIBuild.Img(detailHead, UIBuild.Silk).preserveAspect = true;
+            var detailTextRt = UIBuild.Stretch(detail, "Tmp_DetailText", 186, 14, 14, 12);
+            var detailText = UIBuild.Tmp(detailTextRt, "", 20, UIBuild.Ink, TextAlignmentOptions.TopLeft);
+
             UIBuild.Bind(comp, "_tmpNodeTitle", tmpTitle);
             UIBuild.Bind(comp, "_tmpWeatherWarn", tmpWarn);
             UIBuild.BindArr(comp, "_imgEnemies", enemies);
@@ -530,6 +555,9 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_btnAutoFill", bAutoFill.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnClear", bClear.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnDeploy", bDeploy.GetComponent<Button>());
+            UIBuild.Bind(comp, "_detailPanel", detail);
+            UIBuild.Bind(comp, "_detailHead", detailHead.GetComponent<Image>());
+            UIBuild.Bind(comp, "_detailText", detailText);
             UIBuild.Bind(comp, "_contentCatalog", LoadAsset<ContentCatalogSO>(ContentCatalogPath));
             UIBuild.Bind(comp, "_sprites", LoadAsset<SpriteCatalog>(SpriteCatalogPath));
             UIBuild.SavePrefab(root, "Panel_Formation");

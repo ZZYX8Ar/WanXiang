@@ -212,6 +212,11 @@ namespace WanXiang.Battle.Core
         private static void TickEggHatch(BattleState st, BattleUnit u)
         {
             if (!u.HasEgg) return;
+            // ★ 2026-10-14 修复：卵只在单位**阵亡后**孵化。「复苏」劫象 / 遗物「复活 1 次」
+            //   是开局就给**活着的**单位挂卵（EggTurnsLeft=1 只作"有卵"标记），旧代码不判死活，
+            //   第一回合结束就把全员当尸体"破卵而生"——满屏飘「复活!」（用户报障：
+            //   "没死为什么提示复活"）。天时·蛰虫始振的卵本就只留给刚阵亡的单位，不受此检查影响。
+            if (u.IsAlive) return;
             u.EggTurnsLeft--;
             if (u.EggTurnsLeft > 0) return;
 

@@ -50,6 +50,11 @@ namespace WanXiang.Modules.UI
         private const int MaxDeploy = 5;
         [SerializeField] private Button _btnDeploy;            // Btn_Deploy
 
+        [Header("异兽战斗详情（点击卡池 / 悬停格子 → 中上详情区，用户 2026-10-14）")]
+        [SerializeField] private RectTransform _detailPanel;   // Root_BeastDetail
+        [SerializeField] private Image _detailHead;            // Img_DetailHead
+        [SerializeField] private TMP_Text _detailText;         // Tmp_DetailText
+
         [Header("数据引用（由生成器自动绑定）")]
         [SerializeField] private ContentCatalogSO _contentCatalog;
         [SerializeField] private SpriteCatalog _sprites;
@@ -90,6 +95,7 @@ namespace WanXiang.Modules.UI
             WireCenterTip();
             WireWeatherTip();    // 右上角天时（含谷/生机等状态）说明
             WireEnemyTips();     // 敌方阵容悬浮介绍（名称/五行定位/四维/图鉴描述）
+            WireCellDetailTips();// 格子悬停 → 我方异兽战斗详情
         }
 
         protected override UniTask OnOpenAsync(object payload)
@@ -138,6 +144,7 @@ namespace WanXiang.Modules.UI
             RefreshBonds();
             if (!TryInheritTeam())
                 OnAutoFillClicked(); // 没有可继承的队伍 → 默认摆一套，玩家再微调
+            ShowBeastDetailByIndex(0);   // 默认展示第一只：中上详情区不空白（点击/悬停后替换）
             return UniTask.CompletedTask;
         }
 
@@ -576,15 +583,21 @@ namespace WanXiang.Modules.UI
             var d = (_enemyDefs != null && i >= 0 && i < _enemyDefs.Count) ? _enemyDefs[i] : null;
             if (d == null) { HideBondTip(); return; }
 
+            // ★ 四维走与实战同一口径（2026-10-14）：内容目录里 BaseHp 等是 0（占位字段），
+            //   由 ApplyPlaceholderStats 按职业+稀有度生成；首领（b_）/召唤物（summon_）会被
+            //   该函数跳过、保留内容表数值。⚠ Clone，不写共享定义。
+            var s = d.Clone();
+            WanXiang.Battle.Core.BattleConfig.Default.ApplyPlaceholderStats(s);
+
             bool isBoss = WanXiang.Battle.Core.BossCatalog.Get(d.Id) != null;
             var sb = new System.Text.StringBuilder();
             sb.Append(Cn.Of(d.Element)).Append('属').Append(" · ").Append(Cn.Of(d.Role));
             if (isBoss) sb.Append(" · 首领");
             sb.Append('\n');
-            sb.Append("生命 ").Append(d.BaseHp)
-              .Append("　攻 ").Append(d.BaseAtk)
-              .Append("　防 ").Append(d.BaseDef)
-              .Append("　速 ").Append(d.BaseSpeed);
+            sb.Append("生命 ").Append(s.BaseHp)
+              .Append("　攻 ").Append(s.BaseAtk)
+              .Append("　防 ").Append(s.BaseDef)
+              .Append("　速 ").Append(s.BaseSpeed);
 
             if (isBoss)
             {
@@ -617,6 +630,94 @@ namespace WanXiang.Modules.UI
             string tgt = WanXiang.Battle.Core.SkillMath.TargetCn(target);
             if (!string.IsNullOrEmpty(tgt)) sb.Append(tgt);
             if (!string.IsNullOrEmpty(sk.Description)) sb.Append('：').Append(sk.Description);
+        }
+
+        // ================================================================
+        //  我方异兽战斗详情（中上详情区，用户 2026-10-14 要求）
+        //  ----------------------------------------------------------------
+        //  口径与敌方情报（ShowEnemyTip）一致：四维 + 战力 + 劫象 + 四技能。
+        //  用户 2026-10-12 定的调子：要属性/技能这类能指导出战的，不要图鉴典故文案。
+        // ================================================================
+
+        /// <summary>给九宫格格子挂悬浮：悬停已上阵单位 → 显示它的战斗详情。
+        /// （与 WireCenterTip 的 PointerEnter 并存 —— EventTrigger 支持多 entry，互不冲突。）</summary>
+        private void WireCellDetailTips()
+        {
+            if (_cells == null) return;
+            int wired = 0;
+            for (int i = 0; i < _cells.Length; i++)
+            {
+                var cell = _cells[i];
+                if (cell == null) continue;
+                var trg = cell.gameObject.GetComponent<EventTrigger>();
+                if (trg == null) trg = cell.gameObject.AddComponent<EventTrigger>();
+                int idx = i;
+                var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+                enter.callback.AddListener(_ => ShowBeastDetailByIndex(_deployed[idx]));
+                trg.triggers.Add(enter);
+                wired++;
+            }
+            Debug.Log("[Formation] 格子详情悬浮已挂接 " + wired + "/" + _cells.Length);
+        }
+
+        /// <summary>按卡池序号显示详情（单击卡池条目；格子悬停则传 _deployed[cell]）。</summary>
+        public void ShowBeastDetailByIndex(int idx)
+        {
+            if (_all == null || idx < 0 || idx >= _all.Length) { HideBeastDetail(); return; }
+            ShowBeastDetail(_all[idx]);
+        }
+
+        /// <summary>
+        /// 异兽战斗详情：名称/五行定位/品阶 + 四维 + 战力（含遗物倍率）+ 劫象 + 四技能。
+        /// 详情面板常驻：悬停/点击只**替换**内容，不移开鼠标也留着读（PointerExit 不清空）。
+        /// </summary>
+        public void ShowBeastDetail(WanXiang.Battle.Core.BeastDef d)
+        {
+            if (d == null || _detailPanel == null || _detailText == null) return;
+            // ★ 四维必须走**与实战同一口径**：内容目录里 BaseHp/Atk/Def/Speed 都是 0（占位字段），
+            //   实战数值由 BattleConfig.ApplyPlaceholderStats 按职业基准 + 稀有度乘数生成。
+            //   ⚠ 必须 Clone：ApplyPlaceholderStats 会写 def 字段，_all 持有的是内容目录引用
+            //   （BuildBeasts 每次新建，但 RosterDragItem 等仍持有下标），写共享定义会污染全局
+            //   （理由同 BattleRequestFactory 的 Clone 注释）。
+            var s = d.Clone();
+            WanXiang.Battle.Core.BattleConfig.Default.ApplyPlaceholderStats(s);
+            if (_detailHead != null)
+            {
+                var sprite = _sprites != null ? _sprites.GetHead(d.Id) : null;
+                _detailHead.enabled = true;
+                if (sprite != null)
+                {
+                    _detailHead.sprite = sprite;
+                    _detailHead.preserveAspect = true;
+                    _detailHead.color = Color.white;
+                }
+            }
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<size=28><b>").Append(d.DisplayName).Append("</b></size>　")
+              .Append(Cn.Of(d.Element)).Append("属 · ").Append(Cn.Of(d.Role))
+              .Append(" · ").Append(Cn.Of(d.Rarity)).Append('\n');
+            sb.Append("生命 ").Append(s.BaseHp)
+              .Append("　攻 ").Append(s.BaseAtk)
+              .Append("　防 ").Append(s.BaseDef)
+              .Append("　速 ").Append(s.BaseSpeed)
+              .Append("　战力 ").Append(WanXiang.Battle.Core.BattlePower.Of(d, _relicPlayerMul));
+            if (!string.IsNullOrEmpty(d.Trait.Name))
+            {
+                sb.Append("\n【劫象】").Append(d.Trait.Name);
+                if (!string.IsNullOrEmpty(d.Trait.Description)) sb.Append('：').Append(d.Trait.Description);
+            }
+            sb.Append("\n【技能】");
+            AppendSkillLine(sb, "普攻", d.Basic);
+            AppendSkillLine(sb, "战技", d.Active);
+            AppendSkillLine(sb, "绝技", d.Ultimate);
+            AppendSkillLine(sb, "觉醒", d.Awaken);
+            _detailText.text = sb.ToString();
+            _detailPanel.gameObject.SetActive(true);
+        }
+
+        private void HideBeastDetail()
+        {
+            if (_detailPanel != null) _detailPanel.gameObject.SetActive(false);
         }
 
         private void ShowBondTip(int i)

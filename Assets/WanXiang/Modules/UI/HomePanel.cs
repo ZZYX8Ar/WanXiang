@@ -215,12 +215,39 @@ namespace WanXiang.Modules.UI
             var r = WanXiang.Run.RunSave.Current;
             int act = r != null ? Mathf.Clamp(r.Act, 1, 5) : 1;
             Debug.Log("[Home] 出征 → 播转场 act=" + act + " kind=" + UiTransition.KindForAct(act));
+
+            // ★ 首进图的"环境级"预热（2026-10-14）：实测首次进图会卡两刀
+            //   （切换帧 ~0.4s + 开场首帧 ~0.5s），且已定位为"完整游戏环境
+            //   （主界面 3D + 本转场粒子墙都在渲染）下的首次组合渲染"——
+            //   放在更早的转场里预热不触发。所以就在本转场的遮盖期里先把冷面板
+            //   真开一遍（开→渲染→关，静默），代价全落在屏幕被盖住的时候。
+            System.Func<Cysharp.Threading.Tasks.UniTask> coldPre = null;
+            var uiRef = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (uiRef != null && (!CampaignPanel.SessionOpened || !ActIntroPanel.SessionPlayed))
+            {
+                coldPre = async () =>
+                {
+                    if (!CampaignPanel.SessionOpened)
+                    {
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        await uiRef.GhostOpenCloseAsync<CampaignPanel>();
+                        Debug.Log("[Home] 遮盖期彩排 CampaignPanel " + sw.ElapsedMilliseconds + "ms");
+                    }
+                    if (!ActIntroPanel.SessionPlayed)
+                    {
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        await uiRef.GhostOpenCloseAsync<ActIntroPanel>();
+                        Debug.Log("[Home] 遮盖期彩排 ActIntroPanel " + sw.ElapsedMilliseconds + "ms");
+                    }
+                };
+            }
+
             // ★ 遮盖层用**节点地图本幕的背景图**当底 ， 转场盖住时就是同一张底图，
             //   退场淡出露出的也是它 ， 全程一张底图、不跳变
             //   （用户 2026-10-12：'因为转场完又有一个背景图，能不能把这个背景图贯穿'）。
             // tag=Home2Map：与「开始→主界面」链路在 Console 里可区分，互不混淆
             UiTransition.PlayAuto(act, () => OpenPanelAsync<CampaignPanel>().Forget(),
-                                  MapBgByAct[act - 1], 2.4f, "Home2Map");
+                                  MapBgByAct[act - 1], 2.4f, "Home2Map", coldPre);
         }
 
 

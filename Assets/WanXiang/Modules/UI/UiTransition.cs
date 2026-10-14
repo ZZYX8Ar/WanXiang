@@ -48,6 +48,7 @@ namespace WanXiang.Modules.UI
         private readonly List<Streak> _streaks = new List<Streak>();   // 横扫转场的粒子尾迹
         private static Shader _streakShader;                            // WanXiang/UI/Streak（拖尾）
 
+
         /// <summary>粒子尾迹：一个 Image（材质用 UIStreak shader）。</summary>
         private struct Streak { public RectTransform T; public Image Img; public float Len; }
 
@@ -86,9 +87,10 @@ namespace WanXiang.Modules.UI
 
         /// <summary>按幕自动选方式播放。</summary>
         public static void PlayAuto(int act, System.Action onSwitch, string coverSprite = null,
-                                    float total = 2.4f, string tag = "")
+                                    float total = 2.4f, string tag = "",
+                                    System.Func<UniTask> preSequence = null)
         {
-            Play(KindForAct(act), act, onSwitch, coverSprite, total, tag);
+            Play(KindForAct(act), act, onSwitch, coverSprite, total, tag, preSequence);
         }
 
         /// <summary>播放转场；到中点时回调 onSwitch（在那里打开目标面板）。</summary>
@@ -99,12 +101,13 @@ namespace WanXiang.Modules.UI
         /// 传 null 则用按幕的纯色纸底兜底。
         /// </param>
         public static void Play(Kind kind, int act, System.Action onSwitch, string coverSprite = null,
-                                float total = 2.4f, string tag = "")
+                                float total = 2.4f, string tag = "",
+                                System.Func<UniTask> preSequence = null)
         {
             var inst = Ensure();
             if (inst == null) { if (onSwitch != null) onSwitch(); return; }
             if (inst._busy) { if (onSwitch != null) onSwitch(); return; }   // 防重入
-            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), null, coverSprite, tag));
+            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), null, coverSprite, tag, preSequence));
         }
 
         private static UiTransition Ensure()
@@ -119,7 +122,11 @@ namespace WanXiang.Modules.UI
 
         private void Build()
         {
-            var rt = gameObject.AddComponent<RectTransform>();
+            // ★ 幂等化（2026-10-14）：onSwitch 里同步 LoadScene 后会重建层（见
+            //   RebuildAfterSceneSwitch）， RectTransform / Canvas / GraphicRaycaster 都在
+            //   DontDestroyOnLoad 的层本体上，重复 Add 会挂双份。
+            var rt = GetComponent<RectTransform>();
+            if (rt == null) rt = gameObject.AddComponent<RectTransform>();
 
             // ⛔⛔ 上一版的错（用户截图："Scene 场景左下角怎么这么小一个"）：
             //    new GameObject 的 RectTransform 挂在 **DontDestroyOnLoad 根**下 ， parent 为 null。
@@ -148,10 +155,13 @@ namespace WanXiang.Modules.UI
                 rt.sizeDelta = new Vector2(1280f, 720f);
             }
 
-            _canvas = gameObject.AddComponent<Canvas>();
-            _canvas.overrideSorting = true;
-            _canvas.sortingOrder = 32000;          // 盖过所有面板
-            gameObject.AddComponent<GraphicRaycaster>();
+            if (_canvas == null)
+            {
+                _canvas = gameObject.AddComponent<Canvas>();
+                _canvas.overrideSorting = true;
+                _canvas.sortingOrder = 32000;          // 盖过所有面板
+                gameObject.AddComponent<GraphicRaycaster>();
+            }
             _root = rt;
             gameObject.SetActive(true);
             Debug.Log("[UiTransition] 层已建 host=" + (host != null ? host.name : "(独立Canvas)") +
@@ -289,12 +299,13 @@ namespace WanXiang.Modules.UI
             if (inst == null) { if (onSwitch != null) onSwitch(); return; }
             if (inst._busy) { if (onSwitch != null) onSwitch(); return; }
             bool done = false;
-            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), () => done = true, coverSprite, tag));
+            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), () => done = true, coverSprite, tag, null));
             await UniTask.WaitUntil(() => done);
         }
 
         private IEnumerator Run(Kind kind, int act, System.Action onSwitch, float total,
-                                System.Action onDone, string coverSprite, string tag)
+                                System.Action onDone, string coverSprite, string tag,
+                                System.Func<UniTask> preSequence)
         {
             string tg = string.IsNullOrEmpty(tag) ? "" : ("[" + tag + "]");
             _busy = true;
@@ -345,6 +356,17 @@ namespace WanXiang.Modules.UI
                 Debug.Log("[UiTransition]" + tg + " 遮盖层 " + (cs != null ? ("图 " + coverSprite) : "纯色纸底"));
             }
 
+            // ---- ★ 首开"环境级"预热（2026-10-14）：遮盖已完成，屏幕完全被盖住 ----
+            //   实测：首次进节点地图的两刀（切换帧 ~0.4s + 开场首帧 ~0.5s）不是面板内容预热问题，
+            //   而是"完整游戏环境（主界面 3D + 本转场粒子墙都在渲染时）的首次组合渲染"——
+            //   放在更早的转场里预热不会触发（已被多轮实测证伪）。
+            //   这里趁本转场自己的遮盖期，先把冷面板真开一遍（开→渲染→关），代价全在看不见的时候。
+            if (preSequence != null)
+            {
+                var pre = preSequence();
+                yield return pre.ToCoroutine();
+            }
+
             switch (kind)
             {
                 case Kind.Ink: yield return InkSequence(act, onSwitch, tIn, tHold, tOut); break;
@@ -352,6 +374,9 @@ namespace WanXiang.Modules.UI
                 case Kind.Cloud: yield return CloudSequence(act, onSwitch, tIn, tHold, tOut); break;
                 default: yield return SweepSequence(act, onSwitch, tIn, tHold, tOut); break;
             }
+
+            // ---- onSwitch 里同步切了场景（SceneFlow.Load）→ 场景内子级已毁，重建后盖纸底 ----
+            RebuildAfterSceneSwitch(act);
 
             // ---- 收尾：撤掉遮盖层（最后 0.3s 淡出，露出新界面）----
             if (_cover != null)
@@ -374,6 +399,67 @@ namespace WanXiang.Modules.UI
             _exitStarted = false;
             Debug.Log("[UiTransition]" + tg + " 转场结束 " + kind);
             if (onDone != null) onDone();
+        }
+
+        /// <summary>
+        /// 预热一批 Sprite 的**纹理上传**（2026-10-14）：首次显示的贴图要在渲染那一帧上传，
+        /// 写字笔顺这类"逐帧换图"的演出会因此一顿一顿（实测前几笔各卡 10~60ms）。
+        /// 做法：在转场遮盖层**之下**铺一帧极小图（屏幕中央、透明 0.02），渲一帧即清。
+        /// ⚠ 必须趁屏幕被盖住时调用（目前调用点：Start→主界面 的水墨转场遮盖期）。
+        /// </summary>
+        public static async UniTask WarmSpriteUploadsAsync(List<Sprite> sprites)
+        {
+            var inst = Ensure();
+            if (inst == null || inst._root == null || sprites == null || sprites.Count == 0) return;
+            var tmp = new List<GameObject>(sprites.Count);
+            float cw = inst.CW;
+            for (int i = 0; i < sprites.Count; i++)
+            {
+                var sp = sprites[i];
+                if (sp == null) continue;
+                var go = new GameObject("WarmUp", typeof(RectTransform));
+                go.transform.SetParent(inst._root, false);
+                var img = go.AddComponent<Image>();
+                img.raycastTarget = false;
+                img.sprite = sp;
+                img.color = new Color(1f, 1f, 1f, 0.02f);
+                var rt = img.rectTransform;
+                rt.sizeDelta = new Vector2(4f, 4f);
+                rt.anchoredPosition = new Vector2((i % 300) * 6f - cw * 0.5f, (i / 300) * 6f);   // 屏内条带（在遮盖之下，不可见）
+                go.transform.SetSiblingIndex(0);   // 压到遮盖层底下
+                tmp.Add(go);
+            }
+            await UniTask.DelayFrame(2);
+            for (int i = 0; i < tmp.Count; i++)
+            {
+                if (tmp[i] != null) UnityEngine.Object.Destroy(tmp[i]);
+            }
+        }
+
+        /// <summary>
+        /// 等"最后停留"：至少 <paramref name="minHold"/> 秒，且**主线程安静**（连续 8 帧无 &gt;60ms 大帧）
+        /// 才放行退场。2026-10-14 用户："第一次会有一点卡，后面就流畅了" ——
+        /// 首开进图的一次性大帧（面板首建/首渲染，实测 0.4~0.6s）都发生在退场**之前**，
+        /// 热路径没有这些帧、此等待立即通过。等到它们吃完再"拨开"，玩家看到的
+        /// 退场/露出全程干净；代价只是首开时屏幕多盖住 ~1 秒（不可见）。
+        /// </summary>
+        private IEnumerator SettleWait(float minHold)
+        {
+            float e = 0f;
+            int calm = 0;
+            float maxT = minHold + 1.8f;                 // 最多多等 1.8s，防意外卡死
+            float prev = Time.unscaledTime;
+            while (true)
+            {
+                yield return null;
+                float now = Time.unscaledTime;
+                float dt = now - prev; prev = now;
+                e += dt;
+                if (dt < 0.06f) { calm++; } else { calm = 0; }
+                if (e >= minHold && calm >= 8) break;
+                if (e > maxT) break;
+                if (Time.realtimeSinceStartup > _deadline) break;   // 硬超时保护
+            }
         }
 
         // ------------------------------------------------------------------ 水墨铺开
@@ -461,7 +547,8 @@ namespace WanXiang.Modules.UI
             }
 
             if (onSwitch != null) onSwitch();
-            yield return new WaitForSeconds(tHold);
+            if (_root == null) yield break;   // onSwitch 里同步切了场景：局部元素已毁，跳过退场（Run 重建层走纸底淡出）
+            yield return SettleWait(tHold);   // 退场门限：等主线程安静再"拨开"（见 SettleWait）
 
             // ★ 退场起点：通知外部可以开始后续演出（与拨开重叠，观感连贯）
             _exitStarted = true;
@@ -516,6 +603,24 @@ namespace WanXiang.Modules.UI
                 rt.localRotation = Quaternion.identity;
                 rt.anchoredPosition = Vector2.zero;
             }
+        }
+
+        /// <summary>
+        /// onSwitch 里同步 LoadScene 之后调用：转场层的场景内子级（_root/_cover/_blocker/池）
+        /// 随旧场景销毁而消失（层本体挂在 DontDestroyOnLoad 根上，活着）。
+        /// 重建一层并用目标幕的纸底立即盖满，让 <see cref="Run"/> 的收尾淡出露出新场景 ——
+        /// 用户 2026-10-14："从编队进战斗老是闪一下主界面/节点地图，观感很差"。
+        /// 没切场景（_root 还活着）时是空操作，原有退场动画不受影响。
+        /// </summary>
+        private void RebuildAfterSceneSwitch(int act)
+        {
+            if (_root != null && _cover != null && _blocker != null) return;
+            Debug.Log("[UiTransition] 场景已切换 → 重建转场层并盖纸底（act=" + act + "）");
+            _pool.Clear();
+            _streaks.Clear();
+            Build();
+            if (_cover != null) _cover.color = SeasonCoverColor(Mathf.Clamp(act, 1, 5));   // 立即盖满
+            if (_blocker != null) _blocker.raycastTarget = true;   // 继续防误触，收尾再关
         }
 
         /// <summary>遮盖层的"纸/墨"底色（按幕），盖住旧界面时不像纯黑那么硬。</summary>
@@ -636,7 +741,8 @@ namespace WanXiang.Modules.UI
             }
 
             if (onSwitch != null) onSwitch();
-            yield return new WaitForSeconds(tHold);
+            if (_root == null) yield break;   // onSwitch 里同步切了场景：局部元素已毁，跳过退场（Run 重建层走纸底淡出）
+            yield return SettleWait(tHold);   // 退场门限：等主线程安静再"拨开"（见 SettleWait）
 
             // ★ 退场起点：通知外部可以开始后续演出（与拨开重叠，观感连贯）
             _exitStarted = true;
@@ -738,7 +844,8 @@ namespace WanXiang.Modules.UI
             }
 
             if (onSwitch != null) onSwitch();
-            yield return new WaitForSeconds(tHold);
+            if (_root == null) yield break;   // onSwitch 里同步切了场景：局部元素已毁，跳过退场（Run 重建层走纸底淡出）
+            yield return SettleWait(tHold);   // 退场门限：等主线程安静再"拨开"（见 SettleWait）
 
             // ★ 退场起点：通知外部可以开始后续演出（与拨开重叠，观感连贯）
             _exitStarted = true;
@@ -804,7 +911,8 @@ namespace WanXiang.Modules.UI
                 yield return null;
             }
             if (onSwitch != null) onSwitch();
-            yield return new WaitForSeconds(tHold);
+            if (_root == null) yield break;   // onSwitch 里同步切了场景：局部元素已毁，跳过退场（Run 重建层走纸底淡出）
+            yield return SettleWait(tHold);   // 退场门限：等主线程安静再"拨开"（见 SettleWait）
             _exitStarted = true;   // ★ 退场起点（云过）
             e = 0f;
             while (e < tOut)

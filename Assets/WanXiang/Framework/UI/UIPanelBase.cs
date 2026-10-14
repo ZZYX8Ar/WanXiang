@@ -59,6 +59,16 @@ namespace WanXiang.Framework.UI
         /// <summary>资源 key。</summary>
         public string Key { get; private set; }
 
+        /// <summary>
+        /// 彩排（Ghost）静默开关（2026-10-14 首播优化）：
+        /// 预热/彩排会在**转场遮盖期**把大面板真开一遍再关掉，把"首次打开"的
+        /// 一次性成本（实例化 / OnEnable 级联 / TMP 图集 / 首帧布局与贴图上传）
+        /// 提前烤热，让玩家第一次进图不再卡（用户："第一次会有一点卡，后面就流畅"）。
+        /// 期间置 true ⇒ 不播开/关界面音、不切 BGM；需要静默的面板在 OnOpenAsync 里
+        /// 用本开关跳过有副作用的块（如开场面板触发、写档）。
+        /// </summary>
+        public static bool GhostSilent;
+
         /// <summary>所属层级。</summary>
         public UILayer Layer { get; private set; }
 
@@ -209,10 +219,11 @@ namespace WanXiang.Framework.UI
 
             // 音乐先起，不等 OnOpenAsync 里的加载/网络 —— 界面一露脸就该有氛围。
             // （AudioSystem.PlayMusic 对"同一首正在播"会直接返回，不会重启，重复调用是安全的）
-            ApplyPanelBgm();
+            // ⚠ GhostSilent（彩排期）：不播音、不切 BGM（见 GhostSilent 字段注释）
+            if (!GhostSilent) ApplyPanelBgm();
 
             // 界面音效：全屏面板才播开合音；按钮点击音统一挂上（见文件末尾「界面音效」注释）
-            if (FullScreen) AudioSystem.PlaySfx("sfx_ui_panel_open");
+            if (FullScreen && !GhostSilent) AudioSystem.PlaySfx("sfx_ui_panel_open");
             HookButtonSfx();
 
             State = UIPanelState.Opening;
@@ -300,7 +311,8 @@ namespace WanXiang.Framework.UI
             SetInteractive(false);
 
             // 与打开音配对（同样只给全屏面板 —— 弹层关闭太频繁，加音效会吵）
-            if (FullScreen) AudioSystem.PlaySfx("sfx_ui_panel_close");
+            // ⚠ GhostSilent（彩排期）：不播关闭音
+            if (FullScreen && !GhostSilent) AudioSystem.PlaySfx("sfx_ui_panel_close");
 
             try
             {

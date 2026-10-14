@@ -138,11 +138,20 @@ namespace WanXiang.Modules.UI
         /// <summary>由 <see cref="HomePanel"/> 在“出征”开图前置位 ， 让开场动画每次都播（用户要求）。</summary>
         public static bool RequestIntroFromMenu;
 
+        /// <summary>
+        /// 本进程内是否**真开过**（彩排不算；2026-10-14 首开优化用）。
+        /// HomePanel 出征时据此判断要不要在转场遮盖期先"环境级"真开一遍（见 GhostOpenCloseAsync 注释）。
+        /// </summary>
+        public static bool SessionOpened;
+
         protected override UniTask OnOpenAsync(object payload)
         {
             // ★ 跨存档恢复星移余气：把持久化的 XingyiLingers 重建为会话级 LiveWeather.Lingers，
             //   保证「用了星移→关游戏→重进」星移天气仍在（之前天气随会话丢失，等于白花灵卵）。
             RehydrateXingyi();
+
+            // ★ 真开过标记（彩排不算）：HomePanel 首进图前据此决定要不要先"环境级"彩排（2026-10-14）
+            if (!UIPanelBase.GhostSilent) SessionOpened = true;
 
             _justPassedNode = -1;   // ★ 每次开面重置：只有下面 PendingCommit 真落地了才会重新置位
 
@@ -153,6 +162,9 @@ namespace WanXiang.Modules.UI
             // ★ 每一幕的开场/转场动画（宣纸底 + 大字逐字浮现 + 当季落叶）。
             //   触发口子**只放这一处**：进图与换幕都会经过 CampaignPanel.OnOpenAsync，
             //   免得两处各写一遍、行为还不一致。是否已播记在存档 RunState.IntroShownAct。
+            // ⚠ 彩排（GhostSilent，见 UIPanelBase.GhostSilent）时整块跳过：
+            //   开场是"真进图"的标志性演出，记账/触发/播音都不该在彩排里发生。
+            if (!UIPanelBase.GhostSilent)
             {
                 var introRun = WanXiang.Run.RunSave.Current;
                 int introAct = introRun != null ? introRun.Act : 1;
@@ -178,7 +190,8 @@ namespace WanXiang.Modules.UI
             // ★ 待推进落地：从事件面板（灵市/孵穴/铸魂台/异闻/天象）返回节点图时，
             //   把之前未完成的节点记为通过 —— 玩家没处理完就关游戏的话，_pendingCommit 是内存变量、
             //   不会持久化，节点也不会推进 ， 下次进来还能重做（奖励不丢）。
-            if (PendingCommit >= 0)
+            // ⚠ 彩排（GhostSilent）时跳过：不让彩排消费 PendingCommit / 写档（真开会再处理）。
+            if (PendingCommit >= 0 && !UIPanelBase.GhostSilent)
             {
                 _justPassedNode = PendingCommit;   // ★ 真·通过（这里才把 NodeOffset 落地）， 记下它供落印/画线动画
                 var prun = WanXiang.Run.RunSave.Current;
@@ -401,14 +414,31 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// </summary>
         private async Cysharp.Threading.Tasks.UniTaskVoid DeferredIntroAsync()
         {
-            int guard = 0;
-            // 等退场开始；若转场异常没在播（ guard 耗尽）也继续，别卡住不进图
-            while (UiTransition.IsPlaying && !UiTransition.ExitStarted && guard < 900)
+            // ★ 2026-10-14 首播优化（用户："从主界面到节点地图的转场第一次会卡，后面就流畅"）：
+            //   开场面板**本进程首次**打开时，写字笔顺帧 / 字形图集 / 首帧布局都是冷的，
+            //   打开那一帧实测卡 ~0.5s，且正好落在转场"拨开退场"里、肉眼可见。
+            //   首次改在**建图转场的遮盖期内**就打开（不等退场时刻）—— 卡顿落在屏幕
+            //   被盖住时、不可见；第二次起资源已热，照旧等退场时刻，保持"写字与拨开
+            //   重叠"的原设计。冷热判定用 ActIntroPanel.SessionPlayed。
+            bool cold = !ActIntroPanel.SessionPlayed;
+            if (cold)
             {
-                guard++;
+                // 让当前这帧的建图开面收尾再开开场（避免嵌在建图开面的调用栈里连锁重活）
                 await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
             }
-            Debug.Log("[Campaign] 转场退场中 → 开始写字开场（与拨开重叠）");
+            else
+            {
+                int guard = 0;
+                // 等退场开始；若转场异常没在播（ guard 耗尽）也继续，别卡住不进图
+                while (UiTransition.IsPlaying && !UiTransition.ExitStarted && guard < 900)
+                {
+                    guard++;
+                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
+                }
+            }
+            Debug.Log(cold
+                ? "[Campaign] 开场首播（冷）→ 遮盖期内提前打开（首帧成本藏进转场）"
+                : "[Campaign] 转场退场中 → 开始写字开场（与拨开重叠）");
             OpenPanelAsync<ActIntroPanel>().Forget();
         }
 
