@@ -372,7 +372,7 @@ namespace WanXiang.Battle.Presentation
         private bool _critNext;        // 下一条伤害数字是否按暴击放大（Crit 事件先于 Damage 到）
 
         // 大招特写期间押后的伤害反馈（cut-in 播完、起爆那一下再统一飘出来）
-        private struct PendDmg { public UnitView2D View; public int Amount; public bool Melt; public bool Crit; public Vector2 ActorHome; }
+        private struct PendDmg { public UnitView2D View; public int Amount; public bool Melt; public bool Reaction; public bool Crit; public Vector2 ActorHome; }
         private readonly List<PendDmg> _pendingDmg = new List<PendDmg>(8);
         private UnitView2D _pendingCritFloat;
 
@@ -1209,12 +1209,13 @@ namespace WanXiang.Battle.Presentation
                         Vector2 actorHome = hit.HomePos;
                         if (e.ActorId != null && _views.TryGetValue(e.ActorId, out var atk)) actorHome = atk.HomePos;
                         bool melt = e.Note != null && e.Note.Contains("融冰");
+                        bool reaction = e.Note != null && e.Note.Contains("元素反应");
                         // ★ 大招 cut-in 正在播 → 伤害数字押后到"起爆"那一下再飘（用户 2026-10-14：
                         //   否则伤害在特写期间就飘完/被盖住，看着像"没伤害"）
                         if (_skillFx != null && _skillFx.CutInActive)
-                            _pendingDmg.Add(new PendDmg { View = hit, Amount = e.Amount, Melt = melt, Crit = crit, ActorHome = actorHome });
+                            _pendingDmg.Add(new PendDmg { View = hit, Amount = e.Amount, Melt = melt, Reaction = reaction, Crit = crit, ActorHome = actorHome });
                         else
-                            ApplyDamageVisual(hit, e.Amount, melt, crit, actorHome);
+                            ApplyDamageVisual(hit, e.Amount, melt, reaction, crit, actorHome);
                     }
                     break;
 
@@ -1436,10 +1437,10 @@ namespace WanXiang.Battle.Presentation
         }
 
         /// <summary>一次受击的视觉反馈：飘伤害数字 + 白闪 + 沿受击方向踹一脚。</summary>
-        private void ApplyDamageVisual(UnitView2D target, int amount, bool isMelt, bool crit, Vector2 actorHome)
+        private void ApplyDamageVisual(UnitView2D target, int amount, bool isMelt, bool reaction, bool crit, Vector2 actorHome)
         {
             if (target == null) return;
-            SpawnDamageNumber(target, amount, isMelt, crit);
+            SpawnDamageNumber(target, amount, isMelt, reaction, crit);
             target.Body.color = Color.white;      // 受击白闪（HitFlash 在 Step 里衰减回基色）
             target.HitFlash = 0.10f;
             target.ShakePulse = 0.16f;
@@ -1459,17 +1460,21 @@ namespace WanXiang.Battle.Presentation
             for (int i = 0; i < _pendingDmg.Count; i++)
             {
                 var p = _pendingDmg[i];
-                ApplyDamageVisual(p.View, p.Amount, p.Melt, p.Crit, p.ActorHome);
+                ApplyDamageVisual(p.View, p.Amount, p.Melt, p.Reaction, p.Crit, p.ActorHome);
             }
             _pendingDmg.Clear();
         }
 
-        private void SpawnDamageNumber(UnitView2D v, int amount, bool isMelt, bool crit)
+        private void SpawnDamageNumber(UnitView2D v, int amount, bool isMelt, bool reaction, bool crit)
         {
-            // 暴击：字号放大 1.6× + 换金白色（更亮更跳）；融冰保持鎏金
-            float scale = crit ? 1.6f : 1f;
-            Color col = crit ? new Color(1f, 0.92f, 0.55f) : (isMelt ? BattlePalette.GoldRich : BattlePalette.Crimson);
-            SpawnNumberInternal(v, amount.ToString(), col, scale);
+            // 暴击：字号放大 1.6× + 换金白色；融冰保持鎏金；元素反应用紫罗兰高亮 + 「反应!」前缀，最跳
+            float scale = crit ? 1.6f : (reaction ? 1.25f : 1f);
+            Color col = crit ? new Color(1f, 0.92f, 0.55f)
+                        : (isMelt ? BattlePalette.GoldRich
+                        : (reaction ? new Color(0.72f, 0.50f, 1f)   // 紫：元素反应
+                        : BattlePalette.Crimson));
+            string label = reaction ? "反应! " + amount : amount.ToString();
+            SpawnNumberInternal(v, label, col, scale);
         }
 
         private void SpawnNumberInternal(UnitView2D v, string text, Color color, float baseScale)

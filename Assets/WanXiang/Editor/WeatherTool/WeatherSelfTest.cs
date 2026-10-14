@@ -41,10 +41,14 @@ namespace WanXiang.Editor.WeatherTool
         //     ② 逐条核对改动清单，确认没有别的改动顺手带偏。
         //   ⚠ "全默认 30 回合平局"（v1.1 时代）是给策划的**独立信号**：定版数值下那局磨成僵局
         //     （与 PvP 5/5 平局同源）—— 别和基线重标混为一谈。
-        private const uint BaselineFingerprint = 0x3B4E64BFu;
+        // ⚠ 2026-10-14 元素反应链（ResolveElementReactions）并入常驻战斗：默认局里存在
+        //   火/金/木/土 命中带湿/冰蚀/灼烧引信的组合，反应触发后战局变化 → 基线重标。
+        //   回退实验（临时关闭该调用）指纹回到 0x3B4E64BF，证明漂移仅来自反应链本身。
+        private const uint BaselineFingerprint = 0x20D2DEC1u;
 
         /// <summary>当前"关抖动"的基线（先手连击机制已移除，默认即无连击）—— 用来做"抖动贡献"的对照。</summary>
-        private const uint LegacyBaselineFingerprint = 0x3441864Bu;
+        // ⚠ 同上，关抖动基线随反应链重标（回退实验回到 0x3441864B）。
+        private const uint LegacyBaselineFingerprint = 0xC4E3FE30u;
 
         private static int _pass, _fail;
         private static readonly List<string> Failures = new List<string>();
@@ -502,7 +506,79 @@ namespace WanXiang.Editor.WeatherTool
             }
             Check(lines, uWall2 == null && uRev2 == null,
                   "㉘ 探针：默认阵容不带劫象单位（钩子只在带 TraitId 时生效）——"
-                  + "厚壁/复苏的端到端对照在离线冒烟（劫象治疗钩子）");
+                  +                   "厚壁/复苏的端到端对照在离线冒烟（劫象治疗钩子）");
+
+            // ---- ㉙ 元素反应链（常驻机制，不依赖天时，2026-10-14 新增） ----
+            // 直接调 public 解析函数做受控断言（与 WeatherIceMelt 同套路）：固定种子、关抖动，
+            // 预先在敌人身上铺好引信状态，再按五行触发，逐条核对"消耗/附加/事件"。
+            var rCfg = BattleConfig.Default.WithoutJitter();
+
+            // 蒸：火 打 湿 → 移除湿 + 额外真伤
+            var bSteam = BattleFactory.Create(rCfg, 20260914UL,
+                new[] { DeployEntry.Player(BattleSampleContent.Make("rA", "焰", Element.Fire,  RoleType.Striker), 0) },
+                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rB", "湿", Element.Water, RoleType.Guard), 8) }, null);
+            var eSteam = bSteam.UnitsOf(TeamSide.Enemy)[0];
+            eSteam.ApplyStatus(StatusCatalog.Wet, 3, 99, 0);
+            BattleSimulator.ResolveElementReactions(bSteam, bSteam.UnitsOf(TeamSide.Player)[0], eSteam, Element.Fire);
+            Check(lines, !eSteam.HasStatus(StatusCatalog.Wet)
+                       && CountNoteKind(bSteam.Log, BattleEventKind.Damage, "元素反应·蒸") > 0,
+                  "㉙ 蒸：火 + 湿 → 蒸发并造成额外真伤");
+
+            // 感电：金 打 湿 → 移除湿 + 附感电状态 + 少量真伤
+            var bShk = BattleFactory.Create(rCfg, 20260914UL,
+                new[] { DeployEntry.Player(BattleSampleContent.Make("rC", "金", Element.Metal, RoleType.Striker), 0) },
+                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rD", "湿", Element.Water, RoleType.Guard), 8) }, null);
+            var eShk = bShk.UnitsOf(TeamSide.Enemy)[0];
+            eShk.ApplyStatus(StatusCatalog.Wet, 2, 99, 0);
+            BattleSimulator.ResolveElementReactions(bShk, bShk.UnitsOf(TeamSide.Player)[0], eShk, Element.Metal);
+            Check(lines, !eShk.HasStatus(StatusCatalog.Wet) && eShk.HasStatus(StatusCatalog.Shock)
+                       && CountNoteKind(bShk.Log, BattleEventKind.Damage, "元素反应·感电") > 0,
+                  "㉙ 感电：金 + 湿 → 附感电状态（可被再次引爆）");
+
+            // 碎冰：金 打 冰蚀 → 移除 2 层冰蚀 + 额外真伤
+            var bSh = BattleFactory.Create(rCfg, 20260914UL,
+                new[] { DeployEntry.Player(BattleSampleContent.Make("rE", "金", Element.Metal, RoleType.Striker), 0) },
+                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rF", "冰", Element.Water, RoleType.Guard), 8) }, null);
+            var eSh = bSh.UnitsOf(TeamSide.Enemy)[0];
+            eSh.ApplyStatus(StatusCatalog.IceErosion, 4, 99, 0);
+            int iceBefore = eSh.GetStacks(StatusCatalog.IceErosion);
+            BattleSimulator.ResolveElementReactions(bSh, bSh.UnitsOf(TeamSide.Player)[0], eSh, Element.Metal);
+            Check(lines, eSh.GetStacks(StatusCatalog.IceErosion) == iceBefore - 2
+                       && CountNoteKind(bSh.Log, BattleEventKind.Damage, "元素反应·碎冰") > 0,
+                  "㉙ 碎冰：金 + 冰蚀 → 移除 2 层冰蚀并额外真伤");
+
+            // 助燃：木 打 灼烧 → 灼烧 +2 层
+            var bStk = BattleFactory.Create(rCfg, 20260914UL,
+                new[] { DeployEntry.Player(BattleSampleContent.Make("rG", "木", Element.Wood,  RoleType.Striker), 0) },
+                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rH", "焚", Element.Fire,  RoleType.Guard), 8) }, null);
+            var eStk = bStk.UnitsOf(TeamSide.Enemy)[0];
+            eStk.ApplyStatus(StatusCatalog.Burn, 1, 5, 30f);
+            int burnBefore = eStk.GetStacks(StatusCatalog.Burn);
+            BattleSimulator.ResolveElementReactions(bStk, bStk.UnitsOf(TeamSide.Player)[0], eStk, Element.Wood);
+            Check(lines, eStk.GetStacks(StatusCatalog.Burn) == burnBefore + 2
+                       && CountNoteKind(bStk.Log, BattleEventKind.StatusApplied, "元素反应·助燃") > 0,
+                  "㉙ 助燃：木 + 灼烧 → 灼烧 +2 层（保留原 DoT）");
+
+            // 镇：土 打 灼烧 → 熄灭 2 层
+            var bQu = BattleFactory.Create(rCfg, 20260914UL,
+                new[] { DeployEntry.Player(BattleSampleContent.Make("rI", "土", Element.Earth, RoleType.Striker), 0) },
+                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rJ", "焚", Element.Fire,  RoleType.Guard), 8) }, null);
+            var eQu = bQu.UnitsOf(TeamSide.Enemy)[0];
+            eQu.ApplyStatus(StatusCatalog.Burn, 3, 5, 30f);
+            int burnQ = eQu.GetStacks(StatusCatalog.Burn);
+            BattleSimulator.ResolveElementReactions(bQu, bQu.UnitsOf(TeamSide.Player)[0], eQu, Element.Earth);
+            Check(lines, eQu.GetStacks(StatusCatalog.Burn) == System.Math.Max(0, burnQ - 2)
+                       && CountNoteKind(bQu.Log, BattleEventKind.StatusApplied, "元素反应·镇") > 0,
+                  "㉙ 镇：土 + 灼烧 → 熄灭 2 层灼烧");
+
+            // 对照：无对应状态时零反应事件（证明默认局指纹安全 —— 反应只在有引信时才发生）
+            var bNone = BattleFactory.Create(rCfg, 20260914UL,
+                new[] { DeployEntry.Player(BattleSampleContent.Make("rK", "焰", Element.Fire, RoleType.Striker), 0) },
+                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rL", "空", Element.Wood, RoleType.Guard), 8) }, null);
+            var eNone = bNone.UnitsOf(TeamSide.Enemy)[0];
+            BattleSimulator.ResolveElementReactions(bNone, bNone.UnitsOf(TeamSide.Player)[0], eNone, Element.Fire);
+            Check(lines, CountNote(bNone.Log, "元素反应") == 0,
+                  "㉙ 对照：无对应状态时零反应事件（默认局指纹不变）");
 
             return Finish(lines);
         }

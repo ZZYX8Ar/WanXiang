@@ -222,6 +222,11 @@ namespace WanXiang.Battle.Core
             // ---- 天时钩子（GDD 3.3 剩余 8 条）：命中/暴击/击杀/受击四条通路 ----
             // 判空短路：无天时这一行不进函数体，战斗逐位不变（指纹红线）。
             if (st.Weather != null) PostDamageHooks(st, src, dst, el, dmg, dealt, crit, atom.TrueDamage);
+
+            // ---- 元素反应链（常驻机制，不依赖天时）：把五行相克/相生变成命中瞬间的连锁 ----
+            // 无条件调用：内部只在"目标带可反应状态"时才发事件/改状态，否则立即返回，零副作用
+            // （默认局没有这些状态组合时，指纹逐位不变）。
+            ResolveElementReactions(st, src, dst, el);
         }
         // ================================================================
         //  天时事件钩子（GDD 3.3 剩余 8 条）
@@ -319,6 +324,92 @@ namespace WanXiang.Battle.Core
             if (meltDealt > 0 && !dst.IsAlive)
                 st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
                            note: $"{dst.DisplayName} 阵亡（融冰）");
+        }
+        /// <summary>
+        /// 元素反应链（常驻战斗机制，2026-10-14 新增）。五行不再只是伤害系数，而是命中带特定
+        /// 状态的敌人时触发连锁效果，把"相克/相生"变成玩家看得见、可围绕布局的战术。
+        ///
+        /// 触发 = 这一击的五行 <paramref name="el"/> 命中一个带特定状态的敌人。每条反应只消费
+        /// 自身需要的状态、发一条事件（Note 以「元素反应·」开头，**不进指纹**），且一个命中至多
+        /// 触发一条（首个匹配即返回）。配合设计：湿/冰蚀是"引信"（被引爆后移除），灼烧可被助长或熄灭。
+        ///
+        /// 五条反应覆盖五行：
+        ///   蒸（火+湿）  感电（金+湿）  碎冰（金+冰蚀）  助燃（木+灼烧）  镇（土+灼烧）
+        /// 其中"金"同时是感电与碎冰的引信，"水"以湿的形态成为两种反应的引信，土克火成"镇"。
+        /// </summary>
+        public static void ResolveElementReactions(BattleState st, BattleUnit src, BattleUnit dst, Element el)
+        {
+            if (dst == null || !dst.IsAlive) return;
+
+            // 蒸：火 打 湿 → 蒸发（移除湿，额外真伤，随层数加深）
+            if (el == Element.Fire && dst.HasStatus(StatusCatalog.Wet))
+            {
+                int wet = dst.GetStacks(StatusCatalog.Wet);
+                dst.RemoveStatus(StatusCatalog.Wet);
+                int bonus = CoreMath.RoundDamage(dst.MaxHp * 0.06f * System.Math.Min(wet, 5));
+                int dealt = dst.TakeTrueDamage(bonus);
+                st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId, targetId: dst.RuntimeId,
+                           amount: dealt, element: Element.Fire,
+                           note: $"元素反应·蒸（蒸发 {wet} 层湿）");
+                if (dealt > 0 && !dst.IsAlive)
+                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
+                               note: $"{dst.DisplayName} 阵亡（蒸）");
+                return;
+            }
+
+            // 感电：金 打 湿 → 感电（移除湿，附感电状态 + 少量真伤；感电本身是下一次金/水的引信）
+            if (el == Element.Metal && dst.HasStatus(StatusCatalog.Wet))
+            {
+                int wet = dst.GetStacks(StatusCatalog.Wet);
+                dst.RemoveStatus(StatusCatalog.Wet);
+                dst.ApplyStatus(StatusCatalog.Shock, 1, 2);
+                int bonus = CoreMath.RoundDamage(dst.MaxHp * 0.04f * System.Math.Min(wet, 5));
+                int dealt = dst.TakeTrueDamage(bonus);
+                st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId, targetId: dst.RuntimeId,
+                           amount: dealt, element: Element.Metal,
+                           note: $"元素反应·感电（{wet} 层湿）");
+                if (dealt > 0 && !dst.IsAlive)
+                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
+                               note: $"{dst.DisplayName} 阵亡（感电）");
+                return;
+            }
+
+            // 碎冰：金 打 冰蚀 → 碎裂（移除 2 层冰蚀 + 额外真伤）
+            if (el == Element.Metal && dst.HasStatus(StatusCatalog.IceErosion))
+            {
+                int ice = dst.GetStacks(StatusCatalog.IceErosion);
+                dst.RemoveStatusStacks(StatusCatalog.IceErosion, 2);
+                int bonus = CoreMath.RoundDamage(dst.MaxHp * 0.05f * System.Math.Min(ice, 5));
+                int dealt = dst.TakeTrueDamage(bonus);
+                st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId, targetId: dst.RuntimeId,
+                           amount: dealt, element: Element.Metal,
+                           note: $"元素反应·碎冰（{ice} 层冰蚀）");
+                if (dealt > 0 && !dst.IsAlive)
+                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
+                               note: $"{dst.DisplayName} 阵亡（碎冰）");
+                return;
+            }
+
+            // 助燃：木 打 灼烧 → 火势助长（灼烧 +2 层，保留原 DoT 数值，时长取较大值）
+            if (el == Element.Wood && dst.HasStatus(StatusCatalog.Burn))
+            {
+                dst.ApplyStatus(StatusCatalog.Burn, 2, 2);
+                st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: src.RuntimeId,
+                           targetId: dst.RuntimeId, amount: dst.GetStacks(StatusCatalog.Burn),
+                           note: "元素反应·助燃（灼烧 +2）");
+                return;
+            }
+
+            // 镇：土 打 灼烧 → 厚土灭火（移除 2 层灼烧）
+            if (el == Element.Earth && dst.HasStatus(StatusCatalog.Burn))
+            {
+                int before = dst.GetStacks(StatusCatalog.Burn);
+                dst.RemoveStatusStacks(StatusCatalog.Burn, 2);
+                st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: src.RuntimeId,
+                           targetId: dst.RuntimeId, amount: before,
+                           note: $"元素反应·镇（熄灭 {System.Math.Min(before, 2)} 层灼烧）");
+                return;
+            }
         }
         /// <summary>
         /// 击杀溢出转全队护盾：总量按**存活人数均分**，除不尽的余数给站得最前的那位。

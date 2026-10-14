@@ -89,6 +89,7 @@ namespace WanXiang.Battle.Core
         public const string Silence     = "silence";      // 沉默（不能放技能）—— 清明免疫它
         public const string Root        = "root";         // 根缚（不能行动）—— 蝮魇 / 蔓娘
         public const string Miasma      = "miasma";       // 瘴气（每层攻击 -3%）—— 魍魉
+        public const string Shock       = "shock";        // 感电（金+湿触发，可被再次引爆）
 
         // ---- 增益 ----
         public const string Qi          = "qi";           // 同气（相生相邻产出，每层 +2% 技能效果）
@@ -137,6 +138,11 @@ namespace WanXiang.Battle.Core
                 PreventsAction = true, Description = "被藤蔓缠住，本回合无法行动" },
             new StatusDef { Id = Miasma, Name = "瘴气", IsDebuff = true, MaxStacks = 10,
                 AttackDeltaPerStack = -0.03f, Description = "每层攻击 -3%（可叠，魍魉的瘴林）" },
+
+            // 元素反应链（2026-10-14）：金打湿触发感电。感电让目标受金/水属性伤害加深，
+            // 且"附感电"本身又是一次反应，可被后续金/水命中再次引爆（与湿互为引信）。
+            new StatusDef { Id = Shock, Name = "感电", IsDebuff = true, MaxStacks = 3,
+                DamageTakenDeltaPerStack = 0.06f, Description = "每层受金/水属性伤害 +6%（可被再次引爆）" },
 
             new StatusDef { Id = Qi, Name = "同气", IsDebuff = false, MaxStacks = 5,
                 Description = "相生相邻产出。每层 +2% 技能效果" },
