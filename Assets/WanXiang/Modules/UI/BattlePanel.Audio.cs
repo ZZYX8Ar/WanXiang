@@ -30,8 +30,6 @@ namespace WanXiang.Modules.UI
         /// </summary>
         private const int HeavyHitDamage = 160;
 
-        private string _lastSfxId;
-        private float _lastSfxTime = -99f;
         private bool _critPending;
 
         /// <summary>上一帧当前单位是否已元气满。用于只在"由不满变满"那一下播提示音（不能每帧都响）。</summary>
@@ -170,19 +168,12 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>
-        /// 播一条音效，带「同 id 最小间隔」节流。
-        /// 没有它，一次 AOE 会连发多条 Damage 事件，叠成一片噪音。
+        /// 播一条音效。节流逻辑已提到基类 <c>SfxThrottled</c>（地图面板也要用同一套），
+        /// 这里保留短名字只是为了战斗内的调用点读起来干净。
         /// </summary>
         private void Sfx(string id, float vol = 1f)
         {
-            if (string.IsNullOrEmpty(id)) return;
-
-            float now = Time.unscaledTime;
-            if (id == _lastSfxId && now - _lastSfxTime < SfxMinGap) return;
-
-            _lastSfxId = id;
-            _lastSfxTime = now;
-            AudioSystem.PlaySfx(id, vol);
+            SfxThrottled(id, vol, SfxMinGap);
         }
     }
 }

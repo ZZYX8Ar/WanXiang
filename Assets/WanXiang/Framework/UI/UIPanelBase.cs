@@ -555,6 +555,30 @@ namespace WanXiang.Framework.UI
             AudioSystem.PlaySfx("sfx_ui_btn_click");
         }
 
+        // ---- 业务面板通用的节流播放 ----
+        private string _lastSfxId;
+        private float _lastSfxTime = -99f;
+
+        /// <summary>
+        /// 播一条音效，带「同 id 最小间隔」节流。
+        ///
+        /// 为什么需要：一次群体技能会连发多条伤害事件、地图上连续点几个节点 ——
+        /// 不做节流就会叠成一团噪音（音效池只有 6 条，还会互相打断）。
+        ///
+        /// 默认间隔 0.05s；"每回合只该响一次"这类提示音可以传更大的 <paramref name="gap"/>。
+        /// </summary>
+        protected void SfxThrottled(string id, float vol = 1f, float gap = 0.05f)
+        {
+            if (string.IsNullOrEmpty(id)) return;
+
+            float now = Time.unscaledTime;
+            if (id == _lastSfxId && now - _lastSfxTime < gap) return;
+
+            _lastSfxId = id;
+            _lastSfxTime = now;
+            AudioSystem.PlaySfx(id, vol);
+        }
+
         /// <summary>面板真正销毁时把挂上去的监听摘掉（Cached 面板关闭时不销毁，所以不在这里清）。</summary>
         private void UnhookButtonSfx()
         {

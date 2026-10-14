@@ -205,7 +205,7 @@ namespace WanXiang.Modules.UI
                             Debug.Log("[Campaign] 瘴雾：通过节点 ， 剩余 " + prun.FogLeft + " 节" +
                                       (prun.FogLeft == 0 ? "（雾散）" : ""));
                         }
-                        if (prun.FogLeft == 0) { ShowFogBanner("雾散了，前路已非"); prun.FogTriggerNode = -1; }
+                        if (prun.FogLeft == 0) { ShowFogBanner("雾散了，前路已非"); SfxThrottled("sfx_map_fog_clear", 0.85f); prun.FogTriggerNode = -1; }
                     }
                     // ★ 节点真正「通过」（离开事件/战斗面板回地图落地）， 所有星移余气 -1（扣到负移除）。
                     //   推迟到此处而非「出征」点击，保证「进编队又返回」不算通过、星移仍可撤销
@@ -866,6 +866,11 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             _pendingAnim = false;
             _justPassedNode = -1;                        // 播完就消费掉（后续重绘不再重播）
 
+            // 音效：落印 + 墨线延伸（与下面两个循环的顺序一致 —— 先盖章，再画线）。
+            // 用节流播：一次通过可能带多个印章 / 多条边，不能每个都响一遍。
+            SfxThrottled("sfx_map_seal", 0.9f);
+            SfxThrottled("sfx_map_path_draw", 0.6f);
+
             for (int i = 0; i < _nodeItems.Count; i++)
             {
                 var it = _nodeItems[i];
@@ -1344,6 +1349,8 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             }
 
             _selected = offset;
+            // 玩家点选节点。silent=true 是程序化恢复视图（开面板/切幕），不该出声。
+            if (!silent) SfxThrottled("sfx_map_node_select");
             var kind = _graph.KindOf(offset);
             string term = TermName(_graph.Terms[offset]);
 
@@ -1826,6 +1833,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             }
 
             var kind = _graph.KindOf(_selected);
+            SfxThrottled("sfx_map_node_confirm");   // 确认前往（上面两处提前 return 的错误分支不会响）
 
             // 进度落盘：走到哪一节记在存档里，下次打开还在这一节
             var run = WanXiang.Run.RunSave.Current;
