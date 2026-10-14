@@ -48,6 +48,7 @@ namespace WanXiang.Battle.Presentation
         public SpriteRenderer Portrait;  // 异兽立绘
         public SpriteRenderer Slash;     // 元素色斜切背板
         public SpriteRenderer Mask;      // 背后变黑的遮罩（聚焦主体）
+        public SpriteRenderer[] Lines;   // 斜向速度线（柯南式斜切/高对比感）
         public TextMesh NameTm;          // 异兽名（LegacyRuntime 字体，支持中文）
         public TextMesh SkillTm;         // 终结技名
         public Vector3 CutInFrom;        // cut-in 入场起点（屏幕外）
@@ -90,6 +91,12 @@ namespace WanXiang.Battle.Presentation
         /// <summary>是否还有特效在播（诊断/自检用）。</summary>
         public bool Busy => _clips.Count > 0;
         public int ActiveCount => _clips.Count;
+
+        /// <summary>是否有 cut-in 头像特写正在播（大招特写期间伤害数字要押后飘，见 BattleStage2D）。</summary>
+        public bool CutInActive
+        {
+            get { for (int i = 0; i < _clips.Count; i++) if (_clips[i].Kind == SkillFxKind.CutIn) return true; return false; }
+        }
 
         /// <summary>按类型取着色器（CutIn 不用 shader，返回 null）。</summary>
         private Shader ShaderFor(SkillFxKind k)
@@ -253,6 +260,26 @@ namespace WanXiang.Battle.Presentation
             mask.sortingOrder = 450;
             maskGo.transform.localScale = new Vector3(halfW * 2.4f, halfH * 2.4f, 1f);
 
+            // ★ 斜向"速度线"（用户 2026-10-14：遮罩参考《名侦探柯南》那种斜切高对比感）。
+            //   几条元素色细长条斜着横贯全屏，配合压黑遮罩 → 有"案件开场"的凌厉感。
+            var linesGo = new GameObject("SpeedLines");
+            linesGo.transform.SetParent(go.transform, false);
+            linesGo.transform.position = new Vector3(camPos.x, camPos.y, portraitPos.z - 0.4f);
+            var lineSrs = new SpriteRenderer[3];
+            for (int li = 0; li < 3; li++)
+            {
+                var lg = new GameObject("Line" + li);
+                lg.transform.SetParent(linesGo.transform, false);
+                lg.transform.localRotation = Quaternion.Euler(0f, 0f, -19f);
+                lg.transform.localPosition = new Vector3((li - 1) * halfW * 0.35f, (li - 1) * halfH * 0.55f, 0f);
+                var lsr = lg.AddComponent<SpriteRenderer>();
+                lsr.sprite = _whiteSprite;
+                lsr.color = new Color(core.r, core.g, core.b, 0f);   // 透明度由 UpdateCutIn 驱动
+                lsr.sortingOrder = 505;
+                lg.transform.localScale = new Vector3(halfW * 3.0f, halfH * 0.032f, 1f);
+                lineSrs[li] = lsr;
+            }
+
             // 元素色斜切背板（立在立绘后面，给"卡片"感）
             var slashGo = new GameObject("Slash");
             slashGo.transform.SetParent(go.transform, false);
@@ -321,7 +348,7 @@ namespace WanXiang.Battle.Presentation
             var clip = new SkillFxClip
             {
                 Kind = SkillFxKind.CutIn, StartAt = _playStart, Dur = Mathf.Max(0.2f, dur),
-                Col = core, Go = go, Slash = slash, Mask = mask, NameTm = nameTm, SkillTm = skillTm,
+                Col = core, Go = go, Slash = slash, Mask = mask, NameTm = nameTm, SkillTm = skillTm, Lines = lineSrs,
                 CutInFrom = new Vector3(fromX, portraitPos.y, portraitPos.z),
                 CutInTo = portraitPos,
             };
@@ -500,6 +527,9 @@ namespace WanXiang.Battle.Presentation
                 // 背板呼吸高亮
                 if (c.Slash != null) c.Slash.color = new Color(c.Col.r, c.Col.g, c.Col.b, 0.45f + 0.18f * Mathf.Sin(k * Mathf.PI));
                 if (c.Mask != null) c.Mask.color = new Color(0f, 0f, 0f, 0.62f);
+                if (c.Lines != null)
+                    for (int i = 0; i < c.Lines.Length; i++)
+                        if (c.Lines[i] != null) c.Lines[i].color = new Color(c.Col.r, c.Col.g, c.Col.b, 0.4f);
                 return;
             }
             else
@@ -519,6 +549,9 @@ namespace WanXiang.Battle.Presentation
             if (c.NameTm != null)   { var cc = c.NameTm.color;   c.NameTm.color   = new Color(cc.r, cc.g, cc.b, alpha); }
             if (c.SkillTm != null)  { var cc = c.SkillTm.color;  c.SkillTm.color  = new Color(cc.r, cc.g, cc.b, alpha); }
             if (c.Mask != null)     c.Mask.color = new Color(0f, 0f, 0f, maskA * alpha);
+            if (c.Lines != null)
+                for (int i = 0; i < c.Lines.Length; i++)
+                    if (c.Lines[i] != null) c.Lines[i].color = new Color(c.Col.r, c.Col.g, c.Col.b, 0.4f * alpha);
         }
 
         private void Recycle(int i)

@@ -392,7 +392,8 @@ namespace WanXiang.Modules.UI
                 if (_hitStop < 0f) _hitStop = 0f;
                 sdt = 0f;                                  // 冻结：单位抖动/冲锋/下沉全停一拍
             }
-            _stage.Step(sdt);
+            // 舞台动画按倍速推进；但大招演出（cut-in/镜头）用**真实 dt**，不被倍速带快。
+            _stage.Step(sdt, sdt == 0f ? 0f : Time.deltaTime);
         }
 
         /// <summary>

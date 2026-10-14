@@ -369,6 +369,11 @@ namespace WanXiang.Battle.Presentation
         private string _actingId;
         private bool _critNext;        // 下一条伤害数字是否按暴击放大（Crit 事件先于 Damage 到）
 
+        // 大招特写期间押后的伤害反馈（cut-in 播完、起爆那一下再统一飘出来）
+        private struct PendDmg { public UnitView2D View; public int Amount; public bool Melt; public bool Crit; public Vector2 ActorHome; }
+        private readonly List<PendDmg> _pendingDmg = new List<PendDmg>(8);
+        private UnitView2D _pendingCritFloat;
+
         // ---- 四周前景装饰（2026-10-11 战斗美化：随幕变化 + 轻微摇曳）----
         private Transform _fgDecor;
         /// <summary>环境粒子（按幕：春花瓣/夏萤火/长夏花粉/秋落叶/冬雪花）。</summary>
@@ -451,6 +456,8 @@ namespace WanXiang.Battle.Presentation
             _tempTexts.Clear();
             _tempLife.Clear();
             _tempBaseScale.Clear();
+            _pendingDmg.Clear();
+            _pendingCritFloat = null;
             _state = null;
             _cam = null;
             _fgDecor = null;
@@ -827,9 +834,10 @@ namespace WanXiang.Battle.Presentation
             // P5R 式 cut-in：把该异兽的立绘 + 名字 + 终结技名传进去，先特写再特效
             var portrait = v.Body != null ? v.Body.sprite : null;
             var beastName = v.NameText != null ? v.NameText.text : null;
-            // ★ 冲锋等到"起爆"那一下才冲（否则特写期间就冲完 ⇒ 玩家看到"攻击完才出现冲击波"）
+            // ★ 冲锋等到"起爆"那一下才冲（否则特写期间就冲完 ⇒ 玩家看到"攻击完才出现冲击波"）；
+            //   同时把特写期间押后的伤害数字在这里补飘（用户 2026-10-14）。
             string a = actorId, t = targetId;
-            _skillFx.OnImpact = () => StartLunge(a, t);
+            _skillFx.OnImpact = () => { StartLunge(a, t); FlushPendingDmg(); };
             _skillFx.Play(v.Root.transform.position, actorId, col, isAwaken, portrait, beastName, skillName);
         }
 
@@ -1143,17 +1151,15 @@ namespace WanXiang.Battle.Presentation
                     if (e.TargetId != null && _views.TryGetValue(e.TargetId, out var hit))
                     {
                         bool crit = _critNext; _critNext = false;
-                        SpawnDamageNumber(hit, e.Amount, e.Note != null && e.Note.Contains("融冰"), crit);
-                        hit.Body.color = Color.white;      // 受击白闪（HitFlash 在 Step 里衰减回基色）
-                        hit.HitFlash = 0.10f;
-                        hit.ShakePulse = 0.16f;
-                        // 受击方向小踹一脚（打击"推力"感，衰减快）
-                        if (e.ActorId != null && _views.TryGetValue(e.ActorId, out var atk))
-                        {
-                            Vector2 dir = hit.HomePos - atk.HomePos;
-                            if (dir.sqrMagnitude > 0.0001f) hit.KickVec = dir.normalized * 0.22f;
-                            hit.KickT = 0.12f;
-                        }
+                        Vector2 actorHome = hit.HomePos;
+                        if (e.ActorId != null && _views.TryGetValue(e.ActorId, out var atk)) actorHome = atk.HomePos;
+                        bool melt = e.Note != null && e.Note.Contains("融冰");
+                        // ★ 大招 cut-in 正在播 → 伤害数字押后到"起爆"那一下再飘（用户 2026-10-14：
+                        //   否则伤害在特写期间就飘完/被盖住，看着像"没伤害"）
+                        if (_skillFx != null && _skillFx.CutInActive)
+                            _pendingDmg.Add(new PendDmg { View = hit, Amount = e.Amount, Melt = melt, Crit = crit, ActorHome = actorHome });
+                        else
+                            ApplyDamageVisual(hit, e.Amount, melt, crit, actorHome);
                     }
                     break;
 
@@ -1179,7 +1185,9 @@ namespace WanXiang.Battle.Presentation
                     if (e.TargetId != null && _views.TryGetValue(e.TargetId, out var cv))
                     {
                         cv.Body.color = new Color(1f, 0.35f, 0.28f);
-                        SpawnNumber(cv, "暴击!", new Color(1f, 0.85f, 0.35f));
+                        // 大招特写期间押后（和伤害数字一起在起爆那下飘）
+                        if (_skillFx != null && _skillFx.CutInActive) _pendingCritFloat = cv;
+                        else SpawnNumber(cv, "暴击!", new Color(1f, 0.85f, 0.35f));
                     }
                     break;
 
@@ -1202,8 +1210,11 @@ namespace WanXiang.Battle.Presentation
             }
         }
 
-        public void Step(float dt)
+        /// <param name="dt">舞台动画步长（含倍速缩放——单位抖动/冲锋等随倍速变快是对的）。</param>
+        /// <param name="fxDt">大招演出的步长（**不含倍速**——用户 2026-10-14：释放速度跟几倍速没关系，cut-in 别被 ×4 一闪而过）。&lt;0 表示同 dt。</param>
+        public void Step(float dt, float fxDt = -1f)
         {
+            if (fxDt < 0f) fxDt = dt;
             // 舞台自己的动画时钟：由 dt 累加（**不用 `Time.time`**）——
             // 这样表现层动画与"推进了多少帧"严格对应，编辑器里连调 Step 也能被验证到。
             _animT += dt;
@@ -1218,10 +1229,10 @@ namespace WanXiang.Battle.Presentation
             // 环境粒子（同一动画时钟，别用 Time.time）
             if (_ambient != null) _ambient.Step(dt);
 
-            // 终结技 / 觉醒技 特效 + 镜头震动（同一时钟）
-            if (_skillFx != null) _skillFx.Step(dt);
-            StepShake(dt);
-            StepZoom(dt);
+            // 终结技 / 觉醒技 特效 + 镜头震动（用 **fxDt，不含倍速** —— cut-in 不被倍速带快）
+            if (_skillFx != null) _skillFx.Step(fxDt);
+            StepShake(fxDt);
+            StepZoom(fxDt);
 
             foreach (var v in _views.Values)
             {
@@ -1353,6 +1364,35 @@ namespace WanXiang.Battle.Presentation
         private void SpawnNumber(UnitView2D v, string text, Color color)
         {
             SpawnNumberInternal(v, text, color, 1f);
+        }
+
+        /// <summary>一次受击的视觉反馈：飘伤害数字 + 白闪 + 沿受击方向踹一脚。</summary>
+        private void ApplyDamageVisual(UnitView2D target, int amount, bool isMelt, bool crit, Vector2 actorHome)
+        {
+            if (target == null) return;
+            SpawnDamageNumber(target, amount, isMelt, crit);
+            target.Body.color = Color.white;      // 受击白闪（HitFlash 在 Step 里衰减回基色）
+            target.HitFlash = 0.10f;
+            target.ShakePulse = 0.16f;
+            Vector2 dir = target.HomePos - actorHome;
+            if (dir.sqrMagnitude > 0.0001f) target.KickVec = dir.normalized * 0.22f;
+            target.KickT = 0.12f;
+        }
+
+        /// <summary>大招特写结束后，把押后的伤害/暴击反馈一次性补出来（起爆那一下）。</summary>
+        private void FlushPendingDmg()
+        {
+            if (_pendingCritFloat != null)
+            {
+                SpawnNumber(_pendingCritFloat, "暴击!", new Color(1f, 0.85f, 0.35f));
+                _pendingCritFloat = null;
+            }
+            for (int i = 0; i < _pendingDmg.Count; i++)
+            {
+                var p = _pendingDmg[i];
+                ApplyDamageVisual(p.View, p.Amount, p.Melt, p.Crit, p.ActorHome);
+            }
+            _pendingDmg.Clear();
         }
 
         private void SpawnDamageNumber(UnitView2D v, int amount, bool isMelt, bool crit)
