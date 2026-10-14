@@ -304,6 +304,7 @@ namespace WanXiang.Modules.UI
             }
             if (meta.Ink < cost)
             {
+                SfxThrottled("sfx_ui_currency_lack");
                 Dialog.Tip("墨铊不足",
                     "升级「" + b.DisplayName + "」需要 " + cost + " 墨铊，你现在只有 " + meta.Ink + "。\n" +
                     "墨铊来自每局结算与战斗胜利。").Forget();
@@ -313,6 +314,7 @@ namespace WanXiang.Modules.UI
             meta.Ink -= cost;
             SetLevel(b.Id, lv + 1);
             WanXiang.Meta.MetaStore.Save();
+            SfxThrottled("sfx_ui_level_up");
             Debug.Log("[MetaPanel] 升级 " + b.Id + " → Lv." + (lv + 1) + "（墨铊剩 " + meta.Ink + "）");
             Refresh();
         }

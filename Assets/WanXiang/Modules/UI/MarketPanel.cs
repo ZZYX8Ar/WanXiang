@@ -107,10 +107,12 @@ namespace WanXiang.Modules.UI
                 if (run.Eggs < 1)
                 {
                     if (_tmpHint != null) _tmpHint.text = "灵卵不足，刷不动货架了";
+                    SfxThrottled("sfx_ui_currency_lack");
                     return;
                 }
                 run.Eggs -= 1;
                 _refreshCount++;
+                SfxThrottled("sfx_ui_reroll");   // 只有付费刷新才响（进面板时的免费摇货不响）
             }
 
             var all = _contentCatalog != null ? ContentLibrary.BuildBeasts(_contentCatalog) : null;
@@ -396,6 +398,7 @@ namespace WanXiang.Modules.UI
             if (run.Eggs < g.Price)
             {
                 if (_tmpHint != null) _tmpHint.text = "灵卵不够（需要 " + g.Price + "）";
+                SfxThrottled("sfx_ui_currency_lack");
                 return;
             }
 
@@ -407,6 +410,7 @@ namespace WanXiang.Modules.UI
                 run.Souls.Add(g.Beast.Id);
                 g.Sold = true;
                 WanXiang.Run.RunSave.SaveCurrent();
+                SfxThrottled("sfx_ui_buy");
                 if (_tmpHint != null)
                     _tmpHint.text = "已购入 " + g.Beast.DisplayName + " 之魂（现有 " + run.Souls.Count +
                                     " 个）—— 铸魂台可用";
@@ -424,6 +428,7 @@ namespace WanXiang.Modules.UI
             if (!run.Collection.Contains(g.Beast.Id)) run.Collection.Add(g.Beast.Id);  // ★ 异兽唯一，不重复购买
             g.Sold = true;
             WanXiang.Run.RunSave.SaveCurrent();
+            SfxThrottled("sfx_ui_buy");
 
             if (_tmpHint != null)
                 _tmpHint.text = g.Beast.DisplayName + " 已收入图鉴（当前拥有 " + run.Collection.Count +

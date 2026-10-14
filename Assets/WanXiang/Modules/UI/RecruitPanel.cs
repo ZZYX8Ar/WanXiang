@@ -225,6 +225,7 @@ namespace WanXiang.Modules.UI
             if (_picked.Contains(beast.Id))
             {
                 _picked.Remove(beast.Id);
+                SfxThrottled("sfx_ui_card_drop");     // 下阵 / 取消选中
             }
             else
             {
@@ -232,6 +233,7 @@ namespace WanXiang.Modules.UI
                 //   双击超过上限 → 自动取消最开始选择的，被双击的选上）。选择数永不超 _limit。
                 if (_picked.Count >= _limit) _picked.RemoveAt(0);
                 _picked.Add(beast.Id);
+                SfxThrottled("sfx_ui_card_pickup");   // 上阵 / 选中
             }
             RepaintSelection();
             RefreshDetail();
@@ -343,6 +345,7 @@ namespace WanXiang.Modules.UI
                 _refreshUsed = true;
                 if (_tmpEggCost != null) _tmpEggCost.text = "刷新：" + RefreshEggCost + " 灵卵";
                 Reroll();
+                SfxThrottled("sfx_ui_reroll");
                 RefreshHeader();
                 return;
             }
@@ -351,11 +354,13 @@ namespace WanXiang.Modules.UI
                 run.Eggs -= RefreshEggCost;
                 WanXiang.Run.RunSave.SaveCurrent();
                 Reroll();
+                SfxThrottled("sfx_ui_reroll");
                 RefreshHeader();
             }
             else if (_tmpHint != null)
             {
                 _tmpHint.text = "灵卵不足，无法刷新（需 " + RefreshEggCost + " 灵卵）。";
+                SfxThrottled("sfx_ui_currency_lack");
             }
         }
 

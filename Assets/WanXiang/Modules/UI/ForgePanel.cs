@@ -340,6 +340,7 @@ namespace WanXiang.Modules.UI
             if (run.Eggs < FuseCost)
             {
                 SetHint("灵卵不足：熔炼需要 " + FuseCost + " 枚（当前 " + run.Eggs + "）");
+                SfxThrottled("sfx_ui_currency_lack");
                 return;
             }
 
@@ -363,6 +364,7 @@ namespace WanXiang.Modules.UI
 
             if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
             SetHint("熔炼完成：" + fused.DisplayName + " 诞生了！（灵卵 -" + FuseCost + "）");
+            SfxThrottled("sfx_ui_relic_get");   // 融合是"造出一只新兽"，用最厚重的那档获得音
             Fill();      // 重灌：队伍已变化
         }
 
