@@ -174,6 +174,26 @@ namespace WanXiang.Framework.UI
             }
         }
 
+        /// <summary>
+        /// **彩排期间把整个面板藏起来**（UISystem.GhostOpenCloseAsync 内部用）。
+        ///
+        /// ⚠ 为什么要它：GhostSilent 只保证"不播音/不写档"，面板是**真的打开并渲染**的。
+        ///   彩排若发生在屏幕已露出来之后（转场播完 → 玩家正看着主界面），
+        ///   玩家就会看到面板闪一下（用户实测：进主界面时"闪了一下节点地图"）。
+        ///
+        /// ⚠ 用 alpha=0 而不是 SetActive(false)：SetActive 关掉对象就不渲染，
+        ///   "内容首帧渲染 + 贴图上传"这个最贵的帧不会发生 ⇒ 预热白做。
+        ///   alpha=0 时布局、Canvas 重建、贴图上传照跑（成本烘热），只是看不见。
+        /// </summary>
+        internal void SetGhostInvisible(bool invisible)
+        {
+            var cg = CanvasGroup;
+            if (cg == null) return;
+            cg.alpha = invisible ? 0f : 1f;
+            cg.interactable = !invisible;
+            cg.blocksRaycasts = !invisible;
+        }
+
         // ==================================================================
         //  框架内部调用（业务不要调用这些）
         // ==================================================================

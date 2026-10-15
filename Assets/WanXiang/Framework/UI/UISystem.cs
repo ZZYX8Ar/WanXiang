@@ -261,17 +261,27 @@ namespace WanXiang.Framework.UI
                 (panel.State != UIPanelState.Created && panel.State != UIPanelState.Closed)) return;
 
             UIPanelBase.GhostSilent = true;
-            try
-            {
-                var opened = await OpenInternalAsync(typeof(T), null);
-                // 留 3 帧：让"内容首帧渲染 + 贴图上传"那个最重的帧真正跑完
-                await UniTask.DelayFrame(3);
-                if (opened != null) Close(opened);
-            }
-            finally
-            {
-                UIPanelBase.GhostSilent = false;
-            }
+        try
+        {
+        var opened = await OpenInternalAsync(typeof(T), null);
+      // ⚠ 彩排期间把面板藏起来：GhostSilent 只管"不播音/不写档"，面板是真打开且**会渲染**的。
+            //   转场遮盖期之外调用时玩家会看到面板闪一下（用户实测：进主界面闪节点地图）。
+        //   alpha=0 而非 SetActive(false)：后者不渲染，"首帧渲染 + 贴图上传"不发生 ⇒ 预热白做。
+      if (opened != null) opened.SetGhostInvisible(true);
+            // 留 3 帧：让"内容首帧渲染 + 贴图上传"那个最重的帧真正跑完
+  await UniTask.DelayFrame(3);
+       if (opened != null)
+       {
+        // ⛔ 必须先恢复 alpha 再 Close：面板是缓存复用的（Cached 策略不销毁），
+          //   alpha 留 0 的话玩家第一次真打开会看到**空面板**。InternalClose 不管 alpha。
+        opened.SetGhostInvisible(false);
+     Close(opened);
+     }
+    }
+        finally
+        {
+   UIPanelBase.GhostSilent = false;
+        }
         }
 
         public void Close<T>() where T : UIPanelBase

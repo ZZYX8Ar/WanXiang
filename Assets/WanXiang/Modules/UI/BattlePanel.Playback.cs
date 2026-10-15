@@ -386,7 +386,9 @@ namespace WanXiang.Modules.UI
             // ⚠⚠ 必须同时判"不在等令"：`BattlePlayback.Step()` 在等令状态下会**返回 true 却不推进**
             //   （它把"在等玩家下令"也当作"还有事没做完"）， 只看 StepOnce() 会**无限空转**，
             //   表现就是"操作区再也不出现、战斗冻结"（实测：面板游标涨到 463667，核心一步没走）。
-            while (!_play.AwaitingCommand && StepOnce())
+            // ⛔ 同样必须排除 AwaitingParry（与上面同一根因）：Step() 在等格挡窗口时也返回 true
+            //   却不推进，不排除就是又一个无限空转。
+            while (!_play.AwaitingCommand && !_play.AwaitingParry && StepOnce())
             {
                 if (++n % 8 == 0) await UniTask.Yield(PlayerLoopTiming.Update, ct);
                 if (n > 200000) { Debug.LogWarning("[BattlePanel] DrainRest 步数异常，强制退出"); break; }

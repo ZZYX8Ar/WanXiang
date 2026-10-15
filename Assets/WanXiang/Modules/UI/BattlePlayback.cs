@@ -249,7 +249,16 @@ namespace WanXiang.Modules.UI
                 if (_awaiting || _awaitingParry) return true;   // 等令 / 等格挡 → 停住（UI 看 Awaiting*）
                 if (_simDone) return false;      // 模拟跑完 → 真正结束
                 AdvanceSim();                    // 否则继续跑下一段
-                if (_eventIndex + 1 >= State.Log.Count) return _awaiting && !_simDone;
+                // ⛔⛔ 这里**必须同时判 _awaitingParry**（用户实测卡死 + 误判战败）：
+                //   AdvanceSim 推进后可能挂起一个「多段连击的第 2/N 段格挡窗口」——
+                //   模拟层 yield 完这一段**不产生任何事件**，所以 Log.Count 没变、
+                //   仍走进这个 if。此处只判 `_awaiting` 就会返回 false，
+                //   上层 PlayLoop 的 `if (!StepOnce()) break;` 直接跳出回放循环
+                //   ⇒ 战斗在第 1 回合中途被当成打完 ⇒ FinishAndLeave 用 Ongoing 补判
+                //   ⇒ 我方存活 5 / 敌方存活 4 却报"战斗失败"（用户实测截图）。
+                //   实测日志：素刃「第1/2段」有判定日志、第 2 段日志完全没有，直接进结算。
+                if (_eventIndex + 1 >= State.Log.Count)
+                    return (_awaiting || _awaitingParry) && !_simDone;
             }
 
             _eventIndex++;
