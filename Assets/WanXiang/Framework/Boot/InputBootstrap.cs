@@ -84,16 +84,19 @@ namespace WanXiang.Framework.Boot
                 return;
             }
 
-            var asset = ResolveAsset();
+var asset = ResolveAsset();
             if (asset == null)
-            {
-                Debug.LogError(
-                    "[输入] 找不到输入资产。请先用菜单「万相/输入/生成输入资产」生成，\n" +
-                    "然后拖到 InputBootstrap 的 Asset 字段上；\n" +
-                    "或把生成好的 .inputactions 放到 Resources/" + _resourcesFallbackPath + "。\n" +
-                    "输入系统未启动，所有输入相关的功能都不会响应。");
+        {
+     Debug.LogError(
+         "[输入] 找不到输入资产。\n" +
+    "· 工程里没有 .inputactions —— 用菜单「万相/输入/生成输入资产」生成一个；\n" +
+         "· 若工程里已有（Assets/ArtRes/Input/WanXiang.inputactions），" +
+        "说明它没被导入成 InputActionAsset，检查该文件的 .meta / ScriptedImporter 是否完好；\n" +
+  "· 也可把资产拖到场景里 [InputBootstrap] 的 Asset 字段上，" +
+    "或放到 Resources/" + _resourcesFallbackPath + "。\n" +
+ "⛔ 未启动的后果：EventSystem 不会被创建，UI 全部点不动。");
                 return;
-            }
+          }
 
             if (_dontDestroyOnLoad)
             {
@@ -128,12 +131,48 @@ namespace WanXiang.Framework.Boot
         private InputActionAsset ResolveAsset()
         {
             if (_asset != null) return _asset;
+
+            // ⚠ 编辑器兜底：代码 AddComponent 建的实例拿不到序列化字段
+            //   （[SerializeField] 只在 Inspector 赋值时才有值），于是只能走
+            //   Resources 回退 —— 而 .inputactions 在 Assets/ArtRes/Input/ 下，
+            //   不在 Resources 里，这条路必然失败。
+            //   症状：单独 Play 战斗场景时报「找不到输入资产」，
+            //   而后 Awake 在这里 return，SetupEventSystem 被跳过 ⇒ EventSystem
+            //   不存在 ⇒ 战斗 UI 一个按钮都点不动。
+            var scanned = ScanEditorAsset();
+            if (scanned != null) return scanned;
+
             if (string.IsNullOrEmpty(_resourcesFallbackPath)) return null;
 
             // ⚠ 从 Resources 加载会让资产被打进包体、且无法热更。
             //   这是原型期的临时手段，P4 接入 YooAsset 后应当改成
             //   「由资源系统加载后注入」，别把这条路带到正式版。
             return Resources.Load<InputActionAsset>(_resourcesFallbackPath);
+        }
+
+        /// <summary>
+        /// 编辑器下在工程里找 .inputactions（找不到才返回 null）。
+        ///
+        /// 为什么扫全工程而不是硬编码路径：
+        ///   资产路径（Assets/ArtRes/Input/WanXiang.inputactions）是生成器
+        ///   决定的，改目录就会静默失效 —— 而失效表现为「UI 点不动」，
+        ///   没有任何线索指向路径。所以按扩展名扫，认得出资产就行。
+        ///
+        /// ⛔ 只在编辑器下编译：运行时（本机/移动端）没有 AssetDatabase，
+        ///   那条路走不通，仍靠 _asset 字段或 Resources。
+        /// </summary>
+        private static InputActionAsset ScanEditorAsset()
+        {
+#if UNITY_EDITOR
+            var guids = UnityEditor.AssetDatabase.FindAssets("t:InputActionAsset");
+            foreach (var guid in guids)
+            {
+                var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<InputActionAsset>(path);
+                if (asset != null) return asset;
+            }
+#endif
+            return null;
         }
 
         /// <summary>
