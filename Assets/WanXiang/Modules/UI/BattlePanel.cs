@@ -78,7 +78,15 @@ namespace WanXiang.Modules.UI
         private bool _playing;      // 回放中（控制舞台是否逐帧推进）
         private float _hitStop;     // 命中顿帧剩余时间（>0 时冻结舞台动画，制造打击"顿"感）
         private const float HitStopSec = 0.055f;   // 命中/暴击顿帧时长（受倍速缩放）
-        private bool _actionEnabled = true;        // 技能/连携按钮当前是否可点（每帧兜底：非我方决策点就置灰）
+                private bool _actionEnabled = true;        // 技能/连携按钮当前是否可点（每帧兜底：非我方决策点就置灰）
+        /// <summary>
+        /// 回放闸：置 true 后 <see cref="PlayLoop"/> 原地停下（不推进模拟、不播事件），
+        /// 用于「重新挑战」的确认框期间冻结战场。
+        /// ★ 用户 2026-10-15 要求："点击的时候战斗应该停止" ——
+        ///   原来等确认框期间战斗照跑（自动战斗更快），等点确定时仗已经打完
+        ///   ⇒ Outcome != Ongoing 提前 return ⇒ 按钮点了没反应、面板关不掉（实测报障）。
+        /// </summary>
+        private bool _halted;
 
         // ---- 战斗场景模式（单位由 BattleStage2D 渲染，本面板只当 HUD）----
         private bool _sceneMode;
@@ -355,7 +363,9 @@ namespace WanXiang.Modules.UI
             UpdateUnitStatusHover();
 
             if (!_playing) return;
-            if (State != UIPanelState.Opened) return;      // 被上层盖住/暂停时不推进
+            // ★ 回放闸：冻结期间也不推进舞台动画/按钮刷新（战场要真的"停住"，用户 2026-10-15）。
+      if (_halted) return;
+      if (State != UIPanelState.Opened) return;      // 被上层盖住/暂停时不推进
 
             // ★ 每帧兜底按钮状态（**不分场景/非场景模式**）：
             //   只有"等我方下令 + 回合始结算事件已播完"才给点（CanCommandNow），否则置灰。
@@ -526,34 +536,50 @@ namespace WanXiang.Modules.UI
             }
         }
 
-        private async void OnLeaveClicked()
+      private async void OnLeaveClicked()
         {
-            // ★ 重新挑战前先确认（用户 2026-09-29 要求）：避免误触直接退出本场。
-            bool ok = await Dialog.Confirm("重新挑战",
-                "放弃本场战斗，回到编队界面重新布阵重新打？\n（不结算、不记败、不处理阵亡）");
-            if (!ok) return;   // 取消 = 留在战斗里继续打
+      // ★★ 第一步就冻结战场（用户 2026-10-15："点击的时候战斗应该停止"）。
+        //   为什么必须先冻结：原来先弹确认框、战斗照跑 —— 自动战斗下等玩家点"确定"时
+        //   仗早打完，Outcome != Ongoing ⇒ 下面 early-return ⇒ 按钮点了没反应、
+        //   战斗面板永远挂在节点地图上关不掉（用户实测截图：确认框浮在节点地图上）。
+   //   冻结后仗不会自己结束，early-return 那条路也就不会再误触。
+     _halted = true;
+ bool ok = false;
+     try
+       {
+    // ★ 重新挑战前先确认（用户 2026-09-29 要求）：避免误触直接退出本场。
+            ok = await Dialog.Confirm("重新挑战",
+      "放弃本场战斗，回到编队界面重新布阵重新打？\n（不结算、不记败、不处理阵亡）");
+     }
+   finally
+    {
+       // 无论确认框怎么结束（确认/取消/异常）都要解冻，否则取消后战斗永远冻住。
+    //   ⚠ 必须在这里解，而不是在分支里：取消路径也必须恢复可打（用户实测报障）。
+       if (!ok) _halted = false;
+        }
+  if (!ok) return;   // 取消 = 留在战斗里继续打（已解冻）
 
-            // ★ 对话框停留期间战斗可能已自动结束（自动战斗 / 平局）→ 交给正常结算流程，
-            //   不再重复切场景（重复 ExitBattle 会触发 MainSceneEntry 重入的栈重算坑）。
-            if (_play != null && _play.State != null && _play.State.Outcome != BattleOutcome.Ongoing)
-                return;
+            // 冻结期间 Outcome 不可能变（战斗没推进），所以这里可以安全地重入。
+            // 若面板已被别处关闭（战斗在确认框期间被结算接管），就别抢流程。
+            if (_play == null || _play.State == null) return;
+            if (_play.State.Outcome != BattleOutcome.Ongoing) { _halted = false; return; }
 
-            // ★ 重新挑战（用户 2026-09-29 要求）：放弃本场，回编队界面重新布阵重新打。
-            //   不结算、不记败、不处理阵亡（RunState.Team 本就未被本场修改，死兽仍在队伍里）。
-            if (_tmpLog != null) _tmpLog.text = "重新挑战";
-            CloseSelf();
-            var node = SceneFlow.PendingBattleNode;
-            if (node != null && !SceneFlow.LastWasPvp)
-            {
-                // 标记重挑战：主城入口（MainSceneEntry）会直接打开编队界面（叠在节点地图之上）
-                SceneFlow.PendingRechallengeNode = node;
+      // ★ 重新挑战（用户 2026-09-29 要求）：放弃本场，回编队界面重新布阵重新打。
+ //   不结算、不记败、不处理阵亡（RunState.Team 本就未被本场修改，死兽仍在队伍里）。
+    if (_tmpLog != null) _tmpLog.text = "重新挑战";
+            CloseSelf();       // 关闭会取消 PanelToken ⇒ PlayLoop 被中止（RunTaskInternal 捕获 OperationCanceledException）
+   var node = SceneFlow.PendingBattleNode;
+          if (node != null && !SceneFlow.LastWasPvp)
+      {
+            // 标记重挑战：主城入口（MainSceneEntry）会直接打开编队界面（叠在节点地图之上）
+      SceneFlow.PendingRechallengeNode = node;
                 SceneFlow.ExitBattle(null);   // 回主城（不带结算）→ MainSceneEntry 接管
-            }
-            else
-            {
-                // PvP / 试炼等无节点战斗：直接回主城
-                SceneFlow.ExitBattle(null);
-            }
+      }
+    else
+   {
+   // PvP / 试炼等无节点战斗：直接回主城
+   SceneFlow.ExitBattle(null);
+        }
         }
 
         // ================================================================

@@ -184,14 +184,30 @@ namespace WanXiang.Framework.UI
         /// ⚠ 用 alpha=0 而不是 SetActive(false)：SetActive 关掉对象就不渲染，
         ///   "内容首帧渲染 + 贴图上传"这个最贵的帧不会发生 ⇒ 预热白做。
         ///   alpha=0 时布局、Canvas 重建、贴图上传照跑（成本烘热），只是看不见。
+        ///
+        /// ⚠⚠ **必须在 SetActive(true) 的同一帧就设好**，不能等打开流程 await 完再设
+        ///   （用户实测：这样仍会闪一下）。
+        ///   InternalOpenAsync 里是 SetActive(true) → await OnOpenAsync(...)，
+        ///   那个 await 已经让出一帧、画面已经画出来了 ⇒ 补设 alpha 晚了整整一帧。
+        ///   所以彩排要**先置 <see cref="_ghostHidden"/>**，由 InternalOpenAsync 在
+        ///   SetActive(true) 之后立刻应用。
         /// </summary>
         internal void SetGhostInvisible(bool invisible)
         {
+            _ghostHidden = invisible;
+            ApplyGhostVisibility();
+        }
+
+        /// <summary>彩排藏身标记。由 InternalOpenAsync 在激活后立刻检查。</summary>
+        private bool _ghostHidden;
+
+        private void ApplyGhostVisibility()
+        {
             var cg = CanvasGroup;
             if (cg == null) return;
-            cg.alpha = invisible ? 0f : 1f;
-            cg.interactable = !invisible;
-            cg.blocksRaycasts = !invisible;
+            cg.alpha = _ghostHidden ? 0f : 1f;
+            cg.interactable = !_ghostHidden;
+            cg.blocksRaycasts = !_ghostHidden;
         }
 
         // ==================================================================
@@ -232,10 +248,16 @@ namespace WanXiang.Framework.UI
 
         internal async UniTask InternalOpenAsync(object payload, int openSequence)
         {
-            OpenSequence = openSequence;
-            Payload = payload;
-            gameObject.SetActive(true);
-            SetInteractive(true);
+OpenSequence = openSequence;
+     Payload = payload;
+      gameObject.SetActive(true);
+      SetInteractive(true);
+         // ⚠ 彩排预隐必须在**这一帧**就应用，不能等下面的 await（用户实测：补设仍闪一下）。
+        //InternalOpenAsync 是 SetActive(true) → await OnOpenAsync(...)，
+        //   那个 await 已经让出一帧、画面已经画出来了。
+      //   ⛔ 顺序：必须在 SetInteractive 之后 —— 它会把 interactable/blocksRaycasts 改回 true，
+        //   那样就把彩排的"关射线"覆盖掉了。
+        if (_ghostHidden) ApplyGhostVisibility();
 
             // 音乐先起，不等 OnOpenAsync 里的加载/网络 —— 界面一露脸就该有氛围。
             // （AudioSystem.PlayMusic 对"同一首正在播"会直接返回，不会重启，重复调用是安全的）

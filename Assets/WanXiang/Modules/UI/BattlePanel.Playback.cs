@@ -93,8 +93,17 @@ namespace WanXiang.Modules.UI
 
             int guard = 0;
             while (!_play.Finished)
-            {
-                // ⛔ 此处**不再**有任何 Boss 机制提示的刷新逻辑：提示已改由战场表现层
+        {
+     // ★ 回放闸（重新挑战确认框期间）：原地等，不推进、不退出。
+                //   放在 while 最开头—— 任何分支都要先过这一关，否则确认框期间战斗照跑，
+                //   自动战斗点确定时仗已打完 ⇒ 提前 return ⇒ 面板关不掉（用户实测报障）。
+          if (_halted)
+           {
+        guard = 0;
+             await UniTask.Yield(PlayerLoopTiming.Update, ct);
+      continue;
+           }
+    // ⛔ 此处**不再**有任何 Boss 机制提示的刷新逻辑：提示已改由战场表现层
                 //   （BattleStage2D）画成单位头顶的**世界空间文字**，内容随帧流（UnitSnapshot.StateHint）更新。
                 //   历次踩坑：① 曾写进 _tipText —— 那是【技能/连携 tooltip】的控件，会互相覆盖，
                 //   且 _tipPanel 默认隐藏 ， 根本看不见；② 曾想每帧读 _play.State 的单位取 StateHint ——
