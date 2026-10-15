@@ -532,6 +532,111 @@ namespace WanXiang.Battle.Presentation
             if (_parryTarget != null) _parryTarget.enabled = false;
         }
 
+        // ================================================================
+        //  格挡成功「爆闪」（2026-10-15 用户："格挡成功的反馈我好像没有怎么体会到"）
+        //  ----------------------------------------------------------------
+        //  之前格挡成功只有：① 头顶飘"完美格挡!"小字 ② 轻微震屏。玩家说"没体会到"。
+        //  现在在下场者（被格挡的攻击者）身上炸一圈**扩散光环 + 中心闪光**：
+        //    · 完美档：金色大光环 + 双环 + 白闪，扩得大、留得久
+        //    · 普通档：青白小环，快收
+        //  ⚠ 由 Step(dt) 推进 —— dt=0（顿帧）时也会停住，那正是"顿"手感的一部分。
+        // ================================================================
+        private sealed class ParryBurst
+        {
+            public SpriteRenderer Sr;
+            public float T, Dur, R0, R1;
+            public Color C;
+        }
+        private readonly List<ParryBurst> _parryBursts = new List<ParryBurst>(4);
+        private static Sprite _parryDiscSprite;   // 实心圆盘（中心闪光）
+
+        /// <summary>
+        /// 格挡成功爆闪。grade：0=未挡（不爆）/1=普通/2=完美。
+        /// </summary>
+        public void ParryImpact(string unitId, int grade)
+        {
+            if (grade <= 0 || string.IsNullOrEmpty(unitId) || _views == null) return;
+            UnitView2D v;
+            if (!_views.TryGetValue(unitId, out v) || v == null || v.Root == null) return;
+
+            Vector3 p = v.Root.transform.position + new Vector3(0f, 0.9f, -0.6f);
+            bool perfect = grade >= 2;
+            EnsureParryRings();
+            if (_parryRingSprite == null) _parryRingSprite = BuildRingSprite(128, 6);
+            if (_parryDiscSprite == null) _parryDiscSprite = BuildDiscSprite(96);
+
+            if (perfect)
+            {
+                // 完美：外圈金环（扩得大）+ 内圈白环（快）+ 中心闪光
+                SpawnBurst(p, _parryRingSprite, new Color(1f, 0.84f, 0.38f, 0.95f), 0.35f, 3.1f, 0.42f, 30);
+                SpawnBurst(p, _parryRingSprite, new Color(1f, 1f, 0.94f, 0.90f), 0.25f, 1.9f, 0.26f, 31);
+                SpawnBurst(p, _parryDiscSprite, new Color(1f, 0.96f, 0.80f, 0.75f), 0.30f, 1.35f, 0.20f, 29);
+            }
+            else
+            {
+                // 普通：一圈青白环
+                SpawnBurst(p, _parryRingSprite, new Color(0.72f, 0.92f, 1f, 0.85f), 0.25f, 1.7f, 0.28f, 30);
+            }
+        }
+
+        private void SpawnBurst(Vector3 pos, Sprite sp, Color c, float r0, float r1, float dur, int order)
+        {
+            var go = new GameObject("ParryBurst");
+            go.transform.SetParent(transform, false);
+            go.transform.position = pos;
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = sp;
+            sr.sortingOrder = order;
+            sr.color = c;
+            _parryBursts.Add(new ParryBurst { Sr = sr, T = 0f, Dur = dur, R0 = r0, R1 = r1, C = c });
+        }
+
+        private void StepParryBursts(float dt)
+        {
+            for (int i = _parryBursts.Count - 1; i >= 0; i--)
+            {
+                var b = _parryBursts[i];
+                if (b.Sr == null) { _parryBursts.RemoveAt(i); continue; }
+                b.T += dt;
+                float k = Mathf.Clamp01(b.T / b.Dur);
+                // 半径：快出慢收（1-(1-k)^2）
+                float e = 1f - (1f - k) * (1f - k);
+                float r = Mathf.Lerp(b.R0, b.R1, e);
+                b.Sr.transform.localScale = new Vector3(r, r, 1f);
+                var c = b.C;
+                b.Sr.color = new Color(c.r, c.g, c.b, c.a * (1f - k));
+                if (k >= 1f)
+                {
+                    Destroy(b.Sr.gameObject);
+                    _parryBursts.RemoveAt(i);
+                }
+            }
+        }
+
+        /// <summary>程序化**实心圆盘**贴图（中心亮、边缘衰减；格挡中心闪光用）。</summary>
+        private static Sprite BuildDiscSprite(int size)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var px = new Color[size * size];
+            float c = (size - 1) * 0.5f;
+            float r = size * 0.5f;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - c, dy = y - c;
+                float d = Mathf.Sqrt(dx * dx + dy * dy) / r;
+                float a = Mathf.Clamp01(1f - d);
+                a *= a;
+                px[y * size + x] = new Color(1f, 1f, 1f, a);
+            }
+            tex.SetPixels(px); tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
+        /// <summary>是否正在播大招 cut-in（格挡窗要等它播完再弹，用户 2026-10-15）。</summary>
+        public bool CutInPlaying => _skillFx != null && _skillFx.CutInActive;
+
+
       /// <summary>判定反馈：在被判定者头顶飘字。格挡 = 完美格挡!/格挡/未挡；终结技 = 共鸣/失谐。</summary>
         public void ParryFeedback(string attackerId, int grade, bool finisher = false)
         {
@@ -691,6 +796,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             _skillFx = null;   // SkillFx 子物体一并销毁；下次 EnsureSkillFx 重建（否则持已毁对象）
             _turnArrow = null; // 箭头子物体已被上面销毁；Build 里重建
             _shakeDur = 0f; _shakeAmp = 0f;
+            _parryBursts.Clear();   // 爆闪子物体已被上面统一销毁；只清列表（别对已毁对象操作）
         }
 
         // player=true 我方（左，不镜像）；player=false 敌方（右，列镜像 ， 与我方对称）
@@ -1467,6 +1573,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             if (_skillFx != null) _skillFx.Step(fxDt);
             StepShake(fxDt);
             StepZoom(fxDt);
+            StepParryBursts(dt);   // 格挡爆闪（跟舞台时钟，倍速下一起变快）
 
       // QTE 提示条淡入淡出（有文案就淡入保持，清掉就淡出隐藏）
             if (_qteHint != null)

@@ -38,31 +38,55 @@ namespace WanXiang.Modules.UI
         /// <summary>普通区半径（格挡用）。</summary>
       private const float ParryNormalHalf = 0.11f;
 
-/// <summary>
-    /// 连段各段的按键（用户 2026-10-15："第一段按 Q，下一段按 E 等等，这同样也可以应用到敌人身上"）。
-    /// ⛔ 为什么不是"每段都按同一个键"：连按同一个键容易被当成"按住不放连触发"，
-        ///   也区分不出"这一段我到底按了没有"（实测多段全完美里第 2 段档位曾可疑）。
-        ///   换键 + 提示条逐段显示当前键 ⇒ 玩家必须**逐段重新看一眼**。
-        /// ★ 单段攻击用 <see cref="ParryPrimaryKey"/>（空格）—— 绝大多数情况是单段，别一上来就 Q。
-/// </summary>
-   private static readonly KeyCode[] ParryComboKeys =
-   {
-       KeyCode.Q, KeyCode.E, KeyCode.R, KeyCode.F,
-  };
+        /// <summary>
+        /// 连段可用的按键池。
+        /// ⛔ 2026-10-15 用户："这个 qte 不要老是固定循序，我发现这些按键的循序都是固定的，随机一下"
+        ///   ⇒ 每次**连段开始**时对这个池做一次洗牌，段内按洗好的顺序取键。
+        ///   ⚠ 洗牌是**每次连段**一次（不是每段一次）：段内顺序必须稳定，
+        ///     否则提示条显示 Q、判定却要 E（同一段内读两次键会不一致）。
+        /// </summary>
+        private static readonly KeyCode[] ParryComboPool =
+        {
+            KeyCode.Q, KeyCode.E, KeyCode.R, KeyCode.F,
+        };
         /// <summary>单段攻击 / 终结技用的主键（也是连段的第 1 段键之外的通用键）。</summary>
-     private const KeyCode ParryPrimaryKey = KeyCode.Space;
+        private const KeyCode ParryPrimaryKey = KeyCode.Space;
+
+        /// <summary>本次连段的按键序列（洗牌结果；长度 = 池长）。</summary>
+        private readonly KeyCode[] _comboKeys = new KeyCode[4];
+        /// <summary>当前 _comboKeys 对应的"连段世代"（-1 = 还没洗过）。</summary>
+        private int _comboKeyGen = -1;
+
+        /// <summary>
+        /// 为本次连段洗一套按键顺序（每段调用前判一次，同一次连段只洗一次）。
+        /// 用 segTotal+segIndex==0 判"新连段开始"：段 0 一定是新连段的开头。
+        /// </summary>
+        private void EnsureComboKeys(int segIndex)
+        {
+            // 段 0 = 新连段 ⇒ 重洗；否则沿用本次连段已洗好的顺序。
+            if (_comboKeyGen >= 0 && segIndex != 0) return;
+
+            for (int i = 0; i < ParryComboPool.Length; i++) _comboKeys[i] = ParryComboPool[i];
+            // Fisher-Yates 洗牌（UnityEngine.Random 即可 —— 这是表现层，不进战斗指纹）
+            for (int i = _comboKeys.Length - 1; i > 0; i--)
+            {
+                int j = UnityEngine.Random.Range(0, i + 1);
+                var t = _comboKeys[i]; _comboKeys[i] = _comboKeys[j]; _comboKeys[j] = t;
+            }
+            _comboKeyGen++;
+        }
 
         /// <summary>取第 segIndex 段该按的键（越界回退到主键）。</summary>
-        private static KeyCode KeyForSegment(int segIndex)
-     {
-  if (segIndex >= 0 && segIndex < ParryComboKeys.Length) return ParryComboKeys[segIndex];
-         return ParryPrimaryKey;
+        private KeyCode KeyForSegment(int segIndex)
+        {
+            if (segIndex >= 0 && segIndex < _comboKeys.Length) return _comboKeys[segIndex];
+            return ParryPrimaryKey;
         }
 
         /// <summary>第 segIndex 段的按键文案（提示条用，如「Q」「E」「空格」）。</summary>
-        private static string KeyLabelForSegment(int segIndex)
+        private string KeyLabelForSegment(int segIndex)
         {
-      return KeyForSegment(segIndex).ToString();
+            return KeyForSegment(segIndex).ToString();
         }
 
         /// <summary>
@@ -108,13 +132,31 @@ namespace WanXiang.Modules.UI
             int segIndex = st.ParrySegmentIndex;
             int segTotal = Mathf.Max(1, st.ParrySegmentTotal);
 
+            // ★★ 大招 cut-in 播完再弹格挡窗（用户 2026-10-15：
+            //    "敌方放大招的时候闪头像和那个格挡判断是一起，要不要改成先闪完头像再判断"）。
+            //    ⛔ 为什么必须等：大招的 SkillCast 事件一播就起 cut-in（约 1~2s），
+            //     而格挡窗按真实时间倒计时 —— 不等的话，玩家在看头像特写的整段时间里
+            //     时机环一直在收缩，等特写结束环早跑完了 ⇒ 必判"未挡"。
+            //    这不只是观感问题，是**判定不公平**（用户实测："格挡成功但感觉没看到圈"）。
+            //    ⚠ 只等 cut-in，不等全部 fx（起爆特效还要继续播，等它会让窗口迟迟不弹）。
+            if (_stage != null)
+            {
+                int guard = 0;
+                while (_stage.CutInPlaying)
+                {
+                    // 冻结期（重新挑战确认框）不消耗兜底计数：cut-in 也停着，不该算超时
+                    if (!_halted && ++guard > 900) break;   // 兜底上限：约 15 秒（60fps）
+                    await UniTask.Yield(PlayerLoopTiming.Update, ct);
+                }
+            }
+
             if (_stage != null) _stage.ShowParryPrompt(actorId);
             // 行动箭头指向被判定者（ActionBegin 还没发，不点的话箭头停在上一行动者头上）
             if (_stage != null && !string.IsNullOrEmpty(actorId)) _stage.SetTurnActor(actorId);
 
             // ★ 按键提示（用户："这个 qte 是按什么按键的啊，都没有提示"）：
-            //   屏幕中央一条常驻文案；**逐段显示该段该按的键**（Q→E→R→F 连段递进，
-            //   用户 2026-10-15 原话："第一段按 Q，下一段按 E 等等，这同样也可以应用到敌人身上"）。
+            //   屏幕中央一条常驻文案；**逐段显示该段该按的键**。
+            //   ★ 2026-10-15 起改为**每次连段随机洗牌**（用户："这些按键的循序都是固定的，随机一下"）。
             //   单段时给「空格 或 鼠标左键」—— 绝大多数是单段，不必一上来就 Q。
             // ★★ 快慢刀（用户："还是太容易判断了，能不能整一些快慢刀，不要每一个判断都一样"）：
             //   每段的窗口时长**不一样**，靠段号决定（见 SegmentSpeedMul）——
@@ -124,15 +166,20 @@ namespace WanXiang.Modules.UI
 
             // ⚠ 别用括号包 paceTag：SetQteHint 结尾会再拼一个「（连击 k/n）」，
             //   两层括号挤在一起读不清（"格挡（快刀）　（连击 2/3）"）。空格分隔即可。
-            string keyText = segTotal > 1
-      ? "按 " + KeyLabelForSegment(segIndex) + "　格挡"
-      : "空格 / 鼠标左键　格挡";
-            if (paceTag.Length > 0) keyText += "　" + paceTag;
-            if (_stage != null)
+            string actionName = finisher ? "终结技·共鸣" : "格挡";
+            string keyText;
+            if (segTotal > 1)
             {
-          if (finisher) _stage.SetQteHint("空格 / 鼠标左键　终结技·共鸣", segTotal, segIndex);
-      else _stage.SetQteHint(keyText, segTotal, segIndex);
-   }
+                // 连段（含我方终结技的多段）：逐段换键 + 逐段重洗后的对应键
+                EnsureComboKeys(segIndex);
+                keyText = "按 " + KeyLabelForSegment(segIndex) + "　" + actionName;
+            }
+            else
+            {
+                keyText = "空格 / 鼠标左键　" + actionName;
+            }
+            if (paceTag.Length > 0) keyText += "　" + paceTag;
+            if (_stage != null) _stage.SetQteHint(keyText, segTotal, segIndex);
             Sfx("sfx_bt_cmd_select");   // 提示音（没有专用素材，先复用指令音）
 
             float window = (finisher ? FinisherWindowSeconds : ParryWindowSeconds) * segMul;
@@ -182,13 +229,27 @@ namespace WanXiang.Modules.UI
                 await UniTask.Yield(PlayerLoopTiming.Update, ct);
             }
 
-            // ★ 震动反馈（用户 2026-10-15："判断成功也要有一些震动反馈啊"）：
-            //   完美档震得重、普通档轻，未挡不震（没挡住还震是反直觉的噪音）。
-            //   ⚠ 用 fxDt 驱动的 TriggerShake（与倍速解耦），不是 UI 抖动 —— 战场抖才像"兵器相击"。
+            // ★★ 成功反馈（用户 2026-10-15："格挡成功的反馈我好像没有怎么体会到"）。
+            //   三件套叠起来才"体会得到"，之前只有飘字所以像没发生：
+            //     ① 爆闪环：在攻击者身上炸一圈（完美=金色大环+白闪，普通=青白小环）
+            //     ② 震屏：完美重震 + Zoom Punch（镜头一顿一顶）；普通轻震
+            //     ③ 顿帧：走 BattlePanel 的 _hitStop（冻结舞台几帧，制造"兵器相击"的顿感）
+            //   ⚠ 全部只在"挡到了"时触发；未挡不震不闪（没挡住还反馈是噪音）。
             if (_stage != null && grade != WanXiang.Battle.Core.ParryGrade.None)
             {
-                if (grade == WanXiang.Battle.Core.ParryGrade.Perfect) _stage.TriggerShake(0.16f, 0.20f);
-                else _stage.TriggerShake(0.07f, 0.13f);
+                bool perfect = grade == WanXiang.Battle.Core.ParryGrade.Perfect;
+                _stage.ParryImpact(actorId, (int)grade);
+                if (perfect)
+                {
+                    _stage.TriggerShake(0.28f, 0.26f);   // 比原先 0.16 更重（用户说没体会到）
+                    _stage.TriggerZoom(0.30f, 0.22f);    // 镜头一顿一顶：完美档专属
+                }
+                else
+                {
+                    _stage.TriggerShake(0.12f, 0.16f);
+                }
+                // 顿帧：完美更长（0.10s），普通短（0.05s）。倍速越高越短（见 Update 里除以 _speed）。
+                _hitStop = Mathf.Max(_hitStop, perfect ? 0.10f : 0.05f);
             }
 
             if (_stage != null)
@@ -217,9 +278,9 @@ namespace WanXiang.Modules.UI
         /// ⛔ 本程序集（WanXiang.Modules.UI）没有引用 Unity.InputSystem（asmdef 有意为之），
         ///    新输入系统直读会 CS0234；工程 Active Input Handling = Both，旧 API 运行时可用。
         /// </summary>
-        /// <param name="segIndex">第几段（0 起）。连段逐段换键 Q→E→R→F。</param>
+        /// <param name="segIndex">第几段（0 起）。连段逐段换键（每次连段随机洗牌）。</param>
         /// <param name="segTotal">本次行动总段数。&gt;1 = 连段，**只认该段对应的键**。</param>
-        private static bool ParryPressedThisFrame(int segIndex, int segTotal)
+        private bool ParryPressedThisFrame(int segIndex, int segTotal)
         {
             bool combo = segTotal > 1;
 

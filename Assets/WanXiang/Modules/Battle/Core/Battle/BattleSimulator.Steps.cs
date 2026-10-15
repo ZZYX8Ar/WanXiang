@@ -95,8 +95,10 @@ namespace WanXiang.Battle.Core
                     if (st.PlayerControlled && u.Side == TeamSide.Player && u.CanAct)
                         yield return new BattleStep { Kind = BattleStepKind.NeedDecision, Unit = u };
 
-                    // ★ 终结技 QTE（进攻向，2026-10-14 二轮）：玩家下令放了终结技，
-                    //   在真正打出之前弹一个输出窗口 —— 完美 ⇒ 伤害加强，没按准 ⇒ 减弱。
+                    // ★ 终结技 QTE（进攻向，2026-10-14 二轮；2026-10-15 改为**多段按键**）：
+                    //   玩家下令放了终结技，在真正打出之前弹输出窗口 —— 完美 ⇒ 伤害加强，没按准 ⇒ 减弱。
+                    //   ⛔ 用户 2026-10-15："我方异兽也可以使用这个按键多段判定而不是单单这个空格"
+                    //      ⇒ 从「单发空格窗口」改成「N 段按键连按」（段数见 FinisherSegmentCount）。
                     //   ⚠ 读的是 PendingCommand.SkillIndex = SkillType.Ultimate（还没被 ExecuteAction 消费）。
                     bool finisherQte = false;
                     if (st.ParryEnabled && u.Side == TeamSide.Player && u.CanAct
@@ -104,15 +106,28 @@ namespace WanXiang.Battle.Core
                         && u.GetSkill(SkillType.Ultimate) != null)
                     {
                         finisherQte = true;
-                        st.ParriedGrade = ParryGrade.None;      // 待判定（超时 = 失败 = 减弱）
-                        st.ParryActorId = u.RuntimeId;
-                        st.ParryQteKind = ParryQteKind.Finisher;
-                        st.ParrySegmentIndex = 0;
-                        st.ParrySegmentTotal = 1;   // 终结技是单发窗口
-                        // ⚠ 终结技窗口**要**设 ParryPendingUnit：BattlePlayback 靠它取 ParryAttacker
-                        //   （提示圈要画在我方出手者头上）。格挡窗口由 AdvanceToNextDecision 的 NeedParry 分支统一设。
-                        st.ParryPendingUnit = u;
-                        yield return new BattleStep { Kind = BattleStepKind.NeedParry, Unit = u };
+                        int finHits = FinisherSegmentCount(u.GetSkill(SkillType.Ultimate));
+                        int finPerfect = 0, finNone = 0;
+                        for (int h = 0; h < finHits; h++)
+                        {
+                            st.ParriedGrade = ParryGrade.None;   // 待判定（超时 = 失败 = 减弱）
+                            st.ParryActorId = u.RuntimeId;
+                            st.ParryQteKind = ParryQteKind.Finisher;
+                            st.ParrySegmentIndex = h;
+                            st.ParrySegmentTotal = finHits;
+                            // ⚠ 终结技窗口**要**设 ParryPendingUnit：BattlePlayback 靠它取 ParryAttacker
+                            //   （提示圈要画在我方出手者头上）。格挡窗口由 AdvanceToNextDecision 的 NeedParry 分支统一设。
+                            st.ParryPendingUnit = u;
+                            yield return new BattleStep { Kind = BattleStepKind.NeedParry, Unit = u };
+
+                            if (st.ParriedGrade == ParryGrade.Perfect) finPerfect++;
+                            else if (st.ParriedGrade == ParryGrade.None) finNone++;
+                        }
+                        // 合并（对玩家宽容，别让一次失误白丢整个终结技）：
+                        //   全中 → 完美（×1.60）；全失 → 减弱（×0.45）；其余 → 原样（×1.0）。
+                        st.ParriedGrade = finPerfect == finHits ? ParryGrade.Perfect
+                                        : finNone == finHits ? ParryGrade.None
+                                        : ParryGrade.Normal;
                     }
 
                     // ★ 格挡窗口（防守向，QTE）：敌方"带伤害的行动"前，等玩家提交判定。
@@ -219,10 +234,14 @@ namespace WanXiang.Battle.Core
                     }
 
                     // ★ 终结技 QTE 收口：只发结果事件 + 清状态（无反震，加强/减弱已过伤害）。
+                    //   ⚠ 多段后合出来的档位有三档，Note 要分三档说清楚（别把"按中一半"也叫失谐）。
                     if (finisherQte)
                     {
+                        string finNote = st.ParriedGrade == ParryGrade.Perfect ? "共鸣·强化"
+                                       : st.ParriedGrade == ParryGrade.None ? "失谐·减弱"
+                                       : "共鸣";
                         st.Log.Add(st.Turn, BattleEventKind.ParryResult, actorId: u.RuntimeId,
-                                   note: "终结技·" + (st.ParriedGrade == ParryGrade.Perfect ? "共鸣" : "失谐"));
+                                   note: "终结技·" + finNote);
                         st.ParriedGrade = ParryGrade.None;
                         st.ParryActorId = null;
                         st.ParryQteKind = ParryQteKind.None;

@@ -115,12 +115,16 @@ namespace WanXiang.Modules.Boot
             // ★ 转场进主界面（2026-10-11 用户："从开始界面进入主界面太生硬，
             //   加一点转场，比如一点或几滴水墨铺开"）。
             //   顺序：墨团从中心铺开盖住屏幕 → 关闭开始界面并打开主界面 → 墨团继续放大淡出。
-            // ⚠⚠ 2026-10-14 回归修复（用户实测"从开始界面进主界面这个水墨转场第一次变卡了"）：
-            //   预热**不能**在转场遮盖期内跑。那一坨重活（两个大面板彩排 + 笔顺帧纹理上传 ≈1.2s）
-            //   会把主线程占满，这条 Start2Home 转场只有 2.4s，退场拨开正好撞在重活里 → 可见段大帧。
-            //   （Home→Map 那条链路有 `HomePanel.coldPre` 在遮盖期彩排 + `SettleWait` 退场门限，不受影响。）
-            //   改为：**等这条转场彻底播完、Home 稳了两帧之后**再去后台预热。
-            //   预热晚一点无所谓——玩家点"出征"之前有足够时间，收益（首次进图不卡）完全保留。
+            //
+            // ⛔⛔ 预热的位置（2026-10-15 第三次修正，用户："虽然没有闪节点地图了，但还是闪，
+            //   就像卡了一下似的"）：
+            //   历史：① 最早在转场前 fire-and-forget 起预热 → 重活与退场并行 → 转场变卡（已修）；
+            //         ② 改成转场**播完之后** 400ms+250ms 再预热 → 视觉上不闪了，
+            //            但那 ~350ms 主线程重活**发生在主界面已经露出来之后** ⇒ 玩家看到"卡一下"。
+            //   正解：当 `preSequence` 传进去 —— 转场代码在**遮盖层盖满之后、动画开始之前**
+            //         会 await 它。重活全落在"屏幕被盖住 + 动画还没开始"的真空期里，
+            //         既不会被看见、也不会挤掉退场动画（SettleWait 再兜一道底）。
+            //   代价：Start2Home 转场总时长 +~0.5s（多一段被盖住的等待），可接受。
             {
                 var run0 = WanXiang.Run.RunSave.Current;
                 int act0 = run0 != null ? Mathf.Clamp(run0.Act, 1, 5) : 1;
@@ -131,12 +135,8 @@ namespace WanXiang.Modules.Boot
                 {
                     ui.Close<StartPanel>();
                     _ = ui.OpenAsync<HomePanel>();
-                }, null, 2.4f, "Start2Home");   // ⚠ 独立标识：与 Home→Map 链路区分
+                }, null, 2.4f, "Start2Home", PrewarmFirstMapPanels);   // ⚠ 独立标识：与 Home→Map 链路区分
             }
-            // ★ 转场播完再预热（见上方回归修复注释）。Delay 让 Home 先把首帧渲染完，
-            //   否则预热的大帧会打在主界面刚出现的那一下（同样会被玩家当成"卡"）。
-            await UniTask.Delay(400);
-            PrewarmFirstMapPanelsAsync();
             Debug.Log("[MainSceneEntry] 已进入主界面（带水墨转场，开始界面已关闭）。");
         }
 
@@ -147,25 +147,24 @@ namespace WanXiang.Modules.Boot
         /// 播放剖面定位：首次打开的停顿 ≈ 节点地图面板的打开流程 + 内容首帧渲染/贴图上传
         /// （合计 ~1s，第二次起被缓存/已上传，所以流畅）。
         ///
-        /// ⚠⚠ **调用位置很重要（2026-10-14 回归修复）**：必须等 Start2Home 转场**播完之后**才调，
-        ///   绝不能塞进它的遮盖期 —— 实测那样会把这条 2.4s 转场的退场拨开挤成大帧。
-        ///   现在由上面的 `await UniTask.Delay(400)` 之后触发，Home 首帧已稳定。
+        /// ⚠⚠ **调用位置（2026-10-15 第三次修正）**：必须作为 Start2Home 转场的
+        ///   `preSequence` 传入（见调用点注释）—— 转场会在"遮盖层盖满、动画未开始"
+        ///   的时刻 await 本方法，重活既不可见、也不挤退场。
+        ///   ⛔ 不要改回"转场播完后 Delay 再调"：那会把主线程重活打在**已经露出来的
+        ///     主界面**上，用户看到的就是"卡了一下"（实测报障）。
+        ///   ⛔ 也不要改回"转场前 fire-and-forget"：那是更早的坑（重活与退场并行 ⇒ 转场卡）。
         ///
-        /// 预热内容（Home→Map 链路之外做的那部分）：
+        /// 预热内容：
         ///  · 节点地图面板 → **完整彩排**（真开一遍再关掉，GhostSilent 静默，不播音/不触发开场/不写档）
-        ///    —— 把首次打开的全部成本藏进转场；玩家第一次真进图 = 热路径。
-        ///  · 幕开场面板 → 轻量预热（实例化 + 隐藏激活）——它自身的冷成本仅 ~0.1s，
-        ///    且首次打开已被 CampaignPanel.DeferredIntroAsync 挪进遮盖期。
-        ///
-        /// ⚠ 只在"从开始界面进主城"这条路上调一次；战后回城无转场遮盖、不调。
+        ///  · 幕开场面板 → 轻量预热（实例化 + 隐藏激活）+ 标题字形烘制
+        ///  · 笔顺帧纹理 → 先上传烤热（写字演出逐帧换图，首跑会顿）
         /// </summary>
-        private static async UniTaskVoid PrewarmFirstMapPanelsAsync()
+        private static async UniTask PrewarmFirstMapPanels()
         {
             var ui = UIBootstrap.UI;
             if (ui == null) return;
 
-            await UniTask.Delay(250);   // 让主界面先稳一会儿，别把大帧打在刚出现的那一下
-            int actNow = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
+            int actNow = WanXiang.Run.RunSave.Current != null ? Mathf.Clamp(WanXiang.Run.RunSave.Current.Act, 1, 5) : 1;
             var strokePaths = new System.Collections.Generic.List<string>();   // 笔顺帧路径（彩排销毁前收集）
             if (ui.Get<CampaignPanel>() == null)
             {

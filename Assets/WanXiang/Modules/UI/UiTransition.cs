@@ -292,14 +292,21 @@ namespace WanXiang.Modules.UI
         private float CH { get { return _root.rect.height > 1f ? _root.rect.height : 720f; } }
 
         /// <summary>UniTask 版（给 MainSceneEntry 这类 async 流程用）：播完才返回。</summary>
+        /// <param name="preSequence">
+        /// 遮盖完成后的"预热段"（可选）：屏幕已被盖满，在这里做重活**不会**被玩家看到，
+        /// 且因为是在动画开始**之前** await 掉，也不会撞到退场。
+        /// ⛔ 不要用"另起一个 async void 并发跑"代替它 —— 那正是 2026-10-14
+        ///    "转场第一次变卡"的根因（重活与退场拨开并行，主线程被占满）。
+        /// </param>
         public static async UniTask PlayAsync(Kind kind, int act, System.Action onSwitch,
-                                              string coverSprite = null, float total = 2.4f, string tag = "")
+                                              string coverSprite = null, float total = 2.4f, string tag = "",
+                                              System.Func<UniTask> preSequence = null)
         {
             var inst = Ensure();
             if (inst == null) { if (onSwitch != null) onSwitch(); return; }
             if (inst._busy) { if (onSwitch != null) onSwitch(); return; }
             bool done = false;
-            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), () => done = true, coverSprite, tag, null));
+            inst.StartCoroutine(inst.Run(kind, Mathf.Clamp(act, 1, 5), onSwitch, Mathf.Max(1.2f, total), () => done = true, coverSprite, tag, preSequence));
             await UniTask.WaitUntil(() => done);
         }
 

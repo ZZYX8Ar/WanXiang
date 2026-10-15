@@ -57,6 +57,33 @@ namespace WanXiang.Battle.Core
         public const int ParryMaxComboHits = 4;
 
         /// <summary>
+        /// 我方终结技 QTE 的段数（2026-10-15 用户："我方异兽也可以使用这个按键多段判定
+        /// 而不是单单这个空格"）。
+        ///
+        /// 取该终结技**伤害原子的最大 Hits**，再夹到 [2, ParryMaxComboHits]：
+        ///   · 下限 2：哪怕技能是单发，也要"按两个键" —— 用户要的就是多段手感，
+        ///     只按一下的 QTE 与"空格连按"没有区别。
+        ///   · 上限 4：与敌方连段同一上限，避免手速党刷屏。
+        /// </summary>
+        private static int FinisherSegmentCount(SkillDef sk)
+        {
+            int best = 1;
+            if (sk != null && sk.Effects != null)
+            {
+                for (int i = 0; i < sk.Effects.Length; i++)
+                {
+                    var a = sk.Effects[i];
+                    if (a.Kind != EffectAtomKind.Damage || a.Target == TargetSelector.Self) continue;
+                    int h = a.Hits <= 1 ? 1 : a.Hits;
+                    if (h > best) best = h;
+                }
+            }
+            if (best < 2) best = 2;
+            if (best > ParryMaxComboHits) best = ParryMaxComboHits;
+            return best;
+        }
+
+        /// <summary>
         /// 提交格挡结果（UI 在时机圈判定/超时后调用）。
         /// 只写状态、不推进模拟 —— 由 Step() / BattlePlayback 让迭代器继续。
         /// </summary>

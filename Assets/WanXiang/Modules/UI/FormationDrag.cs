@@ -68,6 +68,11 @@ namespace WanXiang.Modules.UI
 
         public void OnPointerClick(PointerEventData eventData)
         {
+            // ★ 下阵 = **双击**（用户 2026-10-15："左上的这个九宫格单击这个异兽就下阵了，改为双击"）。
+            //   为什么：单击太容易误触（尤其和"格内拖拽换位"连用时，拖失败的尾巴会变成一次点击
+            //   把兽甩下场）。双击与卡池的"双击上阵"也形成对称。
+            //   ⛔ 单击**不做任何事**（不再下阵；详情已由悬浮负责，不必占用单击）。
+            if (eventData != null && eventData.clickCount < 2) return;
             if (Owner != null && CellIndex >= 0) Owner.OnCellClicked(CellIndex);
         }
 

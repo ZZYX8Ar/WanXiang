@@ -547,7 +547,11 @@ namespace WanXiang.Modules.UI
             PresentBondTip("<size=24><b>" + title + "</b></size>\n" + body);
         }
 
-        /// <summary>给敌方阵容缩略图挂悬浮：显示该敌人的介绍（名称 / 五行定位 / 四维 / 图鉴描述）。</summary>
+        /// <summary>给敌方阵容缩略图挂悬浮：显示该敌人的介绍（名称 / 五行定位 / 四维 / 技能或首领机制）。
+        /// ★ 2026-10-15 用户："敌人的悬浮能不能也改到中上的详细面板，不要这个在悬浮显示面板这里"
+        ///   ⇒ 从「左下角 Root_BondTip 小浮层」改为「中上 Root_BeastDetail 详情区」，
+        ///     与我方异兽的悬浮详情同一块面板（同一口径、同一位置，读起来不用换视线）。
+        ///   ⚠ 同时去掉 PointerExit 清空 —— 保留最后一次内容（与我方格子悬浮同一纪律）。</summary>
         private void WireEnemyTips()
         {
             if (_imgEnemies == null) return;
@@ -558,30 +562,25 @@ namespace WanXiang.Modules.UI
                 img.raycastTarget = true;   // 缩略图必须能命中射线才能收到悬浮
                 var trg = img.gameObject.GetComponent<EventTrigger>();
                 if (trg == null) trg = img.gameObject.AddComponent<EventTrigger>();
-                int slot = 200 + i;         // 200+ 避开羁绊(0..7)/中宫(90)/天时(91)
+                int idx = i;
                 var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-                enter.callback.AddListener(_ => ShowEnemyTip(slot - 200));
+                enter.callback.AddListener(_ => ShowEnemyDetail(idx));
                 trg.triggers.Add(enter);
-                var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
-                exit.callback.AddListener(_ => HideBondTip());
-                trg.triggers.Add(exit);
+                // ⛔ 不挂 PointerExit：移开也保留最后一次（用户 2026-10-15 同批要求）
             }
         }
 
         /// <summary>
-        /// 敌方单位介绍面板（走与羁绊/天时同一块 Root_BondTip）。
+        /// 敌方单位详情 → 写进**中上详情面板**（与 <see cref="ShowBeastDetail"/> 同一块）。
         /// ★ 内容只放**战斗相关**：四维 + （首领）机制介绍 / （异兽）四个技能。
         ///   用户 2026-10-12：不要图鉴典故文案（"共工的臣属…"），要的是属性 / 技能 / 辅助攻击这类能指导出战的。
         /// </summary>
-        private void ShowEnemyTip(int i)
+        private void ShowEnemyDetail(int i)
         {
-            if (_bondTipPanel == null || _bondTipText == null) return;
-            int slot = 200 + i;
-            if (_bondTipSlot == slot && _bondTipPanel.gameObject.activeSelf) return;
-            _bondTipSlot = slot;
+            if (_detailPanel == null || _detailText == null) return;
 
             var d = (_enemyDefs != null && i >= 0 && i < _enemyDefs.Count) ? _enemyDefs[i] : null;
-            if (d == null) { HideBondTip(); return; }
+            if (d == null) return;   // 空槽位：保留上次内容（不清空）
 
             // ★ 四维走与实战同一口径（2026-10-14）：内容目录里 BaseHp 等是 0（占位字段），
             //   由 ApplyPlaceholderStats 按职业+稀有度生成；首领（b_）/召唤物（summon_）会被
@@ -589,11 +588,24 @@ namespace WanXiang.Modules.UI
             var s = d.Clone();
             WanXiang.Battle.Core.BattleConfig.Default.ApplyPlaceholderStats(s);
 
+            if (_detailHead != null)
+            {
+                var sprite = _sprites != null ? _sprites.GetHead(d.Id) : null;
+                _detailHead.enabled = true;
+                if (sprite != null)
+                {
+                    _detailHead.sprite = sprite;
+                    _detailHead.preserveAspect = true;
+                    _detailHead.color = Color.white;
+                }
+            }
+
             bool isBoss = WanXiang.Battle.Core.BossCatalog.Get(d.Id) != null;
             var sb = new System.Text.StringBuilder();
-            sb.Append(Cn.Of(d.Element)).Append('属').Append(" · ").Append(Cn.Of(d.Role));
+            sb.Append("<size=28><b>").Append(d.DisplayName).Append("</b></size>　")
+              .Append(Cn.Of(d.Element)).Append("属 · ").Append(Cn.Of(d.Role));
             if (isBoss) sb.Append(" · 首领");
-            sb.Append('\n');
+            sb.Append(" · ").Append(Cn.Of(d.Rarity)).Append('\n');
             sb.Append("生命 ").Append(s.BaseHp)
               .Append("　攻 ").Append(s.BaseAtk)
               .Append("　防 ").Append(s.BaseDef)
@@ -614,7 +626,8 @@ namespace WanXiang.Modules.UI
                 AppendSkillLine(sb, "觉醒", d.Awaken);
             }
 
-            PresentBondTip("<size=24><b>" + d.DisplayName + "</b></size>\n" + sb);
+            _detailText.text = sb.ToString();
+            _detailPanel.gameObject.SetActive(true);
         }
 
         /// <summary>把一条技能的"名称 + 目标 + 效果"写进说明文本（目标优先取效果的目标，与战斗口径一致）。</summary>
