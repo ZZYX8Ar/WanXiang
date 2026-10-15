@@ -135,6 +135,12 @@ namespace WanXiang.Modules.UI
             //   放在 OnOpenAsync（每次打开必然经过）比放在 PlayLoop 更可靠（用户实测未生效）。
             _autoBattle = SceneFlow.LastWasPvp;   // ★ PvP=自动；正常战斗=手动(玩家自己下令)，与回放 manual 一致
             _speed = 1f;
+            // ⛔ 双保险：回放闸必须在这里也是 false。
+            //   面板 Cached 复用 ⇒ 上一场「重新挑战」冻结后留下的 _halted=true 会带进来
+            //   ⇒ PlayLoop 首帧起就冻结、战斗一动不动（用户实测报障：
+            //   "进入战斗不动了，重新运行就行了，其他办法都不行"）。
+            //   OnClose 里已复位，这里再兜一次（OnClose 可能被异常路径跳过）。
+            _halted = false;
             RefreshSpeedLabel();          // ★ 必须同步刷新按钮文案，否则仍显示上一场的 ×4（用户实测）
 
             // 遗物 HUD（左上角一排小牌，悬浮看说明）
@@ -207,6 +213,13 @@ namespace WanXiang.Modules.UI
         {
             ClearUnitViews();
             _play = null;
+            // ⛔⛔ **必须复位回放闸**（用户实测报障："进入战斗不动了，重新运行才行，其他办法都不行"）：
+            //   面板是 Cached 复用的（关闭不销毁）—— 点「重新挑战」确认后 _halted 留 true，
+            //   CloseSelf 触发 OnClose，若不清，下次战斗复用同一实例 ⇒ PlayLoop 从第一帧就被
+            //   永久冻结 ⇒ 战斗完全不动、技能按钮全灰（截图：第1/48回合停住）。
+            //   "重新运行 Unity"之所以能好：那是新实例，_halted 默认 false。
+            //   放在 OnClose（而非只在 OnOpenAsync）是因为关闭是**唯一必然发生**的路径。
+            _halted = false;
         }
 
         // ================================================================

@@ -653,17 +653,27 @@ namespace WanXiang.Modules.UI
                 if (trg == null) trg = cell.gameObject.AddComponent<EventTrigger>();
                 int idx = i;
                 var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-                enter.callback.AddListener(_ => ShowBeastDetailByIndex(_deployed[idx]));
+                // ⛔⛔ 空格子**不要**调 ShowBeastDetailByIndex（用户 2026-10-15 报障：
+                //    "我悬浮九宫格的异兽可以看到信息，不悬浮就消失了，保留最后一个悬浮的就行了"）。
+                //    根因：空格子的 _deployed[idx] == -1 ⇒ 旧代码走 HideBeastDetail()
+                //    ⇒ 鼠标从异兽滑到旁边的空格子，右边详情就被清空了。
+                //    正确语义：悬停**已上阵**单位才替换内容；滑到空格/移出格子都**保留最后一次**。
+                enter.callback.AddListener(_ =>
+                {
+                    int b = _deployed[idx];
+                    if (b >= 0) ShowBeastDetailByIndex(b);
+                });
                 trg.triggers.Add(enter);
                 wired++;
             }
-            Debug.Log("[Formation] 格子详情悬浮已挂接 " + wired + "/" + _cells.Length);
+            Debug.Log("[Formation] 格子详情悬浮已挂接 " + wired + "/" + _cells.Length + "（空格保留上次内容）");
         }
 
-        /// <summary>按卡池序号显示详情（单击卡池条目；格子悬停则传 _deployed[cell]）。</summary>
+        /// <summary>按卡池序号显示详情（单击卡池条目；格子悬停则传 _deployed[cell]）。
+        /// ⚠ index 非法时**不再隐藏**面板 —— 保留最后一次内容（见 WireCellDetailTips 注释）。</summary>
         public void ShowBeastDetailByIndex(int idx)
         {
-            if (_all == null || idx < 0 || idx >= _all.Length) { HideBeastDetail(); return; }
+            if (_all == null || idx < 0 || idx >= _all.Length) return;
             ShowBeastDetail(_all[idx]);
         }
 
@@ -886,6 +896,11 @@ namespace WanXiang.Modules.UI
         {
             if (cell < 0 || cell >= _deployed.Length || _deployed[cell] < 0) return;
             _deployed[cell] = -1;
+            // ★ 下阵时把详情面板收掉（用户 2026-10-15："保留最后一次悬浮的"是指**还在场上的**；
+            //   这只已经下场了，再留着它的说明会误导）。
+            //   ⚠ 这是 HideBeastDetail 唯一的调用点 —— 除了"下阵"，
+            //     任何路径都不该清空详情（滑到空格/移出格子都保留）。
+            HideBeastDetail();
             CommitLayout();
         }
 

@@ -177,7 +177,14 @@ namespace WanXiang.Modules.UI
                 }
                 // 整段收口：模拟层不再等窗口时（下一个决策点/行动开始）把提示条淡出。
                 //   ⛔ 必须在这里清而不是在窗口里清 —— 连击的下一段紧接着就弹，中途清会闪一下。
-                if (_qteHintShown)
+                //   ★★ 多段连击的**段间也不清**（2026-10-15 "边判断边攻击"改造后新增）：
+                //     现在两段之间会插一次"挨打"演出（0.36s+），若在这里清，提示条会
+                //     "淡出 → 挨打 → 再淡入"，读起来是闪烁。
+                //     判据用刚提交那一段的位置：还没到最后一段 = 组合进行中 ⇒ 保留。
+                bool midCombo = _play.State != null
+                    && _play.State.ParrySegmentTotal > 1
+                    && _play.State.ParrySegmentIndex + 1 < _play.State.ParrySegmentTotal;
+                if (_qteHintShown && !midCombo)
                 {
                     _qteHintShown = false;
                     if (_stage != null) _stage.ClearQteHint();

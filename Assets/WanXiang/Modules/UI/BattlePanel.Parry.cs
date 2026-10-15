@@ -65,6 +65,27 @@ namespace WanXiang.Modules.UI
       return KeyForSegment(segIndex).ToString();
         }
 
+        /// <summary>
+        /// 「快慢刀」每段的窗口时长倍率（用户 2026-10-15："还是太容易判断了，
+        /// 能不能整一些快慢刀，不要每一个判断都一样"）。
+        ///
+        /// 设计：连段内部的节奏**刻意不均匀** —— 1.00（标准）→ 0.72（快刀）→ 1.28（慢刀）
+        /// → 0.88（偏快）。玩家不能靠"心里数 0.8 秒"蒙对，必须每段重看时机环。
+        /// ⚠ 单段（绝大多数普攻）恒为 1.00 —— 别把日常节奏也搞乱。
+        /// ⚠ 倍率只改**窗口时长**，判定半径不动：快刀难在"反应时间不够"，
+        ///   而不是"判定更窄"，后者会让快刀变得不讲道理。
+        /// </summary>
+        private static float SegmentSpeedMul(int segIndex)
+        {
+            switch (segIndex)
+            {
+                case 1: return 0.72f;   // 快刀
+                case 2: return 1.28f;   // 慢刀
+                case 3: return 0.88f;   // 偏快
+                default: return 1.00f;  // 第 1 段 / 单段：标准
+            }
+        }
+
         /// <summary>提示条是否正在展示（主循环用它决定何时淡出收口）。</summary>
         private bool _qteHintShown;
 
@@ -95,9 +116,18 @@ namespace WanXiang.Modules.UI
             //   屏幕中央一条常驻文案；**逐段显示该段该按的键**（Q→E→R→F 连段递进，
             //   用户 2026-10-15 原话："第一段按 Q，下一段按 E 等等，这同样也可以应用到敌人身上"）。
             //   单段时给「空格 或 鼠标左键」—— 绝大多数是单段，不必一上来就 Q。
-    string keyText = segTotal > 1
+            // ★★ 快慢刀（用户："还是太容易判断了，能不能整一些快慢刀，不要每一个判断都一样"）：
+            //   每段的窗口时长**不一样**，靠段号决定（见 SegmentSpeedMul）——
+            //   快刀窗口短、时机环收缩快，慢刀反过来。提示条标"快/慢"让玩家有预期。
+            float segMul = SegmentSpeedMul(segIndex);
+            string paceTag = segMul < 0.85f ? "快刀" : (segMul > 1.15f ? "慢刀" : "");
+
+            // ⚠ 别用括号包 paceTag：SetQteHint 结尾会再拼一个「（连击 k/n）」，
+            //   两层括号挤在一起读不清（"格挡（快刀）　（连击 2/3）"）。空格分隔即可。
+            string keyText = segTotal > 1
       ? "按 " + KeyLabelForSegment(segIndex) + "　格挡"
       : "空格 / 鼠标左键　格挡";
+            if (paceTag.Length > 0) keyText += "　" + paceTag;
             if (_stage != null)
             {
           if (finisher) _stage.SetQteHint("空格 / 鼠标左键　终结技·共鸣", segTotal, segIndex);
@@ -105,10 +135,21 @@ namespace WanXiang.Modules.UI
    }
             Sfx("sfx_bt_cmd_select");   // 提示音（没有专用素材，先复用指令音）
 
-            float window = finisher ? FinisherWindowSeconds : ParryWindowSeconds;
+            float window = (finisher ? FinisherWindowSeconds : ParryWindowSeconds) * segMul;
             // 终结技输出向：容错放宽一档（抢拍也认，别让玩家白丢终结技）
             float perfectHalf = finisher ? ParryPerfectHalf * 2f : ParryPerfectHalf;
             float normalHalf = finisher ? ParryNormalHalf * 1.6f : ParryNormalHalf;
+
+            // ★ 快慢刀的关键一步：**把判定半径按 1/segMul 反向补偿**，
+            //   保持"判定区间的绝对毫秒数"恒定。
+            //   为什么必须补：完美区在进度轴上的宽度是 2×perfectHalf，
+            //   换算成时间是 2×perfectHalf×window。窗口被 segMul 缩放后，
+            //   若不补，快刀（0.72）的完美区会从 59ms 缩到 42ms —— 那是"double 惩罚"
+            //   （又要更快反应、又要更准），打起来像耍人。
+            //   补偿后：三种刀的判定时长一致，区别只在"时机环收缩多快"（反应窗口长度），
+            //   这才是玩家能练、能感知的难度。
+            perfectHalf /= segMul;
+            normalHalf /= segMul;
 
             float t0 = Time.unscaledTime;
          WanXiang.Battle.Core.ParryGrade grade = WanXiang.Battle.Core.ParryGrade.None;
@@ -129,7 +170,7 @@ namespace WanXiang.Modules.UI
          float k = (Time.unscaledTime - t0 - frozen) / window;
                 if (_stage != null) _stage.SetParryProgress(Mathf.Clamp01(k));
 
-     if (ParryPressedThisFrame(segIndex))
+     if (ParryPressedThisFrame(segIndex, segTotal))
           {
           float d = Mathf.Abs(Mathf.Clamp01(k) - ParryPerfectCenter);
    grade = d <= perfectHalf ? WanXiang.Battle.Core.ParryGrade.Perfect
@@ -139,6 +180,15 @@ namespace WanXiang.Modules.UI
     }
                 if (k >= 1f) break;   // 超时 = 未挡 / 失谐
                 await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
+
+            // ★ 震动反馈（用户 2026-10-15："判断成功也要有一些震动反馈啊"）：
+            //   完美档震得重、普通档轻，未挡不震（没挡住还震是反直觉的噪音）。
+            //   ⚠ 用 fxDt 驱动的 TriggerShake（与倍速解耦），不是 UI 抖动 —— 战场抖才像"兵器相击"。
+            if (_stage != null && grade != WanXiang.Battle.Core.ParryGrade.None)
+            {
+                if (grade == WanXiang.Battle.Core.ParryGrade.Perfect) _stage.TriggerShake(0.16f, 0.20f);
+                else _stage.TriggerShake(0.07f, 0.13f);
             }
 
             if (_stage != null)
@@ -164,21 +214,25 @@ namespace WanXiang.Modules.UI
 
         /// <summary>
         /// 本帧是否有 QTE 输入。用旧 Input 直读 ——
-    /// ⛔ 本程序集（WanXiang.Modules.UI）没有引用 Unity.InputSystem（asmdef 有意为之），
+        /// ⛔ 本程序集（WanXiang.Modules.UI）没有引用 Unity.InputSystem（asmdef 有意为之），
         ///    新输入系统直读会 CS0234；工程 Active Input Handling = Both，旧 API 运行时可用。
         /// </summary>
-    /// <param name="segIndex">第几段（0 起）。连段逐段换键 Q→E→R→F，
- ///   单段（segIndex=0 且总段数 1）用主键空格。</param>
-  private static bool ParryPressedThisFrame(int segIndex)
+        /// <param name="segIndex">第几段（0 起）。连段逐段换键 Q→E→R→F。</param>
+        /// <param name="segTotal">本次行动总段数。&gt;1 = 连段，**只认该段对应的键**。</param>
+        private static bool ParryPressedThisFrame(int segIndex, int segTotal)
         {
-   // 鼠标左键任何段都认：玩家不一定要用键盘（这是"能不能玩"的问题，不是"难度"）。
-    if (Input.GetMouseButtonDown(0)) return true;
-            if (Input.GetKeyDown(KeyForSegment(segIndex))) return true;
-        // ⛔ 连段时**不再接受主键**：否则"每段都按空格"和"只看提示按对应键"没有区别，
-            //   连段的逐段换键就白设了（用户要的是"按几个键"，不是"按 N 下"）。
-            //   单段 / 终结技仍接受空格。
-            if (segIndex == 0 && Input.GetKeyDown(ParryPrimaryKey)) return true;
-  return false;
-   }
+            bool combo = segTotal > 1;
+
+            // ⛔⛔ 连段时**只认该段对应的键**（用户 2026-10-15 报障：
+            //    "这个按键 QTE 怎么按空格和左键也能生效啊，不应该是对应的按键吗"）。
+            //    上一版判据是"鼠标左键任何段都认 + 第 1 段也认空格"，
+            //    玩家永远不用换键 ⇒ 逐段换键的设计意图被架空。
+            if (combo) return Input.GetKeyDown(KeyForSegment(segIndex));
+
+            // 单段：空格 / 鼠标左键都认（这是"能不能玩"的兜底，不是"难度"）。
+            if (Input.GetMouseButtonDown(0)) return true;
+            if (Input.GetKeyDown(ParryPrimaryKey)) return true;
+            return false;
+        }
     }
 }

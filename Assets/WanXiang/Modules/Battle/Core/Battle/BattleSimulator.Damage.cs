@@ -15,6 +15,37 @@ namespace WanXiang.Battle.Core
         //  原子效果结算
         // ================================================================
 
+        /// <summary>
+        /// 只结算**伤害**原子（"边判断边攻击"用，2026-10-15）。
+        /// 配套 <see cref="BattleState.ParryDamageSegment"/> 使用：调用前先设好"第几段"，
+        /// 每次只打出该段的那一下。
+        /// </summary>
+        private static void ResolveDamageAtomsOnly(BattleState st, BattleUnit src, SkillDef skill, Buffers buf)
+        {
+            if (skill == null || skill.Effects == null) return;
+            for (int i = 0; i < skill.Effects.Length; i++)
+            {
+                if (skill.Effects[i].Kind != EffectAtomKind.Damage) continue;
+                ResolveAtom(st, src, skill, skill.Effects[i], buf);
+                if (st.IsOver) return;
+            }
+        }
+
+        /// <summary>
+        /// 只结算**非伤害**原子（减益/增益/治疗等）。
+        /// 多段攻击里这些只该生效一次 —— 放在所有伤害段之后跑。
+        /// </summary>
+        private static void ResolveNonDamageAtomsOnly(BattleState st, BattleUnit src, SkillDef skill, Buffers buf)
+        {
+            if (skill == null || skill.Effects == null) return;
+            for (int i = 0; i < skill.Effects.Length; i++)
+            {
+                if (skill.Effects[i].Kind == EffectAtomKind.Damage) continue;
+                ResolveAtom(st, src, skill, skill.Effects[i], buf);
+                if (st.IsOver) return;
+            }
+        }
+
         private static void ResolveAtom(BattleState st, BattleUnit src, SkillDef skill,
                                         in EffectAtom atom, Buffers buf)
         {
@@ -33,11 +64,18 @@ namespace WanXiang.Battle.Core
                     Element el = ResolveElement(atom.ElementOverride, skill, src);
                     int hits = CoreMath.Max(1, atom.Hits);
 
+                    // ★ 分段执行（2026-10-15 用户："边判断边攻击"）：
+                    //   ParryDamageSegment ≥ 0 时只结算该下标的这一段，其余段跳过。
+                    //   多段格挡因此可以"判一段 → 挨这一段 → 再判下一段"。
+                    //   ⛔ 默认 -1 = 不分段（原逻辑逐位不变，指纹红线）。
+                    int segOnly = st.ParryDamageSegment;
+
                     if (atom.Target == TargetSelector.RandomEnemyMultiHit)
                     {
                         // 多段随机：**每一段重新抽一次目标**，这才是"乱击"的手感
                         for (int h = 0; h < hits; h++)
                         {
+                            if (segOnly >= 0 && h != segOnly) continue;   // 分段：只打这一段
                             ResolveTargets(st, src, TargetSelector.RandomEnemy, pool, buf.Targets);
                             if (buf.Targets.Count == 0) break;
                             DealDamage(st, src, skill, atom, el, buf.Targets[0]);
@@ -50,6 +88,7 @@ namespace WanXiang.Battle.Core
                         {
                             for (int h = 0; h < hits; h++)
                             {
+                                if (segOnly >= 0 && h != segOnly) continue;   // 分段：只打这一段
                                 if (!buf.Targets[t].IsAlive) break;
                                 DealDamage(st, src, skill, atom, el, buf.Targets[t]);
                                 if (st.IsOver) break;

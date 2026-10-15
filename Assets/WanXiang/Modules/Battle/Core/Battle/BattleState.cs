@@ -100,6 +100,18 @@ namespace WanXiang.Battle.Core
         /// <summary>本次行动的总段数（1 = 单发；多段攻击 &gt; 1 ⇒ 玩家要连按这么多次）。</summary>
         public int ParrySegmentTotal = 1;
 
+        /// <summary>
+        /// 多段攻击的**分段执行游标**（-1 = 不分段，整次行动一次性结算 —— 默认值，零副作用）。
+        ///
+        /// 用户 2026-10-15 报障："敌人的多段攻击不是多次判断啊，你判断多次就攻击了一次，
+        /// 应该是边判断边攻击"。所以多段格挡改成：判一段 → 立刻挨这一段 → 再判下一段。
+        ///
+        /// 用法：≥0 时 `ResolveAtom` 的伤害分支**只结算该下标的这一段**
+        /// （`hits` 循环里跳过其余段），于是模拟层可以在两段之间插入 `yield NeedParry`。
+        /// ⛔ 只在 st.ParryEnabled 且多段时为真；关闭 QTE 时恒为 -1，指纹逐位不变。
+        /// </summary>
+        public int ParryDamageSegment = -1;
+
         /// <summary>本场结算（手动模式下战斗结束时由 AdvanceToNextDecision 写入）。</summary>
         public BattleResult Result;
 

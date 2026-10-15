@@ -226,12 +226,21 @@ namespace WanXiang.Framework.UI
             //   ⚠ 若期间玩家已经点了打开（State 变了）就保持原样，别跟正常流程抢实例。
             if (panel.State == UIPanelState.Created)
             {
+                // ⛔⛔ **这一步也必须藏**（用户 2026-10-15 报障："闪一下，没看到有节点、
+                //   什么都没有，应该是没有初始化的节点地图"）：
+                //   此刻 OnOpenAsync 还没跑 ⇒ 面板是个**空壳**（没有任何节点/文字），
+                //   若遮在这里不藏，空壳会实打实地渲染 2 帧 —— 用户看到的就是"空的节点地图"。
+                panel.SetGhostInvisible(true);
                 panel.gameObject.SetActive(true);
                 await UniTask.DelayFrame(2);
                 if (panel.State == UIPanelState.Created)
                 {
                     panel.gameObject.SetActive(false);  // 恢复隐藏，等真正的 OpenAsync
+                    // ⚠ 只在"确实恢复成隐藏"时撤销临时藏身 —— 由 InternalOpenAsync 按
+                    //   _ghostHidden 决定真开时的可见性（真开若在彩排期则保持隐藏）。
+                    panel.SetGhostInvisible(false);
                 }
+                // 若 State 已变（玩家期间点了打开）⇒ 就地放手，不碰 alpha：那是玩家正在看的面板。
             }
             return panel as T;
         }

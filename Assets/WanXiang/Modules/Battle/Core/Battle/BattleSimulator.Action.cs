@@ -17,7 +17,25 @@ namespace WanXiang.Battle.Core
         /// </summary>
         private static void ExecuteAction(BattleState st, BattleUnit actor, Buffers buf)
         {
-            var cfg = st.Config;
+            var skill = ExecuteActionHead(st, actor);
+            if (skill == null) return;                       // 头部已自行补了 ActionEnd
+            for (int i = 0; i < skill.Effects.Length; i++)
+                ResolveAtom(st, actor, skill, skill.Effects[i], buf);
+            ExecuteActionTail(st, actor, skill);
+        }
+
+        /// <summary>
+        /// 行动·头部：ActionBegin 事件 → 选技 → SkillCast 事件。
+        /// 返回选中的技能；**返回 null = 本次行动作废**（已自行补 ActionEnd 事件，调用方直接 return）。
+        ///
+        /// ★ 为什么拆开（2026-10-15 用户："边判断边攻击"）：
+        ///   多段攻击要在"两个伤害段之间"插入格挡窗口，就必须能把一次行动切成
+        ///   头部（出手宣告）→ N 段伤害 → 尾部（冷却/元气/收尾）三段来执行。
+        ///   ⛔ 不拆的话只有两种坏选择：① 先判完 N 段再一次性打（用户报障的现状，
+        ///   "判断多次就攻击了一次"）；② 复制一份 ExecuteAction（两份逻辑必然漂移）。
+        /// </summary>
+        private static SkillDef ExecuteActionHead(BattleState st, BattleUnit actor)
+        {
             actor.PursuitUsedThisAction = false;   // 09 芒种：追击"每次行动限 1 次"的计数
             st.Log.Add(st.Turn, BattleEventKind.ActionBegin, actorId: actor.RuntimeId,
                        note: actor.DisplayName);
@@ -27,14 +45,14 @@ namespace WanXiang.Battle.Core
                 // 冻结之类的"不能行动"。注意**不能跳过回合末的 CD 推进** ——
                 // 被冻住不等于技能也跟着暂停，否则控制队会被自己坑。
                 st.Log.Add(st.Turn, BattleEventKind.ActionEnd, actorId: actor.RuntimeId, note: "无法行动");
-                return;
+                return null;
             }
 
             var skill = ChooseSkill(st, actor);
             if (skill == null || skill.Effects == null || skill.Effects.Length == 0)
             {
                 st.Log.Add(st.Turn, BattleEventKind.ActionEnd, actorId: actor.RuntimeId, note: "没有可用技能");
-                return;
+                return null;
             }
 
             // ---- v2.1 P4：普攻（无冷却）默认打「最前排」----
@@ -52,9 +70,13 @@ namespace WanXiang.Battle.Core
                        skillName: skill.Name, element: ResolveElement(Element.None, skill, actor),
                        note: $"{actor.DisplayName}·{Cn.Of(skill.Type)}", skill: skill.Type);
 
-            for (int i = 0; i < skill.Effects.Length; i++)
-                ResolveAtom(st, actor, skill, skill.Effects[i], buf);
+            return skill;
+        }
 
+        /// <summary>行动·尾部：冷却 → 元气收支 → ActionEnd 事件。与头部成对使用。</summary>
+        private static void ExecuteActionTail(BattleState st, BattleUnit actor, SkillDef skill)
+        {
+            var cfg = st.Config;
             // 冷却：绝技额外吃「同属共鸣」的 CD 缩减（STEP 1 的替身用法，见 BattleUnit.ResonanceCdDelta）
             int cdDelta = skill.Type == SkillType.Ultimate ? actor.ResonanceCdDelta : 0;
             actor.PutOnCooldown(skill.Type, skill.Cd, cdDelta);
@@ -66,6 +88,7 @@ namespace WanXiang.Battle.Core
 
             st.Log.Add(st.Turn, BattleEventKind.ActionEnd, actorId: actor.RuntimeId);
         }
+
         private static SkillDef ChooseSkill(BattleState st, BattleUnit u)
         {
             var cfg = st.Config;

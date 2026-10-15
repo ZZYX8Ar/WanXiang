@@ -117,34 +117,77 @@ namespace WanXiang.Battle.Core
 
                     // ★ 格挡窗口（防守向，QTE）：敌方"带伤害的行动"前，等玩家提交判定。
                     //   st.ParryEnabled 默认 false ⇒ 不 yield、零事件、指纹逐位不变（自检红线）。
-                    //   ★ 多段连击（2026-10-14 二轮，用户："制作一些多段攻击，这样就能按几个键了"）：
-                    //     伤害段数 > 1 时**每段开一个窗口**、逐段取最差档 —— 漏按一段就得吃一下。
+                    //
+                    //   ★★ 多段连击 = **边判断边攻击**（2026-10-15 用户报障修正）：
+                    //   "敌人的多段攻击不是多次判断啊，你判断多次就攻击了一次，
+                    //    应该是边判断边攻击"。旧实现是"先连排 N 个窗口、再一次性 ExecuteAction"
+                    //   ⇒ 观感是"判了 3 次只挨了 1 下"。
+                    //   新实现用 ParryDamageSegment 把一次行动切成 N 段执行：
+                    //     头部(ActionBegin+SkillCast) → [窗口→打第 h 段] × N → 尾部(ActionEnd)
+                    //   ⚠ 头部刻意放在窗口**之前**：先看到"敌人出手"，再弹格挡窗，因果顺序才对。
                     bool parryOpened = false;
                     int comboHits = 1;
+                    bool parrySegmented = false;
                     if (st.ParryEnabled && !finisherQte && u.Side == TeamSide.Enemy && u.CanAct
                         && PeekActionIsDamaging(st, u))
                     {
                         parryOpened = true;
                         comboHits = PeekActionHitCount(st, u);
-                        var comboWorst = ParryGrade.Perfect;
-                        for (int h = 0; h < comboHits; h++)
-   {
-    st.ParriedGrade = ParryGrade.None;    // 待判定（超时/异常都会落到"未挡"）
-        st.ParryActorId = u.RuntimeId;
-           st.ParryQteKind = ParryQteKind.Guard;
-        st.ParrySegmentIndex = h;
-        st.ParrySegmentTotal = comboHits;   // UI 显示"第 k/n 段"
-   // ⚠ 必须设 ParryPendingUnit，否则 UI 侧 `ApplyParry` 第一行就 return，
-    //   档位永远停在上面那个 None ⇒ 减伤完全不生效（实测踩过：全完美也记"未挡"）。
-      st.ParryPendingUnit = u;
-            yield return new BattleStep { Kind = BattleStepKind.NeedParry, Unit = u };
-      // UI 提交后档位落在 st.ParriedGrade，逐段并进"最差档"
-     AccumulateParryComboSegment(ref comboWorst, st.ParriedGrade);
-      }
-                        st.ParriedGrade = comboWorst;         // 整次行动用合并档位算减伤
+                        parrySegmented = comboHits > 1;
+                    }
+
+                    if (parrySegmented)
+                    {
+                        var comboSkill = ExecuteActionHead(st, u);
+                        if (comboSkill != null)
+                        {
+                            var comboWorst = ParryGrade.Perfect;
+                            for (int h = 0; h < comboHits; h++)
+                            {
+                                st.ParriedGrade = ParryGrade.None;   // 待判定（超时/异常都落到"未挡"）
+                                st.ParryActorId = u.RuntimeId;
+                                st.ParryQteKind = ParryQteKind.Guard;
+                                st.ParrySegmentIndex = h;
+                                st.ParrySegmentTotal = comboHits;    // UI 显示"第 k/n 段"
+                                // ⚠ 必须设 ParryPendingUnit，否则 UI 侧 `ApplyParry` 第一行就 return，
+                                //   档位永远停在上面那个 None ⇒ 减伤完全不生效（实测踩过）。
+                                st.ParryPendingUnit = u;
+                                yield return new BattleStep { Kind = BattleStepKind.NeedParry, Unit = u };
+
+                                AccumulateParryComboSegment(ref comboWorst, st.ParriedGrade);
+
+                                // ★ 本段档位**立刻**作用于本段伤害（不再等整次行动合并）
+                                st.ParryDamageSegment = h;
+                                ResolveDamageAtomsOnly(st, u, comboSkill, buf);
+                                st.ParryDamageSegment = -1;
+                                if (st.IsOver) break;
+                            }
+                            st.ParriedGrade = comboWorst;    // 收口（反震判定 + ParryResult Note）用最差档
+                            // ⛔ 伤害段打完就摘掉"判定期"标记：否则下面那些非伤害原子
+                            //   （附加减益等）会被 ParryDamageMulFor 当成"被格挡的伤害"再乘一次。
+                            st.ParryActorId = null;
+                            st.ParryQteKind = ParryQteKind.None;
+                            // 非伤害原子（减益/增益等）只结算一次：放在所有段之后
+                            ResolveNonDamageAtomsOnly(st, u, comboSkill, buf);
+                            ExecuteActionTail(st, u, comboSkill);
+                        }
+                    }
+                    else
+                    {
+                    if (parryOpened)
+                    {
+                        st.ParriedGrade = ParryGrade.None;
+                        st.ParryActorId = u.RuntimeId;
+                        st.ParryQteKind = ParryQteKind.Guard;
+                        st.ParrySegmentIndex = 0;
+                        st.ParrySegmentTotal = 1;
+                        // ⚠ 同上的 ParryPendingUnit 纪律。
+                        st.ParryPendingUnit = u;
+                        yield return new BattleStep { Kind = BattleStepKind.NeedParry, Unit = u };
                     }
 
                     ExecuteAction(st, u, buf);
+                    }   // end else（单段 / 非多段）
 
                     // ★ 格挡收口：完美 → 反震；发结果事件；清状态（下次行动重新开窗）。
                     if (parryOpened)
