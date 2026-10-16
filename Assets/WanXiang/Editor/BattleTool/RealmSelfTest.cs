@@ -239,61 +239,68 @@ namespace WanXiang.Editor.BattleTool
         }
 
         // ================================================================
-        //  ⑤ 秘境内小地图
+        //  ⑤ 秘境内节点图（ActGraph 同构）
         // ================================================================
         private static void CheckMap(StringBuilder sb)
         {
-            Note(sb, "---- ⑤ 秘境内小地图（三条保底校验）----");
+            Note(sb, "---- ⑤ 秘境内节点图（层+边，与主线同构）----");
             var all = WanXiang.Campaign.RealmCatalog.All;
-            int badConnect = 0, badElite = 0, badBoss = 0;
+            int badConnect = 0, badBoss = 0, badBattle = 0, badKind = 0;
             for (int i = 0; i < all.Count; i++)
             {
                 var realm = all[i];
                 var map = WanXiang.Campaign.RealmMapBuilder.Build(realm, 20261016UL);
-                if (map == null) { Bad(sb, realm.Name + " 没能生成地图"); continue; }
-                if (!WanXiang.Campaign.RealmMapBuilder.IsConnected(map)) { Bad(sb, realm.Name + " 地图有孤岛（不连通）"); badConnect++; }
-                if (!WanXiang.Campaign.RealmMapBuilder.NoAdjacentElites(map)) { Bad(sb, realm.Name + " 有相邻的两个精英"); badElite++; }
-                if (WanXiang.Campaign.RealmMapBuilder.BossCount(map) != 1) { Bad(sb, realm.Name + " 首领裂隙不是恰好 1 个"); badBoss++; }
-                // ★ 战斗节点数必须 = 波数（设计文档 5.1：场域 2~4 波）。
-                //   第一版按权重撒战斗节点，9×7 的图上有 31 场仗 —— 自检就是靠这条抓到的。
-                int battles = WanXiang.Campaign.RealmMapBuilder.BattleCount(map);
-                if (battles != realm.Waves)
+                if (map == null || map.Graph == null) { Bad(sb, realm.Name + " 没能生成图"); continue; }
+
+                // ① 内部图必须**就是一张 ActGraph**（用户要求"套用现有节点地图设计"）
+                if (map.Graph is WanXiang.Campaign.ActGraph) Pass(sb, realm.Name + "：内部图 = ActGraph");
+                else { Bad(sb, realm.Name + "：内部图不是 ActGraph"); badKind++; }
+                if (map.Graph.Layers == null || map.Graph.Layers.Length != map.Realm.Waves + 2)
                 {
-                    Bad(sb, realm.Name + " 战斗节点 " + battles + " 个 ≠ 波数 " + realm.Waves);
-                    badBoss++;
+                    Bad(sb, realm.Name + " 层数 " + map.Graph.Layers.Length + " ≠ 波数+2");
+                    badKind++;
                 }
+
+                if (!WanXiang.Campaign.RealmMapBuilder.IsConnected(map))
+                { Bad(sb, realm.Name + " 有走不到的孤岛"); badConnect++; }
+                if (WanXiang.Campaign.RealmMapBuilder.BossCount(map) != 1)
+                { Bad(sb, realm.Name + " 首领裂隙不是恰好 1 个"); badBoss++; }
+                if (WanXiang.Campaign.RealmMapBuilder.BattleCount(map) < map.Realm.Waves)
+                { Bad(sb, realm.Name + " 战斗节点少于波数"); badBattle++; }
 
                 // 同种子必得同一张图（可复盘）
                 var again = WanXiang.Campaign.RealmMapBuilder.Build(realm, 20261016UL);
-                bool same = again != null && again.Nodes.Length == map.Nodes.Length;
+                bool same = again != null && again.NodeCount == map.NodeCount && again.BossOffset == map.BossOffset;
                 if (same)
-                    for (int k = 0; k < map.Nodes.Length; k++)
-                        if (map.Nodes[k].Kind != again.Nodes[k].Kind) { same = false; break; }
-                if (!same) Bad(sb, realm.Name + " 同种子生成结果不一致（不可复盘）");
+                    for (int k = 0; k < map.NodeCount; k++)
+                        if (map.KindOf(k) != again.KindOf(k)) { same = false; break; }
+                if (!same) Bad(sb, realm.Name + " 同种子结果不一致（不可复盘）");
             }
-            if (badConnect == 0 && badElite == 0 && badBoss == 0)
-                Pass(sb, "5 张地图全部通过：连通 + 精英不相邻 + 首领恰好 1 个 + 战斗数=波数");
+            if (badConnect == 0 && badBoss == 0 && badBattle == 0 && badKind == 0)
+                Pass(sb, "5 张图全部通过：连通 + 首领恰好 1 个 + 战斗数≥波数 + 同种子可复盘");
 
-            // 节点类型分布（抽 1 张看看别全是一个类型）
-            var m = WanXiang.Campaign.RealmMapBuilder.Build(
+            // 节点类型分布（别全是一个类型）
+            var m2 = WanXiang.Campaign.RealmMapBuilder.Build(
                 WanXiang.Campaign.RealmCatalog.For(WanXiang.Campaign.RealmIds.Marsh), 20261016UL);
-            var kinds = new System.Collections.Generic.Dictionary<WanXiang.Campaign.RealmNodeKind, int>();
-            for (int i = 0; i < m.Nodes.Length; i++)
+            var kinds = new System.Collections.Generic.Dictionary<WanXiang.Campaign.NodeKind, int>();
+            for (int i = 0; i < m2.NodeCount; i++)
             {
-                var k = m.Nodes[i].Kind;
+                var k = m2.KindOf(i);
                 if (!kinds.ContainsKey(k)) kinds[k] = 0;
                 kinds[k]++;
             }
             var sb2 = new StringBuilder();
             foreach (var kv in kinds) sb2.Append(kv.Key + "×" + kv.Value + " ");
-            if (kinds.Count >= 4) Pass(sb, "节点类型分布合理：" + sb2.ToString());
-            else Bad(sb, "节点类型太单一（只有 " + kinds.Count + " 种）：" + sb2.ToString());
+            if (kinds.Count >= 3) Pass(sb, "节点类型分布合理：" + sb2.ToString());
+            else Bad(sb, "节点类型太单一：" + sb2.ToString());
 
-            // 入口=遭遇、出口=窖藏（设计约定）
-            if (m.At(m.EntryIndex).Kind == WanXiang.Campaign.RealmNodeKind.Skirmish
-                && m.At(m.ExitIndex).Kind == WanXiang.Campaign.RealmNodeKind.Cache)
-                Pass(sb, "入口固定是遭遇、出口固定是窖藏");
-            else Bad(sb, "入口/出口的固定类型不对");
+            // 首层 = 遭遇（入口热身）、顶层 = 出口
+            var entry = m2.Graph.Layers[0][0];
+            var exit = m2.Graph.Layers[m2.Graph.Layers.Length - 1][0];
+            if (m2.KindOf(entry) == WanXiang.Campaign.NodeKind.Encounter
+                && m2.IsExitOffset(exit))
+                Pass(sb, "首层固定遭遇（热身）、顶层是出口层");
+            else Bad(sb, $"首层/顶层类型不对：entry={m2.KindOf(entry)} exit={m2.KindOf(exit)}");
         }
 
         // ================================================================

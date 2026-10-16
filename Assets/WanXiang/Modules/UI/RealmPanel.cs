@@ -52,6 +52,13 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button _btnReroll;         // Btn_Reroll
         [SerializeField] private Button _btnQuit;           // Btn_Quit（秘境内才显示）
 
+        // ---- 节点尺寸（与 CampaignPanel 的 NodeW/NodeH/Gap 同量级）----
+        private const float NodeW = 96f;
+        private const float NodeH = 72f;
+        private const float GapX = 26f;
+        private const float GapY = 40f;
+        private static readonly Color UIBuildInk = new Color(0.94f, 0.92f, 0.86f, 1f);
+
         private RealmDef _realm;
         private RealmMap _map;
         private int _rerollUsed;
@@ -207,6 +214,12 @@ namespace WanXiang.Modules.UI
         // =====================================================================
         //  秘境内小地图
         // =====================================================================
+        /// <summary>
+        /// 按**层**排布秘境内部图——与 CampaignPanel 的路线图**完全同一套做法与数学**
+        /// （y = -(层数-1-layer)*(H+Gap)，层内按列序水平铺开）。
+        /// ⛔ 不用GridLayoutGroup：第一版用网格，结果观感和主线完全不像，
+        ///   玩家会以为进入了另一个游戏（用户 2026-10-16 明确要求"套用现在的节点地图设计"）。
+        /// </summary>
         private void BuildMap()
         {
             if (_gridContent != null) _gridContent.gameObject.SetActive(true);
@@ -214,43 +227,78 @@ namespace WanXiang.Modules.UI
             var run = WanXiang.Run.RunSave.Current;
             if (_map == null && run != null)
                 _map = RealmMapBuilder.Build(_realm, RealmSession.RealmSeedFor(run));
-            if (_map == null || _nodeTemplate == null) return;
+            if (_map == null || _map.Graph == null || _nodeTemplate == null) return;
 
+            // 秘境内部不用自动布局（节点要手摆）
             var glg = _gridContent.GetComponent<GridLayoutGroup>();
-            if (glg != null) glg.constraintCount = Mathf.Max(2, _map.Cols);
+            if (glg != null) glg.enabled = false;
 
-            for (int i = 0; i < _map.Nodes.Length; i++)
+            int layers = _map.LayerCount;
+            for (int layer = 0; layer < layers; layer++)
             {
-                var n = _map.Nodes[i];
-                var go = Instantiate(_nodeTemplate, _gridContent);
-                go.SetActive(true);
-                var icon = go.transform.Find("Tmp_NodeIcon");
-                var nameTx = go.transform.Find("Tmp_NodeName");
-                var mark = go.transform.Find("Img_Cleared");
-                if (icon != null) icon.GetComponent<TMP_Text>().text = IconOf(n.Kind);
-                if (nameTx != null) nameTx.GetComponent<TMP_Text>().text = NameOf(n.Kind);
-                if (mark != null) mark.gameObject.SetActive(_cleared.Contains(i));
-                var btn = go.GetComponent<Button>();
-                if (btn == null) btn = go.AddComponent<Button>();
-                var idx = i;
-                btn.onClick.AddListener(() => OnNodeClicked(idx));
-                _nodeViews.Add(go);
+                var row = _map.Graph.Layers[layer];
+                float y = -(layers - 1 - layer) * (NodeH + GapY);   // 层号越大越靠上
+                for (int k = 0; k < row.Length; k++)
+                {
+                    int off = row[k];
+                    var go = Instantiate(_nodeTemplate, _gridContent);
+                    go.SetActive(true);
+                    var rt = (RectTransform)go.transform;
+                    rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+                    rt.pivot = new Vector2(0.5f, 1f);
+                    rt.sizeDelta = new Vector2(NodeW, NodeH);
+                    float x = row.Length <= 1 ? 0f : (k - (row.Length - 1) * 0.5f) * (NodeW + GapX);
+                    rt.anchoredPosition = new Vector2(x, y);
+
+                    PaintNode(go, off, _cleared.Contains(off), off == _curNode);
+                    var btn = go.GetComponent<Button>();
+                    if (btn == null) btn = go.AddComponent<Button>();
+                    var idx = off;
+                    btn.onClick.AddListener(() => OnNodeClicked(idx));
+                    _nodeViews.Add(go);
+                }
+            }
+            // content 高度要够，否则底部几层会被挤出可视区
+            var crt = _gridContent;
+            crt.sizeDelta = new Vector2(crt.sizeDelta.x,
+                layers * (NodeH + GapY) + 40f);
+        }
+
+        /// <summary>给一格上色/写字（首领与已清高亮，锁定压暗）。</summary>
+        private void PaintNode(GameObject go, int offset, bool cleared, bool isHere)
+        {
+            var kind = _map.KindOf(offset);
+            bool boss = _map.IsBossOffset(offset);
+            var icon = go.transform.Find("Tmp_NodeIcon");
+            var nameTx = go.transform.Find("Tmp_NodeName");
+            var mark = go.transform.Find("Img_Cleared");
+            if (icon != null) icon.GetComponent<TMP_Text>().text = boss ? "首" : IconOf(kind);
+            if (nameTx != null) nameTx.GetComponent<TMP_Text>().text = boss ? "首领" : NameOf(kind);
+            if (mark != null) mark.gameObject.SetActive(cleared);
+
+            var card = go.GetComponent<Image>();
+            if (card != null)
+            {
+                if (boss) card.color = new Color(0.86f, 0.72f, 0.44f, 1f);
+                else if (isHere) card.color = new Color(0.93f, 0.90f, 0.80f, 1f);
+                else if (cleared) card.color = new Color(0.90f, 0.92f, 0.88f, 1f);
+                else card.color = UIBuildInk;
             }
         }
 
         private void OnNodeClicked(int index)
         {
             if (_map == null) return;
-            var n = _map.At(index);
-            if (n == null) return;
-            // 可达性 = 与当前节点有边相连（杀戮尖塔式真拓扑）
-            if (_curNode >= 0 && !Adjacent(_curNode, index))
+            if (_map == null) return;
+            // 可达性 = 与当前节点**有边**相连（与主线 HasEdge 同一条规则）
+            if (_curNode >= 0 && !_map.CanMove(_curNode, index))
             {
                 SetStatus("走不到那里——得从相邻的格子过去。");
                 return;
             }
+            var kind = _map.KindOf(index);
             _curNode = index;
-            if (n.IsBattle)
+            if (_map.IsBattleOffset(index))
             {
                 // 战斗节点：走一场真战斗（复用同一个BattleRequest 通道，只是倍率不同）
                 RealmSession.AddStarCoin(WanXiang.Run.RunSave.Current, 6);
@@ -259,24 +307,16 @@ namespace WanXiang.Modules.UI
                 RefreshStatus();
                 var run = WanXiang.Run.RunSave.Current;
                 if (run != null) WanXiang.Run.RunSave.SaveCurrent();
-                StartRealmBattle(n.Kind);
+                StartRealmBattle(kind, _map.IsBossOffset(index));
             }
             else
             {
                 // 非战斗节点：即时结算（奖励按深度给，见设计文档 8.1）
-                GrantCalm(n.Kind);
+                GrantCalm(kind);
                 _cleared.Add(index);
                 RefreshNodes();
                 RefreshStatus();
             }
-        }
-
-        private bool Adjacent(int a, int b)
-        {
-            if (_map == null || _map.Edges == null) return false;
-            var es = _map.Edges[a];
-            for (int i = 0; i < es.Count; i++) if (es[i] == b) return true;
-            return false;
         }
 
         /// <summary>
@@ -285,7 +325,7 @@ namespace WanXiang.Modules.UI
         ///   <see cref="RealmSession"/>（EnemyScaleFor / ExternalHooks）注入到同一条链上，
         ///   另开通道就会出现"秘境难度没生效"这类分叉 bug。
         /// </summary>
-        private void StartRealmBattle(RealmNodeKind kind)
+        private void StartRealmBattle(WanXiang.Campaign.NodeKind kind, bool isBossCell)
         {
             var run = WanXiang.Run.RunSave.Current;
             if (run == null) return;
@@ -293,20 +333,20 @@ namespace WanXiang.Modules.UI
             var req = default(BattleRequest);
             //⚠ NodeKind 里**没有** Boss —— 守关是"节点类型 + isBoss 标记"两件事，
             //   别自己造一个枚举值（曾经造过，编译直接报错）。
-            bool isBoss = kind == RealmNodeKind.BossRift;
-            var nodeKind = kind == RealmNodeKind.EliteRift
+            //⚠ NodeKind 里**没有** Boss —— 守关是"节点类型 + isBoss 标记"两件事。
+            var nodeKind = kind == WanXiang.Campaign.NodeKind.Elite
                 ? WanXiang.Campaign.NodeKind.Elite
                 : WanXiang.Campaign.NodeKind.Encounter;
             bool ok = BattleRequestFactory.TryBuildFromRun(
                 null, run, _realm != null ? _realm.Name + "·场地" : "", out req,
-                nodeKind, -1, isBoss);
+                nodeKind, -1, isBossCell);
             if (!ok || req == null)
             {
                 SetStatus("这一场组不起来（内容目录没准备好）。");
                 return;
             }
             // 标题带上场域名，玩家一眼知道自己在哪
-            req.Title = (_realm != null ? _realm.Name : "秘境") + " · " + (kind == RealmNodeKind.BossRift ? "首领裂隙" : "遭遇");
+            req.Title = (_realm != null ? _realm.Name : "秘境") + " · " + (isBossCell ? "首领裂隙" : NodeKinds.Cn(kind));
 
             // ⛔ 走与主线出征**完全同一条** SceneFlow.EnterBattle（自带 UiTransition 转场）。
             //   秘境强度倍率与场地效果已经挂在同一链上（RealmSession / ExternalHooks），
@@ -316,30 +356,36 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>非战斗节点的小额收益（按波数深度给，别一口气掏空）。</summary>
-        private void GrantCalm(RealmNodeKind kind)
+        private void GrantCalm(WanXiang.Campaign.NodeKind kind)
         {
             var run = WanXiang.Run.RunSave.Current;
             if (run == null) return;
             switch (kind)
             {
-                case RealmNodeKind.Cache:
+                case WanXiang.Campaign.NodeKind.Shop:   // 窖藏：直接拿星币
                     RealmSession.AddStarCoin(run, 4);
                     break;
-                case RealmNodeKind.Font:
-                    // 灵泉：回35% 生命（进战斗前生效，暂按灵卵之外的独立计数）
+                case WanXiang.Campaign.NodeKind.Nest:   // 灵泉：回 35% 生命
+                    run.HealPending += 35;
                     break;
-                case RealmNodeKind.ForgeHut:
+                case WanXiang.Campaign.NodeKind.Forge:  // 锻炉：给灵卵当"重铸费折现"
+                    run.Eggs += 2;
                     break;
             }
             WanXiang.Run.RunSave.SaveCurrent();
         }
 
+        /// <summary>刷新所有格子的外观（已清 / 当前 / 首领高亮）。</summary>
         private void RefreshNodes()
         {
-            for (int i = 0; i < _nodeViews.Count && i < (_map != null ? _map.Nodes.Length : 0); i++)
+            if (_map == null || _map.Graph == null) return;
+            for (int i = 0; i < _nodeViews.Count; i++)
             {
-                var mark = _nodeViews[i].transform.Find("Img_Cleared");
-                if (mark != null) mark.gameObject.SetActive(_cleared.Contains(i));
+                if (_nodeViews[i] == null) continue;
+                // _nodeViews 是按 (层, 列) 顺序建的，与 offset 顺序一致（ActGraph 按层顺序编号）
+                int off = i < _map.NodeCount ? i : -1;
+                if (off < 0) continue;
+                PaintNode(_nodeViews[i], off, _cleared.Contains(off), off == _curNode);
             }
         }
 
@@ -402,29 +448,31 @@ namespace WanXiang.Modules.UI
             if (_tmpStatus != null) _tmpStatus.text = msg;
         }
 
-        private static string IconOf(RealmNodeKind k)
+        private static string IconOf(WanXiang.Campaign.NodeKind k)
         {
             switch (k)
             {
-                case RealmNodeKind.Skirmish: return "战";
-                case RealmNodeKind.EliteRift: return "精";
-                case RealmNodeKind.BossRift: return "首";
-                case RealmNodeKind.ForgeHut: return "炉";
-                case RealmNodeKind.Font: return "泉";
-                default: return "窖";
+                case WanXiang.Campaign.NodeKind.Encounter: return "战";
+                case WanXiang.Campaign.NodeKind.Elite: return "精";
+                case WanXiang.Campaign.NodeKind.Forge: return "炉";
+                case WanXiang.Campaign.NodeKind.Nest: return "泉";
+                case WanXiang.Campaign.NodeKind.Shop: return "窖";
+                case WanXiang.Campaign.NodeKind.Tale: return "闻";
+                case WanXiang.Campaign.NodeKind.Omen: return "象";
+                default: return "？";
             }
         }
 
-        private static string NameOf(RealmNodeKind k)
+        private static string NameOf(WanXiang.Campaign.NodeKind k)
         {
             switch (k)
             {
-                case RealmNodeKind.Skirmish: return "遭遇";
-                case RealmNodeKind.EliteRift: return "精英";
-                case RealmNodeKind.BossRift: return "首领";
-                case RealmNodeKind.ForgeHut: return "锻炉";
-                case RealmNodeKind.Font: return "灵泉";
-                default: return "窖藏";
+                case WanXiang.Campaign.NodeKind.Encounter: return "遭遇";
+                case WanXiang.Campaign.NodeKind.Elite: return "精英";
+                case WanXiang.Campaign.NodeKind.Forge: return "锻炉";
+                case WanXiang.Campaign.NodeKind.Nest: return "灵泉";
+                case WanXiang.Campaign.NodeKind.Shop: return "窖藏";
+                default: return WanXiang.Campaign.NodeKinds.Cn(k);
             }
         }
     }

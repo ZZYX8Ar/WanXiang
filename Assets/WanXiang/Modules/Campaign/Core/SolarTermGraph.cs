@@ -66,6 +66,17 @@ namespace WanXiang.Campaign
         /// <summary>遗物：每幕**第二层固定节点**（用户 2026-09-29 重设计，参考杀戮尖塔）。
         /// 从遗物池随机给 3 个、挑 1 个入队（局内变强载体）。非战斗。</summary>
         Relic = 9,
+
+        /// <summary>
+        /// 秘境（2026-10-16，用户："应该要一个新的节点"）：进���后进入**独立的小节点图**
+        /// （同一套层+边的结构，见 <c>RealmMapBuilder</c>），打完回到原节点。
+        /// <para>⚠ 枚举值加在**末尾**（10）：存档里 <c>QuestionRevealed</c> 存的是
+        /// "offset:(int)kind" 字符串，追加不会让任何既有存档失效；
+        /// 也不存在按NodeKind 定长的数组（核实过）。</para>
+        /// <para>⚠ 它是**非战斗**节点（<see cref="NodeKinds.IsBattle"/> 不含它）——
+        ///   战斗发生在秘境内部，不该让"本局场次数"把它算进去。</para>
+        /// </summary>
+        Realm = 10,
     }
 
     public static class NodeKinds
@@ -87,6 +98,7 @@ namespace WanXiang.Campaign
                 case NodeKind.Question: return "？";
                 case NodeKind.Recruit: return "招募";
                 case NodeKind.Relic: return "遗物";
+                case NodeKind.Realm: return "秘境";
                 default: return "？";
             }
         }
@@ -358,9 +370,13 @@ namespace WanXiang.Campaign
                 case 1: return new System.Collections.Generic.HashSet<NodeKind>
                     { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop,
                       NodeKind.Nest, NodeKind.Tale, NodeKind.Omen };
-                default: return new System.Collections.Generic.HashSet<NodeKind>
+                default:
+                    var set = new System.Collections.Generic.HashSet<NodeKind>
                     { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop, NodeKind.Nest,
                       NodeKind.Tale, NodeKind.Forge, NodeKind.Omen };
+                    // ★ 秘境第 2 幕起解禁（第 1 幕玩家还没学会格挡，进秘境是纯挫败）
+                    if (act >= 2) set.Add(NodeKind.Realm);
+                    return set;
             }
         }
 
@@ -370,6 +386,9 @@ namespace WanXiang.Campaign
             (NodeKind.Encounter, 32), (NodeKind.Elite, 12), (NodeKind.Shop, 9),
             (NodeKind.Nest, 8), (NodeKind.Tale, 7), (NodeKind.Forge, 6),
             (NodeKind.Omen, 12), (NodeKind.Question, 14),
+            // ★ 秘境权重 5（约 4%）：一条支线 = 一整张秘境图 + 2 次进场，
+            //   满地图都是秘境会变成日常而不是"选择"（设计文档 1.4硬约束 ③）。
+            (NodeKind.Realm, 5),
         };
 
         /// <summary>按权重抽一个节点类型。首层只出战斗 —— 开局第一脚不该是盲盒或商店。

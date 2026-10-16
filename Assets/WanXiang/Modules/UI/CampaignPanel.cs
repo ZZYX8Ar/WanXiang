@@ -1936,12 +1936,11 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 addW(WanXiang.Campaign.NodeKind.Forge, 1);
                 addW(WanXiang.Campaign.NodeKind.Encounter, 2);
                 addW(WanXiang.Campaign.NodeKind.Elite, 1);
-                // ★ 秘境（2026-10-16）：以Omen 为**载体**入池（权重 1，约 7%），
-                //   路由层再分流到 RealmPanel。⚠ 不新增 NodeKind 枚举值——
-                //   新枚举会波及存档序列化与 RevealedKind 的解析，收益不抵风险。
+                // ★ 秘境（2026-10-16）：问号也能开出秘境，但**低频**（权重 1）——
+                //   路线图上本来就有专门的【秘境】节点（NodeKind.Realm），问号只是另一条路。
                 //   第 1 幕不投（玩家没学会格挡，进秘境是纯挫败 —— 设计文档 5.3）。
                 if (run != null && run.Act >= 2 && RealmSession.EntriesLeft(run) > 0)
-                    addW(WanXiang.Campaign.NodeKind.Omen, 1);
+                    addW(WanXiang.Campaign.NodeKind.Realm, 1);
                 var rng = new WanXiang.Battle.Core.DeterministicRandom(
                     CoreMath.Fnv1a("reveal:" + (run != null ? run.RunSeed : 0) + ":" + _selected));
                 var revealed = weighted[rng.NextInt(0, weighted.Count)];
@@ -1965,15 +1964,14 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             // 先关节点地图：它与接下来要开的面板同在 Normal 层
             CloseSelf();
 
-            // ★ 秘境优先判定（2026-10-16）：问号揭晓成Omen 载体时，若本局还有秘境次数，
-            //   就开秘境面板而不是天象面板。
-            //   ⛔ 判定口径必须与上面的揭晓口径**一致**（同一组条件），否则会出现
-            //   "揭晓成秘境却进了天象"的错位。
-            if (kind == WanXiang.Campaign.NodeKind.Omen && TryRouteToRealm(run)) return;
-
             // 非战斗节点直接路由到已有面板 —— 面板本身承担该节点的玩法
             switch (kind)
             {
+                // ★ 秘境（2026-10-16）：它是**独立的节点类型**，直接路由，
+                //   不再借任何别的节点当载体。
+                case WanXiang.Campaign.NodeKind.Realm:
+                    OpenRealmPanel();
+                    return;
                 case WanXiang.Campaign.NodeKind.Shop:
                     OpenPanelAsync<MarketPanel>().Forget();
                     return;
@@ -2002,36 +2000,39 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         }
 
         /// <summary>
-        /// 问号节点揭晓成"Omen 载体"时，**尝试**分流到秘境面板。
-        /// 返回 true = 已开秘境面板（调用方不要再开别的面板）。
-        /// ⚠ 判定口径必须与揭晓时的入池条件**一致**（本局有次数 + 幕数≥2），
-        ///   否则会出现"揭晓成秘境却进了天象面板"的错位。
-        /// ⚠ 进秘境**不算**本节点通过：秘境收益走星币/灵魂，不该同时吃节点通过奖励。
+        /// 开秘境面板（独立的 <see cref="NodeKind.Realm"/> 节点 / 问号揭晓成秘境都走这里）。
+        /// ⚠ 条件与揭晓口径一致：第 2 幕起 + 本局还有次数。
+        /// ⚠ 进秘境**不算**本节点通过：收益走星币/灵魂，不该同时吃节点通过奖励。
         /// </summary>
-        private bool TryRouteToRealm(WanXiang.Run.RunState run)
+        private void OpenRealmPanel()
         {
-            if (run == null) return false;
-            if (run.Act < 2) return false;
-            if (RealmSession.EntriesLeft(run) <= 0) return false;
-            // 没有可用场域就别开秘境面板（面板会显示"暂无可用秘境"，浪费一次点击）
-            if (RealmSession.RollFor(run, RealmSession.RealmSeedFor(run)) == null) return false;
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return;
+            if (run.Act < 2 || RealmSession.EntriesLeft(run) <= 0)
+            {
+                if (_tmpNodeName != null)
+                    _tmpNodeName.text = "秘境：第 2 幕起才会出现，且本局进入次数已用完。";
+                return;
+            }
+            if (RealmSession.RollFor(run, RealmSession.RealmSeedFor(run)) == null) return;
 
-            // 揭晓记录改成秘境标记：让节点图上这一格显示成「秘境」而不是「天象」
-            if (run.QuestionRevealed != null)
+            // 问号揭晓成秘境时，把记录改成"秘境"，让节点图那一格显示成「秘境」
+            bool wasQuestion = _graph != null && _graph.KindOf(_selected) == WanXiang.Campaign.NodeKind.Question;
+            if (wasQuestion && run.QuestionRevealed != null)
             {
                 for (int i = 0; i < run.QuestionRevealed.Count; i++)
                 {
                     var rec = run.QuestionRevealed[i];
                     if (rec == null || !rec.StartsWith(_selected + ":")) continue;
                     run.QuestionRevealed[i] = _selected + ":"
-                        + (int)WanXiang.Campaign.NodeKind.Question + "|realm";
+                        + (int)WanXiang.Campaign.NodeKind.Realm;
                     break;
                 }
+                BuildNodeMap();          // 重建节点图，让那一格显示成「秘境」
             }
             PendingCommit = -1;          // 进秘境不算本节点通过
             WanXiang.Run.RunSave.SaveCurrent();
             OpenPanelAsync<RealmPanel>().Forget();
-            return true;
         }
 
     }
