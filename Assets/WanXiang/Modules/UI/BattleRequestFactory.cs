@@ -224,16 +224,27 @@ namespace WanXiang.Modules.UI
             //    —— 之前的"敌强 +3%"只写在注释里，实际没有任何代码读取（Jie/Realm 已废弃）。
             float ascMul = 1f + 0.15f * ascension;
 
+            // ★ 秘境强度（2026-10-16）：场域的 enemyScale 与幕数加成**相乘但语义不同** ——
+            //   幕数加成是"越往后越强"，秘境倍率是"这一局额外加压"。
+            //   ⛔ 不在场域里时恒为 1.0 ⇒ 非秘境战斗逐位不变（指纹红线）。
+            float realmScale = RealmSession.EnemyScaleFor(run);
+            float enemyMul = ascMul * realmScale;
+
             req.EnemyEntries.Clear();
             req.Enemy.Clear();
             req.EnemyMul.Clear();
             foreach (var en in entries)
             {
-                var scaled = en.WithMul(en.StatMul * ascMul);
+                var scaled = en.WithMul(en.StatMul * enemyMul);
                 req.EnemyEntries.Add(scaled);
                 req.Enemy.Add(scaled.Def);      // 兼容通道：HUD/预览按 BeastDef 显示名字
                 req.EnemyMul.Add(scaled.StatMul);
             }
+            if (realmScale != 1f)
+                UnityEngine.Debug.Log("[BattleRequestFactory] 秘境「"
+                    + (WanXiang.Campaign.RealmCatalog.For(run.RealmId) != null
+                       ? WanXiang.Campaign.RealmCatalog.For(run.RealmId).Name : run.RealmId)
+                    + "」敌人强度 ×" + realmScale.ToString("0.00"));
             if (ascMul > 1f)
                 UnityEngine.Debug.Log("[BattleRequestFactory] 轮回 " + (runAsc != null ? runAsc.Ascension : 0) +
                                       " ， 敌人属性 ×" + ascMul.ToString("0.00"));

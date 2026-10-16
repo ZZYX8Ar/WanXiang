@@ -199,6 +199,48 @@ namespace WanXiang.Run
         /// <summary>"起雾的那一格"（走到它才起的雾）：**雾期间它自己也显示成「？？迷雾」**。-1 = 无。</summary>
         public int FogTriggerNode = -1;
         public int Losses;                      // 本程败场
+
+        // ---- 秘境（Realm，2026-10-16 设计文档第 7 章）----
+        //  ⚠ 这三个字段**不进存档**（RunSave 的序列化白名单里没有它们）：
+        //    玩家在秘境里退出游戏，读档后回到主线的原节点 —— 不会卡在"半个秘境"里。
+
+        /// <summary>是否正在秘境中。</summary>
+        public bool InRealm = false;
+
+        /// <summary>当前场域 id（见 <c>WanXiang.Campaign.RealmIds</c>）。</summary>
+        public string RealmId = null;
+
+        /// <summary>本局已清的波数（进秘境的第 N 场）。</summary>
+        public int RealmWave = 0;
+
+        /// <summary>本次秘境累积的星币（结算时换钱）。</summary>
+        public int RealmStarCoin = 0;
+
+        /// <summary>本局进过的场域 id（**同局去重**：一种场域一局只进一次）。</summary>
+        public System.Collections.Generic.List<string> RealmEntries =
+            new System.Collections.Generic.List<string>();
+
+        /// <summary>
+        /// 进入秘境前的**路线图快照**（硬约束 ②「打完必回原节点」的实现基础）。
+        /// ⛔ 只存**会被场域改动**的字段 —— 存全量反而容易漏改。
+        /// </summary>
+        public RealmRouteSnapshot RealmSnapshot = null;
+
+        /// <summary>路线图快照（List 在复制时必须深拷贝，见RealmRuntime.Enter）。</summary>
+        [System.Serializable]
+        public sealed class RealmRouteSnapshot
+        {
+            public int NodeOffset = -1;
+            public int HealPending = 0;
+            public int PlayerBuffPct = 0;
+            public int EnemyBuffPct = 0;
+            public int FogLeft = 0;
+            /// <summary>进场时的已探索节点数（用于面板显示，不参与还原）。</summary>
+            public int NodeCount = 0;
+            public System.Collections.Generic.List<int> Path;
+            public System.Collections.Generic.List<int> VisitedNodes;
+            public System.Collections.Generic.List<int> PassedNodes;
+        }
         /// <summary>
         /// 轮回数（"续劫"次数）：每轮回一次，敌人属性 +15%、天气更恶劣。
         /// 与已废弃的 Jie/Realm 无关 —— 那是旧体系；这个是**无尽模式的实际难度轴**。

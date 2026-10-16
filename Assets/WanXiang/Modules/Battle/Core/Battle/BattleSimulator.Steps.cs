@@ -65,6 +65,12 @@ namespace WanXiang.Battle.Core
                 WeatherResolver.ResolveTurnStart(st);
                 WeatherTurnStartHooks(st);   // 17 寒露：每 N 回合凝神（判空短路）
 
+                // ---- 0.45) 外部层回合始钩子（2026-10-16；秘境场地效果走这里）----
+                //   ⛔ 未注册 / 不在场域里 ⇒ 委托为 null 或函数首行 return，
+                //     **零事件、指纹逐位不变**。
+                //   ⚠ 核心层不能直接调 Campaign（CS0234），故走 ExternalHooks 中转。
+                ExternalHooks.RunTurnStart(st);
+
                 // ---- 0.5) 敌方残血反扑（2026-10-16，用户："给敌人重新设计得更有趣"）----
                 //   敌人血量跌破阈值时永久加攻（一次性），并记一条可读事件：
                 //   让"快打死的那只"从威胁变成真正的麻烦，而不是顺势收割。

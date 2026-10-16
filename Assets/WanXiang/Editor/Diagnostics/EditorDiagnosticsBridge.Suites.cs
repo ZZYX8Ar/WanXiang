@@ -112,6 +112,21 @@ namespace WanXiang.EditorTools.Diagnostics
                 + "② 它的 asmdef 里缺 WanXiang.Battle.Core 引用。");
         }
 
+        /// <summary>秘境自检（命令 realm.selftest）。</summary>
+        private const string RealmToolTypeName =
+            "WanXiang.Editor.BattleTool.RealmSelfTest, WanXiang.Editor";
+
+        /// <summary>
+        /// 秘境自检：守场域表 + **回滚保证**（进出 10 次后路线图逐字段相同）
+        /// + 硬约束（每局 2 次 / 同局去重 / 幕数门槛）+ 零副作用。
+        /// </summary>
+        private static void RunRealmSelfTest(Report report)
+        {
+            RunEditorTool(report, "realm.selftest", RealmToolTypeName,
+                "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里缺 WanXiang.Campaign.Core / WanXiang.Modules.UI 引用。");
+        }
+
         /// <summary>首领战自检工具的类型名（与诊断通道同程序集）。</summary>
         private const string BossToolTypeName =
             "WanXiang.Editor.BattleTool.BossSelfTest, WanXiang.Editor";

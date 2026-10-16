@@ -90,7 +90,10 @@ namespace WanXiang.Modules.UI
 
             // ★ 格挡 QTE（2026-10-14）：只在"玩家手动的战斗"里开（自动模式关，AI 不会替玩家按）。
             //   关 ⇒ 模拟层不 yield、零事件、零修正（指纹红线，见 BattleSimulator.Parry.cs）。
-            if (_play.State != null) _play.State.ParryEnabled = !_autoBattle;
+            // ★ 秘境「寂域」禁 QTE（2026-10-16）：关 QTE 是既有的零副作用路径
+            //   （ParryEnabled=false ⇒ 模拟层不 yield、零事件、指纹不变）。
+            bool realmNoQte = RealmSession.QteDisabled(WanXiang.Run.RunSave.Current);
+            if (_play.State != null) _play.State.ParryEnabled = !_autoBattle && !realmNoQte;
 
             int guard = 0;
             while (!_play.Finished)
