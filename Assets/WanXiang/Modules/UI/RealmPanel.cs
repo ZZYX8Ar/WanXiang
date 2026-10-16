@@ -545,24 +545,53 @@ var req = default(BattleRequest);
    return null;
         }
 
-      /// <summary>非战斗节点的小额收益（按波数深度给，别一口气掏空）。</summary>
-        private void GrantCalm(WanXiang.Campaign.NodeKind kind)
-        {
-            var run = WanXiang.Run.RunSave.Current;
-            if (run == null) return;
-            switch (kind)
-            {
-                case WanXiang.Campaign.NodeKind.Shop:   // 窖藏：直接拿星币
-                    RealmSession.AddStarCoin(run, 4);
-                    break;
-                case WanXiang.Campaign.NodeKind.Nest:   // 灵泉：回 35% 生命
-                    run.HealPending += 35;
-                    break;
-                case WanXiang.Campaign.NodeKind.Forge:  // 锻炉：给灵卵当"重铸费折现"
-                    run.Eggs += 2;
-                    break;
+/// <summary>
+        /// 锻炉 = 遗物三选一（设计文档 §8.1「第3 波 遗物三选一 —— 秘境的主要构筑来源」）。
+        /// ⛔ **复用主线那张遗物面板**，不要另造一个三选一 UI：
+        ///   造第二份就意味着三选一的规则（队伍作用域加权 / 「本队」角标 / 敌方弱化类不算本队）
+        ///   要维护两遍，迟早会不一致。
+        /// </summary>
+        private void OpenRelicPick()
+   {
+         var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (ui == null) { SetStatus("界面系统没起来，遗物发不了。"); return; }
+   RelicPanel.SetReturnTarget(() =>
+     {
+          // 回秘境面板：关掉遗物弹层 → 重开秘境面板（面板会重画小地图与已清标记）
+      var self = this;
+       if (self == null) return;
+       var u2 = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (u2 != null) u2.OpenAsync<RealmPanel>(null).Forget();
+      });
+    ui.OpenAsync<RelicPanel>(null).Forget();
+        }
+
+/// <summary>非战斗节点的结算（设计文档 §8.1 奖励梯度）。</summary>
+   private void GrantCalm(WanXiang.Campaign.NodeKind kind)
+   {
+    var run = WanXiang.Run.RunSave.Current;
+     if (run == null) return;
+            bool gotRelic = false;
+switch (kind)
+      {
+        case WanXiang.Campaign.NodeKind.Shop:   // 窖藏：直接拿星币
+                {
+       int coin = RealmSession.AddStarCoin(run, 4);
+          SetStatus("窖藏：星币 +" + coin);
+        }
+             break;
+            case WanXiang.Campaign.NodeKind.Nest:   // 灵泉：回 35% 生命
+        run.HealPending += 35;
+            SetStatus("灵泉：下一场战斗我方回复加成 +35%");
+             break;
+  case WanXiang.Campaign.NodeKind.Forge:  // 锻炉：⭐ 遗物三选一（§8.1 秘境的主要构筑来源）
+        // 上一版这里给的是 "+2 灵卵当重铸费折现" —— 等于把秘境最有价值的一格
+                // 换成了零钱，玩家进来一趟构筑上一点变化都没有，违背文档 §8.1 的定位。
+  gotRelic = true;
+     break;
             }
-            WanXiang.Run.RunSave.SaveCurrent();
+    WanXiang.Run.RunSave.SaveCurrent();
+    if (gotRelic) OpenRelicPick();
         }
 
 /// <summary>刷新所有格子的外观（已清 / 当前 / 首领高亮）。</summary>

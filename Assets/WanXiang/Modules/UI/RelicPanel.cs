@@ -35,8 +35,21 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button _btnConfirm;
         [SerializeField] private Button _btnSkip;
 
-        private int _selected = -1;
+private int _selected = -1;
         private System.Collections.Generic.List<RelicDef> _offered;
+
+        /// <summary>
+        /// 选完（或跳过）之后回哪儿。默认回 CampaignPanel；秘境里的遗物节点要回 <see cref="RealmPanel"/>。
+        /// ⛔ 这是**静态**字段，所以调用方必须在用完立刻调 <see cref="ClearReturnTarget"/> ——
+        ///   否则下一次从主线进遗物节点会被上一次秘境留下的目标劫持，回错界面。
+        /// </summary>
+        private static System.Action _afterPick;
+
+        /// <summary>设置"选完回哪儿"（由调用方在 finally 里用 <see cref="ClearReturnTarget"/> 清掉）。</summary>
+        public static void SetReturnTarget(System.Action afterPick) { _afterPick = afterPick; }
+
+        /// <summary>清掉返回目标（防劫持）。</summary>
+  public static void ClearReturnTarget() { _afterPick = null; }
 
         protected override void OnCreate()
         {
@@ -171,10 +184,14 @@ namespace WanXiang.Modules.UI
             BackToCampaign();
         }
 
-        private void BackToCampaign()
+private void BackToCampaign()
         {
-            CloseSelf();
-            OpenPanelAsync<CampaignPanel>().Forget();
+         CloseSelf();
+      // ⚠ 有指定返回目标（秘境遗物节点）就回秘境，否则回主线路线图。
+    //   这里**不**清静态字段 —— 清的动作在调用方的 finally 里（它比这里晚执行）。
+      var after = _afterPick;
+      if (after != null) { after(); return; }
+   OpenPanelAsync<CampaignPanel>().Forget();
         }
     }
 }
