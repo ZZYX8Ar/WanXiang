@@ -370,6 +370,20 @@ namespace WanXiang.Battle.Presentation
         private readonly List<GameObject> _tempTexts = new List<GameObject>(16);
         private readonly List<float> _tempLife = new List<float>(16);
         private readonly List<float> _tempBaseScale = new List<float>(16);   // 每个飘字的基准缩放（暴击更大）
+        private readonly List<float> _tempLifeMax = new List<float>(16);     // 每个飘字的**总寿命**（0.7f 是伤害数字的基准；判定飘字更长）
+        // ---- 判定横幅（2026-10-16，用户："判断成功和失败、加强和减弱能在醒目一点吗，
+        //   还是说是太快了，导致看的不是很清楚"）——
+        //   之前只有头顶一个小飘字（0.7s 寿命、characterSize 0.13），在棋盘上又小又短，
+        //   玩家基本扫一眼就没了。现在加一条**屏幕中央的大横幅**：弹入 + 停留 + 淡出，
+        //   成功（金/青白）与失败（暗红）颜色对立，一眼能分清。
+        private TextMesh _verdict;         // 横幅文字
+        private MeshRenderer _verdictMr;
+        private SpriteRenderer _verdictBg; // 横幅底衬（白字压浅背景会看不见）
+        private float _verdictT;           // 横幅已播放时长
+        private float _verdictAlpha;
+        private bool _verdictActive;
+        /// <summary>横幅停留时长（弹入 0.12s + 停留 + 淡出 0.35s 的总账）。</summary>
+        private const float VerdictHold = 0.62f;
         private Camera _cam;
         /// <summary>舞台动画时钟（Step 里按 dt 累加）。表现层所有周期动画都用它，别用 Time.time。</summary>
         private float _animT;
@@ -644,32 +658,142 @@ namespace WanXiang.Battle.Presentation
         public bool CutInPlaying => _skillFx != null && _skillFx.CutInActive;
 
 
-      /// <summary>判定反馈：在被判定者头顶飘字。格挡 = 完美格挡!/格挡/未挡；终结技 = 共鸣/失谐；连携 = 阵成/散阵。</summary>
+/// <summary>判定反馈：在被判定者头顶飘字 + **屏幕中央横幅**。
+        /// 格挡 = 完美格挡!/格挡/未挡；终结技 = 共鸣·强化/共鸣/失谐·威力减弱；连携 = 阵成/结阵/散阵。
+        ///
+      /// ★★ 2026-10-16 用户："判断成功和失败，加强和减弱能在醒目一点吗，
+        ///   还是说是太快了，导致看的不是很清楚" —— 两处一起改：
+        ///     ① 头顶飘字寿命从 0.7s 拉到 1.25s（判定类文字要看得完）；
+        ///     ② 加屏幕中央**大横幅**（弹入 + 停留 0.62s + 淡出），成功用金/青白、
+        ///        失败用暗红，两种颜色对立，一眼能分清"这次打没打准"。
+   /// </summary>
         public void ParryFeedback(string attackerId, int grade, bool finisher = false, bool combo = false)
         {
-   if (string.IsNullOrEmpty(attackerId) || _views == null) return;
-      UnitView2D v;
-          if (!_views.TryGetValue(attackerId, out v) || v == null || v.Root == null) return;
-       if (combo)
-  {
-       // 阵形连携逐段反馈（写在施法者头上；成败由模拟层合并判定，这里只报单段手感）
-       if (grade == 2) SpawnNumberInternal(v, "阵成!", new Color(1f, 0.85f, 0.45f), 1.5f);
-       else if (grade == 1) SpawnNumberInternal(v, "结阵", new Color(0.85f, 0.92f, 1f), 1.2f);
-       else SpawnNumberInternal(v, "散阵", new Color(0.62f, 0.58f, 0.60f), 1.1f);
-       return;
+            if (string.IsNullOrEmpty(attackerId) || _views == null) return;
+    UnitView2D v;
+      if (!_views.TryGetValue(attackerId, out v) || v == null || v.Root == null) return;
+       string banner; Color bc;
+     if (combo)
+      {
+      // 阵形连携逐段反馈（写在施法者头上；成败由模拟层合并判定，这里只报单段手感）
+  if (grade == 2) { banner = "阵成"; bc = new Color(1f, 0.85f, 0.45f); SpawnNumberInternal(v, "阵成!", bc, 1.7f, JudgeLife); }
+         else if (grade == 1) { banner = "结阵"; bc = new Color(0.85f, 0.92f, 1f); SpawnNumberInternal(v, "结阵", bc, 1.4f, JudgeLife); }
+                else { banner = "散阵"; bc = new Color(0.86f, 0.36f, 0.32f); SpawnNumberInternal(v, "散阵", bc, 1.4f, JudgeLife); }
+                ShowVerdict(banner, bc);
+         return;
   }
-       if (finisher)
+      if (finisher)
+            {
+        // 终结技 QTE：飘在被施放者（我方）头上
+    if (grade == 2) { banner = "共鸣 · 威力强化"; bc = new Color(1f, 0.82f, 0.42f); SpawnNumberInternal(v, "共鸣! 强化", bc, 1.7f, JudgeLife); }
+    else if (grade == 1) { banner = "共鸣"; bc = new Color(1f, 0.90f, 0.62f); SpawnNumberInternal(v, "共鸣", bc, 1.4f, JudgeLife); }
+          else { banner = "失谐 · 威力减弱"; bc = new Color(0.92f, 0.40f, 0.34f); SpawnNumberInternal(v, "失谐! 威力减弱", bc, 1.5f, JudgeLife); }
+                ShowVerdict(banner, bc);
+         return;
+            }
+          if (grade == 2) { banner = "完美格挡"; bc = new Color(1f, 0.85f, 0.35f); SpawnNumberInternal(v, "完美格挡!", bc, 1.7f, JudgeLife); }
+   else if (grade == 1) { banner = "格挡"; bc = new Color(0.72f, 0.88f, 1f); SpawnNumberInternal(v, "格挡", bc, 1.4f, JudgeLife); }
+       else { banner = "未挡"; bc = new Color(0.90f, 0.38f, 0.32f); SpawnNumberInternal(v, "未挡", bc, 1.4f, JudgeLife); }
+            ShowVerdict(banner, bc);
+  }
+
+        /// <summary>判定飘字的寿命（比伤害数字 0.7s 长一截：判定结果要"看得完"）。</summary>
+        private const float JudgeLife = 1.25f;
+
+        /// <summary>
+      /// 屏幕中央判定横幅。成功/失败各一套颜色，由 <see cref="ParryFeedback"/> 调。
+        /// ⛔ 纯表现层，不读战斗状态（帧流纪律）。
+        /// </summary>
+private void ShowVerdict(string text, Color c)
+    {
+   EnsureVerdict();
+    if (_verdict == null) return;
+ _verdict.text = text;
+     _verdict.color = c;
+        // 底衬 = 判定色的**暗版**（不是纯黑）：暗红底衬配"未挡"、暗金配"强化"，
+            // 颜色本身就在传递成败，不只是一块黑底。
+  if (_verdictBg != null) _verdictBg.color = new Color(c.r * 0.22f, c.g * 0.22f, c.b * 0.22f, 0.86f);
+   _verdictT = 0f;
+            _verdictActive = true;
+   }
+
+   private void EnsureVerdict()
+        {
+            if (_verdict != null) return;
+            if (_qteBgSprite == null) _qteBgSprite = BuildSolidSprite(64);
+    if (_verdictBg == null)
+            {
+       var bgGo = new GameObject("VerdictBg");
+        bgGo.transform.SetParent(transform, false);
+          bgGo.transform.localPosition = new Vector3(0f, 2.05f, -3f);
+        _verdictBg = bgGo.AddComponent<SpriteRenderer>();
+      _verdictBg.sprite = _qteBgSprite;
+                _verdictBg.sortingOrder = 41;
+            }
+    var go = new GameObject("Verdict");
+            go.transform.SetParent(transform, false);
+ go.transform.localPosition = new Vector3(0f, 2.05f, -2f);
+    var f = LegacyFont();
+      _verdict = go.AddComponent<TextMesh>();
+    _verdictMr = go.GetComponent<MeshRenderer>();
+         if (f != null)
+   {
+            _verdict.font = f;
+       if (_verdictMr != null) { _verdictMr.sharedMaterial = f.material; _verdictMr.sortingOrder = 42; }
+       }
+         _verdict.anchor = TextAnchor.MiddleCenter;
+            _verdict.alignment = TextAlignment.Center;
+    _verdict.characterSize = 0.17f;    // 比 QTE 提示条大一倍：这是"结果"，不是"操作提示"
+            _verdict.fontSize = 64;
+  }
+
+  /// <summary>横幅推进：弹入（easeOutBack）→ 停留 → 淡出。</summary>
+        private void StepVerdict(float dt)
   {
-       // 终结技 QTE：飘在被施放者（我方）头上
-     if (grade == 2) SpawnNumberInternal(v, "共鸣! 强化", new Color(1f, 0.82f, 0.42f), 1.5f);
-        else if (grade == 1) SpawnNumberInternal(v, "共鸣", new Color(1f, 0.90f, 0.62f), 1.2f);
-                else SpawnNumberInternal(v, "失谐! 威力减弱", new Color(0.68f, 0.60f, 0.66f), 1.15f);
-    return;
-        }
-      if (grade == 2) SpawnNumberInternal(v, "完美格挡!", new Color(1f, 0.85f, 0.35f), 1.5f);
-   else if (grade == 1) SpawnNumberInternal(v, "格挡", new Color(0.72f, 0.88f, 1f), 1.15f);
-            else SpawnNumberInternal(v, "未挡", new Color(0.62f, 0.58f, 0.55f), 1f);
-        }
+        if (_verdict == null) return;
+if (!_verdictActive)
+       {
+       if (_verdictAlpha <= 0.01f) return;
+       _verdictAlpha = Mathf.MoveTowards(_verdictAlpha, 0f, dt * 6f);
+       }
+         else
+            {
+         _verdictT += dt;
+     if (_verdictT >= VerdictHold)
+       {
+         _verdictActive = false;
+           _verdictAlpha = Mathf.MoveTowards(_verdictAlpha, 0f, dt * 4.5f);
+   }
+      else _verdictAlpha = Mathf.MoveTowards(_verdictAlpha, 1f, dt * 12f);
+      }
+      var vc = _verdict.color;
+            _verdict.color = new Color(vc.r, vc.g, vc.b, _verdictAlpha);
+if (_verdictMr != null) _verdictMr.enabled = _verdictAlpha > 0.01f;
+     // 弹入：0.16s 内从 1.55× 收到 1.0×（easeOutBack）
+            float scale = 1f;
+    if (_verdictActive && _verdictT < 0.16f)
+            {
+       float k = Mathf.Clamp01(_verdictT / 0.16f);
+    float c1 = 1.70158f, c3 = c1 + 1f;
+      float e = 1f + c3 * (k - 1f) * (k - 1f) * (k - 1f) + c1 * (k - 1f) * (k - 1f);
+       scale = Mathf.Lerp(1.55f, 1f, Mathf.Clamp01(e));
+     }
+   _verdict.transform.localScale = new Vector3(scale, scale, 1f);
+if (_verdictBg != null)
+     {
+      var bc = _verdictBg.color;
+   _verdictBg.color = new Color(bc.r, bc.g, bc.b, 0.86f * _verdictAlpha);
+     _verdictBg.enabled = _verdictAlpha > 0.01f;
+    if (_verdictMr != null && _verdictAlpha > 0.01f)
+   {
+      float tw = _verdictMr.bounds.size.x;
+       float ps = _verdictBg.transform.parent != null ? _verdictBg.transform.parent.lossyScale.x : 1f;
+   if (ps > 0.0001f) tw /= ps;
+   float w = Mathf.Clamp(tw > 0.01f ? tw + 0.55f : 2.4f, 1.6f, 9.0f);
+         _verdictBg.transform.localScale = new Vector3(w, 0.72f, 1f);
+            }
+    }
+     }
 
         // ================================================================
         //  QTE 提示条（2026-10-14，用户："这个 qte 是按什么按键的啊，都没有提示"）
@@ -813,7 +937,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             _tempTexts.Clear();
             _tempLife.Clear();
             _tempBaseScale.Clear();
-            _pendingDmg.Clear();
+      _tempLifeMax.Clear();
+        _verdict = null; _verdictMr = null; _verdictBg = null;
+      _verdictActive = false; _verdictT = 0f; _verdictAlpha = 0f;
+    _pendingDmg.Clear();
             _pendingCritFloat = null;
             _parryRing = null;      // 提示圈子物体已被上面销毁；标记清空等下次重建
             _parryTarget = null;
@@ -1642,6 +1769,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             StepShake(fxDt);
             StepZoom(fxDt);
             StepParryBursts(dt);   // 格挡爆闪（跟舞台时钟，倍速下一起变快）
+   StepVerdict(dt);    // 判定横幅（弹入/停留/淡出）——用 fxDt 之外的 dt，让它不被倍速带没
 
       // QTE 提示条淡入淡出（有文案就淡入保持，清掉就淡出隐藏）
             if (_qteHint != null)
@@ -1808,13 +1936,14 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             // 伤害数字上浮 + 弹出缩放 + 回收
             for (int i = _tempTexts.Count - 1; i >= 0; i--)
             {
-                _tempLife[i] -= dt;
-                var go = _tempTexts[i];
-                if (go != null)
-                {
-                    go.transform.localPosition += new Vector3(0f, dt * 0.9f, 0f);
-                    // 弹出：起手 1.5× 快速回落（easeOutBack 手感），暴击基准更大
-                    float age = 0.7f - _tempLife[i];
+_tempLife[i] -= dt;
+       var go = _tempTexts[i];
+         float lifeMax = i < _tempLifeMax.Count && _tempLifeMax[i] > 0.01f ? _tempLifeMax[i] : 0.7f;
+       if (go != null)
+            {
+          go.transform.localPosition += new Vector3(0f, dt * 0.9f, 0f);
+            // 弹出：起手 1.5× 快速回落（easeOutBack 手感），暴击基准更大
+      float age = lifeMax - _tempLife[i];
                     float pop = 1f;
                     if (age < 0.18f)
                     {
@@ -1829,7 +1958,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     if (tm != null)
                     {
                         var c = tm.color;
-                        tm.color = new Color(c.r, c.g, c.b, Mathf.Clamp01(_tempLife[i] / 0.7f));
+                        tm.color = new Color(c.r, c.g, c.b, Mathf.Clamp01(_tempLife[i] / lifeMax));
                     }
                 }
                 if (_tempLife[i] <= 0f)
@@ -1840,6 +1969,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     if (go != null) Destroy(go);
                     _tempTexts.RemoveAt(i); _tempLife.RemoveAt(i);
                     if (i < _tempBaseScale.Count) _tempBaseScale.RemoveAt(i);
+      if (i < _tempLifeMax.Count) _tempLifeMax.RemoveAt(i);
                 }
             }
         }
@@ -1893,8 +2023,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             SpawnNumberInternal(v, label, col, scale);
         }
 
-        private void SpawnNumberInternal(UnitView2D v, string text, Color color, float baseScale)
-        {
+        private void SpawnNumberInternal(UnitView2D v, string text, Color color, float baseScale, float life = 0.7f)
+   {
             var go = new GameObject("Dmg");
             go.transform.SetParent(transform, false);
             go.transform.localPosition = v.Root.transform.position + new Vector3(0f, 1.5f, -1f);
@@ -1912,17 +2042,21 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;
             tm.color = color;
-            _tempTexts.Add(go);
-            _tempLife.Add(0.7f);
-            _tempBaseScale.Add(baseScale);
+if (life < 0.2f) life = 0.2f;
+    _tempTexts.Add(go);
+  _tempLife.Add(life);
+            _tempLifeMax.Add(life);
+        _tempBaseScale.Add(baseScale);
             // ⚠ 运行时不能用 DestroyImmediate（强制同步销毁，长战斗里反复触发会卡）；
             //   改用 Destroy 并把上限放宽到 24，给延迟销毁留出缓冲。
-            while (_tempTexts.Count > 24)
-            {
-                if (_tempTexts[0] != null) Destroy(_tempTexts[0]);
-                _tempTexts.RemoveAt(0); _tempLife.RemoveAt(0);
-            }
+        while (_tempTexts.Count > 24)
+     {
+         if (_tempTexts[0] != null) Destroy(_tempTexts[0]);
+  _tempTexts.RemoveAt(0); _tempLife.RemoveAt(0);
+        if (_tempBaseScale.Count > 0) _tempBaseScale.RemoveAt(0);
+        if (_tempLifeMax.Count > 0) _tempLifeMax.RemoveAt(0);
         }
+    }
 
         /// <summary>血条按比例伸缩。<paramref name="v"/> 的填充宽度 = <see cref="HpBarWidth"/>（可在 Inspector 调）。</summary>
         private void SetHpBar2D(UnitView2D v, int hp, int max)

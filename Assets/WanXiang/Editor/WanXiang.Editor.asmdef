@@ -13,6 +13,7 @@
         "WanXiang.Modules.Fusion.Core",
         "WanXiang.Modules.Fusion",
         "WanXiang.Modules.UI",
+        "UniTask",
         "Unity.InputSystem",
         "Unity.TextMeshPro"
     ],

@@ -46,11 +46,14 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text _tmpNodeNameTemplate;  // Tmp_NodeName
         [SerializeField] private Image _imgClearedTemplate;      // Img_Cleared
 
-        [Header("按钮")]
+[Header("按钮")]
         [SerializeField] private Button _btnEnter;          // Btn_Enter
         [SerializeField] private Button _btnLeave;          // Btn_Leave
-        [SerializeField] private Button _btnReroll;         // Btn_Reroll
+   [SerializeField] private Button _btnReroll;         // Btn_Reroll
         [SerializeField] private Button _btnQuit;           // Btn_Quit（秘境内才显示）
+
+     [Header("内容目录（战斗组阵用；留空会走 Resources 兜底）")]
+        [SerializeField] private WanXiang.Fusion.ContentCatalogSO _contentCatalog;
 
         // ---- 节点尺寸（与 CampaignPanel 的 NodeW/NodeH/Gap 同量级）----
         private const float NodeW = 96f;
@@ -330,16 +333,23 @@ namespace WanXiang.Modules.UI
             var run = WanXiang.Run.RunSave.Current;
             if (run == null) return;
 
-            var req = default(BattleRequest);
-            //⚠ NodeKind 里**没有** Boss —— 守关是"节点类型 + isBoss 标记"两件事，
+var req = default(BattleRequest);
+            // ⚠ NodeKind 里**没有** Boss —— 守关是"节点类型 + isBoss 标记"两件事，
             //   别自己造一个枚举值（曾经造过，编译直接报错）。
-            //⚠ NodeKind 里**没有** Boss —— 守关是"节点类型 + isBoss 标记"两件事。
-            var nodeKind = kind == WanXiang.Campaign.NodeKind.Elite
-                ? WanXiang.Campaign.NodeKind.Elite
-                : WanXiang.Campaign.NodeKind.Encounter;
-            bool ok = BattleRequestFactory.TryBuildFromRun(
-                null, run, _realm != null ? _realm.Name + "·场地" : "", out req,
-                nodeKind, -1, isBossCell);
+      // ⛔⛔ 内容目录**绝不能传 null**：TryBuildFromRun 第 79 行 `if (catalog == null) return false`
+         //   ⇒ 之前这里写死 null，秘境里点任何战斗格都只会弹"这一场组不起来（内容目录没准备好）"。
+        var catalog = ResolveCatalog();
+      if (catalog == null)
+       {
+        SetStatus("找不到内容目录（ContentCatalogSO），战斗组不起来。");
+    return;
+      }
+   var nodeKind = kind == WanXiang.Campaign.NodeKind.Elite
+           ? WanXiang.Campaign.NodeKind.Elite
+        : WanXiang.Campaign.NodeKind.Encounter;
+      bool ok = BattleRequestFactory.TryBuildFromRun(
+   catalog, run, _realm != null ? _realm.Name + "·场地" : "", out req,
+        nodeKind, -1, isBossCell);
             if (!ok || req == null)
             {
                 SetStatus("这一场组不起来（内容目录没准备好）。");
@@ -355,7 +365,19 @@ namespace WanXiang.Modules.UI
             SceneFlow.EnterBattle(req);
         }
 
-        /// <summary>非战斗节点的小额收益（按波数深度给，别一口气掏空）。</summary>
+        /// <summary>
+        /// 内容目录：优先用 prefab 上配的，没配就扫Resources（与 CampaignPanel 同一口径）。
+        /// ⛔ 找不到就是 null —— 调用方必须处理，别把 null 喂给 TryBuildFromRun（它会直接 false）。
+        /// </summary>
+        private WanXiang.Fusion.ContentCatalogSO ResolveCatalog()
+        {
+   if (_contentCatalog != null) return _contentCatalog;
+    var cats = Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
+            if (cats != null && cats.Length > 0) return cats[0];
+   return null;
+        }
+
+      /// <summary>非战斗节点的小额收益（按波数深度给，别一口气掏空）。</summary>
         private void GrantCalm(WanXiang.Campaign.NodeKind kind)
         {
             var run = WanXiang.Run.RunSave.Current;

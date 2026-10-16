@@ -33,6 +33,24 @@ namespace WanXiang.Modules.UI
         /// <summary>阵形连携窗口总时长（真实秒）—— 与终结技同档：都是"大招级"输出 QTE。</summary>
         private static float ComboWindowSeconds = 0.75f;
 
+        /// <summary>
+        /// **最后一段判定提交后的收尾停顿**（真实秒，被冻结时暂停计时）。
+        ///
+        /// ★★ 2026-10-16 用户报障："我方大招的 qte 就是判断完才闪头像啊，
+        ///   现在最后一个判断刚结束就立马闪头像了，在等一下，有时候我最后的判断都没有看清"。
+        /// 根因：终结技/连携的 N 段窗口排完，模拟层紧接着就 ExecuteAction ⇒
+        ///   SkillCast ⇒ cut-in（头像特写）**同一拍**起播，把最后一段的判定反馈
+        ///   （"共鸣·威力强化"横幅 + 头顶飘字）直接盖掉了。
+        /// ⇒ 在**最后一段**判定提交后原地等一小会儿，让判定结果先被看清，再放行动画。
+        /// ⚠ 只在"最后一段"等：段间等会把连段节奏拖散（段间本来就有演出）。
+   /// </summary>
+        private static float LastSegmentSettle(bool offensive)
+        {
+      // 终结技/连携等的是 cut-in 让位 ⇒ 给得久一点；
+            // 格挡短一点（下一拍就是挨打，拖久了发木）。
+            return offensive ? 0.70f : 0.42f;
+        }
+
    /// <summary>判定中心（环收缩进度 0..1；到 0.80 时环正好套上目标圈）。</summary>
         private const float ParryPerfectCenter = 0.80f;
    /// <summary>完美区半径（格挡用）。⚠ 调难度主要调这两个半径（用户嫌太容易）。</summary>
@@ -281,19 +299,47 @@ namespace WanXiang.Modules.UI
                 // ⛔ 连击时**不要**在这里清提示条 —— 下一段紧接着就弹，淡出会闪一下。
                 //   统一由主循环在整段播完后调 ClearQteHint 收口。
             }
-            if (grade == WanXiang.Battle.Core.ParryGrade.Perfect) Sfx("sfx_bt_cmd_confirm");
-            else if (grade == WanXiang.Battle.Core.ParryGrade.Normal) Sfx("sfx_bt_cmd_select");
+if (grade == WanXiang.Battle.Core.ParryGrade.Perfect) Sfx("sfx_bt_guard");
+      else if (grade == WanXiang.Battle.Core.ParryGrade.Normal) Sfx("sfx_bt_cmd_confirm");
+    else Sfx("sfx_bt_cmd_cancel");   // 未挡/失谐：给一声"取消"音，别让失败是无声的
 
-            // ⚠ 只在"还是我在等"时提交：若期间已被外部提交（自动化测试注入），不覆盖、也不打日志
-            //   （否则日志会打出本地超时值，与真实生效值不一致 —— 排查时踩过）。
+    // ⚠ 只在"还是我在等"时提交：若期间已被外部提交（自动化测试注入），不覆盖、也不打日志
+         //   （否则日志会打出本地超时值，与真实生效值不一致 —— 排查时踩过）。
             if (_play.AwaitingParry)
-            {
-                Debug.Log("[BattlePanel] " + (finisher ? "终结技QTE " : "格挡判定 ")
+    {
+      Debug.Log("[BattlePanel] " + (finisher ? "终结技QTE " : "格挡判定 ")
        + grade + "（" + actorName + "，第" + (segIndex + 1) + "/" + segTotal
        + "段，键=" + KeyLabelForSegment(segIndex) + "）");
-                _play.SubmitParry(grade);
+       _play.SubmitParry(grade);
    }
+
+        // ★★ 最后一段判定之后**原地等一拍**再放行（用户 2026-10-16 报障，见 LastSegmentSettle 注释）：
+        //   不等的话，终结技/连携的 cut-in（头像特写）在最后一段判定结束的同一拍就起播，
+        //   把"共鸣·威力强化 / 失谐·威力减弱"的横幅整个盖住 ⇒ 玩家说"最后的判断没看清"。
+            bool lastSegment = segIndex + 1 >= segTotal;
+            if (lastSegment && !_play.AwaitingParry)
+        {
+ float settle = LastSegmentSettle(offensive);
+        if (settle > 0.01f)
+      {
+        float s0 = Time.unscaledTime;
+    float sFrozen = 0f;
+    int sGuard = 0;
+      while (true)
+      {
+        if (_halted)
+        {
+   sFrozen += Time.unscaledTime - s0;
+   if (++sGuard > 900) break;         // 兜底：冻结一直不解也要放行，别把战斗锁死
+    await UniTask.Yield(PlayerLoopTiming.Update, ct);
+             continue;
+  }
+            if (Time.unscaledTime - s0 - sFrozen >= settle) break;
+         await UniTask.Yield(PlayerLoopTiming.Update, ct);
+      }
         }
+            }
+     }
 
         /// <summary>
         /// 本帧是否有 QTE 输入。用旧 Input 直读 ——
