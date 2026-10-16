@@ -611,6 +611,10 @@ namespace WanXiang.Modules.UI
               .Append("　防 ").Append(s.BaseDef)
               .Append("　速 ").Append(s.BaseSpeed);
 
+            // ★ 敌方战术性格（2026-10-16）：悬浮就要能看到"这家伙会给我上什么 debuff"
+            if (!string.IsNullOrEmpty(d.TacticName))
+                sb.Append("\n\n【战术·").Append(d.TacticName).Append("】\n").Append(d.TacticNote);
+
             if (isBoss)
             {
                 sb.Append("\n\n【首领机制】\n");

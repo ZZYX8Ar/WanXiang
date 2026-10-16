@@ -44,11 +44,14 @@ namespace WanXiang.Editor.WeatherTool
         // ⚠ 2026-10-14 元素反应链（ResolveElementReactions）并入常驻战斗：默认局里存在
         //   火/金/木/土 命中带湿/冰蚀/灼烧引信的组合，反应触发后战局变化 → 基线重标。
         //   回退实验（临时关闭该调用）指纹回到 0x3B4E64BF，证明漂移仅来自反应链本身。
-        private const uint BaselineFingerprint = 0x20D2DEC1u;
+        // ⚠ 2026-10-16 敌方战术层（EnemyTactics：残血反扑永久加攻）并入常驻战斗 → 再次重标。
+        //   回退实验（EnemyTactics.Enabled=false）指纹**精确**回到 0x20D2DEC1、41/41 全绿，
+        //   证明漂移仅来自这一层（对照实验是本次改动自带的举证方式）。
+        private const uint BaselineFingerprint = 0x34C97914u;
 
         /// <summary>当前"关抖动"的基线（先手连击机制已移除，默认即无连击）—— 用来做"抖动贡献"的对照。</summary>
-        // ⚠ 同上，关抖动基线随反应链重标（回退实验回到 0x3441864B）。
-        private const uint LegacyBaselineFingerprint = 0xC4E3FE30u;
+        // ⚠ 同上，关抖动基线随敌方战术层重标（回退实验回到 0xC4E3FE30）。
+        private const uint LegacyBaselineFingerprint = 0x3DF7C713u;
 
         private static int _pass, _fail;
         private static readonly List<string> Failures = new List<string>();

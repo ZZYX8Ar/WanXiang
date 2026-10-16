@@ -230,6 +230,14 @@ namespace WanXiang.Battle.Core
         public string Codex;           // 图鉴词条
         public TraitDef Trait;
 
+        /// <summary>
+        /// 敌方战术名（2026-10-16 EnemyTactics 叠加时写入）。空 = 朴素敌人。
+        /// 只给敌方填：我方异兽永远为空（玩家的兽不会自带减益性格）。
+        /// </summary>
+        public string TacticName;
+        /// <summary>战术说明（详情面板/tooltip 显示）。</summary>
+        public string TacticNote;
+
         public SkillDef Basic;
         public SkillDef Active;
         public SkillDef Ultimate;
@@ -261,6 +269,7 @@ namespace WanXiang.Battle.Core
                 Id = Id, DisplayName = DisplayName, Element = Element,
                 Role = Role, Rarity = Rarity,
                 Source = Source, Quote = Quote, Lore = Lore, Codex = Codex, Trait = Trait,
+                TacticName = TacticName, TacticNote = TacticNote,
                 Basic = Basic?.Clone(), Active = Active?.Clone(), Ultimate = Ultimate?.Clone(), Awaken = Awaken?.Clone(),
                 Palette = Palette,
                 BaseHp = BaseHp, BaseAtk = BaseAtk, BaseDef = BaseDef, BaseSpeed = BaseSpeed,

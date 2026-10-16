@@ -176,6 +176,12 @@ namespace WanXiang.Battle.Core
         public float PermanentAttackBonus;
         public float PermanentMaxHpBonus;
 
+        /// <summary>
+        /// 是否已触发过「残血反扑」（2026-10-16 EnemyTactics）。
+        /// 只对敌方有意义；用来保证"一次性"，别每回合重复加攻。
+        /// </summary>
+        public bool Enraged;
+
         // ---- 棋盘与羁绊带来的、由 BattleState / BoardRules 写入的派生量 ----
         //  它们不放 Modifiers 里，是因为它们的来源不是"技能施加的临时修正"，
         //  而是"你站在哪、你和谁同队"这些结构性事实。混进 Modifiers 会带来

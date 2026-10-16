@@ -55,6 +55,13 @@ namespace WanXiang.Battle.Core
             var e = this; e.TraitId = traitId; return e;
         }
 
+        /// <summary>换一份 Def（2026-10-16 敌方战术层用：叠完战术的克隆体换进来）。
+        /// ⚠ 必须配一份**克隆**再用 —— 敌我共用同一份图鉴定义。</summary>
+        public DeployEntry WithDef(BeastDef def)
+        {
+            var e = this; e.Def = def; return e;
+        }
+
         public static DeployEntry Of(BeastDef def, TeamSide side, int posIndex)
             => new DeployEntry(def, side, posIndex);
 

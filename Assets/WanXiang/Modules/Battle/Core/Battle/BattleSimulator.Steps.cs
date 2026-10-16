@@ -65,6 +65,12 @@ namespace WanXiang.Battle.Core
                 WeatherResolver.ResolveTurnStart(st);
                 WeatherTurnStartHooks(st);   // 17 寒露：每 N 回合凝神（判空短路）
 
+                // ---- 0.5) 敌方残血反扑（2026-10-16，用户："给敌人重新设计得更有趣"）----
+                //   敌人血量跌破阈值时永久加攻（一次性），并记一条可读事件：
+                //   让"快打死的那只"从威胁变成真正的麻烦，而不是顺势收割。
+                //   ⛔ 只判敌方、只触发一次（用 HasEnraged 标记），否则每回合无限叠加。
+                EnemyTactics.EnrageWoundedEnemies(st);
+
                 // ---- 1) 回合开始的场地结算（棋盘四条规则） ----
                 Accumulate(ref total, BoardRules.ResolveAdjacency(st));
                 if (st.CheckOutcome()) break;

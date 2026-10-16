@@ -110,6 +110,13 @@ namespace WanXiang.Campaign
             for (int i = 0; i < picked.Count; i++)
                 result[i] = DeployEntry.Enemy(picked[i], _formation[i]).WithMul(mul);
 
+            // ★ 敌方战术性格（2026-10-16，用户："给敌人重新设计得更有趣一些，
+            //   他们也可以给玩家上 debuff"）：按兽 id 确定性分配一条战术，
+            //   给它的某个技能叠一个「施加减益」原子（详见 Battle.Core.EnemyTactics）。
+            //   ⚠ 走的是 EnemyTactics.Apply（**克隆**后再改），绝不就地改图鉴共享的 BeastDef
+            //     —— 否则玩家自己养的那只兽也会中招（敌我共用同一份内容）。
+            ApplyTactics(result);
+
             // 精英战：恰好 1 只带「劫象」（按种子从池里抽 1 条；§5.5 —— 同一场战斗
             // 在不同种子里有不同的解法，而不是单纯加数值）
             if (kind == NodeKind.Elite && result.Length > 0)
@@ -121,6 +128,25 @@ namespace WanXiang.Campaign
 
             LastBudgetRatio = EnemyBudget.Ratio(result, EnemyBudget.Cap(act, kind));
             return result;
+        }
+
+        /// <summary>
+        /// 给敌方编队里的每只兽叠上战术性格（2026-10-16）。
+        /// ⚠ 首领本体不叠：首领机制是手写的（分阶段/召唤/反弹），再叠通用减益会盖掉它的性格。
+        /// </summary>
+        private static void ApplyTactics(DeployEntry[] squad)
+        {
+            if (squad == null) return;
+            for (int i = 0; i < squad.Length; i++)
+            {
+                var def = squad[i].Def;
+                if (def == null) continue;
+                if (def.Id != null && def.Id.StartsWith("b_")) continue;   // 首领跳过
+                var t = WanXiang.Battle.Core.EnemyTactics.Of(def.Id);
+                if (t == null) continue;
+                // ⚠ DeployEntry 是**结构体**：WithDef 返回新值，必须写回数组元素，否则白改。
+                squad[i] = squad[i].WithDef(WanXiang.Battle.Core.EnemyTactics.Apply(def, t));
+            }
         }
 
         /// <summary>
@@ -177,6 +203,10 @@ namespace WanXiang.Campaign
             }
 
             var result = list.ToArray();
+
+            // ★ 随从也挂战术性格（2026-10-16）：首领本体有自己的手写机制，不叠；
+            //   但两个随从跟遭遇战的敌人是同一批兽，给它们同样的性格才一致。
+            ApplyTactics(result);
 
             // 劫律 14「守关加冠」：Boss 额外获得 1~2 条特性（从劫象池按种子抽，可重复）。
             // GDD：守关的强度来自 Boss 的特性与 ×1.35 倍率，不来自人数堆满预算。
