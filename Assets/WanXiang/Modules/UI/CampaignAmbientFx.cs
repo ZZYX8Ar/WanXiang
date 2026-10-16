@@ -156,6 +156,15 @@ namespace WanXiang.Modules.UI
                 return;
             }
 
+            SpawnParticles(sp, style, particleRoot);
+            Debug.Log("[Campaign] 地图背景与粒子已就绪 act=" + act + " 粒子=" + _ps.Length +
+                      " 图=" + sp.name + " size=" + style.Size + " alpha=" + style.Alpha +
+                      " 区域=" + _w + "x" + _h);
+        }
+
+        /// <summary>按样式铺一批 UGUI 粒子（主线按幕 / 秘境按场域都走这里）。</summary>
+        private void SpawnParticles(Sprite sp, Style style, RectTransform particleRoot)
+        {
             _ps = new P[style.Count];
             for (int i = 0; i < _ps.Length; i++)
             {
@@ -197,9 +206,104 @@ namespace WanXiang.Modules.UI
                     Alpha = style.Alpha,
                 };
             }
-            Debug.Log("[Campaign] 地图背景与粒子已就绪 act=" + act + " 粒子=" + _ps.Length +
-                      " 图=" + sp.name + " size=" + style.Size + " alpha=" + style.Alpha +
-                      " 区域=" + _w + "x" + _h);
+        }
+
+        /// <summary>
+        /// 按**场域**构建背景 + 粒子（2026-10-16 用户："每一个秘境的这个背景图也要换一下…
+        ///   最好这个粒子也换一下配合这个背景好看一点"）。
+        /// <para>与主线的差别只有"读哪张图、用什么飘法"—— 排布/回绕/呼吸全部共用上面那套，
+        ///   所以不会出现"秘境的粒子飘法又坏了"这种第二份实现才会有的 bug。</para>
+        /// </summary>
+        public void BuildRealm(WanXiang.Campaign.RealmDef realm, Image bgImage, RectTransform particleRoot)
+        {
+            Clear();
+            if (realm == null) return;
+
+            // ---- 背景 ----
+            if (bgImage != null)
+            {
+                var bg = Resources.Load<Sprite>("UI/Realm/map_bg_" + realm.Id);
+                if (bg != null)
+                {
+                    bgImage.sprite = bg;
+                    bgImage.type = Image.Type.Simple;
+                    bgImage.color = Color.white;
+                    bgImage.raycastTarget = false;
+                    bgImage.gameObject.SetActive(true);
+                }
+                else
+                {
+                    // ⛔ 缺图要**明说**：静默用上一张（或空白）会让"秘境背景没换"看起来像没做
+                    Debug.LogWarning("[Campaign] 秘境背景缺图：UI/Realm/map_bg_" + realm.Id);
+                    bgImage.gameObject.SetActive(false);
+                }
+            }
+
+            if (particleRoot == null) return;
+            _area = particleRoot;
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas != null)
+            {
+                var cr = canvas.GetComponent<RectTransform>();
+                if (cr != null) { _w = cr.rect.width; _h = cr.rect.height; }
+            }
+            if (_w <= 0f) _w = 1920f;
+            if (_h <= 0f) _h = 1080f;
+
+            var style = StyleForRealm(realm.Id);
+            var sp = Resources.Load<Sprite>("UI/Realm/FX_" + FxNameOf(realm.Id));
+            if (sp == null)
+            {
+                // 缺图就退回苍泽那颗（而不是直接不显示）：飘落感比"哪一颗"更重要
+                sp = Resources.Load<Sprite>("UI/Realm/FX_realm_marsh");
+                if (sp == null) { Debug.LogWarning("[Campaign] 秘境粒子缺图：" + realm.Id); return; }
+            }
+
+            style.ParticlePath = sp.name;
+            SpawnParticles(sp, style, particleRoot);
+            Debug.Log("[Campaign] 秘境背景与粒子已就绪 realm=" + realm.Id + " 粒子=" + _ps.Length +
+                      " 图=" + sp.name + " 区域=" + _w + "x" + _h);
+        }
+
+        /// <summary>场域 id → 粒子图名后缀（文件名与 RealmIds 常量一一对应）。</summary>
+        private static string FxNameOf(string realmId)
+        {
+            if (realmId == WanXiang.Campaign.RealmIds.Marsh) return "realm_marsh";
+            if (realmId == WanXiang.Campaign.RealmIds.Ember) return "realm_ember";
+            if (realmId == WanXiang.Campaign.RealmIds.Gear) return "realm_gear";
+            if (realmId == WanXiang.Campaign.RealmIds.Silent) return "realm_silent";
+            if (realmId == WanXiang.Campaign.RealmIds.Thorn) return "realm_thorn";
+            return "realm_marsh";
+        }
+
+        /// <summary>
+        /// 各场域的飘落样式。⚠ 与背景配套：苍泽浮萍是**慢慢沉**、烬岭火星是**往上飘**（负速），
+        ///   寂域尘埃几乎不动（该场域的主题就是"静止"）。
+        /// </summary>
+        private static Style StyleForRealm(string realmId)
+        {
+            switch (realmId)
+            {
+                // 苍泽·浮萍：大、慢、半透，横向摆幅大（泡在水里随波）
+                case WanXiang.Campaign.RealmIds.Marsh:
+                    return new Style { Count = 14, Size = 44f, FallSpeed = 18f, SwayAmp = 90f, SwayFreq = 0.45f, SpinDeg = 18f, AlphaMin = 0.45f, AlphaSpeed = 0f, Alpha = 0.62f };
+
+                // 烬岭·余烬：**负速度 = 往上飘**（热气上升），快、闪、小而亮
+                case WanXiang.Campaign.RealmIds.Ember:
+                    return new Style { Count = 22, Size = 26f, FallSpeed = -34f, SwayAmp = 70f, SwayFreq = 1.0f, SpinDeg = 20f, AlphaMin = 0.40f, AlphaSpeed = 2.2f, Alpha = 1f };
+
+                // 机枢·铜屑：小而稀，慢速直落，几乎不摆（金属碎屑）
+                case WanXiang.Campaign.RealmIds.Gear:
+                    return new Style { Count = 12, Size = 22f, FallSpeed = 46f, SwayAmp = 14f, SwayFreq = 0.5f, SpinDeg = 90f, AlphaMin = 0.55f, AlphaSpeed = 0f, Alpha = 0.75f };
+
+                // 寂域·尘：极慢、极淡、几乎不动 —— 这个场域的主题就是"没有动静"
+                case WanXiang.Campaign.RealmIds.Silent:
+                    return new Style { Count = 18, Size = 30f, FallSpeed = 5f, SwayAmp = 20f, SwayFreq = 0.18f, SpinDeg = 0f, AlphaMin = 0.20f, AlphaSpeed = 0.25f, Alpha = 0.45f };
+
+                // 荆墟·枯叶屑：快而干，摆幅中等、叶片翻转明显
+                default:
+                    return new Style { Count = 16, Size = 30f, FallSpeed = 52f, SwayAmp = 60f, SwayFreq = 0.85f, SpinDeg = 70f, AlphaMin = 0.45f, AlphaSpeed = 0f, Alpha = 0.65f };
+            }
         }
 
         /// <summary>推进粒子（由面板 Update 调用；面板打开期间每帧都调）。</summary>

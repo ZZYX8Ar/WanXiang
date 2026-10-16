@@ -142,6 +142,18 @@ BuildNodeMap();
                 _btnXingyi.gameObject.SetActive(false);   // 默认隐藏，选中有天时的节点才显示
             }
 
+            // ★ 秘境「离开」按钮（prefab 里 Btn_RealmQuit）：
+            //   与「返回主界面」**分开**——撤离要回滚场域 + 还原原节点，两者语义不同。
+            //   只在内秘境内显示（OnRefresh/BuildNodeMap 里按 _realmMode 开关）。
+            var quitBtn = transform.Find("Btn_RealmQuit");
+            if (quitBtn != null)
+            {
+                var bq = quitBtn.GetComponent<UnityEngine.UI.Button>();
+                if (bq != null) { bq.onClick.RemoveAllListeners(); bq.onClick.AddListener(OnRealmQuitClicked); }
+                quitBtn.gameObject.SetActive(false);   // 默认隐藏，进秘境才亮
+            }
+            else Debug.LogWarning("[Campaign] 缺 Btn_RealmQuit（秘境离开按钮）");
+
             // ★ 瘴雾调试按钮（prefab 里 Btn_DebugFog）：点一下触发 3 节瘴雾，方便实机看效果。
             //   等正式触发口（天象/事件/守关失败）接上后可以删掉这个按钮。
             var dbg = transform.Find("Btn_DebugFog");
@@ -172,76 +184,54 @@ BuildNodeMap();
         ///   撤离时还原，所以点一百次也不会把主线带偏。
         /// </summary>
         private void DebugEnterRealm()
-  {
-   if (_realmMode)
-      {
-  Debug.LogWarning("[Campaign] 已在秘境中，忽略秘境测试按钮");
-      return;
-  }
-         var run = WanXiang.Run.RunSave.Current;
+        {
+            if (_realmMode)
+            {
+                Debug.LogWarning("[Campaign] 已在秘境中，忽略秘境测试按钮");
+                return;
+            }
+            var run = WanXiang.Run.RunSave.Current;
             if (run == null) return;
 
-        // 幕数不足/次数用完是**正常玩法限制**，调试按钮要绕开：临时放开再恢复。
-         // 幕数不足 / 本局已进过是**正常玩法限制**，调试按钮要绕开。
-     //   ⛔ 记下备份：撤离时要把它们**还原**（调试按钮不该留下"白赚一次"的痕迹）。
-  int actBak = run.Act;
-        var entriesBak = new System.Collections.Generic.List<string>(run.RealmEntries);
-            if (run.Act < 2) run.Act = 2;            // 秘境第 2 幕起才出现
-    if (run.RealmEntries != null) run.RealmEntries.Clear();   // 绕开"同局已进过"去重
+            // 幕数不足 / 本局已进过是**正常玩法限制**，调试按钮要绕开。
+            //   ⛔ 记下备份，撤离时还原 —— 调试按钮不该留下"白赚一次"的痕迹。
+            int actBak = run.Act;
+            var entriesBak = new System.Collections.Generic.List<string>(run.RealmEntries);
+            if (run.Act < 2) run.Act = 2;
+            run.RealmEntries.Clear();
 
-    var realm = WanXiang.Modules.UI.RealmSession.RollFor(run,
-            WanXiang.Modules.UI.RealmSession.RealmSeedFor(run));
-   if (realm == null)
+            var realm = RealmSession.RollFor(run, RealmSession.RealmSeedFor(run));
+            if (realm == null)
             {
-        Debug.LogWarning("[Campaign] 秘境测试按钮：抽不到场域");
-        run.Act = actBak;
-    run.RealmEntries.Clear();
-     run.RealmEntries.AddRange(entriesBak);
-    return;
-      }
-
-            // 进场（存位置快照 —— 撤离就靠它回原处）
-            if (!WanXiang.Modules.UI.RealmSession.Enter(run, realm))
-{
-        Debug.LogWarning("[Campaign] 秘境测试按钮：RealmSession.Enter 拒绝");
-     run.Act = actBak;
-      run.RealmEntries.Clear();
-      run.RealmEntries.AddRange(entriesBak);
-   return;
- }
-  PendingCommit = -1;      // 调试入口不算"通过某个节点"
-   WanXiang.Run.RunSave.SaveCurrent();
-
-   var map = WanXiang.Campaign.RealmMapBuilder.Build(realm,
-          WanXiang.Modules.UI.RealmSession.RealmSeedFor(run));
-    if (map == null || map.Graph == null)
-      {
-     Debug.LogError("[Campaign] 秘境测试按钮：建不出秘境图");
-   WanXiang.Modules.UI.RealmSession.Exit(run);
+                Debug.LogWarning("[Campaign] 秘境测试按钮：抽不到场域");
+                run.Act = actBak;
+                run.RealmEntries.Clear(); run.RealmEntries.AddRange(entriesBak);
                 return;
- }
+            }
 
-  // 撤离 = 还原位置 + 撤销这次调试进入（幕数/次数都恢复原样）
-  OnRealmQuitRequested = () =>
-     {
-      var r = WanXiang.Run.RunSave.Current;
-         WanXiang.Modules.UI.RealmSession.Exit(r);       // ★ 先还原位置快照
-         if (r != null)
-      {
-        r.Act = actBak;
-      r.RealmEntries.Clear();
-   r.RealmEntries.AddRange(entriesBak);
- WanXiang.Run.RunSave.SaveCurrent();
-       }
-    Debug.Log("[Campaign] 已撤离秘境（测试按钮：位置/幕数/次数均已还原）");
-       // ⚠ 不在这里 OpenAsync 重新打开自己：OnBackToHome 会**原地重建主线图**。
-              //   "Closing 中的实例被再次打开"会被 UISystem 静默忽略 ⇒ 画面空白且无报错。
-          };
-
-   // ⚠ **不要**先 CloseSelf()：UISystem 遇到"已打开的实例"只调 InternalRefresh（不重放 OnOpenAsync），
-   //   而"正在 Closing 的实例"会**直接忽略**这次打开 ⇒ 实测出现
-   //   "画面是主线图、状态却是秘境图"的错位。正解是让**同一个实例**通过 OnRefresh 切图。
-            OpenAsRealm(map.Graph);
+            // ★★ 走**与路线图秘境节点完全相同**的流程（用户："这个测试的按钮和正常进入是一样的啊"）。
+            //   差别只有"绕开限制"与"撤离时还原限制"，转场/界面/回滚全部共用。
+            RealmFlow.Enter(realm, onAfterEnter: () =>
+            {
+                // 撤离时把临时放开的限制收回去。
+                // ⚠ 这里包一层：RealmFlow 已经注册了通用撤离回调，我们把它换成"先还原再撤离"。
+                OnRealmQuitRequested = () =>
+                {
+                    RealmFlow.QuitNow(realm.Id);
+                    var r = WanXiang.Run.RunSave.Current;
+                    if (r != null)
+                    {
+                        r.Act = actBak;
+                        if (r.RealmEntries != null)
+                        {
+                            r.RealmEntries.Clear();
+                            r.RealmEntries.AddRange(entriesBak);
+                        }
+                        WanXiang.Run.RunSave.SaveCurrent();
+                        Debug.Log("[Campaign] 已撤离（测试入口：幕数与进入次数均已还原）");
+                    }
+                };
+            });
         }
 
         /// <summary>由 <see cref="HomePanel"/> 在“出征”开图前置位 ， 让开场动画每次都播（用户要求）。</summary>
@@ -255,10 +245,14 @@ BuildNodeMap();
 
 protected override UniTask OnOpenAsync(object payload)
      {
-       // ★★ 秘境 = 特殊的一幕：payload 是 ActGraph 就走秘境模式。
-   //   本面板**只有这一个分叉点**，其余（排布/连线/选中/出征/落印）全部是主线同一套代码。
-    _realmGraphPayload = payload as WanXiang.Campaign.ActGraph;
-   if (_realmGraphPayload == null && _injectedGraph != null) _realmGraphPayload = _injectedGraph;
+            // ★★ 秘境 = 特殊的一幕：payload 是 ActGraph 就走秘境模式。
+            //   本面板**只有这一个分叉点**，其余（排布/连线/选中/出征/落印）全部是主线同一套代码。
+            _realmGraphPayload = payload as WanXiang.Campaign.ActGraph;
+            if (_realmGraphPayload == null && _injectedGraph != null) _realmGraphPayload = _injectedGraph;
+
+            // ⚠ 提前把 _realmMode 定下来：下面的 RefreshAmbient 要按它选"场域背景"还是"当幕背景"。
+            //   （BuildNodeMap 里还会再判一次并真正接管图 —— 两处判据都指向同一个载荷，不会分叉。）
+            if (_realmGraphPayload != null && !_realmGraphPayload.IsEmpty) _realmMode = true;
 
             // 跨存档恢复星移余气：把持久化的 XingyiLingers 重建为会话级 LiveWeather.Lingers，
     //   保证「用了星移→关游戏→重进」星移天气仍在（之前天气随会话丢失，等于白花灵卵）。
@@ -317,12 +311,16 @@ protected override UniTask OnOpenAsync(object payload)
         //   ② 更糟的是 If 崩在写入与 Exit 之间，主线进度直接被污染。
         //   秘境的进度一律走 RealmSession 的独立字段（RealmWave / RealmCleared），
         //   主线节点偏移由 Enter 存的快照在 Exit 时还原（硬约束 ②）。
-          if (_realmMode)
-        {
-    RealmSession.MarkCleared(prun, PendingCommit);
-              Debug.Log("[Campaign] 秘境通过第 " + (PendingCommit + 1) + " 格（进度记在秘境自己的字段里，主线未动）");
-       WanXiang.Run.RunSave.SaveCurrent();
-        }
+                    if (_realmMode)
+                    {
+                        RealmSession.MarkCleared(prun, PendingCommit);
+                        // ★ 镇守：**击败必掉**专属奖励（用户："打死了会有特殊奖励"）。
+                        //   ⛔ 放在"通过节点"这一刻而不是战斗结算里：结算面板是主线共用的，
+                        //     往那儿塞秘境掉落会让"主线战利品"多出一个只在场域里出现的分支。
+                        GrantRealmChampionReward(prun, PendingCommit);
+                        Debug.Log("[Campaign] 秘境通过第 " + (PendingCommit + 1) + " 格（进度记在秘境自己的字段里，主线未动）");
+                        WanXiang.Run.RunSave.SaveCurrent();
+                    }
      else
         {
              prun.NodeOffset = PendingCommit;
@@ -448,6 +446,37 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             return UniTask.CompletedTask;
         }
 
+        /// <summary>
+        /// 图变了以后要跟着变的那几样：背景 + 粒子、标题、离开按钮、当前选中格。
+        /// <para>⛔ 抽出来是因为它被**两条路**用到：正常打开（OnOpenAsync）与
+        /// 「同一个实例换图」（OnRefresh，即进/出秘境）。只写在 OnOpenAsync 里的话，
+        /// 走 OnRefresh 那条路时背景会**留在主线那一幕**、信息卡会停在主线节点上
+        /// （实测：进秘境后背景仍是第三幕秋天、右侧写着"第10节·秋分 / 天时 蛰虫始振"）。</para>
+        /// </summary>
+        private void ApplyViewAfterGraphChange(bool silentSelect)
+        {
+            RefreshAmbient();
+
+            var run = WanXiang.Run.RunSave.Current;
+            if (_tmpActTitle != null && _graph != null)
+            {
+                _tmpActTitle.text = _realmMode
+                    ? "秘境 · " + _graph.SeasonCn + "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚"
+                    : "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn +
+                      " · 守关 " + _graph.BossName +
+                      "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
+            }
+            var qb = transform.Find("Btn_RealmQuit");
+            if (qb != null && qb.gameObject.activeSelf != _realmMode)
+                qb.gameObject.SetActive(_realmMode);
+
+            // 选中格：秘境从 RealmCursor 恢复；主线回到"当前所在格"。
+            int sel = -1;
+            if (_realmMode) sel = run != null ? run.RealmCursor : -1;
+            else sel = _currentOffset;
+            SelectNode(sel, silent: silentSelect);
+        }
+
         // ================================================================
         //  节点图（按 SolarTermGraph 的层拓扑生成）
         // ================================================================
@@ -558,19 +587,44 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// ⛔ 所以切秘境图必须在这里也处理一遍，否则会出现
         ///   "画面是主线图、状态却是秘境图"的错位（实测点按钮必现）。
         /// </summary>
-   protected override void OnRefresh(object payload)
- {
-        var g = payload as WanXiang.Campaign.ActGraph;
-     if (g == null) g = _injectedGraph;
-         if (g != null && !g.IsEmpty)
-      {
-      _realmGraphPayload = g;
-         _injectedGraph = null;
-    _currentOffset = -1;
-    _visited.Clear();
-     _passed.Clear();
-   BuildNodeMap();
-   }
+        protected override void OnRefresh(object payload)
+        {
+            var g = payload as WanXiang.Campaign.ActGraph;
+
+            // ★★ 自愈：**在秘境模式、但存档说已经不在秘境里** ⇒ 说明刚撤离了，
+            //   应该原地切回主线图。
+            //   为什么做成"自愈"而不是显式调用：撤离路径有好几条（按钮 / 调试 / 战败），
+            //   靠调用方记得"顺手把面板切回来"迟早会漏；而"状态与存档不一致就修"是无条件成立的。
+            if (g == null && _realmMode)
+            {
+                var r = WanXiang.Run.RunSave.Current;
+                if (r == null || !r.InRealm)
+                {
+                    _realmMode = false;
+                    _realmGraphPayload = null;
+                    _injectedGraph = null;
+                    _currentOffset = -1;
+                    _visited.Clear();
+                    _passed.Clear();
+                    BuildNodeMap();
+                    ApplyViewAfterGraphChange(silentSelect: true);
+                    return;
+                }
+            }
+
+            if (g != null && !g.IsEmpty)
+            {
+                _realmGraphPayload = g;
+                _injectedGraph = null;
+                _realmMode = true;
+                _currentOffset = -1;
+                _visited.Clear();
+                _passed.Clear();
+                BuildNodeMap();
+                // ⛔ 必须走这一个统一入口：背景/标题/离开按钮/选中格都要跟着换，
+                //   只 BuildNodeMap 的话背景会留在主线那一幕（实测踩过）。
+                ApplyViewAfterGraphChange(silentSelect: true);
+            }
         }
 
         /// <summary>秘境模式下的撤离入口（由 <see cref="RealmSession"/> 提供回滚语义）。</summary>
@@ -784,8 +838,7 @@ if (injected != null && !injected.IsEmpty)
      }
    else
  {
-    _currentOffset = run != null ? run.NodeOffset : -1;
-    _visited.Clear();          // readonly 字段只能就地清空（不能 new）
+            _currentOffset = run != null ? run.NodeOffset : -1;    _visited.Clear();          // readonly 字段只能就地清空（不能 new）
  if (run != null && run.VisitedNodes != null)
        foreach (var v in run.VisitedNodes) _visited.Add(v);
    }
@@ -829,6 +882,14 @@ if (_tmpActTitle != null)
             : "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn + " · 守关 " + _graph.BossName;
         if (!_realmMode) _tmpActTitle.text += "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
         }
+
+            // ★ 秘境「离开」按钮：只在秘境里出现（主线地图上它没有意义，
+            //   露出来反而会让玩家以为是"退出游戏"）。
+            {
+                var qb = transform.Find("Btn_RealmQuit");
+                if (qb != null && qb.gameObject.activeSelf != _realmMode)
+                    qb.gameObject.SetActive(_realmMode);
+            }
             if (_tmpJie != null)
                 _tmpJie.text = run != null ? run.RealmText : "第一境 · 第一劫";
 
@@ -991,11 +1052,160 @@ if (_tmpActTitle != null)
             }
         }
 
-        /// <summary>该节点属于秘境第几波（层号+1：第 0 层是入口遭遇，用户的"第1 波"）。</summary>
-      private int RealmWaveOf(int offset)
+/// <summary>该节点属于秘境第几层（层号+1：第 0 层是入口，对玩家显示为「第1层」）。</summary>
+
+        /// <summary>
+        /// 击败「镇守」的专属奖励（2026-10-16 用户："这些敌人的攻击设计很有意思，
+        /// 打死了会有特殊奖励等等，这些在外面是没有的"）。
+        /// <para>奖励做成**灵魂 + 星币**的组合：灵魂是秘境最独特的产出（外面只能用灵卵买），
+        /// 星币则直接强化"多走一层就多赚一点"的正反馈。</para>
+        /// <para>⛔ 幂等：同一个 offset 只发一次（重进面板会重跑这段，不判会无限刷）。</para>
+        /// </summary>
+        private void GrantRealmChampionReward(WanXiang.Run.RunState run, int offset)
+        {
+            if (run == null || _graph == null) return;
+            if (_graph.KindOf(offset) != WanXiang.Campaign.NodeKind.RealmChampion) return;
+            if (run.RealmChampionRewarded == null)
+                run.RealmChampionRewarded = new System.Collections.Generic.List<int>();
+            if (run.RealmChampionRewarded.Contains(offset)) return;
+            run.RealmChampionRewarded.Add(offset);
+
+            int coin = 8 + run.Act * 2;
+            RealmSession.AddStarCoin(run, coin);
+            string soul = PickVaultSoul(run);
+            if (!string.IsNullOrEmpty(soul)) run.Souls.Add(soul);
+            Debug.Log("[Campaign] 击败镇守（第 " + (offset + 1) + " 格）：星币 +" + coin +
+                      "、灵魂 +1（" + soul + "）—— 秘境专属奖励");
+        }
+
+
+        /// <para>设计：让玩家在"立刻兑现"和"换一件遗物"之间选 —— 前者无风险但收益封顶，
+        /// 后者是三选一（有得挑，但拿到哪件不由你定）。</para>
+        /// <para>⛔ 复用 <see cref="DialogPanel"/> 与 <see cref="RelicPanel"/>，不新建面板：
+        ///   这两个 UI 已经承担全项目同类职责，再开一个只会让"三选一的规则"出现第二份实现。</para>
+        /// </summary>
+        private void OpenRealmVault()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return;
+            PendingCommit = _selected;      // 走正常"通过节点"流程（秘境侧记 RealmCleared）
+
+            int coin = 6 + run.Act;
+            UniTask.Void(async () =>
+            {
+                int pick = await DialogPanel.Choose(
+                    "秘藏",
+                    "秘藏在幽深处静置已久。\n\n" +
+                    "· 取走它：星币 +" + coin + "、灵卵 +2、灵魂 +1\n" +
+                    "· 或者把它献给铸魂台，换一次遗物三选一",
+                    "取走", "换遗物");
+
+                var r = WanXiang.Run.RunSave.Current;
+                if (r == null) return;
+
+                if (pick == 1)
+                {
+                    // 换遗物：复用主线那张三选一（规则只有一份）
+                    RelicPanel.SetReturnTarget(() =>
+                    {
+                        var u = WanXiang.Framework.Boot.UIBootstrap.UI;
+                        if (u != null) u.OpenAsync<CampaignPanel>(null).Forget();
+                    });
+                    var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+                    if (ui != null) ui.OpenAsync<RelicPanel>(null).Forget();
+                }
+                else
+                {
+                    RealmSession.AddStarCoin(r, coin);
+                    r.Eggs += 2;
+                    r.Souls.Add(PickVaultSoul(r));
+                    WanXiang.Run.RunSave.SaveCurrent();
+                    Debug.Log("[Campaign] 秘藏：星币 +" + coin + "、灵卵 +2、灵魂 +1");
+                    var u = WanXiang.Framework.Boot.UIBootstrap.UI;
+                    if (u != null) u.OpenAsync<CampaignPanel>(null).Forget();
+                }
+            });
+        }
+
+        /// <summary>秘藏给的灵魂：优先给本队没有的（给重复的等于没给）。</summary>
+        private static string PickVaultSoul(WanXiang.Run.RunState run)
+        {
+            var cat = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
+            var c = (cat != null && cat.Length > 0) ? cat[0] : null;
+            if (c != null && c.Beasts != null && c.Beasts.Length > 0)
+            {
+                for (int i = 0; i < c.Beasts.Length; i++)
+                {
+                    var id = c.Beasts[(run.Souls.Count + i) % c.Beasts.Length].BeastId;
+                    if (!string.IsNullOrEmpty(id) && !run.Souls.Contains(id)) return id;
+                }
+                return c.Beasts[run.Souls.Count % c.Beasts.Length].BeastId;
+            }
+            return "";
+        }
+
+        /// <summary>
+        /// 「离开秘境」按钮（2026-10-16 用户："这个离开按钮不要和节点地图返回主界面共用，
+        ///   新加一个放左下角往上一点…点击离开的时候要弹出面板确定和说明离开不会有什么惩罚"）。
+        /// <para>⛔ 与 <see cref="OnBackToHome"/> 是**两条路**：撤离要回滚场域状态 + 还原原节点，
+        /// 回主界面则要留在原地图 —— 共用一个按钮就必须靠 if/else 猜玩家意图，迟早出错。</para>
+        /// </summary>
+            private void OnRealmQuitClicked() => RealmFlow.ConfirmAndQuit();
+
+        /// <summary>该节点属于秘境第几层（层号+1：第 0 层是入口，对玩家显示为「第1层」）。</summary>
+        private int RealmLayerOf(int offset)
         {
             int layer = _graph != null ? _graph.LayerOf(offset) : 0;
-   return layer + 1;
+            return layer + 1;
+        }
+
+        /// <summary>
+        /// 秘境模式的信息卡：**不显示节气与天时**，改显示"我在第几层 + 这个场域什么脾气"。
+        /// <para>为什么必须换掉而不是留着：天时是**天穹历法**的产物（按幕取节气），
+        /// 秘境不在历法里 —— 显示"第1节·立春 / 天时 蛰虫始振"会让玩家以为天时在场域内生效，
+        /// 而实际上秘境战斗用的是场域自己的场地效果。**文案与实际生效的规则不一致是最坏的 bug。**</para>
+        /// </summary>
+        private void UpdateRealmInfoCard(int offset, WanXiang.Campaign.NodeKind kind, bool silent)
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            var realm = WanXiang.Campaign.RealmCatalog.For(run != null ? run.RealmId : null);
+            int layer = RealmLayerOf(offset);
+
+            if (_tmpNodeName != null)
+                _tmpNodeName.text = "第 " + layer + " 层" +
+                                    (realm != null ? " · " + realm.Name : "");
+
+            if (_tmpNodeType != null)
+            {
+                string n = WanXiang.Campaign.NodeKinds.Cn(kind);
+                // 秘境专属节点在图里要说清楚"它和外面不一样"，否则玩家不知道值不值得绕路
+                string extra = kind == WanXiang.Campaign.NodeKind.RealmVault
+                    ? "　（秘境专属 · 一次性重奖）"
+                    : kind == WanXiang.Campaign.NodeKind.RealmChampion
+                        ? "　（秘境专属 · 特殊敌人）"
+                        : (WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "　（战斗）" : "　（休整）");
+                _tmpNodeType.text = n + extra;
+            }
+
+            // 正文 = 场域特性（场地效果 / 收益 / 代价三行）。⛔ 不写"天时"。
+            if (_tmpWeather != null)
+            {
+                if (realm == null) _tmpWeather.text = "";
+                else
+                    _tmpWeather.text =
+                        "场地：" + WanXiang.Modules.UI.RealmText.Hazard(realm) + "\n" +
+                        "收益：" + realm.Boon + "\n" +
+                        "代价：" + realm.Cost;
+            }
+
+            _current.Title = "第" + layer + "层";
+            _current.Weather = "";                       // ⛔ 秘境不吃天时：别把主线天气带进战斗
+            _current.Seed = (ulong)(offset * 977 + 31);  // 秘境种子与主线 act*1000+offset 隔离
+            _current.NodeIndex = offset;
+            _current.Act = 0;                            // 0 = 不属于任何一幕（与 _graph.Act 同口径）
+            _current.Offset = offset;
+            _current.Kind = kind;
+            _current.IsBoss = false;                     // 秘境首领走 RealmMap.BossOffset，不走主线 IsBoss
         }
 
         /// <summary>节点中心的本地坐标（与 BuildNodeMap 的排布公式必须一致）。</summary>
@@ -1127,6 +1337,16 @@ if (_tmpActTitle != null)
             if (_ambientFx == null) _ambientFx = GetComponent<CampaignAmbientFx>();
             if (_ambientFx == null) _ambientFx = gameObject.AddComponent<CampaignAmbientFx>();
             var run = WanXiang.Run.RunSave.Current;
+
+            // ★ 秘境：换场域专属背景 + 粒子（2026-10-16 用户要求）。
+            //   ⛔ 必须在主线分支**之前**判断，否则秘境会先被染上主线当幕的背景与落叶。
+            if (_realmMode)
+            {
+                var realm = WanXiang.Campaign.RealmCatalog.For(run != null ? run.RealmId : null);
+                _ambientFx.BuildRealm(realm, _imgMapBg, _rootMapParticles);
+                return;
+            }
+
             int act = run != null ? run.Act : 1;
             _ambientFx.Build(act, _imgMapBg, _rootMapParticles);
         }
@@ -1466,9 +1686,11 @@ if (_tmpActTitle != null)
 // ★ 文案精简：去掉多余全角空格；"已过"不再用文字 —— 改用朱砂 ✕ 印章（见下方 Img_Stamp）
                 // ⚠ 秘境模式：**不显示节气**。秘境图的 Terms 存的是"层号"（1,2,2,2,3…），
                 //   当节气名渲染会得到"11.清明【灵市】"这种驴唇不对马嘴的标签。
-                //   秘境该说的是「第几波」（设计文档：层数 = 波数+2）。
+                //   ★ 2026-10-16 用户要求秘境扩到 12+ 层 ⇒ 单位从"波"改成"层"
+                //   （层是地图长度轴，波是战斗场次轴，扩层后两者已经不是一回事了，
+                //     继续叫"第12波"会和"本秘境 3 场硬仗"自相矛盾）。
                 string prefix = _realmMode
-                    ? "第" + RealmWaveOf(offset) + "波"
+                    ? "第" + RealmLayerOf(offset) + "层"
                     : (offset + 1) + "." + TermName(_graph.Terms[offset]);
        label.text = prefix + "【" + name + "】" +
      (isHere ? " ◀当前" : canGo ? " ←可前往" : "");
@@ -1636,6 +1858,18 @@ if (_tmpActTitle != null)
             // 玩家点选节点。silent=true 是程序化恢复视图（开面板/切幕），不该出声。
             if (!silent) SfxThrottled("sfx_map_node_select");
             var kind = _graph.KindOf(offset);
+
+            // ★★ 秘境模式的信息卡（2026-10-16 用户："这个节点的天时是不是可以改一下，
+            //   全部去掉或者在其他地方说明这个秘境的特性等等"）。
+            //   ⇒ 秘境没有节气、也没有主线天时（天时是"天穹历法"的产物，秘境在地图之外），
+            //     继续显示"第1节·立春 / 天时 蛰虫始振"是**假的**，玩家会以为天时在场域里生效。
+            //     改成：标题写层号 + 场域名，正文写**场域特性**（这才是玩家真正要读的信息）。
+            if (_realmMode)
+            {
+                UpdateRealmInfoCard(offset, kind, silent);
+                return;
+            }
+
             string term = TermName(_graph.Terms[offset]);
 
             if (_tmpNodeName != null) _tmpNodeName.text = "第 " + (offset + 1) + " 节 · " + term;
@@ -2228,6 +2462,10 @@ if (_tmpActTitle != null)
                 //   不再借任何别的节点当载体。
                 case WanXiang.Campaign.NodeKind.Realm:
                     OpenRealmPanel();
+                    return;
+                // ★★ 秘境专属节点（2026-10-16）：只在秘境内部图里出现，主线图不会生成它们。
+                case WanXiang.Campaign.NodeKind.RealmVault:
+                    OpenRealmVault();
                     return;
                 case WanXiang.Campaign.NodeKind.Shop:
                     OpenPanelAsync<MarketPanel>().Forget();

@@ -74,14 +74,21 @@ namespace WanXiang.Modules.UI
     RealmHookRegistrar.EnsureRegistered();   // 幂等：秘境钩子挂进战斗核心
         EnsureQuitHook();         // ★ 让 CampaignPanel 的「回主界面」按钮在秘境模式下变成「撤离」
 
-      // ⚠ 面板可能被"直接在秘境里"打开（调试菜单/战后回图）。
-   //   那时不该再走入口抉择 —— 直接打开秘境路线图。
-       var run = WanXiang.Run.RunSave.Current;
+            // ⚠ 面板可能被"已经在秘境里"时打开（战后回图 / 调试菜单）。
+            //   那不该再走入口抉择 —— 直接打开秘境路线图。
+            var run = WanXiang.Run.RunSave.Current;
             if (run != null && run.InRealm)
-    {
-    OpenRealmMap();
-  return UniTask.CompletedTask;
-        }
+            {
+                var r2 = RealmCatalog.For(run.RealmId);
+                var m2 = RealmMapBuilder.Build(r2, RealmSession.RealmSeedFor(run));
+                if (m2 != null && m2.Graph != null)
+                {
+                    CampaignPanel.OnRealmQuitRequested = () => RealmFlow.QuitNow(r2 != null ? r2.Id : null);
+                    CampaignPanel.OpenAsRealm(m2.Graph);
+                    CloseSelf();
+                }
+                return UniTask.CompletedTask;
+            }
 
    _rerollUsed = 0;
        _realm = RollRealm();
@@ -142,38 +149,23 @@ namespace WanXiang.Modules.UI
         /// 「进入秘境」：进场 → **转场** → 打开秘境路线图（CampaignPanel 注入秘境图）。
         /// ⛔ 转场必须在"盖住屏幕"时完成界面切换，否则玩家会看到面板"啪"地变形。
 /// </summary>
- private void OnEnterClicked()
+        /// <summary>
+        /// 点「进入秘境」。★ 走**与调试按钮完全相同**的 <see cref="RealmFlow.Enter"/> ——
+        ///   转场（粒子合拢 → 场域名 + 艺术字 → 拨开）、进场、注册撤离回调全在那一处。
+        ///   两个入口各写一遍，就一定会出现"测试的能进、正式的没转场"这类分叉。
+        /// </summary>
+        private void OnEnterClicked()
         {
             var run = WanXiang.Run.RunSave.Current;
- if (run == null || _realm == null) return;
-        if (!RealmSession.Enter(run, _realm))
-      {
-      SetStatus("进不去秘境（本局进入次数已用完 / 幕数不够）。");
-         return;
-      }
-     // ⛔ 揭晓问号：让路线图节点显示为已探索，且**不**算"通过"——
-  //   秘境的收益走星币/遗物，不该同时吃节点通过奖励。
-   CampaignPanel.PendingCommit = -1;
-   WanXiang.Run.RunSave.SaveCurrent();
+            if (run == null || _realm == null) return;
 
-    OpenRealmMap();
-  }
-
-        /// <summary>打开秘境路线图（= CampaignPanel 注入秘境图；内部地图零额外代码）。</summary>
-        private void OpenRealmMap()
-  {
-            var run = WanXiang.Run.RunSave.Current;
-     var realm = RealmCatalog.For(run != null ? run.RealmId : null);
-            var map = RealmMapBuilder.Build(realm, RealmSession.RealmSeedFor(run));
-     if (map == null || map.Graph == null)
- {
-          Debug.LogError("[RealmPanel] 建不出秘境图（场域=" + (realm != null ? realm.Id : "null") + "）");
-                SetStatus("这张秘境地图生成失败了。");
-        return;
- }
-
-    CampaignPanel.OpenAsRealm(map.Graph);
+            // 入口面板自己要关掉：转场的 onSwitch 会打开 CampaignPanel，
+            // 而入口面板是 Popup 层，不关会盖在新地图上。
+            var realm = _realm;
+            RealmFlow.Enter(realm, onAfterEnter: null);
+            CloseSelf();
         }
+
 
   // =====================================================================
   //  撤离（由 CampaignPanel 在秘境模式下点「回主界面」那个按钮时回调）
@@ -210,44 +202,15 @@ RealmSession.Exit(run);              // ★ 回滚场域状态 + 还原原节点
        return;
  }
 if (_tmpRealmName != null) _tmpRealmName.text = r.Name;
-            if (_tmpHazard != null) _tmpHazard.text = "场地：" + HazardTextOf(r);
+            if (_tmpHazard != null) _tmpHazard.text = "场地：" + RealmText.Hazard(r);
             if (_tmpBoon != null) _tmpBoon.text = "收益：" + r.Boon;
             if (_tmpCost != null) _tmpCost.text = "代价：" + r.Cost;
   }
 
-   /// <summary>
-        /// 场地效果文案。⚠ 场地效果是**结构化字段**（挂哪个状态 / 几层 / 几回合 / 多少护盾），
-        ///   这里按实际值拼句子 —— 别硬编码一套字符串，否则场域表改了文案会骗人
-        ///   （文案与实际生效的规则不一致，是最难被发现的 bug）。
-        /// </summary>
-        private static string HazardTextOf(RealmDef r)
-      {
-   switch (r.Hazard)
-            {
-    case RealmHazardKind.FoeStatusAll:
-      return "每回合敌方全体「" + StatusCn(r.HazardStatusId) + "」" + r.HazardStacks + " 层";
-         case RealmHazardKind.FoeShieldAll:
-           return "敌方全体获得相当于施法者生命 " + Mathf.RoundToInt(r.HazardShieldPct * 100f) + "% 的护盾";
-          case RealmHazardKind.SelfShieldAll:
-              return "禁格挡 QTE（本秘境改为自动蓄盾）";
-           default:
-              return r.Concept ?? "";
-            }
-        }
-
-        /// <summary>状态 id → 中文名（容错：查不到就显示原 id，不留空白）。</summary>
-private static string StatusCn(string id)
-        {
-          if (string.IsNullOrEmpty(id)) return "状态";
-   //⚠ StatusDef 是**结构体**不是类 —— 写 `def != null` 编译不过（实测 CS0019）。
-          var def = WanXiang.Battle.Core.StatusCatalog.Get(id);
-          return !string.IsNullOrEmpty(def.Name) ? def.Name : id;
-        }
-
         private void RefreshStatus()
         {
-   if (_tmpStatus == null) return;
-      var run = WanXiang.Run.RunSave.Current;
+            if (_tmpStatus == null) return;
+            var run = WanXiang.Run.RunSave.Current;
             int left = run != null ? RealmSession.EntriesLeft(run) : 0;
             _tmpStatus.text = "本局还可进入 " + left + " 次" +
               (_rerollUsed > 0 ? "　·　已用掉 1 次免费更换" : "");

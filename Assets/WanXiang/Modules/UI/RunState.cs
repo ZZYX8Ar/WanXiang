@@ -228,6 +228,13 @@ namespace WanXiang.Run
         /// <summary>秘境里当前所在节点（-1 = 还没出发）。同样只属于秘境，不碰主线 NodeOffset。</summary>
       public int RealmCursor = -1;
 
+        /// <summary>
+        /// 本次秘境里**已发过镇守奖励**的节点 offset。
+        /// ⛔ 必须落盘：重进面板会重跑"通过节点"那段，没有这个幂等表就会无限刷奖励。
+        /// </summary>
+        public System.Collections.Generic.List<int> RealmChampionRewarded =
+            new System.Collections.Generic.List<int>();
+
         /// <summary>本局进过的场域 id（**同局去重**：一种场域一局只进一次）。</summary>
         public System.Collections.Generic.List<string> RealmEntries =
             new System.Collections.Generic.List<string>();

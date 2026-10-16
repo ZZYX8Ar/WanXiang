@@ -96,6 +96,11 @@ namespace WanXiang.Modules.UI
             //   所以这一层是"预留接口"：以后加场域临时 buff 时，在这里还原。
             ClearPlayerHazards(run);
 
+            // ---- 1.5) 撤离代价（只有明确标了 PenalizesOnQuit 的场域才有）----
+            //   ⛔ 放在"还原快照"**之前**：代价动的是本次秘境的临时账（RealmStarCoin），
+            //     与主线字段无关；放后面会和快照还原的语义混在一起，以后加新代价容易搞错顺序。
+            ApplyQuitPenalty(run);
+
             // ---- 2) 路线图快照还原（硬约束 ②）----
             if (snap != null)
             {
@@ -133,6 +138,27 @@ namespace WanXiang.Modules.UI
       run.RealmWave = run.RealmCleared.Count;
     }
 
+        /// <summary>
+        /// 撤离代价（2026-10-16，用户："后续也可以设计有一下秘境有惩罚"）。
+        /// <para>目前只有一个实现：荆墟 —— 撤离清空本次秘境累积的星币
+        /// （它是"赌坊"，中途离席就认赔；灵魂/遗物不受影响）。</para>
+        /// <para>⛔ 加新代价时：① 在 <see cref="WanXiang.Campaign.RealmDef"/> 里填
+        /// <c>PenalizesOnQuit</c> + <c>QuitPenaltyText</c>（确认框要照实说），
+        /// ② 在这里补上真正生效的逻辑，③ 在 <see cref="RollbackLines"/> 登记一行。</para>
+        /// </summary>
+        public static void ApplyQuitPenalty(WanXiang.Run.RunState run)
+        {
+            if (run == null) return;
+            var realm = WanXiang.Campaign.RealmCatalog.For(run.RealmId);
+            if (!WanXiang.Campaign.RealmCatalog.PenalizesOnQuit(realm)) return;
+
+            if (realm.Id == WanXiang.Campaign.RealmIds.Thorn && run.RealmStarCoin > 0)
+            {
+                UnityEngine.Debug.Log("[RealmSession] 荆墟撤离代价：清空本次累积星币 " + run.RealmStarCoin);
+                run.RealmStarCoin = 0;
+            }
+        }
+
         /// <summary>掉线保护：读档时若 InRealm 为真则强制退出（不卡在"半个秘境"）。</summary>
         public static void SanitizeOnLoad(WanXiang.Run.RunState run)
         {
@@ -162,6 +188,7 @@ namespace WanXiang.Modules.UI
                 "ParryEnabled —— 寂域禁 QTE：读回主线存档值",
                 "LiveWeather —— ⛔ 秘境期间**不动**天时（省掉一个回滚点，也是有意的设计）",
                 "enemyScale —— 每次战斗独立（乘在 DeployEntry.StatMul），无残留",
+                "撤离代价 —— 仅 PenalizesOnQuit 的场域（荆墟清空本次星币），见 ApplyQuitPenalty",
                 "路线图快照 —— NodeOffset/Path/Visited/Passed/Fog 全额还原（Exit 里做）",
             };
         }

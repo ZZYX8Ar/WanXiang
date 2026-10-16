@@ -83,9 +83,16 @@ namespace WanXiang.Modules.UI
 
             int act = System.Math.Max(1, System.Math.Min(run.Act, 5));
             int term = termIndex >= 0 ? termIndex : System.Math.Max(0, run.NodeOffset);
-            bool elite = kind == WanXiang.Campaign.NodeKind.Elite;
+            bool elite = kind == WanXiang.Campaign.NodeKind.Elite
+                      || kind == WanXiang.Campaign.NodeKind.RealmChampion;
             // ★ 守关：图里最后一格复用 【精英】占位，靠 isBoss 标志区分（普通精英 vs 首领）。
             bool boss = isBoss && kind == WanXiang.Campaign.NodeKind.Elite;
+            // ★★ 秘境「镇守」（2026-10-16 用户："一些特殊的敌人，这些敌人的攻击设计很有意思，
+            //   打死了会有特殊奖励"）—— 让它**按首领规格组队**（走 BossSquadFor 那套）：
+            //   这是它与普通遭遇最实质的区别，也是"值得为它绕路"的理由。
+            //   ⛔ 不要把它标成 IsBoss=true：IsBoss 还牵着"守关奖励/幕推进"等主线逻辑，
+            //     那是四季幕末专属的，秘境复用会串味。
+            bool champion = kind == WanXiang.Campaign.NodeKind.RealmChampion;
 
             // 种子：同存档同幕同节点 → 同一套敌人（可背版、可复盘）
             ulong seed = CoreMath.Fnv1a("run:" + run.Slot + ":" + act + ":" + term + ":" + run.Wins);
@@ -102,7 +109,7 @@ namespace WanXiang.Modules.UI
             req = new BattleRequest
             {
                 Title = "第" + Cn(act) + "幕 · 第 " + (term + 1) + " 节 · " +
-                        (boss ? "守关（首领）" : elite ? "精英战" : "遭遇战"),
+                        (champion ? "镇守" : boss ? "守关（首领）" : elite ? "精英战" : "遭遇战"),
                 WeatherName = weather ?? "",
                 // ★ 真实天时：从活链路容器取（CampaignPanel 选节点时算好的 WeatherDef）。
                 //   为 null = 本场无天时，战斗行为与旧版逐位一致（可复现性红线）。
@@ -207,7 +214,9 @@ namespace WanXiang.Modules.UI
 
             var provider = new WanXiang.Campaign.SeededEnemyProvider(
                 actIdx => all, BossCatalog.BossForActFunc(seed, ascension));
-            var entries = boss
+            // ★ 镇守走**首领规格**（BossSquadFor = 首领 + 随从），而不是普通遭遇：
+            //   它是"值得为它绕路"的硬仗，得打得出来不一样的形状。
+            var entries = (boss || champion)
                 ? provider.BossSquadFor(act, seed)
                 : provider.EnemiesFor(act, term, kind, seed);
             if (boss)

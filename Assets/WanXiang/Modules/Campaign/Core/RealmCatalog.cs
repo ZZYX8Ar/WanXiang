@@ -71,6 +71,20 @@ namespace WanXiang.Campaign
 
         public string Boon;                 // 收益（展示）
         public string Cost;                 // 代价（展示）
+
+        /// <summary>
+        /// 撤离是否**有代价**（2026-10-16 用户："点击离开的时候要弹出面板确定和说明
+        /// 离开不会有什么惩罚，后续也可以设计有一下秘境有惩罚"）。
+        /// <para>默认 false —— 绝大多数场域随时可以走，撤离只是"放弃没拿到的"，
+        /// 不然玩家会因为怕损失而硬撑到团灭，那不是设计意图。</para>
+        /// <para>将来给某个场域开 true 时，**必须同时填 <see cref="QuitPenaltyText"/>**
+        /// （确认框要把代价原文讲清楚，不能让玩家靠猜）。</para>
+        /// </summary>
+        public bool PenalizesOnQuit;
+
+        /// <summary>撤离代价的**原文**（PenalizesOnQuit 为 true 时必须有值）。</summary>
+        public string QuitPenaltyText;
+
         public string[] Rooms;              // 地图分区名（展示 / 后续做地图用）
         public string Palette;              // 主题色（#RRGGBB）
 
@@ -83,6 +97,16 @@ namespace WanXiang.Campaign
     public static class RealmCatalog
     {
         public const int MaxPerRun = 2;      // 每局上限（硬约束 ③）
+
+        /// <summary>
+        /// 该场域撤离是否**有代价**。默认 false；<b>为 true 却没写文案时按 false 处理</b> ——
+        /// 宁可不惩罚，也不能弹一个空白的代价说明（那和骗玩家没区别）。
+        /// </summary>
+        public static bool PenalizesOnQuit(RealmDef realm)
+        {
+            return realm != null && realm.PenalizesOnQuit
+                && !string.IsNullOrEmpty(realm.QuitPenaltyText);
+        }
 
         private static readonly RealmDef[] Table =
         {
@@ -152,6 +176,12 @@ namespace WanXiang.Campaign
                 AppearFromAct = 2, Weight = 15,
                 Boon = "星币产出 2.2 倍；第 2 波结束可选择「再赌一次」",
                 Cost = "自选惩罚不可拒绝；全队血量 <50% 时不会弹出",
+                // ★ 示例：**唯一**一个撤离有代价的场域（赌坊型，中途抽身要留下买路钱）。
+                //   用它演示"有的秘境撤离有惩罚"这条机制；其余场域默认免费撤离。
+                PenalizesOnQuit = true,
+                QuitPenaltyText =
+                    "荆墟不认中途离席：撤离将扣掉本局**已累积的全部星币**，且不得进入第 3 次秘境。\n" +
+                    "（秘境内已拿到的灵魂与遗物不受影响）",
                 Rooms = new[] { "荆门", "赌桌", "收账处" },
                 Palette = "#4A4330",
             },

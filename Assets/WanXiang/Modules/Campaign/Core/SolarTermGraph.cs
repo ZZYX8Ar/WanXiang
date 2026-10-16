@@ -77,12 +77,39 @@ namespace WanXiang.Campaign
         ///   战斗发生在秘境内部，不该让"本局场次数"把它算进去。</para>
         /// </summary>
         Realm = 10,
+
+        /// <summary>
+        /// 秘藏（2026-10-16 用户："在这里面设置一些特殊的奖励节点…这些在外面是没有的"）。
+        /// <para>秘境**内部图**专属节点：一次性重奖（神品灵魂 / 遗物 / 大额星币），
+        ///   主线图永远不会出现它。</para>
+        /// <para>⚠ 与 <see cref="RealmChampion"/> 一样，<b>只由 RealmMapBuilder 产出</b>；
+        ///   主线 <c>SolarTermGraph</c> 的权重表里不要加，否则会漏到主线上。</para>
+        /// </summary>
+        RealmVault = 11,
+
+        /// <summary>
+        /// 镇守（2026-10-16 用户："一些特殊的敌人，这些敌人的攻击设计很有意思，
+        /// 打死了会有特殊奖励"）。秘境专属的**特殊敌人**节点：
+        /// 敌方带专属机制（见 <c>RealmChampion</c> 的技能设计），击败后必掉专属奖励。
+        /// <para>⚠ 是**战斗**节点 —— 已加进 <see cref="NodeKinds.IsBattle"/>。</para>
+        /// </summary>
+        RealmChampion = 12,
     }
 
     public static class NodeKinds
     {
         /// <summary>这个节点要不要打仗 —— 单局场次就是数它。</summary>
-        public static bool IsBattle(NodeKind k) => k == NodeKind.Encounter || k == NodeKind.Elite;
+        /// <remarks>
+        /// ⚠ 秘境的 <see cref="NodeKind.RealmChampion"/> 也是战斗节点。
+        ///   它只在**秘境内部图**里出现，而"本局场次数"统计的是主线图 ——
+        ///   两者不会同时被数到，所以加进来是安全的（不加反而会让秘境场次不计入强度曲线）。
+        /// </remarks>
+        public static bool IsBattle(NodeKind k) =>
+            k == NodeKind.Encounter || k == NodeKind.Elite || k == NodeKind.RealmChampion;
+
+        /// <summary>秘境**专属**节点类型（主线图永远不会生成这些）。</summary>
+        public static bool IsRealmOnly(NodeKind k) =>
+            k == NodeKind.RealmVault || k == NodeKind.RealmChampion;
 
         public static string Cn(NodeKind k)
         {
@@ -99,6 +126,8 @@ namespace WanXiang.Campaign
                 case NodeKind.Recruit: return "招募";
                 case NodeKind.Relic: return "遗物";
                 case NodeKind.Realm: return "秘境";
+                case NodeKind.RealmVault: return "秘藏";
+                case NodeKind.RealmChampion: return "镇守";
                 default: return "？";
             }
         }
