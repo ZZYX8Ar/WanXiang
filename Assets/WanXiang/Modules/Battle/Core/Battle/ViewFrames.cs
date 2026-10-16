@@ -65,6 +65,14 @@ namespace WanXiang.Battle.Core
         /// 灰盒至少得把它标出来，否则"凑属性"这件事在画面上完全无迹可寻。</summary>
         public float ResonanceBonus;
 
+        /// <summary>
+        /// 起手预警（2026-10-16 FoeKit）：敌人头顶的谱系预告，形如「青·贯穿 1/2」。
+        /// 空串 = 不显示。⛔ 与 <see cref="StateHint"/> 分开 —— StateHint 是**首领机制**的
+        ///   专属通道，多个 BossHook 会往同一只首领上写，混用会互相覆盖。
+        /// ⚠ 同 StateHint 的纪律：内容一律来自帧流，表现层不许直接读 state 里的单位。
+        /// </summary>
+        public string FoeTelegraph;
+
         public float HpRatio => MaxHp <= 0 ? 0f : (float)Hp / MaxHp;
         public int Cd(int slot) => slot == 0 ? Cd0 : (slot == 1 ? Cd1 : Cd2);
 
@@ -77,6 +85,7 @@ namespace WanXiang.Battle.Core
                 && Statuses == o.Statuses
                 && StatusIds == o.StatusIds
                 && StateHint == o.StateHint
+                && FoeTelegraph == o.FoeTelegraph
                 && ResonanceBonus == o.ResonanceBonus
                 && Element == o.Element;
         }
@@ -134,6 +143,7 @@ namespace WanXiang.Battle.Core
                 Statuses = DescribeStatuses(u),
                 StatusIds = DescribeStatusIds(u),
                 StateHint = u.StateHint,
+                FoeTelegraph = u.FoeTelegraph,
                 ResonanceBonus = u.ResonanceAttackBonus,
             };
             return s;

@@ -206,6 +206,13 @@ namespace WanXiang.Battle.Core
         /// <summary>招式谱系（只用于起手预警与提示文案，不参与结算）。</summary>
         public FoeFamily FoeFamily = FoeFamily.None;
 
+        /// <summary>
+        /// 起手预警文本（形如「青·贯穿 1/2」）。由 <c>FoeKitRuntime.EmitWindup</c> 写、
+        /// 行动结束时清空；经帧流送到表现层画在头顶（设计文档 2.2）。
+        /// ⚠ 玩家必须**看得见色块**才能形成条件反射 —— 这是整套谱系设计的落点。
+        /// </summary>
+        public string FoeTelegraph;
+
         /// <summary>受到的全部伤害倍率（弱点/抗性/失衡的合乘，1 = 不变）。</summary>
         public float FoeIncomingMul
         {

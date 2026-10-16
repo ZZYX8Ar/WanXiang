@@ -276,6 +276,9 @@ namespace WanXiang.Battle.Core
             if (foe.FoeFamily == FoeFamily.None) return;
             var fam = foe.FoeFamily;
             int famBits = (int)fam;
+            // 头顶预告（经帧流送到表现层）。⚠ 段数 >1 时才带"k/n"，单段不显示段号（少一层噪音）。
+            foe.FoeTelegraph = FoeRules.WindupColorCn(fam) + "·" + FoeRules.FamilyCn(fam)
+                             + (segmentTotal > 1 ? " " + (segmentIndex + 1) + "/" + segmentTotal : "");
             st.Log.Add(st.Turn, BattleEventKind.Windup, actorId: foe.RuntimeId,
                        skillName: FoeRules.FamilyCn(fam),
                        amount: (famBits << 16) | ((segmentIndex + 1) << 8) | (segmentTotal & 0xFF),
@@ -293,5 +296,12 @@ namespace WanXiang.Battle.Core
         }
         public static int SegIndexOf(int packed) => ((packed >> 8) & 0xFF) - 1;
         public static int SegTotalOf(int packed) => packed & 0xFF;
+
+        /// <summary>清掉头顶预告（行动结束时调用，避免预告挂着不走）。</summary>
+        public static void ClearTelegraph(BattleUnit foe)
+        {
+            if (foe == null || foe.Side != TeamSide.Enemy) return;
+            foe.FoeTelegraph = null;
+        }
     }
 }

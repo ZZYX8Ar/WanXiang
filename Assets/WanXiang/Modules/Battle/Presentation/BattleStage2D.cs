@@ -50,6 +50,9 @@ namespace WanXiang.Battle.Presentation
         /// <summary>Boss 机制提示（冰晶期「还剩 N 回合」等，来源 <c>BattleUnit.StateHint</c>，
         /// 由帧流携带 —— 见 <c>UnitSnapshot.StateHint</c>）。空串 = 不显示。</summary>
         public TextMesh Hint;
+        /// <summary>起手预警（2026-10-16 FoeKit）：敌人头顶的谱系色块文字。与 Hint 分开建，
+        /// 因为它要**按谱系换颜色**且生命周期独立（每次出招闪一下就消失）。</summary>
+        public TextMesh Telegraph;
         public int Hp, MaxHp;
         public bool Alive = true;
         public Vector2 HomePos;        // 站位（未加浮动）
@@ -353,6 +356,10 @@ namespace WanXiang.Battle.Presentation
         //  美术点位：直接在 Inspector 里改这三个值，不用动代码、也不用改 prefab。
         /// <summary>提示文字颜色（默认朱红）。</summary>
         public Color HintColor = new Color(0.80f, 0.24f, 0.15f);
+        /// <summary>起手预警默认色（无谱系时用）。</summary>
+        public Color TelegraphColor = new Color(0.92f, 0.86f, 0.70f);
+        /// <summary>起手预警相对立绘上沿的抬升（世界单位，固定值 —— 见建节点处的说明）。</summary>
+        public float TelegraphRaise = 0.30f;
         /// <summary>提示文字字号倍率（1 = 默认；Boss 放大 2.5× 时文字**不跟着放大**）。</summary>
         public float HintSize = 1f;
         /// <summary>提示相对立绘上沿再往上抬的距离（世界单位）。</summary>
@@ -677,6 +684,25 @@ namespace WanXiang.Battle.Presentation
         /// 设置 QTE 提示条文案。
         /// <paramref name="hitsTotal"/> = 0 表示单发（普通格挡）；&gt;0 表示多段连击，显示"第 k/n 段"。
         /// </summary>
+        /// <summary>
+        /// 起手预警的**谱系色块**（设计文档 2.2）。映射固定，玩久了形成条件反射：
+        ///   赤=劈斩 / 橙=横扫 / 黄=砸地 / 青=贯穿 / 紫=吐息。
+        /// ⛔ 用文本首字判定（"青·贯穿 1/2"）而不是回查 state —— 表现层不许读 battle 状态。
+        /// </summary>
+        private Color TelegraphColorFor(string telegraph)
+        {
+            if (string.IsNullOrEmpty(telegraph)) return TelegraphColor;
+            switch (telegraph[0])
+            {
+                case '赤': return new Color(0.90f, 0.26f, 0.20f);   // 劈斩
+                case '橙': return new Color(0.96f, 0.56f, 0.18f);   // 横扫
+                case '黄': return new Color(0.94f, 0.84f, 0.26f);   // 砸地
+                case '青': return new Color(0.32f, 0.80f, 0.84f);   // 贯穿
+                case '紫': return new Color(0.76f, 0.52f, 0.92f);   // 吐息
+                default: return TelegraphColor;
+            }
+        }
+
         public void SetQteHint(string text, int hitsTotal = 0, int hitsDone = 0)
         {
             _qteHintText = hitsTotal > 1
@@ -1073,6 +1099,27 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 view.Hint.alignment = TextAlignment.Center;
                 view.Hint.color = HintColor;
 
+                // ---- 起手预警文字（比 Boss 提示**更低**，位置贴着提示条，不与它打架）----
+                var telGo = new GameObject("Telegraph");
+                telGo.transform.SetParent(root.transform, false);
+                telGo.transform.localScale = Vector3.one / rsHint;
+                // ⚠ 位置：贴**立绘上沿**，而不是按 HintRaise 比例往上顶 ——
+                //   实测按比例会飘到棋盘上方、和"行动顺序"面板打架（截图确认过）。
+                //   用一个小的**固定世界高度**留白，任何体型都稳。
+                telGo.transform.localPosition = new Vector3(0f, (spriteWorldH * 0.5f + TelegraphRaise) / rsHint, 0f);
+                view.Telegraph = telGo.AddComponent<TextMesh>();
+                if (f != null)
+                {
+                    view.Telegraph.font = f;
+                    telGo.GetComponent<MeshRenderer>().sharedMaterial = f.material;
+                }
+                view.Telegraph.text = "";
+                view.Telegraph.characterSize = 0.082f * Mathf.Max(0.01f, HintSize);
+                view.Telegraph.fontSize = 56;
+                view.Telegraph.anchor = TextAnchor.LowerCenter;
+                view.Telegraph.alignment = TextAlignment.Center;
+                view.Telegraph.color = TelegraphColor;
+
                 int h2 = u.RuntimeId != null ? u.RuntimeId.GetHashCode() : i * 7919;
                 view.Phase = (Mathf.Abs(h2) % 1000) / 1000f * Mathf.PI * 2f;
 
@@ -1258,6 +1305,19 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 {
                     string hint = s.StateHint ?? "";
                     if (v.Hint.text != hint) v.Hint.text = hint;
+                }
+                // ---- 起手预警（2026-10-16 FoeKit）：⚠ 内容一律来自**帧流**（FoeTelegraph），
+                //   理由与 StateHint 相同（自动模式 state 是终局态，手动模式是分片的）。
+                if (v.Telegraph != null)
+                {
+                    string tel = s.Alive ? (s.FoeTelegraph ?? "") : "";
+                    if (v.Telegraph.text != tel) v.Telegraph.text = tel;
+                    // 色块按谱系固定映射（设计文档 2.2）：玩家看颜色就能形成条件反射。
+                    if (tel.Length > 0)
+                    {
+                        var c = TelegraphColorFor(tel);
+                        if (v.Telegraph.color != c) v.Telegraph.color = c;
+                    }
                 }
                 // 状态图标排：变了才重画（每秒都在刷的东西，别每帧重建 sprite）
                 // ⛔ 阵亡单位必须**清空**图标排 —— 否则尸体头上还挂着一串状态（用户 2026-10-07 截图反馈）

@@ -173,16 +173,30 @@ namespace WanXiang.Modules.UI
             string actionName = comboQte
                 ? ("连携·" + (string.IsNullOrEmpty(st.ParryComboName) ? "阵形" : st.ParryComboName))
                 : (finisher ? "终结技·共鸣" : "格挡");
+            // ★★ 起手预警的**对策提示**（2026-10-16 FoeKit）：格挡窗口期间，把这一招属于哪个
+            //   谱系 + 该怎么应对直接写进提示条。头部预警（敌人头顶色块）告诉玩家"是什么"，
+            //   这里告诉玩家"怎么办" —— 两者配套才叫"可预判"。
+            //   ⛔ 谱系为 None（朴素敌人）时不加任何字 ⇒ 零副作用。
+            string foeTele = "";
+            if (!comboQte && !finisher && actor != null && actor.Side == WanXiang.Battle.Core.TeamSide.Enemy
+                && actor.FoeFamily != WanXiang.Battle.Core.FoeFamily.None)
+            {
+                string counter = WanXiang.Battle.Core.FoeRules.FamilyCounterCn(actor.FoeFamily);
+                if (!string.IsNullOrEmpty(counter))
+                    foeTele = WanXiang.Battle.Core.FoeRules.WindupColorCn(actor.FoeFamily) + "·"
+                              + WanXiang.Battle.Core.FoeRules.FamilyCn(actor.FoeFamily)
+                              + "　对策：" + counter + "　";
+            }
             string keyText;
             if (segTotal > 1)
             {
                 // 连段（含我方终结技/连携的多段）：逐段换键 + 逐段重洗后的对应键
                 EnsureComboKeys(segIndex);
-                keyText = "按 " + KeyLabelForSegment(segIndex) + "　" + actionName;
+                keyText = foeTele + "按 " + KeyLabelForSegment(segIndex) + "　" + actionName;
             }
             else
             {
-                keyText = "空格 / 鼠标左键　" + actionName;
+                keyText = foeTele + "空格 / 鼠标左键　" + actionName;
             }
             if (paceTag.Length > 0) keyText += "　" + paceTag;
             if (_stage != null) _stage.SetQteHint(keyText, segTotal, segIndex);

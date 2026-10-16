@@ -87,6 +87,8 @@ namespace WanXiang.Battle.Core
             if (skill.Type == SkillType.Awaken) actor.SpendRage(cfg.UltimateRageCost);
 
             st.Log.Add(st.Turn, BattleEventKind.ActionEnd, actorId: actor.RuntimeId);
+            // ★ 行动结束清掉头顶起手预警（2026-10-16 FoeKit）：否则预告会一直挂着不走。
+            FoeKitRuntime.ClearTelegraph(actor);
         }
 
         private static SkillDef ChooseSkill(BattleState st, BattleUnit u)
