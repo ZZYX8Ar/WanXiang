@@ -65,12 +65,21 @@ namespace WanXiang.Modules.UI
         public override bool AllowBackClose => false;
 
         /// <summary>返回主城：节点图是全屏面板，只 Close 不 Open Home 会留白屏（用户实测）。</summary>
-        private void OnBackToHome()
+private void OnBackToHome()
         {
+     // ★ 秘境模式下，这个按钮是「撤离秘境」而不是「回主界面」——
+        //   撤离要走回滚（RealmSession.Exit）+ 回原节点，所以必须分派，不能共用一条路径。
+            if (_realmMode)
+      {
+            var quit = OnRealmQuitRequested;
+            if (quit != null) quit();
+      else { Debug.LogWarning("[Campaign] 秘境模式下点撤离，但没有注册回滚回调"); CloseSelf(); }
+        return;
+       }
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
-            CloseSelf();
-            if (ui != null) _ = ui.OpenAsync<HomePanel>();
-        }
+          CloseSelf();
+    if (ui != null) _ = ui.OpenAsync<HomePanel>();
+     }
 
         [SerializeField] private TMP_Text _tmpActTitle;        // Tmp_ActTitle  幕名
         [SerializeField] private TMP_Text _tmpJie;             // Tmp_JieCount  劫数
@@ -144,11 +153,16 @@ namespace WanXiang.Modules.UI
         /// </summary>
         public static bool SessionOpened;
 
-        protected override UniTask OnOpenAsync(object payload)
-        {
-            // ★ 跨存档恢复星移余气：把持久化的 XingyiLingers 重建为会话级 LiveWeather.Lingers，
-            //   保证「用了星移→关游戏→重进」星移天气仍在（之前天气随会话丢失，等于白花灵卵）。
-            RehydrateXingyi();
+protected override UniTask OnOpenAsync(object payload)
+     {
+       // ★★ 秘境 = 特殊的一幕：payload 是 ActGraph 就走秘境模式。
+   //   本面板**只有这一个分叉点**，其余（排布/连线/选中/出征/落印）全部是主线同一套代码。
+    _realmGraphPayload = payload as WanXiang.Campaign.ActGraph;
+   if (_realmGraphPayload == null && _injectedGraph != null) _realmGraphPayload = _injectedGraph;
+
+            // 跨存档恢复星移余气：把持久化的 XingyiLingers 重建为会话级 LiveWeather.Lingers，
+    //   保证「用了星移→关游戏→重进」星移天气仍在（之前天气随会话丢失，等于白花灵卵）。
+         RehydrateXingyi();
 
             // ★ 真开过标记（彩排不算）：HomePanel 首进图前据此决定要不要先"环境级"彩排（2026-10-14）
             if (!UIPanelBase.GhostSilent) SessionOpened = true;
@@ -228,8 +242,8 @@ namespace WanXiang.Modules.UI
                     if (prun.VisitedNodes != null && !prun.VisitedNodes.Contains(PendingCommit))
                         prun.VisitedNodes.Add(PendingCommit);
 
-                    // ★★ 天阙（第 5 幕）最后一格 = 后土：通过它 ， 打【终局战】（而非回主城/推进）。
-                    if (_graph != null && _graph.Act >= 5 && PendingCommit == _graph.NodeCount - 1)
+// ★★ 天阙（第 5 幕）最后一格 = 后土：通过它 ， 打【终局战】（而非回主城/推进）。
+      if (!_realmMode && _graph != null && _graph.Act >= 5 && PendingCommit == _graph.NodeCount - 1)
                     {
                         var cat = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
                         var all = (cat != null && cat.Length > 0)
@@ -249,9 +263,13 @@ namespace WanXiang.Modules.UI
                     //    原先靠"人在最后一格(NodeOffset==NodeCount-1)"当判据是错的：
                     //    只要存档停在这个位置（不论是否真通过），一进节点图就会跳幕，
                     //    而且它同时被当作"可达性锚点"， 全图锁定灰（用户实测）。
-                    int lastCell = _graph != null ? _graph.NodeCount - 1 : -1;
-                    if (lastCell >= 0 && PendingCommit == lastCell && prun.Act < 5)
-                    {
+int lastCell = _graph != null ? _graph.NodeCount - 1 : -1;
+            // ⛔⛔ 秘境模式**绝不能推进主线 Act**：秘境内部图的 offset 是"秘境波次"，
+              //   和主线 act*1000+offset 的命名空间完全不同。放行的话会出现
+              //   "打完秘境第 2 波，主线莫名跳到第 4 幕"，而且完全查不出来源。
+       //   秘境的进度由 RealmSession 记（RealmWave / RealmCleared），与主线无关。
+            if (!_realmMode && lastCell >= 0 && PendingCommit == lastCell && prun.Act < 5)
+       {
                         prun.Act++;
                         prun.NodeOffset = -1;
                         if (prun.VisitedNodes != null) prun.VisitedNodes.Clear();
@@ -384,6 +402,47 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private readonly HashSet<int> _visited = new HashSet<int>();
         private WanXiang.Campaign.ActGraph[] _acts;
         private WanXiang.Campaign.ActGraph _graph;
+
+        // =====================================================================
+        //  ★ 秘境 = 「特殊的一幕」（用户 2026-10-16："你直接把这些秘境想象成特殊的幕不就行了吗"）
+        //  ---------------------------------------------------------------------------
+        //  秘境内部图本来就是一张 <see cref="ActGraph"/>（RealmMapBuilder 产出，与天阙图同类型），
+        //  而这个面板的图**只有一个来源**：<c>SolarTermGraph.BuildRoute</c>。
+        //  所以"秘境和节点地图一模一样"这件事，根本不需要另写一套地图 ——
+        //  只要**把图换掉**，剩下所有东西（排布/连线/三态/落印/选中/出征）自动就是主线那套。
+        //
+        //  用法：<c>CampaignPanel.OpenAsRealm(graph)</c> 打开即可，行为差异只有三处：
+        //     · 图来自传入的 graph，而不是 BuildRoute
+        //     · 不做"通过本幕 ⇒ 推进 Act"（秘境打完不推进主线）
+        //     · 多一个「撤离秘境」按钮（回滚场域状态 + 回原节点）
+        // =====================================================================
+
+        /// <summary>待注入的秘境图（static：面板是 Transient，跨实例传参最省事）。</summary>
+        private static WanXiang.Campaign.ActGraph _injectedGraph;
+   /// <summary>本次打开要用的外部图（由 payload / static 注入，见 OnOpenAsync）。</summary>
+   private WanXiang.Campaign.ActGraph _realmGraphPayload;
+
+        /// <summary>当前是否处于"秘境模式"（外部注入的图在用）。</summary>
+        private bool _realmMode;
+
+        /// <summary>
+        /// 以"秘境模式"打开路线图。传进来的 graph 会被整个面板当成"本幕的图"使用。
+        /// ⛔ 面板是 Transient + Cached 复用，所以传完**立刻清空静态引用**，
+        ///   否则下一次正常打开节点地图会继续用这张旧图（而且不报错）。
+        /// </summary>
+        public static void OpenAsRealm(WanXiang.Campaign.ActGraph graph)
+        {
+      _injectedGraph = graph;
+      var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+     if (ui == null) { _injectedGraph = null; return; }
+  ui.OpenAsync<CampaignPanel>(graph).Forget();
+        }
+
+        /// <summary>秘境模式下的撤离入口（由 <see cref="RealmSession"/> 提供回滚语义）。</summary>
+        public static System.Action OnRealmQuitRequested;
+
+        /// <summary>是否处于秘境模式（外部可读：决定「出征」按钮文案等）。</summary>
+        public bool InRealmMode { get { return _realmMode; } }
         private int _currentOffset = -1;      // 当前所在节点（-1 = 还没出发）
         private int _selected = -1;
         /// <summary>本次**真正通过**的节点 —— 只在 OnOpenAsync 把 <c>NodeOffset = PendingCommit</c>
@@ -442,7 +501,11 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             OpenPanelAsync<ActIntroPanel>().Forget();
         }
 
-        private void BuildNodeMap()
+/// <param name="payloadGraph">
+        /// 可选的**外部图**（秘境内部图）。非空则用它替代 BuildRoute —— 这就是"秘境 = 特殊的一幕"。
+        ///   走参数而不是 static 字段优先；static 只是给 <see cref="OpenAsRealm"/> 兜底。
+        /// </param>
+        private void BuildNodeMap(WanXiang.Campaign.ActGraph payloadGraph = null)
         {
             if (_scrollNodes == null || _nodeItemTemplate == null) return;
             var content = _scrollNodes.content;
@@ -497,7 +560,23 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                 WanXiang.Run.RunSave.SaveCurrent();
             }
             ulong seed = CoreMath.Fnv1a("route:" + (run != null ? run.RunSeed : 0) + ":" + act);
+
+            // ★★ 秘境注入点（唯一一处）：有外部图就用它，其余流程一字不改。
+    //   秘境图与主线图**同为 ActGraph**，所以这一句就完成了"复用现成节点地图"。
+      var injected = _realmGraphPayload;
+        _realmGraphPayload = null;          // ⚠ 用完清掉：面板复用，别把旧图带进下一次正常打开
+if (injected != null && !injected.IsEmpty)
+       {
+        _realmMode = true;
+     _graph = injected;
+    Debug.Log("[Campaign] 秘境模式：注入外部节点图（" + _graph.Layers.Length + " 层，"
+       + _graph.NodeCount + " 格）—— 排布/连线/选中全走主线同一套");
+      }
+         else
+        {
+  _realmMode = false;
             _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(act, seed, Layers);
+        }
 
             // ★ 瘴雾重掷过的节点类型：覆盖回去（节点图每次都由种子重建，不覆盖就被冲掉了）
             if (run != null && run.RerolledKinds != null && run.RerolledKinds.Count > 0 && _graph.Kinds != null)
@@ -584,10 +663,14 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             }
 
 
-            if (_tmpActTitle != null)
-                _tmpActTitle.text = "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn +
-                                    " · 守关 " + _graph.BossName;
-            if (_tmpActTitle != null) _tmpActTitle.text += "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
+if (_tmpActTitle != null)
+{
+   // ★ 秘境模式：标题写场域名，别写"第零幕"（Act=0 会渲染成"第零幕"，玩家一脸问号）。
+       _tmpActTitle.text = _realmMode
+        ? "秘境 · " + _graph.SeasonCn + "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚"
+            : "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn + " · 守关 " + _graph.BossName;
+        if (!_realmMode) _tmpActTitle.text += "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
+        }
             if (_tmpJie != null)
                 _tmpJie.text = run != null ? run.RealmText : "第一境 · 第一劫";
 
@@ -748,6 +831,13 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     }
                 }
             }
+        }
+
+        /// <summary>该节点属于秘境第几波（层号+1：第 0 层是入口遭遇，用户的"第1 波"）。</summary>
+      private int RealmWaveOf(int offset)
+        {
+            int layer = _graph != null ? _graph.LayerOf(offset) : 0;
+   return layer + 1;
         }
 
         /// <summary>节点中心的本地坐标（与 BuildNodeMap 的排布公式必须一致）。</summary>
@@ -1215,10 +1305,16 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     name = "守关·" + (_graph.BossName ?? "首领");
                 else
                     name = WanXiang.Campaign.NodeKinds.Cn(kind);
-                // ★ 文案精简：去掉多余全角空格；"已过"不再用文字 —— 改用朱砂 ✕ 印章（见下方 Img_Stamp）
-                label.text = (offset + 1) + "." + TermName(_graph.Terms[offset]) + "【" + name + "】" +
-                             (isHere ? " ◀当前" : canGo ? " ←可前往" : "");
-                label.color = isHere ? NodeVisited : canGo ? NodeReachable : passed ? PathGold : NodeLocked;
+// ★ 文案精简：去掉多余全角空格；"已过"不再用文字 —— 改用朱砂 ✕ 印章（见下方 Img_Stamp）
+                // ⚠ 秘境模式：**不显示节气**。秘境图的 Terms 存的是"层号"（1,2,2,2,3…），
+                //   当节气名渲染会得到"11.清明【灵市】"这种驴唇不对马嘴的标签。
+                //   秘境该说的是「第几波」（设计文档：层数 = 波数+2）。
+                string prefix = _realmMode
+                    ? "第" + RealmWaveOf(offset) + "波"
+                    : (offset + 1) + "." + TermName(_graph.Terms[offset]);
+       label.text = prefix + "【" + name + "】" +
+     (isHere ? " ◀当前" : canGo ? " ←可前往" : "");
+             label.color = isHere ? NodeVisited : canGo ? NodeReachable : passed ? PathGold : NodeLocked;
             }
 
             var dot = item.Find("Img_Dot") != null ? item.Find("Img_Dot").GetComponent<Image>() : null;
@@ -1699,9 +1795,12 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         {
             if (_tmpActTitle == null || _graph == null) return;
             var run = WanXiang.Run.RunSave.Current;
-            _tmpActTitle.text = "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn +
-                                " · 守关 " + _graph.BossName +
-                                "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
+// ★ 秘境模式同OnOpenAsync：标题写场域名（选节点后会再刷一次这里）
+        _tmpActTitle.text = _realmMode
+          ? "秘境 · " + _graph.SeasonCn + "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚"
+                : "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn +
+        " · 守关 " + _graph.BossName +
+            "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
         }
 
         /// <summary>

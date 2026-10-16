@@ -111,12 +111,22 @@ namespace WanXiang.Editor.BattleTool
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
             if (ui == null) { Fail("UIBootstrap.UI 为空 —— 场景里没有 UIBootstrap？"); return; }
 
-            // 已在秘境里就直接重开面板（面板自己会画内部图）
-      if (run.InRealm)
-            {
-        Debug.Log("[秘境调试] 已在秘境中，直接重开面板");
-   ui.OpenAsync<RealmPanel>(null).Forget();
-   return;
+// 已在秘境里：直接打开秘境路线图（CampaignPanel 注入秘境图）
+            if (run.InRealm)
+  {
+       Debug.Log("[秘境调试] 已在秘境中，直接打开秘境路线图");
+      var r2 = RealmCatalog.For(run.RealmId);
+    var m2 = RealmMapBuilder.Build(r2, RealmSession.RealmSeedFor(run));
+     if (m2 == null || m2.Graph == null) { Fail("建不出秘境图。"); return; }
+              CampaignPanel.OnRealmQuitRequested = () =>
+                {
+        var r = WanXiang.Run.RunSave.Current;
+     RealmSession.Exit(r);
+          if (r != null) WanXiang.Run.RunSave.SaveCurrent();
+     ui.OpenAsync<CampaignPanel>(null).Forget();
+            };
+    CampaignPanel.OpenAsRealm(m2.Graph);
+    return;
             }
 
       var realm = RealmSession.RollFor(run, RealmSession.RealmSeedFor(run));
@@ -125,17 +135,29 @@ namespace WanXiang.Editor.BattleTool
        Fail("抽不到场域（幕数不足 / 本局已进满 / 全被去重）—— 菜单 ① 改完存档再来。");
      return;
       }
-      if (!RealmSession.Enter(run, realm))
+if (!RealmSession.Enter(run, realm))
     {
-      Fail("RealmSession.Enter 失败（本局次数已用完？）");
-    return;
+ Fail("RealmSession.Enter 失败（本局次数已用完？）");
+ return;
       }
             CampaignPanel.PendingCommit = -1;
             WanXiang.Run.RunSave.SaveCurrent();
-        Debug.Log("[秘境调试] 已进入秘境：" + realm.Name + "（难度 ×" + realm.EnemyScale +
+      Debug.Log("[秘境调试] 已进入秘境：" + realm.Name + "（难度 ×" + realm.EnemyScale +
           "，波数 " + realm.Waves + "，" + (realm.NoQte ? "禁 QTE" : "可格挡") + "）");
-            ui.OpenAsync<RealmPanel>(null).Forget();
-        }
+
+  // ★ 内部地图 = CampaignPanel 注入秘境图（复用现成节点地图，零额外地图代码）
+        var map = RealmMapBuilder.Build(realm, RealmSession.RealmSeedFor(run));
+            if (map == null || map.Graph == null) { Fail("建不出秘境图。"); return; }
+            // 注册撤离回调：CampaignPanel 的「回主界面」按钮在秘境模式下变成「撤离」
+ CampaignPanel.OnRealmQuitRequested = () =>
+ {
+        var r = WanXiang.Run.RunSave.Current;
+        RealmSession.Exit(r);
+          if (r != null) WanXiang.Run.RunSave.SaveCurrent();
+        ui.OpenAsync<CampaignPanel>(null).Forget();
+            };
+  CampaignPanel.OpenAsRealm(map.Graph);
+   }
 
         /// <summary>退出秘境（调试用；正常游玩点面板里的「撤离秘境」）。</summary>
         [MenuItem("万相/调试/秘境/⑤ 强制退出秘境（回滚）", priority = 204)]

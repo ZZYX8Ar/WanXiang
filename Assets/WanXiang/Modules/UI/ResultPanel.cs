@@ -432,23 +432,41 @@ namespace WanXiang.Modules.UI
                       " 灵卵 " + cur.Eggs);
         }
 
-        private void BackToCampaign()
+private void BackToCampaign()
+{
+   CloseSelf();
+            // ★★ 秘境内打完 → 回**秘境地图**，不是回节点地图（2026-10-16）。
+            //   否则玩家会被弹出秘境（run.InRealm 仍为真，但人在节点图上），
+            //   硬约束 ②「打完必回原节点」就被破坏了。
+            var runNow = WanXiang.Run.RunSave.Current;
+        if (runNow != null && runNow.InRealm)
+   {
+        if (!_win && !_isDraw)
         {
-            CloseSelf();
+       // 全队阵亡：秘境进度清空（设计文档 7.1「失败走既有死亡流程，不新增」）
+     RealmSession.Exit(runNow);
+      WanXiang.Run.RunSave.SaveCurrent();
+   OpenPanelAsync<CampaignPanel>().Forget();
+              return;
+      }
+              OpenPanelAsync<RealmPanel>().Forget();
+            return;
+   }
+
             // ★ 按结果分流（用户规则）：
             //   胜利 / 平局 → 回节点地图继续探索（平局=按撤退处理，本局继续）
             //   失败 → 本局已结束，回**主界面**（让玩家在主界面决定"继续/新局"），
-            //          以前无条件回节点图，看起来像"进度被清还留在游戏里"（用户实测）。
-            if (_win || _isDraw)
-            {
-                // ★★ 终局战胜利 = 通关 ， 回【主界面】，不能回节点图：
-                //    通关后 Act=5（天阙），那张图没有可走的节点 ， 回节点图会是一片空白
+  //          以前无条件回节点图，看起来像"进度被清还留在游戏里"（用户实测）。
+        if (_win || _isDraw)
+   {
+      // ★★ 终局战胜利 = 通关 ， 回【主界面】，不能回节点图：
+      //    通关后 Act=5（天阙），那张图没有可走的节点 ， 回节点图会是一片空白
                 //    （用户实测：选完通关奖励后画面全空）。
-                var r = WanXiang.Run.RunSave.Current;
-                if (r != null && r.BeatFinale) OpenPanelAsync<HomePanel>().Forget();
-                else OpenPanelAsync<CampaignPanel>().Forget();
+      var r = WanXiang.Run.RunSave.Current;
+    if (r != null && r.BeatFinale) OpenPanelAsync<HomePanel>().Forget();
+    else OpenPanelAsync<CampaignPanel>().Forget();
             }
-            else OpenPanelAsync<HomePanel>().Forget();
+ else OpenPanelAsync<HomePanel>().Forget();
         }
 
         // ================================================================
