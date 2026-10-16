@@ -110,6 +110,8 @@ namespace WanXiang.Modules.UI
             return result != null;
         }
 
+
+
         private static void Load(string sceneName)
         {
             if (!UnityEngine.Application.CanStreamedLevelBeLoaded(sceneName))

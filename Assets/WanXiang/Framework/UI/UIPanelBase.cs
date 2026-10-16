@@ -535,6 +535,7 @@ OpenSequence = openSequence;
                 { "Panel_Forge",     "bgm_km_wizardtorium" },    // 诡异 · 锻造 / 觉醒
                 { "Panel_Recruit",   "bgm_cc0_oriental1" },      // 东方 · 招募
                 { "Panel_Relic",     "bgm_ccby_arukas" },        // 神秘 · 遗物
+                { "Panel_Realm",     "bgm_km_shenyang" },        // 神秘 · 秘境
                 { "Panel_Meta",      "bgm_km_temple_manes" },    // 暗黑 · 局外养成
                 { "Panel_Omen",      "bgm_km_wizardtorium" },    // 诡异 · 天时 / 征兆
                 { "Panel_Settings",  "bgm_km_zen_moment" },      // 禅意 · 设置

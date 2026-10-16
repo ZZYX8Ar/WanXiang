@@ -188,6 +188,17 @@ namespace WanXiang.Modules.UI
             return left < 0 ? 0 : left;
         }
 
+        /// <summary>
+        /// 抽场域用的**共享种子**。⚡ 必须由揭晓处与面板处**共用同一个函数** ——
+        ///   两边各写一份种子公式就会"揭晓说是苍泽、面板抽出烬岭"的错位。
+        /// </summary>
+        public static ulong RealmSeedFor(WanXiang.Run.RunState run)
+        {
+            ulong s = (ulong)(run != null ? run.RunSeed : 0) * 31UL;
+            s ^= WanXiang.Battle.Core.CoreMath.Fnv1a("realm-pick");
+            return s;
+        }
+
         /// <summary>问号节点揭晓时抽一个场域（确定性 + 同局去重 + 幕数门槛）。</summary>
         public static WanXiang.Campaign.RealmDef RollFor(WanXiang.Run.RunState run, ulong seed)
         {
