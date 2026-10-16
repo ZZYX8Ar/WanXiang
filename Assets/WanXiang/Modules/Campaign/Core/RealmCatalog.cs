@@ -50,6 +50,9 @@ namespace WanXiang.Campaign
 
         // ---- 强度 ----
         public int Waves;                    // 波数
+        /// <summary>秘境内小地图尺寸（设计文档 5.1 的 map_size）。</summary>
+        public int MapCols = 9;
+        public int MapRows = 7;
         public float EnemyScale;            // 敌方强度倍率（**不吃幕数加成**）
         public float StarRate;              // 产出倍率
 
@@ -87,6 +90,7 @@ namespace WanXiang.Campaign
                 Id = RealmIds.Marsh, Name = "苍泽", Element = "水",
                 Concept = "积水腐草，减速 + 持续伤害，但掉落最好",
                 Waves = 3, EnemyScale = 1.00f, StarRate = 1.5f,
+                MapCols = 4, MapRows = 5,
                 Hazard = RealmHazardKind.FoeStatusAll,
                 HazardStatusId = WanXiang.Battle.Core.StatusCatalog.Wet,
                 HazardStacks = 1, HazardTurns = 2,
@@ -102,6 +106,7 @@ namespace WanXiang.Campaign
                 Id = RealmIds.Ember, Name = "烬岭", Element = "火",
                 Concept = "地表开裂，灼烧常驻，逼你速战速决",
                 Waves = 4, EnemyScale = 1.15f, StarRate = 1.2f,
+                MapCols = 4, MapRows = 5,
                 Hazard = RealmHazardKind.FoeStatusAll,
                 HazardStatusId = WanXiang.Battle.Core.StatusCatalog.Burn,
                 HazardStacks = 1, HazardTurns = 2,
@@ -115,6 +120,7 @@ namespace WanXiang.Campaign
                 Id = RealmIds.Gear, Name = "机枢", Element = "金",
                 Concept = "废弃机关城，敌人有护盾与机械减伤",
                 Waves = 4, EnemyScale = 1.20f, StarRate = 1.3f,
+                MapCols = 5, MapRows = 5,
                 Hazard = RealmHazardKind.FoeShieldAll,
                 HazardShieldPct = 0.15f, HazardTurns = 2,
                 AppearFromAct = 3, Weight = 20,
@@ -127,6 +133,7 @@ namespace WanXiang.Campaign
                 Id = RealmIds.Silent, Name = "寂域", Element = "无",
                 Concept = "无声之地，禁止一切 QTE —— 纯数值硬仗",
                 Waves = 3, EnemyScale = 1.35f, StarRate = 1.8f,
+                MapCols = 5, MapRows = 5,
                 Hazard = RealmHazardKind.SelfShieldAll,
                 HazardShieldPct = 0.08f, HazardTurns = 3,
                 NoQte = true,
@@ -140,6 +147,7 @@ namespace WanXiang.Campaign
                 Id = RealmIds.Thorn, Name = "荆墟", Element = "木",
                 Concept = "赌坊型秘境：结算可加倍，但失败代价极高",
                 Waves = 2, EnemyScale = 1.60f, StarRate = 2.2f,
+                MapCols = 4, MapRows = 5,
                 Hazard = RealmHazardKind.None,
                 AppearFromAct = 2, Weight = 15,
                 Boon = "星币产出 2.2 倍；第 2 波结束可选择「再赌一次」",
