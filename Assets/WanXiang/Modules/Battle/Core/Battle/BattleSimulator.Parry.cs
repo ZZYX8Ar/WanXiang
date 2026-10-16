@@ -37,6 +37,8 @@ namespace WanXiang.Battle.Core
         Guard = 1,
         /// <summary>进攻：我方终结技释放前的输出窗口（成功加强 / 失败减弱）。</summary>
         Finisher = 2,
+        /// <summary>阵形连携：释放前的判定窗口（命中 >= 一半 = 成功；失败有惩罚，见 ComboFailed）。</summary>
+        Combo = 3,
     }
 
     public static partial class BattleSimulator
@@ -105,6 +107,19 @@ namespace WanXiang.Battle.Core
             st.ParriedGrade = grade;
             st.ParryActorId = actor.RuntimeId;
             st.ParryQteKind = ParryQteKind.Finisher;
+            st.ParryPendingUnit = null;
+        }
+
+        /// <summary>
+        /// 提交**阵形连携 QTE** 的单段结果（多段逐次调用；由 Steps.cs 累计判定成败）。
+        /// 与 ApplyParry/ApplyFinisherQte 同构：只写档位，不改别的状态。
+        /// </summary>
+        public static void ApplyComboQte(BattleState st, BattleUnit actor, ParryGrade grade)
+        {
+            if (st == null || actor == null) return;
+            st.ParriedGrade = grade;
+            st.ParryActorId = actor.RuntimeId;
+            st.ParryQteKind = ParryQteKind.Combo;
             st.ParryPendingUnit = null;
         }
 

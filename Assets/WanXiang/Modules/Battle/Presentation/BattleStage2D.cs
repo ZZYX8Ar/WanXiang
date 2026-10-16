@@ -637,12 +637,20 @@ namespace WanXiang.Battle.Presentation
         public bool CutInPlaying => _skillFx != null && _skillFx.CutInActive;
 
 
-      /// <summary>判定反馈：在被判定者头顶飘字。格挡 = 完美格挡!/格挡/未挡；终结技 = 共鸣/失谐。</summary>
-        public void ParryFeedback(string attackerId, int grade, bool finisher = false)
+      /// <summary>判定反馈：在被判定者头顶飘字。格挡 = 完美格挡!/格挡/未挡；终结技 = 共鸣/失谐；连携 = 阵成/散阵。</summary>
+        public void ParryFeedback(string attackerId, int grade, bool finisher = false, bool combo = false)
         {
    if (string.IsNullOrEmpty(attackerId) || _views == null) return;
       UnitView2D v;
           if (!_views.TryGetValue(attackerId, out v) || v == null || v.Root == null) return;
+       if (combo)
+  {
+       // 阵形连携逐段反馈（写在施法者头上；成败由模拟层合并判定，这里只报单段手感）
+       if (grade == 2) SpawnNumberInternal(v, "阵成!", new Color(1f, 0.85f, 0.45f), 1.5f);
+       else if (grade == 1) SpawnNumberInternal(v, "结阵", new Color(0.85f, 0.92f, 1f), 1.2f);
+       else SpawnNumberInternal(v, "散阵", new Color(0.62f, 0.58f, 0.60f), 1.1f);
+       return;
+  }
        if (finisher)
   {
        // 终结技 QTE：飘在被施放者（我方）头上

@@ -92,28 +92,39 @@ namespace WanXiang.Battle.Core
         }
 
         /// <summary>
-        /// 执行连携技（v2.1 P4 / v1.3 扩 18 种效果）：主兽 + 伙伴各扣 MpCost 灵力，按 ComboEffect 结算。
-        /// 返回 false = 条件不满足（每场限一次 / 伙伴不在 / 灵力不足），不产生任何事件。
+        /// 执行**阵形连携**（2026-10-16 全替换重构）：主兽（站中宫者）出大招能量 + 全队按存活数扣灵力，
+        /// 按 ComboEffect 结算；威力随存活单位数提升。
+        /// 返回 false = 条件不满足（阵形不齐 / 已用过 / 元气不足 / 灵力不足），不产生任何事件。
+        ///
+        /// ⛔ 条件口径与 <see cref="ComboRules.CanFire"/> **逐条一致**（UI 用它显示"差什么"）。
+        /// ⛔ 真正被玩家点下的路径是"QTE 判定成功后才调本函数"（见 BattleSimulator.Steps 的连携段）。
         /// </summary>
         public static bool ExecuteCombo(BattleState st, string comboId, BattleUnit host)
         {
             var combo = ComboRules.For(comboId);
-            if (combo == null || host == null || !host.IsAlive) return false;
-            if (!host.Pos.IsCenter) return false;                                // ★ 连携须主兽站中宫
-            if (st.UsedCombos.Contains(comboId)) return false;
-            var partner = ComboRules.FindPartner(st, host, combo);
-            if (partner == null) return false;
-            if (st.TeamMp < combo.MpCost * 2) return false;
+            string why;
+            if (!ComboRules.CanFire(st, host, combo, out why)) return false;
 
-            st.TeamMp -= combo.MpCost * 2;
+            var cfg = st.Config;
+            int alive = ComboRules.AliveCount(st, host.Side);
+            int mpCost = ComboRules.MpCostFor(st, host.Side);
+
+            // ---- 结算消耗（用户 2026-10-16 口径）----
+            //  ① 灵力：每存活 1 只 1 点
+            if (host.Side == TeamSide.Player) st.TeamMp -= mpCost;
+            else st.EnemyMp -= mpCost;
+            //  ② 主兽大招能量：整份（「无相」遗物关掉元气需求时不扣）
+            if (cfg.UltimateNeedsRage) host.SpendRage(cfg.UltimateRageCost);
             st.UsedCombos.Add(comboId);
 
             st.Log.Add(st.Turn, BattleEventKind.SkillCast, actorId: host.RuntimeId,
                        skillName: combo.Name, element: Element.None,
-                       note: host.DisplayName + "×" + partner.DisplayName + "·" + combo.Name,
+                       note: host.DisplayName + "·" + combo.Name + "（阵形·存活" + alive + "）",
                        skill: SkillType.Active);
 
-            int power = CoreMath.RoundDamage(host.Attack * combo.Power);
+            // ---- 威力：随存活数提升（0.4 + 0.12×存活，5 只 = 100%）----
+            float aliveMul = ComboRules.PowerMulFor(alive);
+            int power = CoreMath.RoundDamage(host.Attack * combo.Power * aliveMul);
             var foeSide = BattleState.Opponent(host.Side);
             var foes = st.UnitsOf(foeSide);
             var ours = st.UnitsOf(host.Side);
@@ -124,7 +135,7 @@ namespace WanXiang.Battle.Core
                 case ComboEffect.WoodPulse:
                 {
                     HitAll(st, host, foes, power);
-                    HealTeam(st, host, ours, Pct(combo.Power2, ComboHealPct));
+                    HealTeam(st, host, ours, Pct(combo.Power2, ComboHealPct) * aliveMul);
                     break;
                 }
                 case ComboEffect.FireStorm:
@@ -282,18 +293,19 @@ namespace WanXiang.Battle.Core
                 //   这种双数值无法用一个 Power 表达，故回血比例统一走 Power2 / 默认值。
                 case ComboEffect.TeamHealShield:
                 {
-                    HealTeam(st, host, ours, Pct(combo.Power2, 0.12f));
-                    ShieldTeam(st, host, ours, host.Attack * combo.Power);
+                    HealTeam(st, host, ours, Pct(combo.Power2, 0.12f) * aliveMul);
+                    ShieldTeam(st, host, ours, host.Attack * combo.Power * aliveMul);
                     break;
                 }
                 case ComboEffect.TeamShieldReflect:
                 {
-                    ShieldTeam(st, host, ours, host.Attack * combo.Power);
+                    ShieldTeam(st, host, ours, host.Attack * combo.Power * aliveMul);
                     break;
                 }
                 case ComboEffect.TeamHealCleanse:
                 {
-                    HealTeam(st, host, ours, Pct(combo.Power2, 0.14f));                    for (int i = 0; i < ours.Count; i++)
+                    HealTeam(st, host, ours, Pct(combo.Power2, 0.14f) * aliveMul);
+                    for (int i = 0; i < ours.Count; i++)
                     {
                         var u = ours[i];
                         if (!u.IsAlive) continue;
@@ -306,7 +318,7 @@ namespace WanXiang.Battle.Core
                 }
                 case ComboEffect.TeamHealLostHp:
                 {
-                    float pct = Pct(combo.Power2, 0.15f);
+                    float pct = Pct(combo.Power2, 0.15f) * aliveMul;
                     for (int i = 0; i < ours.Count; i++)
                     {
                         var u = ours[i];
@@ -322,6 +334,31 @@ namespace WanXiang.Battle.Core
                 }
             }
             return true;
+        }
+
+        /// <summary>
+        /// 阵形连携 **QTE 触发失败**（2026-10-16 用户口径）：
+        ///   "如果触发失败则会扣除 1 个灵力和 50% 的主异兽大招能量，并提示触发失败"。
+        /// ⚠ 失败**不标记** UsedCombos（阵形还在、元气攒回来可以再试），也不消耗行动
+        ///   （调用方 Steps.cs 在失败后仍会走该单位本回合的正常行动）。
+        /// </summary>
+        public static void ComboFailed(BattleState st, BattleUnit host, ComboDef combo)
+        {
+            if (st == null || host == null) return;
+            var cfg = st.Config;
+
+            // ① 灵力 -1（不足则清 0，不欠账）
+            if (host.Side == TeamSide.Player)
+                st.TeamMp = st.TeamMp > 1 ? st.TeamMp - 1 : 0;
+            else
+                st.EnemyMp = st.EnemyMp > 1 ? st.EnemyMp - 1 : 0;
+
+            // ② 主兽大招能量 -50%（「无相」关掉元气需求时不扣）
+            if (cfg.UltimateNeedsRage) host.SpendRage(cfg.UltimateRageCost * 0.5f);
+
+            // ③ 记一条"触发失败"（UI 直接显示 Note；结构化字段保持最小）
+            st.Log.Add(st.Turn, BattleEventKind.ParryResult, actorId: host.RuntimeId,
+                       note: "连携·" + (combo != null ? combo.Name : "?") + " 触发失败（灵力 -1，大招能量 -50%）");
         }
 
         // ================================================================

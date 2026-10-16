@@ -115,6 +115,20 @@ namespace WanXiang.Battle.Core
         /// <summary>本场结算（手动模式下战斗结束时由 AdvanceToNextDecision 写入）。</summary>
         public BattleResult Result;
 
+        /// <summary>
+        /// 玩家点了"连携"按钮后写入的**待结算连携 id**（2026-10-16 阵形连携重构）。
+        ///
+        /// 旧实现是 UI 一点按钮就 `ExecuteCombo` 立即结算（战斗还没演到那个单位）；
+        /// 现在改为"登记意图 → 模拟层轮到该单位时弹 QTE 窗口 → 判定成功才结算"：
+        ///   UI: SubmitCombo 只写本字段 + 解除待令
+        ///   模拟: Steps.cs 在 NeedDecision 之后读它 → yield NeedParry(Combo) ... → ExecuteCombo / ComboFailed
+        /// ⛔ 不写它 = 零副作用（自动战斗/AI 永不写）。
+        /// </summary>
+        public string PendingComboId;
+
+        /// <summary>正在判定的连携名（QTE 提示条显示用；UI 只读）。</summary>
+        public string ParryComboName;
+
         // ---- 回合制 v2.1 P2：灵力（全队共享一条槽）----
 
         /// <summary>全队灵力（MP）。战记消耗它，普攻不耗；终结技耗元气不耗灵力。

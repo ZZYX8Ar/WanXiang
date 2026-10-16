@@ -104,11 +104,25 @@ namespace WanXiang.Modules.UI
                 title = "连携·" + c.Name;
                 body = c.Note;
                 // ★ 伤害实算（用户 2026-09-28：可发动时"没看见描述伤害"）：连携是**固定系数、无随机**，
-                //   与 ExecuteCombo 完全同公式 RoundDamage(攻击 × Power) ， 面板数字 = 实战数字。
-                if (pendingUnit != null)
-                    body += "\n伤害实算：每个目标 " + WanXiang.Battle.Core.CoreMath.RoundDamage(pendingUnit.Attack * c.Power)
-                          + " 点（主兽攻击 " + (int)pendingUnit.Attack + " × " + (c.Power * 100f).ToString("0") + "%）";
-                body += "\n\n消耗：双方各 2 灵力（合计 4）\n限制：每场每种连携限用一次\n条件：主兽站【九宫格中宫·中间格】 + 对应元素伙伴在场\n\n点按钮立即发动";
+                //   与 ExecuteCombo 完全同公式 RoundDamage(攻击 × Power × 存活系数)，面板数字 = 实战数字。
+                if (pendingUnit != null && _play.State != null)
+                {
+                    int alive = ComboRules.AliveCount(_play.State, WanXiang.Battle.Core.TeamSide.Player);
+                    float mul = ComboRules.PowerMulFor(alive);
+                    body += "\n伤害实算：每个目标 "
+                          + WanXiang.Battle.Core.CoreMath.RoundDamage(pendingUnit.Attack * c.Power * mul)
+                          + " 点（攻击 " + (int)pendingUnit.Attack + " × " + (c.Power * 100f).ToString("0") + "%"
+                          + " × 存活系数 " + (mul * 100f).ToString("0") + "%）";
+                    body += "\n消耗：灵力 " + ComboRules.MpCostFor(_play.State, WanXiang.Battle.Core.TeamSide.Player)
+                          + " 点（每存活 1 只 1 点）+ 主兽满份大招能量";
+                }
+                else
+                {
+                    body += "\n消耗：每存活 1 只 1 点灵力 + 主兽满份大招能量";
+                }
+                body += "\n限制：每种阵形每场限一次\n条件：主兽站【中宫】+ 阵形格全被存活队友占据"
+                      + "\n释放：先判 QTE（三段按键），命中过半才发动；失败扣 1 灵力 + 50% 大招能量"
+                      + "\n\n点按钮开始判定";
                 // ★ 连携也要九宫格高亮（用户报障：放连携没有高亮提示）。
                 //   目标口径走核心的 PreviewComboTargets（只读、与 ExecuteCombo 同源）。
                 HighlightComboTargets(pendingUnit, c);
@@ -119,9 +133,11 @@ namespace WanXiang.Modules.UI
                 var why = pendingUnit != null && _play.State != null
                     ? ComboRules.WhyNot(_play.State, pendingUnit)
                     : "没有待令单位";
-                body = "两只特定异兽同场时解锁的双人合击（例如：句芒 + 任何木属性伙伴，即青阳共鸣）。\n主兽【必须站在九宫格中宫（中间格）】才能发动。\n\n当前："
+                body = "**阵形连携**：与是哪只异兽无关 —— 只要【中宫有主兽】且阵形要求的格位\n"
+                     + "都被存活队友占据，就能发动（4 种阵形：鱼鳞阵 / 云龙阵 / 锋矢阵 / 雁行阵）。\n"
+                     + "消耗：主兽满份大招能量 + 每存活 1 只 1 点灵力；威力随存活数提升。\n\n当前："
                      + (why ?? "可以发动")
-                     + "\n\n发动时机：连携占用主兽本次行动。";
+                     + "\n\n发动时机：连携占用主兽本次行动，成功与否都要先过 QTE。";
             }
 
             // ★ 修复（用户 2026-09-28 报障："连携可以释放时悬浮提示就没了"）：

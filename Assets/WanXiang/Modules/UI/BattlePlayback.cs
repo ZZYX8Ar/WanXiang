@@ -315,15 +315,21 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>
-        /// 发动连携（替代该单位本次的普攻/战记）。返回 false = 条件不满足。
-        /// 连携的事件已写入日志，由播放循环逐条演出。
+        /// 发动连携（替代该单位本次行动）。
+        ///
+        /// ⛔ 2026-10-16 重构：旧实现是"点一下立即 ExecuteCombo"（战斗还没演到那个单位就结算了），
+        ///   现在改为**只登记意图** —— 由模拟层轮到该单位时弹 QTE 窗口，判定成功才发放、失败走惩罚
+        ///   （用户："通过 QTE 判断触发"）。`_awaiting = false` 让播放循环继续推进到那次 QTE。
+        /// 返回 false = 登记失败（不在待令 / 没有这条连携）。
         /// </summary>
         public bool SubmitCombo(string comboId)
         {
             if (State == null || !_awaiting) return false;
-            bool ok = BattleSimulator.ExecuteCombo(State, comboId, PendingUnit);
-            if (ok) _awaiting = false;
-            return ok;
+            var c = ComboRules.For(comboId);
+            if (c == null) return false;
+            State.PendingComboId = comboId;
+            _awaiting = false;
+            return true;
         }
 
         /// <summary>推进模拟到下一个决策点（或结束）。</summary>
@@ -358,11 +364,14 @@ namespace WanXiang.Modules.UI
             if (!_awaitingParry || State == null) return;
             // ⚠ 按窗口类型分派：`ApplyParry` 硬设 Guard，会把终结技窗口的 Finisher 类型冲掉
             //   （进而走错伤害分支 —— 完美"加强"会变成"减伤"）。所以这里显式分流。
-            if (State.ParryQteKind == WanXiang.Battle.Core.ParryQteKind.Finisher)
+            var kind = State.ParryQteKind;
+            if (kind == WanXiang.Battle.Core.ParryQteKind.Finisher)
                 BattleSimulator.ApplyFinisherQte(State, State.ParryPendingUnit, grade);
+            else if (kind == WanXiang.Battle.Core.ParryQteKind.Combo)
+                BattleSimulator.ApplyComboQte(State, State.ParryPendingUnit, grade);
             else
-       BattleSimulator.ApplyParry(State, grade);
-  _awaitingParry = false;
+                BattleSimulator.ApplyParry(State, grade);
+            _awaitingParry = false;
         }
 
         public bool PlayerWin => State != null && State.Outcome == BattleOutcome.PlayerWin;

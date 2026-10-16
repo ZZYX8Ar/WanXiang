@@ -133,7 +133,10 @@ namespace WanXiang.Modules.UI
                 _skillBtns[3].gameObject.SetActive(false);   // 进场先收起，RefreshActionBar 按"是否装备"再放
             // ★ 每场战斗重置 自动/倍速：面板是 Cached 复用的，字段会带过来。
             //   放在 OnOpenAsync（每次打开必然经过）比放在 PlayLoop 更可靠（用户实测未生效）。
-            _autoBattle = SceneFlow.LastWasPvp;   // ★ PvP=自动；正常战斗=手动(玩家自己下令)，与回放 manual 一致
+            // ★★ 2026-10-16 用户："局外好友对战我又想改回可以手动作战了，也可以自动作战，
+            //   和平常的探索没有什么区别，就是敌人变成玩家养成好的异兽而已"
+            //   ⇒ PvP 不再强制自动，与 PvE 同口径：默认手动，玩家可点"自动战斗"切换。
+            _autoBattle = false;
             _speed = 1f;
             // ⛔ 双保险：回放闸必须在这里也是 false。
             //   面板 Cached 复用 ⇒ 上一场「重新挑战」冻结后留下的 _halted=true 会带进来
@@ -172,9 +175,9 @@ namespace WanXiang.Modules.UI
                 return UniTask.CompletedTask;
             }
 
-            // ★ PvP 走全自动回放（manual=false，与 BattleSceneDriver 一致）；
-            //   单机非场景战保持 _manualBattle。auto 模式整场已预模拟，无需 SubmitCommand。
-            if (_play == null) _play = new BattlePlayback(_req, _manualBattle && !SceneFlow.LastWasPvp);
+            // ★ 2026-10-16：PvP 与 PvE 同口径（用户："好友对战改回可以手动作战，
+            //   和平常的探索没有什么区别"）⇒ 一律按 _manualBattle 决定回放模式，不再对 PvP 特判。
+            if (_play == null) _play = new BattlePlayback(_req, _manualBattle);
 
             // ★ 顶部横幅（用户 2026-10-03 要求）：
             //   第一行 = **节点名称**（"第X幕 · 第 N 节 · 守关（首领）/精英战/遭遇战"），

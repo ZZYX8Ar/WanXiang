@@ -28,8 +28,10 @@ namespace WanXiang.Modules.UI
         ///   完美区有 0.12×1.10≈132ms，加上"任何时候按都有普通档兜底"，
         ///   实际上闭眼按也能中。要难度就调**两个半径**，别调窗口长度。
     private static float ParryWindowSeconds = 0.85f;
- /// <summary>终结技窗口总时长（真实秒）—— 比格挡短：输出向不该拖慢节奏。</summary>
+        /// <summary>终结技窗口总时长（真实秒）—— 比格挡短：输出向不该拖慢节奏。</summary>
         private static float FinisherWindowSeconds = 0.70f;
+        /// <summary>阵形连携窗口总时长（真实秒）—— 与终结技同档：都是"大招级"输出 QTE。</summary>
+        private static float ComboWindowSeconds = 0.75f;
 
    /// <summary>判定中心（环收缩进度 0..1；到 0.80 时环正好套上目标圈）。</summary>
         private const float ParryPerfectCenter = 0.80f;
@@ -129,6 +131,8 @@ namespace WanXiang.Modules.UI
 
             var st = _play.State;
             bool finisher = st.ParryQteKind == WanXiang.Battle.Core.ParryQteKind.Finisher;
+            bool comboQte = st.ParryQteKind == WanXiang.Battle.Core.ParryQteKind.Combo;
+            bool offensive = finisher || comboQte;      // 进攻向（放宽容错、短窗口）
             int segIndex = st.ParrySegmentIndex;
             int segTotal = Mathf.Max(1, st.ParrySegmentTotal);
 
@@ -166,11 +170,13 @@ namespace WanXiang.Modules.UI
 
             // ⚠ 别用括号包 paceTag：SetQteHint 结尾会再拼一个「（连击 k/n）」，
             //   两层括号挤在一起读不清（"格挡（快刀）　（连击 2/3）"）。空格分隔即可。
-            string actionName = finisher ? "终结技·共鸣" : "格挡";
+            string actionName = comboQte
+                ? ("连携·" + (string.IsNullOrEmpty(st.ParryComboName) ? "阵形" : st.ParryComboName))
+                : (finisher ? "终结技·共鸣" : "格挡");
             string keyText;
             if (segTotal > 1)
             {
-                // 连段（含我方终结技的多段）：逐段换键 + 逐段重洗后的对应键
+                // 连段（含我方终结技/连携的多段）：逐段换键 + 逐段重洗后的对应键
                 EnsureComboKeys(segIndex);
                 keyText = "按 " + KeyLabelForSegment(segIndex) + "　" + actionName;
             }
@@ -182,10 +188,12 @@ namespace WanXiang.Modules.UI
             if (_stage != null) _stage.SetQteHint(keyText, segTotal, segIndex);
             Sfx("sfx_bt_cmd_select");   // 提示音（没有专用素材，先复用指令音）
 
-            float window = (finisher ? FinisherWindowSeconds : ParryWindowSeconds) * segMul;
-            // 终结技输出向：容错放宽一档（抢拍也认，别让玩家白丢终结技）
-            float perfectHalf = finisher ? ParryPerfectHalf * 2f : ParryPerfectHalf;
-            float normalHalf = finisher ? ParryNormalHalf * 1.6f : ParryNormalHalf;
+            float window = (comboQte ? ComboWindowSeconds
+                          : finisher ? FinisherWindowSeconds
+                          : ParryWindowSeconds) * segMul;
+            // 进攻向（终结技/连携）：容错放宽一档（抢拍也认，别让玩家白丢大招/连携）
+            float perfectHalf = offensive ? ParryPerfectHalf * 2f : ParryPerfectHalf;
+            float normalHalf = offensive ? ParryNormalHalf * 1.6f : ParryNormalHalf;
 
             // ★ 快慢刀的关键一步：**把判定半径按 1/segMul 反向补偿**，
             //   保持"判定区间的绝对毫秒数"恒定。
@@ -255,7 +263,7 @@ namespace WanXiang.Modules.UI
             if (_stage != null)
             {
                 _stage.HideParryPrompt();
-                _stage.ParryFeedback(actorId, (int)grade, finisher);
+                _stage.ParryFeedback(actorId, (int)grade, finisher, comboQte);
                 // ⛔ 连击时**不要**在这里清提示条 —— 下一段紧接着就弹，淡出会闪一下。
                 //   统一由主循环在整段播完后调 ClearQteHint 收口。
             }

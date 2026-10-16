@@ -98,61 +98,37 @@ namespace WanXiang.Modules.UI
 }
 
         /// <summary>
-        /// 好友对战 UI 模式：隐藏【所有】手动操作（技能/连携/自动切换/倍速/自动布阵/撤退），
-        /// 强制开启自动战斗。⚠ 必须在【每次战斗开始】时调用 ——
-        /// BuildActionBar 只在面板创建时跑一次，那时 LastWasPvp 还没被 EnterBattle 设置（踩过）。
+        /// 战斗 UI 模式（2026-10-16 起 **PvP 与 PvE 同口径**）。
+        ///
+        /// ⛔ 历史：旧版对好友对战（PvP）隐藏全部手动 UI + 强制自动 ——
+        ///   用户 2026-10-16 定案改回："我又想改回可以手动作战了，也可以自动作战，
+        ///   和平常的探索没有什么区别，就是敌人变成玩家养成好的异兽而已。"
+        ///   ⇒ 现在无论 PvP/PvE 都只做一件事：**把手动 UI 确保亮出**（面板 Cached 复用，
+        ///   上一局可能因别的原因被隐藏过），自动与否交给玩家自己点。
+        /// ⚠ 必须在【每次战斗开始】时调用（BuildActionBar 只在面板创建时跑一次）。
         /// </summary>
         private void ApplyPvpUiMode()
         {
-            if (SceneFlow.LastWasPvp)
+            // 恢复手动操作区（技能 0..2 / 连携 / 自动战斗 + Root_Action 下的其它按钮）
+            if (_skillBtns != null)
+                for (int i = 0; i < _skillBtns.Length && i < 3; i++)
+                    if (_skillBtns[i] != null) _skillBtns[i].gameObject.SetActive(true);
+            if (_btnCombo != null) _btnCombo.gameObject.SetActive(true);
+            if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(true);
+            _autoBattle = false;   // 起局一律手动，等令分支不自动提交
+
+            if (_actionBar != null)
             {
-                // ★ PvP：隐藏全部手动操作 + 强制自动（面板是 Cached 复用的，上一局 PvE 亮出的按钮要收掉）
-                if (_skillBtns != null)
-                    for (int i = 0; i < _skillBtns.Length; i++)
-                        if (_skillBtns[i] != null) _skillBtns[i].gameObject.SetActive(false);
-                if (_btnCombo != null) _btnCombo.gameObject.SetActive(false);
-                if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(false);
-                _autoBattle = true;   // auto 模式整场已预模拟，设 true 即可（回放自动推进）
-
-                // 2) Root_Action 下的其它按钮（×N 倍速 / 自动布阵 / 撤退 等代码自建按钮）
-                if (_actionBar != null)
+                for (int i = 0; i < _actionBar.childCount; i++)
                 {
-                    for (int i = 0; i < _actionBar.childCount; i++)
-                    {
-                        var c = _actionBar.GetChild(i);
-                        bool isActor = c.name == "Tmp_Actor";
-                        if (!isActor && c.GetComponent<Button>() != null)
-                            c.gameObject.SetActive(false);
-                    }
+                    var c = _actionBar.GetChild(i);
+                    bool isActor = c.name == "Tmp_Actor";
+                    if (!isActor && c.GetComponent<Button>() != null)
+                        c.gameObject.SetActive(true);
                 }
-
-                Debug.Log("[BattlePanel] 好友对战：手动 UI 已全部隐藏，自动战斗开启");
             }
-            else
-            {
-                // ★ 正常战斗：Cached 面板若在上一局 PvP 里被隐藏过手动 UI，这里必须**重新亮出**，
-                //   否则 PvP 之后打正常战斗会看到"空的操作区"（技能/连携/自动按钮都不见）。
-                //   第 4 槽（觉醒技）是否显示交给 RefreshActionBar 按"是否装备"决定，这里只恢复 0..2 三槽。
-                if (_skillBtns != null)
-                    for (int i = 0; i < _skillBtns.Length && i < 3; i++)
-                        if (_skillBtns[i] != null) _skillBtns[i].gameObject.SetActive(true);
-                if (_btnCombo != null) _btnCombo.gameObject.SetActive(true);
-                if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(true);
-                _autoBattle = false;   // 正常战斗=手动，等令分支不自动提交
 
-                if (_actionBar != null)
-                {
-                    for (int i = 0; i < _actionBar.childCount; i++)
-                    {
-                        var c = _actionBar.GetChild(i);
-                        bool isActor = c.name == "Tmp_Actor";
-                        if (!isActor && c.GetComponent<Button>() != null)
-                            c.gameObject.SetActive(true);
-                    }
-                }
-
-                Debug.Log("[BattlePanel] 正常战斗：手动 UI 已重新亮出（技能/连携/自动战斗）");
-            }
+            Debug.Log("[BattlePanel] 战斗 UI 就绪：手动操作区已亮出（PvP/PvE 同口径，自动可自行切换）");
         }
 
         private string CostLine(int slot)

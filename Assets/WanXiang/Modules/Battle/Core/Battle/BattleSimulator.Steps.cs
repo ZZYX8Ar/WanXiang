@@ -95,6 +95,62 @@ namespace WanXiang.Battle.Core
                     if (st.PlayerControlled && u.Side == TeamSide.Player && u.CanAct)
                         yield return new BattleStep { Kind = BattleStepKind.NeedDecision, Unit = u };
 
+                    // ★★ 阵形连携 QTE（2026-10-16 重构，用户口径）：
+                    //   "消耗中间异兽（主兽）的大招能量；根据阵容存活的异兽提升威力；
+                    //    每存活一个就要多消耗一个灵力；通过 QTE 判断触发；
+                    //    如果触发失败则扣除 1 个灵力和 50% 的主兽大招能量，并提示触发失败。"
+                    //   流程：UI 点"连携" → 登记 PendingComboId → 这里弹 N 段窗口 → 命中过半 = ExecuteCombo，
+                    //        否则 ComboFailed（扣资源 + 记「触发失败」）。成功则**占用本次行动**。
+                    bool comboHandled = false;
+                    if (!string.IsNullOrEmpty(st.PendingComboId))
+                    {
+                        string cid = st.PendingComboId;
+                        st.PendingComboId = null;            // 一令一用：无论成败都消费掉
+                        st.PendingCommand = default;         // ⛔ 清掉可能残留的技能指令（否则下面的终结技 QTE 可能误触发）
+                        var comboDef = ComboRules.For(cid);
+                        string whyNot;
+                        // ⚠ 也要求 CanAct：被冻结/根缚的单位这回合动不了（与 NeedDecision 同口径）
+                        if (comboDef != null && u.CanAct && ComboRules.CanFire(st, u, comboDef, out whyNot))
+                        {
+                            int segs = ComboRules.QteSegments;
+                            int hit = 0, perfect = 0;
+                            st.ParryComboName = comboDef.Name;
+                            for (int h = 0; h < segs; h++)
+                            {
+                                st.ParriedGrade = ParryGrade.None;
+                                st.ParryActorId = u.RuntimeId;
+                                st.ParryQteKind = ParryQteKind.Combo;
+                                st.ParrySegmentIndex = h;
+                                st.ParrySegmentTotal = segs;
+                                st.ParryPendingUnit = u;     // ⚠ 同终结技：UI 靠它取 ParryAttacker（画圈）
+                                yield return new BattleStep { Kind = BattleStepKind.NeedParry, Unit = u };
+
+                                if (st.ParriedGrade == ParryGrade.Perfect) { perfect++; hit++; }
+                                else if (st.ParriedGrade != ParryGrade.None) hit++;
+                            }
+                            // ⛔ 先摘掉"判定期"标记再结算：连携 QTE 是**成败闸门**（不是伤害倍率），
+                            //   若留着 ParryActorId/ParriedGrade，连携自己的伤害会被
+                            //   ParryDamageMulFor 当成"被格挡的那一下"再乘一次（帮倒忙）。
+                            st.ParryComboName = null;
+                            st.ParryQteKind = ParryQteKind.None;
+                            st.ParryActorId = null;
+                            st.ParriedGrade = ParryGrade.None;
+
+                            // 命中 >= 一半段数 = 触发成功（3 段需 >= 2 段；全 Perfect 记一条"大成功"）
+                            if (hit * 2 >= segs)
+                            {
+                                ExecuteCombo(st, cid, u);
+                                if (perfect == segs)
+                                    st.Log.Add(st.Turn, BattleEventKind.ParryResult, actorId: u.RuntimeId,
+                                               note: "连携·" + comboDef.Name + " 大成功（全段完美）");
+                            }
+                            else ComboFailed(st, u, comboDef);
+                            comboHandled = true;
+                            if (st.IsOver) break;
+                        }
+                        // CanFire 不过（条件在等令后变了）→ 不消费行动，照常走正常行动
+                    }
+
                     // ★ 终结技 QTE（进攻向，2026-10-14 二轮；2026-10-15 改为**多段按键**）：
                     //   玩家下令放了终结技，在真正打出之前弹输出窗口 —— 完美 ⇒ 伤害加强，没按准 ⇒ 减弱。
                     //   ⛔ 用户 2026-10-15："我方异兽也可以使用这个按键多段判定而不是单单这个空格"
@@ -201,7 +257,12 @@ namespace WanXiang.Battle.Core
                         yield return new BattleStep { Kind = BattleStepKind.NeedParry, Unit = u };
                     }
 
-                    ExecuteAction(st, u, buf);
+                    // ★ 阵形连携消费本次行动（成败都算）：
+                    //   玩家已经为这次连携做完了 3 段 QTE ⇒ 再回头让他重选技能会很别扭；
+                    //   "发动连携（替代该单位本次的普攻/战记）"也是既有口径。
+                    //   失败的代价是资源（1 灵力 + 50% 大招能量，见 ComboFailed），行动同样算用过。
+                    if (!comboHandled)
+                        ExecuteAction(st, u, buf);
                     }   // end else（单段 / 非多段）
 
                     // ★ 格挡收口：完美 → 反震；发结果事件；清状态（下次行动重新开窗）。

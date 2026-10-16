@@ -84,12 +84,9 @@ namespace WanXiang.Modules.UI
                 return;
             }
 
-            // ★ PvP（好友对战）：强制全自动回放 —— 整场模拟一次跑完、逐事件播放，
-            //   不进任何「等令」逻辑（手动模式下异兽会卡在第一个决策点不动，
-            //   且 RefreshActionBar 会把隐藏的手动 UI 重新亮出）。等价于「复用战斗场景」，
-            //   符合用户诉求：一进来就自动打。
-            bool pvpManual = _manualBattle && !req.IsPvpMatch;
-            var play = new BattlePlayback(req, pvpManual);
+            // ★ 2026-10-16：PvP 与 PvE 同口径（用户："好友对战改回可以手动作战，
+            //   和平常的探索没有什么区别"）⇒ 一律按 _manualBattle 决定回放模式，不再对 PvP 特判。
+            var play = new BattlePlayback(req, _manualBattle);
 
             if (_stage == null) _stage = FindObjectOfType<BattleStage2D>();
             if (_stage != null)

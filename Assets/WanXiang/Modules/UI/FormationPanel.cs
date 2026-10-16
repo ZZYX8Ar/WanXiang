@@ -792,27 +792,26 @@ namespace WanXiang.Modules.UI
             sb.Append("· 连携技必须由站中宫的主兽发动。\n");
             sb.Append("所以把主兽放进中间格收益最大。");
 
-            // ★ 只列**当前站中宫那只**能发动的连携（用户 2026-10-12：原来把 50 条全列出来太乱）
+            // ★ 2026-10-16 阵形连携：不再列"某只兽的连携"（与异兽无关），改为列出**全部阵形** + 当前成阵状态
             var center = CenterBeast();
-            sb.Append("\n\n【当前中宫连携】");
+            sb.Append("\n\n【阵形连携】");
             if (center == null)
             {
-                sb.Append("\n（中宫还没有异兽 —— 拖一只主兽进来）");
+                sb.Append("\n（中宫还没有异兽 —— 拖一只进中宫当主兽）");
             }
             else
             {
-                int found = 0;
-                foreach (var c in WanXiang.Battle.Core.ComboRules.All)
-                {
-                    if (c == null || c.HostId != center.Id) continue;
-                    found++;
-                    sb.Append("\n· ").Append(c.Name).Append("：").Append(c.Note)
-                      .Append("（倍率 ").Append((c.Power * 100f).ToString("0")).Append("%）");
-                }
-                if (found == 0)
-                    sb.Append("\n（").Append(center.DisplayName)
-                      .Append(" 没有连携技。连携主兽为句芒 / 祝融 / 蓐收等）");
+                sb.Append("\n主兽：").Append(center.DisplayName).Append("（中宫）");
             }
+            foreach (var c in WanXiang.Battle.Core.ComboRules.All)
+            {
+                if (c == null) continue;
+                sb.Append("\n· ").Append(c.Name).Append('：').Append(c.Note)
+                  .Append("\n　　阵形 ").Append(WanXiang.Battle.Core.ComboRules.ShapeText(c));
+            }
+            sb.Append("\n\n发动：消耗主兽满份大招能量 + 每存活 1 只 1 点灵力（威力随存活数提升）。");
+            sb.Append("\nQTE 判定成功才发动；失败扣 1 灵力 + 50% 大招能量。每种阵形每场限一次。");
+
             PresentBondTip("<size=24><b>九宫格中宫（中间格）</b></size>\n" + sb);
         }
 

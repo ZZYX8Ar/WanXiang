@@ -83,12 +83,13 @@ namespace WanXiang.Modules.UI
             _lastOrderStamp = -1;          // 强制行动顺序面板重建一次
             _actionEnabled = true;         // 让首帧把技能/连携置灰（开局还没到我方决策点）
             // ★ 每场战斗重置自动/倍速：面板是 Cached 复用的，字段会从上场带过来。
-            //   PvP 必须保持自动战斗（否则异兽卡在等令、不动）；单机正常战斗=手动（玩家自己下令）。
-            _autoBattle = SceneFlow.LastWasPvp;
+            //   ★★ 2026-10-16：PvP 不再强制自动（用户："好友对战改回可以手动作战"）
+            //   ⇒ 一律手动起局，玩家可随时点"自动战斗"接管。
+            _autoBattle = false;
             _speed = 1f;
 
-            // ★ 格挡 QTE（2026-10-14）：只在"玩家手动的 PvE 战斗"里开。
-            //   关（自动/PvP）⇒ 模拟层不 yield、零事件、零修正（指纹红线，见 BattleSimulator.Parry.cs）。
+            // ★ 格挡 QTE（2026-10-14）：只在"玩家手动的战斗"里开（自动模式关，AI 不会替玩家按）。
+            //   关 ⇒ 模拟层不 yield、零事件、零修正（指纹红线，见 BattleSimulator.Parry.cs）。
             if (_play.State != null) _play.State.ParryEnabled = !_autoBattle;
 
             int guard = 0;
