@@ -137,7 +137,8 @@ namespace WanXiang.Modules.UI
      OpenPanelAsync<CampaignPanel>(null).Forget();
         }
 
- /// <summary>
+        /// <summary>
+        /// 「进入秘境」：进场 → 打开秘境路线图（CampaignPanel 注入秘境图）。
         /// 「进入秘境」：进场 → **转场** → 打开秘境路线图（CampaignPanel 注入秘境图）。
         /// ⛔ 转场必须在"盖住屏幕"时完成界面切换，否则玩家会看到面板"啪"地变形。
 /// </summary>
@@ -184,14 +185,14 @@ namespace WanXiang.Modules.UI
    CampaignPanel.OnRealmQuitRequested = DoQuit;
    }
 
-    private static void DoQuit()
+private static void DoQuit()
         {
             var run = WanXiang.Run.RunSave.Current;
-      RealmSession.Exit(run);              // ★ 回滚场域状态 + 还原原节点
-        if (run != null) WanXiang.Run.RunSave.SaveCurrent();
-
-            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
-            if (ui != null) ui.OpenAsync<CampaignPanel>(null).Forget();
+RealmSession.Exit(run);              // ★ 回滚场域状态 + 还原原节点
+     if (run != null) WanXiang.Run.RunSave.SaveCurrent();
+   // ⚠ 不要 OpenAsync 重新打开 CampaignPanel —— 撤离入口（OnBackToHome）会
+            //   用**同一个实例**原地重建主线图。"关掉再打开"会被 UISystem 静默忽略
+            //   （Closing 中的实例再次请求打开 ⇒ 直接 return），表现是**画面一片空白且无报错**。
         }
 
    // =====================================================================

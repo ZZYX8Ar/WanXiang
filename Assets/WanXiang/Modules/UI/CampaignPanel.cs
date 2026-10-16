@@ -66,20 +66,29 @@ namespace WanXiang.Modules.UI
 
         /// <summary>返回主城：节点图是全屏面板，只 Close 不 Open Home 会留白屏（用户实测）。</summary>
 private void OnBackToHome()
-        {
-     // ★ 秘境模式下，这个按钮是「撤离秘境」而不是「回主界面」——
-        //   撤离要走回滚（RealmSession.Exit）+ 回原节点，所以必须分派，不能共用一条路径。
-            if (_realmMode)
       {
-            var quit = OnRealmQuitRequested;
-            if (quit != null) quit();
-      else { Debug.LogWarning("[Campaign] 秘境模式下点撤离，但没有注册回滚回调"); CloseSelf(); }
+         // ★ 秘境模式下，这个按钮是「撤离秘境」而不是「回主界面」。
+        //   ⚠⚠ **绝不能靠"关掉再打开"来回切图**：UISystem 遇到"正在 Closing 的实例"会
+    //     **直接忽略**这次 OpenAsync（实测：画面一片空白，日志里没报错）。
+        //   正解：全程用**同一个实例**——撤离后原地重建成主线图。
+            if (_realmMode)
+            {
+  var quit = OnRealmQuitRequested;
+          if (quit != null) quit();       // 负责回滚数据（RealmSession.Exit）
+         // 回滚后原地重建主线图：清秘境标记 + 重新 BuildRoute
+       _realmMode = false;
+         _realmGraphPayload = null;
+  _injectedGraph = null;
+   _currentOffset = -1;
+            _visited.Clear();
+       _passed.Clear();
+BuildNodeMap();
         return;
-       }
+ }
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
-          CloseSelf();
+            CloseSelf();
     if (ui != null) _ = ui.OpenAsync<HomePanel>();
-     }
+        }
 
         [SerializeField] private TMP_Text _tmpActTitle;        // Tmp_ActTitle  幕名
         [SerializeField] private TMP_Text _tmpJie;             // Tmp_JieCount  劫数
@@ -141,7 +150,98 @@ private void OnBackToHome()
                 var b = dbg.GetComponent<UnityEngine.UI.Button>();
                 if (b != null) { b.onClick.RemoveAllListeners(); b.onClick.AddListener(ArmFogOnNextLayer); }
             }
-            else Debug.LogWarning("[Campaign] 缺 Btn_DebugFog（瘴雾调试按钮）");
+                     else Debug.LogWarning("[Campaign] 缺 Btn_DebugFog（瘴雾调试按钮）");
+
+            // ★ 秘境测试按钮（prefab 里 Btn_DebugRealm）：一键进秘境，方便实机看效果。
+      //   正常游玩靠路线图上的【秘境】节点进入（第 2 幕起随机出现）；
+            //   这个按钮是**调试入口**：不用刷到秘境节点就能直接进去看。
+      //   ⛔ 撤离时 RealmSession.Exit 会把 NodeOffset/Act 相关字段按进入前的快照还原
+    //   ⇒ 无论在哪个幕哪个格点进去，撤离都回原处（硬约束 ②）。
+      var dbgRealm = transform.Find("Btn_DebugRealm");
+    if (dbgRealm != null)
+         {
+       var b = dbgRealm.GetComponent<UnityEngine.UI.Button>();
+      if (b != null) { b.onClick.RemoveAllListeners(); b.onClick.AddListener(DebugEnterRealm); }
+         }
+            else Debug.LogWarning("[Campaign] 缺 Btn_DebugRealm（秘境测试按钮）");
+        }
+
+        /// <summary>
+      /// 调试：直接进秘境（等价于点路线图上的秘境节点，但**不消耗也不受"幕数/次数"限制**）。
+        /// ⛔ 不改 Act / 不改 NodeOffset —— 位置由 <see cref="RealmSession.Enter"/> 存快照、
+        ///   撤离时还原，所以点一百次也不会把主线带偏。
+        /// </summary>
+        private void DebugEnterRealm()
+  {
+   if (_realmMode)
+      {
+  Debug.LogWarning("[Campaign] 已在秘境中，忽略秘境测试按钮");
+      return;
+  }
+         var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return;
+
+        // 幕数不足/次数用完是**正常玩法限制**，调试按钮要绕开：临时放开再恢复。
+         // 幕数不足 / 本局已进过是**正常玩法限制**，调试按钮要绕开。
+     //   ⛔ 记下备份：撤离时要把它们**还原**（调试按钮不该留下"白赚一次"的痕迹）。
+  int actBak = run.Act;
+        var entriesBak = new System.Collections.Generic.List<string>(run.RealmEntries);
+            if (run.Act < 2) run.Act = 2;            // 秘境第 2 幕起才出现
+    if (run.RealmEntries != null) run.RealmEntries.Clear();   // 绕开"同局已进过"去重
+
+    var realm = WanXiang.Modules.UI.RealmSession.RollFor(run,
+            WanXiang.Modules.UI.RealmSession.RealmSeedFor(run));
+   if (realm == null)
+            {
+        Debug.LogWarning("[Campaign] 秘境测试按钮：抽不到场域");
+        run.Act = actBak;
+    run.RealmEntries.Clear();
+     run.RealmEntries.AddRange(entriesBak);
+    return;
+      }
+
+            // 进场（存位置快照 —— 撤离就靠它回原处）
+            if (!WanXiang.Modules.UI.RealmSession.Enter(run, realm))
+{
+        Debug.LogWarning("[Campaign] 秘境测试按钮：RealmSession.Enter 拒绝");
+     run.Act = actBak;
+      run.RealmEntries.Clear();
+      run.RealmEntries.AddRange(entriesBak);
+   return;
+ }
+  PendingCommit = -1;      // 调试入口不算"通过某个节点"
+   WanXiang.Run.RunSave.SaveCurrent();
+
+   var map = WanXiang.Campaign.RealmMapBuilder.Build(realm,
+          WanXiang.Modules.UI.RealmSession.RealmSeedFor(run));
+    if (map == null || map.Graph == null)
+      {
+     Debug.LogError("[Campaign] 秘境测试按钮：建不出秘境图");
+   WanXiang.Modules.UI.RealmSession.Exit(run);
+                return;
+ }
+
+  // 撤离 = 还原位置 + 撤销这次调试进入（幕数/次数都恢复原样）
+  OnRealmQuitRequested = () =>
+     {
+      var r = WanXiang.Run.RunSave.Current;
+         WanXiang.Modules.UI.RealmSession.Exit(r);       // ★ 先还原位置快照
+         if (r != null)
+      {
+        r.Act = actBak;
+      r.RealmEntries.Clear();
+   r.RealmEntries.AddRange(entriesBak);
+ WanXiang.Run.RunSave.SaveCurrent();
+       }
+    Debug.Log("[Campaign] 已撤离秘境（测试按钮：位置/幕数/次数均已还原）");
+       // ⚠ 不在这里 OpenAsync 重新打开自己：OnBackToHome 会**原地重建主线图**。
+              //   "Closing 中的实例被再次打开"会被 UISystem 静默忽略 ⇒ 画面空白且无报错。
+          };
+
+   // ⚠ **不要**先 CloseSelf()：UISystem 遇到"已打开的实例"只调 InternalRefresh（不重放 OnOpenAsync），
+   //   而"正在 Closing 的实例"会**直接忽略**这次打开 ⇒ 实测出现
+   //   "画面是主线图、状态却是秘境图"的错位。正解是让**同一个实例**通过 OnRefresh 切图。
+            OpenAsRealm(map.Graph);
         }
 
         /// <summary>由 <see cref="HomePanel"/> 在“出征”开图前置位 ， 让开场动画每次都播（用户要求）。</summary>
@@ -207,17 +307,31 @@ protected override UniTask OnOpenAsync(object payload)
             // ⚠ 彩排（GhostSilent）时跳过：不让彩排消费 PendingCommit / 写档（真开会再处理）。
             if (PendingCommit >= 0 && !UIPanelBase.GhostSilent)
             {
-                _justPassedNode = PendingCommit;   // ★ 真·通过（这里才把 NodeOffset 落地）， 记下它供落印/画线动画
+   _justPassedNode = PendingCommit;   // ★ 真·通过（这里才把 NodeOffset 落地）， 记下它供落印/画线动画
                 var prun = WanXiang.Run.RunSave.Current;
                 if (prun != null)
-                {
-                    prun.NodeOffset = PendingCommit;
-                    // ★ 记一笔"真·通过"（落印✕ / 连线实线 只看它；VisitedNodes 只是"进入"，不算通过）
-                    if (prun.PassedNodes == null) prun.PassedNodes = new System.Collections.Generic.List<int>();
-                    if (!prun.PassedNodes.Contains(PendingCommit)) prun.PassedNodes.Add(PendingCommit);
-                    // ★ 瘴雾：真正通过一格 ， 剩余雾 -1；扣到 0 雾就散。
-                    //   ⚠ 重掷记录（RerolledKinds）**不随雾散清掉** —— 地图被改过就该一直算数（本幕内），
-                    //     否则"雾散了图又变回去"会很怪。它跟 VisitedNodes 一样在换幕/重开时清。
+            {
+       // ⛔⛔ 秘境模式：**一个字都不许写进主线的进度字段**。
+        //   NodeOffset / VisitedNodes / PassedNodes 全是"主线走到第几格"的存档，
+        //   语义完全属于主线。秘境借用它们 ⇒ ① 中途存档/退出再进来，位置就停在秘境格上；
+        //   ② 更糟的是 If 崩在写入与 Exit 之间，主线进度直接被污染。
+        //   秘境的进度一律走 RealmSession 的独立字段（RealmWave / RealmCleared），
+        //   主线节点偏移由 Enter 存的快照在 Exit 时还原（硬约束 ②）。
+          if (_realmMode)
+        {
+    RealmSession.MarkCleared(prun, PendingCommit);
+              Debug.Log("[Campaign] 秘境通过第 " + (PendingCommit + 1) + " 格（进度记在秘境自己的字段里，主线未动）");
+       WanXiang.Run.RunSave.SaveCurrent();
+        }
+     else
+        {
+             prun.NodeOffset = PendingCommit;
+    // ★ 记一笔"真·通过"（落印✕ / 连线实线 只看它；VisitedNodes 只是"进入"，不算通过）
+    if (prun.PassedNodes == null) prun.PassedNodes = new System.Collections.Generic.List<int>();
+ if (!prun.PassedNodes.Contains(PendingCommit)) prun.PassedNodes.Add(PendingCommit);
+          // ★ 瘴雾：真正通过一格 ， 剩余雾 -1；扣到 0 雾就散。
+            //   ⚠ 重掷记录（RerolledKinds）**不随雾散清掉** —— 地图被改过就该一直算数（本幕内），
+         //     否则"雾散了图又变回去"会很怪。它跟 VisitedNodes 一样在换幕/重开时清。
                     if (prun.FogLeft > 0)
                     {
                         if (PendingCommit == prun.FogTriggerNode)
@@ -304,13 +418,14 @@ int lastCell = _graph != null ? _graph.NodeCount - 1 : -1;
                         }
 
                         RebuildGraphFor(prun.Act, prun.RunSeed);   // 换新幕的图
-                        _currentOffset = -1;
-                        _visited.Clear();
-                    }
-                    WanXiang.Run.RunSave.SaveCurrent();
-                }
-                PendingCommit = -1;
-            }
+        _currentOffset = -1;
+    _visited.Clear();
+      }        // ← 收口：上面整段（瘴雾/天阙/幕推进）只属于主线，秘境不进来
+         WanXiang.Run.RunSave.SaveCurrent();
+       }             // ← 收口：if (prun != null)
+         }             // ← 收口：else（秘境分支）
+         PendingCommit = -1;
+      }
 
             BuildNodeMap();
             // ⚠ 图完整性告警：BuildRoute 在 64 次重试都失败时会回退到"缺省图"
@@ -432,10 +547,30 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// </summary>
         public static void OpenAsRealm(WanXiang.Campaign.ActGraph graph)
         {
-      _injectedGraph = graph;
-      var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
-     if (ui == null) { _injectedGraph = null; return; }
+   _injectedGraph = graph;
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+  if (ui == null) { _injectedGraph = null; return; }
   ui.OpenAsync<CampaignPanel>(graph).Forget();
+        }
+
+        /// <summary>
+        /// 已打开实例的"刷新"回调（UISystem 在实例已 Opened 时走 InternalRefresh，**不重放 OnOpenAsync**）。
+        /// ⛔ 所以切秘境图必须在这里也处理一遍，否则会出现
+        ///   "画面是主线图、状态却是秘境图"的错位（实测点按钮必现）。
+        /// </summary>
+   protected override void OnRefresh(object payload)
+ {
+        var g = payload as WanXiang.Campaign.ActGraph;
+     if (g == null) g = _injectedGraph;
+         if (g != null && !g.IsEmpty)
+      {
+      _realmGraphPayload = g;
+         _injectedGraph = null;
+    _currentOffset = -1;
+    _visited.Clear();
+     _passed.Clear();
+   BuildNodeMap();
+   }
         }
 
         /// <summary>秘境模式下的撤离入口（由 <see cref="RealmSession"/> 提供回滚语义）。</summary>
@@ -623,7 +758,9 @@ if (injected != null && !injected.IsEmpty)
             // ★★ 存档自愈：NodeOffset 必须落在"本幕可继续"的范围内。
             //    停在幕末格（== NodeCount-1）多半是上一幕的残留位置（修复前产生的存档），
             //    它会同时导致"全图锁定灰"，这里一律回到本幕起点。
-            if (run != null && _graph != null && run.NodeOffset >= _graph.NodeCount - 1)
+            // ⚠ 秘境模式**跳过**：自愈是按"主线的 NodeOffset"判的，而秘境根本不用那个字段。
+    //   在这里拿秘境图（格数与主线不同）去钳主线偏移，会把主线进度莫名其妙重置。
+            if (!_realmMode && run != null && _graph != null && run.NodeOffset >= _graph.NodeCount - 1)
             {
                 Debug.LogWarning("[Campaign] 自愈：NodeOffset(" + run.NodeOffset +
                                  ") 停在幕末/越界 → 回到本幕起点");
@@ -631,35 +768,56 @@ if (injected != null && !injected.IsEmpty)
                 WanXiang.Run.RunSave.SaveCurrent();
             }
 
-            _currentOffset = run != null ? run.NodeOffset : -1;
-            _visited.Clear();          // readonly 字段只能就地清空（不能 new）
-            if (run != null && run.VisitedNodes != null)
-                foreach (var v in run.VisitedNodes) _visited.Add(v);
+      // ★ 秘境模式：进度从秘境自己的字段读（RealmCursor / RealmCleared），
+    //   绝不用主线的 NodeOffset / VisitedNodes / PassedNodes。
+      //   这不只是"洁癖"：主线那三个字段是存档，借用就意味着中途退出后主线位置停在秘境格。
+      if (_realmMode)
+     {
+    _currentOffset = run != null ? run.RealmCursor : -1;
+       _visited.Clear();
+        _passed.Clear();
+   if (run != null && run.RealmCleared != null)
+    {
+ foreach (var o in run.RealmCleared) { _visited.Add(o); _passed.Add(o); }
+       }
+     if (_currentOffset >= 0) { _visited.Add(_currentOffset); _passed.Add(_currentOffset); }
+     }
+   else
+ {
+    _currentOffset = run != null ? run.NodeOffset : -1;
+    _visited.Clear();          // readonly 字段只能就地清空（不能 new）
+ if (run != null && run.VisitedNodes != null)
+       foreach (var v in run.VisitedNodes) _visited.Add(v);
+   }
 
-            // ★ "真·通过"集合 = PassedNodes ∩ VisitedNodes。
+    // ★ "真·通过"集合 = PassedNodes ∩ VisitedNodes。
             //   换幕/重开会把 VisitedNodes 清空 ， 这边自动跟着空（不必去每处清 PassedNodes）。
+       //   ⚠ 秘境模式在上面的分支里已经填好 _passed 了，这整段只服务主线。
+            if (!_realmMode)
+      {
             _fogWeather.Clear();
             if (run != null && run.FogWeatherNodes != null)
-                foreach (var o in run.FogWeatherNodes) _fogWeather.Add(o);
+           foreach (var o in run.FogWeatherNodes) _fogWeather.Add(o);
 
-            _passed.Clear();
-            if (run != null)
-            {
-                if (run.PassedNodes != null && run.PassedNodes.Count > 0)
-                {
-                    foreach (var o in run.PassedNodes)
-                        if (_visited.Contains(o)) _passed.Add(o);
-                }
-                else if (_visited.Count > 0)
-                {
-                    // ★ 一次性迁移（老存档没有 PassedNodes 字段）：把"走过的"里**还能前往**的
-                    //   （= 从当前节点还走得到的，也就是"进去过但没通过"的那几格）剔掉 ， 保留合法的通过格。
-                    foreach (var v in _visited)
-                        if (!IsReachable(v)) _passed.Add(v);
-                    if (_currentOffset >= 0) _passed.Add(_currentOffset);   // 当前格本身就是"已通过到这一格"
-                    run.PassedNodes = new System.Collections.Generic.List<int>(_passed);
-                    WanXiang.Run.RunSave.SaveCurrent();
-                }
+       _passed.Clear();
+ if (run != null)
+          {
+  if (run.PassedNodes != null && run.PassedNodes.Count > 0)
+        {
+    foreach (var o in run.PassedNodes)
+        if (_visited.Contains(o)) _passed.Add(o);
+       }
+          else if (_visited.Count > 0)
+{
+    // ★ 一次性迁移（老存档没有 PassedNodes 字段）：把"走过的"里**还能前往**的
+         //   （= 从当前节点还走得到的，也就是"进去过但没通过"的那几格）剔掉 ， 保留合法的通过格。
+             foreach (var v in _visited)
+            if (!IsReachable(v)) _passed.Add(v);
+     if (_currentOffset >= 0) _passed.Add(_currentOffset);   // 当前格本身就是"已通过到这一格"
+        run.PassedNodes = new System.Collections.Generic.List<int>(_passed);
+     WanXiang.Run.RunSave.SaveCurrent();
+          }
+       }
             }
 
 

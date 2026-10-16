@@ -73,9 +73,12 @@ namespace WanXiang.Modules.UI
             run.RealmSnapshot.PassedNodes = new List<int>(run.PassedNodes);
 
             run.InRealm = true;
-            run.RealmId = realm.Id;
+        run.RealmId = realm.Id;
             run.RealmWave = 0;
-            run.RealmStarCoin = 0;
+ run.RealmStarCoin = 0;
+  if (run.RealmCleared == null) run.RealmCleared = new System.Collections.Generic.List<int>();
+  run.RealmCleared.Clear();      // 每次进秘境是全新一趟
+      run.RealmCursor = -1;
             run.RealmEntries.Add(realm.Id);          // 同局去重
             return true;
         }
@@ -107,12 +110,28 @@ namespace WanXiang.Modules.UI
             }
 
             run.InRealm = false;
-            run.RealmId = null;
-            run.RealmWave = 0;
+     run.RealmId = null;
+    run.RealmWave = 0;
             run.RealmStarCoin = 0;
+    if (run.RealmCleared != null) run.RealmCleared.Clear();
+    run.RealmCursor = -1;
             run.RealmSnapshot = null;
-            return true;
+          return true;
         }
+
+        /// <summary>
+      /// 记一个秘境节点已通过（秘境进度**只写这里**）。
+        /// ⛔ 绝不要顺手写 NodeOffset / VisitedNodes / PassedNodes —— 那是主线的存档。
+        ///   借用的后果：中途存档/退出再进来，主线位置就停在秘境格上（且很难联想到是秘境干的）。
+        /// </summary>
+        public static void MarkCleared(WanXiang.Run.RunState run, int offset)
+  {
+   if (run == null) return;
+            if (run.RealmCleared == null) run.RealmCleared = new System.Collections.Generic.List<int>();
+  if (!run.RealmCleared.Contains(offset)) run.RealmCleared.Add(offset);
+            run.RealmCursor = offset;
+      run.RealmWave = run.RealmCleared.Count;
+    }
 
         /// <summary>掉线保护：读档时若 InRealm 为真则强制退出（不卡在"半个秘境"）。</summary>
         public static void SanitizeOnLoad(WanXiang.Run.RunState run)

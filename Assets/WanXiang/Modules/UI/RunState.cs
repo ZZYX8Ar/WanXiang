@@ -213,8 +213,20 @@ namespace WanXiang.Run
         /// <summary>本局已清的波数（进秘境的第 N 场）。</summary>
         public int RealmWave = 0;
 
-        /// <summary>本次秘境累积的星币（结算时换钱）。</summary>
-        public int RealmStarCoin = 0;
+/// <summary>本次秘境累积的星币（结算时换钱）。</summary>
+      public int RealmStarCoin = 0;
+
+        /// <summary>
+        /// 本次秘境里**已通过**的节点 offset（落印✕ / 连线实线只看它）。
+        /// ⛔⛔ 秘境进度**只存在这里**，绝不写进 NodeOffset / VisitedNodes / PassedNodes ——
+   ///   那三个是"主线走到第几格"的存档，语义属于主线。
+        ///   借用的代价（实测能踩到的）：中途存档/退出再进来，主线位置就停在秘境格上。
+    /// </summary>
+        public System.Collections.Generic.List<int> RealmCleared =
+            new System.Collections.Generic.List<int>();
+
+        /// <summary>秘境里当前所在节点（-1 = 还没出发）。同样只属于秘境，不碰主线 NodeOffset。</summary>
+      public int RealmCursor = -1;
 
         /// <summary>本局进过的场域 id（**同局去重**：一种场域一局只进一次）。</summary>
         public System.Collections.Generic.List<string> RealmEntries =
