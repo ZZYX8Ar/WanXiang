@@ -23,8 +23,11 @@ using WanXiang.Framework.UI;
 
 namespace WanXiang.Modules.UI
 {
-    [UIPanel("Panel_Realm", Layer = UILayer.Popup, CachePolicy = UICachePolicy.Transient,
-             FullScreen = false, CloseOnMaskClick = false)]
+[UIPanel("Panel_Realm", Layer = UILayer.Popup, CachePolicy = UICachePolicy.Transient,
+        //⛔ FullScreen = true（2026-10-16 截图后改）：这是**路线图级**界面，不是弹窗。
+        //   原来 false ⇒ 1080×720 居中，底下露出主城的标题和按钮，像两张界面叠在一起；
+        //   而且小地图只有 560 高，却要塞 6 层节点 ⇒ 节点直接溢出到卡片外面。
+       FullScreen = true, CloseOnMaskClick = false)]
     public sealed class RealmPanel : UIPanelBase
     {
         [Header("标题 / 状态")]
@@ -38,28 +41,30 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text _tmpBoon;          // Tmp_Boon
         [SerializeField] private TMP_Text _tmpCost;          // Tmp_Cost
 
-        [Header("小地图（秘境中显示）")]
-        [SerializeField] private RectTransform _mapRoot;    // Root_Map（入口时整块隐藏）
+[Header("小地图（秘境中显示）")]
+   [SerializeField] private RectTransform _mapRoot;    // Root_Map（入口时整块隐藏）
+     [SerializeField] private RectTransform _lineLayer; // LineLayer（连线，**必须先于节点层**）
         [SerializeField] private RectTransform _gridContent; // Grid_Nodes
         [SerializeField] private GameObject _nodeTemplate;    // Item_NodeTemplate（prefab 内隐藏）
-        [SerializeField] private TMP_Text _tmpNodeIconTemplate;  // Tmp_NodeIcon
+[SerializeField] private TMP_Text _tmpNodeIconTemplate;  // Tmp_NodeIcon
         [SerializeField] private TMP_Text _tmpNodeNameTemplate;  // Tmp_NodeName
         [SerializeField] private Image _imgClearedTemplate;      // Img_Cleared
 
-[Header("按钮")]
-        [SerializeField] private Button _btnEnter;          // Btn_Enter
+        [Header("按钮")]
+  [SerializeField] private Button _btnEnter;          // Btn_Enter
         [SerializeField] private Button _btnLeave;          // Btn_Leave
-   [SerializeField] private Button _btnReroll;         // Btn_Reroll
+        [SerializeField] private Button _btnReroll;         // Btn_Reroll
         [SerializeField] private Button _btnQuit;           // Btn_Quit（秘境内才显示）
 
-     [Header("内容目录（战斗组阵用；留空会走 Resources 兜底）")]
-        [SerializeField] private WanXiang.Fusion.ContentCatalogSO _contentCatalog;
+        [Header("内容目录（战斗组阵用；留空会走 Resources 兜底）")]
+  [SerializeField] private WanXiang.Fusion.ContentCatalogSO _contentCatalog;
 
-        // ---- 节点尺寸（与 CampaignPanel 的 NodeW/NodeH/Gap 同量级）----
-        private const float NodeW = 96f;
-        private const float NodeH = 72f;
-        private const float GapX = 26f;
-        private const float GapY = 40f;
+        // ---- 节点尺寸（**按地图实际层数/列数自适应**，见 FitNodeMetrics）----
+        private float _nodeW = 256f;
+        private float _nodeH = 160f;
+        private float _gapX = 40f;
+        private float _gapY = 64f;
+        private int _layers = 1;
         private static readonly Color UIBuildInk = new Color(0.94f, 0.92f, 0.86f, 1f);
 
         private RealmDef _realm;
@@ -68,6 +73,7 @@ namespace WanXiang.Modules.UI
         private int _curNode = -1;                          // 当前所在节点（-1 = 未进场）
         private readonly HashSet<int> _cleared = new HashSet<int>();
         private readonly List<GameObject> _nodeViews = new List<GameObject>();
+        private readonly List<int> _nodeOffsets = new List<int>();   // 与 _nodeViews 一一对应的 offset
 
         // =====================================================================
         //  生命周期
@@ -114,9 +120,10 @@ namespace WanXiang.Modules.UI
                 if (_btnLeave != null) _btnLeave.gameObject.SetActive(true);
                 if (_btnReroll != null) _btnReroll.gameObject.SetActive(true);
                 if (_btnQuit != null) _btnQuit.gameObject.SetActive(false);
-                if (_mapRoot != null) _mapRoot.gameObject.SetActive(false);
-                if (_gridContent != null) _gridContent.gameObject.SetActive(false);
-            }
+if (_mapRoot != null) _mapRoot.gameObject.SetActive(false);
+        //⛔ 连线层也要关：上一局秘境内可能留了虚线，入口态露出来就是"鬼影"。
+ClearNodes();
+}
             RefreshStatus();
             return UniTask.CompletedTask;
         }
@@ -217,55 +224,216 @@ namespace WanXiang.Modules.UI
         // =====================================================================
         //  秘境内小地图
         // =====================================================================
-        /// <summary>
-        /// 按**层**排布秘境内部图——与 CampaignPanel 的路线图**完全同一套做法与数学**
+/// <summary>
+    /// 按**层**排布秘境内部图——与 CampaignPanel 的路线图**完全同一套做法与数学**
         /// （y = -(层数-1-layer)*(H+Gap)，层内按列序水平铺开）。
         /// ⛔ 不用GridLayoutGroup：第一版用网格，结果观感和主线完全不像，
         ///   玩家会以为进入了另一个游戏（用户 2026-10-16 明确要求"套用现在的节点地图设计"）。
+        ///
+        /// ★★ 第二版（截图后）：节点尺寸改为**按容器与层数自适应**（<see cref="FitNodeMetrics"/>）。
+    ///   上一版用固定 NodeW/NodeH，再把 content 撑到 layers*(H+Gap)+40 ——
+        ///   6 层 × (72+40) = 672 塞进 560 高的卡片 ⇒ 底部两层直接掉到卡外。
         /// </summary>
         private void BuildMap()
-        {
-            if (_gridContent != null) _gridContent.gameObject.SetActive(true);
-            ClearNodes();
-            var run = WanXiang.Run.RunSave.Current;
-            if (_map == null && run != null)
+    {
+  if (_gridContent != null) _gridContent.gameObject.SetActive(true);
+            if (_lineLayer != null) _lineLayer.gameObject.SetActive(true);
+    ClearNodes();
+   var run = WanXiang.Run.RunSave.Current;
+if (_map == null && run != null)
                 _map = RealmMapBuilder.Build(_realm, RealmSession.RealmSeedFor(run));
             if (_map == null || _map.Graph == null || _nodeTemplate == null) return;
 
-            // 秘境内部不用自动布局（节点要手摆）
-            var glg = _gridContent.GetComponent<GridLayoutGroup>();
-            if (glg != null) glg.enabled = false;
+            _layers = Mathf.Max(1, _map.LayerCount);
+       FitNodeMetrics();
 
-            int layers = _map.LayerCount;
-            for (int layer = 0; layer < layers; layer++)
+            // 节点：**从下往上**（第 0 层在底部 = 入口，首领/出口在顶部），与主线同一读法
+    for (int layer = 0; layer < _layers; layer++)
             {
-                var row = _map.Graph.Layers[layer];
-                float y = -(layers - 1 - layer) * (NodeH + GapY);   // 层号越大越靠上
-                for (int k = 0; k < row.Length; k++)
-                {
-                    int off = row[k];
-                    var go = Instantiate(_nodeTemplate, _gridContent);
-                    go.SetActive(true);
-                    var rt = (RectTransform)go.transform;
-                    rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
-                    rt.pivot = new Vector2(0.5f, 1f);
-                    rt.sizeDelta = new Vector2(NodeW, NodeH);
-                    float x = row.Length <= 1 ? 0f : (k - (row.Length - 1) * 0.5f) * (NodeW + GapX);
-                    rt.anchoredPosition = new Vector2(x, y);
+     var row = _map.Graph.Layers[layer];
+          float y = NodeY(layer);
+    for (int k = 0; k < row.Length; k++)
+   {
+     int off = row[k];
+         var go = Instantiate(_nodeTemplate, _gridContent);
+     go.SetActive(true);
+      var rt = (RectTransform)go.transform;
+ rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(_nodeW, _nodeH);
+             rt.anchoredPosition = new Vector2(NodeX(k, row.Length), y);
 
-                    PaintNode(go, off, _cleared.Contains(off), off == _curNode);
-                    var btn = go.GetComponent<Button>();
-                    if (btn == null) btn = go.AddComponent<Button>();
-                    var idx = off;
-                    btn.onClick.AddListener(() => OnNodeClicked(idx));
-                    _nodeViews.Add(go);
-                }
-            }
-            // content 高度要够，否则底部几层会被挤出可视区
-            var crt = _gridContent;
-            crt.sizeDelta = new Vector2(crt.sizeDelta.x,
-                layers * (NodeH + GapY) + 40f);
+      ScaleNodeText(rt);
+   PaintNode(go, off, _cleared.Contains(off), off == _curNode);
+   var btn = go.GetComponent<Button>();
+          if (btn == null) btn = go.AddComponent<Button>();
+      var idx = off;
+btn.onClick.AddListener(() => OnNodeClicked(idx));
+            _nodeViews.Add(go);
+  _nodeOffsets.Add(off);
+  }
+     }
+
+        DrawEdges();
         }
+
+        /// <summary>
+      /// 按容器可用空间与实际层数/列数，**反算**节点尺寸与间距。
+        /// ⛔ 这一步是第二版补的关键：地图层数随波数变（5~7 层）、
+        ///   列数随每层节点数变（1~5 列），写死尺寸必然在某些场域溢出。
+        /// </summary>
+        private void FitNodeMetrics()
+    {
+        float availW = _gridContent != null ? _gridContent.rect.width : 1200f;
+   float availH = _gridContent != null ? _gridContent.rect.height : 700f;
+       if (availW < 64f) availW = 1200f;
+      if (availH < 64f) availH = 700f;
+
+            int maxCols = 1;
+      for (int i = 0; i < _layers; i++)
+       {
+        int n = _map.Graph.Layers[i] != null ? _map.Graph.Layers[i].Length : 0;
+          if (n > maxCols) maxCols = n;
+     }
+
+      // 纵向：层数 × (节点高 + 层距) 必须塞进可用高度
+            float slotH = availH / _layers;
+         _nodeH = Mathf.Clamp(slotH * 0.68f, 56f, 160f);
+   _gapY = Mathf.Max(18f, slotH - _nodeH);
+
+   // 横向：最多的一层 × (节点宽 + 列距) 必须塞进可用宽度
+         float slotW = availW / maxCols;
+         _nodeW = Mathf.Clamp(slotW * 0.74f, 90f, 256f);
+         _gapX = Mathf.Max(16f, slotW - _nodeW);
+      }
+
+        /// <summary>第 layer 层里第 k 个节点的 x 坐标（层内水平居中铺开）。</summary>
+        private float NodeX(int k, int rowLen)
+        {
+         return rowLen <= 1 ? 0f : (k - (rowLen - 1) * 0.5f) * (_nodeW + _gapX);
+        }
+
+   /// <summary>第 layer 层的 y 坐标（层号越大越靠上）。</summary>
+  private float NodeY(int layer)
+        {
+            return -(_layers - 1 - layer) * (_nodeH + _gapY);
+        }
+
+        /// <summary>节点中心的本地坐标（连线用；必须与上面的排布公式一致）。</summary>
+        private Vector2 NodePos(int offset)
+        {
+   int layer = _map.LayerOf(offset);
+       if (layer < 0) return Vector2.zero;
+ var row = _map.Graph.Layers[layer];
+            int k = System.Array.IndexOf(row, offset);
+          return new Vector2(NodeX(k, row.Length), NodeY(layer));
+        }
+
+        /// <summary>
+        /// 文字随节点缩放：字号按节点宽高同比缩，避免自适应后大字溢出小卡。
+   /// </summary>
+private void ScaleNodeText(RectTransform rt)
+        {
+            float k = _nodeW / 256f;
+     var icon = rt.Find("Tmp_NodeIcon");
+            var nameTx = rt.Find("Tmp_NodeName");
+            var mark = rt.Find("Img_Cleared");
+if (icon != null)
+     {
+       var rtIcon = icon as RectTransform;
+    if (rtIcon != null) rtIcon.sizeDelta = new Vector2(240f * k, 74f * k);
+    var t = icon.GetComponent<TMPro.TMP_Text>();
+                if (t != null) t.fontSize = Mathf.Max(12, Mathf.RoundToInt(52f * k));
+   }
+ if (nameTx != null)
+            {
+                var rtName = nameTx as RectTransform;
+                if (rtName != null) rtName.sizeDelta = new Vector2(240f * k, 40f * k);
+         var t = nameTx.GetComponent<TMPro.TMP_Text>();
+        if (t != null) t.fontSize = Mathf.Max(10, Mathf.RoundToInt(28f * k));
+}
+            if (mark != null)
+            {
+     var rtMark = mark as RectTransform;
+    if (rtMark != null) rtMark.sizeDelta = new Vector2(_nodeW, _nodeH);
+        }
+        }
+
+   /// <summary>
+    /// 层间连线 —— 与 CampaignPanel.DrawEdges **同一套视觉语言**：
+    /// 未走通 = 虚线（Tiled 平铺），走通 = 实线描金。
+        /// ⛔ 秘境第一版**没有连线**，表现就是"一堆孤立方块"，跟主线路线图完全不像
+        ///   （用户要求"直接套用现在的节点地图设计"）。连线是"像不像"的关键一环。
+        /// </summary>
+     private void DrawEdges()
+      {
+        if (_lineLayer == null || _map == null || _map.Graph == null) return;
+       for (int i = _lineLayer.childCount - 1; i >= 0; i--)
+        if (_lineLayer.GetChild(i) != null) Destroy(_lineLayer.GetChild(i).gameObject);
+
+    if (_map.Graph.Edges == null) return;
+      for (int a = 0; a < _map.Graph.Edges.Count; a++)
+            {
+        if (a >= _map.Graph.NodeCount) continue;
+       var tos = _map.Graph.Edges[a];
+    if (tos == null) continue;
+              foreach (var b in tos)
+    {
+           if (b < 0 || b >= _map.Graph.NodeCount) continue;
+         Vector2 pa = NodePos(a);
+           Vector2 pb = NodePos(b);
+       bool walked = _cleared.Contains(a) && _cleared.Contains(b);
+
+            var go = new GameObject("Edge_" + a + "_" + b, typeof(RectTransform));
+        var rt = (RectTransform)go.transform;
+      rt.SetParent(_lineLayer, false);
+          rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+       rt.pivot = new Vector2(0f, 0.5f);
+              // ⚠ 高度必须与 line_dash 贴图一致（与 CampaignPanel 同款），否则虚线会被裁掉
+   rt.sizeDelta = new Vector2(Mathf.Max(1f, Vector2.Distance(pa, pb)), 14f);
+            rt.anchoredPosition = pa;
+      rt.localRotation = Quaternion.Euler(0f, 0f,
+      Mathf.Atan2(pb.y - pa.y, pb.x - pa.x) * Mathf.Rad2Deg);
+
+     var img = go.AddComponent<UnityEngine.UI.Image>();
+              img.sprite = walked ? EdgeSolidSprite() : EdgeDashSprite();
+   img.type = walked ? UnityEngine.UI.Image.Type.Simple : UnityEngine.UI.Image.Type.Tiled;
+   img.color = walked ? new Color(0.79f, 0.63f, 0.39f, 1f) : new Color(0.72f, 0.68f, 0.60f, 0.55f);
+   img.raycastTarget = false;
+     }
+     }
+        }
+
+    private static Sprite _edgeSolid, _edgeDash;
+   private static bool _edgeTried;
+      /// <summary>连线美术：与主线共用 Resources/UI/Campaign 下的两张贴图（缺图回退白块）。</summary>
+        private static Sprite EdgeSolidSprite()
+ {
+        EnsureEdgeSprites();
+    return _edgeSolid;
+        }
+        private static Sprite EdgeDashSprite()
+        {
+            EnsureEdgeSprites();
+            return _edgeDash;
+        }
+      private static void EnsureEdgeSprites()
+        {
+      if (_edgeTried) return;
+  _edgeTried = true;
+       _edgeSolid = Resources.Load<Sprite>("UI/Campaign/map_edge_ink");
+         _edgeDash = Resources.Load<Sprite>("UI/Campaign/line_dash");
+            if (_edgeSolid == null || _edgeDash == null)
+       {
+     var tex = new Texture2D(4, 4, TextureFormat.RGBA32, false);
+       var px = new Color[16];
+      for (int i = 0; i < px.Length; i++) px[i] = Color.white;
+        tex.SetPixels(px); tex.Apply();
+       var white = Sprite.Create(tex, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 100f);
+   if (_edgeSolid == null) _edgeSolid = white;
+      if (_edgeDash == null) _edgeDash = white;
+    }
+     }
 
         /// <summary>给一格上色/写字（首领与已清高亮，锁定压暗）。</summary>
         private void PaintNode(GameObject go, int offset, bool cleared, bool isHere)
@@ -397,25 +565,41 @@ var req = default(BattleRequest);
             WanXiang.Run.RunSave.SaveCurrent();
         }
 
-        /// <summary>刷新所有格子的外观（已清 / 当前 / 首领高亮）。</summary>
-        private void RefreshNodes()
-        {
+/// <summary>刷新所有格子的外观（已清 / 当前 / 首领高亮）。</summary>
+ private void RefreshNodes()
+{
             if (_map == null || _map.Graph == null) return;
-            for (int i = 0; i < _nodeViews.Count; i++)
-            {
-                if (_nodeViews[i] == null) continue;
-                // _nodeViews 是按 (层, 列) 顺序建的，与 offset 顺序一致（ActGraph 按层顺序编号）
-                int off = i < _map.NodeCount ? i : -1;
-                if (off < 0) continue;
-                PaintNode(_nodeViews[i], off, _cleared.Contains(off), off == _curNode);
-            }
+   for (int i = 0; i < _nodeViews.Count; i++)
+        {
+            if (_nodeViews[i] == null) continue;
+    //⛔ 用**建时记下的 offset**，不要拿下标当 offset（注释里那个"ActGraph 按层顺序编号"
+    //   的假设一旦不成立，刷新就会把 A 格画成 B 格 —— 高亮全乱，且没有任何报错）。
+        if (i >= _nodeOffsets.Count) continue;
+        int off = _nodeOffsets[i];
+   PaintNode(_nodeViews[i], off, _cleared.Contains(off), off == _curNode);
+      }
+            // 连线也要跟着重画：走过的边从虚线变实线描金
+     DrawEdges();
         }
 
-        private void ClearNodes()
-        {
+private void ClearNodes()
+  {
             for (int i = 0; i < _nodeViews.Count; i++)
-                if (_nodeViews[i] != null) Destroy(_nodeViews[i]);
+if (_nodeViews[i] != null) Destroy(_nodeViews[i]);
             _nodeViews.Clear();
+  _nodeOffsets.Clear();
+       ClearEdges();
+        }
+
+  /// <summary>清掉连线层（节点与连线必须一起清，否则重画会叠出两层虚线）。</summary>
+        private void ClearEdges()
+        {
+   if (_lineLayer == null) return;
+    for (int i = _lineLayer.childCount - 1; i >= 0; i--)
+      {
+        var c = _lineLayer.GetChild(i);
+       if (c != null) Destroy(c.gameObject);
+        }
         }
 
         // =====================================================================

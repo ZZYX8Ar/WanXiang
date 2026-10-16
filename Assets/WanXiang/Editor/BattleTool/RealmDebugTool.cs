@@ -196,10 +196,15 @@ Debug.Log("[秘境调试] 已回滚到原路线节点。");
             return r != null ? r.Name : "(无)";
 }
 
-      private static void Fail(string msg)
-        {
-            Debug.LogWarning("[秘境调试] " + msg);
-     EditorUtility.DisplayDialog("秘境调试", msg, "好");
+private static void Fail(string msg)
+  {
+      Debug.LogError("[秘境调试] " + msg);
+            // ⛔⛔ **Play 模式下绝不能弹模态框**（2026-10-16 踩过）：
+            //   EditorUtility.DisplayDialog 是**阻塞式**的，它会卡住编辑器主线程 ——
+            //   表现是"Unity 整个卡死、MCP 全部超时、Editor.log 停在那一行"。
+            //   而这里的失败原因（UIBootstrap.UI 为空）恰恰只在 Play 模式出现 ⇒ 必然踩中。
+            //   Play 模式一律只打日志；Edit 模式（改存档那两个菜单）才弹框。
+            if (!Application.isPlaying) EditorUtility.DisplayDialog("秘境调试", msg, "好");
         }
     }
 }
