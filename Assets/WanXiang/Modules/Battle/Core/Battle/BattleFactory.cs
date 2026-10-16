@@ -166,6 +166,11 @@ namespace WanXiang.Battle.Core
                 // idPrefix 为空 = 中途增员：走"全战场唯一"的序号，避免与开场 P0../E0.. 撞号。
                 string runtimeId = string.IsNullOrEmpty(idPrefix) ? st.NextRuntimeId() : idPrefix + counter;
                 var unit = new BattleUnit(entries[i].Side, copy, runtimeId);
+                // ★ 敌方招式库（2026-10-16 FoeKit）：把弱点 / 破绽 / 谱系挂到单位上。
+                //⛔ 没配 FoeKit 的单位三个字段留默认值 ⇒ 结算逐位不变（天气自检基准局指纹红线）。
+                //   只对**敌方**生效：我方的兽即使配了同名 id 也不会拿到弱点（玩家不该被"弱点"标记）。
+                if (entries[i].Side == TeamSide.Enemy)
+                    FoeKitRuntime.Attach(unit);
                 // 「复苏」劫象：阵亡时以 30% 生命复活 1 次（复用惊蛰虫卵的孵化机制）
                 switch (entries[i].TraitId)
                 {

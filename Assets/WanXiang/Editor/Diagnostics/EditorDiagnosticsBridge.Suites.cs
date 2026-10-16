@@ -116,6 +116,21 @@ namespace WanXiang.EditorTools.Diagnostics
         private const string BossToolTypeName =
             "WanXiang.Editor.BattleTool.BossSelfTest, WanXiang.Editor";
 
+        /// <summary>敌方招式库自检（命令 foe.selftest，FoeKit）。</summary>
+        private const string FoeToolTypeName =
+            "WanXiang.Editor.BattleTool.FoeSelfTest, WanXiang.Editor";
+
+        /// <summary>
+        /// 敌方招式库自检：守 12 只敌人的表结构 + **零副作用**（没配 FoeKit 的普通兽
+        /// 字段恒为默认 ⇒ 天气自检的基准局指纹不变）+ 弱点倍率 + 破绽失衡链路。
+        /// </summary>
+        private static void RunFoeSelfTest(Report report)
+        {
+            RunEditorTool(report, "foe.selftest", FoeToolTypeName,
+                "① WanXiang.Editor 还没编译过（改完代码先跑 refresh）；"
+                + "② 它的 asmdef 里缺 WanXiang.Battle.Core 引用。");
+        }
+
         /// <summary>首领战自检（命令 boss.selftest）。Edit 模式同步跑，不进 Play。</summary>
         private static void RunBossSelfTest(Report report)
         {

@@ -182,6 +182,41 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public bool Enraged;
 
+        // ---- 弱点 / 破绽 / 失衡（2026-10-16 FoeKit）----
+        //  ⛔ 没配置 FoeKit 的单位（普通兽、我方）这三个字段恒为默认值 ⇒ 结算逐位不变。
+
+        /// <summary>弱点元素（打中 ×1.35）。None = 无弱点。</summary>
+        public Element FoeWeakElement = Element.None;
+        /// <summary>抗性元素（打中 ×0.75）。None = 无抗性。</summary>
+        public Element FoeResistElement = Element.None;
+
+        /// <summary>破绽触发方式（None = 无破绽）。</summary>
+        public FoeFlawTrigger FoeFlawTrigger = FoeFlawTrigger.None;
+        public Element FoeFlawElement = Element.None;
+        public string FoeFlawStatusId;
+        public int FoeFlawNeed = 3;
+        public int FoeFlawHpPercent = 40;
+        /// <summary>破绽进度（命中次数 / 部件数 / 格挡次数）。</summary>
+        public int FoeFlawProgress;
+
+        /// <summary>剩余失衡回合数。&gt;0 时受到的伤害 ×<see cref="FoeUnbalancedMul"/>。</summary>
+        public int FoeUnbalancedTurns;
+        public float FoeUnbalancedMul = FoeRules.DefaultUnbalancedMul;
+
+        /// <summary>招式谱系（只用于起手预警与提示文案，不参与结算）。</summary>
+        public FoeFamily FoeFamily = FoeFamily.None;
+
+        /// <summary>受到的全部伤害倍率（弱点/抗性/失衡的合乘，1 = 不变）。</summary>
+        public float FoeIncomingMul
+        {
+            get
+            {
+                float m = 1f;
+                if (FoeUnbalancedTurns > 0) m *= FoeUnbalancedMul;
+                return m;
+            }
+        }
+
         // ---- 棋盘与羁绊带来的、由 BattleState / BoardRules 写入的派生量 ----
         //  它们不放 Modifiers 里，是因为它们的来源不是"技能施加的临时修正"，
         //  而是"你站在哪、你和谁同队"这些结构性事实。混进 Modifiers 会带来

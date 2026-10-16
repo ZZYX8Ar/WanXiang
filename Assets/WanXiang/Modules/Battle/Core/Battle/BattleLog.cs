@@ -47,6 +47,15 @@ namespace WanXiang.Battle.Core
         /// 自检基线不含它，指纹不受影响。
         /// </summary>
         ParryResult = 17,
+
+        /// <summary>
+        /// 起手预警（2026-10-16 FoeKit）：敌人发招前的预告，**谱系化**的关键 ——
+        /// 玩家看色块就知道这招该不该按。⛔ 只有配了 FoeKit 的敌人才发，朴素敌人不发 ⇒ 指纹不变。
+        /// <para>⚠ <b>不要解析 Note 取结构化字段</b>：amount 里已打包好
+        ///   高 8 位 = 谱系、中 8 位 = 段号（1 起）、低 8 位 = 总段数。
+        ///   用 <see cref="FoeKitRuntime.FamilyOf"/> 等三个函数拆。</para>
+        /// </summary>
+        Windup = 18,
     }
 
     public struct BattleEvent

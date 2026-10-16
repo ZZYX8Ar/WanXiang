@@ -210,6 +210,10 @@ namespace WanXiang.Battle.Core
                     {
                         parryOpened = true;
                         comboHits = PeekActionHitCount(st, u);
+                        // ★ FoeKit（2026-10-16）：段数由**招式谱系配置**决定，不是原子 Hits。
+                        //   没配 FoeKit 时 SegmentCountFor 返回 fallback（-1）⇒ 沿用旧口径。
+                        int foeSegs = FoeKitRuntime.SegmentCountFor(u, -1);
+                        if (foeSegs > 0) comboHits = foeSegs;
                         parrySegmented = comboHits > 1;
                     }
 
@@ -221,6 +225,10 @@ namespace WanXiang.Battle.Core
                             var comboWorst = ParryGrade.Perfect;
                             for (int h = 0; h < comboHits; h++)
                             {
+                                // ★ 起手预警（2026-10-16 FoeKit）：**每段之前**都发一次，
+                                //   玩家看色块就知道这招该不该按 —— 这是「可预判」的落地处。
+                                //   ⛔ 朴素敌人无FoeKit ⇒ 内部直接 return，不产生任何事件。
+                                FoeKitRuntime.EmitWindup(st, u, h, comboHits);
                                 st.ParriedGrade = ParryGrade.None;   // 待判定（超时/异常都落到"未挡"）
                                 st.ParryActorId = u.RuntimeId;
                                 st.ParryQteKind = ParryQteKind.Guard;
@@ -253,6 +261,8 @@ namespace WanXiang.Battle.Core
                     {
                     if (parryOpened)
                     {
+                        // ★ 起手预警（单段路径）。⛔ 朴素敌人无事件，指纹不变。
+                        FoeKitRuntime.EmitWindup(st, u, 0, 1);
                         st.ParriedGrade = ParryGrade.None;
                         st.ParryActorId = u.RuntimeId;
                         st.ParryQteKind = ParryQteKind.Guard;
@@ -276,6 +286,10 @@ namespace WanXiang.Battle.Core
                     {
                         if (st.ParriedGrade == ParryGrade.Perfect && u.IsAlive)
                         {
+                            // ★ 破绽·格挡型（2026-10-16 FoeKit）：白刃「刃口」这种
+                            //   "格挡 N 次"的破绽 —— **防御行为本身就是进攻路线**。
+                            //⛔ 只在配了 FoeKit 的敌人才进函数体（内部按 trigger 短路）。
+                            FoeKitRuntime.OnParriedBy(st, u);
                             int back = CoreMath.RoundDamage(u.MaxHp * ParryCounterMaxHpPercent);
                             if (back > 0)
                             {
@@ -335,6 +349,9 @@ namespace WanXiang.Battle.Core
                 // ---- 4) 回合末（天时·回合末在 EndOfTurn 之后、TurnEnd 事件之前） ----
                 EndOfTurn(st);
                 PassiveHooks.ApplyTurnEnd(st);     // v2.1 P3b：回合末被动（回复类）
+                // ★ 敌方失衡回合递减 + 血量型破绽检查（2026-10-16 FoeKit）。
+                //   ⛔ 无 FoeKit 敌方时内部 for 循环每个都直接 continue ⇒ 零事件、指纹不变。
+                FoeKitRuntime.TickUnbalanced(st);
                 // ★ 死亡对账：把本回合内"被分摊/反弹/连携/天时/棋盘结算静默扣血致死"的
                 //   单位补报到钩子系统（否则双子被共鸣分摊磨死时 KillLinkHook 收不到信号）。
                 //   必须在 TurnEnd 之前 —— 双子复活窗口按 _deadTurn 起算，先登记再判窗口。

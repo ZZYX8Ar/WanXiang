@@ -230,6 +230,17 @@ namespace WanXiang.Battle.Core
             // 空列表短路：普通战斗不进函数体，逐位不变。
             if (st.Hooks.Count > 0) BattleHooks.ModifyIncoming(st, src, dst, ref dmg, el);
 
+            // ---- 弱点 / 抗性 / 失衡（2026-10-16 FoeKit）----
+            // ⛔ 没配 FoeKit 的目标 ⇒ WeaknessMul 恒返回 1、失衡为 0 ⇒ 这一行逐位无副作用。
+            // ⚠ 位置放在 Boss 钩子之后、格挡之前：与 parryMul 同一层（都是"最后改伤害"）。
+            //   真实伤害（TrueDamage）不吃弱点 —— 否则"无属性万能"会变成"无属性最强"。
+            float foeMul = FoeKitRuntime.IncomingMul(src, dst);
+            if (foeMul != 1f && !atom.TrueDamage)
+                dmg = CoreMath.RoundDamage(dmg * foeMul);
+
+            // ★ 破绽进度累计（只在玩家命中敌方时计）。触发则进入失衡。
+            if (dmg > 0) FoeKitRuntime.OnPlayerHitEnemy(st, src, dst, el);
+
             // ---- 格挡（QTE，2026-10-14）：本次被格挡的敌方行动 → 对我方伤害按档位折减 ----
             // ⚠ 不在格挡行动中（ParryActorId 为空）恒为 1 —— 零副作用，指纹红线（见 Parry 文件头）。
             //   放在 Boss 钩子之后：玩家的时机判定对这次伤害有"最后一票"。
