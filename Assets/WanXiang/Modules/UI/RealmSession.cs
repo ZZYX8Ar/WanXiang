@@ -78,6 +78,9 @@ namespace WanXiang.Modules.UI
  run.RealmStarCoin = 0;
   if (run.RealmCleared == null) run.RealmCleared = new System.Collections.Generic.List<int>();
   run.RealmCleared.Clear();      // 每次进秘境是全新一趟
+            if (run.RealmChampionRewarded == null)
+                run.RealmChampionRewarded = new System.Collections.Generic.List<int>();
+            run.RealmChampionRewarded.Clear();   // ★ 幂等表也必须清，否则第二次进来镇守不给奖励
       run.RealmCursor = -1;
             run.RealmEntries.Add(realm.Id);          // 同局去重
             return true;
@@ -160,10 +163,39 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>掉线保护：读档时若 InRealm 为真则强制退出（不卡在"半个秘境"）。</summary>
+        /// <remarks>
+        /// ⛔⛔ **这个函数必须被调用**（2026-10-17 修）：它原先只定义、没有任何调用点 ——
+        ///   于是"进场存了档、转场还没走完就退出"会在存档里留下 <c>InRealm = true</c>，
+        ///   之后所有进入都被 <see cref="Enter"/> 的"已在秘境中"判据挡掉，
+        ///   **玩家的体感就是"点秘境按钮没反应"**（连报错都没有，因为 Enter 只是 return false）。
+        ///   现在由 <c>RunSave.Load</c> 统一调用；<see cref="RecoverStuck"/> 兜住"已加载但没重开"的情况。
+        /// </remarks>
         public static void SanitizeOnLoad(WanXiang.Run.RunState run)
         {
             if (run == null) return;
-            if (run.InRealm) Exit(run);
+            if (!run.InRealm) return;
+            UnityEngine.Debug.Log("[RealmSession] 读档发现卡在秘境内（InRealm=true，场域=" +
+                                  run.RealmId + "）—— 强制退出并还原路线图");
+            Exit(run);
+        }
+
+        /// <summary>
+        /// 兜底自愈：当前 RunState 卡在"进了秘境但一个节点都没走过"的状态时把它退出。
+        /// <para>判据 <c>RealmCursor &lt; 0 且 RealmCleared 为空</c> = **进场后一步都没走** ⇒
+        ///   必然是"进场存档了但转场/界面没起来"的中断残留，不是玩家真的在玩。</para>
+        /// <para>⚠ 只在这个极窄的条件下自愈；玩家已经走过格子就不能动（那是真进度）。</para>
+        /// </summary>
+        public static bool RecoverStuck(WanXiang.Run.RunState run)
+        {
+            if (run == null || !run.InRealm) return false;
+            bool neverMoved = run.RealmCursor < 0
+                              && (run.RealmCleared == null || run.RealmCleared.Count == 0);
+            if (!neverMoved) return false;
+
+            UnityEngine.Debug.LogWarning("[RealmSession] 自愈：检测到「进秘境但未开始」的中断残留" +
+                                         "（场域=" + run.RealmId + "），先退出再重新进入");
+            Exit(run);
+            return true;
         }
 
         /// <summary>清掉玩家身上由场域挂的持续状态（当前为空实现，见文件头说明）。</summary>

@@ -24,18 +24,59 @@ namespace WanXiang.Modules.UI
     internal static class RealmFlow
     {
         /// <summary>
+        /// 调试入口"进场时临时放开的限制"的还原动作（幕数 / 本局进入记录）。
+        /// <para>⛔ **不能再靠替换 <c>CampaignPanel.OnRealmQuitRequested</c> 来还原**（2026-10-17 修）：
+        ///   那个静态回调在 <see cref="Enter"/> 里已经指向本类的 QuitNow，调试入口若在
+        ///   <c>onAfterEnter</c> 里再换一次，就依赖"两处赋值的时序"——实测漏掉了，
+        ///   表现是撤离后 <c>RealmEntries</c> 仍是 1、<c>Act</c> 仍是临时抬高的值
+        ///   （玩家从第 1 幕点一下调试按钮，幕数就被永久改成 2）。</para>
+        ///   <para>改成"登记 + 撤离时统一执行"：无论走按钮 / 调试 / 战败哪条撤离路径，
+        ///   <see cref="QuitNow"/> 都会调用它。</para>
+        /// </summary>
+        private static Action _pendingDebugRestore;
+
+        /// <summary>调试入口登记"撤离时要还原成什么"。</summary>
+        public static void SetDebugRestore(Action restore) { _pendingDebugRestore = restore; }
+
+        private static void ApplyDebugRestore()
+        {
+            var a = _pendingDebugRestore;
+            _pendingDebugRestore = null;      // 一次性：别让它影响下一次正常进入
+            if (a == null) return;
+            try { a(); }
+            catch (System.Exception ex) { Debug.LogError("[RealmFlow] 调试还原抛异常：" + ex); }
+        }
+
+        /// <summary>
         /// 进入秘境：存档进场 → 转场（粒子合拢 → 秘境地名 + 艺术字 → 拨开）→ 打开秘境路线图。
         /// <param name="onAfterEnter">转场揭晓后要执行的额外动作（调试入口用它撤销"次数"痕迹）。</param>
         /// </summary>
-        public static void Enter(WanXiang.Campaign.RealmDef realm, Action onAfterEnter = null)
+        /// <summary>
+        /// 进入秘境：存档进场 → 转场（粒子合拢 → 秘境地名 + 艺术字 → 拨开）→ 打开秘境路线图。
+        /// <param name="onAfterEnter">转场揭晓后要执行的额外动作（调试入口用它撤销"次数"痕迹）。</param>
+        /// <returns>是否成功进入。**失败必须让调用方知道** —— 早先返回 void，
+        /// 调用方无法还原自己临时改过的字段，而且玩家只看到"点了没反应"。</returns>
+        /// </summary>
+        public static bool Enter(WanXiang.Campaign.RealmDef realm, Action onAfterEnter = null)
         {
             var run = WanXiang.Run.RunSave.Current;
-            if (run == null || realm == null) return;
+            if (run == null || realm == null) return false;
+
+            // ★★ 先自愈：存档可能卡在"进了秘境但一步没走"的中断残留里
+            //   （进场存了档、转场没走完就退出/停止 Play 就会这样）。
+            //   那种状态下 Enter 的"已在秘境中"判据会把之后每一次进入都拒掉。
+            RealmSession.RecoverStuck(run);
 
             if (!RealmSession.Enter(run, realm))
             {
-                Debug.LogWarning("[RealmFlow] 进入被拒（本局次数已用完 / 已在秘境中）");
-                return;
+                // ⛔ 别只 return：这两种原因对玩家是**完全不同的处理**，必须说清楚。
+                if (run.InRealm)
+                    Debug.LogWarning("[RealmFlow] 进入被拒：当前已在秘境中（场域=" + run.RealmId + "）");
+                else
+                    Debug.LogWarning("[RealmFlow] 进入被拒：本局进入次数已用完（" +
+                                     run.RealmEntries.Count + "/" +
+                                     WanXiang.Campaign.RealmCatalog.MaxPerRun + "）");
+                return false;
             }
             CampaignPanel.PendingCommit = -1;      // 进秘境不算"通过某个节点"
             WanXiang.Run.RunSave.SaveCurrent();
@@ -46,7 +87,7 @@ namespace WanXiang.Modules.UI
                 Debug.LogError("[RealmFlow] 建不出秘境图，回滚进场");
                 RealmSession.Exit(run);
                 WanXiang.Run.RunSave.SaveCurrent();
-                return;
+                return false;
             }
 
             // 注册"撤离"回调（秘境模式下 CampaignPanel 的离开按钮走它）
@@ -61,6 +102,7 @@ namespace WanXiang.Modules.UI
                 });
                 onAfterEnter?.Invoke();
             });
+            return true;
         }
 
         /// <summary>
@@ -109,6 +151,9 @@ namespace WanXiang.Modules.UI
                 {
                     var r = WanXiang.Run.RunSave.Current;
                     RealmSession.Exit(r);              // ★ 回滚 + 还原位置（硬约束 ②）
+                    // ★ 调试入口临时放开的限制也在这里收回去（幕数 / 进入记录）。
+                    //   ⛔ 必须在 Exit **之后**：Exit 内部会动 RealmEntries / RealmCursor。
+                    ApplyDebugRestore();
                     if (r != null) WanXiang.Run.RunSave.SaveCurrent();
 
                     // 原地重建主线图：走 OnRefresh 那条**同实例**路径

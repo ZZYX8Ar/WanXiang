@@ -210,27 +210,35 @@ BuildNodeMap();
             }
 
             // ★★ 走**与路线图秘境节点完全相同**的流程（用户："这个测试的按钮和正常进入是一样的啊"）。
-            //   差别只有"绕开限制"与"撤离时还原限制"，转场/界面/回滚全部共用。
-            RealmFlow.Enter(realm, onAfterEnter: () =>
+            //   差别只有"绕开限制"与"撤离时还原限制"（还原动作登记给 RealmFlow，撤离时统一执行），
+            //   转场/界面/回滚全部共用。
+            bool ok = RealmFlow.Enter(realm);
+
+            // ⛔ 进场失败必须把临时放开的限制**收回去**：
+            //   否则按钮"点了没反应"，但 run.Act 已经被悄悄改成 2、进入记录被清空 ——
+            //   玩家会在不知情的情况下丢掉本局的一次秘境机会（最坏的那种 bug）。
+            if (!ok)
             {
-                // 撤离时把临时放开的限制收回去。
-                // ⚠ 这里包一层：RealmFlow 已经注册了通用撤离回调，我们把它换成"先还原再撤离"。
-                OnRealmQuitRequested = () =>
+                run.Act = actBak;
+                run.RealmEntries.Clear();
+                run.RealmEntries.AddRange(entriesBak);
+                WanXiang.Run.RunSave.SaveCurrent();
+                Debug.LogWarning("[Campaign] 秘境测试按钮：进场失败，已还原幕数与进入次数");
+                return;
+            }
+
+            // 撤离时把临时放开的限制收回去（由 RealmFlow 在 Exit 之后统一执行）。
+            RealmFlow.SetDebugRestore(() =>
+            {
+                var r = WanXiang.Run.RunSave.Current;
+                if (r == null) return;
+                r.Act = actBak;
+                if (r.RealmEntries != null)
                 {
-                    RealmFlow.QuitNow(realm.Id);
-                    var r = WanXiang.Run.RunSave.Current;
-                    if (r != null)
-                    {
-                        r.Act = actBak;
-                        if (r.RealmEntries != null)
-                        {
-                            r.RealmEntries.Clear();
-                            r.RealmEntries.AddRange(entriesBak);
-                        }
-                        WanXiang.Run.RunSave.SaveCurrent();
-                        Debug.Log("[Campaign] 已撤离（测试入口：幕数与进入次数均已还原）");
-                    }
-                };
+                    r.RealmEntries.Clear();
+                    r.RealmEntries.AddRange(entriesBak);
+                }
+                Debug.Log("[Campaign] 已撤离（测试入口：幕数与进入次数均已还原）");
             });
         }
 

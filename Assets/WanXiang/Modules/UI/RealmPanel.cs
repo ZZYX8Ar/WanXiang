@@ -161,9 +161,10 @@ namespace WanXiang.Modules.UI
 
             // 入口面板自己要关掉：转场的 onSwitch 会打开 CampaignPanel，
             // 而入口面板是 Popup 层，不关会盖在新地图上。
+            // ⛔ 只在**成功**时关：失败还关掉，玩家会看到"面板消失但什么都没发生"。
             var realm = _realm;
-            RealmFlow.Enter(realm, onAfterEnter: null);
-            CloseSelf();
+            if (RealmFlow.Enter(realm, onAfterEnter: null)) CloseSelf();
+            else SetStatus("进不去秘境（本局进入次数已用完）。");
         }
 
 

@@ -425,6 +425,13 @@ namespace WanXiang.Run
                 var json = File.ReadAllText(path);
                 var state = JsonUtility.FromJson<RunState>(json);
                 if (state != null) state.Slot = slot;
+
+                // ★★ 掉线保护（2026-10-17 补上调用）：
+                //   `RealmSession.SanitizeOnLoad` 早就写好了，但**从来没人调用** ——
+                //   结果就是"进场存了档、转场没走完就退出"会在存档里留下 InRealm=true，
+                //   之后再点进秘境一律被 `Enter` 拒绝（判定：已在秘境中），**表现是点了没反应**。
+                //   放在 Load 里而不是 ContinueWith：所有读档路径（继续 / 读槽 / 自动）都过这里。
+                if (state != null) WanXiang.Modules.UI.RealmSession.SanitizeOnLoad(state);
                 return state;
             }
             catch (Exception ex)
