@@ -49,6 +49,35 @@ namespace WanXiang.Campaign
         PlayerStatusAll = 4,
     }
 
+    /// <summary>
+    /// 镇守（秘境专属精英）。**每个场域两名**，进图时按节点种子二选一 ——
+    /// 同一秘境两次进去可能遇到不同的镇守（用户："只有一个太腻了"）。
+    /// <para>⛔ <see cref="MechanicText"/> 必须与 <c>RealmChampionHooks</c> 里
+    ///   <see cref="HookId"/> 对应的钩子**逐字一致** —— 写了不实现就是假字。</para>
+    /// </summary>
+    public sealed class RealmChampionDef
+    {
+        public string Name;
+        public string Epithet;        // 一句人设（立绘提示词也用它定基调）
+        public string MechanicText;   // 进战前展示的机制说明
+        public string RewardText;     // 击败必得（必须与 <see cref="Eggs"/> 一致）
+        public int Eggs = 3;
+        public string HookId;         // 机制钩子 id（rc_*，见 Battle/Core/Boss/RealmChampionHooks）
+    }
+
+    /// <summary>按**节点种子**从场域的两名镇守里定一个（确定 ⇒ 信息卡与战斗看到的是同一个）。</summary>
+    public static class RealmChampionPick
+    {
+        public static RealmChampionDef Pick(RealmDef realm, int offset, ulong realmSeed)
+        {
+            if (realm == null || realm.Champions == null || realm.Champions.Length == 0) return null;
+            int roll = new WanXiang.Battle.Core.DeterministicRandom(
+                realmSeed ^ WanXiang.Battle.Core.CoreMath.Fnv1a("champ:" + realm.Id + ":" + offset)
+            ).NextInt(0, realm.Champions.Length);
+            return realm.Champions[roll];
+        }
+    }
+
     public sealed class RealmDef
     {
         public string Id;
@@ -62,7 +91,9 @@ namespace WanXiang.Campaign
         public int MapCols = 9;
         public int MapRows = 7;
         public float EnemyScale;            // 敌方强度倍率（**不吃幕数加成**）
-        public float StarRate;              // 产出倍率
+        /// <summary>本域**灵卵产出倍率**（战斗/镇守结算时乘在灵卵上）。改名自 StarRate ——
+        ///   星币已删（它只是"灵卵+固定汇率"的中间步骤，用户拍板砍掉）。</summary>
+        public float EggRate = 1f;
 
         // ---- 场地效果 ----
         public RealmHazardKind Hazard;
@@ -86,22 +117,10 @@ namespace WanXiang.Campaign
         public float PlayerSpeedMul = 1f;
 
         // ---- 镇守（秘境专属精英战）----
-        /// <summary>镇守名字（出现在节点信息卡上，让玩家知道"这个不一样"）。</summary>
-        public string ChampionName;
-        /// <summary>镇守称号/一句人设（远征队 33 那种"有名字的精英"感）。</summary>
-        public string ChampionEpithet;
-        /// <summary>
-        /// 镇守的**专属机制说明**（进战前必须让玩家知道这场和平时不一样）。
-        /// ⛔ 必须与 <c>RealmChampionHooks</c> 里真实挂的钩子一致 —— 写了不实现就是假字。
-        /// </summary>
-        public string ChampionMechanicText;
+        /// <summary>本域的两名镇守（进图时按节点种子二选一）。**必须恰好 2 个** ——
+        ///   只有一个会腻，三个以上稀释出现率（自检会查）。</summary>
+        public RealmChampionDef[] Champions;
 
-        /// <summary>击败必得的奖励**原文**（必须与 <see cref="ChampionEggs"/>/<see cref="ChampionCoins"/> 一致）。</summary>
-        public string ChampionRewardText;
-        /// <summary>镇守必掉的灵卵数。</summary>
-        public int ChampionEggs = 3;
-        /// <summary>镇守必掉的星币数（结算时按 1:1 换灵卵，见 RealmSession.SettleStarCoin）。</summary>
-        public int ChampionCoins = 12;
 
         public int AppearFromAct = 1;       // 最早出现幕
         public int Weight = 20;             // 出现权重
@@ -126,6 +145,10 @@ namespace WanXiang.Campaign
 
         /// <summary>撤离代价的**原文**（PenalizesOnQuit 为 true 时必须有值）。</summary>
         public string QuitPenaltyText;
+
+        /// <summary>撤离要**实扣**的灵卵数（0 = 不扣）。必须在 <see cref="RealmSession.ApplyQuitPenalty"/>
+        ///   里真正读到 —— 有文案没扣数就是假代价（本项目已经吃过一次亏）。</summary>
+        public int QuitPenaltyEggs = 0;
 
         public string[] Rooms;              // 地图分区名（展示 / 后续做地图用）
         public string Palette;              // 主题色（#RRGGBB）
@@ -155,7 +178,7 @@ namespace WanXiang.Campaign
             new RealmDef {
                 Id = RealmIds.Marsh, Name = "苍泽", Element = "水",
                 Concept = "积水腐草，减速 + 持续伤害，但掉落最好",
-                Waves = 3, EnemyScale = 1.00f, StarRate = 1.5f,
+                Waves = 3, EnemyScale = 1.00f, EggRate = 1.5f,
                 MapCols = 4, MapRows = 5,
                 Hazard = RealmHazardKind.PlayerStatusAll,
                 HazardStatusId = WanXiang.Battle.Core.StatusCatalog.Wet,
@@ -164,19 +187,25 @@ namespace WanXiang.Campaign
                 //   这里取**规则**（更硬，且理由充分：玩家没学会格挡就进秘境是纯挫败）。
                 AppearFromAct = 2, Weight = 30,
                 PlayerSpeedMul = 0.90f,
-                Boon = "星币结算 1.5 倍（撤离时 2 星币 = 1 灵卵）",
-                ChampionName = "泽殍",
-                ChampionMechanicText = "沉沦：每 2 回合拖走全场速度最高的我方（下回合无法行动 + 减速）",
-                ChampionEpithet = "半沉半浮的溺者之首，专拖人下水",
-                ChampionRewardText = "灵卵 +3、星币 +12、湿抗灵魂 +1",
-                ChampionEggs = 3, ChampionCoins = 12,
+                Boon = "本域灵卵产出 ×1.5",
+                Champions = new[]
+                {
+                    new RealmChampionDef {
+                        Name = "泽殍", Epithet = "半沉半浮的溺者之首，专拖人下水", HookId = "rc_drown",
+                        MechanicText = "沉沦：每 2 回合拖走全场速度最高的我方（下回合无法行动 + 减速）",
+                        RewardText = "灵卵 +4、湿抗灵魂 +1", Eggs = 4 },
+                    new RealmChampionDef {
+                        Name = "涡姆", Epithet = "在泽心转了三百年的那个漩涡", HookId = "rc_tide",
+                        MechanicText = "潮讯：每回合全体我方 +1「湿」（上限 4，湿层越高它打得越疼）；完美格挡一次清全场 1 层湿",
+                        RewardText = "灵卵 +5、湿抗灵魂 +1", Eggs = 5 },
+                },
                 Rooms = new[] { "泥沼浅滩", "沉木林", "毒瘴洼地" },
                 Palette = "#2F4A45",
             },
             new RealmDef {
                 Id = RealmIds.Ember, Name = "烬岭", Element = "火",
                 Concept = "地表开裂，灼烧常驻，逼你速战速决",
-                Waves = 4, EnemyScale = 1.15f, StarRate = 1.2f,
+                Waves = 4, EnemyScale = 1.15f, EggRate = 1.2f,
                 MapCols = 4, MapRows = 5,
                 Hazard = RealmHazardKind.PlayerStatusAll,
                 HazardStatusId = WanXiang.Battle.Core.StatusCatalog.Burn,
@@ -185,72 +214,96 @@ namespace WanXiang.Campaign
                 PlayerSpeedMul = 0.95f,
                 // ⚠ 原来写"每击败 1 波回血 8%"和"不可使用回复类遗物" —— 两条都**没有实现**
                 //   （BanHealRelics 字段全工程从未被读取）。改成与实现一致的说法。
-                Boon = "星币结算 1.5 倍（撤离时 2 星币 = 1 灵卵）",
-                ChampionName = "赤髓",
-                ChampionMechanicText = "薪火：每回合自焚 5% 最大生命，换攻击永久 +8%（无限叠加）",
-                ChampionEpithet = "把自己当炉子的熔匠，血是铁水",
-                ChampionRewardText = "灵卵 +4、星币 +14、火抗灵魂 +1",
-                ChampionEggs = 4, ChampionCoins = 14,
+                Boon = "本域灵卵产出 ×1.5",
+                Champions = new[]
+                {
+                    new RealmChampionDef {
+                        Name = "赤髓", Epithet = "把自己当炉子的熔匠，血是铁水", HookId = "rc_bloodfury",
+                        MechanicText = "薪火：每回合自焚 5% 最大生命，换攻击永久 +8%（无限叠加）",
+                        RewardText = "灵卵 +5、火抗灵魂 +1", Eggs = 5 },
+                    new RealmChampionDef {
+                        Name = "灯奴", Epithet = "提着自己脑袋当灯笼的仆役", HookId = "rc_emberblade",
+                        MechanicText = "燃刃：它的攻击**被你格挡**一次，攻击就永久 +10% —— 一味防守是在喂它",
+                        RewardText = "灵卵 +6、火抗灵魂 +1", Eggs = 6 },
+                },
                 Rooms = new[] { "焦岩台", "熔痕谷", "灰烬海" },
                 Palette = "#5A2A20",
             },
             new RealmDef {
                 Id = RealmIds.Gear, Name = "机枢", Element = "金",
                 Concept = "废弃机关城，敌人有护盾与机械减伤",
-                Waves = 4, EnemyScale = 1.20f, StarRate = 1.3f,
+                Waves = 4, EnemyScale = 1.20f, EggRate = 1.3f,
                 MapCols = 5, MapRows = 5,
                 Hazard = RealmHazardKind.FoeShieldAll,
                 HazardShieldPct = 0.15f, HazardTurns = 2,
                 AppearFromAct = 3, Weight = 20,
                 PlayerSpeedMul = 0.90f,
                 // ⚠ "重铸技能""敌方多 1 只"都没有实现；改写为已生效的两条（场地护盾 + 减速）。
-                Boon = "星币结算 1.5 倍（撤离时 2 星币 = 1 灵卵）",
-                ChampionName = "校核者·零",
-                ChampionMechanicText = "过载校准：每 3 回合全体我方被标记（易伤），敌方全体获 15% 护盾",
-                ChampionEpithet = "机关城里最后一台还在按规程杀人的执法机",
-                ChampionRewardText = "灵卵 +4、星币 +16、金抗灵魂 +1",
-                ChampionEggs = 4, ChampionCoins = 16,
+                Boon = "本域灵卵产出 ×1.5",
+                Champions = new[]
+                {
+                    new RealmChampionDef {
+                        Name = "校核者·零", Epithet = "机关城里最后一台还在按规程杀人的执法机", HookId = "rc_overload",
+                        MechanicText = "过载校准：每 3 回合全体我方被标记（易伤），敌方全体获 15% 护盾",
+                        RewardText = "灵卵 +5、金抗灵魂 +1", Eggs = 5 },
+                    new RealmChampionDef {
+                        Name = "执行者·壹", Epithet = "被写错了一行代码，从此只执行处决", HookId = "rc_execute",
+                        MechanicText = "处决协议：每 4 回合锁定当前血量最低的我方 —— 锁定期间它对目标的伤害 ×2",
+                        RewardText = "灵卵 +7、金抗灵魂 +1", Eggs = 7 },
+                },
                 Rooms = new[] { "齿轮回廊", "校准间", "核心舱" },
                 Palette = "#3C4654",
             },
             new RealmDef {
                 Id = RealmIds.Silent, Name = "寂域", Element = "无",
                 Concept = "无声之地，禁止一切 QTE —— 纯数值硬仗",
-                Waves = 3, EnemyScale = 1.35f, StarRate = 1.8f,
+                Waves = 3, EnemyScale = 1.35f, EggRate = 1.8f,
                 MapCols = 5, MapRows = 5,
                 Hazard = RealmHazardKind.SelfShieldAll,
                 HazardShieldPct = 0.08f, HazardTurns = 3,
                 NoQte = true,
                 AppearFromAct = 4, Weight = 10,
                 PlayerSpeedMul = 0.85f,
-                Boon = "星币结算 1.8 倍（撤离时 2 星币 = 1 灵卵）",
-                ChampionName = "无声者",
-                ChampionMechanicText = "噤声：队伍灵力每回合归零 —— 战记/连携整场放不出来",
-                ChampionEpithet = "守着这片哑地的守墓人，吞掉了自己的名字",
-                ChampionRewardText = "灵卵 +5、星币 +20、无属性灵魂 +1",
-                ChampionEggs = 5, ChampionCoins = 20,
+                Boon = "本域灵卵产出 ×1.8",
+                Champions = new[]
+                {
+                    new RealmChampionDef {
+                        Name = "无声者", Epithet = "守着这片哑地的守墓人，吞掉了自己的名字", HookId = "rc_mute",
+                        MechanicText = "噤声：队伍灵力每回合归零 —— 战记/连携整场放不出来",
+                        RewardText = "灵卵 +6、无属性灵魂 +1", Eggs = 6 },
+                    new RealmChampionDef {
+                        Name = "哑钟", Epithet = "敲不响的钟，替这片地守夜", HookId = "rc_pendulum",
+                        MechanicText = "钟摆：奇数回合敌方全体攻击 +20%（受击也 +20%），偶数回合轮到我方 —— 挑回合出手",
+                        RewardText = "灵卵 +8、无属性灵魂 +1", Eggs = 8 },
+                },
                 Rooms = new[] { "无声回廊", "哑石庭", "终点" },
                 Palette = "#2B2530",
             },
             new RealmDef {
                 Id = RealmIds.Thorn, Name = "荆墟", Element = "木",
                 Concept = "赌坊型秘境：结算可加倍，但失败代价极高",
-                Waves = 2, EnemyScale = 1.60f, StarRate = 2.2f,
+                Waves = 2, EnemyScale = 1.60f, EggRate = 2.2f,
                 MapCols = 4, MapRows = 5,
                 Hazard = RealmHazardKind.None,
                 AppearFromAct = 2, Weight = 15,
-                Boon = "星币结算 2.2 倍（撤离时 2 星币 = 1 灵卵）",
-                ChampionName = "枯骨庄家",
-                ChampionMechanicText = "开赌：每回合开局掷骰，押中谁谁就被标记（易伤）",
-                ChampionEpithet = "坐庄的那个从来不下场，直到你自己走进来",
-                ChampionRewardText = "灵卵 +6、星币 +24、木抗灵魂 +1",
-                ChampionEggs = 6, ChampionCoins = 24,
-                // ★ 示例：**唯一**一个撤离有代价的场域（赌坊型，中途抽身要留下买路钱）。
-                //   用它演示"有的秘境撤离有惩罚"这条机制；其余场域默认免费撤离。
+                Boon = "本域灵卵产出 ×2.2",
+                Champions = new[]
+                {
+                    new RealmChampionDef {
+                        Name = "枯骨庄家", Epithet = "坐庄的那个从来不下场，直到你自己走进来", HookId = "rc_gamble",
+                        MechanicText = "开赌：每回合开局掷骰，押中谁谁就被标记（易伤）",
+                        RewardText = "灵卵 +7、木抗灵魂 +1", Eggs = 7 },
+                    new RealmChampionDef {
+                        Name = "荷官·蛊", Epithet = "手里永远有三张你没见过的牌", HookId = "rc_allin",
+                        MechanicText = "梭哈：它的血量每跌破一档（75/50/25%）就翻一次牌 —— 一半全队回血 12%，一半全队受 12% 真伤",
+                        RewardText = "灵卵 +9、木抗灵魂 +1", Eggs = 9 },
+                },
+                // ★ **唯一**一个撤离有代价的场域（赌坊型，中途抽身要留下买路钱）。
+                //   ⛔ 文案与实扣必须同时改：QuitPenaltyText 是给玩家看的，
+                //     QuitPenaltyEggs 才是真的会扣的数（RealmSession.ApplyQuitPenalty 读它）。
                 PenalizesOnQuit = true,
-                QuitPenaltyText =
-                    "荆墟不认中途离席：撤离将扣掉本局**已累积的全部星币**，且不得进入第 3 次秘境。\n" +
-                    "（秘境内已拿到的灵魂与遗物不受影响）",
+                QuitPenaltyText = "撤离要留下 3 枚灵卵买路钱（不足则全部拿走）",
+                QuitPenaltyEggs = 3,
                 Rooms = new[] { "荆门", "赌桌", "收账处" },
                 Palette = "#4A4330",
             },

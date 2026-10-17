@@ -105,11 +105,24 @@ namespace WanXiang.Editor.BattleTool
                 //   字符串可以随便写，字段必须真的被战斗/撤离读到。
                 if (r.PlayerSpeedMul >= 0.999f && !WanXiang.Campaign.RealmCatalog.PenalizesOnQuit(r))
                     Bad(sb, $"{r.Id} 没有任何**生效**的代价（PlayerSpeedMul=1 且撤离无惩罚）");
+                // ★ 镇守必须**恰好两名**（用户："只有一个太腻了"）且钩子 id 不重复
+                if (r.Champions == null || r.Champions.Length != 2)
+                    Bad(sb, $"{r.Id} 镇守数量 = {(r.Champions == null ? 0 : r.Champions.Length)} ≠ 2");
+                else
+                {
+                    if (string.IsNullOrEmpty(r.Champions[0].HookId) ||
+                        string.IsNullOrEmpty(r.Champions[1].HookId) ||
+                        r.Champions[0].HookId == r.Champions[1].HookId)
+                        Bad(sb, $"{r.Id} 镇守钩子 id 缺失或重复（两个镇守必须是两种打法）");
+                    foreach (var c in r.Champions)
+                        if (string.IsNullOrEmpty(c.MechanicText) || string.IsNullOrEmpty(c.RewardText))
+                            Bad(sb, $"{r.Id} 镇守 {c.Name} 缺机制/奖励说明（进战前必须让玩家看清）");
+                }
                 if (r.Rooms == null || r.Rooms.Length < 3) Bad(sb, $"{r.Id} 房间少于 3 个");
                 if (r.Waves < 1) Bad(sb, $"{r.Id} 波数 <1");
                 // ★ 强度上限：设计文档 5.2「最狠 1.6」，超过就不是加压而是劝退
                 if (r.EnemyScale > 1.65f) { Bad(sb, $"{r.Id} 强度 ×{r.EnemyScale} 超上限 1.60"); }
-                if (r.StarRate < 1f) Bad(sb, $"{r.Id} 产出倍率 <1（没有正反馈就没有吸引力）");
+                if (r.EggRate < 1f) Bad(sb, $"{r.Id} 灵卵产出倍率 <1（没有正反馈就没有吸引力）");
                 if (r.AppearFromAct < 2) Bad(sb, $"{r.Id} 第 1 幕就能出（玩家还没学会格挡）");
                 if (r.NoQte) noQte++;
                 if (r.Hazard == WanXiang.Campaign.RealmHazardKind.None) noHazard++;

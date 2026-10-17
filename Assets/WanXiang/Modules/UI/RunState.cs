@@ -213,9 +213,6 @@ namespace WanXiang.Run
         /// <summary>本局已清的波数（进秘境的第 N 场）。</summary>
         public int RealmWave = 0;
 
-/// <summary>本次秘境累积的星币（结算时换钱）。</summary>
-      public int RealmStarCoin = 0;
-
         /// <summary>
         /// 本次秘境里**已通过**的节点 offset（落印✕ / 连线实线只看它）。
         /// ⛔⛔ 秘境进度**只存在这里**，绝不写进 NodeOffset / VisitedNodes / PassedNodes ——

@@ -1091,19 +1091,19 @@ if (_tmpActTitle != null)
             if (run.RealmChampionRewarded.Contains(offset)) return;
             run.RealmChampionRewarded.Add(offset);
 
-            // ★ 2026-10-17：奖励改由**场域表**决定（每个域一个专属镇守 + 专属掉落），
-            //   不再用写死的 8+Act*2 —— 那样五个域打起来一模一样，没有"这一域有它自己的怪"。
+            // ★ 奖励由**镇守**决定 —— 与信息卡同一个 pick（同 offset + 同种子），
+            //   保证"看到的是谁，打的就是谁，掉的就是谁的那份"。
+            //   ⛔ 星币已删（它只是"灵卵+固定汇率"的中间步骤）——产出直接给灵卵，走 EggRate。
             var realm = WanXiang.Campaign.RealmCatalog.For(run.RealmId);
-            int coin = realm != null ? realm.ChampionCoins : 8 + run.Act * 2;
-            int eggs = realm != null ? realm.ChampionEggs : 3;
-            RealmSession.AddStarCoin(run, coin);
-            run.Eggs += eggs;
+            var champ = WanXiang.Campaign.RealmChampionPick.Pick(
+                realm, offset, RealmSession.RealmSeedFor(run));
+            int eggs = champ != null ? champ.Eggs : 3;
+            eggs = RealmSession.AddEggs(run, eggs);
             string soul = PickVaultSoul(run);
             if (!string.IsNullOrEmpty(soul)) run.Souls.Add(soul);
-            Debug.Log("[Campaign] 击败镇守「" + (realm != null ? realm.ChampionName : "?") +
-                      "」（第 " + (offset + 1) + " 格）：灵卵 +" + eggs + "、星币 +" + coin +
-                      "、灵魂 +1（" + soul + "）—— " +
-                      (realm != null ? realm.ChampionRewardText : "秘境专属奖励"));
+            Debug.Log("[Campaign] 击败镇守「" + (champ != null ? champ.Name : "?") +
+                      "」（第 " + (offset + 1) + " 格）：灵卵 +" + eggs + "、灵魂 +1（" + soul + "）—— " +
+                      (champ != null ? champ.RewardText : "秘境专属奖励"));
         }
 
 
@@ -1124,7 +1124,7 @@ if (_tmpActTitle != null)
                 int pick = await DialogPanel.Choose(
                     "秘藏",
                     "秘藏在幽深处静置已久。\n\n" +
-                    "· 取走它：星币 +" + coin + "、灵卵 +2、灵魂 +1\n" +
+                    "· 取走它：灵卵 +" + (coin + 2) + "、灵魂 +1\n" +
                     "· 或者把它献给铸魂台，换一次遗物三选一",
                     "取走", "换遗物");
 
@@ -1144,11 +1144,10 @@ if (_tmpActTitle != null)
                 }
                 else
                 {
-                    RealmSession.AddStarCoin(r, coin);
-                    r.Eggs += 2;
+                    RealmSession.AddEggs(r, coin + 2);
                     r.Souls.Add(PickVaultSoul(r));
                     WanXiang.Run.RunSave.SaveCurrent();
-                    Debug.Log("[Campaign] 秘藏：星币 +" + coin + "、灵卵 +2、灵魂 +1");
+                    Debug.Log("[Campaign] 秘藏：灵卵 +" + (coin + 2) + "、灵魂 +1");
                     var u = WanXiang.Framework.Boot.UIBootstrap.UI;
                     if (u != null) u.OpenAsync<CampaignPanel>(null).Forget();
                 }
@@ -1209,10 +1208,13 @@ if (_tmpActTitle != null)
                 // 秘境专属节点在图里要说清楚"它和外面不一样"，否则玩家不知道值不值得绕路
                 // ★ 镇守要写**名字 + 专属机制**（用户："特殊的敌人有一些特殊的战斗方式"），
                 //   只写"特殊敌人"玩家不知道特殊在哪，进去才发现被噤声/被拖走，观感是"被阴了"。
+                var __champ = kind == WanXiang.Campaign.NodeKind.RealmChampion
+                    ? WanXiang.Campaign.RealmChampionPick.Pick(
+                        realm, offset, RealmSession.RealmSeedFor(run)) : null;
                 string extra = kind == WanXiang.Campaign.NodeKind.RealmVault
                     ? "　（秘境专属 · 一次性重奖）"
                     : kind == WanXiang.Campaign.NodeKind.RealmChampion
-                        ? "　镇守 · " + (realm != null ? realm.ChampionName : "？")
+                        ? "　镇守 · " + (__champ != null ? __champ.Name : "？")
                         : (WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "　（战斗）" : "　（休整）");
                 _tmpNodeType.text = n + extra;
             }
@@ -1224,10 +1226,13 @@ if (_tmpActTitle != null)
                 else
                 {
                     // ★ 镇守格：把它的专属机制写在最上面 —— 这是玩家决定"打不打"的依据。
-                    string mech = kind == WanXiang.Campaign.NodeKind.RealmChampion &&
-                                  !string.IsNullOrEmpty(realm.ChampionMechanicText)
-                        ? "镇守 · " + realm.ChampionName + "：" + realm.ChampionMechanicText + "\n" +
-                          "击败必得：" + realm.ChampionRewardText + "\n"
+                    //   pick 与战斗请求同一公式（offset + 种子）⇒ 看到的 = 打到的。
+                    var __c = kind == WanXiang.Campaign.NodeKind.RealmChampion
+                        ? WanXiang.Campaign.RealmChampionPick.Pick(
+                            realm, offset, RealmSession.RealmSeedFor(run)) : null;
+                    string mech = __c != null
+                        ? "镇守 · " + __c.Name + "：" + __c.MechanicText + "\n" +
+                          "击败必得：" + __c.RewardText + "\n"
                         : "";
                     _tmpWeather.text =
                         mech +

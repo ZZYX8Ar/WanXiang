@@ -78,7 +78,6 @@ namespace WanXiang.Modules.UI
             run.InRealm = true;
         run.RealmId = realm.Id;
             run.RealmWave = 0;
- run.RealmStarCoin = 0;
   if (run.RealmCleared == null) run.RealmCleared = new System.Collections.Generic.List<int>();
   run.RealmCleared.Clear();      // 每次进秘境是全新一趟
             if (run.RealmChampionRewarded == null)
@@ -103,14 +102,10 @@ namespace WanXiang.Modules.UI
             ClearPlayerHazards(run);
 
             // ---- 1.5) 撤离代价（只有明确标了 PenalizesOnQuit 的场域才有）----
-            //   ⛔ 放在"还原快照"**之前**：代价动的是本次秘境的临时账（RealmStarCoin），
+            //   ⛔ 放在"还原快照"**之前**：代价动的是本次秘境的临时账（灵卵），
             //     与主线字段无关；放后面会和快照还原的语义混在一起，以后加新代价容易搞错顺序。
             ApplyQuitPenalty(run);
 
-            // ---- 1.6) 星币结算（走正常撤离/通关时把本次攒下的星币换成灵卵）----
-            //   ⚠ 必须在 ApplyQuitPenalty **之后**：荆墟的撤离代价就是清空星币，
-            //     先结算再罚，等于它的代价形同虚设。
-            SettleStarCoin(run);
 
             // ---- 2) 路线图快照还原（硬约束 ②）----
             if (snap != null)
@@ -128,8 +123,7 @@ namespace WanXiang.Modules.UI
             run.InRealm = false;
      run.RealmId = null;
     run.RealmWave = 0;
-            run.RealmStarCoin = 0;
-    if (run.RealmCleared != null) run.RealmCleared.Clear();
+            if (run.RealmCleared != null) run.RealmCleared.Clear();
     run.RealmCursor = -1;
             run.RealmSnapshot = null;
           return true;
@@ -163,11 +157,21 @@ namespace WanXiang.Modules.UI
             var realm = WanXiang.Campaign.RealmCatalog.For(run.RealmId);
             if (!WanXiang.Campaign.RealmCatalog.PenalizesOnQuit(realm)) return;
 
-            if (realm.Id == WanXiang.Campaign.RealmIds.Thorn && run.RealmStarCoin > 0)
-            {
-                UnityEngine.Debug.Log("[RealmSession] 荆墟撤离代价：清空本次累积星币 " + run.RealmStarCoin);
-                run.RealmStarCoin = 0;
-            }
+            // ⛔ 实扣字段（QuitPenaltyEggs）与文案（QuitPenaltyText）必须一起改 ——
+            //   只有文案没扣数，就是又一次"假代价"（本项目已经栽过）。
+            int cost = realm.QuitPenaltyEggs;
+            if (cost <= 0) return;
+            int paid = System.Math.Min(cost, run.Eggs);
+            run.Eggs -= paid;
+            UnityEngine.Debug.Log("[RealmSession] " + realm.Name + " 撤离代价：" +
+                                  QuitPenaltyText(realm) + "（实扣灵卵 " + paid + "）");
+        }
+
+        /// <summary>撤离代价的一句话（确认框与日志共用，别再各写一份）。</summary>
+        public static string QuitPenaltyText(WanXiang.Campaign.RealmDef realm)
+        {
+            return realm != null && !string.IsNullOrEmpty(realm.QuitPenaltyText)
+                ? realm.QuitPenaltyText : "（无）";
         }
 
         /// <summary>掉线保护：读档时若 InRealm 为真则强制退出（不卡在"半个秘境"）。</summary>
@@ -264,41 +268,20 @@ namespace WanXiang.Modules.UI
             return r != null && r.NoQte;
         }
 
-        /// <summary>1 枚灵卵 = 多少星币（一处调参）。</summary>
-        public const int COIN_PER_EGG = 2;
-
         /// <summary>
-        /// 结算本次秘境累积的星币 → 灵卵（撤离/通关时各调一次）。
-        /// <para>⭐⭐ 2026-10-17 用户问："这个秘境里面的星币是干什么的啊"。
-        ///   查下来它**原来根本没有用途**：`AddStarCoin` 只是在累加，
-        ///   而 `Exit` 里直接 `RealmStarCoin = 0` —— 打了一整趟，数字攒了一堆，出门清零，
-        ///   玩家当然不知道它是干什么的。</para>
-        /// <para>现在它有明确出口：<b>撤离时按 2 星币 = 1 灵卵折算</b>。
-        ///   于是"星币结算 1.5 倍"这条收益也终于有了意义，荆墟的"撤离清空星币"
-        ///   也变成了一条能看懂的代价（= 丢掉还没兑现的灵卵）。</para>
+        /// 打完一场给灵卵（按场域 <c>EggRate</c> 倍率）。
+        /// <para>⛔ 星币已删（2026-10-17 用户拍板）：它只是"灵卵 + 固定汇率"的中间步骤 ——
+        ///   玩家要多记一个数字、多算一次除法，收益为零。产出直接给灵卵，
+        ///   场域收益文案也随之变成"本域灵卵产出 ×N"。</para>
         /// </summary>
-        public static int SettleStarCoin(WanXiang.Run.RunState run)
-        {
-            if (run == null) return 0;
-            int coin = run.RealmStarCoin;
-            if (coin <= 0) return 0;
-            int eggs = coin / COIN_PER_EGG;
-            if (eggs > 0) run.Eggs += eggs;
-            UnityEngine.Debug.Log("[RealmSession] 星币结算：" + coin + " 星币 → 灵卵 +" + eggs +
-                                  "（不足 " + COIN_PER_EGG + " 的零头不折算）");
-            run.RealmStarCoin = 0;
-            return eggs;
-        }
-
-        /// <summary>打完一场加星币（按场域倍率）。</summary>
-        public static int AddStarCoin(WanXiang.Run.RunState run, int baseCoin)
+        public static int AddEggs(WanXiang.Run.RunState run, int baseEggs)
         {
             if (run == null || !run.InRealm) return 0;
             var r = WanXiang.Campaign.RealmCatalog.For(run.RealmId);
-            float rate = r != null ? r.StarRate : 1f;
-            int add = (int)(baseCoin * rate);
+            float rate = r != null ? r.EggRate : 1f;
+            int add = WanXiang.Battle.Core.CoreMath.RoundDamage(baseEggs * rate);
             if (add < 1) add = 1;                    // 至少给 1：正反馈要早出现
-            run.RealmStarCoin += add;
+            run.Eggs += add;
             run.RealmWave++;
             return add;
         }

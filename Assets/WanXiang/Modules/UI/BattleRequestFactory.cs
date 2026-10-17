@@ -129,10 +129,16 @@ namespace WanXiang.Modules.UI
             else
                 UnityEngine.Debug.Log("[Weather] 本场无天时（旧行为）");
 
-            // ★ 镇守战标记：供 BattlePlayback 挂载该场域的镇守专属机制
-            //   （泽殍沉沦 / 赤髓薪火 / 校核者过载 / 无声者噤声 / 庄家开赌）。
-            req.RealmChampion = champion;
-            req.RealmId = (run != null && run.InRealm) ? run.RealmId : null;
+            // ★ 镇守战：按**节点种子**从该场域的两名镇守里定一个 ——
+            //   信息卡（CampaignPanel）用同一公式，保证"看到的"和"打到的"是同一个。
+            //   （泽殍/涡姆、赤髓/灯奴、校核者·零/执行者·壹、无声者/哑钟、枯骨庄家/荷官·蛊）
+            if (champion && run != null && run.InRealm)
+            {
+                var __rl = WanXiang.Campaign.RealmCatalog.For(run.RealmId);
+                var __pick = WanXiang.Campaign.RealmChampionPick.Pick(
+                    __rl, term, WanXiang.Modules.UI.RealmSession.RealmSeedFor(run));
+                req.RealmChampionHookId = __pick != null ? __pick.HookId : null;
+            }
 
             // ★★ 秘境战斗：**不吃天时**（天时是天穹历法的产物，秘境在历法之外）。
             //   顶部横幅那行改成"场地"——把这场战斗里**真实生效**的场域危害讲清楚。

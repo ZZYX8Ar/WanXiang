@@ -27,29 +27,25 @@ namespace WanXiang.Battle.Core
         private const string Silent = "realm_silent";  // 寂域
         private const string Thorn  = "realm_thorn";   // 荆墟
 
-        public static void Attach(BattleState st, string realmId)
+        /// <summary>按镇守的 <c>HookId</c>（rc_*，来自 <c>RealmChampionDef</c>）挂机制。</summary>
+        public static void Attach(BattleState st, string hookId)
         {
-            if (st == null || string.IsNullOrEmpty(realmId)) return;
+            if (st == null || string.IsNullOrEmpty(hookId)) return;
             var boss = StrongestEnemy(st);
             if (boss == null) return;
 
-            switch (realmId)
+            switch (hookId)
             {
-                case Marsh:
-                    st.Hooks.Add(new ChampionDrownHook());          // 沉沦：专拖你最快的
-                    break;
-                case Ember:
-                    st.Hooks.Add(new ChampionBloodFuryHook(boss));  // 薪火：烧自己换攻击
-                    break;
-                case Gear:
-                    st.Hooks.Add(new ChampionOverloadHook(boss));   // 过载校准：周期性全体标记+护盾
-                    break;
-                case Silent:
-                    st.Hooks.Add(new ChampionMuteHook());           // 噤声：队伍灵力恒为 0
-                    break;
-                case Thorn:
-                    st.Hooks.Add(new ChampionGambleHook());         // 开赌：每回合押一边
-                    break;
+                case "rc_drown":      st.Hooks.Add(new ChampionDrownHook());      break; // 苍泽·泽殍
+                case "rc_tide":       st.Hooks.Add(new ChampionTideHook(boss));   break; // 苍泽·涡姆
+                case "rc_bloodfury":  st.Hooks.Add(new ChampionBloodFuryHook(boss)); break; // 烬岭·赤髓
+                case "rc_emberblade": st.Hooks.Add(new ChampionEmberBladeHook(boss)); break; // 烬岭·灯奴
+                case "rc_overload":   st.Hooks.Add(new ChampionOverloadHook(boss)); break; // 机枢·校核者·零
+                case "rc_execute":    st.Hooks.Add(new ChampionExecuteHook(boss)); break; // 机枢·执行者·壹
+                case "rc_mute":       st.Hooks.Add(new ChampionMuteHook());       break; // 寂域·无声者
+                case "rc_pendulum":   st.Hooks.Add(new ChampionPendulumHook());   break; // 寂域·哑钟
+                case "rc_gamble":     st.Hooks.Add(new ChampionGambleHook());     break; // 荆墟·枯骨庄家
+                case "rc_allin":      st.Hooks.Add(new ChampionAllInHook(boss));  break; // 荆墟·荷官·蛊
             }
         }
 
@@ -211,6 +207,205 @@ namespace WanXiang.Battle.Core
                        note: playerWins
                            ? "枯骨庄家·开赌：这一局押你赢 —— 敌方 " + n + " 人被标记（受击 +25%）"
                            : "枯骨庄家·开赌：这一局押你输 —— 我方 " + n + " 人被标记（受击 +25%）");
+        }
+    }
+    // ========================================================================
+    //  苍泽 · 涡姆 ——「潮讯」（第二镇守）
+    //  每回合全体我方 +1「湿」（上限 4），湿层越高它的水击越疼；
+    //  **完美格挡一次清全场 1 层湿** —— 把"格挡手感"变成解场手段。
+    // ========================================================================
+    public sealed class ChampionTideHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        public ChampionTideHook(BattleUnit boss) { _boss = boss; }
+
+        public override void OnTurnEnd(BattleState st)
+        {
+            var list = st.UnitsOf(TeamSide.Player);
+            int n = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (u == null || !u.IsAlive) continue;
+                if (u.GetStacks(StatusCatalog.Wet) < 4) { u.ApplyStatus(StatusCatalog.Wet, 1, 99); n++; }
+            }
+            if (n > 0)
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: _boss != null ? _boss.RuntimeId : null,
+                           note: "涡姆·潮讯：我方 " + n + " 人涨潮 +1 层「湿」");
+        }
+
+        public override void ModifyIncoming(BattleState st, BattleUnit src, BattleUnit dst,
+                                            ref int dmg, Element el)
+        {
+            if (src != _boss || dmg <= 0 || dst == null) return;
+            int wet = dst.GetStacks(StatusCatalog.Wet);
+            if (wet <= 0) return;
+            dmg = CoreMath.RoundDamage(dmg * (1f + 0.10f * wet));   // 目标越湿打得越疼
+        }
+
+        public override void OnDamageDealt(BattleState st, BattleUnit src, BattleUnit dst,
+                                           int dmg, int dealt, bool trueDmg)
+        {
+            // ★ 完美格挡解场：只认 Guard 窗口的 Perfect（终结技/连携的 Perfect 不算）
+            if (dst == null || dst.Side != TeamSide.Player) return;
+            if (st.ParriedGrade != ParryGrade.Perfect || st.ParryQteKind != ParryQteKind.Guard) return;
+
+            var list = st.UnitsOf(TeamSide.Player);
+            int cleared = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (u == null || !u.IsAlive) continue;
+                if (u.RemoveStatusStacks(StatusCatalog.Wet, 1) > 0) cleared++;
+            }
+            if (cleared > 0)
+                st.Log.Add(st.Turn, BattleEventKind.StatusRemoved, targetId: dst.RuntimeId,
+                           note: "涡姆·潮讯：完美格挡荡开潮水 —— 我方 " + cleared + " 人 -1 层「湿」");
+        }
+    }
+
+    // ========================================================================
+    //  烬岭 · 灯奴 ——「燃刃」（第二镇守）
+    //  它的攻击**被你格挡**一次，攻击永久 +10%（无限叠）。
+    //  ⇒ 一味防守是在喂它 —— 这是把 QTE 的"安全感"反过来当资源。
+    // ========================================================================
+    public sealed class ChampionEmberBladeHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private int _stacks;
+        public ChampionEmberBladeHook(BattleUnit boss) { _boss = boss; }
+
+        public override void OnDamageDealt(BattleState st, BattleUnit src, BattleUnit dst,
+                                           int dmg, int dealt, bool trueDmg)
+        {
+            if (src != _boss || dst == null || dst.Side != TeamSide.Player) return;
+            if (st.ParryQteKind != ParryQteKind.Guard || st.ParriedGrade == ParryGrade.None) return;
+            _stacks++;
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: _boss.RuntimeId,
+                       note: "灯奴·燃刃：被格挡一次 —— 攻击永久 +" + (_stacks * 10) + "%（第 " + _stacks + " 层）");
+        }
+
+        public override void ModifyIncoming(BattleState st, BattleUnit src, BattleUnit dst,
+                                            ref int dmg, Element el)
+        {
+            if (src != _boss || _stacks <= 0 || dmg <= 0) return;
+            dmg = CoreMath.RoundDamage(dmg * (1f + 0.10f * _stacks));
+        }
+    }
+
+    // ========================================================================
+    //  机枢 · 执行者·壹 ——「处决协议」（第二镇守）
+    //  每 4 回合锁定**当前血量最低**的我方；锁定期间它对目标的伤害 ×2。
+    //  ⇒ 队里的残血单位变成负债 —— 逼你在"保排"和"换人"之间做真选择。
+    // ========================================================================
+    public sealed class ChampionExecuteHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private BattleUnit _locked;
+        public ChampionExecuteHook(BattleUnit boss) { _boss = boss; }
+
+        public override void OnTurnEnd(BattleState st)
+        {
+            if (st.Turn % 4 != 0) return;
+            var list = st.UnitsOf(TeamSide.Player);
+            BattleUnit lowest = null;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (u == null || !u.IsAlive) continue;
+                if (lowest == null || u.Hp < lowest.Hp) lowest = u;
+            }
+            _locked = lowest;
+            if (_locked != null)
+            {
+                _locked.ApplyStatus(StatusCatalog.Marked, 2, 4);
+                st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: _boss.RuntimeId,
+                           targetId: _locked.RuntimeId,
+                           note: "执行者·壹·处决协议：锁定 " + _locked.DisplayName +
+                                 "（血量最低）—— 锁定期间它对目标的伤害 ×2");
+            }
+        }
+
+        public override void ModifyIncoming(BattleState st, BattleUnit src, BattleUnit dst,
+                                            ref int dmg, Element el)
+        {
+            if (src != _boss || _locked == null || dst != _locked || dmg <= 0) return;
+            dmg = CoreMath.RoundDamage(dmg * 2f);
+        }
+    }
+
+    // ========================================================================
+    //  寂域 · 哑钟 ——「钟摆」（第二镇守）
+    //  奇数回合敌方全体攻击 +20%（受击也 +20%），偶数回合轮到我方。
+    //  ⇒ 与"无声者·噤声"（抽资源）不同轴：这是**节奏窗口** —— 挑回合出手。
+    // ========================================================================
+    public sealed class ChampionPendulumHook : BattleHook
+    {
+        private bool _enemySwing = true;
+
+        public override void OnTurnStart(BattleState st)
+        {
+            _enemySwing = (st.Turn % 2 == 1);
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                       note: _enemySwing
+                           ? "哑钟·钟摆：敌势（敌方全体攻击 +20%，受击也 +20%）—— 本回合防守"
+                           : "哑钟·钟摆：我势（我方全体攻击 +20%，受击也 +20%）—— 本回合进攻");
+        }
+
+        public override void ModifyIncoming(BattleState st, BattleUnit src, BattleUnit dst,
+                                            ref int dmg, Element el)
+        {
+            if (src == null || dmg <= 0) return;
+            if (src.Side == TeamSide.Enemy && _enemySwing) dmg = CoreMath.RoundDamage(dmg * 1.2f);
+            else if (src.Side == TeamSide.Player && !_enemySwing) dmg = CoreMath.RoundDamage(dmg * 1.2f);
+        }
+    }
+
+    // ========================================================================
+    //  荆墟 · 荷官·蛊 ——「梭哈」（第二镇守）
+    //  它的血量每跌破一档（75/50/25%）翻一次牌：50% 全队回血 12%，50% 全队受 12% 真伤。
+    //  ⇒ 与"枯骨庄家·开赌"（每回合）不同轴：这是**按血量触发的赌局**，且双方都能赢。
+    // ========================================================================
+    public sealed class ChampionAllInHook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private float _next = 0.75f;
+        public ChampionAllInHook(BattleUnit boss) { _boss = boss; }
+
+        public override void OnTurnEnd(BattleState st)
+        {
+            if (_boss == null || !_boss.IsAlive) return;
+            if (_next <= 0.01f) return;
+            if (_boss.Hp > _boss.MaxHp * _next) return;
+
+            _next -= 0.25f;
+            bool playerWins = (st.Random.NextInt(0, 2) == 0);
+            var side = playerWins ? TeamSide.Player : TeamSide.Player;   // 结果都落在我方身上
+            var list = st.UnitsOf(TeamSide.Player);
+            int hit = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (u == null || !u.IsAlive) continue;
+                if (playerWins)
+                {
+                    int h = u.Heal(CoreMath.RoundDamage(u.MaxHp * 0.12f));
+                    if (h > 0) hit++;
+                }
+                else
+                {
+                    int dmg = CoreMath.RoundDamage(u.MaxHp * 0.12f);
+                    int dealt = u.TakeDamage(dmg);
+                    if (dealt > 0 && !u.IsAlive)
+                        st.Log.Add(st.Turn, BattleEventKind.Death, targetId: u.RuntimeId,
+                                   note: u.DisplayName + " 死于荷官·蛊的翻牌");
+                    hit++;
+                }
+            }
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: _boss.RuntimeId,
+                       note: playerWins
+                           ? "荷官·蛊·梭哈：翻出「赏」—— 我方 " + hit + " 人回血 12%"
+                           : "荷官·蛊·梭哈：翻出「罚」—— 我方 " + hit + " 人受 12% 最大生命真伤");
         }
     }
 }

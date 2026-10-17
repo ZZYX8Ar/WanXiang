@@ -36,11 +36,11 @@ namespace WanXiang.Modules.UI
         /// 秘境场域给我方的**速度乘数**（1 = 不变）。这是"场域代价"真正生效的载体。
         /// <para>⚠ 非秘境战斗恒为 1 ⇒ 逐位不变（可复现性红线）。</para>
         /// </summary>
-        /// <summary>本场是否为**镇守**（秘境专属精英）。为真时挂载该场域的镇守专属机制。</summary>
-        public bool RealmChampion;
-
-        /// <summary>本场所属场域 id（不在秘境 = null）。供镇守机制挂载用。</summary>
-        public string RealmId;
+        /// <summary>
+        /// 本场镇守的机制钩子 id（rc_*，null = 不是镇守战）。
+        /// 由 <c>RealmChampionPick.Pick</c> 按节点种子定 —— 信息卡与战斗看到的是**同一个**镇守。
+        /// </summary>
+        public string RealmChampionHookId;
 
         public float RealmSpeedMulPlayer = 1f;
         public ulong Seed = 20260914UL;
@@ -221,8 +221,8 @@ namespace WanXiang.Modules.UI
 
             // ★★ 镇守专属机制（2026-10-17）：常规战斗体现不了的打法，只在镇守战出现。
             //   ⚠ 在 Create 之后挂 —— 与 BossCatalog.AttachAllBossHooks 同一时机。
-            if (req.RealmChampion && !string.IsNullOrEmpty(req.RealmId))
-                WanXiang.Battle.Core.RealmChampionMechanics.Attach(State, req.RealmId);
+            if (!string.IsNullOrEmpty(req.RealmChampionHookId))
+                WanXiang.Battle.Core.RealmChampionMechanics.Attach(State, req.RealmChampionHookId);
 
             // ★ 遗物「开局灵力」：战斗开始即把 TeamMp 抬上去（更早放出战记/连携）。
             if (req.PlayerStartMana > 0)
