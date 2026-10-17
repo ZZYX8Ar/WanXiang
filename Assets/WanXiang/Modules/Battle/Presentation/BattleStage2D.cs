@@ -27,7 +27,7 @@ using WanXiang.Battle.Core;
 
 namespace WanXiang.Battle.Presentation
 {
-    internal sealed class UnitView2D
+    public sealed class UnitView2D
     {
         public string UnitId;
         public GameObject Root;        // 立绘容器
@@ -53,6 +53,16 @@ namespace WanXiang.Battle.Presentation
         /// <summary>起手预警（2026-10-16 FoeKit）：敌人头顶的谱系色块文字。与 Hint 分开建，
         /// 因为它要**按谱系换颜色**且生命周期独立（每次出招闪一下就消失）。</summary>
         public TextMesh Telegraph;
+
+        // ---- 破绽 / 失衡条（2026-10-17，设计文档第 4 章的 UI 落点）----
+        /// <summary>破绽/失衡条（底 + 填充）。挂在 HP 条正下方，与它同一套本地坐标系。</summary>
+        public SpriteRenderer FlawBg;
+        public SpriteRenderer FlawFill;
+        /// <summary>条上方的文字（"破绽·焰心　1/3" / 失衡时 "失衡 ×1.8　剩 2 回合"）。
+        /// ⛔ 挂 root 而不是条底下（同 ShieldText 的教训：底板若带缩放会把字一起放大）。</summary>
+        public TextMesh FlawLabel;
+        /// <summary>已显示的文本（变了才写，TextMesh.text 写入会触发网格重建）。</summary>
+        public string FlawShownText;
         public int Hp, MaxHp;
         public bool Alive = true;
         public Vector2 HomePos;        // 站位（未加浮动）
@@ -149,6 +159,20 @@ namespace WanXiang.Battle.Presentation
         public float HpBarY = 2.35f;
         /// <summary>血条满宽（世界单位）。</summary>
         public float HpBarWidth = 3.40f;
+
+        [Header("破绽/失衡条（2026-10-17，挂 HP 条正下方）")]
+        [Tooltip("条高（世界单位）")]
+        public float FlawBarHeight = 0.34f;
+        [Tooltip("条上文字与条顶的间距")]
+        public float FlawLabelRaise = 0.20f;
+        [Tooltip("破绽进度条填充色（青——状态引信的中性冷色）")]
+        public Color FlawFillColor = new Color(0.42f, 0.78f, 0.74f, 1f);
+        [Tooltip("失衡条填充色（金——失衡是玩家最该盯的窗口）")]
+        public Color FlawStaggerColor = new Color(1.00f, 0.76f, 0.28f, 1f);
+        [Tooltip("条底色（与 HP 条底同调）")]
+        public Color FlawBackColor = new Color(0.10f, 0.08f, 0.06f, 1f);
+        [Tooltip("条上文字色（纸白——文字压在深色底板上，任何立绘前都读得清）")]
+        public Color FlawLabelColor = new Color(0.93f, 0.90f, 0.82f, 1f);
         /// <summary>血条底衬高（世界单位）。</summary>
         public float HpBarBackHeight = 0.72f;
         /// <summary>名字字号（TextMesh.characterSize）。</summary>
@@ -1247,6 +1271,42 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 view.Telegraph.alignment = TextAlignment.Center;
                 view.Telegraph.color = TelegraphColor;
 
+                // ---- 破绽 / 失衡条（2026-10-17）----
+                //  挂在 **HP 条正下方**（同一套 root 本地坐标，缩放行为一致）。
+                //  数据一律来自帧流（UnitSnapshot.FlawText / FlawProgress / UnbalancedTurns）。
+                //  平时隐藏；出现破绽进度后显示青色条；进入失衡整条变金并显示剩余回合。
+                {
+                    float flawY = HpBarY - 0.52f;                    // HP 条正下方（含 0.72 高的间隙）
+                    view.FlawBg = MakeChildSprite(root, "FlawBg", FlawBackColor,
+                                                  new Vector2(HpBarWidth, FlawBarHeight),
+                                                  new Vector2(0f, flawY), 4);
+                    view.FlawFill = MakeChildSprite(root, "FlawFill", FlawFillColor,
+                                                    new Vector2(HpBarWidth - 0.06f, FlawBarHeight - 0.05f),
+                                                    new Vector2(0f, flawY), 5);
+                    var flGo = new GameObject("FlawLabel");
+                    flGo.transform.SetParent(root.transform, false);  // ⛔ 挂 root，不挂条
+                    // ⚠ 文字画在**条内**（居中、亮字）：条浮在立绘身上，深浅不定，
+                    //   "条上留白放深字"会被深色立绘吃掉（实测赤魃身上看不见）；
+                    //   底板是深色(0.10,0.08,0.06)，亮字压上去任何立绘前都读得清。
+                    flGo.transform.localPosition = new Vector3(0f, flawY + FlawBarHeight * 0.5f, -0.02f);
+                    view.FlawLabel = flGo.AddComponent<TextMesh>();
+                    if (f != null)
+                    {
+                        view.FlawLabel.font = f;
+                        flGo.GetComponent<MeshRenderer>().sharedMaterial = f.material;
+                    }
+                    view.FlawLabel.text = "";
+                    view.FlawLabel.characterSize = 0.062f * Mathf.Max(0.01f, HintSize);
+                    view.FlawLabel.fontSize = 48;
+                    view.FlawLabel.anchor = TextAnchor.MiddleCenter;
+                    view.FlawLabel.alignment = TextAlignment.Center;
+                    view.FlawLabel.color = FlawLabelColor;
+                    // ⛔ TextMesh 默认 sortingOrder=0，会被条(bg=4/fill=5)盖住 —— 实测文字完全不可见。
+                    //   提到 6（条之上），文字才算"写在条上"。
+                    flGo.GetComponent<MeshRenderer>().sortingOrder = 6;
+                    SetFlawBar2D(view, "", -1f, 0);                  // 初始收起
+                }
+
                 int h2 = u.RuntimeId != null ? u.RuntimeId.GetHashCode() : i * 7919;
                 view.Phase = (Mathf.Abs(h2) % 1000) / 1000f * Mathf.PI * 2f;
 
@@ -1453,6 +1513,11 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 v.Hp = s.Hp; v.MaxHp = s.MaxHp;
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 SetShield2D(v, s.Shield);
+                // ---- 破绽/失衡条：随帧流更新（死亡清空）----
+                SetFlawBar2D(v,
+                             s.Alive ? (s.FlawText ?? "") : "",
+                             s.Alive ? s.FlawProgress : -1f,
+                             s.Alive ? s.UnbalancedTurns : 0);
                 SetOverlay2D(v, s.Alive ? s.StatusIds : null);   // 阵亡不挂状态外观
                 if (v.Alive && !s.Alive) v.DeadBlend = 0f;
                 v.Alive = s.Alive;
@@ -2059,6 +2124,52 @@ if (life < 0.2f) life = 0.2f;
     }
 
         /// <summary>血条按比例伸缩。<paramref name="v"/> 的填充宽度 = <see cref="HpBarWidth"/>（可在 Inspector 调）。</summary>
+        /// <summary>
+        /// 破绽/失衡条（2026-10-17）。三态：
+        ///   progress &lt; 0 且未失衡 → 整条隐藏；破绽进度 → 青色条 + "破绽·X N/M"；
+        ///   失衡 → **整条变金** + "失衡 ×倍率　剩 N 回合"（失衡是玩家最该盯的状态，视觉权重最高）。
+        /// 填充的缩放/左对齐补偿与 <see cref="SetHpBar2D"/> 同一套（尺寸烘在 sprite 里，别再乘宽度）。
+        /// </summary>
+        private void SetFlawBar2D(UnitView2D v, string text, float progress, int unbalanced)
+        {
+            if (v.FlawBg == null || v.FlawFill == null || v.FlawLabel == null) return;
+            bool staggered = unbalanced > 0;
+            bool show = staggered || progress >= 0f;
+
+            if (!show)
+            {
+                if (v.FlawBg.gameObject.activeSelf) v.FlawBg.gameObject.SetActive(false);
+                if (v.FlawFill.gameObject.activeSelf) v.FlawFill.gameObject.SetActive(false);
+                if (v.FlawLabel.gameObject.activeSelf) v.FlawLabel.gameObject.SetActive(false);
+                v.FlawShownText = text;
+                return;
+            }
+
+            if (!v.FlawBg.gameObject.activeSelf) v.FlawBg.gameObject.SetActive(true);
+            if (!v.FlawFill.gameObject.activeSelf) v.FlawFill.gameObject.SetActive(true);
+            if (!v.FlawLabel.gameObject.activeSelf) v.FlawLabel.gameObject.SetActive(true);
+
+            if (v.FlawLabel.text != text) v.FlawLabel.text = text;
+
+            if (staggered)
+            {
+                if (v.FlawFill.color != FlawStaggerColor) v.FlawFill.color = FlawStaggerColor;
+                float full = Mathf.Max(0.05f, HpBarWidth - 0.06f);
+                var t = v.FlawFill.transform;
+                t.localScale = new Vector3(1f, 1f, 1f);
+                t.localPosition = new Vector3(0f, t.localPosition.y, t.localPosition.z);
+            }
+            else
+            {
+                if (v.FlawFill.color != FlawFillColor) v.FlawFill.color = FlawFillColor;
+                float ratio = Mathf.Clamp01(progress);
+                float full = Mathf.Max(0.05f, HpBarWidth - 0.06f);
+                var t = v.FlawFill.transform;
+                t.localScale = new Vector3(ratio, 1f, 1f);
+                t.localPosition = new Vector3(-(full - full * ratio) * 0.5f, t.localPosition.y, t.localPosition.z);
+            }
+        }
+
         private void SetHpBar2D(UnitView2D v, int hp, int max)
         {
             if (v.HpFill == null || max <= 0) return;

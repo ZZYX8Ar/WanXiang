@@ -239,7 +239,8 @@ namespace WanXiang.Battle.Core
             return kit != null && kit.UnbalancedTurns > 0 ? kit.UnbalancedTurns : 2;
         }
 
-        private static string FlawNameOf(BattleUnit u)
+        /// <summary>破绽名（"焰心"/"逆鳞"…）。公开给帧流快照（ViewSnapshot）拼"破绽·X N/M"用。</summary>
+        public static string FlawNameOf(BattleUnit u)
         {
             var kit = FoeRules.For(u.Def != null ? u.Def.Id : null);
             return kit != null && !string.IsNullOrEmpty(kit.FlawName) ? kit.FlawName : "破绽";

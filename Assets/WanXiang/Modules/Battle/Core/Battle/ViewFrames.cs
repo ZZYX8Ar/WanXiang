@@ -73,6 +73,20 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public string FoeTelegraph;
 
+        /// <summary>
+        /// 破绽/失衡条（2026-10-17）：设计文档第 4 章的 UI 落点。
+        /// <para>文本形如「破绽·焰心　1/3」；失衡时变成「失衡 ×1.8　剩 2 回合」。空串 = 无破绽不显示。</para>
+        /// ⚠ 与 StateHint 同纪律：内容一律来自帧流，表现层不许直接读 state 里的单位
+        ///   （自动模式 state 是终局态、手动模式是分片推进）。
+        /// </summary>
+        public string FlawText;
+
+        /// <summary>破绽进度 0~1（条的填充）。&lt;0 = 不显示条。</summary>
+        public float FlawProgress;
+
+        /// <summary>&gt;0 = 正在失衡（剩余回合数）。此时条变金色并显示剩余回合。</summary>
+        public int UnbalancedTurns;
+
         public float HpRatio => MaxHp <= 0 ? 0f : (float)Hp / MaxHp;
         public int Cd(int slot) => slot == 0 ? Cd0 : (slot == 1 ? Cd1 : Cd2);
 
@@ -86,6 +100,9 @@ namespace WanXiang.Battle.Core
                 && StatusIds == o.StatusIds
                 && StateHint == o.StateHint
                 && FoeTelegraph == o.FoeTelegraph
+                && FlawText == o.FlawText
+                && FlawProgress == o.FlawProgress
+                && UnbalancedTurns == o.UnbalancedTurns
                 && ResonanceBonus == o.ResonanceBonus
                 && Element == o.Element;
         }
@@ -103,6 +120,8 @@ namespace WanXiang.Battle.Core
                 h = h * 31 + (int)Element;
                 h = h * 31 + (StateHint != null ? StateHint.Length : 0);
                 h = h * 31 + (StatusIds != null ? StatusIds.Length : 0);
+                h = h * 31 + UnbalancedTurns;
+                h = h * 31 + (FlawText != null ? FlawText.Length : 0);
                 return h;
             }
         }
@@ -146,7 +165,33 @@ namespace WanXiang.Battle.Core
                 FoeTelegraph = u.FoeTelegraph,
                 ResonanceBonus = u.ResonanceAttackBonus,
             };
+            s.FlawText = BuildFlawText(u, out float prog, out int ub);
+            s.FlawProgress = prog;
+            s.UnbalancedTurns = ub;
             return s;
+        }
+
+        /// <summary>
+        /// 破绽/失衡条的文案与进度（2026-10-17）。
+        /// ⛔ 语义必须与 <see cref="FoeKitRuntime"/> 的结算一致：失衡优先显示（此时破绽已清零）；
+        ///   破绽只在 progress &gt; 0 后显示 —— 0/N 的条没有信息量，只会给画面添噪声。
+        /// </summary>
+        private static string BuildFlawText(BattleUnit u, out float progress, out int unbalanced)
+        {
+            unbalanced = u.FoeUnbalancedTurns;
+            if (unbalanced > 0)
+            {
+                progress = 1f;
+                return "失衡 ×" + u.FoeUnbalancedMul.ToString("0.0#") + "　剩 " + unbalanced + " 回合";
+            }
+
+            bool hasFlaw = u.FoeFlawTrigger != FoeFlawTrigger.None && u.FoeFlawNeed > 0;
+            if (!hasFlaw || u.FoeFlawProgress <= 0) { progress = -1f; return ""; }
+
+            // ⛔ 本程序集**不引 UnityEngine**（纯 C#，离线可跑）—— 手写 Clamp01。
+            float raw = (float)u.FoeFlawProgress / u.FoeFlawNeed;
+            progress = raw < 0f ? 0f : (raw > 1f ? 1f : raw);
+            return "破绽·" + FoeKitRuntime.FlawNameOf(u) + "　" + u.FoeFlawProgress + "/" + u.FoeFlawNeed;
         }
 
         public static string DescribeStatuses(BattleUnit u)
