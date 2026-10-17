@@ -241,7 +241,7 @@ protected override UniTask OnOpenAsync(object payload)
             //   免得两处各写一遍、行为还不一致。是否已播记在存档 RunState.IntroShownAct。
             // ⚠ 彩排（GhostSilent，见 UIPanelBase.GhostSilent）时整块跳过：
             //   开场是"真进图"的标志性演出，记账/触发/播音都不该在彩排里发生。
-            if (!UIPanelBase.GhostSilent)
+            if (!UIPanelBase.GhostSilent && !_realmMode)   // ⛔ 秘境里不播主线的"第N幕"开场 —— 那是另一套世界
             {
                 var introRun = WanXiang.Run.RunSave.Current;
                 int introAct = introRun != null ? introRun.Act : 1;
@@ -746,6 +746,23 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
     //   秘境图与主线图**同为 ActGraph**，所以这一句就完成了"复用现成节点地图"。
       var injected = _realmGraphPayload;
         _realmGraphPayload = null;          // ⚠ 用完清掉：面板复用，别把旧图带进下一次正常打开
+
+        // ★★ 自愈（2026-10-17 用户实测）：编队/战斗/灵市/孵穴…这些面板返回时都只写了
+        //   `OpenAsync<CampaignPanel>()`，**不带秘境图** ⇒ 面板按主线重开，直接把人踢出秘境。
+        //   靠每个调用方记得"顺手带上秘境图"迟早会漏（已经有五个面板了），
+        //   所以改成在这里按存档自愈：InRealm 就重建秘境图。
+if (injected == null && run != null && run.InRealm)
+       {
+        var __rl = WanXiang.Campaign.RealmCatalog.For(run.RealmId);
+        var __m = WanXiang.Campaign.RealmMapBuilder.Build(__rl, RealmSession.RealmSeedFor(run));
+        if (__m != null && __m.Graph != null && !__m.Graph.IsEmpty)
+        {
+            injected = __m.Graph;
+            Debug.Log("[Campaign] 自愈：存档在秘境（" + (__rl != null ? __rl.Name : run.RealmId) +
+                      "）但调用方没带秘境图 —— 自动重建");
+        }
+       }
+
 if (injected != null && !injected.IsEmpty)
        {
         _realmMode = true;
@@ -771,7 +788,17 @@ if (injected != null && !injected.IsEmpty)
                     if (int.TryParse(rec.Substring(0, ci), out off) &&
                         int.TryParse(rec.Substring(ci + 1), out val) &&
                         off >= 0 && off < _graph.Kinds.Length)
+                    {
+                        // ⛔ 结构位（守关/终局 = 幕末格）不许被旧记录改写：
+                        //   RerolledKinds 是按**当时的图**落盘的，图一变层数/格数，
+                        //   旧记录就可能正好落在现在的守关格上，把首领改成"?"（实测）。
+                        if (off == _graph.NodeCount - 1)
+                        {
+                            Debug.LogWarning("[Campaign] 丢弃指向守关格的旧重掷记录：" + rec);
+                            continue;
+                        }
                         _graph.Kinds[off] = (WanXiang.Campaign.NodeKind)val;
+                    }
                 }
             }
 
@@ -806,10 +833,12 @@ if (injected != null && !injected.IsEmpty)
             //    它会同时导致"全图锁定灰"，这里一律回到本幕起点。
             // ⚠ 秘境模式**跳过**：自愈是按"主线的 NodeOffset"判的，而秘境根本不用那个字段。
     //   在这里拿秘境图（格数与主线不同）去钳主线偏移，会把主线进度莫名其妙重置。
-            if (!_realmMode && run != null && _graph != null && run.NodeOffset >= _graph.NodeCount - 1)
+            // ⛔ 只在**越界**时才重置！原先判 `>= NodeCount - 1`，把"正站在守关格上"的玩家
+            //   也一并踹回本幕起点（守关格本身就是合法停靠位 —— 你就是要去打它）。
+            if (!_realmMode && run != null && _graph != null && run.NodeOffset >= _graph.NodeCount)
             {
                 Debug.LogWarning("[Campaign] 自愈：NodeOffset(" + run.NodeOffset +
-                                 ") 停在幕末/越界 → 回到本幕起点");
+                                 ") 越界 → 回到本幕起点");
                 run.NodeOffset = -1;
                 WanXiang.Run.RunSave.SaveCurrent();
             }
@@ -1673,14 +1702,19 @@ if (_tmpActTitle != null)
                 bool isFinaleCell = _graph != null && _graph.Act >= 5 &&
                                     _graph.NodeCount > 0 && offset == _graph.NodeCount - 1;
                 string name;
-                if (kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset))
-                    name = "？未知";
-                else if (kind == WanXiang.Campaign.NodeKind.Question)
-                    name = WanXiang.Campaign.NodeKinds.Cn(RevealedKind(offset));   // 揭晓后显示真实类型
-                else if (isFinaleCell)
+                // ⛔⛔ 守关/终局必须排在「?」**前面**（2026-10-17 用户实测又变回【精英】）：
+                //   瘴雾重掷记录（RerolledKinds）是按**旧图形状**落盘的，图一变（层数/格数调整），
+                //   旧记录就可能正好砸在守关格上把它改成 Question —— 而"已揭晓的?"会显示真实类型，
+                //   于是守关显示成【精英】。守关/终局是**结构位**（由格子位置决定，不由类型决定），
+                //   所以它的优先级必须高于一切类型改写。
+                if (isFinaleCell)
                     name = "终局·" + (_graph.BossName ?? "后土");
                 else if (isSeasonBossCell)
                     name = "守关·" + (_graph.BossName ?? "首领");
+                else if (kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset))
+                    name = "？未知";
+                else if (kind == WanXiang.Campaign.NodeKind.Question)
+                    name = WanXiang.Campaign.NodeKinds.Cn(RevealedKind(offset));   // 揭晓后显示真实类型
                 else
                     name = WanXiang.Campaign.NodeKinds.Cn(kind);
 // ★ 文案精简：去掉多余全角空格；"已过"不再用文字 —— 改用朱砂 ✕ 印章（见下方 Img_Stamp）
@@ -1858,6 +1892,7 @@ if (_tmpActTitle != null)
             // 玩家点选节点。silent=true 是程序化恢复视图（开面板/切幕），不该出声。
             if (!silent) SfxThrottled("sfx_map_node_select");
             var kind = _graph.KindOf(offset);
+            RefreshNextButton(kind);   // ⛔ 必须在秘境 early-return **之前**：否则秘境里这颗永远停在旧文案（实测"前往·异闻"）
 
             // ★★ 秘境模式的信息卡（2026-10-16 用户："这个节点的天时是不是可以改一下，
             //   全部去掉或者在其他地方说明这个秘境的特性等等"）。
@@ -1931,14 +1966,20 @@ if (_tmpActTitle != null)
                     d.color = NodeReachable;
             }
 
-            if (_btnNext != null)
-            {
-                var label = _btnNext.transform.Find("Tmp_Label");
-                var t = label != null ? label.GetComponent<TMP_Text>() : null;
-                if (t != null)
-                    t.text = WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "出征" : "前往 · " +
-                             WanXiang.Campaign.NodeKinds.Cn(kind);
-            }
+        }
+
+        /// <summary>右下角「出征 / 前往 · X」按钮的文案。主线与秘境**共用**这一份。
+        /// <para>⛔ 之前写在 SelectNode 的末尾，而秘境分支在中途就 return 了 ⇒
+        ///   秘境里这颗按钮永远显示上一次主线选中的节点（用户实测停在"前往·异闻"）。</para>
+        /// </summary>
+        private void RefreshNextButton(WanXiang.Campaign.NodeKind kind)
+        {
+            if (_btnNext == null) return;
+            var label = _btnNext.transform.Find("Tmp_Label");
+            var t = label != null ? label.GetComponent<TMP_Text>() : null;
+            if (t != null)
+                t.text = WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "出征" : "前往 · " +
+                         WanXiang.Campaign.NodeKinds.Cn(kind);
         }
 
         /// <summary>

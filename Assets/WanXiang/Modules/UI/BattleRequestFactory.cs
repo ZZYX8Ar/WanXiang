@@ -129,6 +129,20 @@ namespace WanXiang.Modules.UI
             else
                 UnityEngine.Debug.Log("[Weather] 本场无天时（旧行为）");
 
+            // ★★ 秘境战斗：**不吃天时**（天时是天穹历法的产物，秘境在历法之外）。
+            //   顶部横幅那行改成"场地"——把这场战斗里**真实生效**的场域危害讲清楚。
+            //   ⛔ 不清 LiveWeather 的话，上一场主线节点合成好的天时会原样漏进秘境战斗
+            //     （用户实测：秘境第 1 层的横幅写着"天时 蛰虫始振（木）：我方阵亡留虫卵…"）。
+            if (run != null && run.InRealm)
+            {
+                var __rl = WanXiang.Campaign.RealmCatalog.For(run.RealmId);
+                req.Weather = null;
+                req.WeatherName = __rl != null
+                    ? "场地 · " + WanXiang.Modules.UI.RealmText.Hazard(__rl)
+                    : "场地 · （未知场域）";
+                WanXiang.Campaign.LiveWeather.Current = null;
+            }
+
             // ★ 2026-09-25：局外养成（等级/进化/觉醒技）已全部改为读**本局快照**，
             //   这里只处理"本场挂起修正"（孵穴回复 / 天象异闻）—— 与局外养成无关，
             //   所以**不再需要**去读 MetaStore（原来那处现读是漏进本局的根源之一）。
