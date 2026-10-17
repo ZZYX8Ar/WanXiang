@@ -47,6 +47,41 @@ namespace WanXiang.Modules.UI
         private const float T_HOLD = 0.45f;    // 字停留
         private const float T_OPEN = 0.65f;    // 粒子拨开
 
+        /// <summary>
+        /// 纸底最大不透明度。
+        /// <para>⚠⚠ **在 Linear 色彩空间下，α 要远比直觉更接近 1。** 混合发生在**线性**空间：
+        ///   结果 = (1−α)·底 再转 sRGB 显示，而 sRGB 的暗部被大幅提亮 ⇒
+        ///   α=0.90 实测只压到 **35% 亮度**（节点文字、天时说明全都还读得清），
+        ///   α=0.985 才压到 ~10%，屏幕才真的"黑下去"。</para>
+        ///   <para>⛔ 而且**必须是 1.0**：哪怕留 1.5% 的底，浅色的纸面面板（信息卡、节点卡）
+        ///   也会在近黑背景上"透"成可读的灰字（实测"第10节·秋分"仍能认出）。
+        ///   线的层次交给**粒子帘子**去做，不靠给底留余量。</para>
+        /// </summary>
+        private const float COVER_A = 1.0f;
+
+        /// <summary>
+        /// 纸底颜色。⛔⛔ **必须用纯黑，不要写"看起来很深"的 RGB**。
+        /// <para>本工程是 **Linear** 色彩空间（QualitySettings.activeColorSpace = Linear）——
+        ///   `Image.color` 的数值被当作**线性值**，显示时会转成 sRGB。
+        ///   0.06 线性 ≈ 0.28 sRGB ⇒ 实际画出来是**中灰罩**，不是黑幕。</para>
+        /// <para>实测代价：原本写 (0.06,0.06,0.07,α) 想当"近黑"，结果 0.90 不透明度下
+        ///   底下的节点图**依然清晰可读**（"遮不住"），排查半天才发现是色彩空间换算。
+        ///   纯黑 (0,0,0) 在两种色彩空间下都是 0，所以只有它安全。</para>
+        /// </summary>
+        private static readonly Color CoverColor = Color.black;
+
+        /// <summary>
+        /// 调试慢放（1 = 正常）。整条时轴乘这个系数。
+        /// <para>为什么要有：整场演出 2.6 秒，而远程调试工具一次往返就超过它 ——
+        ///   **根本没机会看到中间帧**。设成 0.06 就变成 43 秒，可以逐个阶段截图核对
+        ///   （粒子墙是否铺满、字的位置、涟漪强度、拨开方向）。</para>
+        /// <para>⛔ 只用于调试，正式值必须回到 1；不要把它写进存档或从配置读。</para>
+        /// </summary>
+        public static float DebugSlowMul = 1f;
+
+        /// <summary>把设计时轴换算成实际等待时长。</summary>
+        private static float D(float seconds) => seconds / Mathf.Max(0.01f, DebugSlowMul);
+
         private Canvas _canvas;
         private RectTransform _root;
         private Image _cover;              // 纸色底（吃点击 + 盖旧画面）
@@ -145,7 +180,7 @@ namespace WanXiang.Modules.UI
             // ---- 纸色底（最底，盖旧画面 + 吃点击）----
             _cover = NewImage("Cover", 0);
             FullStretch(_cover.rectTransform);
-            _cover.color = new Color(0.06f, 0.06f, 0.07f, 0f);
+            _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, 0f);
             _cover.raycastTarget = true;
 
             // ---- 粒子层 ----
@@ -159,7 +194,7 @@ namespace WanXiang.Modules.UI
             var tr = _title.rectTransform;
             tr.anchorMin = tr.anchorMax = new Vector2(0.5f, 0.5f);
             tr.pivot = new Vector2(0.5f, 0.5f);
-            tr.sizeDelta = new Vector2(1100f, 530f);   // 字图是 1524×734 ≈ 2.08:1
+            tr.sizeDelta = new Vector2(1360f, 655f);   // 字图 1524×734 ≈ 2.08:1；占屏宽约 70%
             tr.anchoredPosition = new Vector2(0f, 20f);
             _title.raycastTarget = false;
             _title.enabled = false;
@@ -198,21 +233,25 @@ namespace WanXiang.Modules.UI
             if (W <= 0f) W = 1920f;
             if (H <= 0f) H = 1080f;
 
+            // ★ 实际时长（受 DebugSlowMul 影响）。⚠ 循环的**边界与除数必须是同一个值**，
+            //   否则 k 走不到 1 —— 慢放时会变成"演到一半就切下一拍"。
+            float dClose = D(T_CLOSE), dTitle = D(T_TITLE), dHold = D(T_HOLD), dOpen = D(T_OPEN);
+
             BuildParticles(realmId, W, H);
             PrepareTitle(titleText);
 
             // ---- ① 闭拢 ----
-            _cover.color = new Color(0.06f, 0.06f, 0.07f, 0f);
+            _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, 0f);
             SetParticlePhase(0f);
-            for (float t = 0f; t < T_CLOSE; t += Time.unscaledDeltaTime)
+            for (float t = 0f; t < dClose; t += Time.unscaledDeltaTime)
             {
-                float k = Mathf.Clamp01(t / T_CLOSE);
+                float k = Mathf.Clamp01(t / dClose);
                 SetParticlePhase(EaseOut(k));
-                _cover.color = new Color(0.06f, 0.06f, 0.07f, Mathf.Lerp(0f, 0.97f, k));
+                _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, Mathf.Lerp(0f, COVER_A, k));
                 yield return null;
             }
             SetParticlePhase(1f);
-            _cover.color = new Color(0.06f, 0.06f, 0.07f, 0.97f);
+            _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, COVER_A);
 
             // ---- ② 换场（屏幕已盖满）----
             try { onSwitch?.Invoke(); }
@@ -225,9 +264,9 @@ namespace WanXiang.Modules.UI
                 _titleMat.SetFloat(ProgressId, 0f);
             Color tc = _title.color; tc.a = 0f;
             _title.color = tc;
-            for (float t = 0f; t < T_TITLE; t += Time.unscaledDeltaTime)
+            for (float t = 0f; t < dTitle; t += Time.unscaledDeltaTime)
             {
-                float k = Mathf.Clamp01(t / T_TITLE);
+                float k = Mathf.Clamp01(t / dTitle);
                 if (_titleMat != null) _titleMat.SetFloat(ProgressId, k);
                 tc = _title.color; tc.a = Mathf.Clamp01(k * 3f);   // 字图整体淡入更快
                 _title.color = tc;
@@ -236,23 +275,23 @@ namespace WanXiang.Modules.UI
             if (_titleMat != null) _titleMat.SetFloat(ProgressId, 1f);
 
             // ---- 停留 ----
-            for (float t = 0f; t < T_HOLD; t += Time.unscaledDeltaTime) yield return null;
+            for (float t = 0f; t < dHold; t += Time.unscaledDeltaTime) yield return null;
 
             // ---- ④ 拨开 ----
-            for (float t = 0f; t < T_OPEN; t += Time.unscaledDeltaTime)
+            for (float t = 0f; t < dOpen; t += Time.unscaledDeltaTime)
             {
-                float k = Mathf.Clamp01(t / T_OPEN);
+                float k = Mathf.Clamp01(t / dOpen);
                 float e = EaseIn(k);
                 SetParticleOpen(e);
                 tc = _title.color; tc.a = Mathf.Clamp01(1f - k * 1.6f);
                 _title.color = tc;
                 // 纸底同步退掉，露出下面的秘境地图
-                _cover.color = new Color(0.06f, 0.06f, 0.07f, Mathf.Lerp(0.97f, 0f, Mathf.Clamp01(k * 1.3f)));
+                _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, Mathf.Lerp(COVER_A, 0f, Mathf.Clamp01(k * 1.3f)));
                 yield return null;
             }
 
             // ---- 收尾：务必把状态清干净（常驻对象，下一次演出不能带着上次的残留）----
-            _cover.color = new Color(0.06f, 0.06f, 0.07f, 0f);
+            _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, 0f);
             _cover.raycastTarget = false;      // ⛔ 必须放行点击，否则整个游戏点不动
             _title.enabled = false;
             _title.color = new Color(1f, 1f, 1f, 0f);
@@ -274,7 +313,11 @@ namespace WanXiang.Modules.UI
             _partSprite = Resources.Load<Sprite>("UI/Realm/FX_" + FxNameOf(realmId));
             if (_partSprite == null) _partSprite = Resources.Load<Sprite>("UI/Realm/FX_realm_marsh");
 
-            int n = 46;
+            // ★ 数量/尺寸：要让这些粒子**真的能当帘子**。
+            //   初版 46 个 × 90~190px 在 1920×1080 上是"点点繁星"，
+            //   遮不住任何东西 ⇒ 看起来不像"拨开"，像"飘过"。
+            //   改成 64 个 × 130~280px，重叠起来才有面。
+            int n = 64;
             for (int i = 0; i < n; i++)
             {
                 var go = new GameObject("P" + i, typeof(RectTransform));
@@ -287,14 +330,17 @@ namespace WanXiang.Modules.UI
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
                 rt.pivot = new Vector2(0.5f, 0.5f);
 
-                // 粒子墙：**等分列 + 抖动**铺满全屏（纯随机会有运气成分，某处会稀得透光）
-                int cols = 9, rows = 6;
+                // 粒子墙：**等分列 + 抖动**铺满全屏（纯随机会有运气成分，某处稀得透光）
+                int cols = 10, rows = 7;
                 int cx = i % cols, cy = (i / cols) % rows;
-                float size = UnityEngine.Random.Range(90f, 190f);
+                float size = UnityEngine.Random.Range(130f, 280f);
                 rt.sizeDelta = new Vector2(size, size);
 
-                float x = (cx + 0.5f) / cols * W - W * 0.5f + UnityEngine.Random.Range(-W * 0.04f, W * 0.04f);
-                float y = (cy + 0.5f) / rows * H - H * 0.5f + UnityEngine.Random.Range(-H * 0.04f, H * 0.04f);
+                // ⚠ 抖动必须给够，否则"等分列"会显出整齐的网格（实测能一眼看出行列）。
+                //   取 ±0.42 个格宽 —— 足以破掉网格感，又不至于把某处抖出大空洞。
+                float cellW = W / cols, cellH = H / rows;
+                float x = (cx + 0.5f) * cellW - W * 0.5f + UnityEngine.Random.Range(-cellW * 0.42f, cellW * 0.42f);
+                float y = (cy + 0.5f) * cellH - H * 0.5f + UnityEngine.Random.Range(-cellH * 0.42f, cellH * 0.42f);
                 _partX.Add(x); _partY.Add(y);
                 _partRot.Add(UnityEngine.Random.Range(0f, 360f));
                 _partDelay.Add(UnityEngine.Random.Range(0f, 0.35f));
@@ -315,26 +361,41 @@ namespace WanXiang.Modules.UI
             _parts.Clear(); _partX.Clear(); _partY.Clear(); _partRot.Clear(); _partDelay.Clear();
         }
 
-        /// <summary>phase 0→1：从"屏外四周"飞到"墙上的位置"（合拢）。</summary>
+        /// <summary>phase 0→1：从"屏幕外一圈"飞到"墙上的位置"（合拢）。</summary>
         private void SetParticlePhase(float phase)
         {
+            // ⛔⛔ 起点必须落在**刚出屏的一圈**上，不能是"目标点再往外推固定 1400px"。
+            //   初版就是后者：屏幕对角半径才 ~1100，推 1400 意味着**中途连屏都还没进**
+            //   —— 实测 phase=0.55 时一个粒子都看不见，整场"合拢"看起来什么都没发生。
+            //   正解：所有粒子都从半径 = 屏半对角 + 余量 的圆周上出发，朝自己的目标飞。
+            float halfW = _root.rect.width * 0.5f;
+            float halfH = _root.rect.height * 0.5f;
+            if (halfW <= 0f) halfW = 960f;
+            if (halfH <= 0f) halfH = 540f;
+            float ring = Mathf.Sqrt(halfW * halfW + halfH * halfH) + 120f;
+
             for (int i = 0; i < _parts.Count; i++)
             {
                 var rt = _parts[i];
                 if (rt == null) continue;
                 float d = _partDelay[i];
                 float k = Mathf.Clamp01((phase - d) / Mathf.Max(0.05f, 1f - d));
-                // 起点：沿"到屏幕中心的射线"再往外推 1.15 屏 —— 保证一开始完全在屏外
+
                 Vector2 target = new Vector2(_partX[i], _partY[i]);
-                Vector2 dir = target.sqrMagnitude > 1f ? target.normalized : new Vector2(0f, 1f);
-                Vector2 start = target + dir * 1400f;
+                // 方向：从屏幕中心指向目标；目标就在正中心时给个确定性的斜向（别用随机，可复盘）
+                Vector2 dir = target.sqrMagnitude > 25f
+                    ? target.normalized
+                    : new Vector2(0.6f, 0.8f).normalized;
+                Vector2 start = dir * ring;
+
                 rt.anchoredPosition = Vector2.Lerp(start, target, k);
 
                 var img = rt.GetComponent<Image>();
                 if (img != null)
                 {
                     var c = img.color;
-                    c.a = Mathf.Lerp(0f, AlphaFor(c), k);
+                    // 透明度：前 40% 就把粒子点亮（否则"飞进来"这段是隐形的，白飞）
+                    c.a = Mathf.Lerp(0f, AlphaFor(c), Mathf.Clamp01(k * 2.5f));
                     img.color = c;
                 }
             }
@@ -430,6 +491,9 @@ namespace WanXiang.Modules.UI
             _titleMat.SetFloat("_NoiseStrength", 0.18f);
             _titleMat.SetColor("_EdgeColor", new Color(0.94f, 0.86f, 0.62f, 1f));
             _titleMat.SetFloat("_EdgeWidth", 0.035f);
+            // ⛔ 反相成白墨：底色是黑幕，黑墨字会完全融进去（实测只剩边缘一圈白线）。
+            //   白墨 + 金涟漪在暗底上才是"墨从水里洇出来"的观感。
+            _titleMat.SetFloat("_Invert", 1f);
             _titleMat.SetFloat(ProgressId, 0f);
             _title.material = _titleMat;
         }
