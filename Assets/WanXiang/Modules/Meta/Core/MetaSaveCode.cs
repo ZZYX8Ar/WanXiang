@@ -31,7 +31,7 @@ namespace WanXiang.Meta
 {
     public static class MetaSaveCode
     {
-        public const byte CurrentVersion = 6;   // v6：新增剧情碎片（FragmentBeastIds/Counts）+ 觉醒材料（AwakenSouls）
+        public const byte CurrentVersion = 7;   // v7：新增动态立绘（LivePortraits + HomePortraitId）；读档兼容 v6（无此段=空）
         public const int MaxIndex = 254;        // 下标用 1 字节，255 留作哨兵
         public const int MaxEggs = 65535;
 
@@ -104,7 +104,21 @@ namespace WanXiang.Meta
                 soulRaw.Add(raw); soulBytes += 1 + raw.Length;
             }
 
-            int size = 25 + awakenBytes + fragBytes + soulBytes + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count;
+            // ---- v7 动态立绘段（已解锁 id 列表 + 看板兽 id，允许空串=未设置）----
+            var liveRaw = new System.Collections.Generic.List<byte[]>(st.LivePortraits.Count);
+            int liveBytes = 1;
+            for (int i = 0; i < st.LivePortraits.Count; i++)
+            {
+                var raw = Encoding.UTF8.GetBytes(st.LivePortraits[i] ?? "");
+                if (raw.Length == 0 || raw.Length > 250) continue;
+                liveRaw.Add(raw); liveBytes += 1 + raw.Length;
+            }
+            var homeRaw = Encoding.UTF8.GetBytes(st.HomePortraitId ?? "");
+            if (homeRaw.Length > 250) homeRaw = new byte[0];
+            int homeBytes = 1 + homeRaw.Length;
+
+            int size = 25 + awakenBytes + fragBytes + soulBytes + liveBytes + homeBytes
+                     + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count;
             var b = new byte[size];
             b[0] = CurrentVersion;
             WriteU64(b, 1, st.Seed);
@@ -151,6 +165,16 @@ namespace WanXiang.Meta
                 for (int k = 0; k < soulRaw[i].Length; k++) b[p++] = soulRaw[i][k];
             }
 
+            // ---- v7 动态立绘段（idLen+id 列表 + 看板兽 idLen+id，空串=未设置）----
+            b[p++] = (byte)liveRaw.Count;
+            for (int i = 0; i < liveRaw.Count; i++)
+            {
+                b[p++] = (byte)liveRaw[i].Length;
+                for (int k = 0; k < liveRaw[i].Length; k++) b[p++] = liveRaw[i][k];
+            }
+            b[p++] = (byte)homeRaw.Length;
+            for (int k = 0; k < homeRaw.Length; k++) b[p++] = homeRaw[k];
+
             b[p++] = (byte)n;                               // ★ v3 培养数量
             for (int i = 0; i < n; i++)
             {
@@ -181,7 +205,8 @@ namespace WanXiang.Meta
             try { b = FromBase64Url(code); }
             catch (FormatException) { return false; }
             if (b == null || b.Length < 22) return false;   // v4 头部 22 字节
-            if (b[0] != CurrentVersion) return false;
+            int ver = b[0];
+            if (ver != 6 && ver != 7) return false;          // ★ v7 起兼容读 v6（无动态立绘段=空列表）
 
             var st = new MetaState(ReadU64(b, 1));
             st.Eggs = ReadU16(b, 9);
@@ -247,6 +272,25 @@ namespace WanXiang.Meta
                 int idLen = b[p++];
                 if (idLen == 0 || p + idLen > b.Length) return false;
                 st.AwakenSouls.Add(Encoding.UTF8.GetString(b, p, idLen)); p += idLen;
+            }
+
+            // ---- v7 动态立绘段（v6 档没有这段 → 列表留空、看板兽空串）----
+            if (ver >= 7)
+            {
+                if (p >= b.Length) return false;
+                int liveN = b[p++];
+                for (int i = 0; i < liveN; i++)
+                {
+                    if (p >= b.Length) return false;
+                    int idLen = b[p++];
+                    if (idLen == 0 || p + idLen > b.Length) return false;
+                    st.LivePortraits.Add(Encoding.UTF8.GetString(b, p, idLen)); p += idLen;
+                }
+                if (p >= b.Length) return false;
+                int homeLen = b[p++];
+                if (p + homeLen > b.Length) return false;
+                st.HomePortraitId = homeLen > 0 ? Encoding.UTF8.GetString(b, p, homeLen) : "";
+                p += homeLen;
             }
 
             int beastCount = b[p++];                        // ★ v3 培养段

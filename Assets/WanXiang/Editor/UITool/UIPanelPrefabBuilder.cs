@@ -28,7 +28,7 @@ namespace WanXiang.EditorTools
 
         // 残卷阁卡片尺寸（要同时给 GridLayoutGroup.cellSize 与卡片模板，必须一致）
         private const float CardW = 368f;
-        private const float CardH = 268f;
+        private const float CardH = 304f;   // 2026-10-17：268→304，底部加一行「领取动态立绘」（Btn_LiveClaim）
 
         /// <summary>缺资产时返回 null（面板仍能生成，只是那项引用为空）。</summary>
         private static T LoadAsset<T>(string path) where T : Object
@@ -1292,6 +1292,13 @@ namespace WanXiang.EditorTools
                 new Vector2(258f, -258f), new Vector2(356f, -186f), "领取材料", UIBuild.Gold, 19f);
             SetRect((RectTransform)claimBtn.transform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(258f, -258f), new Vector2(356f, -186f));
+
+            // ---- v7 动态立绘领取行（门槛 = 集满 6/6）----
+            var liveClaim = EnsureBtn(card, "Btn_LiveClaim", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(152f, -296f), new Vector2(356f, -264f), "领取动态立绘",
+                new Color(0.90f, 0.89f, 0.87f, 1f), 17f);
+            SetRect((RectTransform)liveClaim.transform, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(152f, -296f), new Vector2(356f, -264f));
 
             card.gameObject.SetActive(false);   // 模板默认隐藏
 

@@ -34,6 +34,13 @@ namespace WanXiang.Modules.UI
         [SerializeField] private HomeMapJourney _homeMap;  // Map_Journey   中央四季旅程图（进图刷新进度）
         [SerializeField] private HomeScene3D _scene3D;       // 3D 层：背景 + 异兽行走 + 天气粒子（2026-10-11）
 
+        // ---- 看板模式（2026-10-17：残卷阁集满 6 碎片解锁的动态立绘展示，设计文档见
+        //      《万相_主界面动态立绘_设计文档.md》）----
+        [SerializeField] private Button _btnPortrait;         // Btn_Portrait   右上「看板」入口
+        [SerializeField] private GameObject _portraitRoot;    // Portrait_Root  立绘模式整组节点（默认隐藏）
+        [SerializeField] private HomePortraitStage _portraitStage; // Portrait_Root 上的播放层
+        [SerializeField] private Button _btnPortraitBack;     // Btn_Back       立绘模式 → 回地图
+
         // ⚠ 2026-10-11 布局调整（用户要求）：
         //   ① 左侧竖排三个按钮（局外成长/历程/残卷阁）移到**下方横排**，与图鉴/设置同排；
         //   ② 底排的阵盘图标（Hot_Meta）改绑 MetaPanel（局外成长）—— 原来 _btnMeta 字段
@@ -55,6 +62,8 @@ namespace WanXiang.Modules.UI
             get { return WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Eggs : 0; }
         }
 
+        private bool _portraitMode;   // 是否处于立绘展示模式
+
         // ⚠ 2026-09-25 删掉了 RunInk 属性：局内墨锭（RunState.Ink）全项目无人消费，已一并删除。
 
         protected override void OnCreate()
@@ -66,6 +75,8 @@ namespace WanXiang.Modules.UI
             if (_btnHistory != null) _btnHistory.onClick.AddListener(() => OpenPanelAsync<HistoryPanel>().Forget());
             if (_btnArchive != null) _btnArchive.onClick.AddListener(OnArchiveClicked);
             if (_btnSettings != null) _btnSettings.onClick.AddListener(OnSettingsClicked);
+            if (_btnPortrait != null) _btnPortrait.onClick.AddListener(OnPortraitClicked);
+            if (_btnPortraitBack != null) _btnPortraitBack.onClick.AddListener(ExitPortrait);
         }
 
         protected override UniTask OnOpenAsync(object payload)
@@ -73,6 +84,9 @@ namespace WanXiang.Modules.UI
             // ⚠ 2026-10-11：Root_TopBar（灵卵/墨锭/境界徽）已按用户要求整块删除，
             //   原先"SetActive(false) 隐藏"的两行也一并清掉（字段已删，否则编译不过）。
             //   灵卵在编阵/灵市里看，墨铊在局外成长面板看。
+
+            // ⚠ 常驻复用复位：上次开面板若停在立绘模式，这次回地图模式（_halted 同源坑）。
+            ExitPortrait();
 
             // 主立绘取队伍第一只
             if (_imgHero != null && _sprites != null && _contentCatalog != null)
@@ -260,6 +274,9 @@ namespace WanXiang.Modules.UI
             // 主城被隐藏（进战斗等）， 停掉 3D 层：相机与 3D 内容挂在 Canvas 之外，
             // 不随面板隐藏，必须显式停，否则在别的界面后面空转。
             if (_scene3D != null) _scene3D.Running = false;
+            // 立绘模式一并停播（视频播放器挂在 Canvas 内，但状态必须复位）
+            if (_portraitStage != null) _portraitStage.Leave();
+            _portraitMode = false;
         }
 
         protected override void OnResume()
@@ -314,5 +331,96 @@ namespace WanXiang.Modules.UI
         {
             OpenPanelAsync<SettingsPanel>().Forget();
         }
+
+        // ==================================================================== 看板模式（2026-10-17）
+        //  参考《蔚蓝档案》主界面：切换后全屏展示已解锁异兽的动态立绘（视频），
+        //  切回恢复四季旅程图。解锁来源 = 残卷阁集满 6 片剧情碎片后领取。
+
+        private void OnPortraitClicked()
+        {
+            if (_portraitMode) { ExitPortrait(); return; }
+            OnPortraitEnterClickedAsync().Forget();
+        }
+
+        private async Cysharp.Threading.Tasks.UniTaskVoid OnPortraitEnterClickedAsync()
+        {
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            var ids = meta != null ? new System.Collections.Generic.List<string>(meta.UnlockedLivePortraits) : null;
+            if (ids == null || ids.Count == 0)
+            {
+                // 一只都没解锁：指路残卷阁（代价写在脸上——告诉玩家怎么解锁）
+                int pick = await Dialog.Choose(
+                    "还没有动态立绘",
+                    "在残卷阁集满某只异兽的 6 片剧情碎片，\n即可领取它的动态立绘（主界面看板展示）。",
+                    "稍后再说", "去残卷阁");
+                if (pick == 1) OpenPanelAsync<ArchivePanel>().Forget();
+                return;
+            }
+            EnterPortrait(ids, meta);
+        }
+
+        private void EnterPortrait(System.Collections.Generic.List<string> ids, WanXiang.Meta.MetaState meta)
+        {
+            if (_portraitRoot == null || _portraitStage == null)
+            {
+                Debug.LogError("[Home] Portrait_Root / _portraitStage 未绑定（跑补丁：万相/UI/补丁：主界面动态立绘）");
+                return;
+            }
+            _portraitMode = true;
+            _portraitRoot.SetActive(true);
+            if (_scene3D != null) _scene3D.Running = false;   // 3D 层停渲染省电（切回时恢复）
+
+            _portraitStage.NameResolver = BeastLabelOf;
+            _portraitStage.ShownChanged -= OnPortraitShown;
+            _portraitStage.ShownChanged += OnPortraitShown;
+            _portraitStage.Enter(ids, meta != null ? meta.HomePortraitId : "");
+        }
+
+        private void ExitPortrait()
+        {
+            if (!_portraitMode) return;   // 未进入时是幂等空操作（OnOpenAsync 复位也调它）
+            _portraitMode = false;
+            if (_portraitStage != null) _portraitStage.Leave();
+            if (_portraitRoot != null) _portraitRoot.SetActive(false);
+            if (_scene3D != null) _scene3D.Running = true;    // 与 OnDisable 成对恢复
+        }
+
+        /// <summary>换片回调：手动切换才落盘记忆看板兽（自动轮换不写档，30s 一次太吵）。</summary>
+        private void OnPortraitShown(string beastId, bool manual)
+        {
+            if (!manual) return;
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            if (meta == null || meta.HomePortraitId == beastId) return;
+            meta.HomePortraitId = beastId;
+            WanXiang.Meta.MetaStore.Save();
+        }
+
+        /// <summary>id → "句芒 ·《山海经·海外东经》"（找不到就原样回 id）。</summary>
+        private string BeastLabelOf(string id)
+        {
+            var beasts = LoadBeastDefs();
+            if (beasts != null)
+            {
+                for (int i = 0; i < beasts.Length; i++)
+                {
+                    if (beasts[i] == null || beasts[i].Id != id) continue;
+                    return string.IsNullOrEmpty(beasts[i].Source)
+                        ? beasts[i].DisplayName
+                        : beasts[i].DisplayName + " · " + beasts[i].Source;
+                }
+            }
+            return id;
+        }
+
+        private static WanXiang.Battle.Core.BeastDef[] LoadBeastDefs()
+        {
+            if (_beastCache != null) return _beastCache;
+            var cats = Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
+            if (cats == null || cats.Length == 0) return null;
+            _beastCache = WanXiang.Fusion.ContentLibrary.BuildBeasts(cats[0]);
+            return _beastCache;
+        }
+
+        private static WanXiang.Battle.Core.BeastDef[] _beastCache;
     }
 }

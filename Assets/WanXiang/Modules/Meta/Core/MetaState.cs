@@ -221,6 +221,39 @@ namespace WanXiang.Meta
             if (CanClaimAwakenSoul(beastId) && !AwakenSouls.Contains(beastId)) AwakenSouls.Add(beastId);
         }
 
+        // ---- 动态立绘（主界面看板，v7 新增）----
+        //   残卷阁集满全部剧情碎片（FragmentTotal=6）→ 可领取该异兽的动态立绘；
+        //   领取后可在主界面「看板」模式展示（HomePortraitStage 播放 StreamingAssets 视频）。
+        //   与觉醒材料（前 3 片）同框共存：同一份碎片计数，两条消费线互不影响。
+        public const int LivePortraitThreshold = FragmentTotal;  // 集满全部 6 片 → 可领取动态立绘
+        public readonly List<string> LivePortraits = new List<string>(32);  // 已解锁动态立绘的异兽 id
+        /// <summary>当前看板兽（主界面立绘模式默认展示谁；空串=未设置）。</summary>
+        public string HomePortraitId = "";
+
+        public bool HasLivePortrait(string beastId) => LivePortraits.Contains(beastId);
+
+        /// <summary>碎片集满 6/6 且尚未领取 → 可领取动态立绘。</summary>
+        public bool CanClaimLivePortrait(string beastId)
+            => !HasLivePortrait(beastId) && FragmentCountOf(beastId) >= LivePortraitThreshold;
+
+        /// <summary>领取动态立绘。首次领取会顺手把它设为看板兽（若看板兽为空）。</summary>
+        public bool ClaimLivePortrait(string beastId)
+        {
+            if (string.IsNullOrEmpty(beastId) || !CanClaimLivePortrait(beastId)) return false;
+            LivePortraits.Add(beastId);
+            if (string.IsNullOrEmpty(HomePortraitId)) HomePortraitId = beastId;
+            return true;
+        }
+
+        /// <summary>把某只直接标记为已解锁（调试工具用；不走领取门槛）。</summary>
+        public void ForceUnlockLivePortrait(string beastId)
+        {
+            if (!string.IsNullOrEmpty(beastId) && !LivePortraits.Contains(beastId)) LivePortraits.Add(beastId);
+        }
+
+        /// <summary>已解锁动态立绘列表（只读视图）。</summary>
+        public IReadOnlyList<string> UnlockedLivePortraits => LivePortraits;
+
         // ---- 异兽培养（阶段③）：局外永久成长，替代原"祭坛" ----
         //   ⚠ 用"下标对齐的三个 List"而不是 Dictionary：静态序列化更简单。
         //   ✅ 存档：MetaSaveCode v6 **已打包**这三个表（写完/读回都在 v6 段里），

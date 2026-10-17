@@ -212,6 +212,37 @@ namespace WanXiang.Modules.UI
                     }
                 }
             }
+
+            // ---- 领取动态立绘（第二里程碑；门槛 = 集满全部 6 片，v7）----
+            var liveClaim = card.Find("Btn_LiveClaim") as RectTransform;
+            if (liveClaim != null)
+            {
+                bool hasLive = meta.HasLivePortrait(b.Id);
+                bool canLive = meta.CanClaimLivePortrait(b.Id);
+                var limg = liveClaim.GetComponent<Image>();
+                if (limg != null)
+                    limg.color = hasLive ? C_Dim
+                               : (canLive ? C_Gold : new Color(0.90f, 0.89f, 0.87f, 1f));
+                var llb = FindTmp(liveClaim, "Tmp_Label");
+                if (llb != null)
+                {
+                    llb.text = hasLive ? "已解锁 · 主界面可看"
+                             : (canLive ? "领取动态立绘"
+                                        : ("动态立绘 还差 " + Mathf.Max(0, BeastLore.FragmentTotal - got) + " 片"));
+                    llb.color = canLive ? C_Ink : C_Ink2;
+                }
+                var lbtn = liveClaim.GetComponent<Button>();
+                if (lbtn != null)
+                {
+                    lbtn.interactable = canLive;
+                    lbtn.onClick.RemoveAllListeners();
+                    if (canLive)
+                    {
+                        var beast = b;
+                        lbtn.onClick.AddListener(() => OnClaimLive(beast));
+                    }
+                }
+            }
         }
 
         private void OnClaim(BeastDef b)
@@ -221,6 +252,17 @@ namespace WanXiang.Modules.UI
             meta.ClaimAwakenSoul(b.Id);
             WanXiang.Meta.MetaStore.Save();
             Debug.Log("[ArchivePanel] 领取专属材料：" + b.DisplayName + " · " + BeastLore.MaterialName(b.Id));
+            Rebuild();
+        }
+
+        /// <summary>领取动态立绘（碎片 6/6；领后主界面「看板」可看，v7）。</summary>
+        private void OnClaimLive(BeastDef b)
+        {
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            if (meta == null || !meta.CanClaimLivePortrait(b.Id)) return;
+            meta.ClaimLivePortrait(b.Id);
+            WanXiang.Meta.MetaStore.Save();
+            Debug.Log("[ArchivePanel] 领取动态立绘：" + b.DisplayName + "（看板兽=" + meta.HomePortraitId + "）");
             Rebuild();
         }
 

@@ -197,12 +197,15 @@ namespace WanXiang.Editor.MetaTool
                   $"⑥ 图鉴孵满：{st.UnlockedHosts.Count}/{content.HostCount} 全解锁，池空不扣灵卵（余 {st.Eggs}）");
 
             // ---- ⑦ 存档码：往返 + 防呆 ----
-            // ★ v6：把「剧情碎片 + 觉醒材料」也塞进这份档，一起验往返（否则新字段永远没被覆盖）
+            // ★ v7：把「剧情碎片 + 觉醒材料 + 动态立绘」都塞进这份档，一起验往返（否则新字段永远没被覆盖）
             string fragA = beasts[0].Id;                 // 集齐 3 片 ， 已领材料
             st.AddFragment(fragA); st.AddFragment(fragA); st.AddFragment(fragA);
             st.ClaimAwakenSoul(fragA);
             string fragB = beasts[1].Id;                 // 只 1 片 ， 未集齐、未领
             st.AddFragment(fragB);
+            string liveA = beasts[0].Id;                 // ★ v7：动态立绘解锁 + 看板兽
+            st.ForceUnlockLivePortrait(liveA);
+            st.HomePortraitId = liveA;
 
             var code = MetaSaveCode.Encode(st);
             bool roundTrip = MetaSaveCode.TryDecode(code, out var back);
@@ -212,9 +215,10 @@ namespace WanXiang.Editor.MetaTool
                        && back.UnlockedHosts.Count == st.UnlockedHosts.Count
                        && back.UnlockedSouls.Count == st.UnlockedSouls.Count
                        && back.FragmentCountOf(fragA) == 3 && back.HasAwakenSoul(fragA)
-                       && back.FragmentCountOf(fragB) == 1 && !back.HasAwakenSoul(fragB),
-                  $"⑦ 存档码往返（v6）：{code?.Length ?? 0} 字符，碎片/觉醒材料字段全等"
-                  + $"（{fragA} 3/3 已领，{fragB} 1/3 未领）");
+                       && back.FragmentCountOf(fragB) == 1 && !back.HasAwakenSoul(fragB)
+                       && back.HasLivePortrait(liveA) && back.HomePortraitId == liveA,
+                  $"⑦ 存档码往返（v7）：{code?.Length ?? 0} 字符，碎片/觉醒材料/动态立绘字段全等"
+                  + $"（{fragA} 3/3 已领已解锁，{fragB} 1/3 未领）");
 
             bool tamper = !MetaSaveCode.TryDecode(code.Substring(0, code.Length - 3), out _)
                        && !MetaSaveCode.TryDecode("这不是存档码", out _);
@@ -237,6 +241,18 @@ namespace WanXiang.Editor.MetaTool
             Check(lines, gateBefore && gateAtFull && gateAfter
                        && !st.CanClaimAwakenSoul(beasts[3].Id),      // 0 片也领不到
                   $"⑦c 专属材料门槛：碎片 1/{MetaState.AwakenSoulThreshold} 不可领 ， 集齐可领 ， 领后不重复");
+
+            // ---- ⑦d 动态立绘领取门槛（集满 6/6 才可领，v7）----
+            string liveB = beasts[3].Id;
+            st.AddFragment(liveB); st.AddFragment(liveB);            // 2/6
+            bool liveGate = !st.CanClaimLivePortrait(liveB);
+            st.AddFragment(liveB); st.AddFragment(liveB);
+            st.AddFragment(liveB); st.AddFragment(liveB);            // 6/6
+            liveGate &= st.CanClaimLivePortrait(liveB);
+            st.ClaimLivePortrait(liveB);
+            liveGate &= st.HasLivePortrait(liveB) && !st.CanClaimLivePortrait(liveB);
+            Check(lines, liveGate,
+                  $"⑦d 动态立绘门槛：碎片 {MetaState.LivePortraitThreshold}/6 才可领 ， 领后不重复");
 
             // ---- ⑧ 孵出的宿主能进下一局阵容 ----
             var squad2 = st.BuildSquadHosts(content, 5);
