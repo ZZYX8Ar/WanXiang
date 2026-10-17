@@ -2085,8 +2085,8 @@ _tempLife[i] -= dt;
             if (v == null || v.Root == null) return;
             ReactionInfo(kind, out string name, out Color color, out string tag);
 
-            SpawnNumberInternal(v, name, color, 1.85f, 0.95f);
-            if (!string.IsNullOrEmpty(tag)) SpawnNumberInternal(v, tag, color * 0.95f, 0.95f, 0.85f);
+            SpawnNumberInternal(v, name, color, 1.25f, 0.95f, raise: 1.35f);          // 反应名最高
+            if (!string.IsNullOrEmpty(tag)) SpawnNumberInternal(v, tag, color, 0.80f, 0.85f, raise: 0.55f);
 
             v.Body.color = color;
             v.HitFlash = 0.14f;
@@ -2099,10 +2099,10 @@ _tempLife[i] -= dt;
                 var go = new GameObject("RxSpark");
                 go.transform.SetParent(transform, false);
                 var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = SolidSprite(color, 12, 12, 0, color);
+                sr.sprite = SolidSprite(color, 14, 14, 0, color);
                 sr.sortingOrder = 40;
                 go.transform.position = c;
-                go.transform.localScale = Vector3.one * 0.16f;
+                go.transform.localScale = Vector3.one * 0.22f;
                 _bursts.Add(new Burst
                 {
                     T = go.transform, Sr = sr,
@@ -2129,7 +2129,7 @@ _tempLife[i] -= dt;
                 float k = b.Life / b.Max;
                 b.Vel.y -= 6.5f * dt;
                 b.T.position += (Vector3)(b.Vel * dt);
-                b.T.localScale = Vector3.one * (0.16f * k + 0.03f);
+                b.T.localScale = Vector3.one * (0.22f * k + 0.03f);
                 var cc = b.Sr.color; cc.a = k; b.Sr.color = cc;
                 _bursts[i] = b;
             }
@@ -2171,21 +2171,26 @@ _tempLife[i] -= dt;
 
         private void SpawnDamageNumber(UnitView2D v, int amount, bool isMelt, bool reaction, bool crit)
         {
-            // 暴击：字号放大 1.6× + 换金白色；融冰保持鎏金；元素反应用紫罗兰高亮 + 「反应!」前缀，最跳
-            float scale = crit ? 1.6f : (reaction ? 1.25f : 1f);
+            // 暴击：字号放大 1.6× + 换金白色；融冰保持鎏金；元素反应用紫罗兰高亮。
+            // ★ 2026-10-17：反应**不再**在数字前加「反应!」——
+            //   反应名现在由 SpawnReactionFx 的大字横幅负责（蒸发/感电/碎冰…），
+            //   数字再喊一遍"反应"是重复的噪声，而且那串字一宽就和横幅叠在一起。
+            float scale = crit ? 1.6f : (reaction ? 1.2f : 1f);
             Color col = crit ? new Color(1f, 0.92f, 0.55f)
                         : (isMelt ? BattlePalette.GoldRich
                         : (reaction ? new Color(0.72f, 0.50f, 1f)   // 紫：元素反应
                         : BattlePalette.Crimson));
-            string label = reaction ? "反应! " + amount : amount.ToString();
-            SpawnNumberInternal(v, label, col, scale);
+            SpawnNumberInternal(v, amount.ToString(), col, scale);
         }
 
-        private void SpawnNumberInternal(UnitView2D v, string text, Color color, float baseScale, float life = 0.7f)
+        private void SpawnNumberInternal(UnitView2D v, string text, Color color, float baseScale,
+                                         float life = 0.7f, float raise = 0f)
    {
             var go = new GameObject("Dmg");
             go.transform.SetParent(transform, false);
-            go.transform.localPosition = v.Root.transform.position + new Vector3(0f, 1.5f, -1f);
+            // raise：同一次演出里的多行字（反应名/属性组合/伤害）要用不同高度分层，
+            //   否则全叠在同一个锚点上（实测「蒸发」「火×水」「504」三行糊成一团）。
+            go.transform.localPosition = v.Root.transform.position + new Vector3(0f, 1.5f + raise, -1f);
             go.transform.localScale = Vector3.one * baseScale;   // 暴击更大（弹出动画在此基础上叠加）
             var f = LegacyFont();
             var tm = go.AddComponent<TextMesh>();
