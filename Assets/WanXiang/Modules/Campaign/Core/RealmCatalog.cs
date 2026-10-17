@@ -90,6 +90,12 @@ namespace WanXiang.Campaign
         public string ChampionName;
         /// <summary>镇守称号/一句人设（远征队 33 那种"有名字的精英"感）。</summary>
         public string ChampionEpithet;
+        /// <summary>
+        /// 镇守的**专属机制说明**（进战前必须让玩家知道这场和平时不一样）。
+        /// ⛔ 必须与 <c>RealmChampionHooks</c> 里真实挂的钩子一致 —— 写了不实现就是假字。
+        /// </summary>
+        public string ChampionMechanicText;
+
         /// <summary>击败必得的奖励**原文**（必须与 <see cref="ChampionEggs"/>/<see cref="ChampionCoins"/> 一致）。</summary>
         public string ChampionRewardText;
         /// <summary>镇守必掉的灵卵数。</summary>
@@ -160,6 +166,7 @@ namespace WanXiang.Campaign
                 PlayerSpeedMul = 0.90f,
                 Boon = "星币结算 1.5 倍（撤离时 2 星币 = 1 灵卵）",
                 ChampionName = "泽殍",
+                ChampionMechanicText = "沉沦：每 2 回合拖走全场速度最高的我方（下回合无法行动 + 减速）",
                 ChampionEpithet = "半沉半浮的溺者之首，专拖人下水",
                 ChampionRewardText = "灵卵 +3、星币 +12、湿抗灵魂 +1",
                 ChampionEggs = 3, ChampionCoins = 12,
@@ -180,6 +187,7 @@ namespace WanXiang.Campaign
                 //   （BanHealRelics 字段全工程从未被读取）。改成与实现一致的说法。
                 Boon = "星币结算 1.5 倍（撤离时 2 星币 = 1 灵卵）",
                 ChampionName = "赤髓",
+                ChampionMechanicText = "薪火：每回合自焚 5% 最大生命，换攻击永久 +8%（无限叠加）",
                 ChampionEpithet = "把自己当炉子的熔匠，血是铁水",
                 ChampionRewardText = "灵卵 +4、星币 +14、火抗灵魂 +1",
                 ChampionEggs = 4, ChampionCoins = 14,
@@ -198,6 +206,7 @@ namespace WanXiang.Campaign
                 // ⚠ "重铸技能""敌方多 1 只"都没有实现；改写为已生效的两条（场地护盾 + 减速）。
                 Boon = "星币结算 1.5 倍（撤离时 2 星币 = 1 灵卵）",
                 ChampionName = "校核者·零",
+                ChampionMechanicText = "过载校准：每 3 回合全体我方被标记（易伤），敌方全体获 15% 护盾",
                 ChampionEpithet = "机关城里最后一台还在按规程杀人的执法机",
                 ChampionRewardText = "灵卵 +4、星币 +16、金抗灵魂 +1",
                 ChampionEggs = 4, ChampionCoins = 16,
@@ -216,6 +225,7 @@ namespace WanXiang.Campaign
                 PlayerSpeedMul = 0.85f,
                 Boon = "星币结算 1.8 倍（撤离时 2 星币 = 1 灵卵）",
                 ChampionName = "无声者",
+                ChampionMechanicText = "噤声：队伍灵力每回合归零 —— 战记/连携整场放不出来",
                 ChampionEpithet = "守着这片哑地的守墓人，吞掉了自己的名字",
                 ChampionRewardText = "灵卵 +5、星币 +20、无属性灵魂 +1",
                 ChampionEggs = 5, ChampionCoins = 20,
@@ -231,6 +241,7 @@ namespace WanXiang.Campaign
                 AppearFromAct = 2, Weight = 15,
                 Boon = "星币结算 2.2 倍（撤离时 2 星币 = 1 灵卵）",
                 ChampionName = "枯骨庄家",
+                ChampionMechanicText = "开赌：每回合开局掷骰，押中谁谁就被标记（易伤）",
                 ChampionEpithet = "坐庄的那个从来不下场，直到你自己走进来",
                 ChampionRewardText = "灵卵 +6、星币 +24、木抗灵魂 +1",
                 ChampionEggs = 6, ChampionCoins = 24,

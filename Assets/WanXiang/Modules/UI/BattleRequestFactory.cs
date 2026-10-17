@@ -129,6 +129,11 @@ namespace WanXiang.Modules.UI
             else
                 UnityEngine.Debug.Log("[Weather] 本场无天时（旧行为）");
 
+            // ★ 镇守战标记：供 BattlePlayback 挂载该场域的镇守专属机制
+            //   （泽殍沉沦 / 赤髓薪火 / 校核者过载 / 无声者噤声 / 庄家开赌）。
+            req.RealmChampion = champion;
+            req.RealmId = (run != null && run.InRealm) ? run.RealmId : null;
+
             // ★★ 秘境战斗：**不吃天时**（天时是天穹历法的产物，秘境在历法之外）。
             //   顶部横幅那行改成"场地"——把这场战斗里**真实生效**的场域危害讲清楚。
             //   ⛔ 不清 LiveWeather 的话，上一场主线节点合成好的天时会原样漏进秘境战斗

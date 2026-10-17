@@ -1207,10 +1207,12 @@ if (_tmpActTitle != null)
             {
                 string n = WanXiang.Campaign.NodeKinds.Cn(kind);
                 // 秘境专属节点在图里要说清楚"它和外面不一样"，否则玩家不知道值不值得绕路
+                // ★ 镇守要写**名字 + 专属机制**（用户："特殊的敌人有一些特殊的战斗方式"），
+                //   只写"特殊敌人"玩家不知道特殊在哪，进去才发现被噤声/被拖走，观感是"被阴了"。
                 string extra = kind == WanXiang.Campaign.NodeKind.RealmVault
                     ? "　（秘境专属 · 一次性重奖）"
                     : kind == WanXiang.Campaign.NodeKind.RealmChampion
-                        ? "　（秘境专属 · 特殊敌人）"
+                        ? "　镇守 · " + (realm != null ? realm.ChampionName : "？")
                         : (WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "　（战斗）" : "　（休整）");
                 _tmpNodeType.text = n + extra;
             }
@@ -1220,11 +1222,20 @@ if (_tmpActTitle != null)
             {
                 if (realm == null) _tmpWeather.text = "";
                 else
+                {
+                    // ★ 镇守格：把它的专属机制写在最上面 —— 这是玩家决定"打不打"的依据。
+                    string mech = kind == WanXiang.Campaign.NodeKind.RealmChampion &&
+                                  !string.IsNullOrEmpty(realm.ChampionMechanicText)
+                        ? "镇守 · " + realm.ChampionName + "：" + realm.ChampionMechanicText + "\n" +
+                          "击败必得：" + realm.ChampionRewardText + "\n"
+                        : "";
                     _tmpWeather.text =
+                        mech +
                         "场地：" + WanXiang.Modules.UI.RealmText.Hazard(realm) + "\n" +
                         "收益：" + realm.Boon + "\n" +
                         // ⛔ 走 RealmText.Cost（从真实字段推导）；不要读 realm.Cost 手写串
                         "代价：" + WanXiang.Modules.UI.RealmText.Cost(realm);
+                }
             }
 
             _current.Title = "第" + layer + "层";
