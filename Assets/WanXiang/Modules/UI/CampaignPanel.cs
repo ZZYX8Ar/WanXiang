@@ -190,56 +190,17 @@ BuildNodeMap();
                 Debug.LogWarning("[Campaign] 已在秘境中，忽略秘境测试按钮");
                 return;
             }
-            var run = WanXiang.Run.RunSave.Current;
-            if (run == null) return;
 
-            // 幕数不足 / 本局已进过是**正常玩法限制**，调试按钮要绕开。
-            //   ⛔ 记下备份，撤离时还原 —— 调试按钮不该留下"白赚一次"的痕迹。
-            int actBak = run.Act;
-            var entriesBak = new System.Collections.Generic.List<string>(run.RealmEntries);
-            if (run.Act < 2) run.Act = 2;
-            run.RealmEntries.Clear();
-
-            var realm = RealmSession.RollFor(run, RealmSession.RealmSeedFor(run));
-            if (realm == null)
-            {
-                Debug.LogWarning("[Campaign] 秘境测试按钮：抽不到场域");
-                run.Act = actBak;
-                run.RealmEntries.Clear(); run.RealmEntries.AddRange(entriesBak);
-                return;
-            }
-
-            // ★★ 走**与路线图秘境节点完全相同**的流程（用户："这个测试的按钮和正常进入是一样的啊"）。
-            //   差别只有"绕开限制"与"撤离时还原限制"（还原动作登记给 RealmFlow，撤离时统一执行），
-            //   转场/界面/回滚全部共用。
-            bool ok = RealmFlow.Enter(realm);
-
-            // ⛔ 进场失败必须把临时放开的限制**收回去**：
-            //   否则按钮"点了没反应"，但 run.Act 已经被悄悄改成 2、进入记录被清空 ——
-            //   玩家会在不知情的情况下丢掉本局的一次秘境机会（最坏的那种 bug）。
-            if (!ok)
-            {
-                run.Act = actBak;
-                run.RealmEntries.Clear();
-                run.RealmEntries.AddRange(entriesBak);
-                WanXiang.Run.RunSave.SaveCurrent();
-                Debug.LogWarning("[Campaign] 秘境测试按钮：进场失败，已还原幕数与进入次数");
-                return;
-            }
-
-            // 撤离时把临时放开的限制收回去（由 RealmFlow 在 Exit 之后统一执行）。
-            RealmFlow.SetDebugRestore(() =>
-            {
-                var r = WanXiang.Run.RunSave.Current;
-                if (r == null) return;
-                r.Act = actBak;
-                if (r.RealmEntries != null)
-                {
-                    r.RealmEntries.Clear();
-                    r.RealmEntries.AddRange(entriesBak);
-                }
-                Debug.Log("[Campaign] 已撤离（测试入口：幕数与进入次数均已还原）");
-            });
+            // ★★ 2026-10-17 用户反馈："之前我怎么看你说是有一个面板可以刷新秘境的，
+            //   现在点击测试按钮直接就进去了" —— 说得对，调试入口不该绕过**抉择面板**。
+            //   正式入口是「秘境节点 → RealmPanel（看场域/刷新/进入）→ 转场 → 秘境图」，
+            //   调试入口必须走同一条路，否则玩家看不到"这次抽到哪个场域、能不能换"。
+            //   ⛔ 只置旁路标记（放宽"第1幕/次数"两条判定），**一个 run 字段都不改** ——
+            //     早先那版是临时抬高 run.Act 再还原，任何一条撤离路径漏了还原就会永久改坏幕数。
+            WanXiang.Modules.UI.RealmPanel.DebugBypass = true;
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (ui == null) { Debug.LogError("[Campaign] UI 未就绪，无法打开秘境抉择"); return; }
+            ui.OpenAsync<WanXiang.Modules.UI.RealmPanel>(null).Forget();
         }
 
         /// <summary>由 <see cref="HomePanel"/> 在“出征”开图前置位 ， 让开场动画每次都播（用户要求）。</summary>
@@ -450,6 +411,9 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
 
             var node = payload as NodeRequest ?? _current;
             FillTeamPreview();
+            // ★ 按钮组成要按模式落一次：冷启动直接开进秘境（RealmPanel 发现已在秘境 ⇒
+            //   OpenAsRealm）走的是本方法，不是 OnRefresh，漏了这里返回键/星移会露着。
+            ApplyRealmChrome();
             SelectNode(node != null ? node.Offset : -1, silent: true);
             return UniTask.CompletedTask;
         }
@@ -464,6 +428,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private void ApplyViewAfterGraphChange(bool silentSelect)
         {
             RefreshAmbient();
+            ApplyRealmChrome();
 
             var run = WanXiang.Run.RunSave.Current;
             if (_tmpActTitle != null && _graph != null)
@@ -474,15 +439,34 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                       " · 守关 " + _graph.BossName +
                       "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
             }
-            var qb = transform.Find("Btn_RealmQuit");
-            if (qb != null && qb.gameObject.activeSelf != _realmMode)
-                qb.gameObject.SetActive(_realmMode);
 
             // 选中格：秘境从 RealmCursor 恢复；主线回到"当前所在格"。
             int sel = -1;
             if (_realmMode) sel = run != null ? run.RealmCursor : -1;
             else sel = _currentOffset;
             SelectNode(sel, silent: silentSelect);
+        }
+
+        /// <summary>
+        /// 按当前模式切换**按钮区的组成**（秘境 vs 主线各有一套出入口）。
+        /// <para>⛔ 单独抽出来是因为它有**两个调用点**（首次打开 / 同实例换图）：
+        ///   只写在 ApplyViewAfterGraphChange 里的话，"冷启动直接开进秘境"那条路
+        ///   （RealmPanel 发现已在秘境 ⇒ OpenAsRealm）会漏掉，返回键和星移照样露着。</para>
+        /// <para>秘境：只留「离开秘境」（左下）；隐藏「返回」（右上）—— 出口必须唯一，
+        ///   否则玩家分不清哪条会回滚场域状态。</para>
+        /// </summary>
+        private void ApplyRealmChrome()
+        {
+            var qb = transform.Find("Btn_RealmQuit");
+            if (qb != null && qb.gameObject.activeSelf != _realmMode)
+                qb.gameObject.SetActive(_realmMode);
+
+            if (_btnBack != null) _btnBack.gameObject.SetActive(!_realmMode);
+
+            // 星移在秘境里一律不显示：秘境没有天时（不在天穹历法里），星移无事可做。
+            // ⚠ 这里只兜"开图那一刻"；每次选中节点还会经 UpdateXingyiButton 再挡一次
+            //   （否则点几下节点它又会被那边的逻辑重新激活）。
+            if (_realmMode && _btnXingyi != null) _btnXingyi.gameObject.SetActive(false);
         }
 
         // ================================================================
@@ -2259,6 +2243,18 @@ if (_tmpActTitle != null)
         private void UpdateXingyiButton(WanXiang.Run.RunState run, int key, bool hasWeather)
         {
             if (_btnXingyi == null) return;
+
+            // ★★ 秘境里**不显示星移**（2026-10-17 用户要求）。
+            //   理由不只是"界面要干净"：天时是**天穹历法**的产物，秘境不在历法里 ——
+            //   秘境节点本来就没有天时（信息卡已改成场域特性），星移在这里无事可做。
+            //   ⛔ 必须在这里挡，不能只在开面板时挡一次：每次选中节点都会重跑本函数，
+            //     只挡一次的话点两下节点它就又冒出来了。
+            if (_realmMode)
+            {
+                _btnXingyi.gameObject.SetActive(false);
+                return;
+            }
+
             bool used = run != null && run.XingyiUsed != null && run.XingyiUsed.Contains(key);
             bool canCancel = used && HasCancellableXingyi(key);
             bool afford = run != null && run.Eggs >= XINGYI_COST;

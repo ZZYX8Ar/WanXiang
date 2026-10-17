@@ -72,7 +72,6 @@ namespace WanXiang.Modules.UI
       protected override UniTask OnOpenAsync(object payload)
         {
     RealmHookRegistrar.EnsureRegistered();   // 幂等：秘境钩子挂进战斗核心
-        EnsureQuitHook();         // ★ 让 CampaignPanel 的「回主界面」按钮在秘境模式下变成「撤离」
 
             // ⚠ 面板可能被"已经在秘境里"时打开（战后回图 / 调试菜单）。
             //   那不该再走入口抉择 —— 直接打开秘境路线图。
@@ -93,6 +92,8 @@ namespace WanXiang.Modules.UI
    _rerollUsed = 0;
        _realm = RollRealm();
        if (_tmpTitle != null) _tmpTitle.text = "秘境 · 抉择";
+            // ★ 先落文字色，再填内容（顺序无所谓，但别漏 —— 漏了就是截图里那种浅粉压米色）
+            ApplyReadableInk();
             FillRealmInfo(_realm);
        RefreshStatus();
       return UniTask.CompletedTask;
@@ -102,34 +103,87 @@ namespace WanXiang.Modules.UI
         //  入口流程
         // =====================================================================
 
+        /// <summary>
+        /// 调试旁路：忽略"第 1 幕不出秘境"和"本局已进过 2 次"两条限制。
+        /// <para>由节点地图的「秘境测试」按钮置位，面板消费一次后自动复位。</para>
+        /// <para>⛔ 只放宽**判定**，不修改 <c>RunState</c> 的任何字段 ——
+        ///   早先那版调试入口是"临时抬高 run.Act / 清空 RealmEntries 再还原"，
+        ///   一旦某条撤离路径漏了还原，玩家的幕数会被永久改掉。</para>
+        /// </summary>
+        public static bool DebugBypass;
+
         private RealmDef RollRealm()
-  {
+        {
             var run = WanXiang.Run.RunSave.Current;
             // ⛔ 种子必须用共享的那个（RealmSession.RealmSeedFor）——
             //   揭晓处与面板处各写一份公式会出现"揭晓说苍泽、面板抽出烬岭"的错位。
-       return RealmSession.RollFor(run, RealmSession.RealmSeedFor(run));
-}
+            // ★ 2026-10-17：必须把 `_rerollUsed` 带进种子，并**排除当前这个场域** ——
+            //   否则"换一个"是空操作（种子只由 RunSeed 决定，Roll 是纯函数）。
+            //   两个保险都要：换种子让结果变，排除当前保证一定不同（换种子可能撞回同一个）。
+            string cur = (_rerollUsed > 0 && _realm != null) ? _realm.Id : null;
+            return RealmSession.RollFor(run,
+                RealmSession.RealmSeedFor(run, _rerollUsed), DebugBypass, cur);
+        }
+
+        /// <summary>
+        /// 把本面板的文字色**按 sRGB 重新落一遍**（2026-10-17）。
+        /// <para>为什么必须显式设：prefab 里存的是旧数值（深褐 0.165 / 朱砂 0.784），
+        /// 在 **Linear** 色彩空间下会被提亮成"中褐"和"浅粉" —— 实机截图里
+        /// 「场地/收益/代价」三行几乎读不清（浅粉字压在米色纸上）。</para>
+        /// <para>⛔ 不要改 prefab 里的原始数值去凑：那是在和 gamma 曲线猜数字。
+        ///   统一走 <see cref="UiInk.Srgb"/>，把"屏幕上想要什么颜色"写清楚。</para>
+        /// </summary>
+        private void ApplyReadableInk()
+        {
+            var inkMain = UiInk.Srgb(0.16f, 0.13f, 0.10f);   // 墨（正文）—— 压在**米色卡片**上
+            var inkSoft = UiInk.Srgb(0.42f, 0.38f, 0.34f);   // 淡墨（次要说明）
+            var cinnabar = UiInk.Srgb(0.66f, 0.17f, 0.14f);  // 朱砂（场地/警示）
+            // ⚠ 标题与状态行压在**深色外框**上，必须用**亮**字 ——
+            //   这是"同一块面板里两种底色"的坑：只按"面板是浅色"整体调深，
+            //   标题就会变成深墨压深底（实测直接消失）。
+            var paperLight = UiInk.Srgb(0.93f, 0.90f, 0.82f);
+            var paperDim = UiInk.Srgb(0.72f, 0.68f, 0.60f);
+
+            void Paint(TMPro.TMP_Text t, Color c) { if (t != null) t.color = c; }
+
+            Paint(_tmpTitle, paperLight);        // 深框上的标题
+            Paint(_tmpStatus, paperDim);         // 深框上的"还可进入 N 次"
+            Paint(_tmpRealmName, inkMain);       // 以下都在米色卡片上
+            Paint(_tmpBoon, inkMain);
+            Paint(_tmpHazard, cinnabar);
+            Paint(_tmpCost, inkSoft);
+            if (_btnEnter != null) Paint(_btnEnter.GetComponentInChildren<TMPro.TMP_Text>(true), inkMain);
+            if (_btnLeave != null) Paint(_btnLeave.GetComponentInChildren<TMPro.TMP_Text>(true), inkMain);
+            if (_btnReroll != null) Paint(_btnReroll.GetComponentInChildren<TMPro.TMP_Text>(true), inkMain);
+        }
 
         private void OnRerollClicked()
-  {
-      // 换算是稀缺资源：免费 1 次（设计文档 7.1），之后要拿灵卵
+        {
+            // 换算是稀缺资源：免费 1 次（设计文档 7.1），之后要拿灵卵
             var run = WanXiang.Run.RunSave.Current;
-     if (run == null) return;
+            if (run == null) return;
+
             if (_rerollUsed >= 1)
-  {
-      if (run.Eggs < 1)
-    {
-         SetStatus("换一个需要 1 枚灵卵（免费次数已用完）。");
-             return;
-        }
-        run.Eggs -= 1;
-         _rerollUsed++;
+            {
+                if (run.Eggs < 1)
+                {
+                    SetStatus("换一个需要 1 枚灵卵（免费次数已用完）。");
+                    return;
+                }
+                run.Eggs -= 1;
             }
-    _realm = RollRealm();
-     FillRealmInfo(_realm);
-     RefreshStatus();
-   WanXiang.Run.RunSave.SaveCurrent();
-}
+
+            // ★★ `_rerollUsed` 必须**每次**都 ++（2026-10-17 修）：
+            //   旧版只在"收费"那一支里 ++，于是**第一次免费换时它还等于 0** ——
+            //   而种子与"排除当前场域"都以它为据 ⇒ 免费那一次抽出来的还是同一个场域，
+            //   玩家点了"换一个"界面纹丝不动（实测）。计费门槛语义不变（第 2 次起收费）。
+            _rerollUsed++;
+
+            _realm = RollRealm();
+            FillRealmInfo(_realm);
+            RefreshStatus();
+            WanXiang.Run.RunSave.SaveCurrent();
+        }
 
         private void OnLeaveClicked()
         {
@@ -163,30 +217,22 @@ namespace WanXiang.Modules.UI
             // 而入口面板是 Popup 层，不关会盖在新地图上。
             // ⛔ 只在**成功**时关：失败还关掉，玩家会看到"面板消失但什么都没发生"。
             var realm = _realm;
-            if (RealmFlow.Enter(realm, onAfterEnter: null)) CloseSelf();
+            bool bypass = DebugBypass;
+            DebugBypass = false;              // ★ 消费一次就复位，别让下一次正常进入也走旁路
+            if (RealmFlow.Enter(realm, onAfterEnter: null, bypassLimits: bypass)) CloseSelf();
             else SetStatus("进不去秘境（本局进入次数已用完）。");
         }
 
 
-  // =====================================================================
-  //  撤离（由 CampaignPanel 在秘境模式下点「回主界面」那个按钮时回调）
+    // =====================================================================
+        //  撤离
         // =====================================================================
 
-        /// <summary>注册撤离回调（幂等）。回滚语义全在 <see cref="RealmSession.Exit"/>。</summary>
-        public static void EnsureQuitHook()
-        {
-   CampaignPanel.OnRealmQuitRequested = DoQuit;
-   }
-
-private static void DoQuit()
-        {
-            var run = WanXiang.Run.RunSave.Current;
-RealmSession.Exit(run);              // ★ 回滚场域状态 + 还原原节点
-     if (run != null) WanXiang.Run.RunSave.SaveCurrent();
-   // ⚠ 不要 OpenAsync 重新打开 CampaignPanel —— 撤离入口（OnBackToHome）会
-            //   用**同一个实例**原地重建主线图。"关掉再打开"会被 UISystem 静默忽略
-            //   （Closing 中的实例再次请求打开 ⇒ 直接 return），表现是**画面一片空白且无报错**。
-        }
+        // ⛔ 这里**不再**注册/劫持 CampaignPanel.OnRealmQuitRequested（2026-10-17 删）。
+        //   旧版的 `EnsureQuitHook()` 把它指向一个**不走转场**的 DoQuit，而
+        //   `RealmFlow.Enter` 又把它指向走转场的 QuitNow —— 两处赋值靠"谁后执行"，
+        //   是本项目已经踩过的坑（见记忆：多入口同一件事不要靠替换静态回调）。
+        //   现在撤离只有唯一入口 `RealmFlow.QuitNow`，由 RealmFlow.Enter 自己登记。
 
    // =====================================================================
         //  文案

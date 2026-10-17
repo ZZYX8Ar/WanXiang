@@ -51,11 +51,14 @@ namespace WanXiang.Modules.UI
         /// 进入秘境：先把**路线图状态整份快照**下来（硬约束 ② 的实现基础）。
         /// 返回 false = 本局进得太多（上限 2 次）或场域不存在。
         /// </summary>
-        public static bool Enter(WanXiang.Run.RunState run, WanXiang.Campaign.RealmDef realm)
+        public static bool Enter(WanXiang.Run.RunState run, WanXiang.Campaign.RealmDef realm,
+                                 bool bypassLimits = false)
         {
             if (run == null || realm == null) return false;
             if (run.InRealm) return false;
-            if (run.RealmEntries.Count >= WanXiang.Campaign.RealmCatalog.MaxPerRun) return false;
+            // 调试旁路只放宽"每局次数"这一条；"已在秘境中"仍然要挡（那是状态机约束，不是配额）
+            if (!bypassLimits && run.RealmEntries.Count >= WanXiang.Campaign.RealmCatalog.MaxPerRun)
+                return false;
 
             // —— 快照：只存**会被场域改动**的那些字段（存全量反而容易漏改）——
             run.RealmSnapshot = new WanXiang.Run.RunState.RealmRouteSnapshot
@@ -270,21 +273,49 @@ namespace WanXiang.Modules.UI
         /// 抽场域用的**共享种子**。⚡ 必须由揭晓处与面板处**共用同一个函数** ——
         ///   两边各写一份种子公式就会"揭晓说是苍泽、面板抽出烬岭"的错位。
         /// </summary>
-        public static ulong RealmSeedFor(WanXiang.Run.RunState run)
+        public static ulong RealmSeedFor(WanXiang.Run.RunState run, int reroll = 0)
         {
             ulong s = (ulong)(run != null ? run.RunSeed : 0) * 31UL;
             s ^= WanXiang.Battle.Core.CoreMath.Fnv1a("realm-pick");
+            // ★ reroll>0 必须换种子，否则"换一个"是**空操作**（2026-10-17 实测：
+            //   苍泽 → 换一个 → 还是苍泽。根因：种子只由 RunSeed 决定，而 Roll 是纯函数）。
+            //   ⚠ 只影响面板里"抽谁"；地图种子仍用 reroll=0，不跟着变。
+            if (reroll > 0) s ^= WanXiang.Battle.Core.CoreMath.Fnv1a("realm-reroll:" + reroll);
             return s;
         }
 
         /// <summary>问号节点揭晓时抽一个场域（确定性 + 同局去重 + 幕数门槛）。</summary>
-        public static WanXiang.Campaign.RealmDef RollFor(WanXiang.Run.RunState run, ulong seed)
+        /// <param name="excludeId">额外排除某个场域 —— "换一个"必须保证**真的换掉**，
+        ///   不能靠"换了种子后大概率不同"（那会偶尔原地不动）。</param>
+        public static WanXiang.Campaign.RealmDef RollFor(WanXiang.Run.RunState run, ulong seed,
+                                                         bool bypassLimits = false,
+                                                         string excludeId = null)
         {
             if (run == null) return null;
             int act = run.Act < 1 ? 1 : run.Act;
+
+            // ★ 调试旁路（2026-10-17）：**不改 run 的任何字段**，只放宽"抽谁"的准入。
+            //   ⛔ 早先的调试入口是"把 run.Act 临时抬到 2、清空 RealmEntries"，撤离再还原 ——
+            //     那套做法一旦某条撤离路径漏了还原，玩家的幕数会被**永久**改掉。
+            //     现在改成"判定放宽"，run 一个字节都不动，从根上没有还原问题。
+            //   act 传 5 = 所有场域都可出现（含第 4 幕才出的寂域）。
+            if (bypassLimits)
+            {
+                var only = string.IsNullOrEmpty(excludeId)
+                    ? null : new System.Collections.Generic.List<string> { excludeId };
+                // 排除后没得选就退回不排除（宁可能抽到同一个，也别给玩家一个空面板）
+                return WanXiang.Campaign.RealmCatalog.Roll(5, seed, only)
+                       ?? WanXiang.Campaign.RealmCatalog.Roll(5, seed, null);
+            }
+
             //第 1 幕不出秘境（玩家还没学会格挡，进秘境是纯挫败 —— 设计文档 5.3）
             if (act < 2) return null;
-            return WanXiang.Campaign.RealmCatalog.Roll(act, seed, run.RealmEntries);
+            if (string.IsNullOrEmpty(excludeId))
+                return WanXiang.Campaign.RealmCatalog.Roll(act, seed, run.RealmEntries);
+
+            var used = new System.Collections.Generic.List<string>(run.RealmEntries) { excludeId };
+            return WanXiang.Campaign.RealmCatalog.Roll(act, seed, used)
+                   ?? WanXiang.Campaign.RealmCatalog.Roll(act, seed, run.RealmEntries);
         }
     }
 }

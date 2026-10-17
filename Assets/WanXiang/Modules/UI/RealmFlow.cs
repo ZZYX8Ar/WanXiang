@@ -57,7 +57,8 @@ namespace WanXiang.Modules.UI
         /// <returns>是否成功进入。**失败必须让调用方知道** —— 早先返回 void，
         /// 调用方无法还原自己临时改过的字段，而且玩家只看到"点了没反应"。</returns>
         /// </summary>
-        public static bool Enter(WanXiang.Campaign.RealmDef realm, Action onAfterEnter = null)
+        public static bool Enter(WanXiang.Campaign.RealmDef realm, Action onAfterEnter = null,
+                                 bool bypassLimits = false)
         {
             var run = WanXiang.Run.RunSave.Current;
             if (run == null || realm == null) return false;
@@ -67,7 +68,7 @@ namespace WanXiang.Modules.UI
             //   那种状态下 Enter 的"已在秘境中"判据会把之后每一次进入都拒掉。
             RealmSession.RecoverStuck(run);
 
-            if (!RealmSession.Enter(run, realm))
+            if (!RealmSession.Enter(run, realm, bypassLimits))
             {
                 // ⛔ 别只 return：这两种原因对玩家是**完全不同的处理**，必须说清楚。
                 if (run.InRealm)
