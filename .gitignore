@@ -193,3 +193,9 @@ _*备份*/
 # ⚠ 删掉这些文件后 Unity 里的引用会丢（.meta 一并忽略），克隆仓库后先跑一次脚本再打开工程。
 /Assets/Resources/Audio/BGM/bgm_km_*.mp3
 /Assets/Resources/Audio/BGM/bgm_km_*.mp3.meta
+
+# 动态立绘视频（大文件不入库，本地保留）
+WanXiang/Assets/StreamingAssets/LivePortraits/*.mp4
+
+# 编辑器临时截图（验收用，不入库）
+Assets/Screenshots/
