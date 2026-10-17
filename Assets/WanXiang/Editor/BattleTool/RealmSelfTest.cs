@@ -255,11 +255,16 @@ namespace WanXiang.Editor.BattleTool
                 // ① 内部图必须**就是一张 ActGraph**（用户要求"套用现有节点地图设计"）
                 if (map.Graph is WanXiang.Campaign.ActGraph) Pass(sb, realm.Name + "：内部图 = ActGraph");
                 else { Bad(sb, realm.Name + "：内部图不是 ActGraph"); badKind++; }
-                if (map.Graph.Layers == null || map.Graph.Layers.Length != map.Realm.Waves + 2)
+                // ⚠ 2026-10-16 起层数与 Waves **解耦**了（层数 = 地图多长，Waves = 几场硬仗，
+                //   是两个轴）。自检原先断言 `层数 == Waves+2` 已过时，现在改判"够长"：
+                //   12~15 层（用户要求"起码 12 层往上"），且**不再跟随 Waves 变化**。
+                int layerCount = map.Graph.Layers != null ? map.Graph.Layers.Length : 0;
+                if (layerCount < 12 || layerCount > 15)
                 {
-                    Bad(sb, realm.Name + " 层数 " + map.Graph.Layers.Length + " ≠ 波数+2");
+                    Bad(sb, realm.Name + " 层数 " + layerCount + " 不在 12~15（地图太短玩家一眼看完）");
                     badKind++;
                 }
+                else Pass(sb, realm.Name + " 层数 " + layerCount + "（≥12，与波数解耦）");
 
                 if (!WanXiang.Campaign.RealmMapBuilder.IsConnected(map))
                 { Bad(sb, realm.Name + " 有走不到的孤岛"); badConnect++; }

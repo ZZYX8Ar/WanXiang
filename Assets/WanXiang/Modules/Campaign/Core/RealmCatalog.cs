@@ -39,6 +39,14 @@ namespace WanXiang.Campaign
         FoeShieldAll = 2,
         /// <summary>给**我方全体**每回合加护盾（寂域禁 QTE 的替代）。</summary>
         SelfShieldAll = 3,
+        /// <summary>
+        /// 给**我方全体**每回合挂某状态（苍泽的水汽、烬岭的地火）。
+        /// <para>⛔⛔ 2026-10-17 用户纠正：场地效果**必须打我方**。
+        ///   原来的 <see cref="FoeStatusAll"/> 给敌方挂「湿」，语义上是**帮玩家**
+        ///   （我方火攻打进湿身打出蒸发）—— 那不是"场地危害"，是场地福利，方向反了。
+        ///   场地 = 这个环境在**折磨我**，所以状态要挂在我方身上。</para>
+        /// </summary>
+        PlayerStatusAll = 4,
     }
 
     public sealed class RealmDef
@@ -115,7 +123,7 @@ namespace WanXiang.Campaign
                 Concept = "积水腐草，减速 + 持续伤害，但掉落最好",
                 Waves = 3, EnemyScale = 1.00f, StarRate = 1.5f,
                 MapCols = 4, MapRows = 5,
-                Hazard = RealmHazardKind.FoeStatusAll,
+                Hazard = RealmHazardKind.PlayerStatusAll,
                 HazardStatusId = WanXiang.Battle.Core.StatusCatalog.Wet,
                 HazardStacks = 1, HazardTurns = 2,
                 // ⚠ 设计文档 5.3 的表格写「1 幕起」，但同节的**规则**写「第 1 幕不出现」。
@@ -131,7 +139,7 @@ namespace WanXiang.Campaign
                 Concept = "地表开裂，灼烧常驻，逼你速战速决",
                 Waves = 4, EnemyScale = 1.15f, StarRate = 1.2f,
                 MapCols = 4, MapRows = 5,
-                Hazard = RealmHazardKind.FoeStatusAll,
+                Hazard = RealmHazardKind.PlayerStatusAll,
                 HazardStatusId = WanXiang.Battle.Core.StatusCatalog.Burn,
                 HazardStacks = 1, HazardTurns = 2,
                 AppearFromAct = 2, Weight = 25,

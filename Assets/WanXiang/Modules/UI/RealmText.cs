@@ -19,12 +19,18 @@ namespace WanXiang.Modules.UI
             if (r == null) return "（无）";
             switch (r.Hazard)
             {
+                // ★ 2026-10-17 用户纠正：场地效果**必须写我方**。
+                //   写成"敌方全体「湿」"会被读成"这环境在帮敌人"，而且机制上也确实是帮玩家
+                //   （湿身 + 火攻 = 蒸发）。场地 = 环境在折磨我 ⇒ 状态挂我方。
+                case WanXiang.Campaign.RealmHazardKind.PlayerStatusAll:
+                    return "我方全体每回合「" + StatusCn(r.HazardStatusId) + "」" +
+                           r.HazardStacks + " 层";
                 case WanXiang.Campaign.RealmHazardKind.FoeStatusAll:
-                    return "每回合敌方全体「" + StatusCn(r.HazardStatusId) + "」" +
+                    return "敌方全体每回合「" + StatusCn(r.HazardStatusId) + "」" +
                            r.HazardStacks + " 层";
                 case WanXiang.Campaign.RealmHazardKind.FoeShieldAll:
-                    return "敌方全体获得相当于施法者生命 " +
-                           UnityEngine.Mathf.RoundToInt(r.HazardShieldPct * 100f) + "% 的护盾";
+                    return "敌方全体每回合获得相当于其生命 " +
+                           UnityEngine.Mathf.RoundToInt(r.HazardShieldPct * 100f) + "% 的护盾（我方伤害被削弱）";
                 case WanXiang.Campaign.RealmHazardKind.SelfShieldAll:
                     return r.NoQte
                         ? "禁格挡 QTE；我方每回合获得 " +

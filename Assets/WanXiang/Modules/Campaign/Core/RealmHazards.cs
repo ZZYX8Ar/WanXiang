@@ -34,6 +34,12 @@ namespace WanXiang.Campaign
                     ShieldToAll(st, Battle.Core.TeamSide.Player,
                                 realm.HazardShieldPct, realm.HazardTurns, realm.Name);
                     break;
+                case RealmHazardKind.PlayerStatusAll:
+                    // ★ 2026-10-17：场地状态**打我方**（苍泽水汽、烬岭地火）。
+                    //   ⚠ 别改回 Enemy —— 给敌方挂「湿」等于让我方火攻打出蒸发，是福利不是危害。
+                    StatusToAll(st, Battle.Core.TeamSide.Player,
+                                realm.HazardStatusId, realm.HazardStacks, realm.HazardTurns, realm.Name);
+                    break;
             }
         }
 

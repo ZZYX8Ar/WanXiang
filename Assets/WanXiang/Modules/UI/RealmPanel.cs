@@ -89,7 +89,10 @@ namespace WanXiang.Modules.UI
                 return UniTask.CompletedTask;
             }
 
-   _rerollUsed = 0;
+            // ⛔ 不要在这里写 `_rerollUsed = 0` —— 那会让"关掉再打开"无限白嫖免费换。
+            //   免费次数属于**这次遭遇**，存在 RunState 里（见 SyncRerollCount）。
+            var _run0 = WanXiang.Run.RunSave.Current;
+            _rerollUsed = SyncRerollCount(_run0);
        _realm = RollRealm();
        if (_tmpTitle != null) _tmpTitle.text = "秘境 · 抉择";
             // ★ 先落文字色，再填内容（顺序无所谓，但别漏 —— 漏了就是截图里那种浅粉压米色）
@@ -111,6 +114,30 @@ namespace WanXiang.Modules.UI
         ///   一旦某条撤离路径漏了还原，玩家的幕数会被永久改掉。</para>
         /// </summary>
         public static bool DebugBypass;
+
+        /// <summary>「换一个」每次要花多少灵卵（免费那一次之后）。一处调参。</summary>
+        private const int REROLL_COST = 1;
+
+        /// <summary>
+        /// 把"这次遭遇已经换过几次"从存档里取回来（首次进入该次遭遇时归零）。
+        /// <para>⛔⛔ 为什么不能只用面板实例字段（2026-10-17 用户实测）：
+        ///   每次 <c>OnOpenAsync</c> 都会把 <c>_rerollUsed</c> 置 0，
+        ///   于是"关面板 → 再打开"就能无限白嫖免费换 —— 玩家一分灵卵没花换了好几次。</para>
+        /// <para>用"遭遇 key"（Act*10000 + NodeOffset）判断是不是同一次遭遇：
+        ///   走到下一个秘境节点时自动归零，不需要谁记得去重置。</para>
+        /// </summary>
+        private int SyncRerollCount(WanXiang.Run.RunState run)
+        {
+            if (run == null) return 0;
+            int key = run.Act * 10000 + run.NodeOffset;
+            if (run.RealmRerollKey != key)
+            {
+                run.RealmRerollKey = key;
+                run.RealmRerollUsed = 0;
+            }
+            if (run.RealmRerollUsed < 0) run.RealmRerollUsed = 0;
+            return run.RealmRerollUsed;
+        }
 
         private RealmDef RollRealm()
         {
@@ -165,12 +192,12 @@ namespace WanXiang.Modules.UI
 
             if (_rerollUsed >= 1)
             {
-                if (run.Eggs < 1)
+                if (run.Eggs < REROLL_COST)
                 {
-                    SetStatus("换一个需要 1 枚灵卵（免费次数已用完）。");
+                    SetStatus("换一个要 " + REROLL_COST + " 枚灵卵（免费那次已用掉）。");
                     return;
                 }
-                run.Eggs -= 1;
+                run.Eggs -= REROLL_COST;
             }
 
             // ★★ `_rerollUsed` 必须**每次**都 ++（2026-10-17 修）：
@@ -178,6 +205,7 @@ namespace WanXiang.Modules.UI
             //   而种子与"排除当前场域"都以它为据 ⇒ 免费那一次抽出来的还是同一个场域，
             //   玩家点了"换一个"界面纹丝不动（实测）。计费门槛语义不变（第 2 次起收费）。
             _rerollUsed++;
+            run.RealmRerollUsed = _rerollUsed;     // ★ 写回存档，关掉面板再进来不会被重置
 
             _realm = RollRealm();
             FillRealmInfo(_realm);
@@ -256,11 +284,27 @@ if (_tmpRealmName != null) _tmpRealmName.text = r.Name;
 
         private void RefreshStatus()
         {
-            if (_tmpStatus == null) return;
             var run = WanXiang.Run.RunSave.Current;
+
+            // 按钮必须**把代价写在脸上**：免费就写免费，要钱就写多少钱。
+            // ⛔ 原来只写"换一个"，玩家点下去才知道要灵卵（用户："免费就写免费，要钱自己写多少钱"）。
+            if (_btnReroll != null)
+            {
+                bool free = _rerollUsed < 1;
+                bool afford = run != null && run.Eggs >= REROLL_COST;
+                var label = _btnReroll.GetComponentInChildren<TMPro.TMP_Text>(true);
+                if (label != null)
+                    label.text = free ? "换一个（免费）"
+                                      : (afford ? "换一个（" + REROLL_COST + " 灵卵）"
+                                                : "换一个（灵卵不足）");
+                // 没钱就置灰，别让玩家点了才发现（点灰按钮不会有任何反馈，比报错更好读）
+                _btnReroll.interactable = free || afford;
+            }
+
+            if (_tmpStatus == null) return;
             int left = run != null ? RealmSession.EntriesLeft(run) : 0;
             _tmpStatus.text = "本局还可进入 " + left + " 次" +
-              (_rerollUsed > 0 ? "　·　已用掉 1 次免费更换" : "");
+              (_rerollUsed < 1 ? "　·　可免费更换 1 次" : "");
         }
 
         private void SetStatus(string msg)

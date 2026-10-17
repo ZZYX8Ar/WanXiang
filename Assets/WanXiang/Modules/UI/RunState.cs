@@ -240,6 +240,19 @@ namespace WanXiang.Run
             new System.Collections.Generic.List<string>();
 
         /// <summary>
+        /// 「换一个」的免费次数记在**哪一次秘境遭遇**上（= Act*10000 + NodeOffset）。
+        /// <para>⛔⛔ 为什么必须落盘（2026-10-17 用户实测）：`_rerollUsed` 原本只是面板的
+        ///   **实例字段**，而每次打开面板都会 `_rerollUsed = 0` ——
+        ///   于是"关掉面板再打开"就能无限白嫖免费换，玩家一分灵卵没花换了好几次。</para>
+        /// <para>换成"遭遇 key"而不是单纯计数：换到下一个秘境节点时自动归零，
+        ///   不需要谁记得去重置（少一个可能漏掉的调用点）。</para>
+        /// </summary>
+        public int RealmRerollKey = -1;
+
+        /// <summary>该次遭遇已用掉几次「换一个」（0 = 免费那次还在）。</summary>
+        public int RealmRerollUsed = 0;
+
+        /// <summary>
         /// 进入秘境前的**路线图快照**（硬约束 ②「打完必回原节点」的实现基础）。
         /// ⛔ 只存**会被场域改动**的字段 —— 存全量反而容易漏改。
         /// </summary>
