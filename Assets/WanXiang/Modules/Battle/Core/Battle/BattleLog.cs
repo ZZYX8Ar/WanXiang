@@ -58,6 +58,27 @@ namespace WanXiang.Battle.Core
         Windup = 18,
     }
 
+    /// <summary>
+    /// 元素反应种类（2026-10-17）。**只给表现层用**，不进指纹。
+    /// <para>⛔ 刻意**不新增事件种类**：反应就是挂在原来那条 Damage / StatusApplied 上的
+    ///   一个标记 —— 多一条事件会改事件序列（指纹里的 Kind/Turn/Amount 都会漂），
+    ///   而"可复现性"是本项目的红线。标记字段不进 <see cref="BattleEvent.Fingerprint"/>。</para>
+    /// </summary>
+    public enum ReactionKind
+    {
+        None = 0,
+        /// <summary>蒸：火 打 湿 → 额外真伤。</summary>
+        Steam = 1,
+        /// <summary>感电：金 打 湿 → 附感电 + 真伤。</summary>
+        Shock = 2,
+        /// <summary>碎冰：金 打 冰蚀 → 移除 2 层 + 真伤。</summary>
+        Shatter = 3,
+        /// <summary>助燃：木 打 灼烧 → 灼烧 +2 层。</summary>
+        Kindle = 4,
+        /// <summary>镇：土 打 灼烧 → 熄灭 2 层。</summary>
+        Quell = 5,
+    }
+
     public struct BattleEvent
     {
         public int Turn;
@@ -76,6 +97,13 @@ namespace WanXiang.Battle.Core
         public int Amount;          // 伤害/治疗/护盾数值（其它事件为 0）
         public Element Element;
         public string Note;         // 人类可读的补充说明（"相克 ×1.50"、"中宫调息"…）
+
+        /// <summary>
+        /// 元素反应标记（2026-10-17）。None = 这条事件不是反应。
+        /// ⛔ **不进 <see cref="Fingerprint"/>** —— 它只是表现层的开关，
+        ///   不影响战局 ⇒ 加它有指纹风险为零。
+        /// </summary>
+        public ReactionKind Reaction;
 
         /// <summary>
         /// 参与指纹的字段。**刻意排除 Note** —— Note 是给人看的措辞，
@@ -140,13 +168,14 @@ namespace WanXiang.Battle.Core
 
         public void Add(int turn, BattleEventKind kind, string actorId = null, string targetId = null,
                         string skillName = null, int amount = 0, Element element = Element.None,
-                        string note = null, SkillType skill = SkillType.Basic)
+                        string note = null, SkillType skill = SkillType.Basic,
+                        ReactionKind reaction = ReactionKind.None)
         {
             Add(new BattleEvent
             {
                 Turn = turn, Kind = kind, ActorId = actorId, TargetId = targetId,
                 SkillName = skillName, Amount = amount, Element = element, Note = note,
-                Skill = skill,
+                Skill = skill, Reaction = reaction,
             });
         }
 

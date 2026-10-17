@@ -1752,7 +1752,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         Vector2 actorHome = hit.HomePos;
                         if (e.ActorId != null && _views.TryGetValue(e.ActorId, out var atk)) actorHome = atk.HomePos;
                         bool melt = e.Note != null && e.Note.Contains("融冰");
-                        bool reaction = e.Note != null && e.Note.Contains("元素反应");
+                        // ★ 元素反应（2026-10-17）：认 BattleEvent.Reaction 标记，**不解析 Note**
+                        //   （解析文案是错的做法，改一句措辞就会让演出失效）。
+                        bool reaction = e.Reaction != ReactionKind.None;
+                        if (reaction) SpawnReactionFx(hit, e.Reaction);
                         // ★ 大招 cut-in 正在播 → 伤害数字押后到"起爆"那一下再飘（用户 2026-10-14：
                         //   否则伤害在特写期间就飘完/被盖住，看着像"没伤害"）
                         if (_skillFx != null && _skillFx.CutInActive)
@@ -1760,6 +1763,15 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         else
                             ApplyDamageVisual(hit, e.Amount, melt, reaction, crit, actorHome);
                     }
+                    break;
+
+                case BattleEventKind.StatusApplied:
+                    // ★ 只处理**反应型**状态变更：助燃（灼烧+2）/ 镇（熄灭）没有 Damage 事件，
+                    //   不在这里补演出的话，这两个反应在画面上完全静默。
+                    //   普通状态施加（灼烧/湿/根缚…）走头顶状态图标，**不在这里重复演出**。
+                    if (e.Reaction != ReactionKind.None && e.TargetId != null &&
+                        _views.TryGetValue(e.TargetId, out var rsv))
+                        SpawnReactionFx(rsv, e.Reaction);
                     break;
 
                 case BattleEventKind.Heal:
@@ -1817,6 +1829,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             // 舞台自己的动画时钟：由 dt 累加（**不用 `Time.time`**）——
             // 这样表现层动画与"推进了多少帧"严格对应，编辑器里连调 Step 也能被验证到。
             _animT += dt;
+            StepBursts(dt);
             if (_turnArrow != null) _turnArrow.enabled = false;   // 每帧默认隐藏，循环里再为行动者点亮
 
             // 前景轻微摇曳（呼吸感；幅度很小，不干扰战斗阅读）
@@ -2042,6 +2055,86 @@ _tempLife[i] -= dt;
         // ================================================================
 
         /// <summary>通用飘字（伤害/恢复/护盾共用）。美术替换：改这里的字体/字号/描边即可。</summary>
+        // ---- 元素反应演出（2026-10-17）----
+        private struct Burst { public Transform T; public SpriteRenderer Sr; public Vector2 Vel; public float Life, Max; }
+        private readonly System.Collections.Generic.List<Burst> _bursts =
+            new System.Collections.Generic.List<Burst>(32);
+
+        /// <summary>反应名 + 颜色。名字要短（两个字最好读），颜色绑**反应自身的属性语义**。</summary>
+        private static void ReactionInfo(ReactionKind k, out string name, out Color color, out string tag)
+        {
+            switch (k)
+            {
+                case ReactionKind.Steam:   name = "蒸 发"; color = new Color(1.00f, 0.55f, 0.22f); tag = "火×水"; break;
+                case ReactionKind.Shock:   name = "感 电"; color = new Color(0.85f, 0.72f, 1.00f); tag = "金×水"; break;
+                case ReactionKind.Shatter: name = "碎 冰"; color = new Color(0.55f, 0.85f, 1.00f); tag = "金×冰"; break;
+                case ReactionKind.Kindle:  name = "助 燃"; color = new Color(1.00f, 0.42f, 0.18f); tag = "木×火"; break;
+                case ReactionKind.Quell:   name = "镇";    color = new Color(0.86f, 0.72f, 0.36f); tag = "土×火"; break;
+                default:                   name = "反 应"; color = Color.white; tag = ""; break;
+            }
+        }
+
+        /// <summary>
+        /// 元素反应演出：受击者身上弹**属性色的大字**（比伤害数字大一号、活得更久），
+        /// 同时炸开一圈小方块碎片 + 受击弹一下。
+        /// <para>⛔ 碎片用 SpriteRenderer（<see cref="SolidSprite"/>）手写抛物线，**不用 ParticleSystem**
+        ///   —— 工程硬规矩：ParticleSystem 丢材质会变洋红。</para>
+        /// </summary>
+        private void SpawnReactionFx(UnitView2D v, ReactionKind kind)
+        {
+            if (v == null || v.Root == null) return;
+            ReactionInfo(kind, out string name, out Color color, out string tag);
+
+            SpawnNumberInternal(v, name, color, 1.85f, 0.95f);
+            if (!string.IsNullOrEmpty(tag)) SpawnNumberInternal(v, tag, color * 0.95f, 0.95f, 0.85f);
+
+            v.Body.color = color;
+            v.HitFlash = 0.14f;
+            v.ShakePulse = 0.22f;
+
+            Vector3 c = v.Root.transform.position + new Vector3(0f, 0.9f, -1.2f);
+            for (int i = 0; i < 8; i++)
+            {
+                float a = Mathf.PI * 2f * i / 8f;
+                var go = new GameObject("RxSpark");
+                go.transform.SetParent(transform, false);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = SolidSprite(color, 12, 12, 0, color);
+                sr.sortingOrder = 40;
+                go.transform.position = c;
+                go.transform.localScale = Vector3.one * 0.16f;
+                _bursts.Add(new Burst
+                {
+                    T = go.transform, Sr = sr,
+                    Vel = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * 2.2f,
+                    Life = 0.45f, Max = 0.45f,
+                });
+            }
+            while (_bursts.Count > 96)
+            {
+                if (_bursts[0].T != null) Destroy(_bursts[0].T.gameObject);
+                _bursts.RemoveAt(0);
+            }
+        }
+
+        /// <summary>碎片动画（每帧）：抛物线 + 缩小 + 淡出。由 <see cref="Step"/> 驱动。</summary>
+        private void StepBursts(float dt)
+        {
+            for (int i = _bursts.Count - 1; i >= 0; i--)
+            {
+                var b = _bursts[i];
+                if (b.T == null) { _bursts.RemoveAt(i); continue; }
+                b.Life -= dt;
+                if (b.Life <= 0f) { Destroy(b.T.gameObject); _bursts.RemoveAt(i); continue; }
+                float k = b.Life / b.Max;
+                b.Vel.y -= 6.5f * dt;
+                b.T.position += (Vector3)(b.Vel * dt);
+                b.T.localScale = Vector3.one * (0.16f * k + 0.03f);
+                var cc = b.Sr.color; cc.a = k; b.Sr.color = cc;
+                _bursts[i] = b;
+            }
+        }
+
         private void SpawnNumber(UnitView2D v, string text, Color color)
         {
             SpawnNumberInternal(v, text, color, 1f);

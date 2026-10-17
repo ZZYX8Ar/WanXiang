@@ -406,7 +406,7 @@ namespace WanXiang.Battle.Core
                 int dealt = dst.TakeTrueDamage(bonus);
                 st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId, targetId: dst.RuntimeId,
                            amount: dealt, element: Element.Fire,
-                           note: $"元素反应·蒸（蒸发 {wet} 层湿）");
+                           note: $"元素反应·蒸（蒸发 {wet} 层湿）", reaction: ReactionKind.Steam);
                 if (dealt > 0 && !dst.IsAlive)
                     st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
                                note: $"{dst.DisplayName} 阵亡（蒸）");
@@ -423,7 +423,7 @@ namespace WanXiang.Battle.Core
                 int dealt = dst.TakeTrueDamage(bonus);
                 st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId, targetId: dst.RuntimeId,
                            amount: dealt, element: Element.Metal,
-                           note: $"元素反应·感电（{wet} 层湿）");
+                           note: $"元素反应·感电（{wet} 层湿）", reaction: ReactionKind.Shock);
                 if (dealt > 0 && !dst.IsAlive)
                     st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
                                note: $"{dst.DisplayName} 阵亡（感电）");
@@ -439,7 +439,7 @@ namespace WanXiang.Battle.Core
                 int dealt = dst.TakeTrueDamage(bonus);
                 st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId, targetId: dst.RuntimeId,
                            amount: dealt, element: Element.Metal,
-                           note: $"元素反应·碎冰（{ice} 层冰蚀）");
+                           note: $"元素反应·碎冰（{ice} 层冰蚀）", reaction: ReactionKind.Shatter);
                 if (dealt > 0 && !dst.IsAlive)
                     st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
                                note: $"{dst.DisplayName} 阵亡（碎冰）");
@@ -452,7 +452,7 @@ namespace WanXiang.Battle.Core
                 dst.ApplyStatus(StatusCatalog.Burn, 2, 2);
                 st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: src.RuntimeId,
                            targetId: dst.RuntimeId, amount: dst.GetStacks(StatusCatalog.Burn),
-                           note: "元素反应·助燃（灼烧 +2）");
+                           note: "元素反应·助燃（灼烧 +2）", reaction: ReactionKind.Kindle);
                 return;
             }
 
@@ -463,7 +463,7 @@ namespace WanXiang.Battle.Core
                 dst.RemoveStatusStacks(StatusCatalog.Burn, 2);
                 st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: src.RuntimeId,
                            targetId: dst.RuntimeId, amount: before,
-                           note: $"元素反应·镇（熄灭 {System.Math.Min(before, 2)} 层灼烧）");
+                           note: $"元素反应·镇（熄灭 {System.Math.Min(before, 2)} 层灼烧）", reaction: ReactionKind.Quell);
                 return;
             }
         }

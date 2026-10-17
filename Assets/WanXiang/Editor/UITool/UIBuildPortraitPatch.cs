@@ -26,6 +26,7 @@ namespace WanXiang.EditorTools
     {
         private const string HomePath = "Assets/Resources/UI/Panel_Home.prefab";
         private const string ArchivePath = "Assets/Resources/UI/Panel_Archive.prefab";
+        private const string BoardPath = "Assets/Resources/UI/Panel_PortraitBoard.prefab";
         private const string BackupDir = @"D:\Unity_Project\MYRIAD\_backups";
         private const string BackupTag = "bak_20261017_portrait";
 
@@ -40,6 +41,7 @@ namespace WanXiang.EditorTools
         {
             PatchHome();
             PatchArchive();
+            PatchBoard();
             AssetDatabase.Refresh();
         }
 
@@ -55,6 +57,7 @@ namespace WanXiang.EditorTools
             {
                 bool created = EnsurePortraitRoot(root);
                 EnsureToggleButton(root);
+                EnsureBoardManagerButton(root);
                 BindHome(root);
 
                 PrefabUtility.SaveAsPrefabAsset(root, HomePath);
@@ -64,6 +67,44 @@ namespace WanXiang.EditorTools
             {
                 PrefabUtility.UnloadPrefabContents(root);
             }
+        }
+
+        /// <summary>2026-10-17 二轮：看板/立绘库入口挪到底排按钮下方（用户指定位置）。</summary>
+        private static void EnsureToggleButton(GameObject root)
+        {
+            var t = FindDeep(root.transform, "Btn_Portrait");
+            if (t == null)
+            {
+                var btn = MakePaperButton(root, "Btn_Portrait", new Vector2(0f, 0f), new Vector2(1408f, 62f), "看板");
+                ((RectTransform)btn.transform).sizeDelta = new Vector2(132f, 52f);
+                Debug.Log("[PortraitPatch] + Btn_Portrait（底排下方）");
+                return;
+            }
+            // 已存在 → 挪到底排（幂等重定位，老位置右上角作废）
+            var rt = (RectTransform)t;
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 0f);
+            rt.sizeDelta = new Vector2(132f, 52f);
+            rt.anchoredPosition = new Vector2(1408f, 62f);
+            var lbl = FindDeep(t, "Tmp_Label");
+            if (lbl != null)
+            {
+                var tmp = lbl.GetComponent<TMP_Text>();
+                if (tmp != null) tmp.fontSize = 26;
+            }
+        }
+
+        private static void EnsureBoardManagerButton(GameObject root)
+        {
+            if (FindDeep(root.transform, "Btn_BoardManager") != null) return;
+            var btn = MakePaperButton(root, "Btn_BoardManager", new Vector2(0f, 0f), new Vector2(1552f, 62f), "立绘库");
+            ((RectTransform)btn.transform).sizeDelta = new Vector2(132f, 52f);
+            var lbl = FindDeep(btn.transform, "Tmp_Label");
+            if (lbl != null)
+            {
+                var tmp = lbl.GetComponent<TMP_Text>();
+                if (tmp != null) tmp.fontSize = 26;
+            }
+            Debug.Log("[PortraitPatch] + Btn_BoardManager（底排下方「立绘库」）");
         }
 
         private static bool EnsurePortraitRoot(GameObject root)
@@ -142,14 +183,6 @@ namespace WanXiang.EditorTools
             return true;
         }
 
-        private static void EnsureToggleButton(GameObject root)
-        {
-            if (FindDeep(root.transform, "Btn_Portrait") != null) return;
-            var btn = MakePaperButton(root, "Btn_Portrait", new Vector2(1f, 1f), new Vector2(-76f, -44f), "看板");
-            ((RectTransform)btn.transform).sizeDelta = new Vector2(152f, 56f);
-            Debug.Log("[PortraitPatch] + Btn_Portrait（右上「看板」入口）");
-        }
-
         private static void BindHome(GameObject root)
         {
             var panel = root.GetComponent<WanXiang.Modules.UI.HomePanel>();
@@ -159,6 +192,7 @@ namespace WanXiang.EditorTools
             Bind(so, "_portraitRoot", FindDeep(root.transform, "Portrait_Root")?.gameObject);
             Bind(so, "_portraitStage", FindDeep(root.transform, "Portrait_Root")?.GetComponent<WanXiang.Modules.UI.HomePortraitStage>());
             Bind(so, "_btnPortraitBack", FindDeep(root.transform, "Btn_Back")?.GetComponent<Button>());
+            Bind(so, "_btnBoardManager", FindDeep(root.transform, "Btn_BoardManager")?.GetComponent<Button>());
         }
 
         private static void BindStage(WanXiang.Modules.UI.HomePortraitStage stage, GameObject root,
@@ -228,6 +262,157 @@ namespace WanXiang.EditorTools
             {
                 PrefabUtility.UnloadPrefabContents(root);
             }
+        }
+
+        // ================================================================ C. Panel_PortraitBoard（看板库，新建式：存在即跳过）
+        private static void PatchBoard()
+        {
+            if (System.IO.File.Exists(BoardPath)) { Debug.Log("[PortraitPatch] Panel_PortraitBoard 已存在，跳过"); return; }
+
+            var root = new GameObject("Panel_PortraitBoard", typeof(RectTransform));
+            var prt = (RectTransform)root.transform;
+            prt.anchorMin = Vector2.zero; prt.anchorMax = Vector2.one;
+            prt.offsetMin = Vector2.zero; prt.offsetMax = Vector2.zero;
+            var panel = root.AddComponent<WanXiang.Modules.UI.PortraitBoardPanel>();
+
+            var bg = Child(root, "Img_Bg", stretch: true);
+            var bgImg = bg.AddComponent<Image>();
+            bgImg.color = new Color(0f, 0f, 0f, 0.92f);
+            bgImg.raycastTarget = true;
+
+            var card = Child(root, "Card", stretch: false);
+            var crt = (RectTransform)card.transform;
+            crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
+            crt.sizeDelta = new Vector2(1560f, 880f);
+            var cardImg = card.AddComponent<Image>();
+            cardImg.color = Paper;
+            cardImg.raycastTarget = true;
+
+            var title = Child(card, "Tmp_Title", stretch: false);
+            var trt = (RectTransform)title.transform;
+            trt.anchorMin = trt.anchorMax = trt.pivot = new Vector2(0.5f, 1f);
+            trt.sizeDelta = new Vector2(800f, 64f);
+            trt.anchoredPosition = new Vector2(0f, -46f);
+            var tt = title.AddComponent<TextMeshProUGUI>();
+            tt.text = "看板 · 动态立绘";
+            tt.fontSize = 40;
+            tt.alignment = TextAlignmentOptions.Center;
+            tt.color = Ink;
+            tt.raycastTarget = false;
+            if (UIBuild.Font != null) tt.font = UIBuild.Font;
+
+            var hint = Child(card, "Tmp_Hint", stretch: false);
+            var hrt = (RectTransform)hint.transform;
+            hrt.anchorMin = hrt.anchorMax = hrt.pivot = new Vector2(0.5f, 1f);
+            hrt.sizeDelta = new Vector2(1440f, 40f);
+            hrt.anchoredPosition = new Vector2(0f, -96f);
+            var ht = hint.AddComponent<TextMeshProUGUI>();
+            ht.text = "点击立绘加入轮换";
+            ht.fontSize = 20;
+            ht.alignment = TextAlignmentOptions.Center;
+            ht.color = Ink2;
+            ht.raycastTarget = false;
+            if (UIBuild.Font != null) ht.font = UIBuild.Font;
+
+            // ---- 滚动区（Viewport + Mask + Content 网格）----
+            var scroll = Child(card, "Scroll_Portraits", stretch: false);
+            var srt = (RectTransform)scroll.transform;
+            srt.anchorMin = srt.anchorMax = srt.pivot = new Vector2(0.5f, 1f);
+            srt.sizeDelta = new Vector2(1480f, 560f);
+            srt.anchoredPosition = new Vector2(0f, -150f);
+            var viewport = Child(scroll, "Viewport", stretch: true);
+            var vrt = (RectTransform)viewport.transform;
+            viewport.AddComponent<Image>().raycastTarget = true;
+            viewport.AddComponent<RectMask2D>();
+            var content = Child(viewport, "Content", stretch: false);
+            var crt2 = (RectTransform)content.transform;
+            crt2.anchorMin = new Vector2(0f, 1f);
+            crt2.anchorMax = new Vector2(1f, 1f);
+            crt2.pivot = new Vector2(0.5f, 1f);
+            crt2.offsetMin = new Vector2(0f, crt2.offsetMin.y);
+            crt2.offsetMax = new Vector2(0f, crt2.offsetMax.y);
+            var grid = content.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(350f, 300f);
+            grid.spacing = new Vector2(20f, 20f);
+            grid.padding = new RectOffset(16, 16, 16, 16);
+            grid.childAlignment = TextAnchor.UpperCenter;
+            content.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var sr = scroll.AddComponent<ScrollRect>();
+            sr.content = crt2;
+            sr.viewport = vrt;
+            sr.horizontal = false;
+            sr.vertical = true;
+            sr.movementType = ScrollRect.MovementType.Clamped;
+            sr.scrollSensitivity = 24f;
+
+            // ---- 卡片模板（默认隐藏）----
+            var tpl = Child(content, "Item_PortraitCard", stretch: false);
+            var trt2 = (RectTransform)tpl.transform;
+            trt2.anchorMin = new Vector2(0f, 1f);
+            trt2.anchorMax = new Vector2(0f, 1f);
+            trt2.pivot = new Vector2(0f, 1f);
+            var cardImg2 = tpl.AddComponent<Image>();
+            cardImg2.color = Color.white;
+            var tplBtn = tpl.AddComponent<Button>();
+            tplBtn.targetGraphic = cardImg2;
+
+            var head = Child(tpl, "Img_Head", stretch: false);
+            var hrt2 = (RectTransform)head.transform;
+            hrt2.anchorMin = hrt2.anchorMax = hrt2.pivot = new Vector2(0.5f, 1f);
+            hrt2.sizeDelta = new Vector2(310f, 200f);
+            hrt2.anchoredPosition = new Vector2(0f, -18f);
+            var himg = head.AddComponent<Image>();
+            himg.raycastTarget = false;
+
+            var nm = Child(tpl, "Tmp_Name", stretch: false);
+            var nrt = (RectTransform)nm.transform;
+            nrt.anchorMin = nrt.anchorMax = new Vector2(0f, 0f);
+            nrt.pivot = new Vector2(0.5f, 0f);
+            nrt.sizeDelta = new Vector2(330f, 84f);
+            nrt.anchoredPosition = new Vector2(175f, 8f);
+            var nt = nm.AddComponent<TextMeshProUGUI>();
+            nt.text = "异兽名";
+            nt.fontSize = 22;
+            nt.alignment = TextAlignmentOptions.Center;
+            nt.color = Ink;
+            nt.raycastTarget = false;
+            if (UIBuild.Font != null) nt.font = UIBuild.Font;
+
+            var order = Child(tpl, "Tmp_Order", stretch: false);
+            var ort = (RectTransform)order.transform;
+            ort.anchorMin = ort.anchorMax = ort.pivot = new Vector2(0f, 1f);
+            ort.sizeDelta = new Vector2(120f, 40f);
+            ort.anchoredPosition = new Vector2(10f, -10f);
+            var ot = order.AddComponent<TextMeshProUGUI>();
+            ot.text = "";
+            ot.fontSize = 24;
+            ot.alignment = TextAlignmentOptions.Left;
+            ot.color = Ink;
+            ot.raycastTarget = false;
+            if (UIBuild.Font != null) ot.font = UIBuild.Font;
+
+            tpl.gameObject.SetActive(false);   // 模板默认隐藏
+
+            // ---- 底部设置行 ----
+            var auto = MakePaperButton(card, "Btn_AutoRotate", new Vector2(0f, 0f), new Vector2(120f, 60f), "自动轮换：开");
+            ((RectTransform)auto.transform).sizeDelta = new Vector2(360f, 60f);
+            var itv = MakePaperButton(card, "Btn_Interval", new Vector2(0f, 0f), new Vector2(600f, 60f), "轮换间隔：180 秒（约一首歌）");
+            ((RectTransform)itv.transform).sizeDelta = new Vector2(460f, 60f);
+            var close = MakePaperButton(card, "Btn_Close", new Vector2(1f, 0f), new Vector2(-120f, 60f), "关闭");
+            ((RectTransform)close.transform).sizeDelta = new Vector2(240f, 60f);
+
+            // ---- 绑定 ----
+            var so = new SerializedObject(panel);
+            Bind(so, "_tmpHint", ht);
+            Bind(so, "_scrollContent", crt2);
+            Bind(so, "_cardTemplate", trt2);
+            Bind(so, "_btnAutoRotate", auto.GetComponent<Button>());
+            Bind(so, "_btnInterval", itv.GetComponent<Button>());
+            Bind(so, "_btnClose", close.GetComponent<Button>());
+
+            PrefabUtility.SaveAsPrefabAsset(root, BoardPath);
+            Object.DestroyImmediate(root);
+            Debug.Log("[PortraitPatch] + Panel_PortraitBoard.prefab（看板库）");
         }
 
         // ================================================================ 小工具

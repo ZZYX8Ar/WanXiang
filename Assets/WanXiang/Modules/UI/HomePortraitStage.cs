@@ -47,13 +47,23 @@ namespace WanXiang.Modules.UI
         private bool _uiHidden;
         private bool _wired;
         private float _rotateTimer;
-        private float _rotateSeconds = 30f;
+        private float _rotateSeconds = 180f;               // 默认约一首歌的时间（可在此面板调：60/120/180/240）
         private bool _autoRotate = true;
-        private bool _randomOrder = false;
 
-        private const string PrefAutoRotate = "PortraitAutoRotate";
-        private const string PrefRotateSeconds = "PortraitRotateSeconds";
-        private const string PrefRandom = "PortraitRotateRandom";
+        // ---- 入场摄像机动画（虚拟镜头 = Raw_Stage 的缩放/位移/淡入）----
+        //   按异兽站位逐兽配：句芒「居中偏右全身微仰」→ 从人物上半身特写缓缓拉远到全身。
+        //   其他异兽做完视频后按站位在此补一行即可，没有配置的用默认推拉。
+        private static readonly Dictionary<string, Vector3> EntrancePresets = new Dictionary<string, Vector3>
+        {
+            // x=startScale, y=起始位置x, z=起始位置y
+            { "jumang", new Vector3(1.5f, 0f, -140f) },
+        };
+        private static readonly Vector3 DefaultEntrance = new Vector3(1.3f, 0f, -60f);
+        private const float EntranceDefaultDur = 1.3f;
+        private Vector3 _camFrom;          // x=scale, y/z=pos
+        private float _camDur;
+        private float _camT = -1f;         // -1 = 动画未在播
+        private const float FadeInSec = 0.45f;
 
         public int UnlockedCount => _ids.Count;
         public string CurrentId => _ids.Count == 0 ? "" : _ids[_idx];
@@ -63,10 +73,8 @@ namespace WanXiang.Modules.UI
             // ⚠ RawImage 的 color 会乘进纹理：调成黑 = 把视频涂黑。
             //   "准备期别闪白"用禁用图形实现（黑底 Img_Bg 在下面兜着），color 恒白。
             if (_stage != null) { _stage.color = Color.white; _stage.enabled = false; }
-            _autoRotate = PlayerPrefs.GetInt(PrefAutoRotate, 1) == 1;
-            _rotateSeconds = PlayerPrefs.GetFloat(PrefRotateSeconds, 30f);
-            if (_rotateSeconds < 5f) _rotateSeconds = 30f;
-            _randomOrder = PlayerPrefs.GetInt(PrefRandom, 0) == 1;
+            _autoRotate = PortraitBoardPrefs.AutoRotateOn;          // 开关/间隔在「看板库」面板设置
+            _rotateSeconds = PortraitBoardPrefs.LoadSeconds();      // 默认 180 ≈ 一首歌的时间
             WireButtons();
         }
 
@@ -123,6 +131,14 @@ namespace WanXiang.Modules.UI
             _idx = 0;
             _rotateTimer = 0f;
             _uiHidden = false;
+            _camT = -1f;
+            if (_stage != null)
+            {
+                var rt = (RectTransform)_stage.transform;   // 摄像机动画状态复位（常驻复用纪律）
+                rt.localScale = Vector3.one;
+                rt.anchoredPosition = Vector2.zero;
+                _stage.color = Color.white;
+            }
             ApplyUiHidden();
         }
 
@@ -144,15 +160,54 @@ namespace WanXiang.Modules.UI
 
         private void Update()
         {
+            // 入场摄像机动画推进（easeOutCubic 拉回）
+            if (_camT >= 0f && _stage != null)
+            {
+                _camT += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(_camT / _camDur);
+                float e = 1f - Mathf.Pow(1f - k, 3f);
+                var rt = (RectTransform)_stage.transform;
+                float s = Mathf.Lerp(_camFrom.x, 1f, e);
+                rt.localScale = new Vector3(s, s, 1f);
+                rt.anchoredPosition = Vector2.LerpUnclamped(
+                    new Vector2(_camFrom.y, _camFrom.z), Vector2.zero, e);
+                float a = Mathf.Clamp01(_camT / FadeInSec);
+                _stage.color = new Color(1f, 1f, 1f, a);
+                if (k >= 1f) { _camT = -1f; _stage.color = Color.white; }
+            }
+
             if (_ids.Count < 2 || !_autoRotate) return;
             // ⚠ 单帧增量钳到 1s：编辑器失焦/MCP 工具调用会产生巨大 unscaledDeltaTime，
-            //   不钳的话轮换计时器一帧跨过 30s，玩家 alt-tab 回来也会连跳好几只。
+            //   不钳的话轮换计时器一帧跨过间隔，玩家 alt-tab 回来也会连跳好几只。
             _rotateTimer += Mathf.Min(Time.unscaledDeltaTime, 1f);
             if (_rotateTimer < _rotateSeconds) return;
             _rotateTimer = 0f;
-            if (_randomOrder) _idx = Random.Range(0, _ids.Count);
-            else _idx = (_idx + 1) % _ids.Count;
+            _idx = (_idx + 1) % _ids.Count;
             PlayCurrent(false);
+        }
+
+        /// <summary>入场摄像机动画：按异兽站位取预设（无配置用默认推拉）。</summary>
+        private void PlayEntrance(string id)
+        {
+            if (_stage == null) return;
+            Vector3 preset;
+            float dur = EntranceDefaultDur;
+            if (!EntrancePresets.TryGetValue(id, out preset))
+            {
+                preset = DefaultEntrance;
+                dur = EntranceDefaultDur;
+            }
+            else
+            {
+                dur = EntranceDefaultDur;
+            }
+            _camFrom = preset;
+            _camDur = Mathf.Max(0.6f, dur);
+            _camT = 0f;
+            var rt = (RectTransform)_stage.transform;
+            rt.localScale = new Vector3(preset.x, preset.x, 1f);
+            rt.anchoredPosition = new Vector2(preset.y, preset.z);
+            _stage.color = new Color(1f, 1f, 1f, 0f);
         }
 
         // ------------------------------------------------------------ 播放
@@ -203,6 +258,7 @@ namespace WanXiang.Modules.UI
                 string label = NameResolver != null ? NameResolver(id) : id;
                 _tmpName.text = label;
             }
+            PlayEntrance(id);                    // 每次换片/进入都有入场摄像机动画（按站位预设）
             ShownChanged?.Invoke(id, manual);
         }
 
@@ -216,7 +272,7 @@ namespace WanXiang.Modules.UI
                 _player.renderMode = VideoRenderMode.RenderTexture;
                 _player.audioOutputMode = VideoAudioOutputMode.None;
                 _player.isLooping = true;
-                _player.waitForFirstFrame = true;
+                _player.waitForFirstFrame = false;   // 循环不间断：播完直接从头续，不垫黑帧
                 _player.prepareCompleted += OnPrepared;
                 _player.errorReceived += OnVideoError;
             }

@@ -36,10 +36,11 @@ namespace WanXiang.Modules.UI
 
         // ---- 看板模式（2026-10-17：残卷阁集满 6 碎片解锁的动态立绘展示，设计文档见
         //      《万相_主界面动态立绘_设计文档.md》）----
-        [SerializeField] private Button _btnPortrait;         // Btn_Portrait   右上「看板」入口
+        [SerializeField] private Button _btnPortrait;         // Btn_Portrait   底排「看板」入口（进立绘模式）
         [SerializeField] private GameObject _portraitRoot;    // Portrait_Root  立绘模式整组节点（默认隐藏）
         [SerializeField] private HomePortraitStage _portraitStage; // Portrait_Root 上的播放层
         [SerializeField] private Button _btnPortraitBack;     // Btn_Back       立绘模式 → 回地图
+        [SerializeField] private Button _btnBoardManager;     // Btn_BoardManager 底排「立绘库」（轮换管理面板）
 
         // ⚠ 2026-10-11 布局调整（用户要求）：
         //   ① 左侧竖排三个按钮（局外成长/历程/残卷阁）移到**下方横排**，与图鉴/设置同排；
@@ -64,6 +65,14 @@ namespace WanXiang.Modules.UI
 
         private bool _portraitMode;   // 是否处于立绘展示模式
 
+        // ---- 鼠标静止 15s 隐藏全部按钮（一动就恢复；性能开销 ≈ 每帧一次向量比较）----
+        private readonly System.Collections.Generic.List<GameObject> _hideableButtons =
+            new System.Collections.Generic.List<GameObject>(16);
+        private Vector3 _lastMousePos;
+        private float _idleTimer;
+        private bool _buttonsHidden;
+        private const float IdleHideSeconds = 15f;
+
         // ⚠ 2026-09-25 删掉了 RunInk 属性：局内墨锭（RunState.Ink）全项目无人消费，已一并删除。
 
         protected override void OnCreate()
@@ -77,6 +86,10 @@ namespace WanXiang.Modules.UI
             if (_btnSettings != null) _btnSettings.onClick.AddListener(OnSettingsClicked);
             if (_btnPortrait != null) _btnPortrait.onClick.AddListener(OnPortraitClicked);
             if (_btnPortraitBack != null) _btnPortraitBack.onClick.AddListener(ExitPortrait);
+            if (_btnBoardManager != null)
+                _btnBoardManager.onClick.AddListener(() => OpenPanelAsync<PortraitBoardPanel>().Forget());
+            CacheHideableButtons();
+            _lastMousePos = Input.mousePosition;
         }
 
         protected override UniTask OnOpenAsync(object payload)
@@ -277,6 +290,7 @@ namespace WanXiang.Modules.UI
             // 立绘模式一并停播（视频播放器挂在 Canvas 内，但状态必须复位）
             if (_portraitStage != null) _portraitStage.Leave();
             _portraitMode = false;
+            if (_buttonsHidden) ShowButtons();   // 回到主界面按钮必须是可见的
         }
 
         protected override void OnResume()
@@ -367,13 +381,30 @@ namespace WanXiang.Modules.UI
                 return;
             }
             _portraitMode = true;
+            if (_buttonsHidden) ShowButtons();
+
+            // 轮换序列 = 看板库选择的（最多 5 个，按玩家点击顺序）∩ 已解锁；
+            // 没选过 → 看板兽单只兜底。
+            var rot = new System.Collections.Generic.List<string>();
+            foreach (var id in PortraitBoardPrefs.LoadSelected())
+                if (ids.Contains(id) && !rot.Contains(id)) rot.Add(id);
+            if (rot.Count == 0)
+            {
+                string pref = !string.IsNullOrEmpty(meta.HomePortraitId) && ids.Contains(meta.HomePortraitId)
+                    ? meta.HomePortraitId : ids[0];
+                rot.Add(pref);
+            }
+
             _portraitRoot.SetActive(true);
+            // 入口按钮是 Portrait_Root 的后置兄弟节点，会透到视频上层 → 立绘模式藏起来
+            if (_btnPortrait != null) _btnPortrait.gameObject.SetActive(false);
+            if (_btnBoardManager != null) _btnBoardManager.gameObject.SetActive(false);
             if (_scene3D != null) _scene3D.Running = false;   // 3D 层停渲染省电（切回时恢复）
 
             _portraitStage.NameResolver = BeastLabelOf;
             _portraitStage.ShownChanged -= OnPortraitShown;
             _portraitStage.ShownChanged += OnPortraitShown;
-            _portraitStage.Enter(ids, meta != null ? meta.HomePortraitId : "");
+            _portraitStage.Enter(rot, rot[0]);
         }
 
         private void ExitPortrait()
@@ -382,6 +413,8 @@ namespace WanXiang.Modules.UI
             _portraitMode = false;
             if (_portraitStage != null) _portraitStage.Leave();
             if (_portraitRoot != null) _portraitRoot.SetActive(false);
+            if (_btnPortrait != null) _btnPortrait.gameObject.SetActive(true);
+            if (_btnBoardManager != null) _btnBoardManager.gameObject.SetActive(true);
             if (_scene3D != null) _scene3D.Running = true;    // 与 OnDisable 成对恢复
         }
 
@@ -422,5 +455,63 @@ namespace WanXiang.Modules.UI
         }
 
         private static WanXiang.Battle.Core.BeastDef[] _beastCache;
+
+        // ==================================================================== 鼠标空闲隐藏按钮（参考蔚蓝档案）
+        //  主界面鼠标不动超过 15 秒 → 全部按钮隐藏（地图/背景保留）；
+        //  鼠标一动立刻恢复。性能开销 ≈ 每帧一次向量比较，可忽略。
+        //  立绘模式不走这里（它有自己的「隐藏界面」按钮）。
+
+        private void Update()
+        {
+            if (_portraitMode)
+            {
+                if (_buttonsHidden) ShowButtons();
+                return;
+            }
+
+            var m = Input.mousePosition;
+            if ((m - _lastMousePos).sqrMagnitude > 9f)          // 动了（>3px 视为有效移动）
+            {
+                _lastMousePos = m;
+                _idleTimer = 0f;
+                if (_buttonsHidden) ShowButtons();
+            }
+            else
+            {
+                _idleTimer += Time.unscaledDeltaTime;
+                if (!_buttonsHidden && _idleTimer >= IdleHideSeconds) HideButtons();
+            }
+        }
+
+        /// <summary>收集立绘模式以外的全部按钮（OnCreate 一次；prefab 增删按钮后重开面板自动刷新不了
+        ///  —— 常驻面板只建一次，新增按钮要同时补这里）。</summary>
+        private void CacheHideableButtons()
+        {
+            _hideableButtons.Clear();
+            var portraitRoot = _portraitRoot != null ? _portraitRoot.transform : null;
+            var btns = GetComponentsInChildren<Button>(true);
+            for (int i = 0; i < btns.Length; i++)
+            {
+                var b = btns[i];
+                if (b == null) continue;
+                if (portraitRoot != null && b.transform.IsChildOf(portraitRoot)) continue; // 立绘模式自带隐藏
+                _hideableButtons.Add(b.gameObject);
+            }
+        }
+
+        private void HideButtons()
+        {
+            _buttonsHidden = true;
+            for (int i = 0; i < _hideableButtons.Count; i++)
+                if (_hideableButtons[i] != null) _hideableButtons[i].SetActive(false);
+        }
+
+        private void ShowButtons()
+        {
+            _buttonsHidden = false;
+            for (int i = 0; i < _hideableButtons.Count; i++)
+                if (_hideableButtons[i] != null) _hideableButtons[i].SetActive(true);
+            _idleTimer = 0f;
+        }
     }
 }
