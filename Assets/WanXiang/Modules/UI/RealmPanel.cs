@@ -279,7 +279,9 @@ namespace WanXiang.Modules.UI
 if (_tmpRealmName != null) _tmpRealmName.text = r.Name;
             if (_tmpHazard != null) _tmpHazard.text = "场地：" + RealmText.Hazard(r);
             if (_tmpBoon != null) _tmpBoon.text = "收益：" + r.Boon;
-            if (_tmpCost != null) _tmpCost.text = "代价：" + r.Cost;
+            // ⛔ 不要读 r.Cost（手写串，曾写着本工程不存在的"回城补给"）
+            //   一律走 RealmText.Cost —— 它从 PlayerSpeedMul / PenalizesOnQuit 推导，不会与实现脱节。
+            if (_tmpCost != null) _tmpCost.text = "代价：" + RealmText.Cost(r);
   }
 
         private void RefreshStatus()

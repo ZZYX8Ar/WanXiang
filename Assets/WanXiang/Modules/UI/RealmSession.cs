@@ -107,6 +107,11 @@ namespace WanXiang.Modules.UI
             //     与主线字段无关；放后面会和快照还原的语义混在一起，以后加新代价容易搞错顺序。
             ApplyQuitPenalty(run);
 
+            // ---- 1.6) 星币结算（走正常撤离/通关时把本次攒下的星币换成灵卵）----
+            //   ⚠ 必须在 ApplyQuitPenalty **之后**：荆墟的撤离代价就是清空星币，
+            //     先结算再罚，等于它的代价形同虚设。
+            SettleStarCoin(run);
+
             // ---- 2) 路线图快照还原（硬约束 ②）----
             if (snap != null)
             {
@@ -240,12 +245,49 @@ namespace WanXiang.Modules.UI
             return r != null ? r.EnemyScale : 1f;
         }
 
+        /// <summary>
+        /// 这一局场域给我方的**速度乘数**（不在秘境 = 1.00）。
+        /// <para>⛔ 只乘我方：场地代价是"这个环境在拖慢我"，不是把敌方也拖慢。</para>
+        /// </summary>
+        public static float PlayerSpeedMulFor(WanXiang.Run.RunState run)
+        {
+            if (run == null || !run.InRealm) return 1f;
+            var r = WanXiang.Campaign.RealmCatalog.For(run.RealmId);
+            return r != null ? r.PlayerSpeedMul : 1f;
+        }
+
         /// <summary>这一局禁不禁格挡 QTE（不在秘境 = 不禁）。</summary>
         public static bool QteDisabled(WanXiang.Run.RunState run)
         {
             if (run == null || !run.InRealm) return false;
             var r = WanXiang.Campaign.RealmCatalog.For(run.RealmId);
             return r != null && r.NoQte;
+        }
+
+        /// <summary>1 枚灵卵 = 多少星币（一处调参）。</summary>
+        public const int COIN_PER_EGG = 2;
+
+        /// <summary>
+        /// 结算本次秘境累积的星币 → 灵卵（撤离/通关时各调一次）。
+        /// <para>⭐⭐ 2026-10-17 用户问："这个秘境里面的星币是干什么的啊"。
+        ///   查下来它**原来根本没有用途**：`AddStarCoin` 只是在累加，
+        ///   而 `Exit` 里直接 `RealmStarCoin = 0` —— 打了一整趟，数字攒了一堆，出门清零，
+        ///   玩家当然不知道它是干什么的。</para>
+        /// <para>现在它有明确出口：<b>撤离时按 2 星币 = 1 灵卵折算</b>。
+        ///   于是"星币结算 1.5 倍"这条收益也终于有了意义，荆墟的"撤离清空星币"
+        ///   也变成了一条能看懂的代价（= 丢掉还没兑现的灵卵）。</para>
+        /// </summary>
+        public static int SettleStarCoin(WanXiang.Run.RunState run)
+        {
+            if (run == null) return 0;
+            int coin = run.RealmStarCoin;
+            if (coin <= 0) return 0;
+            int eggs = coin / COIN_PER_EGG;
+            if (eggs > 0) run.Eggs += eggs;
+            UnityEngine.Debug.Log("[RealmSession] 星币结算：" + coin + " 星币 → 灵卵 +" + eggs +
+                                  "（不足 " + COIN_PER_EGG + " 的零头不折算）");
+            run.RealmStarCoin = 0;
+            return eggs;
         }
 
         /// <summary>打完一场加星币（按场域倍率）。</summary>

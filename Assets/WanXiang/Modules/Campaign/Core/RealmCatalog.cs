@@ -73,12 +73,40 @@ namespace WanXiang.Campaign
 
         // ---- 规则 ----
         public bool NoQte;                  // 禁格挡 QTE（寂域）
-        public bool BanHealRelics;          // 禁回复类遗物（烬岭）
+
+        /// <summary>
+        /// **我方**全体速度乘数（1 = 不变）。这是"场地代价"唯一真正生效的轴。
+        /// <para>⛔⛔ 2026-10-17 用户："减速度应该是我方的吧……场地效果和代价都是针对我方的"。
+        ///   原来 <c>Cost</c> 只是一句文案，写着"全程速度 -10%，且不能回城补给"——
+        ///   而"回城补给"在本工程里**根本不存在**，减速也没有任何代码读取，
+        ///   是纯粹糊在界面上的假字。现在改成真字段、真生效。</para>
+        /// <para>生效路径：<c>BattleRequestFactory</c> → <c>BattleState.RealmSpeedMulPlayer</c>
+        ///   → <c>EffectiveSpeed()</c>（只影响出手排序，只乘我方）。</para>
+        /// </summary>
+        public float PlayerSpeedMul = 1f;
+
+        // ---- 镇守（秘境专属精英战）----
+        /// <summary>镇守名字（出现在节点信息卡上，让玩家知道"这个不一样"）。</summary>
+        public string ChampionName;
+        /// <summary>镇守称号/一句人设（远征队 33 那种"有名字的精英"感）。</summary>
+        public string ChampionEpithet;
+        /// <summary>击败必得的奖励**原文**（必须与 <see cref="ChampionEggs"/>/<see cref="ChampionCoins"/> 一致）。</summary>
+        public string ChampionRewardText;
+        /// <summary>镇守必掉的灵卵数。</summary>
+        public int ChampionEggs = 3;
+        /// <summary>镇守必掉的星币数（结算时按 1:1 换灵卵，见 RealmSession.SettleStarCoin）。</summary>
+        public int ChampionCoins = 12;
+
         public int AppearFromAct = 1;       // 最早出现幕
         public int Weight = 20;             // 出现权重
 
         public string Boon;                 // 收益（展示）
-        public string Cost;                 // 代价（展示）
+
+        // ⛔ 这里**故意没有** `Cost` 字段（2026-10-17 删）。
+        //   原来它是一句手写展示文案，写着"全程速度 -10%，且不能回城补给"——
+        //   而"回城补给"本工程根本不存在，减速也没人读，等于一句会说谎的死字符串。
+        //   现在代价一律由 `RealmText.Cost()` 从 **PlayerSpeedMul / PenalizesOnQuit 推导**，
+        //   想看"这个场域的代价是什么"就去看那两个字段，改字段就等于改文案，不会脱节。
 
         /// <summary>
         /// 撤离是否**有代价**（2026-10-16 用户："点击离开的时候要弹出面板确定和说明
@@ -129,8 +157,12 @@ namespace WanXiang.Campaign
                 // ⚠ 设计文档 5.3 的表格写「1 幕起」，但同节的**规则**写「第 1 幕不出现」。
                 //   这里取**规则**（更硬，且理由充分：玩家没学会格挡就进秘境是纯挫败）。
                 AppearFromAct = 2, Weight = 30,
-                Boon = "结算产出 1.5 倍",
-                Cost = "全程速度 -10%，且不能回城补给",
+                PlayerSpeedMul = 0.90f,
+                Boon = "星币结算 1.5 倍（撤离时 2 星币 = 1 灵卵）",
+                ChampionName = "泽殍",
+                ChampionEpithet = "半沉半浮的溺者之首，专拖人下水",
+                ChampionRewardText = "灵卵 +3、星币 +12、湿抗灵魂 +1",
+                ChampionEggs = 3, ChampionCoins = 12,
                 Rooms = new[] { "泥沼浅滩", "沉木林", "毒瘴洼地" },
                 Palette = "#2F4A45",
             },
@@ -143,8 +175,14 @@ namespace WanXiang.Campaign
                 HazardStatusId = WanXiang.Battle.Core.StatusCatalog.Burn,
                 HazardStacks = 1, HazardTurns = 2,
                 AppearFromAct = 2, Weight = 25,
-                Boon = "每击败 1 波，全体回血 8% 最大生命",
-                Cost = "不可使用任何回复类遗物",
+                PlayerSpeedMul = 0.95f,
+                // ⚠ 原来写"每击败 1 波回血 8%"和"不可使用回复类遗物" —— 两条都**没有实现**
+                //   （BanHealRelics 字段全工程从未被读取）。改成与实现一致的说法。
+                Boon = "星币结算 1.5 倍（撤离时 2 星币 = 1 灵卵）",
+                ChampionName = "赤髓",
+                ChampionEpithet = "把自己当炉子的熔匠，血是铁水",
+                ChampionRewardText = "灵卵 +4、星币 +14、火抗灵魂 +1",
+                ChampionEggs = 4, ChampionCoins = 14,
                 Rooms = new[] { "焦岩台", "熔痕谷", "灰烬海" },
                 Palette = "#5A2A20",
             },
@@ -156,8 +194,13 @@ namespace WanXiang.Campaign
                 Hazard = RealmHazardKind.FoeShieldAll,
                 HazardShieldPct = 0.15f, HazardTurns = 2,
                 AppearFromAct = 3, Weight = 20,
-                Boon = "每场战斗后可重铸 1 个技能（免费，1 次/秘境）",
-                Cost = "敌方多 1 只单位，但玩家只打 3 场",
+                PlayerSpeedMul = 0.90f,
+                // ⚠ "重铸技能""敌方多 1 只"都没有实现；改写为已生效的两条（场地护盾 + 减速）。
+                Boon = "星币结算 1.5 倍（撤离时 2 星币 = 1 灵卵）",
+                ChampionName = "校核者·零",
+                ChampionEpithet = "机关城里最后一台还在按规程杀人的执法机",
+                ChampionRewardText = "灵卵 +4、星币 +16、金抗灵魂 +1",
+                ChampionEggs = 4, ChampionCoins = 16,
                 Rooms = new[] { "齿轮回廊", "校准间", "核心舱" },
                 Palette = "#3C4654",
             },
@@ -170,8 +213,12 @@ namespace WanXiang.Campaign
                 HazardShieldPct = 0.08f, HazardTurns = 3,
                 NoQte = true,
                 AppearFromAct = 4, Weight = 10,
-                Boon = "通关额外给 2 个神品级灵魂",
-                Cost = "不能格挡 ⇒ 只能靠站位、护盾与治疗扛伤害",
+                PlayerSpeedMul = 0.85f,
+                Boon = "星币结算 1.8 倍（撤离时 2 星币 = 1 灵卵）",
+                ChampionName = "无声者",
+                ChampionEpithet = "守着这片哑地的守墓人，吞掉了自己的名字",
+                ChampionRewardText = "灵卵 +5、星币 +20、无属性灵魂 +1",
+                ChampionEggs = 5, ChampionCoins = 20,
                 Rooms = new[] { "无声回廊", "哑石庭", "终点" },
                 Palette = "#2B2530",
             },
@@ -182,8 +229,11 @@ namespace WanXiang.Campaign
                 MapCols = 4, MapRows = 5,
                 Hazard = RealmHazardKind.None,
                 AppearFromAct = 2, Weight = 15,
-                Boon = "星币产出 2.2 倍；第 2 波结束可选择「再赌一次」",
-                Cost = "自选惩罚不可拒绝；全队血量 <50% 时不会弹出",
+                Boon = "星币结算 2.2 倍（撤离时 2 星币 = 1 灵卵）",
+                ChampionName = "枯骨庄家",
+                ChampionEpithet = "坐庄的那个从来不下场，直到你自己走进来",
+                ChampionRewardText = "灵卵 +6、星币 +24、木抗灵魂 +1",
+                ChampionEggs = 6, ChampionCoins = 24,
                 // ★ 示例：**唯一**一个撤离有代价的场域（赌坊型，中途抽身要留下买路钱）。
                 //   用它演示"有的秘境撤离有惩罚"这条机制；其余场域默认免费撤离。
                 PenalizesOnQuit = true,

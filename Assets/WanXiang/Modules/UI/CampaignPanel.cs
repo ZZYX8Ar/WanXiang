@@ -1062,12 +1062,19 @@ if (_tmpActTitle != null)
             if (run.RealmChampionRewarded.Contains(offset)) return;
             run.RealmChampionRewarded.Add(offset);
 
-            int coin = 8 + run.Act * 2;
+            // ★ 2026-10-17：奖励改由**场域表**决定（每个域一个专属镇守 + 专属掉落），
+            //   不再用写死的 8+Act*2 —— 那样五个域打起来一模一样，没有"这一域有它自己的怪"。
+            var realm = WanXiang.Campaign.RealmCatalog.For(run.RealmId);
+            int coin = realm != null ? realm.ChampionCoins : 8 + run.Act * 2;
+            int eggs = realm != null ? realm.ChampionEggs : 3;
             RealmSession.AddStarCoin(run, coin);
+            run.Eggs += eggs;
             string soul = PickVaultSoul(run);
             if (!string.IsNullOrEmpty(soul)) run.Souls.Add(soul);
-            Debug.Log("[Campaign] 击败镇守（第 " + (offset + 1) + " 格）：星币 +" + coin +
-                      "、灵魂 +1（" + soul + "）—— 秘境专属奖励");
+            Debug.Log("[Campaign] 击败镇守「" + (realm != null ? realm.ChampionName : "?") +
+                      "」（第 " + (offset + 1) + " 格）：灵卵 +" + eggs + "、星币 +" + coin +
+                      "、灵魂 +1（" + soul + "）—— " +
+                      (realm != null ? realm.ChampionRewardText : "秘境专属奖励"));
         }
 
 
@@ -1187,7 +1194,8 @@ if (_tmpActTitle != null)
                     _tmpWeather.text =
                         "场地：" + WanXiang.Modules.UI.RealmText.Hazard(realm) + "\n" +
                         "收益：" + realm.Boon + "\n" +
-                        "代价：" + realm.Cost;
+                        // ⛔ 走 RealmText.Cost（从真实字段推导）；不要读 realm.Cost 手写串
+                        "代价：" + WanXiang.Modules.UI.RealmText.Cost(realm);
             }
 
             _current.Title = "第" + layer + "层";

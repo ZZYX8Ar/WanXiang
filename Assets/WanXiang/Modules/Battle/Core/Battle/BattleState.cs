@@ -201,6 +201,13 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public WeatherRuntime Weather;
 
+        /// <summary>
+        /// 秘境场域给我方的**速度乘数**（1 = 不变）。只影响出手排序，不影响伤害。
+        /// <para>⛔ 默认必须是 1：非秘境战斗逐位不变（自检"不在秘境：强度倍率 1.00"同一根红线）。</para>
+        /// <para>⛔ 只乘 <see cref="TeamSide.Player"/> —— 场地代价是"我方被拖慢"，不能让敌方也变慢。</para>
+        /// </summary>
+        public float RealmSpeedMulPlayer = 1f;
+
         /// <summary>禁疗生效中（小雪「虹藏不见」/ 覆盖天时）。</summary>
         public bool HealBanned => Weather != null && Weather.HealBanned;
 
@@ -218,6 +225,8 @@ namespace WanXiang.Battle.Core
         {
             float v = u.Speed;
             if (Weather != null) v *= Weather.SpeedMulFor(u.Side);
+            // 秘境场域的"我方减速"（场域代价）。⚠ 只乘我方，默认 1 ⇒ 非秘境逐位一致（指纹红线）。
+            if (u.Side == TeamSide.Player) v *= RealmSpeedMulPlayer;
             return v;
         }
 

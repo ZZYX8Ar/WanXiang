@@ -239,6 +239,13 @@ namespace WanXiang.Modules.UI
             float realmScale = RealmSession.EnemyScaleFor(run);
             float enemyMul = ascMul * realmScale;
 
+            // ★ 场域代价（我方减速）：只乘我方出手速度，与敌方强度倍率完全独立的两个轴。
+            //   ⛔ 不在秘境时恒为 1 ⇒ 非秘境战斗逐位不变。
+            req.RealmSpeedMulPlayer = RealmSession.PlayerSpeedMulFor(run);
+            if (req.RealmSpeedMulPlayer != 1f)
+                UnityEngine.Debug.Log("[BattleRequestFactory] 秘境场域代价：我方速度 ×" +
+                                      req.RealmSpeedMulPlayer.ToString("0.00"));
+
             req.EnemyEntries.Clear();
             req.Enemy.Clear();
             req.EnemyMul.Clear();

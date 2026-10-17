@@ -76,12 +76,16 @@ namespace WanXiang.Battle.Core
     {
         /// <summary>开一场 5v5（或任何阵容）。返回的 BattleState 已经 FinishSetup，可以直接 Run。</summary>
         /// <param name="weather">场地天时（GDD 3.1，STEP 3）。null = 无天时，行为与旧版逐位一致。</param>
+        /// <param name="realmSpeedMulPlayer">秘境场域给我方的速度乘数（1 = 不变）。
+        ///   放在参数末尾而不是让 Battle.Core 去查 RunState —— 分层：Core 不认识存档。</param>
         public static BattleState Create(BattleConfig cfg, ulong seed,
                                          DeployEntry[] player, DeployEntry[] enemy,
-                                         WeatherDef weather = null)
+                                         WeatherDef weather = null,
+                                         float realmSpeedMulPlayer = 1f)
         {
             var st = new BattleState(cfg, seed);
             if (weather != null) st.Weather = new WeatherRuntime(weather);
+            st.RealmSpeedMulPlayer = realmSpeedMulPlayer;
             Deploy(st, player, "P");
             Deploy(st, enemy, "E");
             st.FinishSetup();

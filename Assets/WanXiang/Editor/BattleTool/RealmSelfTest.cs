@@ -98,7 +98,13 @@ namespace WanXiang.Editor.BattleTool
                 if (string.IsNullOrEmpty(r.Id)) { Bad(sb, $"第 {i} 个场域没有 Id"); continue; }
                 if (!ids.Add(r.Id)) { Bad(sb, $"Id 重复：{r.Id}"); continue; }
                 if (string.IsNullOrEmpty(r.Name) || string.IsNullOrEmpty(r.Concept)) Bad(sb, $"{r.Id} 缺名字或定位");
-                if (string.IsNullOrEmpty(r.Boon) || string.IsNullOrEmpty(r.Cost)) Bad(sb, $"{r.Id} 缺收益/代价说明（进秘境前必须让玩家看清）");
+                if (string.IsNullOrEmpty(r.Boon)) Bad(sb, $"{r.Id} 缺收益说明（进秘境前必须让玩家看清）");
+                // ★ 2026-10-17：代价不再是一句手写文案（删掉了 RealmDef.Cost），
+                //   而是由 PlayerSpeedMul / PenalizesOnQuit **推导**出来的。
+                //   所以这里改判"有没有真实生效的代价"—— 这比检查字符串强得多：
+                //   字符串可以随便写，字段必须真的被战斗/撤离读到。
+                if (r.PlayerSpeedMul >= 0.999f && !WanXiang.Campaign.RealmCatalog.PenalizesOnQuit(r))
+                    Bad(sb, $"{r.Id} 没有任何**生效**的代价（PlayerSpeedMul=1 且撤离无惩罚）");
                 if (r.Rooms == null || r.Rooms.Length < 3) Bad(sb, $"{r.Id} 房间少于 3 个");
                 if (r.Waves < 1) Bad(sb, $"{r.Id} 波数 <1");
                 // ★ 强度上限：设计文档 5.2「最狠 1.6」，超过就不是加压而是劝退

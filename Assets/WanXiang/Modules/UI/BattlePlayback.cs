@@ -31,6 +31,12 @@ namespace WanXiang.Modules.UI
         /// <summary>真正的天时（WeatherDef）。为 null = 本场无天时，战斗行为与旧版逐位一致（可复现性红线）。
         /// 由 BattleRequestFactory 从活 RunState.ComposeCurrentWeather() 填入；UI 占位串只进 WeatherName（显示用）。</summary>
         public WanXiang.Battle.Core.WeatherDef Weather;
+
+        /// <summary>
+        /// 秘境场域给我方的**速度乘数**（1 = 不变）。这是"场域代价"真正生效的载体。
+        /// <para>⚠ 非秘境战斗恒为 1 ⇒ 逐位不变（可复现性红线）。</para>
+        /// </summary>
+        public float RealmSpeedMulPlayer = 1f;
         public ulong Seed = 20260914UL;
         public List<BeastDef> Player = new List<BeastDef>();
 
@@ -205,7 +211,7 @@ namespace WanXiang.Modules.UI
                 }
             }
 
-            State = BattleFactory.Create(cfg, req.Seed, p, e, req.Weather);
+            State = BattleFactory.Create(cfg, req.Seed, p, e, req.Weather, req.RealmSpeedMulPlayer);
 
             // ★ 遗物「开局灵力」：战斗开始即把 TeamMp 抬上去（更早放出战记/连携）。
             if (req.PlayerStartMana > 0)
