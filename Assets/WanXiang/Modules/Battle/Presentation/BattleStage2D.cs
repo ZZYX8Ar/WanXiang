@@ -65,6 +65,10 @@ namespace WanXiang.Battle.Presentation
         public string FlawShownText;
         public int Hp, MaxHp;
         public bool Alive = true;
+        /// <summary>该单位脚下格子（0~8，与 <c>u.Pos.Index</c> 同一套）。克制染色按它定位。</summary>
+        public int CellIndex;
+        /// <summary>是否我方（决定染哪一方的棋盘）。</summary>
+        public bool PlayerSide;
         public Vector2 HomePos;        // 站位（未加浮动）
         public float Phase;            // 待机浮动相位（随机，方案 §最易做错三件事之一）
         public float DeadBlend;
@@ -152,6 +156,15 @@ namespace WanXiang.Battle.Presentation
         private readonly SpriteRenderer[] _cellsEnemy = new SpriteRenderer[9];
         private readonly Color[] _cellBasePlayer = new Color[9];
         private readonly Color[] _cellBaseEnemy = new Color[9];
+
+        // ---- 属性突破 / 克制染色（2026-10-18）----
+        //   用户要的"克制属性的格子颜色表现"：打出克制时，受击者**脚下的格子**染成攻击属性色再渐隐。
+        //   与技能预览高亮共用同一批 SpriteRenderer，靠**写入顺序**保证本函数最后生效
+        //   （Step 里预览先写、染色后写）。
+        private const float CellFlashDur = 0.55f;
+        private readonly float[] _cellFlashT = new float[18];    // 0~8 我方，9~17 敌方
+        private readonly Color[] _cellFlashC = new Color[18];
+        private readonly bool[] _cellFlashing = new bool[18];
                                                         //   （原来写死 1.9 > 行距 1.155 ， 视觉挤在一起）
 
         // ---- 单位标签（名字 / 血条）的美术点位：直接在 Inspector 里改，不用动代码、不用改 prefab ----
@@ -1077,6 +1090,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 root.transform.SetParent(transform, false);
                 bool player = u.Side == TeamSide.Player;
                 view.HomePos = CellPos(player, u.Pos.Index);
+                view.CellIndex = u.Pos.Index;
+                view.PlayerSide = player;
                 // Pivot=底部中 + Y 上偏 = 立绘脚踩格子中心（遮挡关系由 sortingOrder 管）
                 root.transform.localPosition = new Vector3(view.HomePos.x, view.HomePos.y + FootOffset, 0f);
                 view.Root = root;
@@ -1756,6 +1771,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         //   （解析文案是错的做法，改一句措辞就会让演出失效）。
                         bool reaction = e.Reaction != ReactionKind.None;
                         if (reaction) SpawnReactionFx(hit, e.Reaction);
+                        // 属性克制 → 受击者脚下格子染成攻击属性色
+                        if (e.ElementCounter) FlashCounterCell(hit, BattlePalette.OfElement(e.Element));
                         // ★ 大招 cut-in 正在播 → 伤害数字押后到"起爆"那一下再飘（用户 2026-10-14：
                         //   否则伤害在特写期间就飘完/被盖住，看着像"没伤害"）
                         if (_skillFx != null && _skillFx.CutInActive)
@@ -2011,6 +2028,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 }
             }
 
+            // 克制染色：放在**预览高亮之后**执行（预览每帧写底色，这里再覆盖上去）
+            StepCellFlash(dt);
+
             // 伤害数字上浮 + 弹出缩放 + 回收
             for (int i = _tempTexts.Count - 1; i >= 0; i--)
             {
@@ -2114,6 +2134,48 @@ _tempLife[i] -= dt;
             {
                 if (_bursts[0].T != null) Destroy(_bursts[0].T.gameObject);
                 _bursts.RemoveAt(0);
+            }
+        }
+
+        /// <summary>
+        /// 克制染色：受击者脚下的格子染成**攻击属性色**，0.55s 内渐隐回底色。
+        /// <para>⛔ 只染格子、不动立绘/血条 —— 立绘已经有受击白闪与反应染色，
+        ///   再给立绘上色会和它们打架；格子的语义就是"这块地被打成了什么属性"。</para>
+        /// </summary>
+        private void FlashCounterCell(UnitView2D v, Color color)
+        {
+            if (v == null) return;
+            int idx = (v.PlayerSide ? 0 : 9) + Mathf.Clamp(v.CellIndex, 0, 8);
+            _cellFlashT[idx] = CellFlashDur;
+            _cellFlashC[idx] = color;
+            _cellFlashing[idx] = true;
+        }
+
+        /// <summary>克制染色衰减（每帧，必须在技能预览高亮**之后**调用）。</summary>
+        private void StepCellFlash(float dt)
+        {
+            for (int k = 0; k < 18; k++)
+            {
+                if (!_cellFlashing[k]) continue;
+                bool player = k < 9;
+                int i = player ? k : k - 9;
+                var cells = player ? _cellsPlayer : _cellsEnemy;
+                var baseC = player ? _cellBasePlayer : _cellBaseEnemy;
+                if (cells == null || cells[i] == null) { _cellFlashing[k] = false; continue; }
+
+                _cellFlashT[k] -= dt;
+                if (_cellFlashT[k] <= 0f)
+                {
+                    cells[i].color = baseC[i];        // 精确还原（不能 Lerp 回近似值，否则格子会越闪越浅）
+                    _cellFlashing[k] = false;
+                    continue;
+                }
+                // ⚠ 包络必须**瞬亮 → 线性衰减**：t=1（刚触发）就该是最亮。
+                //   写成"先爬升再回落"会让第一帧几乎看不见（实测 0.02s 时只混了 6%，
+                //   格子在白底纸面上完全看不出变化）。
+                float t = _cellFlashT[k] / CellFlashDur;          // 1 → 0
+                float strength = Mathf.Clamp01(t / 0.75f);        // 前 25% 保持全亮，之后线性衰减
+                cells[i].color = Color.Lerp(baseC[i], _cellFlashC[k], strength * 0.75f);
             }
         }
 

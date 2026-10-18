@@ -255,6 +255,9 @@ namespace WanXiang.Battle.Core
 
             st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId, targetId: dst.RuntimeId,
                        skillName: skill?.Name, amount: dmg, element: el,
+                       // 克制标记：真伤跳过五行系数（ComputeDamage 里已 return）⇒ 真伤不算克制。
+                       // 纯表现字段，不进指纹（自检 27 项对得上）。
+                       elementCounter: !atom.TrueDamage && ElementMatrix.Counters(el, dst.Element),
                        note: BuildDamageNote(st, src, dst, el, crit, atom.TrueDamage, dealt));
 
             dst.AddRage(st.Config.RageWhenHit);

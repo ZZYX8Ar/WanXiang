@@ -106,6 +106,14 @@ namespace WanXiang.Battle.Core
         public ReactionKind Reaction;
 
         /// <summary>
+        /// **属性克制**标记（2026-10-18）：这一击的属性是否克制受击者的属性
+        /// （<see cref="WanXiang.Battle.Core.ElementMatrix.Counters"/>）。
+        /// <para>表现层据此把**受击者脚下的格子**染成攻击属性色（用户要的"克制属性的格子颜色表现"）。</para>
+        /// ⛔ 与 <see cref="Reaction"/> 同理：**不进 <see cref="Fingerprint"/>**，不影响战局。
+        /// </summary>
+        public bool ElementCounter;
+
+        /// <summary>
         /// 参与指纹的字段。**刻意排除 Note** —— Note 是给人看的措辞，
         /// 改一句文案不应该让"可复现性"测试变红。它只覆盖会影响战局的量。
         /// </summary>
@@ -169,13 +177,13 @@ namespace WanXiang.Battle.Core
         public void Add(int turn, BattleEventKind kind, string actorId = null, string targetId = null,
                         string skillName = null, int amount = 0, Element element = Element.None,
                         string note = null, SkillType skill = SkillType.Basic,
-                        ReactionKind reaction = ReactionKind.None)
+                        ReactionKind reaction = ReactionKind.None, bool elementCounter = false)
         {
             Add(new BattleEvent
             {
                 Turn = turn, Kind = kind, ActorId = actorId, TargetId = targetId,
                 SkillName = skillName, Amount = amount, Element = element, Note = note,
-                Skill = skill, Reaction = reaction,
+                Skill = skill, Reaction = reaction, ElementCounter = elementCounter,
             });
         }
 
