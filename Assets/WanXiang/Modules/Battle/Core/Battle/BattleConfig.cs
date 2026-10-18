@@ -43,6 +43,21 @@ namespace WanXiang.Battle.Core
         public int AdjacencyGenerateQiPerTurn = 1;
         /// <summary>「同气」每层 +2% 技能效果。</summary>
         public float QiEffectPerStack = 0.02f;
+
+        // ---- 属性印记（2026-10-18，用户 #7）----
+        /// <summary>
+        /// **属性技命中带印记**：战技/绝技造成元素伤害时，给目标挂 1 层**该属性的引信状态**，
+        /// 让五行反应链在日常战斗里自己转起来（火≈灼烧、水≈湿、水系绝技额外冰蚀）。
+        /// <para>⛔ 这是**平衡开关**（默认开）：关掉它，同种子战斗的指纹会回到旧值 ——
+        ///   对照实验口径与本项目其他机制一致。</para>
+        /// </summary>
+        public bool ElementalMarkOnSkill = true;
+        /// <summary>印记每次施加的层数。</summary>
+        public int ElementalMarkStacks = 1;
+        /// <summary>印记最多叠到几层（到顶就不再施加，防止属性技把 DoT 刷爆）。</summary>
+        public int ElementalMarkCap = 3;
+        /// <summary>印记持续回合。</summary>
+        public int ElementalMarkTurns = 3;
         /// <summary>「同气」上限 5 层。</summary>
         public int QiMaxStacks = 5;
 

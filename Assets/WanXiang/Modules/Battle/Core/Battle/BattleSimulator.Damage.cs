@@ -282,6 +282,11 @@ namespace WanXiang.Battle.Core
             // 判空短路：无天时这一行不进函数体，战斗逐位不变（指纹红线）。
             if (st.Weather != null) PostDamageHooks(st, src, dst, el, dmg, dealt, crit, atom.TrueDamage);
 
+            // ---- 属性印记（2026-10-18）：元素技命中先"落印"，再让反应链去消费 ----
+            // 顺序：先落印再 Resolve —— 这样"火技打已带湿的目标"这一击就能炸出蒸发，
+            // 而不是要等第二击（手感差一整回合）。
+            ApplyElementalMark(st, src, dst, el, skill, atom);
+
             // ---- 元素反应链（常驻机制，不依赖天时）：把五行相克/相生变成命中瞬间的连锁 ----
             // 无条件调用：内部只在"目标带可反应状态"时才发事件/改状态，否则立即返回，零副作用
             // （默认局没有这些状态组合时，指纹逐位不变）。
@@ -396,6 +401,62 @@ namespace WanXiang.Battle.Core
         ///   蒸（火+湿）  感电（金+湿）  碎冰（金+冰蚀）  助燃（木+灼烧）  镇（土+灼烧）
         /// 其中"金"同时是感电与碎冰的引信，"水"以湿的形态成为两种反应的引信，土克火成"镇"。
         /// </summary>
+        /// <summary>
+        /// 该属性技命中时落下的**引信状态**（2026-10-18 用户 #7「按异兽属性给技能加元素」）。
+        /// <para>设计：五行里只有火/水**产出**引信，木/土/金是**消费方**（助燃·镇·感电·碎冰）——
+        ///   所以只给火/水打印记，其余属性靠已有技能自带的裂甲/霜等。</para>
+        /// <list type="bullet">
+        /// <item>火 → 灼烧 1（喂「助燃」「镇」）</item>
+        /// <item>水 → 湿 1（喂「蒸」「感电」）</item>
+        /// <item>水 + **绝技** → 额外冰蚀 1（喂「碎冰」—— 此前玩家侧完全打不出碎冰）</item>
+        /// </list>
+        /// <para>⛔ 只对**战技/绝技**生效（普攻不落印）：否则每一下平A都在刷状态，画面和数值都会糊。
+        ///   技能自身已经挂了同一状态时**不重复施加**（数据里那 10+10 个技能本来就带状态）。</para>
+        /// </summary>
+        private static void ApplyElementalMark(BattleState st, BattleUnit src, BattleUnit dst,
+                                               Element el, SkillDef skill, EffectAtom atom)
+        {
+            if (!st.Config.ElementalMarkOnSkill) return;
+            if (skill == null || skill.Type == SkillType.Basic) return;
+            if (atom.TrueDamage || dst == null || !dst.IsAlive) return;
+
+            string mark = MarkStatusFor(el, skill.Type);
+            if (string.IsNullOrEmpty(mark)) return;
+
+            // 技能自己已经挂了这个状态 ⇒ 不再叠加（否则等于双倍）
+            if (atom.Kind == EffectAtomKind.ApplyStatus && atom.StatusId == mark) return;
+
+            int stacks = st.Config.ElementalMarkStacks;
+            ApplyOneMark(st, src, dst, mark, stacks);
+
+            // 水系**绝技**额外落一层冰蚀 —— 否则「碎冰」在玩家侧永远没有引信
+            //（审计：150 个技能里施加冰蚀的 = 0）。
+            if (el == Element.Water && skill.Type == SkillType.Ultimate)
+                ApplyOneMark(st, src, dst, StatusCatalog.IceErosion, stacks);
+        }
+
+        /// <summary>落一层印记（带层数上限与日志）。</summary>
+        private static void ApplyOneMark(BattleState st, BattleUnit src, BattleUnit dst,
+                                         string statusId, int stacks)
+        {
+            if (dst.GetStacks(statusId) >= st.Config.ElementalMarkCap) return;
+            dst.ApplyStatus(statusId, stacks, st.Config.ElementalMarkTurns);
+            st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: src.RuntimeId, targetId: dst.RuntimeId,
+                       amount: dst.GetStacks(statusId),
+                       note: "属性印记·" + StatusCatalog.Get(statusId).Name + " +" + stacks);
+        }
+
+        /// <summary>属性 → 引信状态。空串 = 该属性不落印（消费方）。</summary>
+        private static string MarkStatusFor(Element el, SkillType type)
+        {
+            switch (el)
+            {
+                case Element.Fire:  return StatusCatalog.Burn;
+                case Element.Water: return StatusCatalog.Wet;
+                default:            return "";     // 木/土/金 是反应消费方，不产引信
+            }
+        }
+
         public static void ResolveElementReactions(BattleState st, BattleUnit src, BattleUnit dst, Element el)
         {
             if (dst == null || !dst.IsAlive) return;
