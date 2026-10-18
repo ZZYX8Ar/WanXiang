@@ -423,8 +423,10 @@ namespace WanXiang.Battle.Core
             string mark = MarkStatusFor(el, skill.Type);
             if (string.IsNullOrEmpty(mark)) return;
 
-            // 技能自己已经挂了这个状态 ⇒ 不再叠加（否则等于双倍）
-            if (atom.Kind == EffectAtomKind.ApplyStatus && atom.StatusId == mark) return;
+            // 技能**整套**里已经挂了这个状态 ⇒ 不再叠加（否则等于双倍）。
+            // ⚠ 必须看整个技能而不只是当前原子：祝融的战技是「挂灼烧」的纯 buff 原子，
+            //   一次 DealDamage 都不产生 ⇒ 只按原子判会让印记"看起来没生效"（实测踩过）。
+            if (SkillAppliesStatus(skill, mark)) return;
 
             int stacks = st.Config.ElementalMarkStacks;
             ApplyOneMark(st, src, dst, mark, stacks);
@@ -433,6 +435,18 @@ namespace WanXiang.Battle.Core
             //（审计：150 个技能里施加冰蚀的 = 0）。
             if (el == Element.Water && skill.Type == SkillType.Ultimate)
                 ApplyOneMark(st, src, dst, StatusCatalog.IceErosion, stacks);
+        }
+
+        /// <summary>该技能的任意原子是否已经施加了这个状态。</summary>
+        private static bool SkillAppliesStatus(SkillDef skill, string statusId)
+        {
+            if (skill == null || skill.Effects == null) return false;
+            for (int i = 0; i < skill.Effects.Length; i++)
+            {
+                var a = skill.Effects[i];
+                if (a.Kind == EffectAtomKind.ApplyStatus && a.StatusId == statusId) return true;
+            }
+            return false;
         }
 
         /// <summary>落一层印记（带层数上限与日志）。</summary>

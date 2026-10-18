@@ -94,6 +94,17 @@ namespace WanXiang.Campaign
         /// <para>⚠ 是**战斗**节点 —— 已加进 <see cref="NodeKinds.IsBattle"/>。</para>
         /// </summary>
         RealmChampion = 12,
+
+        /// <summary>
+        /// **越境**（2026-10-18 用户："增加一个可以直接传送到下一幕的节点，
+        /// 这个节点会在续劫的时候才会出现，方便玩家快速续劫、快速通过"）。
+        /// <para>站在它上面可以**直接进入下一幕**，放弃本幕剩余节点（含守关）。</para>
+        /// <para>出现条件：`RunState.Ascension &gt; 0`（即"续劫"过至少一次）且主线模式。
+        ///   第一周目没有它 —— 新玩家需要完整走一遍每一幕。</para>
+        /// <para>⚠ 枚举值追加在末尾（13）：存档里按压好的整数存节点类型，
+        ///   追加不会让任何既有存档失效。</para>
+        /// </summary>
+        ActSkip = 13,
     }
 
     public static class NodeKinds
@@ -128,6 +139,7 @@ namespace WanXiang.Campaign
                 case NodeKind.Realm: return "秘境";
                 case NodeKind.RealmVault: return "秘藏";
                 case NodeKind.RealmChampion: return "镇守";
+                case NodeKind.ActSkip: return "越境";
                 default: return "？";
             }
         }

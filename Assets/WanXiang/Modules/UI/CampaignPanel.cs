@@ -686,6 +686,31 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// 可选的**外部图**（秘境内部图）。非空则用它替代 BuildRoute —— 这就是"秘境 = 特殊的一幕"。
         ///   走参数而不是 static 字段优先；static 只是给 <see cref="OpenAsRealm"/> 兜底。
         /// </param>
+        /// <summary>
+        /// 把本幕中段的某一格改写成「越境」（2026-10-18）。**只对续劫局生效**。
+        /// <para>位置：第 0.65×层数 层的第一格；跳过结构位（0=招募 / 1=遗物 / 末=守关）。</para>
+        /// <para>⛔ 不做成"随机多插一格"—— 图的**拓扑不能变**（层/边/节气序号全不动），
+        ///   只换某一格的**类型**，这样所有按下标存的存档字段仍然有效。</para>
+        /// </summary>
+        private void ApplyActSkipNode(WanXiang.Run.RunState run)
+        {
+            if (_realmMode || run == null || _graph == null || _graph.Kinds == null) return;
+            if (run.Ascension <= 0) return;                       // 第一周目没有
+            if (_graph.Act < 1 || _graph.Act >= 5) return;        // 天阙（第 5 幕）不插
+            if (_graph.Layers == null || _graph.Layers.Length < 6) return;
+
+            int layer = Mathf.Clamp(Mathf.RoundToInt((_graph.Layers.Length - 1) * 0.65f),
+                                    2, _graph.Layers.Length - 2);   // 避开首两层与幕末
+            var cells = _graph.Layers[layer];
+            if (cells == null || cells.Length == 0) return;
+            int off = cells[0];
+            if (off < 0 || off >= _graph.Kinds.Length) return;
+            if (off == _graph.NodeCount - 1) return;
+
+            _graph.Kinds[off] = WanXiang.Campaign.NodeKind.ActSkip;
+            Debug.Log("[Campaign] 续劫局：第 " + _graph.Act + " 幕第 " + (off + 1) + " 格为「越境」");
+        }
+
         private void BuildNodeMap(WanXiang.Campaign.ActGraph payloadGraph = null)
         {
             if (_scrollNodes == null || _nodeItemTemplate == null) return;
@@ -777,6 +802,12 @@ if (injected != null && !injected.IsEmpty)
         }
 
             // ★ 瘴雾重掷过的节点类型：覆盖回去（节点图每次都由种子重建，不覆盖就被冲掉了）
+            // ★★ 越境（2026-10-18 用户："直接传送到下一幕的节点，续劫时才出现"）：
+            //   只有**续劫过**（Ascension > 0）的主线局才有 —— 第一周目必须完整走一遍。
+            //   位置按下标确定（同一存档同一幕永远同一格），放在**中段**（约 65% 深度），
+            //   且避开结构位：首层招募 / 次层遗物 / 幕末守关。
+            ApplyActSkipNode(run);
+
             if (run != null && run.RerolledKinds != null && run.RerolledKinds.Count > 0 && _graph.Kinds != null)
             {
                 foreach (var rec in run.RerolledKinds)
@@ -1215,7 +1246,9 @@ if (_tmpActTitle != null)
                     ? "　（秘境专属 · 一次性重奖）"
                     : kind == WanXiang.Campaign.NodeKind.RealmChampion
                         ? "　镇守 · " + (__champ != null ? __champ.Name : "？")
-                        : (WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "　（战斗）" : "　（休整）");
+                        : kind == WanXiang.Campaign.NodeKind.ActSkip
+                            ? "　（续劫专属 · 直入下一幕）"
+                            : (WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "　（战斗）" : "　（休整）");
                 _tmpNodeType.text = n + extra;
             }
 
@@ -1937,7 +1970,9 @@ if (_tmpActTitle != null)
                 _tmpNodeType.text = "守关 · " + (_graph.BossName ?? "首领") + "　（战斗）";
             else if (_tmpNodeType != null && !isFinaleBoss)
                 _tmpNodeType.text = WanXiang.Campaign.NodeKinds.Cn(kind) +
-                                    (WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "　（战斗）" : "　（休整）");
+                                    (kind == WanXiang.Campaign.NodeKind.ActSkip
+                                        ? "　（续劫专属 · 直入下一幕）"
+                                        : (WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "　（战斗）" : "　（休整）"));
             if (_tmpWeather != null) _tmpWeather.text = WeatherHint(kind, isSeasonBoss, isFinaleBoss);
 
             // _current 是常驻实例（表单里被 Btn_Next 复用），逐字段赋值而不是换新对象
@@ -2033,6 +2068,9 @@ if (_tmpActTitle != null)
                 case WanXiang.Campaign.NodeKind.Omen: return "天象：三选一，增益都配一条明确代价";
                 case WanXiang.Campaign.NodeKind.Recruit: return "招募：免费挑选异兽入队（每属性随机 2 选，可刷新）";
                 case WanXiang.Campaign.NodeKind.Relic: return "遗物：从遗物池随机 3 选 1，局内变强";
+                // ★ 越境（2026-10-18）：续劫专属 —— 直入下一幕，代价是本幕剩余节点全放弃
+                case WanXiang.Campaign.NodeKind.ActSkip:
+                    return "越境：直接进入下一幕。**放弃本幕剩余节点**（含守关首领与它的奖励）——续劫（轮回）专属";
                 default: return "遭遇：常规战斗，敌方按幕数规模成队";
             }
         }
@@ -2409,6 +2447,51 @@ if (_tmpActTitle != null)
             }
         }
 
+        /// <summary>
+        /// 「越境」确认 + 推进（2026-10-18）。用户："方便玩家快速续劫、快速通过"。
+        /// <para>⛔ 推进逻辑必须与"通过守关"那条**逐字一致**（换幕要清 5 类按下标存的记录），
+        ///   否则会留下上一幕的 VisitedNodes / 重掷记录 / 瘴雾状态污染新幕。</para>
+        /// </summary>
+        private void ConfirmActSkip()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || _graph == null) return;
+            if (run.Act >= 5) { Debug.Log("[Campaign] 已在最后一幕，越境无效"); return; }
+            int cur = run.Act;
+            ConfirmActSkipAsync(cur).Forget();
+        }
+
+        private async UniTaskVoid ConfirmActSkipAsync(int curAct)
+        {
+            bool ok = await DialogPanel.Confirm(
+                "越境 · 直入第 " + (curAct + 1) + " 幕",
+                "跳过本幕剩余节点（含守关首领与它的奖励），直接进入下一幕。\n\n" +
+                "本幕已走过的节点收益保留。越境不消耗灵卵。");
+            if (!ok) return;
+
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return;
+            if (run.Act != curAct) return;                 // 确认期间局面变了：放弃
+
+            run.Act++;
+            run.NodeOffset = -1;
+            if (run.VisitedNodes != null) run.VisitedNodes.Clear();
+            if (run.PassedNodes != null) run.PassedNodes.Clear();
+            if (run.RerolledKinds != null) run.RerolledKinds.Clear();
+            if (run.FogWeatherNodes != null) run.FogWeatherNodes.Clear();
+            run.FogGenAct = 0;
+            run.FogTriggerNode = -1;
+            run.FogLeft = 0; run.FogRerolled = false;
+            WanXiang.Run.RunSave.SaveCurrent();
+            Debug.Log("[Campaign] 越境：第 " + curAct + " 幕 → 第 " + run.Act + " 幕");
+
+            RebuildGraphFor(run.Act, run.RunSeed);
+            _currentOffset = -1;
+            _visited.Clear();
+            BuildNodeMap();
+            SelectNode(0, true);
+        }
+
         private void OnNextClicked()
         {
             if (_selected < 0 || _graph == null)
@@ -2535,6 +2618,10 @@ if (_tmpActTitle != null)
                 // ★★ 秘境专属节点（2026-10-16）：只在秘境内部图里出现，主线图不会生成它们。
                 case WanXiang.Campaign.NodeKind.RealmVault:
                     OpenRealmVault();
+                    return;
+                // ★ 越境（2026-10-18）：续劫专属，直接进下一幕
+                case WanXiang.Campaign.NodeKind.ActSkip:
+                    ConfirmActSkip();
                     return;
                 case WanXiang.Campaign.NodeKind.Shop:
                     OpenPanelAsync<MarketPanel>().Forget();
