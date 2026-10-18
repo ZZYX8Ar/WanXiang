@@ -38,6 +38,17 @@ namespace WanXiang.EditorTools
             "banner_win", "banner_lose", "skill_banner_normal", "skill_banner_ultimate",
         };
 
+        /// <summary>
+        /// **程序化 UI 底版**（2026-10-18，Tools/art/uikit_gen.py 生成）的固定边框。
+        /// ⛔ 这些 key 不能走下面的 34% 短边公式 —— kit 的角标/内缩线是按固定 px 画的，
+        ///   边框一大，Sliced 拉伸就会把角标拉变形。
+        /// </summary>
+        private static readonly Dictionary<string, int> KitBorder = new Dictionary<string, int>
+        {
+            { "panel_dialog", 48 }, { "btn_primary", 24 }, { "btn_secondary", 24 },
+            { "slot_card", 24 }, { "listitem", 24 }, { "divider", 0 },
+        };
+
         [MenuItem("WanXiang/美术/导入并设置美术资源", priority = 200)]
         public static void Run()
         {
@@ -71,6 +82,7 @@ namespace WanXiang.EditorTools
                 if (!path.EndsWith(".png")) continue;
 
                 bool isSliced = NineSlice.Contains(Path.GetFileNameWithoutExtension(path));
+                string fileNameNoExt = Path.GetFileNameWithoutExtension(path);
 
                 importer.textureType = TextureImporterType.Sprite;
                 importer.spriteImportMode = SpriteImportMode.Single;
@@ -87,6 +99,21 @@ namespace WanXiang.EditorTools
                 settings.spriteAlignment = (int)SpriteAlignment.Center;
                 settings.spritePixelsPerUnit = 100f;
                 settings.spriteExtrude = 1;
+
+                // ★ 程序化 UI 底版（uikit_gen.py）：固定边框 + 无压缩 + FullRect。
+                //   ⛔ 不能落到下面的 34% 公式 —— kit 的角标按固定 px 画的，边框一大就拉变形；
+                //     细线经压缩会糊，所以单独 Uncompressed。
+                if (KitBorder.TryGetValue(fileNameNoExt, out int kitBorder))
+                {
+                    settings.spriteMeshType = SpriteMeshType.FullRect;
+                    settings.spriteBorder = new Vector4(kitBorder, kitBorder, kitBorder, kitBorder);
+                    importer.textureCompression = TextureImporterCompression.Uncompressed;
+                    importer.SetTextureSettings(settings);
+                    importer.SaveAndReimport();
+                    n++;
+                    continue;
+                }
+
                 if (isSliced)
                 {
                     // 34% 短边 —— 与 process_art.py 的 suggest_border 同一公式
