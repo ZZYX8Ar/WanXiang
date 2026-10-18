@@ -1566,11 +1566,75 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 if (worldPos.y < c.y - hy || worldPos.y > c.y + hy) continue;
                 if (c.y + hy > bestTop) { bestTop = c.y + hy; best = v; }
             }
-            if (best == null) return false;
+            if (best == null)
+            {
+                // ★ 2026-10-18：立绘包围盒之外，再认**状态图标排**（以及名字/血条那一带）。
+                //   原本只有立绘本体参与命中 ⇒ 鼠标指着头顶那一排状态图标完全没反应，
+                //   而"看这个状态是什么、能引爆什么反应"恰恰是玩家最想点的地方。
+                best = PickByStatusRow(worldPos, out float rowTop);
+                if (best == null) return false;
+                unitId = best.UnitId;
+                displayName = best.NameText != null ? best.NameText.text : null;
+                // 锚点放**图标排之上**：提示面板不能盖住图标本身
+                anchorWorld = new Vector3(best.Root.transform.position.x, rowTop + 0.25f,
+                                          best.Root.transform.position.z);
+                return true;
+            }
             unitId = best.UnitId;
             displayName = best.NameText != null ? best.NameText.text : null;
             anchorWorld = new Vector3(best.Root.transform.position.x, bestTop, best.Root.transform.position.z);
             return true;
+        }
+
+        /// <summary>
+        /// 命中「头顶信息带」（状态图标排 + 血条/名字）：这一带没有碰撞体，只能按渲染器世界包围盒算。
+        /// <para>⚠ 只用 **SpriteRenderer.bounds**（渲染器自己算，不依赖 2D 物理注册），
+        ///   与 <see cref="TryPickUnit"/> 里"不用 col.bounds"的理由相同。</para>
+        /// </summary>
+        private UnitView2D PickByStatusRow(Vector3 worldPos, out float topY)
+        {
+            topY = float.MinValue;
+            UnitView2D best = null;
+            foreach (var kv in _views)
+            {
+                var v = kv.Value;
+                if (v == null || v.Root == null || !v.Alive) continue;
+                if (v.StatusRow == null) continue;
+
+                bool any = false;
+                float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
+                // 图标排 + 血条 + 名字：都算"头顶信息带"
+                AccumulateBounds(v.StatusRow.transform, ref any, ref minX, ref maxX, ref minY, ref maxY);
+                if (v.HpBg != null) AccumulateBounds(v.HpBg.transform, ref any, ref minX, ref maxX, ref minY, ref maxY);
+                if (v.NameText != null) AccumulateBounds(v.NameText.transform, ref any, ref minX, ref maxX, ref minY, ref maxY);
+                if (!any) continue;
+
+                const float pad = 0.10f;   // 手不用那么准
+                if (worldPos.x < minX - pad || worldPos.x > maxX + pad) continue;
+                if (worldPos.y < minY - pad || worldPos.y > maxY + pad) continue;
+                if (maxY > topY) { topY = maxY; best = v; }
+            }
+            return best;
+        }
+
+        /// <summary>把一个节点（连同其激活的子渲染器）的世界包围盒并入统计。</summary>
+        private static void AccumulateBounds(Transform t, ref bool any,
+                                             ref float minX, ref float maxX, ref float minY, ref float maxY)
+        {
+            if (t == null) return;
+            var srs = t.GetComponentsInChildren<SpriteRenderer>();
+            for (int i = 0; i < srs.Length; i++)
+            {
+                var sr = srs[i];
+                if (sr == null || !sr.enabled || sr.sprite == null) continue;
+                if (!sr.gameObject.activeInHierarchy) continue;
+                var b = sr.bounds;
+                any = true;
+                if (b.min.x < minX) minX = b.min.x;
+                if (b.max.x > maxX) maxX = b.max.x;
+                if (b.min.y < minY) minY = b.min.y;
+                if (b.max.y > maxY) maxY = b.max.y;
+            }
         }
 
         /// <summary>

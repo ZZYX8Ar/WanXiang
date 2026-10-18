@@ -186,6 +186,8 @@ namespace WanXiang.Modules.UI
             ClearTipRows();
 
             var parts = string.IsNullOrEmpty(ids) ? new string[0] : ids.Split('|');
+            var rows = new System.Collections.Generic.List<TipRow>(parts.Length);
+            bool hasFuse = false;
             if (parts.Length == 0)
             {
                 AddTipRow("（无状态）", "该单位目前身上没有任何状态。");
@@ -201,10 +203,44 @@ namespace WanXiang.Modules.UI
                     if (kv.Length > 1) int.TryParse(kv[1], out stacks);
                     string nm = !string.IsNullOrEmpty(def.Name) ? def.Name : kv[0];
                     if (stacks > 1) nm += " ×" + stacks;
-                    AddTipRow(nm, def.Description);
+                    bool fuse = IsFuseStatus(kv[0]);
+                    if (fuse) hasFuse = true;
+                    rows.Add(new TipRow { Name = nm, Desc = def.Description, Fuse = fuse, Order = i });
                 }
             }
+
+            // ★ 2026-10-18：**引信状态排最前 + 打 ◆** —— 它们是"能引爆反应"的那几个，
+            //   玩家扫一眼就知道现在身上有什么料、能炸什么。其余状态保持原顺序。
+            rows.Sort((a, b) => a.Fuse != b.Fuse ? (a.Fuse ? -1 : 1) : a.Order.CompareTo(b.Order));
+            for (int i = 0; i < rows.Count; i++)
+                AddTipRow((rows[i].Fuse ? "◆ " : "") + rows[i].Name, rows[i].Desc);
+
+            if (hasFuse && _statusTipTitle != null && !string.IsNullOrEmpty(displayName))
+                _statusTipTitle.text = displayName + "　（◆ 可引爆）";
             FitStatusTipHeight();   // ★ 面板高度随行数/文本高度向下生长（不再固定 300 高、内容溢出）
+        }
+
+        /// <summary>状态列表的一行（排序用）。</summary>
+        private struct TipRow
+        {
+            public string Name;
+            public string Desc;
+            public bool Fuse;
+            public int Order;
+        }
+
+        /// <summary>
+        /// 是不是**引信状态**（能被某个属性点着、触发元素反应）。
+        /// ⛔ 必须与 `ResolveElementReactions` 实际消费的状态一致：
+        ///   湿（蒸/感电）、灼烧（助燃/镇）、冰蚀（碎冰）、感电（可被再次引爆）。
+        ///   改了反应表就要同步这里，否则 ◆ 会指错。
+        /// </summary>
+        private static bool IsFuseStatus(string id)
+        {
+            return id == WanXiang.Battle.Core.StatusCatalog.Wet
+                || id == WanXiang.Battle.Core.StatusCatalog.Burn
+                || id == WanXiang.Battle.Core.StatusCatalog.IceErosion
+                || id == WanXiang.Battle.Core.StatusCatalog.Shock;
         }
 
         private void HideStatusTip()
