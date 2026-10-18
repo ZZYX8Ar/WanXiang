@@ -52,6 +52,8 @@ namespace WanXiang.Modules.UI
         private readonly List<GameObject> _cards = new List<GameObject>();
         private int _detailIndex = -1;
         private int _lastClickIndex = -1;
+        /// <summary>本次开面已刷新次数（确定性种子的变化源）。</summary>
+        private int _rerollCount;
         private float _lastClickTime = -1f;
 
         /// <summary>
@@ -80,6 +82,7 @@ namespace WanXiang.Modules.UI
             _picked.Clear();
             _detailIndex = -1;
             _lastClickIndex = -1;
+            _rerollCount = 0;    // 进入节点 = 回到该节点"第一批"候选
             if (_detailRoot != null) _detailRoot.SetActive(false);
 
             // 先快照"已拥有"，Reroll 每次都按它过滤（刷新时玩家可能已选中/已入队）
@@ -133,7 +136,18 @@ namespace WanXiang.Modules.UI
                 list.Add(b);
             }
 
-            var rng = new System.Random((int)(System.DateTime.Now.Ticks & 0x7fffffff));
+            // ★★ 2026-10-18 用户："每次打开能选择的异兽也不一样，这样不就可以无限刷新了"
+            //   ⇒ 候选按（RunSeed, 幕, 节点, 已刷新次数）**确定性生成**：
+            //   同一节点反复进出永远是同一批；想换走按钮（首免后灵卵），每次按钮 reroll+1。
+            var rr = WanXiang.Run.RunSave.Current;
+            int nodeKey = WanXiang.Modules.UI.CampaignPanel.PendingCommit >= 0
+                ? WanXiang.Modules.UI.CampaignPanel.PendingCommit
+                : (rr != null ? rr.NodeOffset : -1);
+            ulong rseed = WanXiang.Battle.Core.CoreMath.Fnv1a(
+                "recruit:" + (rr != null ? rr.RunSeed : 0) + ":" + (rr != null ? rr.Act : 0) +
+                ":" + nodeKey + ":" + _rerollCount);
+            var rng = new System.Random((int)(rseed & 0x7fffffff));
+            _rerollCount++;
             _candidates.Clear();
             // ⚠⛔ 每只异兽**全局只出现一次**（用户实测：土池只有帝江一只时，
             //   旧写法"每五行独立抽 2 次、抽完不移除"会让 rng.Next(1) 两次都返回帝江

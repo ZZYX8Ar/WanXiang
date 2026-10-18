@@ -2505,6 +2505,31 @@ if (_tmpActTitle != null)
                 return;
             }
 
+            // ★★ 同层互斥（2026-10-18 用户定案："每一层如果点击去过这个节点，
+            //   同一层的其他节点就不能再点击了"）—— 防"每个节点都进来看一眼"再决定。
+            //   记账时机 = **点击前往那一刻**（进过即锁定，无论最终是否通过）。
+            {
+                var runChk = WanXiang.Run.RunSave.Current;
+                if (runChk != null && runChk.ChosenNodes != null && runChk.ChosenNodes.Count > 0)
+                {
+                    int myLayer = -1;
+                    for (int L = 0; L < _graph.Layers.Length && myLayer < 0; L++)
+                        if (System.Array.IndexOf(_graph.Layers[L], _selected) >= 0) myLayer = L;
+                    if (myLayer >= 0)
+                    {
+                        foreach (var off in _graph.Layers[myLayer])
+                        {
+                            if (off == _selected) continue;
+                            if (runChk.ChosenNodes.Contains(off))
+                            {
+                                Debug.Log("[Campaign] 本层已进过其他节点（同层互斥），不能再选。");
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
             var kind = _graph.KindOf(_selected);
             SfxThrottled("sfx_map_node_confirm");   // 确认前往（上面两处提前 return 的错误分支不会响）
 
@@ -2530,6 +2555,10 @@ if (_tmpActTitle != null)
                 //   ② 战斗类点了「出征」（FormationPanel 写入）
                 //   —— 否则"进编阵看一眼再返回"会被算作通过（用户实测：白嫖节点）。
                 PendingCommit = _selected;
+
+                // ★ 同层互斥记账：点击前往 = 锁定本层（其余节点不可再点，见 OnNextClicked 开头）
+                if (run.ChosenNodes == null) run.ChosenNodes = new System.Collections.Generic.List<int>();
+                if (!run.ChosenNodes.Contains(_selected)) run.ChosenNodes.Add(_selected);
 
                 // ★★ NodeOffset 只表示"已经通过到哪一节"（可达性锚点 + 进度），
                 //    这里**不能**写它 —— 否则"点开战斗节点、再点返回地图"也被算作通过

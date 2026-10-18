@@ -97,19 +97,19 @@ namespace WanXiang.Modules.UI
         {
             new ActTitle { Main = "东风解冻",  Sub = "第一幕 · 春",
                            LeafTint = new Color(0.68f, 0.80f, 0.42f, 0.9f),
-                           MainColor = new Color(0.72f, 0.66f, 0.24f, 1f) },   // 春：嫩绿
+                           MainColor = new Color(0.42f, 0.38f, 0.13f, 1f) },   // 春：嫩绿（加深：米纸上浅金看不清）
             new ActTitle { Main = "火云燎原",  Sub = "第二幕 · 夏",
                            LeafTint = new Color(0.95f, 0.52f, 0.26f, 0.9f),
-                           MainColor = new Color(0.80f, 0.42f, 0.16f, 1f) },   // 夏：赤金
+                           MainColor = new Color(0.50f, 0.26f, 0.10f, 1f) },   // 夏：赤金（加深）
             new ActTitle { Main = "金风玉露",  Sub = "第三幕 · 秋",
                            LeafTint = new Color(0.86f, 0.66f, 0.28f, 0.9f),
-                           MainColor = new Color(0.78f, 0.60f, 0.20f, 1f) },   // 秋：赭黄
+                           MainColor = new Color(0.48f, 0.37f, 0.12f, 1f) },   // 秋：赭黄（加深）
             new ActTitle { Main = "寒渊凝冰",  Sub = "第四幕 · 冬",
                            LeafTint = new Color(0.78f, 0.88f, 0.96f, 0.9f),
-                           MainColor = new Color(0.42f, 0.52f, 0.62f, 1f) },   // 冬：冷灰蓝
+                           MainColor = new Color(0.24f, 0.30f, 0.37f, 1f) },   // 冬：冷灰蓝（加深）
             new ActTitle { Main = "厚土归墟",  Sub = "第五幕 · 长夏",
                            LeafTint = new Color(0.80f, 0.68f, 0.42f, 0.9f),
-                           MainColor = new Color(0.62f, 0.50f, 0.26f, 1f) },   // 长夏：土黄
+                           MainColor = new Color(0.38f, 0.30f, 0.15f, 1f) },   // 长夏：土黄（加深）
         };
 
         // ------------------------------------------------------------------
@@ -450,7 +450,7 @@ namespace WanXiang.Modules.UI
         // ==================================================================
         [Header("背景墨韵")]
         [SerializeField] private int _inkBlotCount = 4;
-        [SerializeField] private float _inkMaxAlpha = 0.11f;
+        [SerializeField] private float _inkMaxAlpha = 0.8f;   // ⛔ 0.11 的墨点在米纸上隐形（用户 2026-10-18："都看不到这个字了"）
 
         private Sprite _inkBlotSprite;
 

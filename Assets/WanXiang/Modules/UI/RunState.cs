@@ -162,6 +162,13 @@ namespace WanXiang.Run
         public System.Collections.Generic.List<int> VisitedNodes = new System.Collections.Generic.List<int>();
 
         /// <summary>
+        /// ★ 同层互斥（2026-10-18 用户定案："每一层如果点击去过这个节点，
+        /// 同一层的其他节点就不能再点击了"）—— 本局**进过**的节点下标。
+        /// 进入节点（OnNextClicked 通过校验）那一刻记账；同层再有其他节点被点击即拒绝。
+        /// </summary>
+        public System.Collections.Generic.List<int> ChosenNodes = new System.Collections.Generic.List<int>();
+
+        /// <summary>
         /// **真正通过**的节点 —— 与 <see cref="VisitedNodes"/> 的区别：
         /// `VisitedNodes` = **进入**（点节点那一刻就写）；本表 = **通过**（只有 `CampaignPanel.OnOpenAsync`
         /// 把 `NodeOffset = PendingCommit` 落地时才记一笔）。
