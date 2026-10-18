@@ -114,6 +114,13 @@ namespace WanXiang.Battle.Core
         public bool ElementCounter;
 
         /// <summary>
+        /// **阵形连携**标记（2026-10-18）：这条 SkillCast 是连携发动/追击。
+        /// 表现层据此播"连携特写"（主兽居中、其余头像缩小环绕）。
+        /// ⛔ 不进 <see cref="Fingerprint"/>。
+        /// </summary>
+        public bool IsCombo;
+
+        /// <summary>
         /// 参与指纹的字段。**刻意排除 Note** —— Note 是给人看的措辞，
         /// 改一句文案不应该让"可复现性"测试变红。它只覆盖会影响战局的量。
         /// </summary>
@@ -177,13 +184,14 @@ namespace WanXiang.Battle.Core
         public void Add(int turn, BattleEventKind kind, string actorId = null, string targetId = null,
                         string skillName = null, int amount = 0, Element element = Element.None,
                         string note = null, SkillType skill = SkillType.Basic,
-                        ReactionKind reaction = ReactionKind.None, bool elementCounter = false)
+                        ReactionKind reaction = ReactionKind.None, bool elementCounter = false,
+                        bool isCombo = false)
         {
             Add(new BattleEvent
             {
                 Turn = turn, Kind = kind, ActorId = actorId, TargetId = targetId,
                 SkillName = skillName, Amount = amount, Element = element, Note = note,
-                Skill = skill, Reaction = reaction, ElementCounter = elementCounter,
+                Skill = skill, Reaction = reaction, ElementCounter = elementCounter, IsCombo = isCombo,
             });
         }
 

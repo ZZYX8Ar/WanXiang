@@ -87,7 +87,11 @@ namespace WanXiang.Battle.Core
     public static class ComboRules
     {
         /// <summary>QTE 段数（阵形连携统一 3 段按键；命中 >= 2 段算成功）。</summary>
-        public const int QteSegments = 3;
+        /// <summary>
+        /// 连携 QTE 段数（2026-10-18 用户："这个判断做的可以简单一点，太难不好触发"）。
+        /// 3 → 2：段内每段仍是"看圈按键"，但少一段；再配合"命中 1 段即成功"，容错翻倍。
+        /// </summary>
+        public const int QteSegments = 2;
 
         // ================================================================
         //  阵形表（2026-10-16：50 条异兽专属 → 4 条阵形）

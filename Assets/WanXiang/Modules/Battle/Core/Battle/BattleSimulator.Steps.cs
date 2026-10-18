@@ -148,10 +148,16 @@ namespace WanXiang.Battle.Core
                             st.ParryActorId = null;
                             st.ParriedGrade = ParryGrade.None;
 
-                            // 命中 >= 一半段数 = 触发成功（3 段需 >= 2 段；全 Perfect 记一条"大成功"）
-                            if (hit * 2 >= segs)
+                            // 命中 **1 段即成功**（2026-10-18 用户："判断做的简单一点，太难不好触发"）
+                            // 全 Perfect 仍记一条"大成功"。
+                            if (hit >= 1)
                             {
                                 ExecuteCombo(st, cid, u);
+                                // ★ 连携成功后：除主兽外，我方其余存活单位逐个**追加一次普攻**
+                                //   （用户 2026-10-18："连携的异兽都追加一次普通攻击，除了主异兽，一个个来"）
+                                //   ⛔ 同步执行、不 yield ⇒ 整段追加必然在"本行动内"完成，
+                                //      敌方插不进来（用户要求"追加完才可以到敌方行动"）。
+                                if (!st.IsOver) ComboFollowUpAttack(st, u);
                                 if (perfect == segs)
                                     st.Log.Add(st.Turn, BattleEventKind.ParryResult, actorId: u.RuntimeId,
                                                note: "连携·" + comboDef.Name + " 大成功（全段完美）");

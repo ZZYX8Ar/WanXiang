@@ -166,7 +166,8 @@ namespace WanXiang.Battle.Presentation
         //    beastName = 异兽名（CutIn 显示，中文）
         // ------------------------------------------------------------------
         public void Play(Vector3 worldPos, string actorId, Color element, bool isAwaken,
-                         Sprite portrait = null, string beastName = null, string skillName = null)
+                         Sprite portrait = null, string beastName = null, string skillName = null,
+                         bool faceLeft = false)
         {
             Ensure();
             if (_shaders == null || _shaders[0] == null) return;   // shader 没加载上就别播
@@ -198,7 +199,7 @@ namespace WanXiang.Battle.Presentation
 
             // ⓪ 异兽头像特写（P5R 式 cut-in）：先让玩家看清"是谁开大"，再进特效
             if (cutInDur > 0f)
-                AddCutIn(worldPos, cutInDur, core, portrait, beastName, skillName, isAwaken);
+                AddCutIn(worldPos, cutInDur, core, portrait, beastName, skillName, isAwaken, faceLeft);
 
             float t0 = cutInDur;   // 特写之后，特效才起
 
@@ -234,7 +235,28 @@ namespace WanXiang.Battle.Presentation
         // ------------------------------------------------------------------
         //  异兽头像特写（P5R 式 cut-in）：立绘从屏边切入 + 元素色斜切背板 + 名字，随后甩出
         // ------------------------------------------------------------------
-        private void AddCutIn(Vector3 worldPos, float dur, Color core, Sprite portrait, string beastName, string skillName, bool isAwaken)
+        /// <summary>
+        /// **连携特写**（2026-10-18 用户："连携成功也闪一下头像，以主异兽在中间为主，
+        /// 其他异兽的头像变小一点在主异兽四周"）。
+        /// <para>复用终结技那条 cut-in 管线（遮罩/斜切背板/名字），只是立绘排布不同：
+        ///   主兽居中放大、其余在我方圈内 4 个角位缩小摆开。</para>
+        /// </summary>
+        public void PlayCombo(Vector3 worldPos, string actorId, Color element,
+                              Sprite hostPortrait, string hostName, string comboName, Sprite[] others)
+        {
+            Ensure();
+            if (_shaders == null || _shaders[0] == null) return;
+            if (hostPortrait == null) return;
+
+            _playStart = _t;
+            // 连携特写：比终结技短一点（它是"成果展示"，不是"起手预备"）
+            AddCutIn(worldPos, 0.95f, element, hostPortrait, hostName, comboName,
+                     isAwaken: false, faceLeft: false, extras: others, extrasBias: true);
+        }
+
+        private void AddCutIn(Vector3 worldPos, float dur, Color core, Sprite portrait, string beastName,
+                              string skillName, bool isAwaken, bool faceLeft,
+                              Sprite[] extras = null, bool extrasBias = false)
         {
             var go = new GameObject("SkillFx_CutIn");
             var cam = Cam != null ? Cam : Camera.main;
@@ -299,14 +321,49 @@ namespace WanXiang.Battle.Presentation
                 pGo.transform.localPosition = Vector3.zero;
                 var pSr = pGo.AddComponent<SpriteRenderer>();
                 pSr.sprite = portrait;
+                // ★ 朝向（2026-10-18 用户："敌人放大招时终结技头像反了，应该朝左"）：
+                //   立绘原画统一朝右。敌人在右侧、面向我方 ⇒ 必须镜像；我方保持原画朝右。
+                pSr.flipX = faceLeft;
                 pSr.sortingOrder = 500;
                 // ★ 立绘按"目标世界高度"缩放：立绘是 1024² 精灵，自然尺寸 = 像素/PPU（≈10.24 世界单位），
                 //   以前直接把 halfH*0.62 当 localScale 用 ⇒ 放大到 30+ 单位、只露肚子（用户 2026-10-13 报障）。
                 //   正确做法：localScale = 目标高度 / 精灵自然高度。
                 float targetH = halfH * (isAwaken ? 1.00f : 0.86f);   // 约 0.43~0.5 屏高，整个人都看得到
+                if (extrasBias) targetH = halfH * 0.66f;              // 连携：主兽缩一档，给四周让位
                 float natH = portrait.rect.height / Mathf.Max(1f, portrait.pixelsPerUnit);
                 float s = targetH / Mathf.Max(0.0001f, natH);
                 pGo.transform.localScale = new Vector3(s, s, 1f);
+            }
+
+            // ★ 连携：其余成员头像缩小环绕（四角位，微旋转，压在主兽之后）
+            if (extras != null && extras.Length > 0)
+            {
+                // 四个角位（相对屏幕中心）：左上 / 右上 / 左下 / 右下 —— 交错一点更"环"
+                var spots = new[]
+                {
+                    new Vector3(-halfW * 0.46f,  halfH * 0.34f, 0.06f),
+                    new Vector3( halfW * 0.44f,  halfH * 0.40f, 0.06f),
+                    new Vector3(-halfW * 0.42f, -halfH * 0.34f, 0.06f),
+                    new Vector3( halfW * 0.50f, -halfH * 0.30f, 0.06f),
+                };
+                for (int i = 0; i < extras.Length && i < spots.Length; i++)
+                {
+                    var ex = extras[i];
+                    if (ex == null) continue;
+                    var eGo = new GameObject("ComboMate" + i);
+                    eGo.transform.SetParent(go.transform, false);
+                    eGo.transform.localPosition = spots[i];
+                    eGo.transform.localRotation = Quaternion.Euler(0f, 0f, (i % 2 == 0 ? 7f : -7f));
+                    var eSr = eGo.AddComponent<SpriteRenderer>();
+                    eSr.sprite = ex;
+                    eSr.sortingOrder = 492;                        // 压在主兽(500)之后
+                    float exH = halfH * 0.34f;
+                    float exNat = ex.rect.height / Mathf.Max(1f, ex.pixelsPerUnit);
+                    float es = exH / Mathf.Max(0.0001f, exNat);
+                    eGo.transform.localScale = new Vector3(es, es, 1f);
+                    // 侧边的镜像一下，看起来像"围拢"而不是"同一张脸"
+                    eSr.flipX = spots[i].x > 0f;
+                }
             }
 
             // 名字（LegacyRuntime 中文字体）：异兽名 + 终结技名（用户 2026-10-14："还要他那个终结技的名字"）

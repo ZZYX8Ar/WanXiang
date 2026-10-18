@@ -240,6 +240,12 @@ namespace WanXiang.Modules.UI
                             desc += "\n（描述里的百分比是攻击力系数，不是生命百分比）";
                     }
 
+                    // ★★ 元素预告（2026-10-18 用户："攻击前提示，告诉玩家这样攻击将可以干什么"）：
+                    //   把"克制倍率 / 会引爆什么反应 / 会留下什么印记"直接写在技能提示里，
+                    //   而不是等打完才在飘字里看到。只读，不掷骰（不碰随机数）。
+                    string elemHint = BuildElementHint(_play.State, u, sk);
+                    if (!string.IsNullOrEmpty(elemHint)) desc += "\n" + elemHint;
+
                     // ★ 九宫格高亮：一眼看出"打谁 / 给谁加盾"（用户诉求）
                     HighlightPreviewTargets(u, sk);
 
@@ -287,6 +293,67 @@ namespace WanXiang.Modules.UI
         /// ⚠ 目标预测走 <see cref="WanXiang.Battle.Core.BattleSimulator.PreviewTargets"/>
         ///   （只读、不掷骰），**不在这里另写一套目标选择逻辑**（否则必然与实战漂移）。
         /// </summary>
+        /// <summary>
+        /// **元素预告**（2026-10-18）：这一击打出去会克制谁、会引爆什么反应、会留下什么印记。
+        /// <para>口径与战斗同源：克制用 <see cref="WanXiang.Battle.Core.ElementMatrix.Relation"/>，
+        /// 反应用与 <c>ResolveElementReactions</c> 完全相同的属性+状态组合；只读不掷骰。</para>
+        /// </summary>
+        private static string BuildElementHint(WanXiang.Battle.Core.BattleState st,
+                                              WanXiang.Battle.Core.BattleUnit src,
+                                              WanXiang.Battle.Core.SkillDef sk)
+        {
+            if (st == null || src == null || sk == null || sk.Effects == null) return null;
+            var foes = st.UnitsOf(WanXiang.Battle.Core.TeamSide.Enemy);
+            if (foes == null || foes.Count == 0) return null;
+
+            var sb = new System.Text.StringBuilder();
+            bool anyCounter = false, anyCountered = false;
+            var reactions = new System.Collections.Generic.List<string>();
+
+            for (int a = 0; a < sk.Effects.Length; a++)
+            {
+                var atom = sk.Effects[a];
+                if (atom.Kind != WanXiang.Battle.Core.EffectAtomKind.Damage) continue;
+                var el = WanXiang.Battle.Core.BattleSimulator.ResolveElement(atom.ElementOverride, sk, src);
+                if (el == WanXiang.Battle.Core.Element.None) continue;
+
+                // 印记预告（只有战技/绝技会落印，与 ApplyElementalMark 同口径）
+                if (sk.Type != WanXiang.Battle.Core.SkillType.Basic)
+                {
+                    if (el == WanXiang.Battle.Core.Element.Fire && sb.ToString().IndexOf("灼烧") < 0)
+                        sb.Append("留下灼烧  ");
+                    if (el == WanXiang.Battle.Core.Element.Water && sb.ToString().IndexOf("湿") < 0)
+                        sb.Append("留下湿  ");
+                }
+
+                for (int i = 0; i < foes.Count; i++)
+                {
+                    var f = foes[i];
+                    if (f == null || !f.IsAlive) continue;
+                    var rel = WanXiang.Battle.Core.ElementMatrix.Relation(el, f.Element);
+                    if (rel == WanXiang.Battle.Core.ElementRelation.Counter) anyCounter = true;
+                    if (rel == WanXiang.Battle.Core.ElementRelation.Countered) anyCountered = true;
+
+                    string react = null;
+                    if (el == WanXiang.Battle.Core.Element.Fire && f.HasStatus(WanXiang.Battle.Core.StatusCatalog.Wet)) react = "蒸发";
+                    else if (el == WanXiang.Battle.Core.Element.Metal && f.HasStatus(WanXiang.Battle.Core.StatusCatalog.Wet)) react = "感电";
+                    else if (el == WanXiang.Battle.Core.Element.Metal && f.HasStatus(WanXiang.Battle.Core.StatusCatalog.IceErosion)) react = "碎冰";
+                    else if (el == WanXiang.Battle.Core.Element.Wood && f.HasStatus(WanXiang.Battle.Core.StatusCatalog.Burn)) react = "助燃";
+                    else if (el == WanXiang.Battle.Core.Element.Earth && f.HasStatus(WanXiang.Battle.Core.StatusCatalog.Burn)) react = "镇";
+                    if (react != null && !reactions.Contains(react)) reactions.Add(react);
+                }
+            }
+
+            var parts = new System.Collections.Generic.List<string>();
+            if (anyCounter) parts.Add("✔ 克制（×1.5）");
+            if (anyCountered) parts.Add("△ 被克（×0.75）");
+            if (reactions.Count > 0) parts.Add("🔥 将触发：" + string.Join("/", reactions.ToArray()));
+            string marks = sb.ToString().Trim();
+            if (!string.IsNullOrEmpty(marks)) parts.Add("◆ " + marks);
+            if (parts.Count == 0) return null;
+            return string.Join("　", parts.ToArray());
+        }
+
         private void HighlightPreviewTargets(WanXiang.Battle.Core.BattleUnit u,
                                              WanXiang.Battle.Core.SkillDef sk)
         {

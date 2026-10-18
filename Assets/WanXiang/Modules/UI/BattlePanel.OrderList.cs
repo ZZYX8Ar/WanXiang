@@ -209,6 +209,16 @@ namespace WanXiang.Modules.UI
                 }
             }
 
+            // ★★ 破绽/失衡机制说明（2026-10-18 用户："这个 boss 是不是有个破防/失衡的条啊，
+            //   我看不清这个字，机制也没有说明白"）：把头顶那条**用文字讲清楚**。
+            //   它平时不占画面，只有悬停单位/图标时才出现。
+            if (_stage != null && _stage.TryGetViewFlawText(unitId, out string flawText))
+            {
+                AddTipRow("◆ " + flawText,
+                          "破绽：被对应属性命中（或按谱系要求的格挡次数）累积，填满后该敌人**失衡**：" +
+                          "受到伤害大幅提高、持续数回合 —— 这是全队集火的爆发窗口。");
+            }
+
             // ★ 2026-10-18：**引信状态排最前 + 打 ◆** —— 它们是"能引爆反应"的那几个，
             //   玩家扫一眼就知道现在身上有什么料、能炸什么。其余状态保持原顺序。
             rows.Sort((a, b) => a.Fuse != b.Fuse ? (a.Fuse ? -1 : 1) : a.Order.CompareTo(b.Order));

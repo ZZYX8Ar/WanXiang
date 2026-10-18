@@ -120,7 +120,7 @@ namespace WanXiang.Battle.Core
             st.Log.Add(st.Turn, BattleEventKind.SkillCast, actorId: host.RuntimeId,
                        skillName: combo.Name, element: Element.None,
                        note: host.DisplayName + "·" + combo.Name + "（阵形·存活" + alive + "）",
-                       skill: SkillType.Active);
+                       skill: SkillType.Active, isCombo: true);
 
             // ---- 威力：随存活数提升（0.4 + 0.12×存活，5 只 = 100%）----
             float aliveMul = ComboRules.PowerMulFor(alive);
@@ -438,6 +438,59 @@ namespace WanXiang.Battle.Core
                 return 1;
             }
             return 0;
+        }
+
+        /// <summary>
+        /// **连携追加普攻**（2026-10-18 用户："连携的异兽都追加一次普通攻击，除了主异兽，一个个来"）。
+        /// <para>除主兽外，我方其余存活单位按棋盘顺序逐个打一次自己的普攻（只取 Damage 原子）。</para>
+        /// <para>⛔ 同步执行、不产生 NeedParry/NeedDecision ⇒ 追加一定在**本行动内**打完，
+        ///   敌方插不进来（用户："追加攻击的时候不能到敌方行动，要追加完才可以"）。</para>
+        /// <para>⚠ 每个单位先发一条 SkillCast 事件（note 含「追加普攻」），表现层据此闪头像/喊名字。</para>
+        /// </summary>
+        private static void ComboFollowUpAttack(BattleState st, BattleUnit host)
+        {
+            var foes = st.UnitsOf(BattleState.Opponent(host.Side));
+            var ours = st.UnitsOf(host.Side);
+            int done = 0;
+            for (int i = 0; i < ours.Count; i++)
+            {
+                var a = ours[i];
+                if (a == null || a == host || !a.IsAlive || !a.CanAct) continue;
+                var basic = a.GetSkill(SkillType.Basic);
+                if (basic == null || basic.Effects == null) continue;
+
+                var target = FirstAlive(foes);
+                if (target == null) break;
+
+                // UI 提示：这条事件让头像闪一下、并飘出"追加攻击"
+                st.Log.Add(st.Turn, BattleEventKind.SkillCast, actorId: a.RuntimeId, targetId: target.RuntimeId,
+                           skillName: "连携·追击", skill: SkillType.Basic, element: a.Element,
+                           note: a.DisplayName + " 追加普攻", isCombo: true);
+
+                for (int k = 0; k < basic.Effects.Length; k++)
+                {
+                    var atom = basic.Effects[k];
+                    if (atom.Kind != EffectAtomKind.Damage) continue;
+                    if (atom.Target == TargetSelector.Self) continue;
+                    if (target == null || !target.IsAlive) target = FirstAlive(foes);
+                    if (target == null) break;
+                    var el = ResolveElement(atom.ElementOverride, basic, a);
+                    DealDamage(st, a, basic, atom, el, target);
+                    if (st.IsOver) return;
+                }
+                done++;
+            }
+            if (done > 0)
+                st.Log.Add(st.Turn, BattleEventKind.ParryResult, actorId: host.RuntimeId,
+                           note: "连携·追击 ×" + done);
+        }
+
+        /// <summary>取第一个存活敌人（追加普攻的目标口径：简单、确定）。</summary>
+        private static BattleUnit FirstAlive(IReadOnlyList<BattleUnit> units)
+        {
+            for (int i = 0; i < units.Count; i++)
+                if (units[i] != null && units[i].IsAlive) return units[i];
+            return null;
         }
 
         private static void LogComboDamage(BattleState st, BattleUnit src, BattleUnit dst, int amount)

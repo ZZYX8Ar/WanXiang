@@ -65,6 +65,8 @@ namespace WanXiang.Battle.Presentation
         public string FlawShownText;
         public int Hp, MaxHp;
         public bool Alive = true;
+        /// <summary>头顶信息容器（血条/名字/护盾/破绽条）。缩放为 1/身体缩放 ⇒ **世界尺寸恒定**。</summary>
+        public Transform Head;
         /// <summary>该单位脚下格子（0~8，与 <c>u.Pos.Index</c> 同一套）。克制染色按它定位。</summary>
         public int CellIndex;
         /// <summary>是否我方（决定染哪一方的棋盘）。</summary>
@@ -161,7 +163,7 @@ namespace WanXiang.Battle.Presentation
         //   用户要的"克制属性的格子颜色表现"：打出克制时，受击者**脚下的格子**染成攻击属性色再渐隐。
         //   与技能预览高亮共用同一批 SpriteRenderer，靠**写入顺序**保证本函数最后生效
         //   （Step 里预览先写、染色后写）。
-        private const float CellFlashDur = 0.55f;
+        private const float CellFlashDur = 0.85f;   // 0.55 → 0.85（用户："没看到格子变色"）
         private readonly float[] _cellFlashT = new float[18];    // 0~8 我方，9~17 敌方
         private readonly Color[] _cellFlashC = new Color[18];
         private readonly bool[] _cellFlashing = new bool[18];
@@ -175,7 +177,7 @@ namespace WanXiang.Battle.Presentation
 
         [Header("破绽/失衡条（2026-10-17，挂 HP 条正下方）")]
         [Tooltip("条高（世界单位）")]
-        public float FlawBarHeight = 0.34f;
+        public float FlawBarHeight = 0.44f;
         [Tooltip("条上文字与条顶的间距")]
         public float FlawLabelRaise = 0.20f;
         [Tooltip("破绽进度条填充色（青——状态引信的中性冷色）")]
@@ -1191,22 +1193,34 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     hitCol.offset = new Vector2(0f, (b.center.y - root.transform.position.y) / sy);
                 }
 
-                view.HpBg = MakeChildSprite(root, "HpBg", new Color(0.10f, 0.08f, 0.06f),
-                                            new Vector2(HpBarWidth, HpBarBackHeight), new Vector2(0f, HpBarY), 2);
-                view.HpFill = MakeChildSprite(root, "HpFill", BattlePalette.Vital,
+                // ★★ 头顶信息容器（2026-10-18 用户："召唤物的血条太大了"）：
+                //   血条/名字/护盾/破绽条是**信息**，不该跟着身体一起放大 ——
+                //   首领 root 是 2.5 倍身量，血条也就被拉成 8.5 世界单位宽，糊了半个屏幕。
+                //   做法：挂一个容器，位置除 k、缩放取 1/k ⇒ 子物件的**世界尺寸与高度恒定**，
+                //   而 body 照旧放大。k=1 的普通单位行为完全不变（容器 = 恒等变换）。
+                float headK = Mathf.Max(0.0001f, Mathf.Abs(root.transform.localScale.y));
+                var headGo = new GameObject("Head");
+                headGo.transform.SetParent(root.transform, false);
+                headGo.transform.localPosition = new Vector3(0f, HpBarY / headK, 0f);
+                headGo.transform.localScale = Vector3.one / headK;
+                view.Head = headGo.transform;
+
+                view.HpBg = MakeChildSprite(headGo, "HpBg", new Color(0.10f, 0.08f, 0.06f),
+                                            new Vector2(HpBarWidth, HpBarBackHeight), Vector2.zero, 2);
+                view.HpFill = MakeChildSprite(headGo, "HpFill", BattlePalette.Vital,
                                               new Vector2(HpBarWidth - 0.06f, HpBarBackHeight - 0.06f),
-                                              new Vector2(0f, HpBarY), 3);
+                                              Vector2.zero, 3);
                 SetHpBar2D(view, u.Hp, u.MaxHp);
 
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
                 float shX = HpBarWidth * 0.5f + ShieldGap + ShieldPlateW * 0.5f;
-                view.ShieldPlate = MakeChildSprite(root, "ShieldPlate", ShieldColor,
+                view.ShieldPlate = MakeChildSprite(headGo, "ShieldPlate", ShieldColor,
                                                    new Vector2(ShieldPlateW, ShieldPlateH),
-                                                   new Vector2(shX, HpBarY), 2);
+                                                   new Vector2(shX, 0f), 2);
                 var shTxtGo = new GameObject("ShieldText");
-                shTxtGo.transform.SetParent(root.transform, false);   // ⛔ 挂 root，不挂蓝牌（否则继承缩放）
-                shTxtGo.transform.localPosition = new Vector3(shX, HpBarY, -0.02f);
+                shTxtGo.transform.SetParent(headGo.transform, false);  // ⛔ 挂 Head（不挂蓝牌，避免继承牌面缩放）
+                shTxtGo.transform.localPosition = new Vector3(shX, 0f, -0.02f);
                 view.ShieldText = shTxtGo.AddComponent<TextMesh>();
                 var shFont = LegacyFont();   // ⚠ 本方法里 `f` 在后面才声明，这里自己取一次
                 if (shFont != null)
@@ -1224,8 +1238,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 SetShield2D(view, 0);   // 开场无护盾 ， 收起
 
                 var nameGo = new GameObject("Name");
-                nameGo.transform.SetParent(root.transform, false);
-                nameGo.transform.localPosition = new Vector3(0f, NameY, 0f);
+                nameGo.transform.SetParent(headGo.transform, false);
+                // Head 在 HpBarY 高度 ⇒ 容器内 y 用 (NameY - HpBarY)，世界高度与原来一致
+                nameGo.transform.localPosition = new Vector3(0f, NameY - HpBarY, 0f);
                 var f = LegacyFont();
                 view.NameText = nameGo.AddComponent<TextMesh>();
                 if (f != null)
@@ -1292,18 +1307,19 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 //  平时隐藏；出现破绽进度后显示青色条；进入失衡整条变金并显示剩余回合。
                 {
                     float flawY = HpBarY - 0.52f;                    // HP 条正下方（含 0.72 高的间隙）
-                    view.FlawBg = MakeChildSprite(root, "FlawBg", FlawBackColor,
+                    float flawLocalY = flawY - HpBarY;                 // Head 内相对高度
+                    view.FlawBg = MakeChildSprite(headGo, "FlawBg", FlawBackColor,
                                                   new Vector2(HpBarWidth, FlawBarHeight),
-                                                  new Vector2(0f, flawY), 4);
-                    view.FlawFill = MakeChildSprite(root, "FlawFill", FlawFillColor,
+                                                  new Vector2(0f, flawLocalY), 4);
+                    view.FlawFill = MakeChildSprite(headGo, "FlawFill", FlawFillColor,
                                                     new Vector2(HpBarWidth - 0.06f, FlawBarHeight - 0.05f),
-                                                    new Vector2(0f, flawY), 5);
+                                                    new Vector2(0f, flawLocalY), 5);
                     var flGo = new GameObject("FlawLabel");
-                    flGo.transform.SetParent(root.transform, false);  // ⛔ 挂 root，不挂条
+                    flGo.transform.SetParent(headGo.transform, false);  // ⛔ 挂 Head，不挂条
                     // ⚠ 文字画在**条内**（居中、亮字）：条浮在立绘身上，深浅不定，
                     //   "条上留白放深字"会被深色立绘吃掉（实测赤魃身上看不见）；
                     //   底板是深色(0.10,0.08,0.06)，亮字压上去任何立绘前都读得清。
-                    flGo.transform.localPosition = new Vector3(0f, flawY + FlawBarHeight * 0.5f, -0.02f);
+                    flGo.transform.localPosition = new Vector3(0f, flawLocalY + FlawBarHeight * 0.5f, -0.02f);
                     view.FlawLabel = flGo.AddComponent<TextMesh>();
                     if (f != null)
                     {
@@ -1311,8 +1327,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         flGo.GetComponent<MeshRenderer>().sharedMaterial = f.material;
                     }
                     view.FlawLabel.text = "";
-                    view.FlawLabel.characterSize = 0.062f * Mathf.Max(0.01f, HintSize);
-                    view.FlawLabel.fontSize = 48;
+                    view.FlawLabel.characterSize = 0.090f * Mathf.Max(0.01f, HintSize);   // 用户："看不清字"
+                    view.FlawLabel.fontSize = 64;
                     view.FlawLabel.anchor = TextAnchor.MiddleCenter;
                     view.FlawLabel.alignment = TextAlignment.Center;
                     view.FlawLabel.color = FlawLabelColor;
@@ -1428,7 +1444,36 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             //   同时把特写期间押后的伤害数字在这里补飘（用户 2026-10-14）。
             string a = actorId, t = targetId;
             _skillFx.OnImpact = () => { StartLunge(a, t); FlushPendingDmg(); };
-            _skillFx.Play(v.Root.transform.position, actorId, col, isAwaken, portrait, beastName, skillName);
+            // faceLeft：敌方在右侧、面向我方 ⇒ 特写立绘要镜像（用户 2026-10-18 报"头像反了"）
+            _skillFx.Play(v.Root.transform.position, actorId, col, isAwaken, portrait, beastName, skillName,
+                          faceLeft: !v.PlayerSide);
+        }
+
+        /// <summary>
+        /// 连携特写（2026-10-18）：主兽居中放大，其余**连携成员**的头像缩小环绕。
+        /// <para>成员口径：我方其余存活单位（最多 4 个，按棋盘顺序）——连携本来就是全队参与。</para>
+        /// </summary>
+        private void PlayComboFx(string actorId, Element element, string comboName)
+        {
+            if (_skillFx == null || actorId == null) return;
+            if (!_views.TryGetValue(actorId, out var host) || host.Root == null) return;
+            var hostSr = host.Body != null ? host.Body.sprite : null;
+            if (hostSr == null) return;
+
+            var extras = new System.Collections.Generic.List<Sprite>(4);
+            foreach (var kv in _views)
+            {
+                var v = kv.Value;
+                if (v == null || v == host || !v.Alive || !v.PlayerSide) continue;
+                var sp = v.Body != null ? v.Body.sprite : null;
+                if (sp == null) continue;
+                extras.Add(sp);
+                if (extras.Count >= 4) break;
+            }
+            var hostName = host.NameText != null ? host.NameText.text : null;
+            var col = BattlePalette.OfElement(element);
+            _skillFx.PlayCombo(host.Root.transform.position, actorId, col, hostSr, hostName,
+                               string.IsNullOrEmpty(comboName) ? "连携" : comboName, extras.ToArray());
         }
 
         /// <summary>镜头震动（由 SkillFxPlayer 在大招起爆点回调）。</summary>
@@ -1642,6 +1687,16 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         /// ⛔ 数据源是**帧流累积出来的视图**（ApplyFrame 逐帧叠出来的），**不是 `_state`**：
         ///   自动模式下 `_state` 是整场跑完的终局态，直接读会让提示从第一帧就显示"打完之后的状态"。
         /// </summary>
+        /// <summary>取某单位**当前画面**上的破绽/失衡文案（空 = 没有）。给悬停提示解释机制用。</summary>
+        public bool TryGetViewFlawText(string unitId, out string text)
+        {
+            text = null;
+            if (unitId == null || _views == null) return false;
+            if (!_views.TryGetValue(unitId, out var v) || v == null) return false;
+            text = v.FlawShownText;
+            return !string.IsNullOrEmpty(text);
+        }
+
         public bool TryGetViewStatusIds(string unitId, out string ids)
         {
             ids = null;
@@ -1811,11 +1866,19 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         // 大招：冲锋**延后到 cut-in 之后的起爆那一下**（PlaySkillFx 里绑 OnImpact）
                         PlaySkillFx(e.ActorId, e.TargetId, e.Element, e.Skill == SkillType.Awaken, e.SkillName);
                     }
+                    else if (e.IsCombo && e.Skill != SkillType.Basic)
+                    {
+                        // ★ 连携发动（2026-10-18 用户："连携成功也闪头像，主兽居中，其余缩小环绕"）
+                        PlayComboFx(e.ActorId, e.Element, e.SkillName);
+                    }
                     else
                     {
                         // 出手：冲上去（GDD 的"跑到目标面前"）。目标 id 缺失（群体技/
                         // 纯增益）时退化为"朝敌方方向冲一段"，不影响观感。
                         StartLunge(e.ActorId, e.TargetId);
+                        // ★ 连携追击：每次追加都飘一句"追加攻击"，让玩家看清是谁在补刀
+                        if (e.IsCombo && e.ActorId != null && _views.TryGetValue(e.ActorId, out var fu))
+                            SpawnNumberInternal(fu, "追加攻击!", new Color(1f, 0.82f, 0.38f), 1.15f, 0.75f, raise: 0.9f);
                     }
                     // ★ 技能名飘字（用户 2026-10-06："怎么体现这些技能效果"）：
                     //   普攻每回合都放，飘了会刷屏 ， 只飘战技/绝技。技能名事件里本来就有（skillName）。
@@ -1834,7 +1897,13 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         // ★ 元素反应（2026-10-17）：认 BattleEvent.Reaction 标记，**不解析 Note**
                         //   （解析文案是错的做法，改一句措辞就会让演出失效）。
                         bool reaction = e.Reaction != ReactionKind.None;
-                        if (reaction) SpawnReactionFx(hit, e.Reaction);
+                        if (reaction)
+                        {
+                            SpawnReactionFx(hit, e.Reaction);
+                            // ★ 反应也染格子：用户反映"格子颜色变化没看到"，只靠克制太稀有了
+                            ReactionInfo(e.Reaction, out _, out Color rxC, out _);
+                            FlashCounterCell(hit, rxC);
+                        }
                         // 属性克制 → 受击者脚下格子染成攻击属性色
                         if (e.ElementCounter) FlashCounterCell(hit, BattlePalette.OfElement(e.Element));
                         // ★ 大招 cut-in 正在播 → 伤害数字押后到"起爆"那一下再飘（用户 2026-10-14：
@@ -2073,8 +2142,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     v.HpFill.transform.localPosition = new Vector3(flp.x, HpBarY, -0.02f);
                 }
                 float shX2 = HpBarWidth * 0.5f + ShieldGap + ShieldPlateW * 0.5f;
-                if (v.ShieldPlate != null) v.ShieldPlate.transform.localPosition = new Vector3(shX2, HpBarY, -0.01f);
-                if (v.ShieldText != null) v.ShieldText.transform.localPosition = new Vector3(shX2, HpBarY, -0.02f);
+                if (v.ShieldPlate != null) v.ShieldPlate.transform.localPosition = new Vector3(shX2, 0f, -0.01f);
+                if (v.ShieldText != null) v.ShieldText.transform.localPosition = new Vector3(shX2, 0f, -0.02f);
 
                 // 状态特效的**整体摇摆**（shader 管波形/呼吸，这里只管左右晃 —— 冰封几乎不晃、燃烧晃得厉害）
                 if (v.Overlay != null)
@@ -2239,7 +2308,7 @@ _tempLife[i] -= dt;
                 //   格子在白底纸面上完全看不出变化）。
                 float t = _cellFlashT[k] / CellFlashDur;          // 1 → 0
                 float strength = Mathf.Clamp01(t / 0.75f);        // 前 25% 保持全亮，之后线性衰减
-                cells[i].color = Color.Lerp(baseC[i], _cellFlashC[k], strength * 0.75f);
+                cells[i].color = Color.Lerp(baseC[i], _cellFlashC[k], strength * 0.92f);
             }
         }
 
@@ -2374,6 +2443,7 @@ if (life < 0.2f) life = 0.2f;
             if (!v.FlawLabel.gameObject.activeSelf) v.FlawLabel.gameObject.SetActive(true);
 
             if (v.FlawLabel.text != text) v.FlawLabel.text = text;
+            v.FlawShownText = text;
 
             if (staggered)
             {
@@ -2611,3 +2681,4 @@ if (life < 0.2f) life = 0.2f;
         }
     }
 }
+// [force-recompile 2026-10-18]
