@@ -87,11 +87,25 @@ namespace WanXiang.Battle.Core
     public static class ComboRules
     {
         /// <summary>QTE 段数（阵形连携统一 3 段按键；命中 >= 2 段算成功）。</summary>
+        /// <summary>连携 QTE 段数上限（棋盘最多 9 格，但实际操作 5 段已经很长）。</summary>
+        public const int QteSegmentsMax = 5;
+
         /// <summary>
-        /// 连携 QTE 段数（2026-10-18 用户："这个判断做的可以简单一点，太难不好触发"）。
-        /// 3 → 2：段内每段仍是"看圈按键"，但少一段；再配合"命中 1 段即成功"，容错翻倍。
+        /// 连携 QTE 段数 = **参与连携的存活异兽数**（2026-10-18 用户：
+        /// "段数根据存活的异兽来决定吧，多少个就是多少个"）。
+        /// <para>⛔ 成功口径随之回到"**命中一半**"（用户同一条指示），见 <see cref="IsSuccess"/>。</para>
+        /// <para>⚠ 至少 1 段（1 只存活也能连携，此时 1 段全中才算成功）。</para>
         /// </summary>
-        public const int QteSegments = 2;
+        public static int SegmentsFor(BattleState st, BattleUnit host)
+        {
+            int alive = AliveCount(st, host != null ? host.Side : TeamSide.Player);
+            // ⛔ Battle.Core 是纯 C# 程序集（不引 UnityEngine）—— 只能用 System.Math
+            return System.Math.Min(QteSegmentsMax, System.Math.Max(1, alive));
+        }
+
+        /// <summary>成功判据：命中段数 ≥ 一半（向上取整）。</summary>
+        public static bool IsSuccess(int hit, int segments)
+            => segments > 0 && hit * 2 >= segments;
 
         // ================================================================
         //  阵形表（2026-10-16：50 条异兽专属 → 4 条阵形）

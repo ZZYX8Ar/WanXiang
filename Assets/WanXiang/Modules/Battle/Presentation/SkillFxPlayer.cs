@@ -564,7 +564,9 @@ namespace WanXiang.Battle.Presentation
 
             float x;
             float alpha = 1f;          // 立绘/名字/背板整体透明度（甩出时淡出）
-            float maskA = 0.62f;       // 背后黑遮罩目标透明度
+            // ⛔ 本工程是 **Linear 色彩空间**：0.62 的黑色实际只压到底图 ~55% 亮度，
+            //   看着像"没遮住"（用户 2026-10-18 反馈特写背景还是花的）。要接近 1 才是真黑。
+            float maskA = 0.95f;
             const float In = 0.28f, Out = 0.80f;   // 切入段 / 甩出段起点（中间 0.52 段为停驻，看得清）
             if (p < In)
             {
@@ -573,7 +575,7 @@ namespace WanXiang.Battle.Presentation
                 float c1 = 1.70158f, c3 = c1 + 1f;
                 float e = 1f + c3 * Mathf.Pow(k - 1f, 3f) + c1 * Mathf.Pow(k - 1f, 2f);
                 x = Mathf.Lerp(c.CutInFrom.x, c.CutInTo.x, e);
-                maskA = 0.62f * Mathf.Clamp01(k * 1.5f);   // 遮罩抢先压黑（比立绘先到位）
+                maskA = 0.95f * Mathf.Clamp01(k * 1.5f);   // 遮罩抢先压黑（比立绘先到位）
             }
             else if (p < Out)
             {
@@ -583,7 +585,7 @@ namespace WanXiang.Battle.Presentation
                 tr.localPosition = new Vector3(x, c.CutInTo.y + Mathf.Sin(k * Mathf.PI * 2f) * 0.05f, c.CutInTo.z);
                 // 背板呼吸高亮
                 if (c.Slash != null) c.Slash.color = new Color(c.Col.r, c.Col.g, c.Col.b, 0.45f + 0.18f * Mathf.Sin(k * Mathf.PI));
-                if (c.Mask != null) c.Mask.color = new Color(0f, 0f, 0f, 0.62f);
+                if (c.Mask != null) c.Mask.color = new Color(0f, 0f, 0f, 0.95f);
                 if (c.Lines != null)
                     for (int i = 0; i < c.Lines.Length; i++)
                         if (c.Lines[i] != null) c.Lines[i].color = new Color(c.Col.r, c.Col.g, c.Col.b, 0.4f);
@@ -595,7 +597,7 @@ namespace WanXiang.Battle.Presentation
                 float k = (p - Out) / (1f - Out);
                 x = Mathf.Lerp(c.CutInTo.x, -halfW * 1.1f, k * k);
                 alpha = 1f - k;
-                maskA = 0.62f * (1f - k);
+                maskA = 0.95f * (1f - k);
             }
 
             tr.localPosition = new Vector3(x, c.CutInTo.y, c.CutInTo.z);

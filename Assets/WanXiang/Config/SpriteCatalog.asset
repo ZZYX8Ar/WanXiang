@@ -199,6 +199,9 @@ MonoBehaviour:
   - Id: migu
     Body: {fileID: 21300000, guid: 38ccc9bb2c0b72c4f905deb2b9ae344c, type: 3}
     Head: {fileID: 0}
+  - Id: summon_tengnu
+    Body: {fileID: 21300000, guid: c09d04824ceb6c540b448d096b648641, type: 3}
+    Head: {fileID: 0}
   - Id: tianma
     Body: {fileID: 21300000, guid: 47d046dbda6a13544866db38bc4fe6f0, type: 3}
     Head: {fileID: 0}

@@ -124,7 +124,8 @@ namespace WanXiang.Battle.Core
                         // ⚠ 也要求 CanAct：被冻结/根缚的单位这回合动不了（与 NeedDecision 同口径）
                         if (comboDef != null && u.CanAct && ComboRules.CanFire(st, u, comboDef, out whyNot))
                         {
-                            int segs = ComboRules.QteSegments;
+                            // 段数 = 参与连携的存活异兽数（用户 2026-10-18："多少个就是多少个"）
+                            int segs = ComboRules.SegmentsFor(st, u);
                             int hit = 0, perfect = 0;
                             st.ParryComboName = comboDef.Name;
                             for (int h = 0; h < segs; h++)
@@ -148,9 +149,9 @@ namespace WanXiang.Battle.Core
                             st.ParryActorId = null;
                             st.ParriedGrade = ParryGrade.None;
 
-                            // 命中 **1 段即成功**（2026-10-18 用户："判断做的简单一点，太难不好触发"）
-                            // 全 Perfect 仍记一条"大成功"。
-                            if (hit >= 1)
+                            // 成功 = **命中一半**（用户 2026-10-18："还是命中一半吧"）。
+                            // 全 Perfect 另记一条"大成功"。
+                            if (ComboRules.IsSuccess(hit, segs))
                             {
                                 ExecuteCombo(st, cid, u);
                                 // ★ 连携成功后：除主兽外，我方其余存活单位逐个**追加一次普攻**

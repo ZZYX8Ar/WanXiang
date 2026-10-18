@@ -1455,7 +1455,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         /// </summary>
         private void PlayComboFx(string actorId, Element element, string comboName)
         {
-            if (_skillFx == null || actorId == null) return;
+            if (actorId == null) return;
+            EnsureSkillFx();                 // ⛔ 不建就没有播放器（第一版漏了这句，特写完全不播）
+            if (_skillFx == null) return;
             if (!_views.TryGetValue(actorId, out var host) || host.Root == null) return;
             var hostSr = host.Body != null ? host.Body.sprite : null;
             if (hostSr == null) return;
