@@ -1775,7 +1775,23 @@ if (_tmpActTitle != null)
                 string prefix = _realmMode
                     ? "第" + RealmLayerOf(offset) + "层"
                     : (offset + 1) + "." + TermName(_graph.Terms[offset]);
-       label.text = prefix + "【" + name + "】" +
+              // ★ 同层互斥置灰（2026-10-18 用户："是不能去了，但是你要把它变成灰色"）：
+            //   本层已进过其他节点（ChosenNodes）⇒ 本节点按"锁定"处理：置灰 + 不可点。
+            if (canGo && !isHere && !_realmMode)
+            {
+                var runM = WanXiang.Run.RunSave.Current;
+                if (runM != null && runM.ChosenNodes != null && runM.ChosenNodes.Count > 0)
+                {
+                    int myLayer = -1;
+                    for (int L = 0; L < _graph.Layers.Length && myLayer < 0; L++)
+                        if (System.Array.IndexOf(_graph.Layers[L], offset) >= 0) myLayer = L;
+                    if (myLayer >= 0)
+                        foreach (var other in _graph.Layers[myLayer])
+                            if (other != offset && runM.ChosenNodes.Contains(other)) { canGo = false; break; }
+                }
+            }
+
+     label.text = prefix + "【" + name + "】" +
      (isHere ? " ◀当前" : canGo ? " ←可前往" : "");
              label.color = isHere ? NodeVisited : canGo ? NodeReachable : passed ? PathGold : NodeLocked;
             }

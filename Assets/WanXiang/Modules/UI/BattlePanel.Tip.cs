@@ -46,6 +46,11 @@ namespace WanXiang.Modules.UI
             _tipPanel.pivot = new Vector2(0f, 1f);
             _tipPanel.sizeDelta = new Vector2(430f, 100f);   // 宽度固定；高度由 ContentSizeFitter 撑开
             _tipPanel.anchoredPosition = new Vector2(30f, -40f);   // 屏幕左上，向下偏移 40
+            // 代码建的提示框挂 kit toast 底（深色半透明 + 青细线）
+            var tipImg = go.GetComponent<Image>() ?? go.AddComponent<Image>();
+            var toastSp = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/toast");
+            if (toastSp != null) { tipImg.sprite = toastSp; tipImg.type = Image.Type.Sliced; tipImg.color = Color.white; }
+            tipImg.raycastTarget = false;
             var fit = go.AddComponent<ContentSizeFitter>();
             fit.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -65,7 +70,7 @@ namespace WanXiang.Modules.UI
             trt.offsetMax = new Vector2(-18f, -14f);
             _tipText = trt.gameObject.AddComponent<TextMeshProUGUI>();
             _tipText.fontSize = 22;
-            _tipText.color = new Color(0.97f, 0.94f, 0.88f, 1f);
+            _tipText.color = new Color(0.16f, 0.13f, 0.09f, 1f);   // 米色纸面底 ⇒ 墨字
             _tipText.alignment = TextAlignmentOptions.TopLeft;
             _tipText.raycastTarget = false;
 

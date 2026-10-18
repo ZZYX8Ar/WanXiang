@@ -305,7 +305,15 @@ namespace WanXiang.Modules.UI
             var card = NewRect("Card", rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                                new Vector2(0f, 0f), new Vector2(720f, 420f));
             var cardImg = card.gameObject.AddComponent<Image>();
-            cardImg.color = new Color(0.98f, 0.97f, 0.94f, 0.98f);
+            // ★ 弹窗是运行时创建 ⇒ 应用器碰不到，代码里直接挂 kit 底版。
+            var kitPanel = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");
+            if (kitPanel != null)
+            {
+                cardImg.sprite = kitPanel;
+                cardImg.type = Image.Type.Sliced;
+                cardImg.color = Color.white;
+            }
+            else cardImg.color = new Color(0.98f, 0.97f, 0.94f, 0.98f);
 
             // 标题
             _title = NewText("Tmp_Title", card, new Vector2(0f, 1f), new Vector2(1f, 1f),
@@ -315,12 +323,18 @@ namespace WanXiang.Modules.UI
                             new Vector2(0f, -120f), new Vector2(-64f, 160f), 26, TextAlignmentOptions.TopLeft);
 
             // 两个按钮（左侧是"取消/选项一"，右侧是"确定/选项二"）
+            var kitBtn = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/btn_secondary");
             _left = NewButton("Btn_Left", card, new Vector2(0f, 0f), new Vector2(0f, 0f),
                               new Vector2(64f, 40f), new Vector2(280f, 92f),
                               new Color(0.94f, 0.92f, 0.88f, 1f), out _leftLabel);
+            if (kitBtn != null && _left.image != null)
+            { _left.image.sprite = kitBtn; _left.image.type = Image.Type.Sliced; _left.image.color = Color.white; }
+            var kitBtn2 = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/btn_primary");
             _right = NewButton("Btn_Right", card, new Vector2(1f, 0f), new Vector2(1f, 0f),
                                new Vector2(-64f, 40f), new Vector2(280f, 92f),
                                new Color(0.79f, 0.63f, 0.39f, 1f), out _rightLabel);
+            if (kitBtn2 != null && _right.image != null)
+            { _right.image.sprite = kitBtn2; _right.image.type = Image.Type.Sliced; _right.image.color = Color.white; }
 
             // 右上角 ×（自建，避免依赖 prefab 的兜底逻辑）
             var closeX = NewButton("Btn_CloseX", card, new Vector2(1f, 1f), new Vector2(1f, 1f),
