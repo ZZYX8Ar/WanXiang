@@ -43,6 +43,9 @@ MonoBehaviour:
   - Id: shangao
     Body: {fileID: 21300000, guid: ff6c97c6bdd530b4abc9d57ec6f82664, type: 3}
     Head: {fileID: 0}
+  - Id: summon_shouhu
+    Body: {fileID: 21300000, guid: 44ab99406caf9204eadfda84b5891100, type: 3}
+    Head: {fileID: 0}
   - Id: taotie
     Body: {fileID: 21300000, guid: 2aa404b4cbebc50409d5cb696bdfac72, type: 3}
     Head: {fileID: 0}
@@ -78,6 +81,12 @@ MonoBehaviour:
     Head: {fileID: 0}
   - Id: jiuying
     Body: {fileID: 21300000, guid: f7fe134b8df34a24a96fd3a97d12a478, type: 3}
+    Head: {fileID: 0}
+  - Id: summon_fenshen
+    Body: {fileID: 21300000, guid: 23fa12291626f7f4fa1bd7725ab10ad2, type: 3}
+    Head: {fileID: 0}
+  - Id: summon_rongying
+    Body: {fileID: 21300000, guid: f57e2244f35132a45a53960333505a7a, type: 3}
     Head: {fileID: 0}
   - Id: zhen
     Body: {fileID: 21300000, guid: a2fd2b43d72365d45bc54f99d711eb12, type: 3}
@@ -160,6 +169,9 @@ MonoBehaviour:
   - Id: summon_icecrystal
     Body: {fileID: 21300000, guid: 2b4db17584811554e95fc626d5c79a09, type: 3}
     Head: {fileID: 0}
+  - Id: summon_jingying
+    Body: {fileID: 21300000, guid: 87a0defc51639cf48a64546bfc109e34, type: 3}
+    Head: {fileID: 0}
   - Id: xiangliu
     Body: {fileID: 21300000, guid: 2ea7de26892924a478fa343b1093cb61, type: 3}
     Head: {fileID: 0}
@@ -201,6 +213,9 @@ MonoBehaviour:
     Head: {fileID: 0}
   - Id: summon_tengnu
     Body: {fileID: 21300000, guid: c09d04824ceb6c540b448d096b648641, type: 3}
+    Head: {fileID: 0}
+  - Id: summon_zaohua
+    Body: {fileID: 21300000, guid: a26409794e458664b90578e38a0fe805, type: 3}
     Head: {fileID: 0}
   - Id: tianma
     Body: {fileID: 21300000, guid: 47d046dbda6a13544866db38bc4fe6f0, type: 3}

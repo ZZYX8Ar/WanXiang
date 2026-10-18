@@ -1198,7 +1198,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 //   首领 root 是 2.5 倍身量，血条也就被拉成 8.5 世界单位宽，糊了半个屏幕。
                 //   做法：挂一个容器，位置除 k、缩放取 1/k ⇒ 子物件的**世界尺寸与高度恒定**，
                 //   而 body 照旧放大。k=1 的普通单位行为完全不变（容器 = 恒等变换）。
-                float headK = Mathf.Max(0.0001f, Mathf.Abs(root.transform.localScale.y));
+                // ⚠ 必须用 **lossyScale（世界缩放）**：root 的父级（舞台）自己也有缩放，
+                //   只取 localScale 会让血条高度被父级再乘一次（实测放大 2 倍、飘到屏幕外）。
+                float headK = Mathf.Max(0.0001f, Mathf.Abs(root.transform.lossyScale.y));
                 var headGo = new GameObject("Head");
                 headGo.transform.SetParent(root.transform, false);
                 headGo.transform.localPosition = new Vector3(0f, HpBarY / headK, 0f);
