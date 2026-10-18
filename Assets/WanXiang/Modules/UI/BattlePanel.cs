@@ -123,6 +123,20 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
+            // ★ 米色横幅上的文字改墨色（代码兜底：即使用户 prefab 是旧色也生效）
+            var _ink = new Color(0.16f, 0.13f, 0.09f, 1f);
+            foreach (var _t in new[] { "_tmpLog", "_tmpActor" })
+            {
+                var _f = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+                var _fi = GetType().GetField(_t, _f);
+                var _tx = _fi != null ? _fi.GetValue(this) as TMP_Text : null;
+                if (_tx != null) _tx.color = _ink;
+            }
+            var _roundT = GameObject.Find("Tmp_Round");
+            if (_roundT != null) _roundT.GetComponent<TMP_Text>().color = _ink;
+            var _orderT = GameObject.Find("Tmp_OrderTitle");
+            if (_orderT != null) _orderT.GetComponent<TMP_Text>().color = _ink;
+
             ApplyPvpUiMode();   // ★ 每次进入战斗面板都重新应用 PvP UI 模式（时机修正）
             // ★ 清掉可能从**上一场残留**的技能悬浮提示 + 觉醒技槽（用户 2026-10-13 报障：
             //   重新挑战→回节点地图→再进场，白魍这种没觉醒的怪却弹出"觉醒技/没有装备觉醒技"提示）。

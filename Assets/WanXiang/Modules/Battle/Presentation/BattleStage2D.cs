@@ -907,7 +907,7 @@ if (_verdictBg != null)
             _qteHint.alignment = TextAlignment.Center;
     _qteHint.characterSize = 0.10f;
             _qteHint.fontSize = 64;
-    _qteHint.color = new Color(1f, 0.93f, 0.70f, 0f);
+    _qteHint.color = new Color(0.16f, 0.13f, 0.09f, 0f);   // 米底 ⇒ 墨字（用户 2026-10-18）
         }
 
         /// <summary>淡出并收起提示条。</summary>
@@ -1193,18 +1193,16 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     hitCol.offset = new Vector2(0f, (b.center.y - root.transform.position.y) / sy);
                 }
 
-                // ★★ 头顶信息容器（2026-10-18 用户："召唤物的血条太大了"）：
-                //   血条/名字/护盾/破绽条是**信息**，不该跟着身体一起放大 ——
-                //   首领 root 是 2.5 倍身量，血条也就被拉成 8.5 世界单位宽，糊了半个屏幕。
-                //   做法：挂一个容器，位置除 k、缩放取 1/k ⇒ 子物件的**世界尺寸与高度恒定**，
-                //   而 body 照旧放大。k=1 的普通单位行为完全不变（容器 = 恒等变换）。
-                // ⚠ 必须用 **lossyScale（世界缩放）**：root 的父级（舞台）自己也有缩放，
-                //   只取 localScale 会让血条高度被父级再乘一次（实测放大 2 倍、飘到屏幕外）。
-                float headK = Mathf.Max(0.0001f, Mathf.Abs(root.transform.lossyScale.y));
+                // ★★ 头顶信息容器（2026-10-18 修正）：
+                //   ⛔ 曾经在这里做过"世界归一化"（位置除 k、缩放取 1/k）—— 那把血条/名字从
+                //   "随单位缩放"改成了"世界恒定尺寸"，等于放大 ~12 倍：
+                //   用户实测"血条/名字巨大、飘在头顶很远、悬浮命中区罩住上面三格"。
+                //   现在回归**随单位缩放**：Head 就是普通容器（root 局部 HpBarY 高、缩放 1），
+                //   血条/名字/状态的大小与高度和历史表现完全一致。
                 var headGo = new GameObject("Head");
                 headGo.transform.SetParent(root.transform, false);
-                headGo.transform.localPosition = new Vector3(0f, HpBarY / headK, 0f);
-                headGo.transform.localScale = Vector3.one / headK;
+                headGo.transform.localPosition = new Vector3(0f, HpBarY, 0f);
+                headGo.transform.localScale = Vector3.one;
                 view.Head = headGo.transform;
 
                 view.HpBg = MakeChildSprite(headGo, "HpBg", new Color(0.10f, 0.08f, 0.06f),
@@ -1348,12 +1346,11 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 //  ⛔ 不读 _state 里的单位（同 Hint 的理由：自动模式是终局态、手动模式是分片推进）。
                 {
                     var rowGo = new GameObject("StatusRow");
-                    rowGo.transform.SetParent(root.transform, false);
-                    rowGo.transform.localScale = Vector3.one / rsHint;              // 世界尺寸恒定
-                    // ⛔ 位置用**局部单位**（与 NameY / HpBarY 同一套语义）。
-                    //   原来写的是 `StatusRowY / rsHint` ， 除了一次缩放 ， 实际飞到 2.05 世界高，
-                    //   而立绘顶只有 0.53 ， 徽标飘在头顶 1.5 个身位（用户实测："状态太高了"）。
-                    rowGo.transform.localPosition = new Vector3(0f, StatusRowY, 0f);
+                    // ★ 挂进 Head 容器（世界缩放已归一）：状态图标永远在血条上方 0.72，
+                    //   随每帧自愈一起校正，任何单位高度一致（用户定案：图标/血条/名字 自上而下）。
+                    rowGo.transform.SetParent(headGo.transform, false);
+                    rowGo.transform.localScale = Vector3.one;
+                    rowGo.transform.localPosition = new Vector3(0f, StatusRowY - HpBarY, 0f);
                     view.StatusRow = rowGo;
                     int slots = (StatusIcons != null && StatusIcons.Length > 0) ? Mathf.Min(8, StatusIcons.Length) : 1;
                     view.StatusPlates = new SpriteRenderer[slots];
@@ -1984,6 +1981,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             // 这样表现层动画与"推进了多少帧"严格对应，编辑器里连调 Step 也能被验证到。
             _animT += dt;
             StepBursts(dt);
+
             if (_turnArrow != null) _turnArrow.enabled = false;   // 每帧默认隐藏，循环里再为行动者点亮
 
             // 前景轻微摇曳（呼吸感；幅度很小，不干扰战斗阅读）
