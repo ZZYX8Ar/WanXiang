@@ -51,8 +51,8 @@ namespace WanXiang.Modules.UI
         private static readonly Color C_Ink    = new Color(0.165f, 0.129f, 0.094f, 1f);
         private static readonly Color C_Ink2   = new Color(0.42f, 0.38f, 0.34f, 1f);
         private static readonly Color C_Dim    = new Color(0.58f, 0.55f, 0.50f, 1f);
-        private static readonly Color C_LitBg  = new Color(0.42f, 0.62f, 0.64f, 1f);   // 点亮=科技青（用户 2026-10-19：金黄的格子看着不好）
-        private static readonly Color C_TabSel = new Color(0.42f, 0.62f, 0.64f, 1f);   // 页签选中=科技青
+        private static readonly Color C_LitBg  = new Color(0.86f, 0.76f, 0.55f, 1f);   // 点亮=金黄（用户 2026-10-19：换回原来的金黄）
+        private static readonly Color C_TabSel = new Color(0.79f, 0.63f, 0.39f, 1f);   // 页签选中=金黄（用户 2026-10-19）
         private static readonly Color C_SlotOff = new Color(0.90f, 0.89f, 0.87f, 1f);
 
         private int _tab;                                        // 0 = 全部，1..5 = 木/火/土/金/水

@@ -33,7 +33,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button _btnClose;             // Btn_Close
 
         private static readonly Color C_Gold = new Color(0.79f, 0.63f, 0.39f, 1f);
-        private static readonly Color C_Sel  = new Color(0.42f, 0.62f, 0.64f, 1f);   // 选中：科技青（用户 2026-10-19：不要黄色）
+        private static readonly Color C_Sel  = new Color(0.79f, 0.63f, 0.39f, 1f);   // 选中：金黄（用户 2026-10-19：青色太丑，换回金黄）
         private static readonly Color C_Ink  = new Color(0.165f, 0.129f, 0.094f, 1f);
         private static readonly Color C_Ink2 = new Color(0.42f, 0.38f, 0.34f, 1f);
         private static readonly Color C_Off  = new Color(0.86f, 0.85f, 0.83f, 1f);
