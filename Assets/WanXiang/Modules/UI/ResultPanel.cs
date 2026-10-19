@@ -303,10 +303,15 @@ namespace WanXiang.Modules.UI
             var kitCard = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");
             var xs = new[] { -215f, 0f, 215f };
 
+            int offeredCount = _offered != null ? _offered.Count : 0;
             for (int i = 0; i < _draftBtns.Length; i++)
             {
                 var btn = _draftBtns[i];
                 if (btn == null) continue;
+                // ★ 三选一卡在 prefab 里是隐藏的，之前一直没人激活 ⇒ 胜利后"看不到三选一"。
+                bool show = i < offeredCount;
+                btn.gameObject.SetActive(show);
+                if (!show) continue;
                 var rt = (RectTransform)btn.transform;
 
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);

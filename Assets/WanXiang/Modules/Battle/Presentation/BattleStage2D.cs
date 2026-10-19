@@ -1350,7 +1350,11 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     //   随每帧自愈一起校正，任何单位高度一致（用户定案：图标/血条/名字 自上而下）。
                     rowGo.transform.SetParent(headGo.transform, false);
                     rowGo.transform.localScale = Vector3.one;
-                    rowGo.transform.localPosition = new Vector3(0f, StatusRowY - HpBarY, 0f);
+                    // ⛔ 原来用 root 局部 StatusRowY（随单位缩放 ×k）：小单位只有 0.59 世界高，
+                    //   直接埋进立绘身体里 ⇒ 用户报"状态图标看不到了"。
+                    //   改为**世界 1.30 高**（头顶之上），与图标"世界尺寸恒定"的语义一致。
+                    float _kRow = Mathf.Max(0.0001f, Mathf.Abs(root.transform.lossyScale.y));
+                    rowGo.transform.localPosition = new Vector3(0f, 1.30f / _kRow - 0f, 0f);
                     view.StatusRow = rowGo;
                     int slots = (StatusIcons != null && StatusIcons.Length > 0) ? Mathf.Min(8, StatusIcons.Length) : 1;
                     view.StatusPlates = new SpriteRenderer[slots];
