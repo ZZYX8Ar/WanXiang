@@ -279,6 +279,12 @@ OpenSequence = openSequence;
             }
 
             State = UIPanelState.Opened;
+
+            // ★ 2026-10-19 用户："返回按钮统一位置、有 X 又有返回的统一为返回" ——
+            //   在这里集中套用（子类 OnOpened 不一定会调 base，所以不能放基类钩子里）。
+            try { UIPanelChrome.UnifyBackButton(transform); }
+            catch (Exception ex) { Debug.LogWarning($"[UI] 统一返回按钮失败：{ex.Message}"); }
+
             try
             {
                 OnOpened();
