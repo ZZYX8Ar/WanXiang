@@ -76,6 +76,27 @@ namespace WanXiang.Modules.UI
 
         protected override UniTask OnOpenAsync(object payload)
         {
+            // ★ 2026-10-19 用户："招募面板我不要这个黑色的底图" —— 统一成 kit 纸面。
+            //   面板/格子都是 prefab 里建好的，这里运行时统一刷（不依赖重跑生成器）。
+            var kitPanel = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");
+            var kitStrip = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_strip");
+            var selfImg = GetComponent<UnityEngine.UI.Image>();
+            if (kitPanel != null && selfImg != null)
+            {
+                selfImg.sprite = kitPanel;
+                selfImg.type = UnityEngine.UI.Image.Type.Sliced;
+                selfImg.color = UnityEngine.Color.white;
+            }
+            if (kitStrip != null && _cardTemplate != null)
+            {
+                var tImg = _cardTemplate.GetComponent<UnityEngine.UI.Image>();
+                if (tImg != null)
+                {
+                    tImg.sprite = kitStrip;
+                    tImg.type = UnityEngine.UI.Image.Type.Sliced;
+                }
+            }
+
             var run = WanXiang.Run.RunSave.Current;
             _limit = (run != null && run.Act <= 1) ? 3 : 1;
             _refreshUsed = false;

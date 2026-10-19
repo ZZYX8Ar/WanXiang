@@ -142,6 +142,8 @@ namespace WanXiang.Modules.UI
                 {
                     pImg.sprite = sp;
                     pImg.color = Color.white;
+                    // ⛔ 必须强制 Simple：Sliced 类型下 preserveAspect 不生效 ⇒ 立绘被拉伸（用户 2026-10-19 二次报）
+                    pImg.type = UnityEngine.UI.Image.Type.Simple;
                     pImg.preserveAspect = true;
                 }
             }

@@ -212,6 +212,141 @@ BuildNodeMap();
         /// </summary>
         public static bool SessionOpened;
 
+        /// <summary>
+        /// **PendingCommit 落地**（事件节点"通过"落账）：地图常开流程下，回图走
+        /// OnRefresh / OnResume（不重放 OnOpenAsync）⇒ 抽成方法供三条路径共用。
+        /// </summary>
+        /// <returns>true = 吃掉了本帧后续（进终局战/天阙），调用方应立即停止。</returns>
+        private bool LandPendingCommit()
+        {
+                if (PendingCommit >= 0 && !UIPanelBase.GhostSilent)
+                {
+       _justPassedNode = PendingCommit;   // ★ 真·通过（这里才把 NodeOffset 落地）， 记下它供落印/画线动画
+                    var prun = WanXiang.Run.RunSave.Current;
+                    if (prun != null)
+                {
+           // ⛔⛔ 秘境模式：**一个字都不许写进主线的进度字段**。
+            //   NodeOffset / VisitedNodes / PassedNodes 全是"主线走到第几格"的存档，
+            //   语义完全属于主线。秘境借用它们 ⇒ ① 中途存档/退出再进来，位置就停在秘境格上；
+            //   ② 更糟的是 If 崩在写入与 Exit 之间，主线进度直接被污染。
+            //   秘境的进度一律走 RealmSession 的独立字段（RealmWave / RealmCleared），
+            //   主线节点偏移由 Enter 存的快照在 Exit 时还原（硬约束 ②）。
+                        if (_realmMode)
+                        {
+                            RealmSession.MarkCleared(prun, PendingCommit);
+                            // ★ 镇守：**击败必掉**专属奖励（用户："打死了会有特殊奖励"）。
+                            //   ⛔ 放在"通过节点"这一刻而不是战斗结算里：结算面板是主线共用的，
+                            //     往那儿塞秘境掉落会让"主线战利品"多出一个只在场域里出现的分支。
+                            GrantRealmChampionReward(prun, PendingCommit);
+                            Debug.Log("[Campaign] 秘境通过第 " + (PendingCommit + 1) + " 格（进度记在秘境自己的字段里，主线未动）");
+                            WanXiang.Run.RunSave.SaveCurrent();
+                        }
+         else
+            {
+                 prun.NodeOffset = PendingCommit;
+        // ★ 记一笔"真·通过"（落印✕ / 连线实线 只看它；VisitedNodes 只是"进入"，不算通过）
+        if (prun.PassedNodes == null) prun.PassedNodes = new System.Collections.Generic.List<int>();
+     if (!prun.PassedNodes.Contains(PendingCommit)) prun.PassedNodes.Add(PendingCommit);
+              // ★ 瘴雾：真正通过一格 ， 剩余雾 -1；扣到 0 雾就散。
+                //   ⚠ 重掷记录（RerolledKinds）**不随雾散清掉** —— 地图被改过就该一直算数（本幕内），
+             //     否则"雾散了图又变回去"会很怪。它跟 VisitedNodes 一样在换幕/重开时清。
+                        if (prun.FogLeft > 0)
+                        {
+                            if (PendingCommit == prun.FogTriggerNode)
+                            {
+                                // ★ 起雾那一格（天象节点）**不算进 3 节**（用户定案："要后续 3 个节点"）， 跳过这次扣减
+                                prun.FogTriggerNode = -1;
+                                Debug.Log("[Campaign] 瘴雾：通过「起雾格」（不计入）， 仍剩 " + prun.FogLeft + " 节");
+                            }
+                            else
+                            {
+                                prun.FogLeft--;
+                                Debug.Log("[Campaign] 瘴雾：通过节点 ， 剩余 " + prun.FogLeft + " 节" +
+                                          (prun.FogLeft == 0 ? "（雾散）" : ""));
+                            }
+                            if (prun.FogLeft == 0) { ShowFogBanner("雾散了，前路已非"); SfxThrottled("sfx_map_fog_clear", 0.85f); prun.FogTriggerNode = -1; }
+                        }
+                        // ★ 节点真正「通过」（离开事件/战斗面板回地图落地）， 所有星移余气 -1（扣到负移除）。
+                        //   推迟到此处而非「出征」点击，保证「进编队又返回」不算通过、星移仍可撤销
+                        //   （用户实测：出征→编队→返回后星移撤销不了，根因就是出征时就把余气 -1 了）。
+                        WanXiang.Campaign.LiveWeather.OnNodeCommitted();
+                        SyncXingyiSaveFromLive();   // ★ 把星移余气剩余节点数同步回存档镜像
+                        if (prun.VisitedNodes != null && !prun.VisitedNodes.Contains(PendingCommit))
+                            prun.VisitedNodes.Add(PendingCommit);
+
+    // ★★ 天阙（第 5 幕）最后一格 = 后土：通过它 ， 打【终局战】（而非回主城/推进）。
+          if (!_realmMode && _graph != null && _graph.Act >= 5 && PendingCommit == _graph.NodeCount - 1)
+                        {
+                            var cat = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
+                            var all = (cat != null && cat.Length > 0)
+                                ? WanXiang.Fusion.ContentLibrary.BuildBeasts(cat[0]) : null;
+                            if (all != null && all.Length > 0)
+                            {
+                                var req = TrialPanel.BuildFinaleBattle(prun, all);
+                                SceneFlow.IsFinaleBattle = true;
+                                PendingCommit = -1;
+                                CloseSelf();
+                                SceneFlow.EnterBattle(req);
+                                return true;
+                            }
+                        }
+
+                        // ★★ 幕推进绑在"通过"这一刻：刚通过的是本幕最后一格 ， 进下一幕。
+                        //    原先靠"人在最后一格(NodeOffset==NodeCount-1)"当判据是错的：
+                        //    只要存档停在这个位置（不论是否真通过），一进节点图就会跳幕，
+                        //    而且它同时被当作"可达性锚点"， 全图锁定灰（用户实测）。
+    int lastCell = _graph != null ? _graph.NodeCount - 1 : -1;
+                // ⛔⛔ 秘境模式**绝不能推进主线 Act**：秘境内部图的 offset 是"秘境波次"，
+                  //   和主线 act*1000+offset 的命名空间完全不同。放行的话会出现
+                  //   "打完秘境第 2 波，主线莫名跳到第 4 幕"，而且完全查不出来源。
+           //   秘境的进度由 RealmSession 记（RealmWave / RealmCleared），与主线无关。
+                if (!_realmMode && lastCell >= 0 && PendingCommit == lastCell && prun.Act < 5)
+           {
+                            prun.Act++;
+                            prun.NodeOffset = -1;
+                            if (prun.VisitedNodes != null) prun.VisitedNodes.Clear();
+                            if (prun.PassedNodes != null) prun.PassedNodes.Clear();       // 换幕：通过记录作废（offset 是"本幕"的）
+                            if (prun.RerolledKinds != null) prun.RerolledKinds.Clear();   // 换幕：重掷记录作废
+                            if (prun.FogWeatherNodes != null) prun.FogWeatherNodes.Clear(); // 换幕：挂的瘴雾天时作废
+                            prun.FogGenAct = 0;                                           // 换幕：下一幕重新生成瘴雾节点
+                            prun.FogTriggerNode = -1;
+                            prun.FogLeft = 0; prun.FogRerolled = false;                   // 换幕：雾散
+                            Debug.Log("[Campaign] 通过本幕最后一格 ， 推进到第 " + prun.Act + " 幕");
+                            WanXiang.Run.RunSave.SaveCurrent();
+
+                            // ★★ 第四幕通关 ， 第 5 幕 = 天阙：挂起"天阙抉择"，并直接回主城等玩家选。
+                            //    旧实现靠 MainSceneEntry 里 `NodeOffset == 11` 判定（当时是 4 层×3 格的遗留），
+                            //    既与现在的 12 层图对不上，又会被幕推进重置成 -1 ， 天阙永远不会触发。
+                            if (prun.Act >= 5)
+                            {
+                                // ★★ 关键：**不切场景**！就地重建天阙图 + 原地弹出天阙抉择。
+                                //    原来这里 EnterMain() 切场景 ， MainSceneEntry 跑两次 ，
+                                //    面板实例在"关闭中"状态被再次 OpenAsync，返回实例却不激活
+                                //    ， 最后画面一片空白 / 主界面（日志实测：打开成功但 2 帧后 active=False）。
+                                SceneFlow.PendingFinale = false;   // 不需要跨场景挂起了
+                                Debug.Log("[Campaign] 已到天阙 ， 就地弹出天阙抉择（不切场景）");
+                                WanXiang.Run.RunSave.SaveCurrent();
+                                RebuildGraphFor(prun.Act, prun.RunSeed);   // 换成天阙图（5 节点）
+                                _currentOffset = -1;
+                                _visited.Clear();
+                                BuildNodeMap();
+                                var uiF = WanXiang.Framework.Boot.UIBootstrap.UI;
+                                if (uiF != null) uiF.OpenAsync<TrialPanel>().Forget();
+                                return true;
+                            }
+
+                            RebuildGraphFor(prun.Act, prun.RunSeed);   // 换新幕的图
+            _currentOffset = -1;
+        _visited.Clear();
+          }        // ← 收口：上面整段（瘴雾/天阙/幕推进）只属于主线，秘境不进来
+             WanXiang.Run.RunSave.SaveCurrent();
+           }             // ← 收口：if (prun != null)
+             }             // ← 收口：else（秘境分支）
+             PendingCommit = -1;
+          }
+        return false;
+        }
+
 protected override UniTask OnOpenAsync(object payload)
      {
             // ★★ 秘境 = 特殊的一幕：payload 是 ActGraph 就走秘境模式。
@@ -268,131 +403,7 @@ protected override UniTask OnOpenAsync(object payload)
             //   把之前未完成的节点记为通过 —— 玩家没处理完就关游戏的话，_pendingCommit 是内存变量、
             //   不会持久化，节点也不会推进 ， 下次进来还能重做（奖励不丢）。
             // ⚠ 彩排（GhostSilent）时跳过：不让彩排消费 PendingCommit / 写档（真开会再处理）。
-            if (PendingCommit >= 0 && !UIPanelBase.GhostSilent)
-            {
-   _justPassedNode = PendingCommit;   // ★ 真·通过（这里才把 NodeOffset 落地）， 记下它供落印/画线动画
-                var prun = WanXiang.Run.RunSave.Current;
-                if (prun != null)
-            {
-       // ⛔⛔ 秘境模式：**一个字都不许写进主线的进度字段**。
-        //   NodeOffset / VisitedNodes / PassedNodes 全是"主线走到第几格"的存档，
-        //   语义完全属于主线。秘境借用它们 ⇒ ① 中途存档/退出再进来，位置就停在秘境格上；
-        //   ② 更糟的是 If 崩在写入与 Exit 之间，主线进度直接被污染。
-        //   秘境的进度一律走 RealmSession 的独立字段（RealmWave / RealmCleared），
-        //   主线节点偏移由 Enter 存的快照在 Exit 时还原（硬约束 ②）。
-                    if (_realmMode)
-                    {
-                        RealmSession.MarkCleared(prun, PendingCommit);
-                        // ★ 镇守：**击败必掉**专属奖励（用户："打死了会有特殊奖励"）。
-                        //   ⛔ 放在"通过节点"这一刻而不是战斗结算里：结算面板是主线共用的，
-                        //     往那儿塞秘境掉落会让"主线战利品"多出一个只在场域里出现的分支。
-                        GrantRealmChampionReward(prun, PendingCommit);
-                        Debug.Log("[Campaign] 秘境通过第 " + (PendingCommit + 1) + " 格（进度记在秘境自己的字段里，主线未动）");
-                        WanXiang.Run.RunSave.SaveCurrent();
-                    }
-     else
-        {
-             prun.NodeOffset = PendingCommit;
-    // ★ 记一笔"真·通过"（落印✕ / 连线实线 只看它；VisitedNodes 只是"进入"，不算通过）
-    if (prun.PassedNodes == null) prun.PassedNodes = new System.Collections.Generic.List<int>();
- if (!prun.PassedNodes.Contains(PendingCommit)) prun.PassedNodes.Add(PendingCommit);
-          // ★ 瘴雾：真正通过一格 ， 剩余雾 -1；扣到 0 雾就散。
-            //   ⚠ 重掷记录（RerolledKinds）**不随雾散清掉** —— 地图被改过就该一直算数（本幕内），
-         //     否则"雾散了图又变回去"会很怪。它跟 VisitedNodes 一样在换幕/重开时清。
-                    if (prun.FogLeft > 0)
-                    {
-                        if (PendingCommit == prun.FogTriggerNode)
-                        {
-                            // ★ 起雾那一格（天象节点）**不算进 3 节**（用户定案："要后续 3 个节点"）， 跳过这次扣减
-                            prun.FogTriggerNode = -1;
-                            Debug.Log("[Campaign] 瘴雾：通过「起雾格」（不计入）， 仍剩 " + prun.FogLeft + " 节");
-                        }
-                        else
-                        {
-                            prun.FogLeft--;
-                            Debug.Log("[Campaign] 瘴雾：通过节点 ， 剩余 " + prun.FogLeft + " 节" +
-                                      (prun.FogLeft == 0 ? "（雾散）" : ""));
-                        }
-                        if (prun.FogLeft == 0) { ShowFogBanner("雾散了，前路已非"); SfxThrottled("sfx_map_fog_clear", 0.85f); prun.FogTriggerNode = -1; }
-                    }
-                    // ★ 节点真正「通过」（离开事件/战斗面板回地图落地）， 所有星移余气 -1（扣到负移除）。
-                    //   推迟到此处而非「出征」点击，保证「进编队又返回」不算通过、星移仍可撤销
-                    //   （用户实测：出征→编队→返回后星移撤销不了，根因就是出征时就把余气 -1 了）。
-                    WanXiang.Campaign.LiveWeather.OnNodeCommitted();
-                    SyncXingyiSaveFromLive();   // ★ 把星移余气剩余节点数同步回存档镜像
-                    if (prun.VisitedNodes != null && !prun.VisitedNodes.Contains(PendingCommit))
-                        prun.VisitedNodes.Add(PendingCommit);
-
-// ★★ 天阙（第 5 幕）最后一格 = 后土：通过它 ， 打【终局战】（而非回主城/推进）。
-      if (!_realmMode && _graph != null && _graph.Act >= 5 && PendingCommit == _graph.NodeCount - 1)
-                    {
-                        var cat = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
-                        var all = (cat != null && cat.Length > 0)
-                            ? WanXiang.Fusion.ContentLibrary.BuildBeasts(cat[0]) : null;
-                        if (all != null && all.Length > 0)
-                        {
-                            var req = TrialPanel.BuildFinaleBattle(prun, all);
-                            SceneFlow.IsFinaleBattle = true;
-                            PendingCommit = -1;
-                            CloseSelf();
-                            SceneFlow.EnterBattle(req);
-                            return UniTask.CompletedTask;
-                        }
-                    }
-
-                    // ★★ 幕推进绑在"通过"这一刻：刚通过的是本幕最后一格 ， 进下一幕。
-                    //    原先靠"人在最后一格(NodeOffset==NodeCount-1)"当判据是错的：
-                    //    只要存档停在这个位置（不论是否真通过），一进节点图就会跳幕，
-                    //    而且它同时被当作"可达性锚点"， 全图锁定灰（用户实测）。
-int lastCell = _graph != null ? _graph.NodeCount - 1 : -1;
-            // ⛔⛔ 秘境模式**绝不能推进主线 Act**：秘境内部图的 offset 是"秘境波次"，
-              //   和主线 act*1000+offset 的命名空间完全不同。放行的话会出现
-              //   "打完秘境第 2 波，主线莫名跳到第 4 幕"，而且完全查不出来源。
-       //   秘境的进度由 RealmSession 记（RealmWave / RealmCleared），与主线无关。
-            if (!_realmMode && lastCell >= 0 && PendingCommit == lastCell && prun.Act < 5)
-       {
-                        prun.Act++;
-                        prun.NodeOffset = -1;
-                        if (prun.VisitedNodes != null) prun.VisitedNodes.Clear();
-                        if (prun.PassedNodes != null) prun.PassedNodes.Clear();       // 换幕：通过记录作废（offset 是"本幕"的）
-                        if (prun.RerolledKinds != null) prun.RerolledKinds.Clear();   // 换幕：重掷记录作废
-                        if (prun.FogWeatherNodes != null) prun.FogWeatherNodes.Clear(); // 换幕：挂的瘴雾天时作废
-                        prun.FogGenAct = 0;                                           // 换幕：下一幕重新生成瘴雾节点
-                        prun.FogTriggerNode = -1;
-                        prun.FogLeft = 0; prun.FogRerolled = false;                   // 换幕：雾散
-                        Debug.Log("[Campaign] 通过本幕最后一格 ， 推进到第 " + prun.Act + " 幕");
-                        WanXiang.Run.RunSave.SaveCurrent();
-
-                        // ★★ 第四幕通关 ， 第 5 幕 = 天阙：挂起"天阙抉择"，并直接回主城等玩家选。
-                        //    旧实现靠 MainSceneEntry 里 `NodeOffset == 11` 判定（当时是 4 层×3 格的遗留），
-                        //    既与现在的 12 层图对不上，又会被幕推进重置成 -1 ， 天阙永远不会触发。
-                        if (prun.Act >= 5)
-                        {
-                            // ★★ 关键：**不切场景**！就地重建天阙图 + 原地弹出天阙抉择。
-                            //    原来这里 EnterMain() 切场景 ， MainSceneEntry 跑两次 ，
-                            //    面板实例在"关闭中"状态被再次 OpenAsync，返回实例却不激活
-                            //    ， 最后画面一片空白 / 主界面（日志实测：打开成功但 2 帧后 active=False）。
-                            SceneFlow.PendingFinale = false;   // 不需要跨场景挂起了
-                            Debug.Log("[Campaign] 已到天阙 ， 就地弹出天阙抉择（不切场景）");
-                            WanXiang.Run.RunSave.SaveCurrent();
-                            RebuildGraphFor(prun.Act, prun.RunSeed);   // 换成天阙图（5 节点）
-                            _currentOffset = -1;
-                            _visited.Clear();
-                            BuildNodeMap();
-                            var uiF = WanXiang.Framework.Boot.UIBootstrap.UI;
-                            if (uiF != null) uiF.OpenAsync<TrialPanel>().Forget();
-                            return UniTask.CompletedTask;
-                        }
-
-                        RebuildGraphFor(prun.Act, prun.RunSeed);   // 换新幕的图
-        _currentOffset = -1;
-    _visited.Clear();
-      }        // ← 收口：上面整段（瘴雾/天阙/幕推进）只属于主线，秘境不进来
-         WanXiang.Run.RunSave.SaveCurrent();
-       }             // ← 收口：if (prun != null)
-         }             // ← 收口：else（秘境分支）
-         PendingCommit = -1;
-      }
+            if (LandPendingCommit()) return UniTask.CompletedTask;
 
             BuildNodeMap();
             // ⚠ 图完整性告警：BuildRoute 在 64 次重试都失败时会回退到"缺省图"
@@ -582,6 +593,15 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         protected override void OnRefresh(object payload)
         {
             var g = payload as WanXiang.Campaign.ActGraph;
+            // ★ 地图常开：子面板关闭后 OpenAsync 只走刷新路径（payload 为空）⇒
+            //   无条件落地 + 全量重建（同样不能拿 PendingCommit 当判据）。
+            if (g == null)
+            {
+                LandPendingCommit();
+                BuildNodeMap();
+                ApplyViewAfterGraphChange(silentSelect: true);
+                return;
+            }
 
             // ★★ 自愈：**在秘境模式、但存档说已经不在秘境里** ⇒ 说明刚撤离了，
             //   应该原地切回主线图。
@@ -1401,6 +1421,14 @@ if (_tmpActTitle != null)
         {
             base.OnResume();
             if (_ambientFx != null) _ambientFx.Running = true;
+
+            // ★ 地图常开：子面板（含裸 CloseSelf）关闭后 UISystem 都会 Resume 地图。
+            //   ⛔ 不能只判"有没有 PendingCommit 待办"——弹窗类完成时数据当场落地，
+            //   Resume 时已是 -1，判断会跳过重建（上一轮"要点两次才解锁"就是这么来的）。
+            //   ⇒ **无条件落地 + 全量重建**（BuildNodeMap 本来就是开图必跑的重建，代价可接受）。
+            LandPendingCommit();
+            BuildNodeMap();
+            ApplyViewAfterGraphChange(silentSelect: true);
             if (_pendingAnim) StartCoroutine(PlayPendingAnimAfter(0.30f));   // 被上层弹层（如开场）盖过再露出 ， 这时才播
         }
 
@@ -2649,8 +2677,12 @@ if (_tmpActTitle != null)
                 Debug.Log("[Campaign] ？节点揭晓 → " + WanXiang.Campaign.NodeKinds.Cn(revealed));
             }
 
-            // 先关节点地图：它与接下来要开的面板同在 Normal 层
-            CloseSelf();
+            // ★ 2026-10-19 用户："打开这个界面后面是主界面不是节点底图"（招募/遗物/异闻…）
+            //   ⇒ **非战斗节点不关地图**：子面板打开在后，同层天然盖在地图上；
+            //   战斗/问号仍关（要切场景/进全屏编队）。
+            bool _battleKind = WanXiang.Campaign.NodeKinds.IsBattle(kind)
+                            || kind == WanXiang.Campaign.NodeKind.Question;
+            if (_battleKind) CloseSelf();
 
             // 非战斗节点直接路由到已有面板 —— 面板本身承担该节点的玩法
             switch (kind)

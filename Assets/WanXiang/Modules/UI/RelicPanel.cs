@@ -9,6 +9,7 @@
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using DG.Tweening;
 using UnityEngine.UI;
 using WanXiang.Campaign;
 using WanXiang.Framework.UI;
@@ -138,21 +139,109 @@ private int _selected = -1;
                     _tmpDraftDescs[i].text = (_offered != null && i < _offered.Count) ? _offered[i].Desc : "";
             }
 
-            // 三选一草稿卡：有图标则把遗物图设到卡面（Simple + preserveAspect 不变形），
-            // 无图则保留 prefab 原背景。点选时的高亮染色仍走下面 OnDraftClicked 的 color。
-            var relicSprites = RelicSpriteCatalog.Find();
-            for (int i = 0; i < _draftBtns.Length; i++)
-            {
-                if (_draftBtns[i] == null) continue;
-                var img = _draftBtns[i].targetGraphic as Image;
-                if (img == null || relicSprites == null) continue;
-                var relic = (_offered != null && i < _offered.Count) ? _offered[i] : null;
-                var sp = relic != null ? relicSprites.Get(relic.Id) : null;
-                if (sp != null) { img.sprite = sp; img.type = Image.Type.Simple; img.preserveAspect = true; }
-            }
+            // ★ 2026-10-19 用户："遗物不要上下排序，要肉鸽那种三选一、左右排、弹出来的动画"
+            //   卡面 = kit 底（不塞立绘，立绘走独立子节点，避免拉伸/染色互相打架）；
+            //   布局与弹入动画全部运行时做，prefab 保持原样。
+            ApplyThreeChoiceLayout();
 
             if (_btnConfirm != null) _btnConfirm.interactable = false;
             return UniTask.CompletedTask;
+        }
+
+        /// <summary>
+        /// 肉鸽式三选一：三张卡**横排**、逐个弹入（缩放 0.86→1 + 淡入，间隔 90ms）。
+        /// 卡内版式：图标在上、名字居中、描述在下、「本队」角标贴底。
+        /// ⛔ 只动 rect / 子节点位置与动画，不改 prefab 资产。
+        /// </summary>
+        private void ApplyThreeChoiceLayout()
+        {
+            var kitStrip = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_strip");
+            var relicSprites = RelicSpriteCatalog.Find();
+            var draftColors = new[] { -230f, 0f, 230f };
+
+            for (int i = 0; i < _draftBtns.Length; i++)
+            {
+                var btn = _draftBtns[i];
+                if (btn == null) continue;
+                var rt = (RectTransform)btn.transform;
+
+                // 卡：横排
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.pivot = new Vector2(0.5f, 0.5f);
+                rt.sizeDelta = new Vector2(210f, 400f);
+                rt.anchoredPosition = new Vector2(draftColors[i], 16f);
+
+                // 卡面：kit 细边框（点选高亮仍由 OnDraftClicked 染色）
+                var bg = btn.targetGraphic as Image;
+                if (bg != null && kitStrip != null)
+                {
+                    bg.sprite = kitStrip;
+                    bg.type = Image.Type.Sliced;
+                    bg.color = Color.white;
+                }
+
+                // 遗物图标：独立子节点（顶部居中，保持比例）
+                var relic = (_offered != null && i < _offered.Count) ? _offered[i] : null;
+                var sp = (relic != null && relicSprites != null) ? relicSprites.Get(relic.Id) : null;
+                var iconT = rt.Find("Img_Icon") as RectTransform;
+                if (iconT == null)
+                {
+                    var go = new GameObject("Img_Icon", typeof(RectTransform), typeof(Image));
+                    iconT = (RectTransform)go.transform;
+                    iconT.SetParent(rt, false);
+                    iconT.SetAsFirstSibling();
+                }
+                iconT.anchorMin = iconT.anchorMax = new Vector2(0.5f, 0.5f);
+                iconT.pivot = new Vector2(0.5f, 0.5f);
+                iconT.sizeDelta = new Vector2(150f, 150f);
+                iconT.anchoredPosition = new Vector2(0f, 112f);
+                var iconImg = iconT.GetComponent<Image>();
+                iconImg.sprite = sp;
+                iconImg.type = Image.Type.Simple;
+                iconImg.preserveAspect = true;
+                iconImg.raycastTarget = false;
+                iconImg.enabled = sp != null;
+
+                // 名字 / 描述 / 本队角标
+                if (i < _tmpDraftNames.Length && _tmpDraftNames[i] != null)
+                {
+                    var nrt = (RectTransform)_tmpDraftNames[i].transform;
+                    nrt.anchorMin = nrt.anchorMax = new Vector2(0.5f, 0.5f);
+                    nrt.pivot = new Vector2(0.5f, 0.5f);
+                    nrt.sizeDelta = new Vector2(190f, 44f);
+                    nrt.anchoredPosition = new Vector2(0f, 12f);
+                    _tmpDraftNames[i].fontSize = 26;
+                    _tmpDraftNames[i].alignment = TextAlignmentOptions.Center;
+                }
+                if (i < _tmpDraftDescs.Length && _tmpDraftDescs[i] != null)
+                {
+                    var drt = (RectTransform)_tmpDraftDescs[i].transform;
+                    drt.anchorMin = drt.anchorMax = new Vector2(0.5f, 0.5f);
+                    drt.pivot = new Vector2(0.5f, 1f);
+                    drt.sizeDelta = new Vector2(184f, 210f);
+                    drt.anchoredPosition = new Vector2(0f, -18f);
+                    _tmpDraftDescs[i].fontSize = 18;
+                    _tmpDraftDescs[i].alignment = TextAlignmentOptions.TopLeft;
+                }
+                if (i < _markTeam.Length && _markTeam[i] != null)
+                {
+                    var mrt = (RectTransform)_markTeam[i].transform;
+                    mrt.anchorMin = mrt.anchorMax = new Vector2(0.5f, 0.5f);
+                    mrt.pivot = new Vector2(0.5f, 0.5f);
+                    mrt.sizeDelta = new Vector2(72f, 30f);
+                    mrt.anchoredPosition = new Vector2(0f, -168f);
+                }
+
+                // 弹入动画：缩放 0.86→1（OutBack）+ 淡入，间隔 90ms
+                var cg = btn.GetComponent<CanvasGroup>();
+                if (cg == null) cg = btn.gameObject.AddComponent<CanvasGroup>();
+                cg.alpha = 0f;
+                rt.localScale = Vector3.one * 0.86f;
+                var seq = DG.Tweening.DOTween.Sequence();
+                seq.SetDelay(i * 0.09f);
+                seq.Append(rt.DOScale(1f, 0.22f).SetEase(DG.Tweening.Ease.OutBack));
+                seq.Join(cg.DOFade(1f, 0.18f));
+            }
         }
 
         private void OnDraftClicked(int index)
