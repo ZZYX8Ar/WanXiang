@@ -8,6 +8,7 @@
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using DG.Tweening;
 using UnityEngine.UI;
 using WanXiang.Framework.UI;
 using WanXiang.Campaign;
@@ -20,6 +21,7 @@ namespace WanXiang.Modules.UI
     {
         public bool Win;
         public bool Retreated;
+
         /// <summary>★ 平局（打到回合上限 MaxTurns 仍未分胜负）。按撤退处理：不清进度、不计败。</summary>
         public bool Draw;
         public int Turns;
@@ -159,6 +161,10 @@ namespace WanXiang.Modules.UI
             // ★ 按胜负决定确认按钮是否可点（原来无条件设 false，把"失败可直接确认"覆盖掉了）：
             //   胜利 → 必须先选一张奖励才可确认；失败 → 没有奖励，直接可确认。
             if (_btnConfirm != null) _btnConfirm.interactable = !_win;
+
+            // ★ 2026-10-19 用户："把遗物三选一的效果做到战斗结果面板这里"
+            //   与 RelicPanel 同一套语言：横排三卡 + 从上落下 + 悬浮金框上浮。
+            ApplyThreeChoiceLayout();
             return UniTask.CompletedTask;
         }
 
@@ -285,6 +291,103 @@ namespace WanXiang.Modules.UI
                 for (int i = 0; i < all.Length; i++)
                     if (all[i] != null && all[i].Id == beastId) return all[i].DisplayName;
             return beastId;
+        }
+
+        /// <summary>
+        /// 结果面板的三选一：与 RelicPanel 同款 —— 横排三卡、从上落下、悬浮金框+上浮。
+        /// ⛔ 只改运行时 rect/子节点，不碰 prefab。
+        /// </summary>
+        private void ApplyThreeChoiceLayout()
+        {
+            var hoverSp = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/card_hover");
+            var kitCard = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");
+            var xs = new[] { -215f, 0f, 215f };
+
+            for (int i = 0; i < _draftBtns.Length; i++)
+            {
+                var btn = _draftBtns[i];
+                if (btn == null) continue;
+                var rt = (RectTransform)btn.transform;
+
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.pivot = new Vector2(0.5f, 0.5f);
+                rt.sizeDelta = new Vector2(196f, 268f);
+                rt.anchoredPosition = new Vector2(xs[i], 6f);
+
+                var bg = btn.targetGraphic as Image;
+                if (bg != null && kitCard != null) { bg.sprite = kitCard; bg.type = Image.Type.Sliced; bg.color = Color.white; }
+
+                if (i < _tmpDraftNames.Length && _tmpDraftNames[i] != null)
+                {
+                    var nrt = (RectTransform)_tmpDraftNames[i].transform;
+                    nrt.anchorMin = nrt.anchorMax = new Vector2(0.5f, 0.5f);
+                    nrt.pivot = new Vector2(0.5f, 0.5f);
+                    nrt.sizeDelta = new Vector2(180f, 40f);
+                    nrt.anchoredPosition = new Vector2(0f, 58f);
+                    _tmpDraftNames[i].fontSize = 24;
+                    _tmpDraftNames[i].alignment = TextAlignmentOptions.Center;
+                }
+                if (i < _tmpDraftDescs.Length && _tmpDraftDescs[i] != null)
+                {
+                    var drt = (RectTransform)_tmpDraftDescs[i].transform;
+                    drt.anchorMin = drt.anchorMax = new Vector2(0.5f, 0.5f);
+                    drt.pivot = new Vector2(0.5f, 1f);
+                    drt.sizeDelta = new Vector2(176f, 150f);
+                    drt.anchoredPosition = new Vector2(0f, 26f);
+                    _tmpDraftDescs[i].fontSize = 18;
+                    _tmpDraftDescs[i].alignment = TextAlignmentOptions.TopLeft;
+                }
+
+                // 悬浮金框
+                var hoverT = rt.Find("Img_Hover") as RectTransform;
+                if (hoverT == null)
+                {
+                    var hg = new GameObject("Img_Hover", typeof(RectTransform), typeof(Image));
+                    hoverT = (RectTransform)hg.transform;
+                    hoverT.SetParent(rt, false);
+                    var himg = hg.GetComponent<Image>();
+                    himg.sprite = hoverSp; himg.type = Image.Type.Sliced; himg.raycastTarget = false;
+                    hoverT.anchorMin = Vector2.zero; hoverT.anchorMax = Vector2.one;
+                    hoverT.offsetMin = Vector2.zero; hoverT.offsetMax = Vector2.zero;
+                }
+                hoverT.SetAsLastSibling();
+                hoverT.gameObject.SetActive(false);
+                var hoverHome = rt.anchoredPosition;
+
+                var trg = btn.gameObject.GetComponent<UnityEngine.EventSystems.EventTrigger>();
+                if (trg == null) trg = btn.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+                trg.triggers.Clear();
+                var enter = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter };
+                enter.callback.AddListener(_ =>
+                {
+                    hoverT.gameObject.SetActive(true);
+                    DG.Tweening.DOTween.To(() => rt.anchoredPosition, v => rt.anchoredPosition = v,
+                        hoverHome + new Vector2(0f, 10f), 0.12f).SetEase(DG.Tweening.Ease.OutCubic);
+                });
+                var exit = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
+                exit.callback.AddListener(_ =>
+                {
+                    hoverT.gameObject.SetActive(false);
+                    DG.Tweening.DOTween.To(() => rt.anchoredPosition, v => rt.anchoredPosition = v,
+                        hoverHome, 0.12f).SetEase(DG.Tweening.Ease.OutCubic);
+                });
+                trg.triggers.Add(enter);
+                trg.triggers.Add(exit);
+
+                // 落卡动画（同 RelicPanel：从上方落下 + 落地压扁回弹）
+                var cg = btn.GetComponent<CanvasGroup>();
+                if (cg == null) cg = btn.gameObject.AddComponent<CanvasGroup>();
+                cg.alpha = 0f;
+                rt.anchoredPosition = hoverHome + new Vector2(0f, 130f);
+                rt.localScale = new Vector3(0.96f, 1.06f, 1f);
+                var seq = DG.Tweening.DOTween.Sequence();
+                seq.SetDelay(0.10f + i * 0.16f);
+                seq.Append(rt.DOAnchorPos(hoverHome, 0.55f).SetEase(DG.Tweening.Ease.OutCubic));
+                seq.Join(rt.DOScale(Vector3.one, 0.45f).SetEase(DG.Tweening.Ease.OutCubic));
+                seq.Join(cg.DOFade(1f, 0.30f));
+                seq.Append(rt.DOScale(new Vector3(1.03f, 0.97f, 1f), 0.07f));
+                seq.Append(rt.DOScale(Vector3.one, 0.12f).SetEase(DG.Tweening.Ease.OutBack));
+            }
         }
 
         private void OnDraftClicked(int index)
