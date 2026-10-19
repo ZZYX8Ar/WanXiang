@@ -340,7 +340,12 @@ namespace WanXiang.Modules.UI
             var closeX = NewButton("Btn_CloseX", card, new Vector2(1f, 1f), new Vector2(1f, 1f),
                                    new Vector2(-36f, -36f), new Vector2(48f, 48f),
                                    new Color(0.90f, 0.86f, 0.80f, 1f), out var closeXLabel);
-            if (closeXLabel != null) { closeXLabel.text = "×"; closeXLabel.fontSize = 34; }
+            // ★ X 关闭钮挂 kit 图标底（用户 2026-10-19："弹窗面板的这个 X 号没有替换美术"）
+            var kitX = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/btn_close");
+            var closeXImg = closeX.image != null ? closeX.image : closeX.GetComponent<Image>();
+            if (kitX != null && closeXImg != null)
+            { closeXImg.sprite = kitX; closeXImg.type = Image.Type.Sliced; closeXImg.color = Color.white; }
+            if (closeXLabel != null) closeXLabel.text = "";   // 图里自带 ×，不再叠文字
             _btnCloseX = closeX;
             closeX.onClick.AddListener(Finish);
         }
