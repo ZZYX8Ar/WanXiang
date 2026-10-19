@@ -674,6 +674,16 @@ OpenSequence = openSequence;
         protected virtual void OnOpened() { }
 
         /// <summary>
+        /// 右上角统一 X 的关闭入口（由 UIPanelChrome 调用）。
+        /// 子类可重写 <see cref="OnChromeClose"/> 做"暂离"收尾（例如清掉节点待推进，
+        /// 让玩家 X 出去看一眼地图再回来 —— 节点不算通过、再次打开内容不变）。
+        /// </summary>
+        public void RequestChromeClose() { OnChromeClose(); CloseSelf(); }
+
+        /// <summary>统一 X 关闭前的回调（默认什么都不做）。</summary>
+        protected virtual void OnChromeClose() { }
+
+        /// <summary>
         /// 被上层全屏面板遮挡时调用。
         /// 在这里停止动画、停掉计时器、暂停滚动 —— 别忘了，
         /// 少了这个回调，会出现"背包被详情页盖住但冷却倒计时还在跑"。

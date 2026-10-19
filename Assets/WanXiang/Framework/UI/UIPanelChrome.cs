@@ -19,7 +19,7 @@ namespace WanXiang.Framework.UI
 {
     public static class UIPanelChrome
     {
-        private const float Size = 56f, Margin = 34f;
+        private const float Size = 72f, Margin = 22f;
 
         /// <summary>按类型名限定作用范围（用户点名的内容面板）。</summary>
         private static readonly System.Collections.Generic.HashSet<string> Targets =
@@ -38,6 +38,7 @@ namespace WanXiang.Framework.UI
             if (!Targets.Contains(panel.GetType().Name)) return;
 
             bool isSettings = panel.GetType().Name == "SettingsPanel";
+            bool isSave = panel.GetType().Name == "SavePanel";
 
             // ① 隐藏旧的 X / 返回（Settings 保留 Btn_Back = 返回主界面）
             foreach (var b in root.GetComponentsInChildren<Button>(true))
@@ -48,6 +49,28 @@ namespace WanXiang.Framework.UI
                 if (!isSettings && n.StartsWith("Btn_Back")) b.gameObject.SetActive(false);
             }
 
+            // ①' 存档面板特例：右上角要的是**返回**（回开始界面），它天生有 Btn_Back（返回标题）
+            //    ⇒ 只把它挪到右上角、统一外观，不再生成 X。
+            if (isSave)
+            {
+                foreach (var b in root.GetComponentsInChildren<Button>(true))
+                {
+                    if (b == null || !b.gameObject.name.StartsWith("Btn_Back")) continue;
+                    var brt = (RectTransform)b.transform;
+                    brt.anchorMin = brt.anchorMax = new Vector2(1f, 1f);
+                    brt.pivot = new Vector2(1f, 1f);
+                    brt.sizeDelta = new Vector2(168f, 58f);
+                    brt.anchoredPosition = new Vector2(-Margin, -Margin);
+                    brt.SetAsLastSibling();
+                    var bimg = b.targetGraphic as Image ?? b.GetComponent<Image>();
+                    var bsp = Resources.Load<Sprite>("UI/Kit/btn_secondary");
+                    if (bimg != null && bsp != null) { bimg.sprite = bsp; bimg.type = Image.Type.Sliced; bimg.color = Color.white; }
+                    b.gameObject.SetActive(true);
+                    break;
+                }
+                return;
+            }
+
             // ② 右上角 X：存在则复用，不存在则新建（onClick = CloseSelf）
             Transform x = root.Find("Btn_CloseX_Unified");
             if (x == null)
@@ -56,7 +79,8 @@ namespace WanXiang.Framework.UI
                 x = go.transform;
                 x.SetParent(root, false);
                 var btn = go.GetComponent<Button>();
-                btn.onClick.AddListener(() => { if (panel != null) panel.CloseSelf(); });
+                // ★ 走 RequestChromeClose：子类可拦（遗物面板要"暂离不通过节点"）
+                btn.onClick.AddListener(() => { if (panel != null) panel.RequestChromeClose(); });
                 var img = go.GetComponent<Image>();
                 var sp = Resources.Load<Sprite>("UI/Kit/btn_close");
                 if (sp != null) { img.sprite = sp; img.type = Image.Type.Sliced; }
@@ -67,8 +91,30 @@ namespace WanXiang.Framework.UI
             rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
             rt.pivot = new Vector2(1f, 1f);
             rt.sizeDelta = new Vector2(Size, Size);
-            rt.anchoredPosition = new Vector2(-Margin, -Margin);
-            rt.SetAsLastSibling();
+            x.SetAsLastSibling();
+
+            // ★ X 要贴着"面板本体"（最大的一块卡片），不能钉在整屏根节点上 ——
+            //   看板这类面板本体是内缩的卡片，钉根节点会飘到屏幕角落（用户实测"离太远"）。
+            RectTransform cardRt = null;
+            float bestArea = 0f;
+            var rootRt = root as RectTransform;
+            foreach (var img in root.GetComponentsInChildren<Image>(true))
+            {
+                if (img == null || img.transform == root) continue;
+                if (img.transform == x) continue;
+                var irt = (RectTransform)img.transform;
+                if (irt.rect.width < 200f || irt.rect.height < 120f) continue;
+                float area = irt.rect.width * irt.rect.height;
+                if (area > bestArea) { bestArea = area; cardRt = irt; }
+            }
+            if (cardRt != null && rootRt != null && bestArea < rootRt.rect.width * rootRt.rect.height * 0.92f)
+            {
+                var c4 = new Vector3[4];
+                cardRt.GetWorldCorners(c4);   // 2 = 右上
+                rt.position = c4[2] + new Vector3(-Margin, -Margin, 0f) * root.lossyScale.x;
+            }
+            else rt.anchoredPosition = new Vector2(-Margin, -Margin);
+
             x.gameObject.SetActive(true);
         }
     }

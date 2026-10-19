@@ -280,6 +280,48 @@ private int _selected = -1;
                     mrt.anchoredPosition = new Vector2(0f, -196f);
                 }
 
+                // 悬浮反馈（用户 2026-10-19）：金框亮起 + 整卡上浮 10px
+                {
+                    var hoverT = rt.Find("Img_Hover") as RectTransform;
+                    if (hoverT == null)
+                    {
+                        var hg = new GameObject("Img_Hover", typeof(RectTransform), typeof(Image));
+                        hoverT = (RectTransform)hg.transform;
+                        hoverT.SetParent(rt, false);
+                        var himg = hg.GetComponent<Image>();
+                        himg.sprite = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/card_hover");
+                        himg.type = Image.Type.Sliced;
+                        himg.raycastTarget = false;
+                        hoverT.anchorMin = Vector2.zero; hoverT.anchorMax = Vector2.one;
+                        hoverT.offsetMin = Vector2.zero; hoverT.offsetMax = Vector2.zero;
+                    }
+                    hoverT.SetAsLastSibling();
+                    hoverT.gameObject.SetActive(false);
+                    var hoverHome = rt.anchoredPosition;   // 悬浮位移的固定基准（防多次进出累积漂移）
+
+                    var trg = btn.gameObject.GetComponent<UnityEngine.EventSystems.EventTrigger>();
+                    if (trg == null) trg = btn.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+                    trg.triggers.Clear();
+                    var enter = new UnityEngine.EventSystems.EventTrigger.Entry
+                    { eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter };
+                    enter.callback.AddListener(_ =>
+                    {
+                        hoverT.gameObject.SetActive(true);
+                        DG.Tweening.DOTween.To(() => rt.anchoredPosition, v => rt.anchoredPosition = v,
+                            hoverHome + new Vector2(0f, 10f), 0.12f).SetEase(DG.Tweening.Ease.OutCubic);
+                    });
+                    var exit = new UnityEngine.EventSystems.EventTrigger.Entry
+                    { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
+                    exit.callback.AddListener(_ =>
+                    {
+                        hoverT.gameObject.SetActive(false);
+                        DG.Tweening.DOTween.To(() => rt.anchoredPosition, v => rt.anchoredPosition = v,
+                            hoverHome, 0.12f).SetEase(DG.Tweening.Ease.OutCubic);
+                    });
+                    trg.triggers.Add(enter);
+                    trg.triggers.Add(exit);
+                }
+
                 // 落卡动画（用户 2026-10-19：太快看不清，改成从上往下落 + 回弹）
                 //   每张卡从上方 +150 处落下、淡入，0.55s，间隔 0.16s；落地带一点压扁回弹。
                 var cg = btn.GetComponent<CanvasGroup>();
@@ -296,6 +338,16 @@ private int _selected = -1;
                 seq.Append(rt.DOScale(new Vector3(1.03f, 0.97f, 1f), 0.07f));
                 seq.Append(rt.DOScale(Vector3.one, 0.12f).SetEase(DG.Tweening.Ease.OutBack));
             }
+        }
+
+        /// <summary>
+        /// ★ 2026-10-19 用户："点击 X 怎么就直接通过了，我说了是暂时保留，返回节点地图查看一下，
+        ///   还可以再次打开，而且是一样的"。
+        /// ⇒ X 关闭前清掉待推进：节点不算通过；种子按（RunSeed, Act, Node）确定 ⇒ 再开同一批。
+        /// </summary>
+        protected override void OnChromeClose()
+        {
+            WanXiang.Modules.UI.CampaignPanel.PendingCommit = -1;
         }
 
         private void OnDraftClicked(int index)
