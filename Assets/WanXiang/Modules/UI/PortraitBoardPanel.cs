@@ -114,7 +114,12 @@ namespace WanXiang.Modules.UI
 
                 var cardImg = card.GetComponent<Image>();
                 if (cardImg != null)
-                    cardImg.color = order >= 0 ? C_Sel : (hasVideo ? Color.white : C_Off);   // 选中=科技青（用户：不要黄色）
+                {
+                    // ★ 只有颜色真的变了才写：整排无条件重涂会把所有 Image 标脏 ⇒
+                    //   Canvas 全量重建，点一下"所有格子都闪一下"（用户 2026-10-19）。
+                    var target = order >= 0 ? C_Sel : (hasVideo ? Color.white : C_Off);
+                    if (cardImg.color != target) cardImg.color = target;
+                }
 
                 var btn = card.GetComponent<Button>();
                 if (btn != null)
