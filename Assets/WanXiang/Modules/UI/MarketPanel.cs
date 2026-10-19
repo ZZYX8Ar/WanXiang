@@ -69,6 +69,18 @@ namespace WanXiang.Modules.UI
             //   旧的「买魂」按钮 + 魂选单（Btn_BuySoul / Market_SoulPicker）已从 prefab 与代码中移除。
             if (_detailBuy != null) _detailBuy.onClick.AddListener(OnBuyClicked);
             if (_detailClose != null) _detailClose.onClick.AddListener(HideDetail);
+            // ★ 点遮罩空白处也关闭详情（用户："这个面板怎么没有 X，都关闭不了了"）
+            if (_detailRoot != null)
+            {
+                var maskImg = _detailRoot.GetComponent<Image>();
+                if (maskImg != null)
+                {
+                    var mb = _detailRoot.GetComponent<Button>();
+                    if (mb == null) mb = _detailRoot.gameObject.AddComponent<Button>();
+                    mb.transition = Selectable.Transition.None;
+                    mb.onClick.AddListener(HideDetail);
+                }
+            }
             if (_detailRoot != null) _detailRoot.gameObject.SetActive(false);   // 默认隐藏
             EnsureBackButton();
             if (_btnBack != null) _btnBack.onClick.AddListener(() => {

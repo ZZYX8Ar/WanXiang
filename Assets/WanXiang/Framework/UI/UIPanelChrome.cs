@@ -45,7 +45,13 @@ namespace WanXiang.Framework.UI
             {
                 if (b == null) continue;
                 var n = b.gameObject.name;
-                if (n.StartsWith("Btn_Close")) { b.gameObject.SetActive(false); continue; }
+                // ⛔ 只隐藏**直接挂在面板根下**的旧 X；卡片/子面板内部的关闭按钮（如灵市
+                //   详情卡的 Btn_Close）是功能按钮，隐藏了会导致"弹窗关不掉"（用户实测）。
+                if (n.StartsWith("Btn_Close"))
+                {
+                    if (b.transform.parent == root) b.gameObject.SetActive(false);
+                    continue;
+                }
                 if (!isSettings && n.StartsWith("Btn_Back")) b.gameObject.SetActive(false);
             }
 
