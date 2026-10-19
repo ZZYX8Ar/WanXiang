@@ -80,11 +80,27 @@ private int _selected = -1;
 
         protected override UniTask OnOpenAsync(object payload)
         {
+            // ★ 2026-10-19 用户："遗物面板还是黑背景，换成和招募一样的纸底"
+            var kitPanel0 = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");
+            var selfImg0 = GetComponent<Image>();
+            if (kitPanel0 != null && selfImg0 != null)
+            {
+                selfImg0.sprite = kitPanel0;
+                selfImg0.type = Image.Type.Sliced;
+                selfImg0.color = Color.white;
+            }
+
             // 抽 3 个遗物（本节点本身是「遗物」节点，视为稀有权重偏高）
             var run = WanXiang.Run.RunSave.Current;
             int act = run != null ? run.Act : 1;
+            // ★ 2026-10-19 用户："X 只是关闭暂不选择，再次打开还是一样的" ——
+            //   种子必须由（RunSeed, 幕, 节点）决定，不能用 DateTime.Now（那会每次重抽）。
+            int nodeKeyR = WanXiang.Modules.UI.CampaignPanel.PendingCommit >= 0
+                ? WanXiang.Modules.UI.CampaignPanel.PendingCommit
+                : (run != null ? run.NodeOffset : -1);
             var rng = new WanXiang.Battle.Core.DeterministicRandom(
-                (ulong)System.DateTime.Now.Ticks ^ (uint)(act * 40503));
+                WanXiang.Battle.Core.CoreMath.Fnv1a(
+                    "relic:" + (run != null ? run.RunSeed : 0) + ":" + act + ":" + nodeKeyR));
             // ★ 与本队异兽相关的遗物**加权**出现（用户 2026-10-07 定案）：
             //   否则给的三选一常是"跟我队伍无关"的东西，玩家没法做"适配队伍"的决策。
             //   作用域口径与遗物结算完全一致（RelicCatalog.AddBeastScopes）：异兽 id / 五行 / 定位。
@@ -128,6 +144,37 @@ private int _selected = -1;
             }
             _selected = -1;
 
+            // ★ 2026-10-19 用户："底部可以大一点，现在左右都重叠了，上下也可以扩大一点，
+            //   顶部的字还被遮挡" —— 面板放大 + 标题/卡片/按钮统一重排（代码版式）。
+            {
+                var selfRt = (RectTransform)transform;
+                selfRt.sizeDelta = new Vector2(1120f, 720f);
+                if (_tmpTitle != null)
+                {
+                    var trt = (RectTransform)_tmpTitle.transform;
+                    trt.anchorMin = trt.anchorMax = new Vector2(0.5f, 0.5f);
+                    trt.pivot = new Vector2(0.5f, 0.5f);
+                    trt.sizeDelta = new Vector2(980f, 56f);
+                    trt.anchoredPosition = new Vector2(0f, 302f);
+                }
+                if (_btnConfirm != null)
+                {
+                    var brt = (RectTransform)_btnConfirm.transform;
+                    brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f);
+                    brt.pivot = new Vector2(0.5f, 0.5f);
+                    brt.sizeDelta = new Vector2(180f, 56f);
+                    brt.anchoredPosition = new Vector2(-104f, -302f);
+                }
+                if (_btnSkip != null)
+                {
+                    var srt = (RectTransform)_btnSkip.transform;
+                    srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0.5f);
+                    srt.pivot = new Vector2(0.5f, 0.5f);
+                    srt.sizeDelta = new Vector2(180f, 56f);
+                    srt.anchoredPosition = new Vector2(104f, -302f);
+                }
+            }
+
             if (_tmpTitle != null) _tmpTitle.text = "遗物 · 三选一（本局已持有 " +
                 (run != null && run.Relics != null ? run.Relics.Count : 0) + " 件）";
 
@@ -155,9 +202,9 @@ private int _selected = -1;
         /// </summary>
         private void ApplyThreeChoiceLayout()
         {
-            var kitStrip = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_strip");
+            var kitCard = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");
             var relicSprites = RelicSpriteCatalog.Find();
-            var draftColors = new[] { -230f, 0f, 230f };
+            var draftColors = new[] { -290f, 0f, 290f };
 
             for (int i = 0; i < _draftBtns.Length; i++)
             {
@@ -168,14 +215,15 @@ private int _selected = -1;
                 // 卡：横排
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
                 rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.sizeDelta = new Vector2(210f, 400f);
-                rt.anchoredPosition = new Vector2(draftColors[i], 16f);
+                rt.sizeDelta = new Vector2(250f, 450f);
+                rt.anchoredPosition = new Vector2(draftColors[i], 30f);
 
                 // 卡面：kit 细边框（点选高亮仍由 OnDraftClicked 染色）
                 var bg = btn.targetGraphic as Image;
-                if (bg != null && kitStrip != null)
+                if (bg != null && kitCard != null)
                 {
-                    bg.sprite = kitStrip;
+                    // 方版底（panel_dialog 是方图）比细条底更适合 210x400 的竖卡，Sliced 不会看着拉伸
+                    bg.sprite = kitCard;
                     bg.type = Image.Type.Sliced;
                     bg.color = Color.white;
                 }
@@ -194,7 +242,7 @@ private int _selected = -1;
                 iconT.anchorMin = iconT.anchorMax = new Vector2(0.5f, 0.5f);
                 iconT.pivot = new Vector2(0.5f, 0.5f);
                 iconT.sizeDelta = new Vector2(150f, 150f);
-                iconT.anchoredPosition = new Vector2(0f, 112f);
+                iconT.anchoredPosition = new Vector2(0f, 132f);
                 var iconImg = iconT.GetComponent<Image>();
                 iconImg.sprite = sp;
                 iconImg.type = Image.Type.Simple;
@@ -208,8 +256,8 @@ private int _selected = -1;
                     var nrt = (RectTransform)_tmpDraftNames[i].transform;
                     nrt.anchorMin = nrt.anchorMax = new Vector2(0.5f, 0.5f);
                     nrt.pivot = new Vector2(0.5f, 0.5f);
-                    nrt.sizeDelta = new Vector2(190f, 44f);
-                    nrt.anchoredPosition = new Vector2(0f, 12f);
+                    nrt.sizeDelta = new Vector2(230f, 44f);
+                    nrt.anchoredPosition = new Vector2(0f, 22f);
                     _tmpDraftNames[i].fontSize = 26;
                     _tmpDraftNames[i].alignment = TextAlignmentOptions.Center;
                 }
@@ -218,8 +266,8 @@ private int _selected = -1;
                     var drt = (RectTransform)_tmpDraftDescs[i].transform;
                     drt.anchorMin = drt.anchorMax = new Vector2(0.5f, 0.5f);
                     drt.pivot = new Vector2(0.5f, 1f);
-                    drt.sizeDelta = new Vector2(184f, 210f);
-                    drt.anchoredPosition = new Vector2(0f, -18f);
+                    drt.sizeDelta = new Vector2(222f, 250f);
+                    drt.anchoredPosition = new Vector2(0f, -8f);
                     _tmpDraftDescs[i].fontSize = 18;
                     _tmpDraftDescs[i].alignment = TextAlignmentOptions.TopLeft;
                 }
@@ -229,18 +277,24 @@ private int _selected = -1;
                     mrt.anchorMin = mrt.anchorMax = new Vector2(0.5f, 0.5f);
                     mrt.pivot = new Vector2(0.5f, 0.5f);
                     mrt.sizeDelta = new Vector2(72f, 30f);
-                    mrt.anchoredPosition = new Vector2(0f, -168f);
+                    mrt.anchoredPosition = new Vector2(0f, -196f);
                 }
 
-                // 弹入动画：缩放 0.86→1（OutBack）+ 淡入，间隔 90ms
+                // 落卡动画（用户 2026-10-19：太快看不清，改成从上往下落 + 回弹）
+                //   每张卡从上方 +150 处落下、淡入，0.55s，间隔 0.16s；落地带一点压扁回弹。
                 var cg = btn.GetComponent<CanvasGroup>();
                 if (cg == null) cg = btn.gameObject.AddComponent<CanvasGroup>();
+                var home = rt.anchoredPosition;
                 cg.alpha = 0f;
-                rt.localScale = Vector3.one * 0.86f;
+                rt.anchoredPosition = home + new Vector2(0f, 150f);
+                rt.localScale = new Vector3(0.96f, 1.06f, 1f);   // 落下时略拉长，像纸牌下落
                 var seq = DG.Tweening.DOTween.Sequence();
-                seq.SetDelay(i * 0.09f);
-                seq.Append(rt.DOScale(1f, 0.22f).SetEase(DG.Tweening.Ease.OutBack));
-                seq.Join(cg.DOFade(1f, 0.18f));
+                seq.SetDelay(0.10f + i * 0.16f);
+                seq.Append(rt.DOAnchorPos(home, 0.55f).SetEase(DG.Tweening.Ease.OutCubic));
+                seq.Join(rt.DOScale(Vector3.one, 0.45f).SetEase(DG.Tweening.Ease.OutCubic));
+                seq.Join(cg.DOFade(1f, 0.30f));
+                seq.Append(rt.DOScale(new Vector3(1.03f, 0.97f, 1f), 0.07f));
+                seq.Append(rt.DOScale(Vector3.one, 0.12f).SetEase(DG.Tweening.Ease.OutBack));
             }
         }
 

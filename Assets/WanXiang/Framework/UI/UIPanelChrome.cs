@@ -1,16 +1,15 @@
 // ============================================================================
-//  万相 · 面板通用"返回"按钮统一（2026-10-19）
+//  万相 · 面板通用"关闭 X"统一（2026-10-19 第二版）
 //  ---------------------------------------------------------------------------
-//  用户定案："把这些按钮打开的面板的返回按钮统一一下位置，有一些有 X 关闭按钮又有
-//  返回按钮，统一为返回按钮。"
+//  用户两轮口径合并后的最终规则：
+//    · 内容面板右上角统一放一个 **X**（点击 = 关闭本面板，不代表"通过节点"）；
+//    · 各面板原来的"返回"按钮隐藏（避免 X 和返回并存）；
+//    · ⚠ SettingsPanel 例外：底部中央的「返回主界面」必须保留（那是回标题画面，
+//      和"关闭设置"不是一回事），所以 SettingsPanel **不动 Btn_Back**。
 //
-//  规则（运行时套用，不改 prefab —— 用户手改的面板不会被覆盖）：
-//    ① 所有名字以 Btn_Close 开头的按钮 → 隐藏（X 不再出现）；
-//    ② 有 Btn_Back → 统一到**右上角**（锚 1,1 / 尺寸 168×58 / kit 按钮底 / 文案"返回"）；
-//    ③ 只有 X 没有 Btn_Back → 把那个 X **改造成返回按钮**（沿用它的 onClick，本来就是关闭）；
-//    ④ 两者都没有 → 不处理（例如战斗 HUD、弹窗）。
-//
-//  为什么右上角：原来的 X 就在右上角，改成"返回"后位置不变，不会压住左上角的标题条。
+//  为什么新建 X 而不是改造旧按钮：旧按钮的 onClick 可能被接到"回标题/回地图"等
+//  特殊流程上（用户实测：设置面板的返回直接跳到了开始界面）。新建按钮绑
+//  `UIPanelBase.CloseSelf` 才能保证语义 = 只是关面板。
 // ============================================================================
 
 using UnityEngine;
@@ -20,71 +19,57 @@ namespace WanXiang.Framework.UI
 {
     public static class UIPanelChrome
     {
-        private const float W = 168f, H = 58f, MarginX = 40f, MarginY = 40f;
+        private const float Size = 56f, Margin = 34f;
 
-        /// <summary>对所有子按钮套用统一返回规则（幂等，可每次 OnOpened 调）。</summary>
+        /// <summary>按类型名限定作用范围（用户点名的内容面板）。</summary>
+        private static readonly System.Collections.Generic.HashSet<string> Targets =
+            new System.Collections.Generic.HashSet<string>
+            {
+                "CodexPanel", "MetaPanel", "ArchivePanel", "HistoryPanel", "SettingsPanel",
+                "PortraitBoardPanel", "RelicPanel", "RecruitPanel", "MarketPanel",
+                "ForgePanel", "OmenPanel", "SavePanel",
+            };
+
         public static void UnifyBackButton(Transform root)
         {
             if (root == null) return;
-
-            // ⛔ 弹窗类（确认框/二选一）的 × 是**模态关闭**，不能改成"返回"；
-            //   战斗 HUD 也不属于"内容面板"。这些面板一律不动。
             var panel = root.GetComponent<UIPanelBase>();
-            string tname = panel != null ? panel.GetType().Name : "";
-            if (tname == "DialogPanel" || tname == "BattlePanel" || tname == "ActIntroPanel") return;
+            if (panel == null) return;
+            if (!Targets.Contains(panel.GetType().Name)) return;
 
-            Button back = null, closeX = null;
+            bool isSettings = panel.GetType().Name == "SettingsPanel";
+
+            // ① 隐藏旧的 X / 返回（Settings 保留 Btn_Back = 返回主界面）
             foreach (var b in root.GetComponentsInChildren<Button>(true))
             {
                 if (b == null) continue;
                 var n = b.gameObject.name;
-                if (back == null && n.StartsWith("Btn_Back")) back = b;
-                else if (closeX == null && n.StartsWith("Btn_Close")) closeX = b;
+                if (n.StartsWith("Btn_Close")) { b.gameObject.SetActive(false); continue; }
+                if (!isSettings && n.StartsWith("Btn_Back")) b.gameObject.SetActive(false);
             }
 
-            // ① 隐藏 X
-            if (closeX != null && closeX != back) closeX.gameObject.SetActive(false);
-
-            // ③ 没有返回 → 把 X 改造为返回
-            if (back == null) back = closeX;
-            if (back == null) return;
-
-            var rt = (RectTransform)back.transform;
-            rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
-            rt.pivot = new Vector2(1f, 1f);
-            rt.sizeDelta = new Vector2(W, H);
-            rt.anchoredPosition = new Vector2(-MarginX, -MarginY);
-            rt.SetAsLastSibling();                       // 压在标题条之上，保证可点
-
-            var img = back.targetGraphic as Image ?? back.GetComponent<Image>();
-            var sprite = Resources.Load<Sprite>("UI/Kit/btn_secondary");
-            if (img != null && sprite != null)
+            // ② 右上角 X：存在则复用，不存在则新建（onClick = CloseSelf）
+            Transform x = root.Find("Btn_CloseX_Unified");
+            if (x == null)
             {
-                img.sprite = sprite;
-                img.type = Image.Type.Sliced;
-                img.color = Color.white;
+                var go = new GameObject("Btn_CloseX_Unified", typeof(RectTransform), typeof(Image), typeof(Button));
+                x = go.transform;
+                x.SetParent(root, false);
+                var btn = go.GetComponent<Button>();
+                btn.onClick.AddListener(() => { if (panel != null) panel.CloseSelf(); });
+                var img = go.GetComponent<Image>();
+                var sp = Resources.Load<Sprite>("UI/Kit/btn_close");
+                if (sp != null) { img.sprite = sp; img.type = Image.Type.Sliced; }
+                else img.color = new Color(0.93f, 0.91f, 0.86f, 1f);
                 img.raycastTarget = true;
             }
-
-            // 文案：把子节点的 TMP 文字改成"返回"。
-            // ⛔ 本程序集（WanXiang.Runtime）没有引用 TextMeshPro ⇒ 不能直接用 TMP 类型，
-            //    这里按类型名反射设置（text/fontSize/color 都是公共属性）。
-            Component label = null;
-            foreach (var c in back.GetComponentsInChildren<Component>(true))
-            {
-                if (c == null) continue;
-                var tn = c.GetType().Name;
-                if (tn == "TextMeshProUGUI" || tn == "TextMeshPro") { label = c; break; }
-            }
-            if (label != null)
-            {
-                var lt = label.GetType();
-                lt.GetProperty("text")?.SetValue(label, "返回");
-                lt.GetProperty("fontSize")?.SetValue(label, 26f);
-                lt.GetProperty("color")?.SetValue(label, new Color(0.16f, 0.13f, 0.09f, 1f));
-            }
-
-            back.gameObject.SetActive(true);
+            var rt = (RectTransform)x;
+            rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(1f, 1f);
+            rt.sizeDelta = new Vector2(Size, Size);
+            rt.anchoredPosition = new Vector2(-Margin, -Margin);
+            rt.SetAsLastSibling();
+            x.gameObject.SetActive(true);
         }
     }
 }
