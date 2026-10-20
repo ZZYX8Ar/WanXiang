@@ -303,6 +303,23 @@ namespace WanXiang.Modules.UI
             var kitCard = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");
             var xs = new[] { -215f, 0f, 215f };
 
+            // ★★ 2026-10-20 真因：三张卡挂在 Root_Drafts 下，而它带着 **HorizontalLayoutGroup** ——
+            //   卡片没有优选尺寸 ⇒ 布局组把它们算成 0×0 ⇒ 永远看不见（我之前的尺寸设置被布局组覆盖）。
+            //   修：关掉布局组，容器改成手动定位。
+            var draftsRoot = transform.Find("Root_Detail/Root_Drafts") as RectTransform ?? transform.Find("Root_Drafts") as RectTransform;
+            if (draftsRoot != null)
+            {
+                var lg = draftsRoot.GetComponent<HorizontalLayoutGroup>();
+                if (lg != null) lg.enabled = false;
+                // 从 Root_Detail（左栏）挪到**面板中央下方**：卡片要横排铺开，不能压在结算明细上
+                draftsRoot.SetParent(transform, false);
+                draftsRoot.SetAsLastSibling();
+                draftsRoot.anchorMin = draftsRoot.anchorMax = new Vector2(0.5f, 0.5f);
+                draftsRoot.pivot = new Vector2(0.5f, 0.5f);
+                draftsRoot.sizeDelta = new Vector2(900f, 300f);
+                draftsRoot.anchoredPosition = new Vector2(0f, -120f);
+            }
+
             int offeredCount = _offered != null ? _offered.Count : 0;
             for (int i = 0; i < _draftBtns.Length; i++)
             {

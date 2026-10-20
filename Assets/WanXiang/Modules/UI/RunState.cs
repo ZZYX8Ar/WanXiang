@@ -169,6 +169,15 @@ namespace WanXiang.Run
         public System.Collections.Generic.List<int> ChosenNodes = new System.Collections.Generic.List<int>();
 
         /// <summary>
+        /// ★ 2026-10-20 用户实测 bug："战斗胜利、死了几只、结果面板还没点就退游戏，
+        /// 再进来发现死亡的异兽没了，但这个节点没有通过。"
+        /// 根因：阵亡在 HandOff 就地写档，而"节点通过"要等回地图才落地（PendingCommit 是静态字段，
+        /// 退出即丢）。修法：胜利那一刻把待落地的节点号**存进存档**，
+        /// 下次开地图（或本次回图）由 CampaignPanel 走正常落地流程（含换幕），逻辑不分叉。
+        /// </summary>
+        public int PendingBattlePass = -1;
+
+        /// <summary>
         /// **真正通过**的节点 —— 与 <see cref="VisitedNodes"/> 的区别：
         /// `VisitedNodes` = **进入**（点节点那一刻就写）；本表 = **通过**（只有 `CampaignPanel.OnOpenAsync`
         /// 把 `NodeOffset = PendingCommit` 落地时才记一笔）。

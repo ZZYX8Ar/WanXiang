@@ -217,6 +217,20 @@ BuildNodeMap();
         /// OnRefresh / OnResume（不重放 OnOpenAsync）⇒ 抽成方法供三条路径共用。
         /// </summary>
         /// <returns>true = 吃掉了本帧后续（进终局战/天阙），调用方应立即停止。</returns>
+        /// <summary>
+        /// 把存档里"战斗胜利待落地"的节点号补回静态 PendingCommit（2026-10-20）。
+        /// 场景：胜利后没点结果面板就退游戏 → 下次开图在此恢复，走与正常完全相同的落地流程。
+        /// </summary>
+        private static void RestorePendingBattlePass()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || run.PendingBattlePass < 0) return;
+            if (PendingCommit < 0) PendingCommit = run.PendingBattlePass;
+            run.PendingBattlePass = -1;
+            WanXiang.Run.RunSave.SaveCurrent();
+            Debug.Log("[Campaign] 恢复战场待落地通过：节点 " + PendingCommit);
+        }
+
         private bool LandPendingCommit()
         {
                 if (PendingCommit >= 0 && !UIPanelBase.GhostSilent)
@@ -592,6 +606,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// </summary>
         protected override void OnRefresh(object payload)
         {
+            RestorePendingBattlePass();
             var g = payload as WanXiang.Campaign.ActGraph;
             // ★ 地图常开：子面板关闭后 OpenAsync 只走刷新路径（payload 为空）⇒
             //   无条件落地 + 全量重建（同样不能拿 PendingCommit 当判据）。

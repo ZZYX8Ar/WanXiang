@@ -521,7 +521,18 @@ namespace WanXiang.Modules.UI
             //     "重新挑战这些死亡的异兽好像就消失了"；另外战斗已结束再点重新挑战会 early-return
             //     走正常结算，同样记账）。现在统一由这里的胜负门控。
             //   代价（用户已知并接受）：输了可以无限重试，没有惩罚。
-            if (result.Win && !result.Draw) RecordDeaths();
+            if (result.Win && !result.Draw)
+            {
+                RecordDeaths();
+                // ★ 同一存档事务里把"待落地的节点"也持久化：否则"胜利但没点结果面板就退游戏"
+                //   会留下"阵亡已扣、节点未过"的半截状态（用户 2026-10-20 实测 bug）。
+                var runW = WanXiang.Run.RunSave.Current;
+                if (runW != null && !SceneFlow.LastWasPvp && CampaignPanel.PendingCommit >= 0)
+                {
+                    runW.PendingBattlePass = CampaignPanel.PendingCommit;
+                    WanXiang.Run.RunSave.SaveCurrent();
+                }
+            }
             if (_sceneMode)
             {
                 // 先关自己再切场景：UI 根节点是 DontDestroyOnLoad 的，
