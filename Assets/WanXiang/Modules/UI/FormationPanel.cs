@@ -142,6 +142,7 @@ namespace WanXiang.Modules.UI
             FillEnemyIntel();
             BuildRoster();
             RefreshBonds();
+            RefreshShapePreview();
             if (!TryInheritTeam())
                 OnAutoFillClicked(); // 没有可继承的队伍 → 默认摆一套，玩家再微调
             ShowBeastDetailByIndex(0);   // 默认展示第一只：中上详情区不空白（点击/悬停后替换）
@@ -277,6 +278,7 @@ namespace WanXiang.Modules.UI
             for (int i = 0; i < n; i++) _deployed[Slots[i]] = i;
             RefreshCells();
             RefreshBonds();
+            RefreshShapePreview();
         }
 
         private void OnClearClicked()
@@ -284,6 +286,107 @@ namespace WanXiang.Modules.UI
             ClearSlots();
             RefreshCells();
             RefreshBonds();
+            RefreshShapePreview();
+        }
+
+        // ================================================================
+        //  阵形激活预览（2026-10-20 用户："编队界面中间加一个阵形激活预览，
+        //  所有阵形都列出来，激活了就亮起，并有悬浮描述"）
+        //  ------------------------------------------------------------------
+        //  位置：羁绊栏（Root_BondBar）上方一行。成阵判据与战斗同源：
+        //  阵形要求的格子**全部**被上阵单位占据（Cells 或 CellsAlt 任一满足）。
+        // ================================================================
+        private RectTransform _shapeRow;
+
+        private bool ShapeActive(WanXiang.Battle.Core.ComboDef c)
+        {
+            if (c == null || _deployed == null) return false;
+            if (AllCellsFilled(c.Cells)) return true;
+            if (c.CellsAlt != null && c.CellsAlt.Length > 0 && AllCellsFilled(c.CellsAlt)) return true;
+            return false;
+        }
+
+        private bool AllCellsFilled(int[] cells)
+        {
+            if (cells == null || cells.Length == 0) return false;
+            for (int i = 0; i < cells.Length; i++)
+            {
+                int cell = cells[i];
+                if (cell < 0 || cell >= _deployed.Length) return false;
+                if (_deployed[cell] < 0) return false;
+            }
+            return true;
+        }
+
+        private void RefreshShapePreview()
+        {
+            var bondBar = transform.Find("Root_BondBar") as RectTransform;
+            if (_shapeRow == null)
+            {
+                var go = new GameObject("Root_ShapePreview", typeof(RectTransform));
+                _shapeRow = (RectTransform)go.transform;
+                _shapeRow.SetParent(transform, false);
+                _shapeRow.anchorMin = _shapeRow.anchorMax = new Vector2(0.5f, 0.5f);
+                _shapeRow.pivot = new Vector2(0.5f, 0.5f);
+                float y = bondBar != null
+                    ? bondBar.anchoredPosition.y + Mathf.Abs(bondBar.rect.height) * 0.5f + 56f
+                    : -250f;
+                _shapeRow.anchoredPosition = new Vector2(0f, y);
+                _shapeRow.sizeDelta = new Vector2(1000f, 56f);
+            }
+
+            for (int i = _shapeRow.childCount - 1; i >= 0; i--)
+                Destroy(_shapeRow.GetChild(i).gameObject);
+
+            var all = WanXiang.Battle.Core.ComboRules.All;
+            int n = all != null ? all.Count : 0;
+            if (n == 0) return;
+
+            var chipSpr = Resources.Load<Sprite>("UI/Kit/card_solid");
+            const float chipW = 168f, gap = 10f, chipH = 50f;
+            float totalW = n * chipW + (n - 1) * gap;
+
+            for (int i = 0; i < n; i++)
+            {
+                var c = all[i];
+                bool on = ShapeActive(c);
+                var go = new GameObject("Shape_" + c.Id, typeof(RectTransform), typeof(Image), typeof(Button));
+                var rt = (RectTransform)go.transform;
+                rt.SetParent(_shapeRow, false);
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.pivot = new Vector2(0.5f, 0.5f);
+                rt.sizeDelta = new Vector2(chipW, chipH);
+                rt.anchoredPosition = new Vector2(-totalW * 0.5f + chipW * 0.5f + i * (chipW + gap), 0f);
+
+                var img = go.GetComponent<Image>();
+                if (chipSpr != null) { img.sprite = chipSpr; img.type = Image.Type.Sliced; }
+                img.color = on ? new Color(1f, 0.95f, 0.80f, 1f)   // 成阵：暖金底
+                               : new Color(0.88f, 0.87f, 0.84f, 1f); // 未成：灰纸
+
+                var lg = new GameObject("Tmp_Name", typeof(RectTransform));
+                var lrt = (RectTransform)lg.transform;
+                lrt.SetParent(rt, false);
+                lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
+                lrt.offsetMin = new Vector2(8f, 4f); lrt.offsetMax = new Vector2(-8f, -4f);
+                var label = lg.AddComponent<TextMeshProUGUI>();
+                label.text = c.Name;
+                label.fontSize = 22;
+                label.alignment = TextAlignmentOptions.Center;
+                label.raycastTarget = false;
+                label.color = on ? new Color(0.50f, 0.24f, 0.10f, 1f)   // 成阵：赭红字
+                                 : new Color(0.55f, 0.53f, 0.50f, 1f); // 未成：灰字
+
+                var trg = go.AddComponent<EventTrigger>();
+                var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+                var cc = c;
+                enter.callback.AddListener(_ => PresentBondTip(
+                    "<size=24><b>阵形 · " + cc.Name + "（" + (ShapeActive(cc) ? "已激活" : "未激活") + "）</b></size>\n" +
+                    cc.Note + "\n形状：" + WanXiang.Battle.Core.ComboRules.ShapeText(cc)));
+                var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+                exit.callback.AddListener(_ => HideBondTip());
+                trg.triggers.Add(enter);
+                trg.triggers.Add(exit);
+            }
         }
 
         /// <summary>把上阵的立绘落到格子上（文字/头像由 Img_Head 之类承担，这里直接画立绘）。</summary>
@@ -796,25 +899,11 @@ namespace WanXiang.Modules.UI
             sb.Append("· 连携技必须由站中宫的主兽发动。\n");
             sb.Append("所以把主兽放进中间格收益最大。");
 
-            // ★ 2026-10-16 阵形连携：不再列"某只兽的连携"（与异兽无关），改为列出**全部阵形** + 当前成阵状态
+            // ★ 2026-10-20 用户："九宫格中间那个描述就不要了" —— 阵形说明搬到下面的阵形预览
             var center = CenterBeast();
-            sb.Append("\n\n【阵形连携】");
-            if (center == null)
-            {
-                sb.Append("\n（中宫还没有异兽 —— 拖一只进中宫当主兽）");
-            }
-            else
-            {
-                sb.Append("\n主兽：").Append(center.DisplayName).Append("（中宫）");
-            }
-            foreach (var c in WanXiang.Battle.Core.ComboRules.All)
-            {
-                if (c == null) continue;
-                sb.Append("\n· ").Append(c.Name).Append('：').Append(c.Note)
-                  .Append("\n　　阵形 ").Append(WanXiang.Battle.Core.ComboRules.ShapeText(c));
-            }
-            sb.Append("\n\n发动：消耗主兽满份大招能量 + 每存活 1 只 1 点灵力（威力随存活数提升）。");
-            sb.Append("\nQTE 判定成功才发动；失败扣 1 灵力 + 50% 大招能量。每种阵形每场限一次。");
+            if (center != null)
+                sb.Append("\n当前主兽：").Append(center.DisplayName);
+            sb.Append("\n（全部阵形与成阵状态见下方「阵形」栏，悬停可看说明）");
 
             PresentBondTip("<size=24><b>九宫格中宫（中间格）</b></size>\n" + sb);
         }
@@ -1060,6 +1149,7 @@ namespace WanXiang.Modules.UI
         {
             RefreshCells();
             RefreshBonds();
+            RefreshShapePreview();
         }
 
         /// <summary>屏幕坐标 → 九宫格格位（-1 = 不在任何格子上）。</summary>

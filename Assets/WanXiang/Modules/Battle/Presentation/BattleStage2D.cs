@@ -199,16 +199,16 @@ namespace WanXiang.Battle.Presentation
         //  为什么值得显示：护盾**不会自然消退**（只被伤害消耗，见 BattleUnit.TakeDamage / AddShield），
         //  所以它是"还剩多少"的真实信息，不给玩家看就是隐形的第二管血。
         /// <summary>护盾牌宽度（世界单位）。</summary>
-        public float ShieldPlateW = 3.20f;
+        public float ShieldPlateW = 0.50f;
         /// <summary>护盾牌高度（世界单位）。</summary>
-        public float ShieldPlateH = 1.10f;
+        public float ShieldPlateH = 0.26f;
         /// <summary>护盾牌与血条之间的间隙（世界单位）。</summary>
-        public float ShieldGap = 0.80f;
+        public float ShieldGap = 0.10f;
         /// <summary>护盾数值的字号（TextMesh.characterSize）。
         /// ⚠ 实测口径：该值是**root 局部单位**，而 root 有缩放（普通单位≈0.10、首领 2.5×≈0.26）
         ///   ， 0.012 时文字只有 0.02 世界宽（等于看不见）。0.14 时普通单位约 0.05/字、首领约 0.13/字，
         ///   三位的护盾值正好落在牌内。</summary>
-        public float ShieldTextSize = 0.22f;
+        public float ShieldTextSize = 0.035f;
         /// <summary>护盾牌底色。</summary>
         public Color ShieldColor = new Color(0.30f, 0.55f, 0.82f);
         /// <summary>护盾数值颜色。</summary>
@@ -2388,7 +2388,7 @@ _tempLife[i] -= dt;
             go.transform.SetParent(transform, false);
             // raise：同一次演出里的多行字（反应名/属性组合/伤害）要用不同高度分层，
             //   否则全叠在同一个锚点上（实测「蒸发」「火×水」「504」三行糊成一团）。
-            go.transform.localPosition = v.Root.transform.position + new Vector3(0f, 1.5f + raise, -1f);
+            go.transform.localPosition = v.Root.transform.position + new Vector3(0f, 0.95f + raise, -1f);
             go.transform.localScale = Vector3.one * baseScale;   // 暴击更大（弹出动画在此基础上叠加）
             var f = LegacyFont();
             var tm = go.AddComponent<TextMesh>();
@@ -2398,7 +2398,7 @@ _tempLife[i] -= dt;
                 go.GetComponent<MeshRenderer>().sharedMaterial = f.material;
             }
             tm.text = text;
-            tm.characterSize = 0.13f;
+            tm.characterSize = 0.045f;    // 世界高≈0.29（原来 0.83，满屏大字）
             tm.fontSize = 64;
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;

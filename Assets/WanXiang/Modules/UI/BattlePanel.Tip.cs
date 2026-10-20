@@ -349,12 +349,15 @@ namespace WanXiang.Modules.UI
                 }
             }
 
+            // ★ 2026-10-20 用户："可以触发反应的字体是不是要换一个颜色，战记施加的元素的字体也要不同的颜色"
+            //   ⛔ 另外原来用的 ✔ △ 🔥 ◆ 在 Deng SDF 里**没有字形**（显示成口口），全部换成文字 + 富文本色。
             var parts = new System.Collections.Generic.List<string>();
-            if (anyCounter) parts.Add("✔ 克制（×1.5）");
-            if (anyCountered) parts.Add("△ 被克（×0.75）");
-            if (reactions.Count > 0) parts.Add("🔥 将触发：" + string.Join("/", reactions.ToArray()));
+            if (anyCounter) parts.Add("<color=#4E9A3F>克制（×1.5）</color>");
+            if (anyCountered) parts.Add("<color=#C2432B>被克（×0.75）</color>");
+            if (reactions.Count > 0)
+                parts.Add("<color=#C98A1E>将触发：" + string.Join("/", reactions.ToArray()) + "</color>");
             string marks = sb.ToString().Trim();
-            if (!string.IsNullOrEmpty(marks)) parts.Add("◆ " + marks);
+            if (!string.IsNullOrEmpty(marks)) parts.Add("<color=#3E6E8C>" + marks + "</color>");
             if (parts.Count == 0) return null;
             return string.Join("　", parts.ToArray());
         }
