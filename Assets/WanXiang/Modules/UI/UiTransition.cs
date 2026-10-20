@@ -31,6 +31,8 @@ namespace WanXiang.Modules.UI
         {
             Ink,      // 水墨铺开（墨团从中心扩散 + 墨滴飞溅）
             Sweep,    // 粒子横扫（按幕的粒子从右往左刷满全屏）
+            Part,     // 粒子**拨开**（按幕的粒子从四周向中心收拢遮屏 → 从中缝向四周退开）——
+                      // 2026-10-20 用户："把滑动改为拨开"，滑动只在历史里保留
             Split,    // 双帘拨开（两幅墨帘从两侧合拢，再从中缝向两侧拨开）
             Cloud,    // 云过（几朵云从右往左飘过）
         }
@@ -78,10 +80,12 @@ namespace WanXiang.Modules.UI
         {
             switch (Mathf.Clamp(act, 1, 5))
             {
-                case 1: return Kind.Sweep;   // ⚠ 2026-10-12 用户：第一幕不要水墨，和其他幕一样
+                // ★ 2026-10-20 用户："这个粒子从左到右的转场（主界面→节点地图）有两种方式，
+                //   一种是拨开、一种是滑动 —— 把滑动改为拨开。"
+                //   ⇒ 原来落到 Sweep 的幕（1/2/4）一律改成 Part；Split（双帘拨开）保留。
                 case 3: return Kind.Split;
                 case 5: return Kind.Split;
-                default: return Kind.Sweep;
+                default: return Kind.Part;
             }
         }
 
@@ -377,6 +381,7 @@ namespace WanXiang.Modules.UI
             switch (kind)
             {
                 case Kind.Ink: yield return InkSequence(act, onSwitch, tIn, tHold, tOut); break;
+                case Kind.Part: yield return PartSequence(act, onSwitch, tIn, tHold, tOut); break;
                 case Kind.Split: yield return SplitSequence(act, onSwitch, tIn, tHold, tOut); break;
                 case Kind.Cloud: yield return CloudSequence(act, onSwitch, tIn, tHold, tOut); break;
                 default: yield return SweepSequence(act, onSwitch, tIn, tHold, tOut); break;
@@ -656,6 +661,99 @@ namespace WanXiang.Modules.UI
         }
 
         // ------------------------------------------------------------------ 粒子横扫（右 → 左）
+        /// <summary>
+        /// **粒子拨开**（2026-10-20 用户指定：替换原来的"粒子滑动"）
+        /// 闭拢：按幕的季节粒子从屏幕四周向中心收拢，把画面盖满；
+        /// 切换：屏幕全遮的一刻切界面；
+        /// 拨开：粒子从中心向四周退开，露出新界面。
+        /// </summary>
+        private IEnumerator PartSequence(int act, System.Action onSwitch, float tIn, float tHold, float tOut)
+        {
+            var psp = Resources.Load<Sprite>(FallByAct[Mathf.Clamp(act, 1, 5) - 1]);
+            if (psp == null) { if (onSwitch != null) onSwitch(); yield break; }
+
+            int n = 150;
+            var parts = new List<Image>();
+            var dirs = new List<Vector2>();
+            var starts = new List<Vector2>();
+            var sizes = new List<float>();
+            float maxR = Mathf.Max(CW, CH) * 0.62f;
+
+            for (int i = 0; i < n; i++)
+            {
+                var p = NewImage("Pt" + i);
+                p.sprite = psp;
+                float ang = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+                var dir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
+                // 起点：屏幕外一圈（不是正圆——加抖动免得太规整）
+                float r = maxR * UnityEngine.Random.Range(1.02f, 1.45f);
+                var start = dir * r + new Vector2(
+                    UnityEngine.Random.Range(-CW * 0.10f, CW * 0.10f),
+                    UnityEngine.Random.Range(-CH * 0.10f, CH * 0.10f));
+                float sz = UnityEngine.Random.Range(96f, 260f);
+                p.rectTransform.sizeDelta = new Vector2(sz, sz);
+                p.rectTransform.anchoredPosition = start;
+                p.color = new Color(1f, 1f, 1f, 0.95f);
+                parts.Add(p); dirs.Add(dir); starts.Add(start); sizes.Add(sz);
+            }
+
+            Color paper = SeasonCoverColor(act);
+
+            // ---- ① 闭拢：粒子向中心收拢，盖满屏幕 ----
+            float t = 0f;
+            while (t < tIn)
+            {
+                t += Time.deltaTime;
+                float k = Mathf.Clamp01(t / tIn);
+                float e = EaseOut(k);
+                for (int i = 0; i < parts.Count; i++)
+                {
+                    if (parts[i] == null) continue;
+                    // 终点：中心附近一小片（保留一点散布，否则全叠成一点）
+                    var end = dirs[i] * UnityEngine.Random.Range(6f, 40f);
+                    parts[i].rectTransform.anchoredPosition = Vector2.Lerp(starts[i], end, e);
+                }
+                _cover.color = new Color(paper.r, paper.g, paper.b, Mathf.Lerp(0f, 1f, e));
+                yield return null;
+            }
+            // 全遮兜底（此时切界面，绝不能露馅）
+            _cover.color = new Color(paper.r, paper.g, paper.b, 1f);
+
+            // ---- ② 切换 ----
+            try { if (onSwitch != null) onSwitch(); }
+            catch (System.Exception ex) { Debug.LogError("[UiTransition] onSwitch 异常：" + ex.Message); }
+            yield return null;
+
+            // ---- ③ 停留（纸底还在，粒子压在中缝）----
+            float hold = Mathf.Max(0.05f, tHold);
+            for (t = 0f; t < hold; t += Time.deltaTime) yield return null;
+
+            // ---- ④ 拨开：粒子向四周退开 + 纸底淡出 ----
+            t = 0f;
+            while (t < tOut)
+            {
+                t += Time.deltaTime;
+                float k = Mathf.Clamp01(t / tOut);
+                float e = EaseIn(k);
+                for (int i = 0; i < parts.Count; i++)
+                {
+                    if (parts[i] == null) continue;
+                    var end = dirs[i] * (maxR * UnityEngine.Random.Range(1.05f, 1.5f));
+                    parts[i].rectTransform.anchoredPosition = Vector2.Lerp(dirs[i] * 20f, end, e);
+                    var c = parts[i].color; c.a = Mathf.Lerp(0.95f, 0f, Mathf.Clamp01(k * 1.15f));
+                    parts[i].color = c;
+                }
+                // 纸底前 35% 就淡掉，露出新界面；粒子继续退开
+                _cover.color = new Color(paper.r, paper.g, paper.b,
+                    Mathf.Lerp(1f, 0f, Mathf.Clamp01(k / 0.35f)));
+                yield return null;
+            }
+            _cover.color = new Color(paper.r, paper.g, paper.b, 0f);
+        }
+
+        private static float EaseOut(float k) { return 1f - (1f - k) * (1f - k); }
+        private static float EaseIn(float k) { return k * k; }
+
         private IEnumerator SweepSequence(int act, System.Action onSwitch, float tIn, float tHold, float tOut)
         {
             var psp = Resources.Load<Sprite>(FallByAct[act - 1]);
