@@ -198,8 +198,7 @@ namespace WanXiang.Modules.UI
                         if (run0 != null)
                         {
                             run0.Act = 5;
-                            run0.NodeOffset = -1;
-                            if (run0.VisitedNodes != null) run0.VisitedNodes.Clear();
+                            run0.ResetMapProgress();   // ★ 天阙是新的图：通过/互斥/雾全部作废
                             WanXiang.Run.RunSave.SaveCurrent();
                         }
                         // ★★ 进入天阙图（第 5 幕节点地图）。
@@ -212,8 +211,7 @@ namespace WanXiang.Modules.UI
                         if (run5 != null)
                         {
                             run5.Act = 5;
-                            run5.NodeOffset = -1;
-                            if (run5.VisitedNodes != null) run5.VisitedNodes.Clear();
+                            run5.ResetMapProgress();
                             WanXiang.Run.RunSave.SaveCurrent();
                         }
                         CloseSelf();
@@ -224,10 +222,9 @@ namespace WanXiang.Modules.UI
                         run.Jie = run.Jie >= 3 ? 1 : run.Jie + 1;
                         if (run.Jie == 1) run.Realm = System.Math.Min(3, run.Realm + 1);
                         run.Act = 1;
-                        run.NodeOffset = -1;
                         run.RunSeed = UnityEngine.Random.Range(1, int.MaxValue);   // 新劫新图
                         run.Ascension++;                                          // ★ 轮回 +1 ， 敌人 +15%
-                        if (run.QuestionRevealed != null) run.QuestionRevealed.Clear();
+                        run.ResetMapProgress();                                   // ★ 新劫：上一劫的通过/互斥/雾全作废
                         WanXiang.Run.RunSave.SaveCurrent();
 
                         // ★★ 续劫 = 直接进入【第一幕】的节点图。

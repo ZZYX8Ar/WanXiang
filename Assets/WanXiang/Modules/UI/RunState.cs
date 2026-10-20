@@ -396,6 +396,30 @@ namespace WanXiang.Run
             Debug.Log("[RunSave] 重开一局：局内进度已全部重置（遗物/队伍/通过/互斥锁/秘境）");
         }
 
+        /// <summary>
+        /// 只重置**地图进度**（续劫 / 登天阙用）：Act/位置/通过/互斥锁/雾/重掷/星移/待办，
+        /// 保留遗物、队伍、收集、灵卵。
+        /// ⛔ 存在的理由：这些"章节切换"路径原来只手写清 Visited ——
+        ///   PassedNodes / ChosenNodes（同层互斥）是**按本幕下标**存的，跨幕不清必然串味，
+        ///   表现就是"下一幕整层点不动"（用户 2026-10-20 报的解锁 bug 的同类）。
+        /// </summary>
+        public void ResetMapProgress()
+        {
+            NodeOffset = -1;
+            if (Path != null) Path.Clear();
+            if (VisitedNodes != null) VisitedNodes.Clear();
+            if (PassedNodes != null) PassedNodes.Clear();
+            if (ChosenNodes != null) ChosenNodes.Clear();
+            PendingBattlePass = -1;
+            if (PendingRelicDraft != null) PendingRelicDraft.Clear();
+            if (QuestionRevealed != null) QuestionRevealed.Clear();
+            if (RerolledKinds != null) RerolledKinds.Clear();
+            if (FogWeatherNodes != null) FogWeatherNodes.Clear();
+            FogLeft = 0; FogRerolled = false; FogGenAct = 0; FogTriggerNode = -1;
+            if (XingyiUsed != null) XingyiUsed.Clear();
+            if (XingyiLingers != null) XingyiLingers.Clear();
+        }
+
         public float Difficulty => 1f + (Act - 1) * 0.35f;
 
         public string RealmText
