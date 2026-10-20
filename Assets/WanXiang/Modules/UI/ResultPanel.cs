@@ -787,6 +787,13 @@ private void BackToCampaign()
                 }
                 catch (System.Exception ex2) { Debug.LogWarning("[ResultPanel] 编队码生成失败：" + ex2.Message); }
 
+                // ★ 2026-10-20：遗物数量也进历程描述（用户要求随异兽/遗物多少变化）
+                if (run.Relics != null && run.Relics.Count > 0)
+                {
+                    if (names.Length > 0) names.Append("　");
+                    names.Append("遗物").Append(run.Relics.Count).Append('件');
+                }
+
                 // ★ 一局一条：用 RunSeed 作局标识，同局覆盖刷新
                 metaH.UpsertHistory("run_" + run.RunSeed, run.Act, power, names.ToString(), code,
                                     System.DateTime.Now.ToString("MM-dd HH:mm"));

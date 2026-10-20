@@ -14,6 +14,7 @@
 //    同步加载当场生效。本作是单机卡牌，场景切换处不追求加载进度条。
 // ============================================================================
 
+using Cysharp.Threading.Tasks;
 using UnityEngine.SceneManagement;
 
 namespace WanXiang.Modules.UI
@@ -89,7 +90,10 @@ namespace WanXiang.Modules.UI
             //   在转场中点（屏幕被当幕纸/墨盖满）时才同步切场景，中间帧用户看不见；
             //   切完由 UiTransition 重建层、纸底淡出露出战场（见 RebuildAfterSceneSwitch）。
             int act = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
-            UiTransition.PlayAuto(act, () => Load(BattleScene), total: 2.2f, tag: "出征");
+            // ★ 2026-10-20 用户："战斗转场换成和秘境转场一样（粒子拨开 + 艺术字）" ——
+            //   复用 RealmTransition 的粒子/揭示流程，艺术字换成「战斗」，粒子用墨团。
+            RealmTransition.PlayAsync(null, () => Load(BattleScene), null,
+                "UI/Title/battle", "UI/Trans/ui_ink_blot_a").Forget();
         }
 
         /// <summary>战斗结束（或被撤退）：回主城并带结算。</summary>
@@ -97,9 +101,13 @@ namespace WanXiang.Modules.UI
         {
             PendingBattle = null;
             PendingResult = result;
-            // 同上：回城也走转场，不闪节点地图。
-            int act = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
-            UiTransition.PlayAuto(act, () => Load(MainScene), total: 2.2f, tag: "凯旋");
+            // ★ 2026-10-20：回城同样走秘境式转场，胜负各配一张艺术字
+            //   （胜利「胜利」/ 失败「败退」/ 平局撤退「败退」/ 通关「通关」）。
+            string word = "UI/Title/defeat";
+            if (result != null && result.Win) word = result.Draw ? "UI/Title/defeat" : "UI/Title/victory";
+            if (WanXiang.Run.RunSave.Current != null && WanXiang.Run.RunSave.Current.Act >= 5 && result != null && result.Win)
+                word = "UI/Title/clear";
+            RealmTransition.PlayAsync(null, () => Load(MainScene), null, word, "UI/Trans/ui_ink_blot_a").Forget();
         }
 
         /// <summary>主城入口消费结算：有则弹结算，没有则正常进主界面。</summary>

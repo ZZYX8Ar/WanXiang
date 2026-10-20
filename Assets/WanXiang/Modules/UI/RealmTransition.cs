@@ -108,13 +108,16 @@ namespace WanXiang.Modules.UI
         /// <param name="onSwitch">屏幕被盖满时执行（真开/真关面板）。</param>
         /// <param name="titleText">艺术字标题（null = 用通用的「万相秘境」图）。</param>
         /// </summary>
-        public static async UniTask PlayAsync(string realmId, Action onSwitch, string titleText = null)
+        public static async UniTask PlayAsync(string realmId, Action onSwitch, string titleText = null,
+                                             string titleResPath = null, string particleResPath = null)
         {
             var inst = Ensure();
             if (inst == null) { onSwitch?.Invoke(); return; }
             if (inst._busy) { onSwitch?.Invoke(); return; }   // 重入：直接换，不叠演出
 
             bool done = false;
+            inst._titleResOverride = titleResPath;
+            inst._particleResOverride = particleResPath;
             inst.StartCoroutine(inst.Run(realmId, onSwitch, () => done = true, titleText));
             await UniTask.WaitUntil(() => done);
         }
@@ -307,10 +310,17 @@ namespace WanXiang.Modules.UI
 
         private Sprite _partSprite;
 
+        // ★ 2026-10-20：战斗/胜负转场复用本组件 —— 允许调用方指定艺术字与粒子图
+        private string _titleResOverride;
+        private string _particleResOverride;
+
         private void BuildParticles(string realmId, float W, float H)
         {
             ClearParticles();
-            _partSprite = Resources.Load<Sprite>("UI/Realm/FX_" + FxNameOf(realmId));
+            if (!string.IsNullOrEmpty(_particleResOverride))
+                _partSprite = Resources.Load<Sprite>(_particleResOverride);
+            if (_partSprite == null)
+                _partSprite = Resources.Load<Sprite>("UI/Realm/FX_" + FxNameOf(realmId));
             if (_partSprite == null) _partSprite = Resources.Load<Sprite>("UI/Realm/FX_realm_marsh");
 
             // ★ 数量/尺寸：要让这些粒子**真的能当帘子**。
@@ -457,7 +467,9 @@ namespace WanXiang.Modules.UI
 
         private void PrepareTitle(string titleText)
         {
-            var sp = Resources.Load<Sprite>("UI/Realm/realm_title");
+            var sp = string.IsNullOrEmpty(_titleResOverride)
+                ? Resources.Load<Sprite>("UI/Realm/realm_title")
+                : Resources.Load<Sprite>(_titleResOverride);
             if (sp == null)
             {
                 // 缺图就退化成"只有粒子拨开"：不能因为一张图让整个转场卡住

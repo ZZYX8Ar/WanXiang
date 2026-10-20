@@ -548,6 +548,12 @@ namespace WanXiang.Modules.UI
                             if (rolled[i] != null) runW.PendingRelicDraft.Add(rolled[i].Id);
                     }
                     WanXiang.Run.RunSave.SaveCurrent();
+
+                    // ★ 2026-10-20 用户："历程应该是实时记录的，每一把都是一个历程，
+                    //   随着异兽/遗物多少变化，最后定格于战败或通关" ——
+                    //   每场战斗后 upsert 本局记录（key=RunSeed，同局覆盖刷新）。
+                    try { WanXiang.Modules.UI.ResultPanel.PushRunHistory(runW); }
+                    catch (System.Exception ex) { Debug.LogWarning("[BattlePanel] 实时历程写入失败：" + ex.Message); }
                 }
             }
             if (_sceneMode)

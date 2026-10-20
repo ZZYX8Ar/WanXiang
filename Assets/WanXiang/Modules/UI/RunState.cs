@@ -377,8 +377,10 @@ namespace WanXiang.Run
             if (XingyiUsed != null) XingyiUsed.Clear();
             if (XingyiLingers != null) XingyiLingers.Clear();
 
-            // 遗物 / 编成（用户明确：重开清空本轮遗物与队伍编成）
+            // 遗物 / 拥有 / 编成（重开 = 全新旅程：上局招募的异兽也不该跟着）
+            //   ⛔ 2026-10-20 用户实测："只招募了 3 个，拥有里却一大堆" —— 重开没清 Collection。
             if (Relics != null) Relics.Clear();
+            if (Collection != null) Collection.Clear();
             if (Team != null) Team.Clear();
 
             // 秘境状态（半个秘境残留会让新局所有进入被拒）
