@@ -637,6 +637,8 @@ namespace WanXiang.Modules.UI
       {
             // 标记重挑战：主城入口（MainSceneEntry）会直接打开编队界面（叠在节点地图之上）
       SceneFlow.PendingRechallengeNode = node;
+                // ★ 重挑 = 不通过：清掉"点节点时写的待落地"，避免回图时被当成已通过
+                CampaignPanel.PendingCommit = -1;
                 SceneFlow.ExitBattle(null);   // 回主城（不带结算）→ MainSceneEntry 接管
       }
     else

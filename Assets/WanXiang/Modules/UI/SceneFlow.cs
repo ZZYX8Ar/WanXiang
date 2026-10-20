@@ -92,8 +92,9 @@ namespace WanXiang.Modules.UI
             int act = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
             // ★ 2026-10-20 用户："战斗转场换成和秘境转场一样（粒子拨开 + 艺术字）" ——
             //   复用 RealmTransition 的粒子/揭示流程，艺术字换成「战斗」，粒子用墨团。
+            // ★ 粒子按**当前幕的季节**选（用户："按当前所在的幕的季节使用适合的粒子"）
             RealmTransition.PlayAsync(null, () => Load(BattleScene), null,
-                "UI/Title/battle", "UI/Trans/ui_ink_blot_a").Forget();
+                "UI/Title/battle", ParticleForAct(act), revealDelay: 0.10f).Forget();
         }
 
         /// <summary>战斗结束（或被撤退）：回主城并带结算。</summary>
@@ -101,13 +102,33 @@ namespace WanXiang.Modules.UI
         {
             PendingBattle = null;
             PendingResult = result;
+            // ★ 2026-10-20 用户："点重新挑战怎么就直接通过这个节点了" ——
+            //   撤退/重挑（result == null）绝不能带着"待落地通过"回地图。
+            if (result == null) CampaignPanel.PendingCommit = -1;
             // ★ 2026-10-20：回城同样走秘境式转场，胜负各配一张艺术字
             //   （胜利「胜利」/ 失败「败退」/ 平局撤退「败退」/ 通关「通关」）。
             string word = "UI/Title/defeat";
             if (result != null && result.Win) word = result.Draw ? "UI/Title/defeat" : "UI/Title/victory";
             if (WanXiang.Run.RunSave.Current != null && WanXiang.Run.RunSave.Current.Act >= 5 && result != null && result.Win)
                 word = "UI/Title/clear";
-            RealmTransition.PlayAsync(null, () => Load(MainScene), null, word, "UI/Trans/ui_ink_blot_a").Forget();
+            int actNow = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
+            // revealDelay 0.55s：主城的节点地图是异步打开的，等它就绪再拨开，
+            // 否则会先露出主界面背景（用户实测）。
+            RealmTransition.PlayAsync(null, () => Load(MainScene), null, word,
+                ParticleForAct(actNow), revealDelay: 0.55f).Forget();
+        }
+
+        /// <summary>按幕取季节粒子（与 HomeScene3D / UiTransition 同一套资源）。</summary>
+        private static string ParticleForAct(int act)
+        {
+            switch (act)
+            {
+                case 1: return "Battle/FX_particle_act1_petal";    // 春·花瓣
+                case 2: return "Battle/FX_particle_act2_firefly";  // 夏·萤火
+                case 3: return "Battle/FX_particle_act3_leaf";     // 秋·落叶
+                case 4: return "Battle/FX_particle_act4_snow";     // 冬·飞雪
+                default: return "Battle/FX_particle_act5_gold";    // 长夏·金尘
+            }
         }
 
         /// <summary>主城入口消费结算：有则弹结算，没有则正常进主界面。</summary>

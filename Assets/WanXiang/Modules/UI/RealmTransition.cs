@@ -109,7 +109,8 @@ namespace WanXiang.Modules.UI
         /// <param name="titleText">艺术字标题（null = 用通用的「万相秘境」图）。</param>
         /// </summary>
         public static async UniTask PlayAsync(string realmId, Action onSwitch, string titleText = null,
-                                             string titleResPath = null, string particleResPath = null)
+                                             string titleResPath = null, string particleResPath = null,
+                                             float revealDelay = 0f)
         {
             var inst = Ensure();
             if (inst == null) { onSwitch?.Invoke(); return; }
@@ -118,6 +119,7 @@ namespace WanXiang.Modules.UI
             bool done = false;
             inst._titleResOverride = titleResPath;
             inst._particleResOverride = particleResPath;
+            inst._revealDelay = revealDelay;
             inst.StartCoroutine(inst.Run(realmId, onSwitch, () => done = true, titleText));
             await UniTask.WaitUntil(() => done);
         }
@@ -261,6 +263,15 @@ namespace WanXiang.Modules.UI
             catch (Exception ex) { Debug.LogError("[RealmTransition] onSwitch 抛异常：" + ex); }
             yield return null;   // 让面板切换把这一帧走完
 
+            // ★ 2026-10-20 用户："转场的时候怎么能看到主界面的背景，不应该是节点地图吗" ——
+            //   切场景后地图是**异步**打开的，粒子拨开太早会先露出主界面。
+            //   revealDelay：等新界面就绪再拨开（战斗/回城由调用方给值）。
+            if (_revealDelay > 0f)
+            {
+                for (float t = 0f; t < _revealDelay; t += Time.unscaledDeltaTime)
+                    yield return null;
+            }
+
             // ---- ③ 字现（噪声径向揭示）----
             _title.enabled = true;
             if (_titleMat != null)
@@ -313,6 +324,7 @@ namespace WanXiang.Modules.UI
         // ★ 2026-10-20：战斗/胜负转场复用本组件 —— 允许调用方指定艺术字与粒子图
         private string _titleResOverride;
         private string _particleResOverride;
+        private float _revealDelay;
 
         private void BuildParticles(string realmId, float W, float H)
         {
