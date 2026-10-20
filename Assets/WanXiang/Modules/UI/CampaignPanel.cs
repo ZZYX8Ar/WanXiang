@@ -2776,6 +2776,16 @@ if (_tmpActTitle != null)
                 case WanXiang.Campaign.NodeKind.Nest:
                     NestChoose(run).Forget();
                     return;
+                // ★ 2026-10-20 新增养成节点
+                case WanXiang.Campaign.NodeKind.Spring:
+                    SpringNode(run).Forget();
+                    return;
+                case WanXiang.Campaign.NodeKind.Training:
+                    TrainingNode(run).Forget();
+                    return;
+                case WanXiang.Campaign.NodeKind.Ruins:
+                    RuinsNode(run).Forget();
+                    return;
             }
 
             // 战斗节点 → 布阵
@@ -2787,6 +2797,53 @@ if (_tmpActTitle != null)
         /// ⚠ 条件与揭晓口径一致：第 2 幕起 + 本局还有次数。
         /// ⚠ 进秘境**不算**本节点通过：收益走星币/灵魂，不该同时吃节点通过奖励。
         /// </summary>
+        // ================================================================
+        //  2026-10-20 新增养成节点（用户："其他节点太一般，没有养成升级的感觉"）
+        //  统一用 DialogPanel 二选一，不用新面板 —— 文案即规则，零新 UI。
+        // ================================================================
+
+        /// <summary>灵泉：饮泉（本局永久 +5% 全属性）／汲水（灵卵 +3）。</summary>
+        private async UniTaskVoid SpringNode(WanXiang.Run.RunState run)
+        {
+            if (run == null) return;
+            int pick = await DialogPanel.Choose(
+                "灵泉",
+                "泉眼温润，映着今岁的天光。\n\n饮下这口泉水，筋骨会长久受益；也可以汲一壶回去换些灵卵。",
+                "饮泉（本局全属性永久 +5%）", "汲水（灵卵 +3）");
+            if (pick < 0) return;
+            if (pick == 0) { run.GrowthPct += 5; Debug.Log("[Campaign] 灵泉：永久成长 +5%（累计 " + run.GrowthPct + "%）"); }
+            else { run.Eggs += 3; }
+            WanXiang.Run.RunSave.SaveCurrent();
+        }
+
+        /// <summary>修行：磨砺剑心（本局永久 +8% 全属性）／敛财（灵卵 +4）。</summary>
+        private async UniTaskVoid TrainingNode(WanXiang.Run.RunState run)
+        {
+            if (run == null) return;
+            int pick = await DialogPanel.Choose(
+                "修行",
+                "山中有位无名道友在此静坐多年。\n\n他说：'路有两条，你选哪条？'",
+                "磨砺剑心（本局全属性永久 +8%）", "敛财（灵卵 +4）");
+            if (pick < 0) return;
+            if (pick == 0) { run.GrowthPct += 8; Debug.Log("[Campaign] 修行：永久成长 +8%（累计 " + run.GrowthPct + "%）"); }
+            else { run.Eggs += 4; }
+            WanXiang.Run.RunSave.SaveCurrent();
+        }
+
+        /// <summary>古战场：三选一遗物，代价是下一场敌人 +15%。</summary>
+        private async UniTaskVoid RuinsNode(WanXiang.Run.RunState run)
+        {
+            if (run == null) return;
+            int pick = await DialogPanel.Choose(
+                "古战场",
+                "断戟与碎甲散在荒草间，还有几件没被时光磨尽的东西。\n\n拾取会惊动此地的怨气 —— 下一场敌人更强。",
+                "拾取（三选一遗物，代价：下场敌人 +15%）", "离开");
+            if (pick != 0) return;
+            run.EnemyBuffPct += 15;
+            WanXiang.Run.RunSave.SaveCurrent();
+            OpenPanelAsync<RelicPanel>(_current).Forget();
+        }
+
         private void OpenRealmPanel()
         {
             var run = WanXiang.Run.RunSave.Current;

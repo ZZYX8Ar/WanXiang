@@ -146,6 +146,12 @@ namespace WanXiang.Run
         /// <summary>天象/异闻挂起：下一场战斗我方修正 %（可负，用后清零）。</summary>
         public int PlayerBuffPct = 0;
 
+        /// <summary>
+        /// ★ 2026-10-20 新增节点（灵泉/修行）带来的**本局永久成长**：我方全属性 +N%。
+        /// 与 PlayerBuffPct（只作用于下一场、用后清零）不同，这个会一直累计到本局结束。
+        /// </summary>
+        public int GrowthPct = 0;
+
         /// <summary>天象/异闻挂起：下一场战斗敌方修正 %（正=变强，用后清零）。</summary>
         public int EnemyBuffPct = 0;
 
@@ -354,6 +360,7 @@ namespace WanXiang.Run
             HealPending = 0;
             PlayerBuffPct = 0;
             EnemyBuffPct = 0;
+            GrowthPct = 0;
             BeatFinale = false;
             IntroShownAct = 0;
             // 局外成长快照：清空后下次进场会按 MetaState 重新快照

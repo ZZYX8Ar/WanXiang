@@ -157,9 +157,11 @@ namespace WanXiang.Modules.UI
             // ★ 2026-09-25：局外养成（等级/进化/觉醒技）已全部改为读**本局快照**，
             //   这里只处理"本场挂起修正"（孵穴回复 / 天象异闻）—— 与局外养成无关，
             //   所以**不再需要**去读 MetaStore（原来那处现读是漏进本局的根源之一）。
-            if (run.HealPending != 0 || run.PlayerBuffPct != 0 || run.EnemyBuffPct != 0)
+            if (run.HealPending != 0 || run.PlayerBuffPct != 0 || run.EnemyBuffPct != 0
+                || run.GrowthPct != 0)
             {
-                req.PlayerMul = 1f + (run.HealPending + run.PlayerBuffPct) / 100f;
+                // ★ 2026-10-20：加入本局永久成长（GrowthPct），它**不随本场清零**。
+                req.PlayerMul = 1f + (run.HealPending + run.PlayerBuffPct + run.GrowthPct) / 100f;
                 if (req.EnemyEntries != null)
                     foreach (var en in req.EnemyEntries)
                         en.WithMul(en.StatMul * (1f + run.EnemyBuffPct / 100f));

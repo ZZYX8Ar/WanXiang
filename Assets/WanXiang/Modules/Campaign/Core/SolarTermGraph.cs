@@ -105,6 +105,23 @@ namespace WanXiang.Campaign
         ///   追加不会让任何既有存档失效。</para>
         /// </summary>
         ActSkip = 13,
+
+        /// <summary>
+        /// **灵泉**（2026-10-20 用户："其他节点都太一般，没有养成升级的感觉"）。
+        /// 非战斗：饮泉 → 本局**永久** +5% 全属性；汲水 → 3 灵卵。
+        /// </summary>
+        Spring = 14,
+
+        /// <summary>
+        /// **修行**（2026-10-20）：非战斗。磨砺剑心 → 本局永久 +8% 全属性；
+        /// 敛财 → 4 灵卵。用来给"越打越强"的成长曲线补节点。
+        /// </summary>
+        Training = 15,
+
+        /// <summary>
+        /// **古战场**（2026-10-20）：非战斗。三选一遗物，代价是下一场敌人 +15%。
+        /// </summary>
+        Ruins = 16,
     }
 
     public static class NodeKinds
@@ -139,7 +156,9 @@ namespace WanXiang.Campaign
                 case NodeKind.Realm: return "秘境";
                 case NodeKind.RealmVault: return "秘藏";
                 case NodeKind.RealmChampion: return "镇守";
-                case NodeKind.ActSkip: return "越境";
+                case NodeKind.Spring: return "灵泉";
+                case NodeKind.Training: return "修行";
+                case NodeKind.Ruins: return "古战场";
                 default: return "？";
             }
         }
@@ -410,11 +429,12 @@ namespace WanXiang.Campaign
             {
                 case 1: return new System.Collections.Generic.HashSet<NodeKind>
                     { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop,
-                      NodeKind.Nest, NodeKind.Tale, NodeKind.Omen };
+                      NodeKind.Nest, NodeKind.Tale, NodeKind.Omen, NodeKind.Spring };
                 default:
                     var set = new System.Collections.Generic.HashSet<NodeKind>
                     { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop, NodeKind.Nest,
-                      NodeKind.Tale, NodeKind.Forge, NodeKind.Omen };
+                      NodeKind.Tale, NodeKind.Forge, NodeKind.Omen, NodeKind.Spring,
+                      NodeKind.Training, NodeKind.Ruins };
                     // ★ 秘境第 2 幕起解禁（第 1 幕玩家还没学会格挡，进秘境是纯挫败）
                     if (act >= 2) set.Add(NodeKind.Realm);
                     return set;
@@ -427,6 +447,8 @@ namespace WanXiang.Campaign
             (NodeKind.Encounter, 32), (NodeKind.Elite, 12), (NodeKind.Shop, 9),
             (NodeKind.Nest, 8), (NodeKind.Tale, 7), (NodeKind.Forge, 6),
             (NodeKind.Omen, 12), (NodeKind.Question, 14),
+            // ★ 2026-10-20 新增：养成类节点（合计约 20% 权重）
+            (NodeKind.Spring, 8), (NodeKind.Training, 7), (NodeKind.Ruins, 5),
             // ★ 秘境权重 5（约 4%）：一条支线 = 一整张秘境图 + 2 次进场，
             //   满地图都是秘境会变成日常而不是"选择"（设计文档 1.4硬约束 ③）。
             (NodeKind.Realm, 5),
