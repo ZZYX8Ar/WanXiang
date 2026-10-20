@@ -171,9 +171,9 @@ namespace WanXiang.Battle.Presentation
 
         // ---- 单位标签（名字 / 血条）的美术点位：直接在 Inspector 里改，不用动代码、不用改 prefab ----
         /// <summary>血条相对立绘容器的 y 偏移。</summary>
-        public float HpBarY = 2.35f;
+        public float HpBarY = 0.46f;      // 世界高度（格中心往上）
         /// <summary>血条满宽（世界单位）。</summary>
-        public float HpBarWidth = 3.40f;
+        public float HpBarWidth = 1.25f;
 
         [Header("破绽/失衡条（2026-10-17，挂 HP 条正下方）")]
         [Tooltip("条高（世界单位）")]
@@ -189,11 +189,11 @@ namespace WanXiang.Battle.Presentation
         [Tooltip("条上文字色（纸白——文字压在深色底板上，任何立绘前都读得清）")]
         public Color FlawLabelColor = new Color(0.93f, 0.90f, 0.82f, 1f);
         /// <summary>血条底衬高（世界单位）。</summary>
-        public float HpBarBackHeight = 0.72f;
+        public float HpBarBackHeight = 0.22f;
         /// <summary>名字字号（TextMesh.characterSize）。</summary>
-        public float NameSize = 0.10f;
+        public float NameSize = 0.055f;
         /// <summary>名字相对立绘容器的 y 偏移。</summary>
-        public float NameY = 1.62f;
+        public float NameY = 0.16f;
 
         // ---- 护盾指示（血条**右侧**的蓝牌 + 数值）----
         //  为什么值得显示：护盾**不会自然消退**（只被伤害消耗，见 BattleUnit.TakeDamage / AddShield），
@@ -366,7 +366,7 @@ namespace WanXiang.Battle.Presentation
         };
 
         /// <summary>状态图标边长（世界单位）。</summary>
-        public float StatusIconSize = 0.36f;
+        public float StatusIconSize = 0.38f;
         /// <summary>状态图标之间的间距（世界单位）。
         /// ⚠ 必须**大于字宽**，否则相邻两格的缩写会视觉上连成一片（用户截图反馈"气和裂糊在一起"）。</summary>
         public float StatusIconGap = 0.16f;
@@ -1193,16 +1193,16 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     hitCol.offset = new Vector2(0f, (b.center.y - root.transform.position.y) / sy);
                 }
 
-                // ★★ 头顶信息容器（2026-10-18 修正）：
-                //   ⛔ 曾经在这里做过"世界归一化"（位置除 k、缩放取 1/k）—— 那把血条/名字从
-                //   "随单位缩放"改成了"世界恒定尺寸"，等于放大 ~12 倍：
-                //   用户实测"血条/名字巨大、飘在头顶很远、悬浮命中区罩住上面三格"。
-                //   现在回归**随单位缩放**：Head 就是普通容器（root 局部 HpBarY 高、缩放 1），
-                //   血条/名字/状态的大小与高度和历史表现完全一致。
+                // ★★ 头顶信息容器（2026-10-20 定案：**以九宫格为基准**）
+                //   单元格尺寸恒定（1.75×1.26），所以头顶信息也按**世界尺寸**摆：
+                //   位置 ÷ k、缩放取 1/k ⇒ 血条/名字/状态图标在任何单位上都一样大、
+                //   离格中心一样高。用户实测过的"巨大/飘远"是因为当时给了 3.4 世界宽
+                //   这种离谱数值，不是归一化本身的问题。
+                float kHead = Mathf.Max(0.0001f, Mathf.Abs(root.transform.lossyScale.y));
                 var headGo = new GameObject("Head");
                 headGo.transform.SetParent(root.transform, false);
-                headGo.transform.localPosition = new Vector3(0f, HpBarY, 0f);
-                headGo.transform.localScale = Vector3.one;
+                headGo.transform.localPosition = new Vector3(0f, HpBarY / kHead, 0f);
+                headGo.transform.localScale = new Vector3(1f / kHead, 1f / kHead, 1f);
                 view.Head = headGo.transform;
 
                 view.HpBg = MakeChildSprite(headGo, "HpBg", new Color(0.10f, 0.08f, 0.06f),
@@ -1350,11 +1350,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     //   随每帧自愈一起校正，任何单位高度一致（用户定案：图标/血条/名字 自上而下）。
                     rowGo.transform.SetParent(headGo.transform, false);
                     rowGo.transform.localScale = Vector3.one;
-                    // ⛔ 原来用 root 局部 StatusRowY（随单位缩放 ×k）：小单位只有 0.59 世界高，
-                    //   直接埋进立绘身体里 ⇒ 用户报"状态图标看不到了"。
-                    //   改为**世界 1.30 高**（头顶之上），与图标"世界尺寸恒定"的语义一致。
-                    float _kRow = Mathf.Max(0.0001f, Mathf.Abs(root.transform.lossyScale.y));
-                    rowGo.transform.localPosition = new Vector3(0f, 1.30f / _kRow - 0f, 0f);
+                    // 以九宫格为基准：状态图标固定在血条上方 0.30 世界高（head 已归一化）
+                    rowGo.transform.localPosition = new Vector3(0f, 0.34f, 0f);
                     view.StatusRow = rowGo;
                     int slots = (StatusIcons != null && StatusIcons.Length > 0) ? Mathf.Min(8, StatusIcons.Length) : 1;
                     view.StatusPlates = new SpriteRenderer[slots];
