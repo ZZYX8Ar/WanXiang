@@ -80,12 +80,10 @@ namespace WanXiang.Modules.UI
         {
             switch (Mathf.Clamp(act, 1, 5))
             {
-                // ★ 2026-10-20 用户："这个粒子从左到右的转场（主界面→节点地图）有两种方式，
-                //   一种是拨开、一种是滑动 —— 把滑动改为拨开。"
-                //   ⇒ 原来落到 Sweep 的幕（1/2/4）一律改成 Part；Split（双帘拨开）保留。
-                case 3: return Kind.Split;
-                case 5: return Kind.Split;
-                default: return Kind.Part;
+                // ★ 2026-10-20 用户最终口径："参考第三幕的转场" ——
+                //   第三幕就是双帘拨开（Split）。所以**所有幕统一用 Split**，
+                //   滑动（Sweep）不再出现在任何链路里。（Part 保留但不再选用。）
+                default: return Kind.Split;
             }
         }
 

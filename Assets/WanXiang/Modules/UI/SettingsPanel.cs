@@ -86,8 +86,13 @@ namespace WanXiang.Modules.UI
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
             if (ui == null) return;
 
-            ui.CloseAll();
-            OpenPanelAsync<StartPanel>().Forget();
+            // ★ 关闭与开面板都放进转场回调（先关会闪一下主界面）
+            int actS = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
+            UiTransition.Play(UiTransition.Kind.Split, actS, () =>
+            {
+                ui.CloseAll();
+                OpenPanelAsync<StartPanel>().Forget();
+            }, null, 2.0f, "Home2Start");
             Debug.Log("[Settings] 已返回开始界面（旅程存档保留）");
         }
 

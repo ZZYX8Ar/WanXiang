@@ -175,8 +175,13 @@ namespace WanXiang.Modules.UI
 
         private void OnBackClicked()
         {
-            CloseSelf();
-            OpenPanelAsync<StartPanel>().Forget();
+            // ★ 关面板要放进**转场回调**里：先关再转场会闪一下主界面
+            int actS = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
+            UiTransition.Play(UiTransition.Kind.Split, actS, () =>
+            {
+                CloseSelf();
+                OpenPanelAsync<StartPanel>().Forget();
+            }, null, 2.0f, "Home2Start");
         }
 
         private static string Cn(int n)

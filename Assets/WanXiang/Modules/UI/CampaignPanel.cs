@@ -86,8 +86,13 @@ BuildNodeMap();
         return;
  }
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
-            CloseSelf();
-    if (ui != null) _ = ui.OpenAsync<HomePanel>();
+            // ★ 2026-10-20 用户："从节点地图回到主界面也一样要有个转场"（双帘拨开、不写字）
+            int actOut = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
+            UiTransition.Play(UiTransition.Kind.Split, actOut, () =>
+            {
+                CloseSelf();
+                if (ui != null) _ = ui.OpenAsync<HomePanel>();
+            }, null, 2.0f, "Map2Home");
         }
 
         [SerializeField] private TMP_Text _tmpActTitle;        // Tmp_ActTitle  幕名
