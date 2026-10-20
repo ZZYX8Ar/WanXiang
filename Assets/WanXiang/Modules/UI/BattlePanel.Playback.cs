@@ -209,6 +209,11 @@ namespace WanXiang.Modules.UI
                 //   只给这几类保底，其他事件（回合开始、结算等）保持原节奏，不会拖慢整体。
                 if (MustSee(_play.Current.Kind)) wait = Mathf.Max(wait, 0.36f / Mathf.Max(1f, _speed));
 
+                // ★ 连携追击（用户 2026-10-20："要一个一个来，不要一起来"）：
+                //   每个成员的追加普攻单独给 0.55s，依次可见，不再一闪而过。
+                if (_play.Current.IsCombo && _play.Current.Skill == WanXiang.Battle.Core.SkillType.Basic)
+                    wait = Mathf.Max(wait, 0.55f / Mathf.Max(1f, _speed));
+
                 await UniTask.Delay(TimeSpan.FromSeconds(wait), cancellationToken: ct);
             }
 

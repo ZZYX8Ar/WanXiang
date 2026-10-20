@@ -199,9 +199,9 @@ namespace WanXiang.Battle.Presentation
         //  为什么值得显示：护盾**不会自然消退**（只被伤害消耗，见 BattleUnit.TakeDamage / AddShield），
         //  所以它是"还剩多少"的真实信息，不给玩家看就是隐形的第二管血。
         /// <summary>护盾牌宽度（世界单位）。</summary>
-        public float ShieldPlateW = 0.50f;
+        public float ShieldPlateW = 0.46f;
         /// <summary>护盾牌高度（世界单位）。</summary>
-        public float ShieldPlateH = 0.26f;
+        public float ShieldPlateH = 0.18f;
         /// <summary>护盾牌与血条之间的间隙（世界单位）。</summary>
         public float ShieldGap = 0.10f;
         /// <summary>护盾数值的字号（TextMesh.characterSize）。
@@ -1214,7 +1214,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
-                float shX = HpBarWidth * 0.5f + ShieldGap + ShieldPlateW * 0.5f;
+                // ★ 2026-10-20 用户："护盾的位置还是差一点" —— 直接压进血条**右端内侧**：
+                //   与血条同高、不出格、不随列位飘（原来挂在血条右侧外面，靠边的格子会溢出）。
+                float shX = HpBarWidth * 0.5f - ShieldPlateW * 0.5f - 0.03f;
                 view.ShieldPlate = MakeChildSprite(headGo, "ShieldPlate", ShieldColor,
                                                    new Vector2(ShieldPlateW, ShieldPlateH),
                                                    new Vector2(shX, 0f), 2);
@@ -1880,7 +1882,13 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         StartLunge(e.ActorId, e.TargetId);
                         // ★ 连携追击：每次追加都飘一句"追加攻击"，让玩家看清是谁在补刀
                         if (e.IsCombo && e.ActorId != null && _views.TryGetValue(e.ActorId, out var fu))
-                            SpawnNumberInternal(fu, "追加攻击!", new Color(1f, 0.82f, 0.38f), 1.15f, 0.75f, raise: 0.9f);
+                        {
+                            // 连携追击的说明要一眼看懂（用户："给一个提示说明这是连携的普攻"）
+                            string who = fu.NameText != null ? fu.NameText.text : "";
+                            SpawnNumberInternal(fu, "连携·追击", new Color(1f, 0.74f, 0.24f), 1.25f, 0.85f, raise: 0.95f);
+                            if (!string.IsNullOrEmpty(who))
+                                SpawnNumberInternal(fu, who, new Color(1f, 0.92f, 0.72f), 0.9f, 0.7f, raise: 1.25f);
+                        }
                     }
                     // ★ 技能名飘字（用户 2026-10-06："怎么体现这些技能效果"）：
                     //   普攻每回合都放，飘了会刷屏 ， 只飘战技/绝技。技能名事件里本来就有（skillName）。

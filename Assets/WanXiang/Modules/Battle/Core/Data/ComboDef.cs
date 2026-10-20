@@ -136,6 +136,38 @@ namespace WanXiang.Battle.Core
                 Note = "中宫+任一条对角线：对随机 3 名敌人各造成一次伤害",
                 Cells = new[] { 0, 4, 8 }, CellsAlt = new[] { 2, 4, 6 },
                 Effect = ComboEffect.RandomThreeHit, Power = 0.75f },
+
+            // ---- 2026-10-20 扩充（用户："阵形还是太少了，能不能多一点"）----
+            //   ⚠ 顺序 = 优先度：AvailableFor 取第一条可用的，格数多的排前面。
+            new ComboDef { Id = "fm_crescent", Name = "偃月阵",
+                Note = "中宫+上排三格+下方中点：全體伤害并铺 1 层霜寒",
+                Cells = new[] { 0, 1, 2, 4, 8 },
+                Effect = ComboEffect.AllAoeStatus, Power = 0.70f },
+
+            new ComboDef { Id = "fm_wing", Name = "鹤翼阵",
+                Note = "中宫+右上两格：对全体敌人造成较轻伤害",
+                Cells = new[] { 1, 2, 4, 5 },
+                Effect = ComboEffect.FireStorm, Power = 0.65f },
+
+            new ComboDef { Id = "fm_square", Name = "方圆阵",
+                Note = "中宫+左列上下：全体伤害并为我方回复 12% 生命",
+                Cells = new[] { 0, 1, 4, 7 },
+                Effect = ComboEffect.WoodPulse, Power = 0.75f },
+
+            new ComboDef { Id = "fm_snake", Name = "长蛇阵",
+                Note = "中宫+中排三格：对随机 2 名敌人各造成一次伤害",
+                Cells = new[] { 3, 4, 5, 8 },
+                Effect = ComboEffect.RandomTwoHit, Power = 0.80f },
+
+            new ComboDef { Id = "fm_yoke", Name = "衝轭阵",
+                Note = "中宫+上排三格（或下排三格）：最前排单体重击",
+                Cells = new[] { 0, 1, 2, 4 }, CellsAlt = new[] { 4, 6, 7, 8 },
+                Effect = ComboEffect.MetalBreak, Power = 0.85f },
+
+            new ComboDef { Id = "fm_veil", Name = "玄襄阵",
+                Note = "中宫+下排两角：最前排单体伤害并破防",
+                Cells = new[] { 4, 6, 8 },
+                Effect = ComboEffect.FrontShred, Power = 0.75f },
         };
 
         public static System.Collections.Generic.IReadOnlyList<ComboDef> All => Table;

@@ -290,13 +290,13 @@ namespace WanXiang.Modules.UI
         }
 
         // ================================================================
-        //  阵形激活预览（2026-10-20 用户："编队界面中间加一个阵形激活预览，
-        //  所有阵形都列出来，激活了就亮起，并有悬浮描述"）
+        //  阵形激活预览（2026-10-20）
         //  ------------------------------------------------------------------
-        //  位置：羁绊栏（Root_BondBar）上方一行。成阵判据与战斗同源：
-        //  阵形要求的格子**全部**被上阵单位占据（Cells 或 CellsAlt 任一满足）。
+        //  ⛔ UI 一律 prefab：节点 Root_ShapeBar/Shape_0..N 已烘进 Panel_Formation，
+        //     这里只做**填数据**：写名字/染色/位置微调/悬停接线，不再运行时建控件。
+        //  成阵判据与战斗同源：阵形要求的格子被上阵单位占满（Cells 或 CellsAlt 任一）。
         // ================================================================
-        private RectTransform _shapeRow;
+        private RectTransform _shapeBar;
 
         private bool ShapeActive(WanXiang.Battle.Core.ComboDef c)
         {
@@ -320,63 +320,57 @@ namespace WanXiang.Modules.UI
 
         private void RefreshShapePreview()
         {
-            var bondBar = transform.Find("Root_BondBar") as RectTransform;
-            if (_shapeRow == null)
+            if (_shapeBar == null)
             {
-                var go = new GameObject("Root_ShapePreview", typeof(RectTransform));
-                _shapeRow = (RectTransform)go.transform;
-                _shapeRow.SetParent(transform, false);
-                _shapeRow.anchorMin = _shapeRow.anchorMax = new Vector2(0.5f, 0.5f);
-                _shapeRow.pivot = new Vector2(0.5f, 0.5f);
-                float y = bondBar != null
-                    ? bondBar.anchoredPosition.y + Mathf.Abs(bondBar.rect.height) * 0.5f + 56f
-                    : -250f;
-                _shapeRow.anchoredPosition = new Vector2(0f, y);
-                _shapeRow.sizeDelta = new Vector2(1000f, 56f);
+                _shapeBar = transform.Find("Root_ShapeBar") as RectTransform;
+                if (_shapeBar == null)
+                {
+                    Debug.LogWarning("[Formation] Panel_Formation 缺 Root_ShapeBar（阵形预览已在预制体里预制，不再运行时创建）");
+                    return;
+                }
             }
 
-            for (int i = _shapeRow.childCount - 1; i >= 0; i--)
-                Destroy(_shapeRow.GetChild(i).gameObject);
+            // 贴合羁绊栏上沿（运行时布局才准，prefab 里 stretch 锚点算不出真实高度）
+            var bondBar = transform.Find("Root_BondBar") as RectTransform;
+            var selfRt = (RectTransform)transform;
+            if (bondBar != null && selfRt != null)
+            {
+                var c4 = new Vector3[4];
+                bondBar.GetWorldCorners(c4);
+                float topY = selfRt.InverseTransformPoint(c4[1]).y;
+                _shapeBar.anchoredPosition = new Vector2(0f, topY + 44f);
+            }
 
             var all = WanXiang.Battle.Core.ComboRules.All;
             int n = all != null ? all.Count : 0;
-            if (n == 0) return;
 
-            var chipSpr = Resources.Load<Sprite>("UI/Kit/card_solid");
-            const float chipW = 168f, gap = 10f, chipH = 50f;
-            float totalW = n * chipW + (n - 1) * gap;
-
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < _shapeBar.childCount; i++)
             {
+                var chip = (RectTransform)_shapeBar.GetChild(i);
+                bool used = i < n;
+                if (chip.gameObject.activeSelf != used) chip.gameObject.SetActive(used);
+                if (!used) continue;
+
                 var c = all[i];
                 bool on = ShapeActive(c);
-                var go = new GameObject("Shape_" + c.Id, typeof(RectTransform), typeof(Image), typeof(Button));
-                var rt = (RectTransform)go.transform;
-                rt.SetParent(_shapeRow, false);
-                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-                rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.sizeDelta = new Vector2(chipW, chipH);
-                rt.anchoredPosition = new Vector2(-totalW * 0.5f + chipW * 0.5f + i * (chipW + gap), 0f);
 
-                var img = go.GetComponent<Image>();
-                if (chipSpr != null) { img.sprite = chipSpr; img.type = Image.Type.Sliced; }
-                img.color = on ? new Color(1f, 0.95f, 0.80f, 1f)   // 成阵：暖金底
-                               : new Color(0.88f, 0.87f, 0.84f, 1f); // 未成：灰纸
+                var img = chip.GetComponent<Image>();
+                if (img != null)
+                    img.color = on ? new Color(1f, 0.95f, 0.80f, 1f)     // 成阵：暖金底
+                                   : new Color(0.88f, 0.87f, 0.84f, 1f); // 未成：灰纸
 
-                var lg = new GameObject("Tmp_Name", typeof(RectTransform));
-                var lrt = (RectTransform)lg.transform;
-                lrt.SetParent(rt, false);
-                lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
-                lrt.offsetMin = new Vector2(8f, 4f); lrt.offsetMax = new Vector2(-8f, -4f);
-                var label = lg.AddComponent<TextMeshProUGUI>();
-                label.text = c.Name;
-                label.fontSize = 22;
-                label.alignment = TextAlignmentOptions.Center;
-                label.raycastTarget = false;
-                label.color = on ? new Color(0.50f, 0.24f, 0.10f, 1f)   // 成阵：赭红字
-                                 : new Color(0.55f, 0.53f, 0.50f, 1f); // 未成：灰字
+                var labelT = chip.Find("Tmp_Name");
+                var label = labelT != null ? labelT.GetComponent<TextMeshProUGUI>() : null;
+                if (label != null)
+                {
+                    label.text = c.Name;
+                    label.color = on ? new Color(0.50f, 0.24f, 0.10f, 1f)    // 成阵：赭红字
+                                     : new Color(0.55f, 0.53f, 0.50f, 1f);   // 未成：灰字
+                }
 
-                var trg = go.AddComponent<EventTrigger>();
+                var trg = chip.GetComponent<EventTrigger>();
+                if (trg == null) trg = chip.gameObject.AddComponent<EventTrigger>();
+                trg.triggers.Clear();
                 var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
                 var cc = c;
                 enter.callback.AddListener(_ => PresentBondTip(
