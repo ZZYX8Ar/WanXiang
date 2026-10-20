@@ -335,6 +335,67 @@ namespace WanXiang.Run
         /// ⚠ 原实现用 Realm/Jie（旧"境/劫"体系）—— 那套在幕推进后已不再递增，
         ///   会导致难度永远停在 1.0（数值标尺失效）。现改为以 Act 为唯一主轴。
         /// </summary>
+        /// <summary>
+        /// ★ 2026-10-20 用户实测："同一个存档点重开一局，保留了上一局的遗物；
+        /// 而且节点又推不动了。"根因：重开只清了 Act/NodeOffset/Visited 等少数字段，
+        /// **Relics / Team / PassedNodes / ChosenNodes(同层互斥) / 待领奖励 / 秘境状态** 全留着：
+        /// - 旧遗物带进新局（本不该有）；
+        /// - 旧 ChosenNodes 把"同层已进过"的锁带到新局 ⇒ 整层点不动（节点推不动的真因）。
+        /// 统一在这里重置**所有局内进度**；收集/图鉴类跨局资产不动。
+        /// </summary>
+        public void ResetForNewRun(int newSeed)
+        {
+            Act = 1;
+            NodeOffset = -1;
+            Wins = 0;
+            Losses = 0;
+            Eggs = 0;
+            RunSeed = newSeed;
+            HealPending = 0;
+            PlayerBuffPct = 0;
+            EnemyBuffPct = 0;
+            BeatFinale = false;
+            IntroShownAct = 0;
+            // 局外成长快照：清空后下次进场会按 MetaState 重新快照
+            SnapshotSeed = 0;
+            if (SnapBeastIds != null) SnapBeastIds.Clear();
+            if (SnapAwaken != null) SnapAwaken.Clear();
+
+            // 进度/路线
+            if (Path != null) Path.Clear();
+            if (VisitedNodes != null) VisitedNodes.Clear();
+            if (PassedNodes != null) PassedNodes.Clear();
+            if (ChosenNodes != null) ChosenNodes.Clear();          // ★ 同层互斥锁：跨局必须清
+            PendingBattlePass = -1;
+            if (PendingRelicDraft != null) PendingRelicDraft.Clear();
+
+            // 雾 / 重掷 / 星移
+            if (QuestionRevealed != null) QuestionRevealed.Clear();
+            if (RerolledKinds != null) RerolledKinds.Clear();
+            if (FogWeatherNodes != null) FogWeatherNodes.Clear();
+            FogLeft = 0; FogRerolled = false; FogGenAct = 0; FogTriggerNode = -1;
+            if (XingyiUsed != null) XingyiUsed.Clear();
+            if (XingyiLingers != null) XingyiLingers.Clear();
+
+            // 遗物 / 编成（用户明确：重开清空本轮遗物与队伍编成）
+            if (Relics != null) Relics.Clear();
+            if (Team != null) Team.Clear();
+
+            // 秘境状态（半个秘境残留会让新局所有进入被拒）
+            InRealm = false;
+            RealmId = null;
+            RealmWave = 0;
+            if (RealmCleared != null) RealmCleared.Clear();
+            if (RealmChampionRewarded != null) RealmChampionRewarded.Clear();
+            if (RealmEntries != null) RealmEntries.Clear();
+            RealmRerollKey = -1;
+            RealmRerollUsed = 0;
+            RealmSnapshot = null;
+
+            WanXiang.Run.RunSave.SaveCurrent();
+            Debug.Log("[RunSave] 重开一局：局内进度已全部重置（遗物/队伍/通过/互斥锁/秘境）");
+        }
+
         public float Difficulty => 1f + (Act - 1) * 0.35f;
 
         public string RealmText
@@ -539,6 +600,7 @@ namespace WanXiang.Run
             Debug.Log("[RunSave] 新的旅程 → 槽位 " + Current.Slot);
             return Current;
         }
+
 
         /// <summary>继承一段已有旅程。</summary>
         public static RunState ContinueWith(RunState state)

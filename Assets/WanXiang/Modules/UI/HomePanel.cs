@@ -203,18 +203,14 @@ namespace WanXiang.Modules.UI
                 "本次旅程的进度、灵卵与队伍编成都会清空，确定重开？", "确定重开", "再想想");
             if (!ok) return;
 
-            run.Act = 1;
-            run.NodeOffset = -1;
-            run.Wins = 0;
-            run.Eggs = 0;
-            run.RunSeed = UnityEngine.Random.Range(1, int.MaxValue);   // 重开 = 全新路线图
-            if (run.Path != null) run.Path.Clear();
-            if (run.VisitedNodes != null) run.VisitedNodes.Clear();
-            if (run.QuestionRevealed != null) run.QuestionRevealed.Clear();
-            if (run.XingyiUsed != null) run.XingyiUsed.Clear();        // 星移次数随重开清零
-            if (run.XingyiLingers != null) run.XingyiLingers.Clear();  // 星移余气持久化镜像随重开清零
+            // ★ 2026-10-20：改为**统一重置**（RunState.ResetForNewRun）——
+            //   之前手写清单漏了 Relics / Team / PassedNodes / ChosenNodes（同层互斥）/ 待领奖励 / 秘境，
+            //   导致"重开后还带着上一局的遗物""节点整层点不动"。
+            run.ResetForNewRun(UnityEngine.Random.Range(1, int.MaxValue));   // 重开 = 全新路线图
             WanXiang.Campaign.LiveWeather.Reset();                     // 会话级星移余气一并清空，防跨局污染
-            WanXiang.Run.RunSave.SaveCurrent();
+            // 内存里的"待落地"也必须清：否则新局第一格会被上一局的待办劫持
+            CampaignPanel.PendingCommit = -1;
+            WanXiang.Modules.UI.RealmSession.ClearPlayerHazards(run);  // 秘境给我方挂的临时状态一并清
 
             RefreshDeployLabel();
             { GoCampaign(); }

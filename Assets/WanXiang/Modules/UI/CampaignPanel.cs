@@ -342,6 +342,9 @@ BuildNodeMap();
                             if (prun.VisitedNodes != null) prun.VisitedNodes.Clear();
                             if (prun.PassedNodes != null) prun.PassedNodes.Clear();       // 换幕：通过记录作废（offset 是"本幕"的）
                             if (prun.RerolledKinds != null) prun.RerolledKinds.Clear();   // 换幕：重掷记录作废
+                            // ⛔ 2026-10-20：同层互斥记录是"本幕节点下标"，跨幕必须清 ——
+                            //   否则上一幕选过的下标会在下一幕被当成"本层已进过"，整层点不动。
+                            if (prun.ChosenNodes != null) prun.ChosenNodes.Clear();
                             if (prun.FogWeatherNodes != null) prun.FogWeatherNodes.Clear(); // 换幕：挂的瘴雾天时作废
                             prun.FogGenAct = 0;                                           // 换幕：下一幕重新生成瘴雾节点
                             prun.FogTriggerNode = -1;
