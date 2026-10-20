@@ -330,19 +330,17 @@ namespace WanXiang.Modules.UI
                 }
             }
 
-            // 贴合羁绊栏上沿（运行时布局才准，prefab 里 stretch 锚点算不出真实高度）
-            var bondBar = transform.Find("Root_BondBar") as RectTransform;
-            var selfRt = (RectTransform)transform;
-            if (bondBar != null && selfRt != null)
-            {
-                var c4 = new Vector3[4];
-                bondBar.GetWorldCorners(c4);
-                float topY = selfRt.InverseTransformPoint(c4[1]).y;
-                _shapeBar.anchoredPosition = new Vector2(0f, topY + 44f);
-            }
-
+            // ★ 位置已烘进预制体（Root_ShapeBar 的 anchoredPosition），运行时不再摆位。
             var all = WanXiang.Battle.Core.ComboRules.All;
             int n = all != null ? all.Count : 0;
+
+            // ★ 同时只能成**一条**阵：按表的优先度取第一条满足的（与战斗里 AvailableFor 同口径），
+            //   其余即使格位也满足也不点亮（用户 2026-10-20："还可以同时激活两个阵形的吗"）。
+            int activeIdx = -1;
+            for (int i = 0; i < n; i++)
+            {
+                if (ShapeActive(all[i])) { activeIdx = i; break; }
+            }
 
             for (int i = 0; i < _shapeBar.childCount; i++)
             {
@@ -352,7 +350,7 @@ namespace WanXiang.Modules.UI
                 if (!used) continue;
 
                 var c = all[i];
-                bool on = ShapeActive(c);
+                bool on = i == activeIdx;   // 只点亮真正会发动的那一条
 
                 var img = chip.GetComponent<Image>();
                 if (img != null)
@@ -373,8 +371,9 @@ namespace WanXiang.Modules.UI
                 trg.triggers.Clear();
                 var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
                 var cc = c;
+                bool isActiveOne = i == activeIdx;
                 enter.callback.AddListener(_ => PresentBondTip(
-                    "<size=24><b>阵形 · " + cc.Name + "（" + (ShapeActive(cc) ? "已激活" : "未激活") + "）</b></size>\n" +
+                    "<size=24><b>阵形 · " + cc.Name + "（" + (isActiveOne ? "已激活" : (ShapeActive(cc) ? "可成阵（优先级较低）" : "未激活")) + "）</b></size>\n" +
                     cc.Note + "\n形状：" + WanXiang.Battle.Core.ComboRules.ShapeText(cc)));
                 var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
                 exit.callback.AddListener(_ => HideBondTip());
