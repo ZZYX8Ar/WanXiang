@@ -93,8 +93,10 @@ namespace WanXiang.Modules.UI
             // ★ 2026-10-20 用户："战斗转场换成和秘境转场一样（粒子拨开 + 艺术字）" ——
             //   复用 RealmTransition 的粒子/揭示流程，艺术字换成「战斗」，粒子用墨团。
             // ★ 粒子按**当前幕的季节**选（用户："按当前所在的幕的季节使用适合的粒子"）
+            // 末尾追加冲击字「开始」：粒子散开 + 「战斗开始」消去之后砸出来
             RealmTransition.PlayAsync(null, () => Load(BattleScene), null,
-                "UI/Title/battle", ParticleForAct(act), revealDelay: 0.10f).Forget();
+                "UI/Title/battle", ParticleForAct(act), revealDelay: 0.10f,
+                impactWordRes: "UI/Title/start").Forget();
         }
 
         /// <summary>战斗结束（或被撤退）：回主城并带结算。</summary>

@@ -110,7 +110,8 @@ namespace WanXiang.Modules.UI
         /// </summary>
         public static async UniTask PlayAsync(string realmId, Action onSwitch, string titleText = null,
                                              string titleResPath = null, string particleResPath = null,
-                                             float revealDelay = 0f)
+                                             float revealDelay = 0f,
+                                             string impactWordRes = null)
         {
             var inst = Ensure();
             if (inst == null) { onSwitch?.Invoke(); return; }
@@ -120,6 +121,7 @@ namespace WanXiang.Modules.UI
             inst._titleResOverride = titleResPath;
             inst._particleResOverride = particleResPath;
             inst._revealDelay = revealDelay;
+            inst._impactWordRes = impactWordRes;
             inst.StartCoroutine(inst.Run(realmId, onSwitch, () => done = true, titleText));
             await UniTask.WaitUntil(() => done);
         }
@@ -304,6 +306,10 @@ namespace WanXiang.Modules.UI
                 yield return null;
             }
 
+            // ---- ⑤ 冲击字（可选）：粒子散开、字消去之后，砸出「开始」 ----
+            if (!string.IsNullOrEmpty(_impactWordRes))
+                yield return ImpactBeat(_impactWordRes);
+
             // ---- 收尾：务必把状态清干净（常驻对象，下一次演出不能带着上次的残留）----
             _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, 0f);
             _cover.raycastTarget = false;      // ⛔ 必须放行点击，否则整个游戏点不动
@@ -325,6 +331,7 @@ namespace WanXiang.Modules.UI
         private string _titleResOverride;
         private string _particleResOverride;
         private float _revealDelay;
+        private string _impactWordRes;
 
         private void BuildParticles(string realmId, float W, float H)
         {
@@ -520,6 +527,106 @@ namespace WanXiang.Modules.UI
             _titleMat.SetFloat("_Invert", 1f);
             _titleMat.SetFloat(ProgressId, 0f);
             _title.material = _titleMat;
+        }
+
+        /// <summary>
+        /// **冲击字**（2026-10-20 用户："等粒子离开和字消去的时候，以有冲击力的效果出现开始两个字"）：
+        /// 白闪 → 字从 2.6 倍砸落到 1 倍（强缓出）→ 两道横向光带炸开 → 衰减震屏 → 停留 → 淡出。
+        /// 全程约 1.0s，追加在拨开之后，不改变主转场节奏。
+        /// </summary>
+        private IEnumerator ImpactBeat(string resPath)
+        {
+            var sp = Resources.Load<Sprite>(resPath);
+            if (sp == null) yield break;
+
+            var flash = NewImage("ImpactFlash", 3);
+            flash.sprite = null;                            // Image 无 sprite = 实心块
+            flash.rectTransform.anchorMin = Vector2.zero;
+            flash.rectTransform.anchorMax = Vector2.one;
+            flash.rectTransform.offsetMin = Vector2.zero;
+            flash.rectTransform.offsetMax = Vector2.zero;
+            flash.color = new Color(1f, 0.98f, 0.92f, 0f);
+            flash.raycastTarget = false;
+            flash.transform.SetAsLastSibling();
+
+            var word = NewImage("ImpactWord", 4);
+            word.sprite = sp;
+            word.preserveAspect = true;
+            var wrt = word.rectTransform;
+            wrt.anchorMin = wrt.anchorMax = new Vector2(0.5f, 0.5f);
+            wrt.pivot = new Vector2(0.5f, 0.5f);
+            float w = Mathf.Min(Screen.width * 0.42f, 720f);
+            wrt.sizeDelta = new Vector2(w, w * 0.5f);
+            wrt.anchoredPosition = Vector2.zero;
+            wrt.localScale = Vector3.one * 2.6f;
+            word.color = new Color(1f, 1f, 1f, 0f);
+            word.raycastTarget = false;
+            word.transform.SetAsLastSibling();
+
+            var bars = new List<Image>();
+            for (int i = 0; i < 2; i++)
+            {
+                var b = NewImage("ImpactBar" + i, 5 + i);
+                b.sprite = null;
+                var brt = b.rectTransform;
+                brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f);
+                brt.pivot = new Vector2(0.5f, 0.5f);
+                brt.sizeDelta = new Vector2(0f, 6f);
+                brt.anchoredPosition = new Vector2(0f, i == 0 ? 26f : -26f);
+                b.color = new Color(1f, 0.94f, 0.78f, 0f);
+                b.raycastTarget = false;
+                b.transform.SetAsLastSibling();
+                bars.Add(b);
+            }
+
+            // 砸落
+            float t = 0f, dur = 0.18f;
+            while (t < dur)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(t / dur);
+                float e = 1f - Mathf.Pow(1f - k, 5f);
+                wrt.localScale = Vector3.one * Mathf.Lerp(2.6f, 1f, e);
+                word.color = new Color(1f, 1f, 1f, Mathf.Clamp01(k * 3f));
+                flash.color = new Color(1f, 0.98f, 0.92f, Mathf.Lerp(0.85f, 0f, e));
+                yield return null;
+            }
+            wrt.localScale = Vector3.one;
+            word.color = Color.white;
+            flash.color = new Color(1f, 0.98f, 0.92f, 0f);
+
+            // 光带炸开 + 震屏
+            t = 0f; dur = 0.22f;
+            while (t < dur)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(t / dur);
+                float e = 1f - Mathf.Pow(1f - k, 3f);
+                for (int i = 0; i < bars.Count; i++)
+                {
+                    var brt = bars[i].rectTransform;
+                    brt.sizeDelta = new Vector2(Mathf.Lerp(0f, Screen.width * 1.15f, e), Mathf.Lerp(8f, 2f, k));
+                    bars[i].color = new Color(1f, 0.94f, 0.78f, Mathf.Lerp(0.95f, 0f, k));
+                }
+                float amp = Mathf.Lerp(14f, 0f, k);
+                _root.anchoredPosition = new Vector2(UnityEngine.Random.Range(-amp, amp), UnityEngine.Random.Range(-amp, amp));
+                yield return null;
+            }
+            _root.anchoredPosition = Vector2.zero;
+
+            for (float h = 0f; h < 0.34f; h += Time.unscaledDeltaTime) yield return null;
+
+            t = 0f; dur = 0.26f;
+            while (t < dur)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(t / dur);
+                word.color = new Color(1f, 1f, 1f, 1f - k);
+                yield return null;
+            }
+            word.enabled = false;
+            for (int i = 0; i < bars.Count; i++) if (bars[i] != null) bars[i].enabled = false;
+            if (flash != null) flash.enabled = false;
         }
 
         private static float EaseOut(float k) { return 1f - (1f - k) * (1f - k); }
