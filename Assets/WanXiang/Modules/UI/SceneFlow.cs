@@ -68,6 +68,14 @@ namespace WanXiang.Modules.UI
         /// <summary>当前战斗对应的节点（出征时在编队界面写入）：重新挑战时据此回到同一节点的编队界面。</summary>
         public static NodeRequest PendingBattleNode;
 
+        /// <summary>
+        /// ★ 2026-10-20 用户实测 bug："战斗中直接关游戏，再进来这个节点直接通过了。"
+        /// 根因：出征时 FormationPanel.CloseSelf() → 底下的节点地图 **Resume** →
+        /// CampaignPanel 把"待推进节点"当场落地 ⇒ 仗还没打，节点已通过。
+        /// 修：出征那一刻起、到战斗结束（ExitBattle）为止，禁止地图落地通过。
+        /// </summary>
+        public static bool BattleDeploying;
+
         /// <summary>「重新挑战」挂起标记：战斗里点「重新挑战」置位，主城入口消费并直接打开编队界面（叠在节点地图之上）。</summary>
         public static NodeRequest PendingRechallengeNode;
 
@@ -103,6 +111,7 @@ namespace WanXiang.Modules.UI
         public static void ExitBattle(ResultRequest result)
         {
             PendingBattle = null;
+            BattleDeploying = false;          // ★ 战斗结束（胜/败/撤退/重挑）→ 解除"出征中"锁
             PendingResult = result;
             // ★ 2026-10-20 用户："点重新挑战怎么就直接通过这个节点了" ——
             //   撤退/重挑（result == null）绝不能带着"待落地通过"回地图。

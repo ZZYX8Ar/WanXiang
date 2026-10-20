@@ -53,6 +53,7 @@ namespace WanXiang.Modules.Boot
                 //   否则下面打开 CampaignPanel 会把它当成"已通过"落地 ， 节点被误判通关。
                 //   真正的通过要等【重新出征打赢】后回地图才落地（见 FormationPanel.OnDeployClicked 重写 PendingCommit）。
                 CampaignPanel.PendingCommit = -1;
+                SceneFlow.BattleDeploying = false;   // ★ 重挑：解除出征锁（防卡在"禁止落地"状态）
                 ui.Close<StartPanel>();
                 await ui.OpenAsync<CampaignPanel>();       // 底下垫节点地图
                 await ui.OpenAsync<FormationPanel>(node);  // 再叠编队界面（带节点上下文）

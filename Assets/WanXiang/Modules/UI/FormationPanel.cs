@@ -1319,6 +1319,9 @@ namespace WanXiang.Modules.UI
             //   （避免回地图时把"放弃的本场"误判为通过）；这里再次写入，保证【真正打赢】回到地图时
             //   才落地通过。正常出征时这行是幂等的（本就是同一个 NodeIndex）。
             if (_node != null) CampaignPanel.PendingCommit = _node.NodeIndex;
+            // ★ 必须在 CloseSelf **之前**置位：关编队会让底下地图 Resume，
+            //   若不锁住，地图会把"待推进"当场落地 ⇒ 仗没打节点就通过了。
+            SceneFlow.BattleDeploying = true;
             CloseSelf();
             SceneFlow.EnterBattle(req);
         }

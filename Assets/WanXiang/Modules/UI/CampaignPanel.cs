@@ -259,6 +259,14 @@ BuildNodeMap();
 
         private bool LandPendingCommit()
         {
+            // ★★ 2026-10-20：出征/战斗期间**禁止**落地通过。
+            //   出征时编队面板关闭 → 地图 Resume → 这里会立刻把待推进节点落地，
+            //   于是"仗还没打，节点已通过；战斗中退游戏，回来就是已通过"（用户实测）。
+            if (SceneFlow.BattleDeploying)
+            {
+                Debug.Log("[Campaign] 出征中（战斗未结算），暂不落地节点通过");
+                return false;
+            }
                 if (PendingCommit >= 0 && !UIPanelBase.GhostSilent)
                 {
        _justPassedNode = PendingCommit;   // ★ 真·通过（这里才把 NodeOffset 落地）， 记下它供落印/画线动画
