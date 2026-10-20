@@ -221,6 +221,27 @@ BuildNodeMap();
         /// 把存档里"战斗胜利待落地"的节点号补回静态 PendingCommit（2026-10-20）。
         /// 场景：胜利后没点结果面板就退游戏 → 下次开图在此恢复，走与正常完全相同的落地流程。
         /// </summary>
+        // 补选奖励只在"这次启动"提醒一次（玩家可以 X 掉，不服气下次还会提醒就太烦）
+        private static string _rewardPromptedKey;
+
+        /// <summary>胜利奖励未领 → 拉起 RelicPanel 让玩家补选（同一批遗物，种子已落盘）。</summary>
+        private async UniTaskVoid PromptPendingRewardDeferred()
+        {
+            await UniTask.DelayFrame(2);
+            PromptPendingReward();
+        }
+
+        private void PromptPendingReward()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || run.PendingRelicDraft == null || run.PendingRelicDraft.Count == 0) return;
+            string key = string.Join(",", run.PendingRelicDraft) + "#" + run.Act;
+            if (_rewardPromptedKey == key) return;
+            _rewardPromptedKey = key;
+            Debug.Log("[Campaign] 有未领取的战斗奖励三选一，拉起补选：" + key);
+            OpenPanelAsync<RelicPanel>(null).Forget();
+        }
+
         private static void RestorePendingBattlePass()
         {
             var run = WanXiang.Run.RunSave.Current;
@@ -440,6 +461,9 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             //   OpenAsRealm）走的是本方法，不是 OnRefresh，漏了这里返回键/星移会露着。
             ApplyRealmChrome();
             SelectNode(node != null ? node.Offset : -1, silent: true);
+
+            // ★ 有未领的胜利奖励 → 下一帧补一次三选一（不能在"本面板还在开"的同一帧叠面板）
+            PromptPendingRewardDeferred().Forget();
             return UniTask.CompletedTask;
         }
 

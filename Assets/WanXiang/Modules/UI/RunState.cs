@@ -178,6 +178,16 @@ namespace WanXiang.Run
         public int PendingBattlePass = -1;
 
         /// <summary>
+        /// ★ 2026-10-20 用户："这样是不是就丢失了一次选择奖励的机会" ——
+        /// 胜利的三选一奖励在**胜利那一刻**就抽好并落盘（3 个遗物 id），
+        /// 玩家没点结果面板就退出也不会丢：下次进地图会再把这次选择补给他
+        /// （ResultPanel 优先消费它；错过则由 CampaignPanel 拉起 RelicPanel 补选）。
+        /// 消费掉（确认/跳过）即清空。
+        /// </summary>
+        public System.Collections.Generic.List<string> PendingRelicDraft
+            = new System.Collections.Generic.List<string>();
+
+        /// <summary>
         /// **真正通过**的节点 —— 与 <see cref="VisitedNodes"/> 的区别：
         /// `VisitedNodes` = **进入**（点节点那一刻就写）；本表 = **通过**（只有 `CampaignPanel.OnOpenAsync`
         /// 把 `NodeOffset = PendingCommit` 落地时才记一笔）。

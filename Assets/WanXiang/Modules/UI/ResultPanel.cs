@@ -147,8 +147,22 @@ namespace WanXiang.Modules.UI
             {
                 int actR = look.Act;
                 bool bossLike = SceneFlow.LastBattleKind == NodeKind.Elite;
-                var rng = new DeterministicRandom((ulong)System.DateTime.Now.Ticks ^ (uint)(actR * 2654435761));
-                _offered = RelicCatalog.Roll(3, actR, bossLike, rng, look.Relics);
+                // ★ 优先消费"胜利时已落盘"的三选一（见 RunState.PendingRelicDraft）——
+                //   玩家中途退出/重开也不会丢这次选择。
+                if (look.PendingRelicDraft != null && look.PendingRelicDraft.Count > 0)
+                {
+                    _offered = new System.Collections.Generic.List<RelicDef>();
+                    for (int i = 0; i < look.PendingRelicDraft.Count; i++)
+                    {
+                        var d = RelicCatalog.Get(look.PendingRelicDraft[i]);
+                        if (d != null) _offered.Add(d);
+                    }
+                }
+                if (_offered == null || _offered.Count == 0)
+                {
+                    var rng = new DeterministicRandom((ulong)System.DateTime.Now.Ticks ^ (uint)(actR * 2654435761));
+                    _offered = RelicCatalog.Roll(3, actR, bossLike, rng, look.Relics);
+                }
                 Debug.Log("[ResultPanel] 抽出遗物 " + _offered.Count + " 个（act=" + actR +
                           " bossLike=" + bossLike + "）");
             }
@@ -425,14 +439,26 @@ namespace WanXiang.Modules.UI
             }
         }
 
+        /// <summary>消费掉"待选奖励"（确认或跳过都算用过了）。</summary>
+        private static void ClearPendingDraft()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || run.PendingRelicDraft == null) return;
+            if (run.PendingRelicDraft.Count == 0) return;
+            run.PendingRelicDraft.Clear();
+            WanXiang.Run.RunSave.SaveCurrent();
+        }
+
         private void OnSkipClicked()
         {
+            ClearPendingDraft();
             BackToCampaign();
         }
 
         private void OnConfirmClicked()
         {
             // 结构验证版：三选一草稿还不是真实内容，没选也允许继续（选了就记一下）
+            ClearPendingDraft();
             if (_selectedDraft >= 0)
                 ApplyDraft(_selectedDraft);
                 Debug.Log("[ResultPanel] 已选择奖励 " + (_selectedDraft + 1) + "：" + DraftTitle(_selectedDraft));

@@ -527,9 +527,26 @@ namespace WanXiang.Modules.UI
                 // ★ 同一存档事务里把"待落地的节点"也持久化：否则"胜利但没点结果面板就退游戏"
                 //   会留下"阵亡已扣、节点未过"的半截状态（用户 2026-10-20 实测 bug）。
                 var runW = WanXiang.Run.RunSave.Current;
-                if (runW != null && !SceneFlow.LastWasPvp && CampaignPanel.PendingCommit >= 0)
+                if (runW != null && !SceneFlow.LastWasPvp)
                 {
-                    runW.PendingBattlePass = CampaignPanel.PendingCommit;
+                    if (CampaignPanel.PendingCommit >= 0)
+                        runW.PendingBattlePass = CampaignPanel.PendingCommit;
+
+                    // ★ 奖励三选一也在这里**先抽好并落盘**（用户："这样是不是就丢失了一次选择奖励的机会"）。
+                    //   种子由（RunSeed, Act, 节点）确定 ⇒ 重开也是同一批。
+                    if (runW.PendingRelicDraft == null)
+                        runW.PendingRelicDraft = new System.Collections.Generic.List<string>();
+                    if (runW.PendingRelicDraft.Count == 0)
+                    {
+                        int nodeKey = CampaignPanel.PendingCommit >= 0 ? CampaignPanel.PendingCommit : runW.NodeOffset;
+                        bool bossLike = SceneFlow.LastBattleKind == WanXiang.Campaign.NodeKind.Elite;
+                        var rngR = new WanXiang.Battle.Core.DeterministicRandom(
+                            WanXiang.Battle.Core.CoreMath.Fnv1a(
+                                "battleReward:" + runW.RunSeed + ":" + runW.Act + ":" + nodeKey));
+                        var rolled = WanXiang.Campaign.RelicCatalog.Roll(3, runW.Act, bossLike, rngR, runW.Relics);
+                        for (int i = 0; i < rolled.Count; i++)
+                            if (rolled[i] != null) runW.PendingRelicDraft.Add(rolled[i].Id);
+                    }
                     WanXiang.Run.RunSave.SaveCurrent();
                 }
             }

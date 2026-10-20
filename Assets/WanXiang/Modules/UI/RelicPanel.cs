@@ -127,8 +127,20 @@ private int _selected = -1;
                           run.Team.Count + " 只）：" + string.Join(",", teamScopes));
             }
 
-            _offered = RelicCatalog.Roll(3, act, true, rng,
-                run != null ? run.Relics : null, teamScopes);
+            // ★ 若存档里有"胜利未领的三选一"（RunState.PendingRelicDraft），优先补这次选择：
+            //   玩家胜利后没点结果面板就退出 → 下次进地图由 CampaignPanel 拉起本面板补选。
+            if (run != null && run.PendingRelicDraft != null && run.PendingRelicDraft.Count > 0)
+            {
+                _offered = new System.Collections.Generic.List<RelicDef>();
+                for (int i = 0; i < run.PendingRelicDraft.Count; i++)
+                {
+                    var d = RelicCatalog.Get(run.PendingRelicDraft[i]);
+                    if (d != null) _offered.Add(d);
+                }
+            }
+            if (_offered == null || _offered.Count == 0)
+                _offered = RelicCatalog.Roll(3, act, true, rng,
+                    run != null ? run.Relics : null, teamScopes);
 
             // ★ 「本队」角标：把**与本队异兽相关**的遗物标出来（作用域命中 = 同五行/同定位/该异兽专属）。
             //   加权只是让它们更容易出现；角标是让玩家**一眼看出该挑哪个**。
@@ -350,6 +362,15 @@ private int _selected = -1;
             WanXiang.Modules.UI.CampaignPanel.PendingCommit = -1;
         }
 
+        private static void ClearPendingDraft()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || run.PendingRelicDraft == null) return;
+            if (run.PendingRelicDraft.Count == 0) return;
+            run.PendingRelicDraft.Clear();
+            WanXiang.Run.RunSave.SaveCurrent();
+        }
+
         private void OnDraftClicked(int index)
         {
             _selected = index;
@@ -363,7 +384,11 @@ private int _selected = -1;
             }
         }
 
-        private void OnSkipClicked() => BackToCampaign();
+        private void OnSkipClicked()
+        {
+            ClearPendingDraft();
+            BackToCampaign();
+        }
 
         private void OnConfirmClicked()
         {
@@ -373,6 +398,8 @@ private int _selected = -1;
                 var relic = _offered[_selected];
                 if (run.Relics == null) run.Relics = new System.Collections.Generic.List<string>();
                 if (!run.Relics.Contains(relic.Id)) run.Relics.Add(relic.Id);
+                // 消费掉"待选奖励"（这就是它的补选，不能重复领）
+                if (run.PendingRelicDraft != null) run.PendingRelicDraft.Clear();
                 WanXiang.Run.RunSave.SaveCurrent();
                 Debug.Log("[RelicPanel] 获得遗物：" + relic.Name + "（" + relic.Id + "）");
             }
