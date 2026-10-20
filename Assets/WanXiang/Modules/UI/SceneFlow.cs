@@ -127,7 +127,7 @@ namespace WanXiang.Modules.UI
                 case 2: return "Battle/FX_particle_act2_firefly";  // 夏·萤火
                 case 3: return "Battle/FX_particle_act3_leaf";     // 秋·落叶
                 case 4: return "Battle/FX_particle_act4_snow";     // 冬·飞雪
-                default: return "Battle/FX_particle_act5_gold";    // 长夏·金尘
+                default: return "Battle/FX_particle_act5_pollen";  // 长夏·金尘
             }
         }
 
