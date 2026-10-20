@@ -1219,7 +1219,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 float shX = HpBarWidth * 0.5f - ShieldPlateW * 0.5f - 0.03f;
                 view.ShieldPlate = MakeChildSprite(headGo, "ShieldPlate", ShieldColor,
                                                    new Vector2(ShieldPlateW, ShieldPlateH),
-                                                   new Vector2(shX, 0f), 2);
+                                                   new Vector2(shX, 0f), 6);   // 压过血条填充(3)，才看得见
                 var shTxtGo = new GameObject("ShieldText");
                 shTxtGo.transform.SetParent(headGo.transform, false);  // ⛔ 挂 Head（不挂蓝牌，避免继承牌面缩放）
                 shTxtGo.transform.localPosition = new Vector3(shX, 0f, -0.02f);
@@ -1229,7 +1229,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 {
                     view.ShieldText.font = shFont;
                     var shMr = shTxtGo.GetComponent<MeshRenderer>();
-                    if (shMr != null) { shMr.sharedMaterial = shFont.material; shMr.sortingOrder = 6; }
+                    if (shMr != null) { shMr.sharedMaterial = shFont.material; shMr.sortingOrder = 7; }
                 }
                 view.ShieldText.text = "";
                 view.ShieldText.characterSize = ShieldTextSize;
@@ -1748,8 +1748,15 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         plate.sprite = SolidSprite(Color.white, 32, 32, 2, new Color(0.10f, 0.08f, 0.06f));
                         plate.color = def != null ? def.Color : new Color(0.6f, 0.6f, 0.6f);
                         if (label != null)
-                            label.text = ((def != null && !string.IsNullOrEmpty(def.Abbr)) ? def.Abbr : kv[0])
-                                       + (stacks > 1 ? stacks.ToString() : "");
+                        {
+                            // ⛔ 原来回退用的是状态 id（英文，如 "shock"）—— 用户看到"shock"截图。
+                            //   改为：Abbr → 中文名首字 → id 首字母。
+                            var sdef = WanXiang.Battle.Core.StatusCatalog.Get(kv[0]);
+                            string nm = def != null && !string.IsNullOrEmpty(def.Abbr) ? def.Abbr
+                                      : (!string.IsNullOrEmpty(sdef.Name) ? sdef.Name.Substring(0, 1)
+                                                                                          : kv[0]);
+                            label.text = nm + (stacks > 1 ? stacks.ToString() : "");
+                        }
                     }
                     // ★ 按图的实际尺寸归一化（2026-10-09 根因修复）：
                     //   槽位缩放 = StatusIconSize / 图宽 ， 图标世界尺寸恒等于 StatusIconSize。
