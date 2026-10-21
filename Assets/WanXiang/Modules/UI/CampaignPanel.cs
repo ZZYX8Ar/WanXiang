@@ -240,6 +240,9 @@ BuildNodeMap();
         {
             var run = WanXiang.Run.RunSave.Current;
             if (run == null || run.PendingRelicDraft == null || run.PendingRelicDraft.Count == 0) return;
+            // ★ 有未消费的战斗结算时**不要弹**：结算面板确认后会自己交棒给 RelicPanel，
+            //   否则两个三选一会叠在一起（用户 2026-10-21 实测：点都点不了）。
+            if (SceneFlow.PendingResult != null) return;
             string key = string.Join(",", run.PendingRelicDraft) + "#" + run.Act;
             if (_rewardPromptedKey == key) return;
             _rewardPromptedKey = key;

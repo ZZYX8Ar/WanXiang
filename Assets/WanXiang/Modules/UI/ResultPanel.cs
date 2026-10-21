@@ -174,7 +174,9 @@ namespace WanXiang.Modules.UI
 
             // ★ 按胜负决定确认按钮是否可点（原来无条件设 false，把"失败可直接确认"覆盖掉了）：
             //   胜利 → 必须先选一张奖励才可确认；失败 → 没有奖励，直接可确认。
-            if (_btnConfirm != null) _btnConfirm.interactable = !_win;
+            // ★ 2026-10-21：三选一已移交 RelicPanel，结算面板的确认不再需要先选卡
+            if (_btnConfirm != null) _btnConfirm.interactable = true;
+            if (_btnSkip != null) _btnSkip.interactable = true;
 
             // ★ 2026-10-19 用户："把遗物三选一的效果做到战斗结果面板这里"
             //   与 RelicPanel 同一套语言：横排三卡 + 从上落下 + 悬浮金框上浮。
@@ -311,8 +313,17 @@ namespace WanXiang.Modules.UI
         /// 结果面板的三选一：与 RelicPanel 同款 —— 横排三卡、从上落下、悬浮金框+上浮。
         /// ⛔ 只改运行时 rect/子节点，不碰 prefab。
         /// </summary>
+        private RectTransform FindDraftsRoot()
+        {
+            foreach (var rt in GetComponentsInChildren<RectTransform>(true))
+                if (rt.name == "Root_Drafts") return rt;
+            return null;
+        }
+
         private void ApplyThreeChoiceLayout()
         {
+            // 2026-10-21：结果面板不再承载三选一（交给 RelicPanel），这里保持空实现。
+            return;
             var hoverSp = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/card_hover");
             var kitCard = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");
             var xs = new[] { -250f, 0f, 250f };
@@ -339,6 +350,14 @@ namespace WanXiang.Modules.UI
                 draftsRoot.pivot = new Vector2(0.5f, 0.5f);
                 draftsRoot.sizeDelta = new Vector2(1100f, 380f);
                 draftsRoot.anchoredPosition = new Vector2(0f, 205f);   // 中上，且避开左侧结算明细框
+            }
+
+            // ★★ 2026-10-21 结构性修正（用户："你怎么把遗物面板塞到结果面板里了 / 点都点不了"）：
+            //   结果面板**只管结算**，奖励三选一交给 RelicPanel（它本来就有完整版式/动画/悬浮）。
+            //   这里把结果面板自己的草稿卡整个隐藏，避免两套三选一同时出现（Overlay 压 Normal ⇒ 点不了）。
+            {
+                var dr = FindDraftsRoot();
+                if (dr != null) dr.gameObject.SetActive(false);
             }
 
             int offeredCount = _offered != null ? _offered.Count : 0;
@@ -479,7 +498,6 @@ namespace WanXiang.Modules.UI
         private void OnConfirmClicked()
         {
             // 结构验证版：三选一草稿还不是真实内容，没选也允许继续（选了就记一下）
-            ClearPendingDraft();
             if (_selectedDraft >= 0)
                 ApplyDraft(_selectedDraft);
                 Debug.Log("[ResultPanel] 已选择奖励 " + (_selectedDraft + 1) + "：" + DraftTitle(_selectedDraft));
@@ -491,6 +509,11 @@ namespace WanXiang.Modules.UI
                 PushRunHistory(WanXiang.Run.RunSave.Current);
             ApplyOutcome();
             BackToCampaign();
+
+            // ★ 结算确认后：还有未领的战斗奖励 → 在节点地图上打开 RelicPanel 让玩家选
+            var runR = WanXiang.Run.RunSave.Current;
+            if (runR != null && runR.PendingRelicDraft != null && runR.PendingRelicDraft.Count > 0)
+                OpenPanelAsync<RelicPanel>(null).Forget();
         }
 
         /// <summary>
