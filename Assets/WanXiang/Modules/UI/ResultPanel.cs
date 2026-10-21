@@ -504,6 +504,26 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>消费掉"待选奖励"（确认或跳过都算用过了）。</summary>
+        /// <summary>结算确认后补开遗物三选一：必须等地图开完，否则会被当"正在关闭"忽略。</summary>
+        private async Cysharp.Threading.Tasks.UniTaskVoid OpenRewardDraftAfterMap()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || run.PendingRelicDraft == null || run.PendingRelicDraft.Count == 0) return;
+
+            // 等地图进入 Opened（最多 2 秒，按 unscaled 时间计）
+            float waited = 0f;
+            while (waited < 2f)
+            {
+                var map = UnityEngine.Object.FindObjectOfType<CampaignPanel>();
+                if (map != null && map.State == WanXiang.Framework.UI.UIPanelState.Opened) break;
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
+                waited += Time.unscaledDeltaTime;
+            }
+            await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);
+            OpenPanelAsync<RelicPanel>(null).Forget();
+            Debug.Log("[ResultPanel] 结算确认 → 补开遗物三选一（PendingRelicDraft=" + run.PendingRelicDraft.Count + "）");
+        }
+
         private static void ClearPendingDraft()
         {
             var run = WanXiang.Run.RunSave.Current;
@@ -534,10 +554,10 @@ namespace WanXiang.Modules.UI
             ApplyOutcome();
             BackToCampaign();
 
-            // ★ 结算确认后：还有未领的战斗奖励 → 在节点地图上打开 RelicPanel 让玩家选
-            var runR = WanXiang.Run.RunSave.Current;
-            if (runR != null && runR.PendingRelicDraft != null && runR.PendingRelicDraft.Count > 0)
-                OpenPanelAsync<RelicPanel>(null).Forget();
+            // ★ 结算确认后：还有未领的战斗奖励 → 等**节点地图真正打开**再叠遗物面板。
+            //   ⛔ 之前是紧接着 BackToCampaign 就 Open —— 此刻本面板还在 Closing，
+            //     UISystem 会忽略这次打开（项目已知坑）⇒ 遗物三选一"又消失了"（用户实测）。
+            OpenRewardDraftAfterMap().Forget();
         }
 
         /// <summary>
