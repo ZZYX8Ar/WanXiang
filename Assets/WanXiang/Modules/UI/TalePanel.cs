@@ -48,7 +48,7 @@ namespace WanXiang.Modules.UI
                 PlayerBuff = new [] { 30, 0, 0 },
                 EnemyBuff  = new [] { 0, 0, 20 },
                 EggCost    = new [] { 3, 0, 0 },
-                EggGain    = new [] { 0, 4, 0 },
+                EggGain    = new [] { 0, 4, 6 },   // ★ 第三个选项原来 0 收益：补 6 灵卵
                 FragmentBeast = "jumang",   // 精卫填海 → 句芒的剧情碎片
             },
             new Tale
@@ -106,10 +106,38 @@ namespace WanXiang.Modules.UI
             if (_tmpStory != null) _tmpStory.text = _current.Story;
 
             for (int i = 0; i < _tmpOpts.Length && i < _current.OptText.Length; i++)
-                if (_tmpOpts[i] != null) _tmpOpts[i].text = _current.OptText[i];
+                if (_tmpOpts[i] != null) _tmpOpts[i].text = EffectText(i);
             for (int i = 0; i < _tmpCosts.Length && i < _current.OptCost.Length; i++)
                 if (_tmpCosts[i] != null) _tmpCosts[i].text = "代价：" + _current.OptCost[i];
             return UniTask.CompletedTask;
+        }
+
+        /// <summary>
+        /// 选项主文案（2026-10-21 用户："强化全队是怎么强化、强没强化都不知道"）：
+        /// **从真实字段推导** —— PlayerBuff / EnemyBuff / EggCost / EggGain，
+        /// 不手写数字，改数值时文案自动跟着变。
+        /// </summary>
+        private string EffectText(int i)
+        {
+            var c = _current;
+            var sb = new System.Text.StringBuilder();
+            // 去掉原括号里的模糊描述，只留动作名
+            string name = c.OptText[i];
+            int cut = name.IndexOf('（');
+            if (cut > 0) name = name.Substring(0, cut);
+            sb.Append(name);
+
+            var eff = new System.Text.StringBuilder();
+            if (c.PlayerBuff[i] != 0) eff.Append("下一场我方 ").Append(c.PlayerBuff[i] > 0 ? "+" : "").Append(c.PlayerBuff[i]).Append('%');
+            if (c.EnemyBuff[i] != 0)
+            {
+                if (eff.Length > 0) eff.Append("，");
+                eff.Append("下一场敌方 ").Append(c.EnemyBuff[i] > 0 ? "+" : "").Append(c.EnemyBuff[i]).Append('%');
+            }
+            if (c.EggGain[i] != 0) { if (eff.Length > 0) eff.Append("，"); eff.Append("灵卵 +").Append(c.EggGain[i]); }
+            if (c.EggCost[i] != 0) { if (eff.Length > 0) eff.Append("，"); eff.Append("灵卵 -").Append(c.EggCost[i]); }
+            if (eff.Length == 0) eff.Append("什么也不会发生");
+            return sb.Append("（").Append(eff).Append("）").ToString();
         }
 
         private void Apply(int index)
@@ -120,6 +148,14 @@ namespace WanXiang.Modules.UI
             run.EnemyBuffPct += _current.EnemyBuff[index];
             run.Eggs = System.Math.Max(0, run.Eggs - _current.EggCost[index] + _current.EggGain[index]);
             WanXiang.Run.RunSave.SaveCurrent();
+
+            // ★ 选完立刻告诉玩家"到底改了什么、现在是几"（用户："强没强化完全不知道"）
+            var msg = new System.Text.StringBuilder("你选择了：").Append(EffectText(index)).Append("\n\n当前挂起：");
+            msg.Append("灵卵 ").Append(run.Eggs).Append(" 枚");
+            if (run.PlayerBuffPct != 0) msg.Append("　｜　下一场我方 ").Append(run.PlayerBuffPct > 0 ? "+" : "").Append(run.PlayerBuffPct).Append('%');
+            if (run.EnemyBuffPct != 0) msg.Append("　｜　下一场敌方 ").Append(run.EnemyBuffPct > 0 ? "+" : "").Append(run.EnemyBuffPct).Append('%');
+            if (run.GrowthPct != 0) msg.Append("　｜　永久成长 +").Append(run.GrowthPct).Append('%');
+            WanXiang.Modules.UI.Dialog.Tip("异闻", msg.ToString()).Forget();
         }
 
         /// <summary>★ v6：做完异闻掉落「相关异兽的剧情碎片」到局外存档；集齐后在残卷阁领取觉醒材料。</summary>
