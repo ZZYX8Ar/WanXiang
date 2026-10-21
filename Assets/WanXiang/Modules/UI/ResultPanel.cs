@@ -361,7 +361,19 @@ namespace WanXiang.Modules.UI
             RectTransform draftsRoot = null;
             foreach (var rt in GetComponentsInChildren<RectTransform>(true))
                 if (rt.name == "Root_Drafts") { draftsRoot = rt; break; }
-            if (draftsRoot != null) draftsRoot.gameObject.SetActive(true);   // 不能灰着
+            if (draftsRoot != null)
+            {
+                // ⛔ 2026-10-21 真因（Play 实测）：Root_Drafts 自己的 activeSelf 是 true，
+                //   但它的父级 **Root_Rewards 在预制体里默认是关闭的** ⇒ 整个子树隐藏，
+                //   编辑器里看着"灰的"，游戏里一张卡都没有。必须**逐级把父链打开**。
+                var pUp = draftsRoot;
+                while (pUp != null && pUp != transform)
+                {
+                    if (!pUp.gameObject.activeSelf) pUp.gameObject.SetActive(true);
+                    pUp = pUp.parent as RectTransform;
+                }
+                draftsRoot.gameObject.SetActive(true);
+            }
             Debug.Log("[ResultPanel] 三选一布局开始：offered=" + (_offered != null ? _offered.Count : -1) +
                       " draftsRoot=" + (draftsRoot != null ? draftsRoot.name : "null") +
                       " cards=" + (_draftBtns != null ? _draftBtns.Length : -1));
@@ -376,14 +388,6 @@ namespace WanXiang.Modules.UI
                 draftsRoot.pivot = new Vector2(0.5f, 0.5f);
                 draftsRoot.sizeDelta = new Vector2(1100f, 380f);
                 draftsRoot.anchoredPosition = new Vector2(0f, 205f);   // 中上，且避开左侧结算明细框
-            }
-
-            // ★★ 2026-10-21 结构性修正（用户："你怎么把遗物面板塞到结果面板里了 / 点都点不了"）：
-            //   结果面板**只管结算**，奖励三选一交给 RelicPanel（它本来就有完整版式/动画/悬浮）。
-            //   这里把结果面板自己的草稿卡整个隐藏，避免两套三选一同时出现（Overlay 压 Normal ⇒ 点不了）。
-            {
-                var dr = FindDraftsRoot();
-                if (dr != null) dr.gameObject.SetActive(false);
             }
 
             int offeredCount = _offered != null ? _offered.Count : 0;
