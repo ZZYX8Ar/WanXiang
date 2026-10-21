@@ -543,8 +543,12 @@ namespace WanXiang.Modules.UI
         {
             // 结构验证版：三选一草稿还不是真实内容，没选也允许继续（选了就记一下）
             if (_selectedDraft >= 0)
+            {
                 ApplyDraft(_selectedDraft);
+                // ⛔ 这行原来在 if 之外：_selectedDraft=-1 时 DraftTitle(-1) 直接下标越界，
+                //   整个 OnConfirmClicked 抛异常 ⇒ 按钮"点了没反应"（用户 2026-10-21 实测）。
                 Debug.Log("[ResultPanel] 已选择奖励 " + (_selectedDraft + 1) + "：" + DraftTitle(_selectedDraft));
+            }
             // ★ 每场战斗结算后刷新历程（一局一条，同局覆盖）。
             //   ⚠ 好友对战跳过：不是"局"，编队来自分享码。
             if (SceneFlow.LastWasPvp)
@@ -713,7 +717,7 @@ private void BackToCampaign()
         // ================================================================
         private string DraftTitle(int i)
         {
-            if (_offered != null && i < _offered.Count) return _offered[i].Name;
+            if (_offered != null && i >= 0 && i < _offered.Count) return _offered[i].Name;   // i>=0 防越界
             // 兜底（非胜利不应走到这里）：旧文案保留以不崩 UI
             return i == 0 ? "灵卵 +2" : (i == 1 ? "全队疗愈" : "威慑");
         }
