@@ -320,7 +320,14 @@ namespace WanXiang.Modules.UI
             // ★★ 2026-10-20 真因：三张卡挂在 Root_Drafts 下，而它带着 **HorizontalLayoutGroup** ——
             //   卡片没有优选尺寸 ⇒ 布局组把它们算成 0×0 ⇒ 永远看不见（我之前的尺寸设置被布局组覆盖）。
             //   修：关掉布局组，容器改成手动定位。
-            var draftsRoot = transform.Find("Root_Detail/Root_Drafts") as RectTransform ?? transform.Find("Root_Drafts") as RectTransform;
+            // ⛔ 2026-10-21 真因（运行期实测）：卡片实际挂在
+            //   Panel_Result > Root_Rewards > Root_Drafts > Draft_0..2，
+            //   而这里原来硬编码找 "Root_Detail/Root_Drafts" ⇒ 找不到 → 整段布局被跳过，
+            //   卡片留在 prefab 默认的 y=1361（屏幕外上方）⇒ 玩家永远看不到三选一。
+            //   改为**按名字递归找**，不依赖层级路径。
+            RectTransform draftsRoot = null;
+            foreach (var rt in GetComponentsInChildren<RectTransform>(true))
+                if (rt.name == "Root_Drafts") { draftsRoot = rt; break; }
             if (draftsRoot != null)
             {
                 var lg = draftsRoot.GetComponent<HorizontalLayoutGroup>();
