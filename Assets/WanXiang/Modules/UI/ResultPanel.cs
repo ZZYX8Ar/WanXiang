@@ -362,6 +362,9 @@ namespace WanXiang.Modules.UI
             foreach (var rt in GetComponentsInChildren<RectTransform>(true))
                 if (rt.name == "Root_Drafts") { draftsRoot = rt; break; }
             if (draftsRoot != null) draftsRoot.gameObject.SetActive(true);   // 不能灰着
+            Debug.Log("[ResultPanel] 三选一布局开始：offered=" + (_offered != null ? _offered.Count : -1) +
+                      " draftsRoot=" + (draftsRoot != null ? draftsRoot.name : "null") +
+                      " cards=" + (_draftBtns != null ? _draftBtns.Length : -1));
             if (draftsRoot != null)
             {
                 var lg = draftsRoot.GetComponent<HorizontalLayoutGroup>();
@@ -497,20 +500,41 @@ namespace WanXiang.Modules.UI
                 trg.triggers.Add(enter);
                 trg.triggers.Add(exit);
 
-                // 落卡动画（2026-10-21 用户："没有看到动画" —— 必须 unscaled，且幅度更明显）
+                // 落卡动画（2026-10-21）：**alpha 不再从 0 开始** ——
+                //   DOTween 一旦被打断/被暂停，alpha 就会永远停在 0（卡片"彻底看不见"）。
+                //   改为：立刻可见，只做位移+缩放；并用协程兜底 0.6s 后强制复位。
                 var cg = btn.GetComponent<CanvasGroup>();
                 if (cg == null) cg = btn.gameObject.AddComponent<CanvasGroup>();
-                cg.alpha = 0f;
-                rt.anchoredPosition = hoverHome + new Vector2(0f, 160f);
+                cg.alpha = 1f;
+                rt.anchoredPosition = hoverHome + new Vector2(0f, 140f);
                 rt.localScale = Vector3.one * 0.88f;
                 var seq = DG.Tweening.DOTween.Sequence();
                 seq.SetUpdate(true);                       // ★ 不受 timeScale 影响（面板可能压在暂停态上）
                 seq.SetDelay(0.12f + i * 0.14f);
                 seq.Append(rt.DOAnchorPos(hoverHome, 0.48f).SetEase(DG.Tweening.Ease.OutCubic).SetUpdate(true));
-                seq.Join(cg.DOFade(1f, 0.26f).SetUpdate(true));
+
                 seq.Join(rt.DOScale(Vector3.one, 0.42f).SetEase(DG.Tweening.Ease.OutBack).SetUpdate(true));
                 seq.Append(rt.DOScale(new Vector3(1.04f, 0.96f, 1f), 0.07f).SetUpdate(true));
                 seq.Append(rt.DOScale(Vector3.one, 0.14f).SetEase(DG.Tweening.Ease.OutBack).SetUpdate(true));
+            }
+
+            // ★ 兜底：0.8s（unscaled）后把所有卡片强制归位并置为可见
+            ForceSettleDrafts().Forget();
+        }
+
+        private async Cysharp.Threading.Tasks.UniTaskVoid ForceSettleDrafts()
+        {
+            await Cysharp.Threading.Tasks.UniTask.Delay(System.TimeSpan.FromSeconds(0.8f),
+                Cysharp.Threading.Tasks.DelayType.UnscaledDeltaTime);
+            if (_draftBtns == null) return;
+            for (int i = 0; i < _draftBtns.Length; i++)
+            {
+                if (_draftBtns[i] == null) continue;
+                var rt = (RectTransform)_draftBtns[i].transform;
+                var cg = _draftBtns[i].GetComponent<CanvasGroup>();
+                if (cg != null) cg.alpha = 1f;
+                rt.localScale = Vector3.one;
+                Debug.Log("[ResultPanel] 卡片归位 " + i + " world=" + rt.position.ToString("0") + " size=" + rt.rect.size.ToString("0"));
             }
         }
 
