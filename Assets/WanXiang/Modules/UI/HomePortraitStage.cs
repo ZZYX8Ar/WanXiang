@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.IO;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using UnityEngine.Video;
 
@@ -65,6 +66,20 @@ namespace WanXiang.Modules.UI
         private float _camT = -1f;         // -1 = 动画未在播
         private const float FadeInSec = 0.45f;
 
+        // ---- 触屏互动（蔚蓝档案式）：长按注视跟随 + 点击回弹/白闪 ----
+        //   视频是预渲染的，眼睛没法真动；用"整幅立绘朝鼠标轻微偏移+侧倾+微放大"
+        //   制造注视错觉（长按时增强），点击 = 白闪一瞬 + 弹性回弹 + 立绘语音占位。
+        [SerializeField] private Image _imgFlash;          // Img_Flash（点击白闪，α 常态 0，默认隐藏）
+        private Vector2 _followPos;                        // 注视平滑位移
+        private float _followTilt;                         // 注视侧倾（度）
+        private float _followZoom = 1f;                    // 注视微放大
+        private float _tapBounceT = -1f;                   // 点击回弹计时（-1 = 未在播）
+        private float _flashT = -1f;                       // 白闪计时（-1 = 未在播）
+        private const float FollowMaxOffset = 26f;         // 注视最大位移（px）
+        private const float FollowMaxTilt = 2.2f;          // 注视最大侧倾（度）
+        private const float HoldZoom = 1.025f;             // 长按注视微放大
+        private const float FollowLerpRate = 8f;           // 跟随阻尼（越大越跟手）
+
         public int UnlockedCount => _ids.Count;
         public string CurrentId => _ids.Count == 0 ? "" : _ids[_idx];
 
@@ -90,6 +105,80 @@ namespace WanXiang.Modules.UI
                 var b = _tapCatch.GetComponent<Button>();
                 if (b != null) b.onClick.AddListener(ToggleUi);
             }
+        }
+
+        // ================================================================ 触屏互动（蔚蓝档案式）
+
+        /// <summary>长按注视跟随 + 点击回弹/白闪。入场动画期间让位（不抢 transform）。</summary>
+        private void UpdateTouchInteract()
+        {
+            if (_stage == null || _ids.Count == 0) return;
+            bool entranceBusy = _camT >= 0f;
+            var rt = (RectTransform)_stage.transform;
+
+            // 命中判定：指针在视频画面内，且没有点在真实 UI 控件上（按钮优先）
+            bool overStage = false;
+            if (_stage.enabled && RectTransformUtility.RectangleContainsScreenPoint(rt, Input.mousePosition, null))
+                overStage = !(EventSystem.current != null && EventSystem.current.IsPointerOverGameObject());
+
+            // 点击反应（按下那一帧触发一次）
+            if (overStage && !entranceBusy && Input.GetMouseButtonDown(0))
+                OnPortraitTapped();
+
+            // 长按注视：立绘朝鼠标方向轻微偏移 + 侧倾 + 微放大
+            Vector2 tPos = Vector2.zero;
+            float tTilt = 0f, tZoom = 1f;
+            if (overStage && !entranceBusy && Input.GetMouseButton(0))
+            {
+                float nx = Mathf.Clamp((Input.mousePosition.x - Screen.width * 0.5f) / (Screen.width * 0.5f), -1f, 1f);
+                float ny = Mathf.Clamp((Input.mousePosition.y - Screen.height * 0.5f) / (Screen.height * 0.5f), -1f, 1f);
+                tPos = new Vector2(nx * FollowMaxOffset, ny * FollowMaxOffset * 0.6f);
+                tTilt = -nx * FollowMaxTilt;
+                tZoom = HoldZoom;
+            }
+
+            float k = 1f - Mathf.Exp(-Time.unscaledDeltaTime * FollowLerpRate);
+            if (entranceBusy)
+            {
+                _followPos = Vector2.zero; _followTilt = 0f; _followZoom = 1f;   // 入场结束后从干净姿态接管
+                return;
+            }
+            _followPos = Vector2.Lerp(_followPos, tPos, k);
+            _followTilt = Mathf.LerpAngle(_followTilt, tTilt, k);
+            _followZoom = Mathf.Lerp(_followZoom, tZoom, k);
+
+            // 点击回弹（乘在注视缩放之上）
+            float bounce = 1f;
+            if (_tapBounceT >= 0f)
+            {
+                _tapBounceT += Time.unscaledDeltaTime;
+                float kb = Mathf.Clamp01(_tapBounceT / 0.35f);
+                bounce = 1f + 0.05f * Mathf.Sin(Mathf.PI * kb) * (1f - kb);
+                if (kb >= 1f) _tapBounceT = -1f;
+            }
+
+            rt.anchoredPosition = _followPos;
+            rt.localScale = new Vector3(_followZoom, _followZoom, 1f) * bounce;
+            rt.localEulerAngles = new Vector3(0f, 0f, _followTilt);
+        }
+
+        private void OnPortraitTapped()
+        {
+            _tapBounceT = 0f;
+            if (_imgFlash != null) { _flashT = 0f; _imgFlash.gameObject.SetActive(true); }
+            // 立绘语音占位：Resources/Audio/SFX/voice_<id> 不存在时静默跳过（AudioSystem 惯例）
+            WanXiang.Framework.Audio.AudioSystem.PlaySfx("voice_" + CurrentId, 0.9f);
+        }
+
+        private void UpdateTapFlash()
+        {
+            if (_imgFlash == null || _flashT < 0f) return;
+            _flashT += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(_flashT / 0.28f);
+            var c = _imgFlash.color;
+            c.a = 0.16f * (1f - k);
+            _imgFlash.color = c;
+            if (k >= 1f) { _flashT = -1f; _imgFlash.gameObject.SetActive(false); }
         }
 
         /// <summary>进入立绘展示（每次进入完整重置）。preferredId = 上次看板兽。
@@ -132,11 +221,18 @@ namespace WanXiang.Modules.UI
             _rotateTimer = 0f;
             _uiHidden = false;
             _camT = -1f;
+            _tapBounceT = -1f;
+            _flashT = -1f;
+            _followPos = Vector2.zero;
+            _followTilt = 0f;
+            _followZoom = 1f;
+            if (_imgFlash != null) { var fc = _imgFlash.color; fc.a = 0f; _imgFlash.color = fc; _imgFlash.gameObject.SetActive(false); }
             if (_stage != null)
             {
-                var rt = (RectTransform)_stage.transform;   // 摄像机动画状态复位（常驻复用纪律）
+                var rt = (RectTransform)_stage.transform;   // 摄像机动画/注视状态复位（常驻复用纪律）
                 rt.localScale = Vector3.one;
                 rt.anchoredPosition = Vector2.zero;
+                rt.localEulerAngles = Vector3.zero;
                 _stage.color = Color.white;
             }
             ApplyUiHidden();
@@ -175,6 +271,9 @@ namespace WanXiang.Modules.UI
                 _stage.color = new Color(1f, 1f, 1f, a);
                 if (k >= 1f) { _camT = -1f; _stage.color = Color.white; }
             }
+
+            UpdateTouchInteract();
+            UpdateTapFlash();
 
             if (_ids.Count < 2 || !_autoRotate) return;
             // ⚠ 单帧增量钳到 1s：编辑器失焦/MCP 工具调用会产生巨大 unscaledDeltaTime，

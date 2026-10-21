@@ -58,6 +58,7 @@ namespace WanXiang.EditorTools
                 bool created = EnsurePortraitRoot(root);
                 EnsureToggleButton(root);
                 EnsureBoardManagerButton(root);
+                EnsureFlashNode(root);
                 BindHome(root);
 
                 PrefabUtility.SaveAsPrefabAsset(root, HomePath);
@@ -67,6 +68,26 @@ namespace WanXiang.EditorTools
             {
                 PrefabUtility.UnloadPrefabContents(root);
             }
+        }
+
+        /// <summary>触屏互动白闪层：Raw_Stage 之上、UI_Layer 之下；点击立绘时 α 0→0.16→0。</summary>
+        private static void EnsureFlashNode(GameObject root)
+        {
+            var prt = FindDeep(root.transform, "Portrait_Root");
+            if (prt == null) { Debug.LogError("[PortraitPatch] 找不到 Portrait_Root，跳过 Img_Flash"); return; }
+            if (FindDeep(prt, "Img_Flash") != null) return;   // 幂等
+            var raw = FindDeep(prt, "Raw_Stage");
+
+            var go = new GameObject("Img_Flash", typeof(RectTransform));
+            go.transform.SetParent(prt, false);
+            var frt = (RectTransform)go.transform;
+            Stretch(frt, true);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(1f, 1f, 1f, 0f);
+            img.raycastTarget = false;
+            go.SetActive(false);
+            if (raw != null) go.transform.SetSiblingIndex(raw.GetSiblingIndex() + 1);  // 紧贴视频层之上
+            Debug.Log("[PortraitPatch] + Img_Flash（点击白闪层）");
         }
 
         /// <summary>2026-10-17 二轮：看板/立绘库入口挪到底排按钮下方（用户指定位置）。</summary>
@@ -193,6 +214,12 @@ namespace WanXiang.EditorTools
             Bind(so, "_portraitStage", FindDeep(root.transform, "Portrait_Root")?.GetComponent<WanXiang.Modules.UI.HomePortraitStage>());
             Bind(so, "_btnPortraitBack", FindDeep(root.transform, "Btn_Back")?.GetComponent<Button>());
             Bind(so, "_btnBoardManager", FindDeep(root.transform, "Btn_BoardManager")?.GetComponent<Button>());
+            var stage = FindDeep(root.transform, "Portrait_Root")?.GetComponent<WanXiang.Modules.UI.HomePortraitStage>();
+            if (stage != null)
+            {
+                var sso = new SerializedObject(stage);   // ⚠ _imgFlash 在 HomePortraitStage 上，不在 HomePanel
+                Bind(sso, "_imgFlash", FindDeep(FindDeep(root.transform, "Portrait_Root"), "Img_Flash")?.GetComponent<Image>());
+            }
         }
 
         private static void BindStage(WanXiang.Modules.UI.HomePortraitStage stage, GameObject root,
