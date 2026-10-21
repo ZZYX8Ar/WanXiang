@@ -315,7 +315,7 @@ namespace WanXiang.Modules.UI
         {
             var hoverSp = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/card_hover");
             var kitCard = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");
-            var xs = new[] { -215f, 0f, 215f };
+            var xs = new[] { -250f, 0f, 250f };
 
             // ★★ 2026-10-20 真因：三张卡挂在 Root_Drafts 下，而它带着 **HorizontalLayoutGroup** ——
             //   卡片没有优选尺寸 ⇒ 布局组把它们算成 0×0 ⇒ 永远看不见（我之前的尺寸设置被布局组覆盖）。
@@ -337,8 +337,8 @@ namespace WanXiang.Modules.UI
                 draftsRoot.SetAsLastSibling();
                 draftsRoot.anchorMin = draftsRoot.anchorMax = new Vector2(0.5f, 0.5f);
                 draftsRoot.pivot = new Vector2(0.5f, 0.5f);
-                draftsRoot.sizeDelta = new Vector2(900f, 300f);
-                draftsRoot.anchoredPosition = new Vector2(0f, -120f);
+                draftsRoot.sizeDelta = new Vector2(1100f, 380f);
+                draftsRoot.anchoredPosition = new Vector2(0f, 205f);   // 中上，且避开左侧结算明细框
             }
 
             int offeredCount = _offered != null ? _offered.Count : 0;
@@ -367,8 +367,8 @@ namespace WanXiang.Modules.UI
 
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
                 rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.sizeDelta = new Vector2(196f, 268f);
-                rt.anchoredPosition = new Vector2(xs[i], 6f);
+                rt.sizeDelta = new Vector2(230f, 350f);
+                rt.anchoredPosition = new Vector2(xs[i], 0f);
 
                 var bg = btn.targetGraphic as Image;
                 if (bg != null && kitCard != null) { bg.sprite = kitCard; bg.type = Image.Type.Sliced; bg.color = Color.white; }
@@ -430,19 +430,20 @@ namespace WanXiang.Modules.UI
                 trg.triggers.Add(enter);
                 trg.triggers.Add(exit);
 
-                // 落卡动画（同 RelicPanel：从上方落下 + 落地压扁回弹）
+                // 落卡动画（2026-10-21 用户："没有看到动画" —— 必须 unscaled，且幅度更明显）
                 var cg = btn.GetComponent<CanvasGroup>();
                 if (cg == null) cg = btn.gameObject.AddComponent<CanvasGroup>();
                 cg.alpha = 0f;
-                rt.anchoredPosition = hoverHome + new Vector2(0f, 130f);
-                rt.localScale = new Vector3(0.96f, 1.06f, 1f);
+                rt.anchoredPosition = hoverHome + new Vector2(0f, 160f);
+                rt.localScale = Vector3.one * 0.88f;
                 var seq = DG.Tweening.DOTween.Sequence();
-                seq.SetDelay(0.10f + i * 0.16f);
-                seq.Append(rt.DOAnchorPos(hoverHome, 0.55f).SetEase(DG.Tweening.Ease.OutCubic));
-                seq.Join(rt.DOScale(Vector3.one, 0.45f).SetEase(DG.Tweening.Ease.OutCubic));
-                seq.Join(cg.DOFade(1f, 0.30f));
-                seq.Append(rt.DOScale(new Vector3(1.03f, 0.97f, 1f), 0.07f));
-                seq.Append(rt.DOScale(Vector3.one, 0.12f).SetEase(DG.Tweening.Ease.OutBack));
+                seq.SetUpdate(true);                       // ★ 不受 timeScale 影响（面板可能压在暂停态上）
+                seq.SetDelay(0.12f + i * 0.14f);
+                seq.Append(rt.DOAnchorPos(hoverHome, 0.48f).SetEase(DG.Tweening.Ease.OutCubic).SetUpdate(true));
+                seq.Join(cg.DOFade(1f, 0.26f).SetUpdate(true));
+                seq.Join(rt.DOScale(Vector3.one, 0.42f).SetEase(DG.Tweening.Ease.OutBack).SetUpdate(true));
+                seq.Append(rt.DOScale(new Vector3(1.04f, 0.96f, 1f), 0.07f).SetUpdate(true));
+                seq.Append(rt.DOScale(Vector3.one, 0.14f).SetEase(DG.Tweening.Ease.OutBack).SetUpdate(true));
             }
         }
 

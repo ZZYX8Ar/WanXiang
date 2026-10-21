@@ -69,8 +69,11 @@ namespace WanXiang.Modules.Boot
                 //   而且幕推进会把 NodeOffset 重置为 -1 ， 条件永远不成立 ， 天阙永不触发。
                 //   现在改为：**幕推进到第 5 幕的那一刻**置位 PendingFinale（见 CampaignPanel）。
 
+                // ★ 2026-10-21 用户："通关后关掉游戏再进，结果面板怎么直接压在主界面上" ——
+                //   结算必须叠在**节点地图**上（与正常回城一致）：先垫地图，再叠结算。
+                await ui.OpenAsync<CampaignPanel>();
                 await ui.OpenAsync<ResultPanel>(result);
-                Debug.Log("[MainSceneEntry] 已弹出战斗结算。");
+                Debug.Log("[MainSceneEntry] 已垫节点地图并弹出战斗结算。");
                 return;
             }
 
