@@ -174,8 +174,9 @@ namespace WanXiang.Modules.UI
 
             // ★ 按胜负决定确认按钮是否可点（原来无条件设 false，把"失败可直接确认"覆盖掉了）：
             //   胜利 → 必须先选一张奖励才可确认；失败 → 没有奖励，直接可确认。
-            // ★ 2026-10-21：三选一已移交 RelicPanel，结算面板的确认不再需要先选卡
-            if (_btnConfirm != null) _btnConfirm.interactable = true;
+            // ★ 2026-10-21 最终：三选一回到结算面板内 —— 有卡时必须先选一张才能确认
+            bool needPick = _win && _offered != null && _offered.Count > 0;
+            if (_btnConfirm != null) _btnConfirm.interactable = !needPick;
             if (_btnSkip != null) _btnSkip.interactable = true;
 
             // ★ 2026-10-19 用户："把遗物三选一的效果做到战斗结果面板这里"
@@ -341,14 +342,11 @@ namespace WanXiang.Modules.UI
 
         private void ApplyThreeChoiceLayout()
         {
-            // 2026-10-21：结果面板不再承载三选一（交给 RelicPanel）。
-            // ⛔ 注意：隐藏卡片的动作必须放在这里、return 之前 ——
-            //   之前把隐藏块写在 return 之后成了**死代码**，卡片仍以半透明残影压在结算上
-            //   （用户实测："还能看到几张幽灵卡，没有图标、没有悬浮"）。
-            var dr0 = FindDraftsRoot();
-            if (dr0 != null) dr0.gameObject.SetActive(false);
-            return;
+            // ★ 2026-10-21 用户最终要求：三选一就在**结果面板里**（Root_Drafts 的那三张卡），
+            //   不要另开遗物面板、也不要把 Root_Drafts 关掉。这里把卡片按遗物面板的规格重建：
+            //   图标 + 名字 + 描述 + 落卡动画 + 悬浮金框。
             var hoverSp = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/card_hover");
+            var relicSprites = RelicSpriteCatalog.Find();   // 与 RelicPanel 同一套图标
             var kitCard = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");
             var xs = new[] { -250f, 0f, 250f };
 
@@ -363,6 +361,7 @@ namespace WanXiang.Modules.UI
             RectTransform draftsRoot = null;
             foreach (var rt in GetComponentsInChildren<RectTransform>(true))
                 if (rt.name == "Root_Drafts") { draftsRoot = rt; break; }
+            if (draftsRoot != null) draftsRoot.gameObject.SetActive(true);   // 不能灰着
             if (draftsRoot != null)
             {
                 var lg = draftsRoot.GetComponent<HorizontalLayoutGroup>();
@@ -416,25 +415,50 @@ namespace WanXiang.Modules.UI
                 var bg = btn.targetGraphic as Image;
                 if (bg != null && kitCard != null) { bg.sprite = kitCard; bg.type = Image.Type.Sliced; bg.color = Color.white; }
 
+                // ---- 遗物图标（同 RelicPanel：顶部居中 150×150）----
+                var relic = (_offered != null && i < _offered.Count) ? _offered[i] : null;
+                var sp = (relic != null && relicSprites != null) ? relicSprites.Get(relic.Id) : null;
+                var iconT = rt.Find("Img_DraftIcon") as RectTransform;
+                if (iconT == null) iconT = rt.Find("Img_Icon") as RectTransform;
+                if (iconT == null)
+                {
+                    var go = new GameObject("Img_DraftIcon", typeof(RectTransform), typeof(Image));
+                    iconT = (RectTransform)go.transform;
+                    iconT.SetParent(rt, false);
+                }
+                iconT.SetAsLastSibling();
+                iconT.anchorMin = iconT.anchorMax = new Vector2(0.5f, 0.5f);
+                iconT.pivot = new Vector2(0.5f, 0.5f);
+                iconT.sizeDelta = new Vector2(150f, 150f);
+                iconT.anchoredPosition = new Vector2(0f, 95f);
+                var iconImg = iconT.GetComponent<Image>();
+                if (iconImg == null) iconImg = iconT.gameObject.AddComponent<Image>();
+                iconImg.sprite = sp;
+                iconImg.type = Image.Type.Simple;
+                iconImg.preserveAspect = true;
+                iconImg.raycastTarget = false;
+                iconImg.enabled = sp != null;
+
+                // ---- 名字 / 描述 ----
                 if (i < _tmpDraftNames.Length && _tmpDraftNames[i] != null)
                 {
                     var nrt = (RectTransform)_tmpDraftNames[i].transform;
                     nrt.anchorMin = nrt.anchorMax = new Vector2(0.5f, 0.5f);
                     nrt.pivot = new Vector2(0.5f, 0.5f);
-                    nrt.sizeDelta = new Vector2(180f, 40f);
-                    nrt.anchoredPosition = new Vector2(0f, 58f);
+                    nrt.sizeDelta = new Vector2(220f, 44f);
+                    nrt.anchoredPosition = new Vector2(0f, -10f);
                     _tmpDraftNames[i].fontSize = 24;
-                    _tmpDraftNames[i].alignment = TextAlignmentOptions.Center;
+                    _tmpDraftNames[i].text = relic != null ? relic.Name : "（无）";
                 }
                 if (i < _tmpDraftDescs.Length && _tmpDraftDescs[i] != null)
                 {
                     var drt = (RectTransform)_tmpDraftDescs[i].transform;
                     drt.anchorMin = drt.anchorMax = new Vector2(0.5f, 0.5f);
                     drt.pivot = new Vector2(0.5f, 1f);
-                    drt.sizeDelta = new Vector2(176f, 150f);
-                    drt.anchoredPosition = new Vector2(0f, 26f);
-                    _tmpDraftDescs[i].fontSize = 18;
-                    _tmpDraftDescs[i].alignment = TextAlignmentOptions.TopLeft;
+                    drt.sizeDelta = new Vector2(204f, 130f);
+                    drt.anchoredPosition = new Vector2(0f, -40f);
+                    _tmpDraftDescs[i].fontSize = 17;
+                    _tmpDraftDescs[i].text = relic != null ? relic.Desc : "";
                 }
 
                 // 悬浮金框
@@ -461,14 +485,14 @@ namespace WanXiang.Modules.UI
                 {
                     hoverT.gameObject.SetActive(true);
                     DG.Tweening.DOTween.To(() => rt.anchoredPosition, v => rt.anchoredPosition = v,
-                        hoverHome + new Vector2(0f, 10f), 0.12f).SetEase(DG.Tweening.Ease.OutCubic);
+                        hoverHome + new Vector2(0f, 10f), 0.12f).SetEase(DG.Tweening.Ease.OutCubic).SetUpdate(true);
                 });
                 var exit = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
                 exit.callback.AddListener(_ =>
                 {
                     hoverT.gameObject.SetActive(false);
                     DG.Tweening.DOTween.To(() => rt.anchoredPosition, v => rt.anchoredPosition = v,
-                        hoverHome, 0.12f).SetEase(DG.Tweening.Ease.OutCubic);
+                        hoverHome, 0.12f).SetEase(DG.Tweening.Ease.OutCubic).SetUpdate(true);
                 });
                 trg.triggers.Add(enter);
                 trg.triggers.Add(exit);
@@ -488,6 +512,11 @@ namespace WanXiang.Modules.UI
                 seq.Append(rt.DOScale(new Vector3(1.04f, 0.96f, 1f), 0.07f).SetUpdate(true));
                 seq.Append(rt.DOScale(Vector3.one, 0.14f).SetEase(DG.Tweening.Ease.OutBack).SetUpdate(true));
             }
+        }
+
+        private void RefreshConfirmInteractable()
+        {
+            if (_btnConfirm != null) _btnConfirm.interactable = _selectedDraft >= 0 || !_win;
         }
 
         private void OnDraftClicked(int index)
@@ -545,8 +574,7 @@ namespace WanXiang.Modules.UI
             if (_selectedDraft >= 0)
             {
                 ApplyDraft(_selectedDraft);
-                // ⛔ 这行原来在 if 之外：_selectedDraft=-1 时 DraftTitle(-1) 直接下标越界，
-                //   整个 OnConfirmClicked 抛异常 ⇒ 按钮"点了没反应"（用户 2026-10-21 实测）。
+                ClearPendingDraft();          // ★ 已在面板内选过 → 消费掉，别再弹遗物面板
                 Debug.Log("[ResultPanel] 已选择奖励 " + (_selectedDraft + 1) + "：" + DraftTitle(_selectedDraft));
             }
             // ★ 每场战斗结算后刷新历程（一局一条，同局覆盖）。
