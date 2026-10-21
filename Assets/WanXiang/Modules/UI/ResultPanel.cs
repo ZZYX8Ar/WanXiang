@@ -181,6 +181,25 @@ namespace WanXiang.Modules.UI
             // ★ 2026-10-19 用户："把遗物三选一的效果做到战斗结果面板这里"
             //   与 RelicPanel 同一套语言：横排三卡 + 从上落下 + 悬浮金框上浮。
             ApplyThreeChoiceLayout();
+
+            // ★ 结算面板本身没有全屏底图 ⇒ 地图会透过来，观感像"半透明幽灵面板"。
+            //   加一层压暗底（Linear 空间：纯黑 + 高 alpha 才真的暗，见项目约定）。
+            {
+                var dim = transform.Find("Img_ResultDim") as RectTransform;
+                if (dim == null)
+                {
+                    var go = new GameObject("Img_ResultDim", typeof(RectTransform), typeof(Image));
+                    dim = (RectTransform)go.transform;
+                    dim.SetParent(transform, false);
+                    dim.SetAsFirstSibling();
+                    var di = go.GetComponent<Image>();
+                    di.raycastTarget = false;
+                }
+                dim.anchorMin = Vector2.zero; dim.anchorMax = Vector2.one;
+                dim.offsetMin = Vector2.zero; dim.offsetMax = Vector2.zero;
+                var img = dim.GetComponent<Image>();
+                img.color = new Color(0f, 0f, 0f, 0.88f);   // Linear：看起来约 0.3 的压暗
+            }
             return UniTask.CompletedTask;
         }
 
@@ -322,7 +341,12 @@ namespace WanXiang.Modules.UI
 
         private void ApplyThreeChoiceLayout()
         {
-            // 2026-10-21：结果面板不再承载三选一（交给 RelicPanel），这里保持空实现。
+            // 2026-10-21：结果面板不再承载三选一（交给 RelicPanel）。
+            // ⛔ 注意：隐藏卡片的动作必须放在这里、return 之前 ——
+            //   之前把隐藏块写在 return 之后成了**死代码**，卡片仍以半透明残影压在结算上
+            //   （用户实测："还能看到几张幽灵卡，没有图标、没有悬浮"）。
+            var dr0 = FindDraftsRoot();
+            if (dr0 != null) dr0.gameObject.SetActive(false);
             return;
             var hoverSp = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/card_hover");
             var kitCard = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");

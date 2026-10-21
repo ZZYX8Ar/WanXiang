@@ -320,7 +320,7 @@ private int _selected = -1;
                     {
                         hoverT.gameObject.SetActive(true);
                         DG.Tweening.DOTween.To(() => rt.anchoredPosition, v => rt.anchoredPosition = v,
-                            hoverHome + new Vector2(0f, 10f), 0.12f).SetEase(DG.Tweening.Ease.OutCubic);
+                            hoverHome + new Vector2(0f, 10f), 0.12f).SetEase(DG.Tweening.Ease.OutCubic).SetUpdate(true);
                     });
                     var exit = new UnityEngine.EventSystems.EventTrigger.Entry
                     { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
@@ -328,7 +328,7 @@ private int _selected = -1;
                     {
                         hoverT.gameObject.SetActive(false);
                         DG.Tweening.DOTween.To(() => rt.anchoredPosition, v => rt.anchoredPosition = v,
-                            hoverHome, 0.12f).SetEase(DG.Tweening.Ease.OutCubic);
+                            hoverHome, 0.12f).SetEase(DG.Tweening.Ease.OutCubic).SetUpdate(true);
                     });
                     trg.triggers.Add(enter);
                     trg.triggers.Add(exit);
@@ -343,12 +343,13 @@ private int _selected = -1;
                 rt.anchoredPosition = home + new Vector2(0f, 150f);
                 rt.localScale = new Vector3(0.96f, 1.06f, 1f);   // 落下时略拉长，像纸牌下落
                 var seq = DG.Tweening.DOTween.Sequence();
+                seq.SetUpdate(true);                       // ★ 不受 timeScale 影响
                 seq.SetDelay(0.10f + i * 0.16f);
-                seq.Append(rt.DOAnchorPos(home, 0.55f).SetEase(DG.Tweening.Ease.OutCubic));
-                seq.Join(rt.DOScale(Vector3.one, 0.45f).SetEase(DG.Tweening.Ease.OutCubic));
-                seq.Join(cg.DOFade(1f, 0.30f));
-                seq.Append(rt.DOScale(new Vector3(1.03f, 0.97f, 1f), 0.07f));
-                seq.Append(rt.DOScale(Vector3.one, 0.12f).SetEase(DG.Tweening.Ease.OutBack));
+                seq.Append(rt.DOAnchorPos(home, 0.55f).SetEase(DG.Tweening.Ease.OutCubic).SetUpdate(true));
+                seq.Join(rt.DOScale(Vector3.one, 0.45f).SetEase(DG.Tweening.Ease.OutCubic).SetUpdate(true));
+                seq.Join(cg.DOFade(1f, 0.30f).SetUpdate(true));
+                seq.Append(rt.DOScale(new Vector3(1.03f, 0.97f, 1f), 0.07f).SetUpdate(true));
+                seq.Append(rt.DOScale(Vector3.one, 0.12f).SetEase(DG.Tweening.Ease.OutBack).SetUpdate(true));
             }
         }
 
