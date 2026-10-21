@@ -36,11 +36,11 @@ namespace WanXiang.Modules.UI
 
         private static readonly Omen[] Pool =
         {
-            new Omen { Name = "亢阳", Gain = "下一场战斗全队能力 +30%", Cost = "失去 3 枚灵卵",
+            new Omen { Name = "亢阳", Gain = "下一场战斗：我方伤害与生命 +30%", Cost = "失去 3 枚灵卵",
                        PlayerBuffPct = 30, EggDelta = -3 },
             new Omen { Name = "霈泽", Gain = "获得 4 枚灵卵", Cost = "下一场战斗敌方 +20%",
                        EggDelta = 4, EnemyBuffPct = 20 },
-            new Omen { Name = "风蚀", Gain = "获得 6 枚灵卵", Cost = "下一场战斗全队能力 -10%",
+            new Omen { Name = "风蚀", Gain = "获得 6 枚灵卵", Cost = "下一场战斗：我方伤害与生命 -10%",
                        EggDelta = 6, PlayerBuffPct = -10 },
             new Omen { Name = "晦明", Gain = "下一场战斗敌方 -15%", Cost = "失去 2 枚灵卵",
                        EnemyBuffPct = -15, EggDelta = -2 },

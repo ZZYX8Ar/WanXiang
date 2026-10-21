@@ -335,6 +335,19 @@ namespace WanXiang.Modules.UI
             }
 
             int offeredCount = _offered != null ? _offered.Count : 0;
+            Debug.Log("[ResultPanel] 三选一：offered=" + offeredCount +
+                      " win=" + _win + " drafts=" + (_draftBtns != null ? _draftBtns.Length : -1) +
+                      " draftsRoot=" + (transform.Find("Root_Drafts") != null || transform.Find("Root_Detail/Root_Drafts") != null));
+            // ★ 2026-10-21 兜底：遗物池被买空（Roll 返回 0）时不能"什么都不给" ——
+            //   改成补偿 3 枚灵卵，并在标题上说明，玩家至少知道发生了什么。
+            if (offeredCount == 0 && _win)
+            {
+                var runF = WanXiang.Run.RunSave.Current;
+                if (runF != null) { runF.Eggs += 3; WanXiang.Run.RunSave.SaveCurrent(); }
+                var tt = transform.Find("Tmp_Title");
+                var tmpT = tt != null ? tt.GetComponent<TMP_Text>() : null;
+                if (tmpT != null) tmpT.text = "战斗胜利 · 遗物已尽（补偿 3 灵卵）";
+            }
             for (int i = 0; i < _draftBtns.Length; i++)
             {
                 var btn = _draftBtns[i];

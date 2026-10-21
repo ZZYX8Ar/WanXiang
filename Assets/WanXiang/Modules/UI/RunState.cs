@@ -152,6 +152,14 @@ namespace WanXiang.Run
         /// </summary>
         public int GrowthPct = 0;
 
+        /// <summary>
+        /// ★ 2026-10-21 孵穴重做（用户："孵穴不像孵穴，应该是拿到蛋、过几个节点才孵化"）：
+        /// EggHatchIn &gt; 0 = 有蛋在孵，值是**还要经过几个节点**；0 = 本节点孵化；-1 = 没蛋。
+        /// EggBeastId = 蛋里那只异兽的 id（拾蛋时就抽好，孵化时才入队）。
+        /// </summary>
+        public int EggHatchIn = -1;
+        public string EggBeastId;
+
         /// <summary>天象/异闻挂起：下一场战斗敌方修正 %（正=变强，用后清零）。</summary>
         public int EnemyBuffPct = 0;
 
@@ -361,6 +369,8 @@ namespace WanXiang.Run
             PlayerBuffPct = 0;
             EnemyBuffPct = 0;
             GrowthPct = 0;
+            EggHatchIn = -1;
+            EggBeastId = null;
             BeatFinale = false;
             IntroShownAct = 0;
             // 局外成长快照：清空后下次进场会按 MetaState 重新快照

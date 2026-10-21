@@ -365,7 +365,24 @@ BuildNodeMap();
                             Debug.Log("[Campaign] 通过本幕最后一格 ， 推进到第 " + prun.Act + " 幕");
                             WanXiang.Run.RunSave.SaveCurrent();
 
-                            // ★★ 第四幕通关 ， 第 5 幕 = 天阙：挂起"天阙抉择"，并直接回主城等玩家选。
+                            // ★ 2026-10-21 灵兽蛋：每通过一个节点就少一格，归零即出壳入队
+                    if (prun.EggHatchIn > 0)
+                    {
+                        prun.EggHatchIn--;
+                        if (prun.EggHatchIn == 0 && !string.IsNullOrEmpty(prun.EggBeastId))
+                        {
+                            if (prun.Collection == null) prun.Collection = new System.Collections.Generic.List<string>();
+                            if (prun.Team == null) prun.Team = new System.Collections.Generic.List<string>();
+                            if (!prun.Collection.Contains(prun.EggBeastId)) prun.Collection.Add(prun.EggBeastId);
+                            if (prun.Team.Count < 5 && !prun.Team.Contains(prun.EggBeastId)) prun.Team.Add(prun.EggBeastId);
+                            Debug.Log("[Campaign] 灵兽蛋出壳：" + prun.EggBeastId + " 已入队");
+                            prun.EggHatchIn = -1;
+                            prun.EggBeastId = null;
+                        }
+                        WanXiang.Run.RunSave.SaveCurrent();
+                    }
+
+                    // ★★ 第四幕通关 ， 第 5 幕 = 天阙：挂起"天阙抉择"，并直接回主城等玩家选。
                             //    旧实现靠 MainSceneEntry 里 `NodeOffset == 11` 判定（当时是 4 层×3 格的遗留），
                             //    既与现在的 12 层图对不上，又会被幕推进重置成 -1 ， 天阙永远不会触发。
                             if (prun.Act >= 5)
@@ -1008,6 +1025,17 @@ if (_tmpActTitle != null)
         ? "秘境 · " + _graph.SeasonCn + "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚"
             : "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn + " · 守关 " + _graph.BossName;
         if (!_realmMode) _tmpActTitle.text += "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
+        // ★ 2026-10-21 用户："选了天象/孵穴之后，哪里有说明？" —— 顶栏直接写出挂起效果。
+        if (!_realmMode && run != null)
+        {
+            var eff = new System.Text.StringBuilder();
+            if (run.GrowthPct != 0) eff.Append("成长 +").Append(run.GrowthPct).Append("%");
+            int nextBuff = run.PlayerBuffPct + run.HealPending;
+            if (nextBuff != 0) { if (eff.Length > 0) eff.Append(" · "); eff.Append("下场我方 ").Append(nextBuff > 0 ? "+" : "").Append(nextBuff).Append("%"); }
+            if (run.EnemyBuffPct != 0) { if (eff.Length > 0) eff.Append(" · "); eff.Append("下场敌方 ").Append(run.EnemyBuffPct > 0 ? "+" : "").Append(run.EnemyBuffPct).Append("%"); }
+            if (run.EggHatchIn > 0) { if (eff.Length > 0) eff.Append(" · "); eff.Append("灵兽蛋 ").Append(run.EggHatchIn).Append(" 格后出壳"); }
+            if (eff.Length > 0) _tmpActTitle.text += "　｜　" + eff;
+        }
         }
 
             // ★ 秘境「离开」按钮：只在秘境里出现（主线地图上它没有意义，
@@ -2473,24 +2501,44 @@ if (_tmpActTitle != null)
         private async Cysharp.Threading.Tasks.UniTaskVoid NestChoose(WanXiang.Run.RunState run)
         {
             if (run == null) return;
-            // ★ 天气地图效果层：孵穴受当前节点天时影响（LiveWeather.Current 为 null ， 中性）。
-            var wx = WanXiang.Campaign.WeatherMapEffects.Current;
-            int healPct = System.Math.Max(0, 40 + wx.HealBonusPct);
-            int eggGain = System.Math.Max(0, (int)System.Math.Round(2f * wx.EggRewardMul));
+            // ★★ 2026-10-21 重做（用户："孵穴应该拿到蛋，过几个节点才孵化出异兽"）
+            //   捡蛋时就抽好异兽，2 个节点后自动出壳入队（见 LandPendingCommit 的蛋孵化段）。
+            if (run.EggHatchIn > 0)
+            {
+                await Dialog.Tip("孵穴", "这里只有一枚暖着的蛋 —— 你手上的蛋还没孵化，先走吧。");
+                return;
+            }
+            var all = WanXiang.Fusion.ContentLibrary.BuildBeasts(
+                UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>()[0]);
+            var pool = new System.Collections.Generic.List<WanXiang.Battle.Core.BeastDef>();
+            if (all != null)
+                foreach (var b in all)
+                {
+                    if (b == null) continue;
+                    bool owned = (run.Collection != null && run.Collection.Contains(b.Id))
+                              || (run.Team != null && run.Team.Contains(b.Id));
+                    if (!owned) pool.Add(b);
+                }
+            if (pool.Count == 0)
+            {
+                await Dialog.Tip("孵穴", "巢是空的 —— 世间的异兽都被你收过了。");
+                return;
+            }
+            var egg = pool[UnityEngine.Random.Range(0, pool.Count)];
             int pick = await Dialog.Choose("孵穴",
-                "二选一（受当前天时影响）：\nA. 下一场战斗全队状态回复，能力 ×1.4（回复 " + healPct + "%）\nB. 取 " + eggGain + " 枚灵卵",
-                "状态回复", "取 " + eggGain + " 灵卵");
-            if (pick == 0) run.HealPending = healPct;
-            else run.Eggs += eggGain;
+                "巢中还暖着一枚蛋，蛋壳上有淡淡的纹路。\n\n" +
+                "拾起后**再过 2 个节点**就会孵化（孵化时才知道是哪只异兽）。",
+                "拾起这枚蛋（2 个节点后孵化）", "不打扰它（离开）");
+            if (pick != 0) return;
+            run.EggHatchIn = 2;
+            run.EggBeastId = egg.Id;
 
             // 二选一完成 ， 这时才把节点记为通过（未完成前不推进）
             // ★ 同上：孵穴也只记"已处理"，推进交给 OnOpenAsync 的落地（PendingCommit）。
             if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
                 run.VisitedNodes.Add(_selected);
             WanXiang.Run.RunSave.SaveCurrent();
-            await Dialog.Tip("孵穴", pick == 0
-                ? "全队状态回复！下一场战斗能力 ×1.4（回复 " + healPct + "%）"
-                : "获得 " + eggGain + " 枚灵卵（当前 " + run.Eggs + "）");
+            await Dialog.Tip("孵穴", "你拾起那枚蛋，贴身收好。\n\n再过 2 个节点，它就会出壳。");
 
             // ★ 处理完回节点地图继续探索（之前什么都不做 ， 玩家以为被踢回主城界面）
             var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
