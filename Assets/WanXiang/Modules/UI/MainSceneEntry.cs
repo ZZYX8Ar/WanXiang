@@ -71,7 +71,10 @@ namespace WanXiang.Modules.Boot
 
                 // ★ 2026-10-21 用户："通关后关掉游戏再进，结果面板怎么直接压在主界面上" ——
                 //   结算必须叠在**节点地图**上（与正常回城一致）：先垫地图，再叠结算。
+                // 开图期间压住"补选奖励"提示：奖励由结算面板确认后自己交棒给 RelicPanel
+                SceneFlow.SuppressRewardPrompt = true;
                 await ui.OpenAsync<CampaignPanel>();
+                SceneFlow.SuppressRewardPrompt = false;
                 await ui.OpenAsync<ResultPanel>(result);
                 Debug.Log("[MainSceneEntry] 已垫节点地图并弹出战斗结算。");
                 return;

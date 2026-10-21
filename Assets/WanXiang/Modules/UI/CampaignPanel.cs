@@ -243,6 +243,10 @@ BuildNodeMap();
             // ★ 有未消费的战斗结算时**不要弹**：结算面板确认后会自己交棒给 RelicPanel，
             //   否则两个三选一会叠在一起（用户 2026-10-21 实测：点都点不了）。
             if (SceneFlow.PendingResult != null) return;
+            if (SceneFlow.SuppressRewardPrompt) return;
+            // 结算面板正在打开时也不要抢（Overlay 会压住，玩家点不到）
+            foreach (var pnl in UnityEngine.Object.FindObjectsOfType<ResultPanel>(true))
+                if (pnl != null && pnl.gameObject.activeInHierarchy) return;
             string key = string.Join(",", run.PendingRelicDraft) + "#" + run.Act;
             if (_rewardPromptedKey == key) return;
             _rewardPromptedKey = key;

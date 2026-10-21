@@ -76,6 +76,12 @@ namespace WanXiang.Modules.UI
         /// </summary>
         public static bool BattleDeploying;
 
+        /// <summary>
+        /// 抑制"未领奖励补选"。结算流程（MainSceneEntry → ResultPanel）会自己交棒给 RelicPanel，
+        /// 开图时若地图也弹一次，就会出现两个三选一叠在一起（2026-10-21 实测）。
+        /// </summary>
+        public static bool SuppressRewardPrompt;
+
         /// <summary>「重新挑战」挂起标记：战斗里点「重新挑战」置位，主城入口消费并直接打开编队界面（叠在节点地图之上）。</summary>
         public static NodeRequest PendingRechallengeNode;
 
