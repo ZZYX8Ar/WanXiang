@@ -102,17 +102,21 @@ namespace WanXiang.Modules.UI
                     // ★ 2026-10-22 用户："秘境里的背景/前景还是主线那一幕" ——
                     //   秘境战斗改用**场域专属背景**（Resources/UI/Realm/map_bg_<realmId>），
                     //   没有专属前景就置空（不要把主线当幕的前景强行套上）。
-                    bool fgOverrideNull = false;
+                    Sprite fgRealm = null;
                     var runR = WanXiang.Run.RunSave.Current;
                     bool inRealm = runR != null && runR.InRealm;
                     if (inRealm)
                     {
-                        var rbg = Resources.Load<Sprite>("UI/Realm/map_bg_" + runR.RealmId);
+                        // ★ 2026-10-22：优先用**专属战场图** Resources/Battle/BG_<realmId>
+                        //   （与季节 BG_act* 同一套规格 1536×1024）；没有才退回节点图底图。
+                        var rbg = Resources.Load<Sprite>("Battle/BG_" + runR.RealmId);
+                        if (rbg == null) rbg = Resources.Load<Sprite>("UI/Realm/map_bg_" + runR.RealmId);
                         if (rbg != null) bg = rbg;
-                        fgOverrideNull = true;
+                        // 前景同样用场域专属（透明叠加层，和季节 FG_act* 同一规格）
+                        fgRealm = Resources.Load<Sprite>("Battle/FG_" + runR.RealmId);
                     }
                     if (bg == null) bg = _background;   // 旧序列化引用兜底
-                    Sprite fg = fgOverrideNull ? null : Resources.Load<Sprite>(FgByAct[act - 1]);
+                    Sprite fg = fgRealm != null ? fgRealm : (inRealm ? null : Resources.Load<Sprite>(FgByAct[act - 1]));
                     _stage.Build(play.State, bg, _sprites, fg, act);
                     Debug.Log("[BattleSceneDriver] 舞台已搭建：" + req.Title +
                               "（act=" + act + " bg=" + (bg != null ? bg.name : "null") +
