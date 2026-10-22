@@ -764,6 +764,13 @@ private void BackToCampaign()
                     WanXiang.Run.RunSave.SaveCurrent();
                     Debug.Log("[ResultPanel] 战败：本局遗物已散（清空 " + n + " 件）");
                 }
+                // ★ 2026-10-22 用户："战败重开点一下节点就直接确定、下一层也不开" ——
+                //   上一局残留的本层选择记录要一起清掉，否则新一局会被它锁住。
+                if (runD != null && runD.ChosenNodes != null && runD.ChosenNodes.Count > 0)
+                {
+                    runD.ChosenNodes.Clear();
+                    WanXiang.Run.RunSave.SaveCurrent();
+                }
             }
 
             // ★ 按结果分流（用户规则）：

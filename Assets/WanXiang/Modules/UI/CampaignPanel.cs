@@ -829,6 +829,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
 
         private void BuildNodeMap(WanXiang.Campaign.ActGraph payloadGraph = null)
         {
+            _dotColorCache.Clear();   // 节点重建 ⇒ 图标底色缓存作废（否则选中恢复会用到旧色）
             if (_scrollNodes == null || _nodeItemTemplate == null) return;
             var content = _scrollNodes.content;
             if (content == null) return;
@@ -1929,21 +1930,10 @@ if (_tmpActTitle != null)
                 string prefix = _realmMode
                     ? "第" + RealmLayerOf(offset) + "层"
                     : (offset + 1) + "." + TermName(_graph.Terms[offset]);
-              // ★ 同层互斥置灰（2026-10-18 用户："是不能去了，但是你要把它变成灰色"）：
-            //   本层已进过其他节点（ChosenNodes）⇒ 本节点按"锁定"处理：置灰 + 不可点。
-            if (canGo && !isHere && !_realmMode)
-            {
-                var runM = WanXiang.Run.RunSave.Current;
-                if (runM != null && runM.ChosenNodes != null && runM.ChosenNodes.Count > 0)
-                {
-                    int myLayer = -1;
-                    for (int L = 0; L < _graph.Layers.Length && myLayer < 0; L++)
-                        if (System.Array.IndexOf(_graph.Layers[L], offset) >= 0) myLayer = L;
-                    if (myLayer >= 0)
-                        foreach (var other in _graph.Layers[myLayer])
-                            if (other != offset && runM.ChosenNodes.Contains(other)) { canGo = false; break; }
-                }
-            }
+            // ⛔ 2026-10-22 用户两次报障后**取消同层互斥**：
+            //   "明明能去下一层的两个节点，怎么只能去一个""点一下节点就直接确定，不给点其他的"。
+            //   互斥在**点击时**就写 ChosenNodes ⇒ 本层其余节点立刻变灰，像"一点就锁死"。
+            //   现在：点击只选中（预览），能否前往只看图上的连线（IsReachable）。
 
      label.text = prefix + "【" + name + "】" +
      (isHere ? " ◀当前" : canGo ? " ←可前往" : "");
@@ -2090,17 +2080,28 @@ if (_tmpActTitle != null)
         /// 节点选中反馈（2026-10-22 用户："选中的时候怎么没有提示，边框/图标亮起来"）：
         /// 选中的卡放大 1.06 + 染暖金色；其它恢复常态。
         /// </summary>
+        private readonly System.Collections.Generic.Dictionary<int, Color> _dotColorCache
+            = new System.Collections.Generic.Dictionary<int, Color>();
+
         private void ApplySelectionVisual(int offset)
         {
+            // ★ 2026-10-22 用户："金黄色太丑了，直接把左边这个图标亮起来就行"
+            //   ⇒ 不染底板、不放大整卡；只把节点左侧那个圆点图标放大 1.35 并提亮。
             for (int i = 0; i < _nodeItems.Count; i++)
             {
                 var it = _nodeItems[i];
                 if (it == null) continue;
-                bool sel = OffsetOfName(it.name) == offset;
-                it.localScale = sel ? Vector3.one * 1.06f : Vector3.one;
-                var img = it.GetComponent<Image>();
-                if (img != null)
-                    img.color = sel ? new Color(1f, 0.94f, 0.74f, 1f) : Color.white;
+                int off = OffsetOfName(it.name);
+                var dotT = it.Find("Img_Dot") as RectTransform;
+                if (dotT == null) continue;
+                var dot = dotT.GetComponent<Image>();
+                if (dot == null) continue;
+
+                if (!_dotColorCache.ContainsKey(off)) _dotColorCache[off] = dot.color;
+                bool sel = off == offset;
+                dotT.localScale = sel ? Vector3.one * 1.35f : Vector3.one;
+                if (sel) dot.color = new Color(1f, 0.99f, 0.92f, 1f);
+                else dot.color = _dotColorCache.TryGetValue(off, out var c0) ? c0 : Color.white;
             }
         }
 
@@ -2766,9 +2767,8 @@ if (_tmpActTitle != null)
                 //   —— 否则"进编阵看一眼再返回"会被算作通过（用户实测：白嫖节点）。
                 PendingCommit = _selected;
 
-                // ★ 同层互斥记账：点击前往 = 锁定本层（其余节点不可再点，见 OnNextClicked 开头）
-                if (run.ChosenNodes == null) run.ChosenNodes = new System.Collections.Generic.List<int>();
-                if (!run.ChosenNodes.Contains(_selected)) run.ChosenNodes.Add(_selected);
+                // ⛔ 2026-10-22：不再在点击时写 ChosenNodes（那就是"一点就锁死"的来源）。
+                //   真正"进入本格"的记账交给出征/事件确认那一刻；这里只做选中与预览。
 
                 // ★★ NodeOffset 只表示"已经通过到哪一节"（可达性锚点 + 进度），
                 //    这里**不能**写它 —— 否则"点开战斗节点、再点返回地图"也被算作通过
