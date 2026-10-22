@@ -111,7 +111,8 @@ namespace WanXiang.Modules.UI
                 // ★ 2026-10-22：秘境里的战斗标题不能写"第X幕第X节"（那是主线）。
                 Title = (run != null && run.InRealm)
                     ? ("秘境 · " + (WanXiang.Campaign.RealmCatalog.For(run.RealmId) is var _rl && _rl != null ? _rl.Name : "场域") +
-                       " · 第 " + (term + 1) + " 层 · " +
+                       " · 第 " + (SceneFlow.PendingBattleNode != null && SceneFlow.PendingBattleNode.RealmLayer > 0
+                                     ? SceneFlow.PendingBattleNode.RealmLayer : (term + 1)) + " 层 · " +
                        (champion ? "镇守" : elite ? "精英战" : "遭遇战"))
                     : ("第" + Cn(act) + "幕 · 第 " + (term + 1) + " 节 · " +
                        (champion ? "镇守" : boss ? "守关（首领）" : elite ? "精英战" : "遭遇战")),
