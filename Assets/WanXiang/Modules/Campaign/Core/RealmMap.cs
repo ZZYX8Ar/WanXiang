@@ -127,8 +127,10 @@ namespace WanXiang.Campaign
                 {
                     row[k] = kinds.Count;
                     terms.Add(layer + 1);      // 秘境没有节气；编号只为让 ActGraph 结构完整
+                    // ★ 2026-10-22 用户："镇守节点改成最后一个节点，每个秘境随机 2 个镇守之一"
+                    //   ⇒ 出口格 = 镇守（最后一战），原来出口是"窖藏"。
                     kinds.Add(isFirst ? NodeKind.Encounter
-                             : isExit ? NodeKind.Shop
+                             : isExit ? NodeKind.RealmChampion
                              : PickMiddle(rng, layer, layers));
                 }
                 layerIndex.Add(row);
@@ -257,30 +259,10 @@ namespace WanXiang.Campaign
                 kinds[row[rng.NextInt(0, row.Length)]] = NodeKind.RealmVault;
             }
 
-            // ---- 镇守 ×2：放在 25% / 75% 深度附近、列数 >=2 的层（错开秘藏那一层）----
-            int placed = 0;
-            int[] prefer = { (int)System.Math.Round(layers * 0.75), (int)System.Math.Round(layers * 0.25) };
-            foreach (int want in prefer)
-            {
-                if (placed >= 2) break;
-                int pick = -1;
-                for (int d = 0; d <= 2 && pick < 0; d++)
-                {
-                    foreach (int cand in new[] { want - d, want + d })
-                    {
-                        if (cand < 1 || cand > layers - 2) continue;
-                        if (cand == vaultLayer) continue;
-                        if (layerIndex[cand].Length < 2) continue;   // 单格层 = 必经，不给"绕开"的选择
-                        pick = cand; break;
-                    }
-                }
-                if (pick < 0) continue;
-                var row = layerIndex[pick];
-                kinds[row[rng.NextInt(0, row.Length)]] = NodeKind.RealmChampion;
-                placed++;
-            }
+            // ---- 镇守：**只在出口层**（2026-10-22 用户："镇守节点改成最后一个节点"）----
+            //   原来在 25% / 75% 各钉一个，玩家抱怨"最后一个节点不是镇守"；
+            //   现在出口格本身就是 RealmChampion（见上面 kinds.Add 的 isExit 分支），这里不再钉。
         }
-
         private static WanXiang.Battle.Core.Element ParseElement(string s)
         {
             switch (s)

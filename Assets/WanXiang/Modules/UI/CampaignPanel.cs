@@ -295,6 +295,23 @@ BuildNodeMap();
                             GrantRealmChampionReward(prun, PendingCommit);
                             Debug.Log("[Campaign] 秘境通过第 " + (PendingCommit + 1) + " 格（进度记在秘境自己的字段里，主线未动）");
                             WanXiang.Run.RunSave.SaveCurrent();
+
+                            // ★★ 2026-10-22 用户："秘境通关最后一个节点了，怎么没有返回节点地图"
+                            //   原来**没有任何清关判定** —— 打完出口就停在那儿。
+                            //   出口 = 最后一格：判掉即撤场（撤场不罚）、原地重建成主线图。
+                            if (_graph != null && PendingCommit >= _graph.NodeCount - 1)
+                            {
+                                RealmSession.Exit(prun, penalize: false);
+                                WanXiang.Run.RunSave.SaveCurrent();
+                                _realmMode = false;
+                                _realmGraphPayload = null;
+                                _injectedGraph = null;
+                                _currentOffset = -1;
+                                _visited.Clear();
+                                _passed.Clear();
+                                Debug.Log("[Campaign] 秘境清关 → 已退回主线节点图");
+                                Dialog.Tip("秘境", "此处已无路。\n\n你带着这一次的收获，回到了自己的路上。").Forget();
+                            }
                         }
          else
             {
@@ -2069,6 +2086,24 @@ if (_tmpActTitle != null)
             _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(a, sd, Layers);
         }
 
+        /// <summary>
+        /// 节点选中反馈（2026-10-22 用户："选中的时候怎么没有提示，边框/图标亮起来"）：
+        /// 选中的卡放大 1.06 + 染暖金色；其它恢复常态。
+        /// </summary>
+        private void ApplySelectionVisual(int offset)
+        {
+            for (int i = 0; i < _nodeItems.Count; i++)
+            {
+                var it = _nodeItems[i];
+                if (it == null) continue;
+                bool sel = OffsetOfName(it.name) == offset;
+                it.localScale = sel ? Vector3.one * 1.06f : Vector3.one;
+                var img = it.GetComponent<Image>();
+                if (img != null)
+                    img.color = sel ? new Color(1f, 0.94f, 0.74f, 1f) : Color.white;
+            }
+        }
+
         private void SelectNode(int offset, bool silent)
         {
             if (_graph == null)
@@ -2103,10 +2138,12 @@ if (_tmpActTitle != null)
             //     改成：标题写层号 + 场域名，正文写**场域特性**（这才是玩家真正要读的信息）。
             if (_realmMode)
             {
+                ApplySelectionVisual(offset);
                 UpdateRealmInfoCard(offset, kind, silent);
                 return;
             }
 
+            ApplySelectionVisual(offset);
             string term = TermName(_graph.Terms[offset]);
 
             if (_tmpNodeName != null) _tmpNodeName.text = "第 " + (offset + 1) + " 节 · " + term;

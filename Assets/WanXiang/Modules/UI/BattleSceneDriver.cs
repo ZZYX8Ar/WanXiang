@@ -99,8 +99,20 @@ namespace WanXiang.Modules.UI
                     var node = SceneFlow.PendingBattleNode;
                     if (node != null) act = Mathf.Clamp(node.Act, 1, 5);
                     Sprite bg = Resources.Load<Sprite>(BgByAct[act - 1]);
+                    // ★ 2026-10-22 用户："秘境里的背景/前景还是主线那一幕" ——
+                    //   秘境战斗改用**场域专属背景**（Resources/UI/Realm/map_bg_<realmId>），
+                    //   没有专属前景就置空（不要把主线当幕的前景强行套上）。
+                    bool fgOverrideNull = false;
+                    var runR = WanXiang.Run.RunSave.Current;
+                    bool inRealm = runR != null && runR.InRealm;
+                    if (inRealm)
+                    {
+                        var rbg = Resources.Load<Sprite>("UI/Realm/map_bg_" + runR.RealmId);
+                        if (rbg != null) bg = rbg;
+                        fgOverrideNull = true;
+                    }
                     if (bg == null) bg = _background;   // 旧序列化引用兜底
-                    Sprite fg = Resources.Load<Sprite>(FgByAct[act - 1]);
+                    Sprite fg = fgOverrideNull ? null : Resources.Load<Sprite>(FgByAct[act - 1]);
                     _stage.Build(play.State, bg, _sprites, fg, act);
                     Debug.Log("[BattleSceneDriver] 舞台已搭建：" + req.Title +
                               "（act=" + act + " bg=" + (bg != null ? bg.name : "null") +

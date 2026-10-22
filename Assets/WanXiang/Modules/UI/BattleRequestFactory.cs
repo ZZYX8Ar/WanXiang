@@ -108,8 +108,13 @@ namespace WanXiang.Modules.UI
 
             req = new BattleRequest
             {
-                Title = "第" + Cn(act) + "幕 · 第 " + (term + 1) + " 节 · " +
-                        (champion ? "镇守" : boss ? "守关（首领）" : elite ? "精英战" : "遭遇战"),
+                // ★ 2026-10-22：秘境里的战斗标题不能写"第X幕第X节"（那是主线）。
+                Title = (run != null && run.InRealm)
+                    ? ("秘境 · " + (WanXiang.Campaign.RealmCatalog.For(run.RealmId) is var _rl && _rl != null ? _rl.Name : "场域") +
+                       " · 第 " + (term + 1) + " 层 · " +
+                       (champion ? "镇守" : elite ? "精英战" : "遭遇战"))
+                    : ("第" + Cn(act) + "幕 · 第 " + (term + 1) + " 节 · " +
+                       (champion ? "镇守" : boss ? "守关（首领）" : elite ? "精英战" : "遭遇战")),
                 WeatherName = weather ?? "",
                 // ★ 真实天时：从活链路容器取（CampaignPanel 选节点时算好的 WeatherDef）。
                 //   为 null = 本场无天时，战斗行为与旧版逐位一致（可复现性红线）。

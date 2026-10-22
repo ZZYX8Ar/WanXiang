@@ -752,6 +752,20 @@ private void BackToCampaign()
             return;
    }
 
+            // ★ 2026-10-22 用户："战斗失败后重新开始，上一局的遗物还在"
+            //   战败 = 本局结束 ⇒ 遗物随旅程一起散掉（不继承到新局）。
+            if (!_win && !_isDraw)
+            {
+                var runD = WanXiang.Run.RunSave.Current;
+                if (runD != null && runD.Relics != null && runD.Relics.Count > 0)
+                {
+                    int n = runD.Relics.Count;
+                    runD.Relics.Clear();
+                    WanXiang.Run.RunSave.SaveCurrent();
+                    Debug.Log("[ResultPanel] 战败：本局遗物已散（清空 " + n + " 件）");
+                }
+            }
+
             // ★ 按结果分流（用户规则）：
             //   胜利 / 平局 → 回节点地图继续探索（平局=按撤退处理，本局继续）
             //   失败 → 本局已结束，回**主界面**（让玩家在主界面决定"继续/新局"），

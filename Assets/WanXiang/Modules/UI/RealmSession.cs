@@ -91,7 +91,7 @@ namespace WanXiang.Modules.UI
         /// <summary>
         /// 退出秘境：**先回滚场域状态，再还原路线图**（顺序不能反）。
         /// </summary>
-        public static bool Exit(WanXiang.Run.RunState run)
+        public static bool Exit(WanXiang.Run.RunState run, bool penalize = true)
         {
             if (run == null || !run.InRealm) return false;
             var snap = run.RealmSnapshot;
@@ -102,9 +102,10 @@ namespace WanXiang.Modules.UI
             ClearPlayerHazards(run);
 
             // ---- 1.5) 撤离代价（只有明确标了 PenalizesOnQuit 的场域才有）----
+            //   ⚠ penalize=false = **清关**（打穿出口镇守），不该再罚（2026-10-22）。
             //   ⛔ 放在"还原快照"**之前**：代价动的是本次秘境的临时账（灵卵），
             //     与主线字段无关；放后面会和快照还原的语义混在一起，以后加新代价容易搞错顺序。
-            ApplyQuitPenalty(run);
+            if (penalize) ApplyQuitPenalty(run);
 
 
             // ---- 2) 路线图快照还原（硬约束 ②）----

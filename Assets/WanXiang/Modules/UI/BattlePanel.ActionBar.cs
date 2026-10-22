@@ -229,16 +229,19 @@ namespace WanXiang.Modules.UI
                 // ★ 不能行动（敌人回合/伤害结算）时全部置灰；能行动时按规则逐条判。
                 //   以前 u==null（非待令）时整段跳过 ⇒ 按钮停在上一个我方单位的可用态，
                 //   敌人回合还能点却没反应（用户 2026-10-13 报障）。
+                // ★ 2026-10-22 用户："说不能放技能（沉默）的时候，技能按钮应该直接置灰"
+                //   沉默只封技能，**普攻照常**（状态说明里也是这么写的）。
+                bool silenced = u != null && u.HasStatus(WanXiang.Battle.Core.StatusCatalog.Silence);
                 _skillBtns[0].interactable = canAct;      // 普攻：能行动即可用（0 耗兜底）
-                _skillBtns[1].interactable = canAct && u != null
+                _skillBtns[1].interactable = canAct && !silenced && u != null
                                               && u.GetSkill(SkillType.Active) != null
                                               && mp >= WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active);
-                _skillBtns[2].interactable = canAct && u != null
+                _skillBtns[2].interactable = canAct && !silenced && u != null
                                               && u.GetSkill(SkillType.Ultimate) != null
                                               && cfg != null
                                               && u.CanCast(SkillType.Ultimate, cfg);
                 if (_skillBtns.Length > 3 && _skillBtns[3] != null)
-                    _skillBtns[3].interactable = hasAwaken && canAct && cfg != null && u.CanCast(SkillType.Awaken, cfg);
+                    _skillBtns[3].interactable = hasAwaken && canAct && !silenced && cfg != null && u.CanCast(SkillType.Awaken, cfg);
             }
 
             // 连携按钮不在每帧路径里刷新（见 RefreshComboButton，避免每帧 GC/查子节点）
