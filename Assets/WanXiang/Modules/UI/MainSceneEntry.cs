@@ -71,10 +71,21 @@ namespace WanXiang.Modules.Boot
 
                 // ★ 2026-10-21 用户："通关后关掉游戏再进，结果面板怎么直接压在主界面上" ——
                 //   结算必须叠在**节点地图**上（与正常回城一致）：先垫地图，再叠结算。
-                // 开图期间压住"补选奖励"提示：奖励由结算面板确认后自己交棒给 RelicPanel
-                SceneFlow.SuppressRewardPrompt = true;
-                await ui.OpenAsync<CampaignPanel>();
-                SceneFlow.SuppressRewardPrompt = false;
+                // ★ 2026-10-22 用户："战斗失败查看结果面板后应该直接回主界面，而不是从节点地图开始"
+                //   ⇒ 垫底界面按胜负分流：胜利垫**节点地图**，失败垫**主界面**。
+                if (result != null && result.Win)
+                {
+                    // 开图期间压住"补选奖励"提示：奖励由结算面板确认后自己交棒给 RelicPanel
+                    SceneFlow.SuppressRewardPrompt = true;
+                    await ui.OpenAsync<CampaignPanel>();
+                    SceneFlow.SuppressRewardPrompt = false;
+                }
+                else
+                {
+                    // 失败/撤退：本局结束，主界面垫底（不打开节点地图）
+                    ui.Close<StartPanel>();
+                    await ui.OpenAsync<HomePanel>();
+                }
                 await ui.OpenAsync<ResultPanel>(result);
                 Debug.Log("[MainSceneEntry] 已垫节点地图并弹出战斗结算。");
                 return;
