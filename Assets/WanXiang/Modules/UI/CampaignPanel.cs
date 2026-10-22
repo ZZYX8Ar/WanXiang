@@ -2716,26 +2716,26 @@ if (_tmpActTitle != null)
                 return;
             }
 
-            // ★★ 同层互斥（2026-10-18 用户定案："每一层如果点击去过这个节点，
-            //   同一层的其他节点就不能再点击了"）—— 防"每个节点都进来看一眼"再决定。
-            //   记账时机 = **点击前往那一刻**（进过即锁定，无论最终是否通过）。
+            // ★★ 同层互斥（2026-10-18 用户定案，2026-10-22 修正口径）：
+            //   "要我真的点右下角『前往』才互斥" —— 点击=预览不算数；
+            //   判定依据改成 **本层是否已经有别的节点真的通过**（_passed），
+            //   而不是 ChosenNodes（那是"点过就算"的旧账，会把上一局的残留带进来，
+            //   连"当前这一格"都被当成已占，导致点『前往』永远被拦 —— 用户 2026-10-22 实测）。
+            if (!_realmMode)
             {
-                var runChk = WanXiang.Run.RunSave.Current;
-                if (runChk != null && runChk.ChosenNodes != null && runChk.ChosenNodes.Count > 0)
+                int myLayer = -1;
+                for (int L = 0; L < _graph.Layers.Length && myLayer < 0; L++)
+                    if (System.Array.IndexOf(_graph.Layers[L], _selected) >= 0) myLayer = L;
+                if (myLayer >= 0)
                 {
-                    int myLayer = -1;
-                    for (int L = 0; L < _graph.Layers.Length && myLayer < 0; L++)
-                        if (System.Array.IndexOf(_graph.Layers[L], _selected) >= 0) myLayer = L;
-                    if (myLayer >= 0)
+                    foreach (var off in _graph.Layers[myLayer])
                     {
-                        foreach (var off in _graph.Layers[myLayer])
+                        if (off == _selected) continue;
+                        if (off == _currentOffset) continue;      // 当前所在格不算"占用了本层"
+                        if (_passed.Contains(off))
                         {
-                            if (off == _selected) continue;
-                            if (runChk.ChosenNodes.Contains(off))
-                            {
-                                Debug.Log("[Campaign] 本层已进过其他节点（同层互斥），不能再选。");
-                                return;
-                            }
+                            Debug.Log("[Campaign] 本层已经通过过其他节点（同层互斥），不能再选。");
+                            return;
                         }
                     }
                 }
