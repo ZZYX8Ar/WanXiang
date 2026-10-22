@@ -1352,6 +1352,25 @@ if (_tmpActTitle != null)
                 var __champ = kind == WanXiang.Campaign.NodeKind.RealmChampion
                     ? WanXiang.Campaign.RealmChampionPick.Pick(
                         realm, offset, RealmSession.RealmSeedFor(run)) : null;
+
+                // ★ 2026-10-22：镇守立绘（用户提供 10 张透明立绘，已放 Resources/UI/Realm/Champion）。
+                //   镇守格把信息卡顶部的 Img_NodeIcon 放大成 180×180 显示立绘；
+                //   其它节点保持原样（不改 prefab，只在该格临时改 sprite/size）。
+                if (_imgNodeIcon != null)
+                {
+                    var __art = __champ != null ? WanXiang.Campaign.RealmChampionArt.Get(__champ) : null;
+                    if (__art != null)
+                    {
+                        _imgNodeIcon.sprite = __art;
+                        _imgNodeIcon.preserveAspect = true;
+                        _imgNodeIcon.rectTransform.sizeDelta = new Vector2(180f, 180f);
+                    }
+                    else
+                    {
+                        _imgNodeIcon.preserveAspect = true;
+                        _imgNodeIcon.rectTransform.sizeDelta = new Vector2(140f, 140f);
+                    }
+                }
                 string extra = kind == WanXiang.Campaign.NodeKind.RealmVault
                     ? "　（秘境专属 · 一次性重奖）"
                     : kind == WanXiang.Campaign.NodeKind.RealmChampion
