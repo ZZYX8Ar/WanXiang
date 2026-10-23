@@ -111,7 +111,8 @@ namespace WanXiang.Modules.UI
         public static async UniTask PlayAsync(string realmId, Action onSwitch, string titleText = null,
                                              string titleResPath = null, string particleResPath = null,
                                              float revealDelay = 0f,
-                                             string impactWordRes = null)
+                                             string impactWordRes = null,
+                                             bool instantCover = false)
         {
             var inst = Ensure();
             if (inst == null) { onSwitch?.Invoke(); return; }
@@ -122,8 +123,28 @@ namespace WanXiang.Modules.UI
             inst._particleResOverride = particleResPath;
             inst._revealDelay = revealDelay;
             inst._impactWordRes = impactWordRes;
+            inst._instantCover = instantCover;
             inst.StartCoroutine(inst.Run(realmId, onSwitch, () => done = true, titleText));
             await UniTask.WaitUntil(() => done);
+        }
+
+        /// <summary>
+        /// **预热**（2026-10-23 用户："第一次进战斗会闪一下主界面，后面就正常"）：
+        /// 第一次播转场时才 Ensure+Build，Canvas/Image 要下一帧才画出来 ⇒ 开场那 1~2 帧
+        /// 盖不住旧画面（主界面）。在进图/开局时先预热一次，之后永远走复用路径。
+        /// </summary>
+        public static void Prewarm(string particleResPath = null)
+        {
+            var inst = Ensure();
+            if (inst == null || inst._built) return;
+            inst.Build();
+            if (inst._cover != null)
+            {
+                inst._cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, 0f);
+                inst._cover.raycastTarget = false;
+            }
+            if (inst._title != null) inst._title.enabled = false;
+            Debug.Log("[RealmTransition] 已预热（首次转场不再闪旧画面）");
         }
 
         private static RealmTransition Ensure()
@@ -248,13 +269,17 @@ namespace WanXiang.Modules.UI
             PrepareTitle(titleText);
 
             // ---- ① 闭拢 ----
-            _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, 0f);
+            // ★ 2026-10-23："第一次进战斗闪一下主界面" —— 出征时节点图会先关，
+            //   底下主界面露出来，而纸底还在淡入（0→1），那几帧就把主界面看到了。
+            //   instantCover：纸底**一开始就是满的**，只让粒子做闭拢动画。
+            float a0 = _instantCover ? COVER_A : 0f;
+            _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, a0);
             SetParticlePhase(0f);
             for (float t = 0f; t < dClose; t += Time.unscaledDeltaTime)
             {
                 float k = Mathf.Clamp01(t / dClose);
                 SetParticlePhase(EaseOut(k));
-                _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, Mathf.Lerp(0f, COVER_A, k));
+                _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, Mathf.Lerp(a0, COVER_A, k));
                 yield return null;
             }
             SetParticlePhase(1f);
@@ -332,6 +357,9 @@ namespace WanXiang.Modules.UI
         private string _particleResOverride;
         private float _revealDelay;
         private string _impactWordRes;
+
+        /// <summary>true = 一开场就整屏盖住（不淡入）。首帧不能露出底下的界面时用。</summary>
+        private bool _instantCover;
 
         private void BuildParticles(string realmId, float W, float H)
         {

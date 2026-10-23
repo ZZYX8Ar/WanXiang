@@ -112,9 +112,12 @@ namespace WanXiang.Modules.UI
             //   秘境战斗必须用**该场域的粒子**（UI/Realm/FX_<realmId>），不能用季节花瓣/萤火。
             var runF = WanXiang.Run.RunSave.Current;
             string partPath = (runF != null && runF.InRealm) ? ("UI/Realm/FX_" + runF.RealmId) : ParticleForAct(act);
+            // ★ 2026-10-23 首战闪主界面：先把转场层建好（Build 要到下一帧才画得出，
+            //   第一次播时开场那两帧盖不住旧画面）。同时把主界面收掉 —— 战场只需节点图垫底。
+            RealmTransition.Prewarm(partPath);
             RealmTransition.PlayAsync(null, () => Load(BattleScene), null,
                 "UI/Title/battle", partPath, revealDelay: 0.10f,
-                impactWordRes: "UI/Title/start").Forget();
+                impactWordRes: "UI/Title/start", instantCover: true).Forget();
         }
 
         /// <summary>战斗结束（或被撤退）：回主城并带结算。</summary>
