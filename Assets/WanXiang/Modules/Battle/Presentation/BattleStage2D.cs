@@ -489,20 +489,13 @@ namespace WanXiang.Battle.Presentation
             _bgDecor = bg.transform;
             _bgHomePos = bg.transform.localPosition;
 
-            // ★ 2026-10-23 档 3：所有战斗场景都加多层缓动（雾 / 暖光 / 场域专属）
-            _bgMotion = GetComponent<BattleBgMotion>();
-            if (_bgMotion == null) _bgMotion = gameObject.AddComponent<BattleBgMotion>();
-            _bgMotion.Build(realmId, act);
+            // ⛔ 2026-10-23：多层缓动（雾/暖光）一并停用（用户改走动态视频背景）。
 
-            // ★ 2026-10-23 v2：重新启用背景 shader（v1 的"白茫茫"真因是动效组件 Clear()
-            //   误删了整个舞台，不是材质问题；已单独修好并验证过 BG 存活）。
-            if (springBg != null)
-            {
-                if (_bgMat != null) Destroy(_bgMat);
-                // 水面线：苍泽低一些（水面占比大），其它默认偏高
-                float wl = realmId == "realm_marsh" ? 0.46f : 0.35f;
-                _bgMat = BattleBgMotion.ApplyShaderToBg(bgSr, springBg, realmId, wl);
-            }
+            // ⛔ 2026-10-23 用户："把战斗背景的 shader 和轻微呼吸晃动去掉，我准备用动态视频"
+            //   ⇒ 背景恢复默认材质（原画直出），不再做 shader 效果。
+            //   shader 与动效组件保留在工程里（BattleBgMotion / BattleBgMotion.shader），
+            //   以后要做"静态图 + 光效"的方案可以原地启用。
+            if (_bgMat != null) { Destroy(_bgMat); _bgMat = null; }
 
             // ---- 四周前景装饰（透明 PNG、随幕变化；sortingOrder 30 = 压过冲锋立绘 20）----
             if (fgDecor != null)
@@ -2034,16 +2027,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             if (_turnArrow != null) _turnArrow.enabled = false;   // 每帧默认隐藏，循环里再为行动者点亮
 
             // 前景轻微摇曳（呼吸感；幅度很小，不干扰战斗阅读）
-            if (_bgMotion != null) _bgMotion.Step(dt);
-            if (_bgDecor != null)
-            {
-                // 极缓视差：水平 ~32s 一个来回、垂直 ~45s，振幅仅 0.10/0.06 世界单位
-                // （1920 宽下约 7px / 4px）—— 只让画面"呼吸"，不产生位移感。
-                _bgDecor.localPosition = _bgHomePos + new Vector3(
-                    Mathf.Sin(_animT * 0.195f) * 0.10f,
-                    Mathf.Sin(_animT * 0.140f) * 0.06f,
-                    0f);
-            }
+            // (背景动效已停用)
+            // ⛔ 2026-10-23 用户："轻微呼吸晃动去掉" —— 背景不再做视差漂移。
+            //   （BG 保持 1.06 超铺，以后换视频/静图都留了余量。）
             if (_fgDecor != null)
             {
                 _fgDecor.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(_animT * 0.9f) * 0.5f);
