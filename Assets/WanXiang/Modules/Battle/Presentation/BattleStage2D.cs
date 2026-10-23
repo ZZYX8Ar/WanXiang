@@ -438,6 +438,10 @@ namespace WanXiang.Battle.Presentation
 
         // ---- 四周前景装饰（2026-10-11 战斗美化：随幕变化 + 轻微摇曳）----
         private Transform _fgDecor;
+
+        /// <summary>背景层（档 1 极缓视差漂移用；2026-10-23）。</summary>
+        private Transform _bgDecor;
+        private Vector3 _bgHomePos;
         /// <summary>环境粒子（按幕：春花瓣/夏萤火/长夏花粉/秋落叶/冬雪花）。</summary>
         private BattleAmbientParticles _ambient;
 
@@ -471,10 +475,14 @@ namespace WanXiang.Battle.Presentation
                 bgSr.sprite = springBg;
                 // 铺满相机视野（ortho 5.4 → 高 10.8、宽 19.2 @16:9）
                 var b = springBg.bounds;
-                float sx = 19.2f / b.size.x, sy = 10.8f / b.size.y;
+                // ★ 2026-10-23 档 1：背景要做极缓视差漂移 ⇒ 超铺 6%，四边不会被漂出空白。
+                const float bgOver = 1.06f;
+                float sx = 19.2f * bgOver / b.size.x, sy = 10.8f * bgOver / b.size.y;
                 bg.transform.localScale = new Vector3(sx, sy, 1f);
             }
             bgSr.sortingOrder = -10;
+            _bgDecor = bg.transform;
+            _bgHomePos = bg.transform.localPosition;
 
             // ---- 四周前景装饰（透明 PNG、随幕变化；sortingOrder 30 = 压过冲锋立绘 20）----
             if (fgDecor != null)
@@ -995,6 +1003,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             _state = null;
             _cam = null;
             _fgDecor = null;
+            _bgDecor = null;
             _ambient = null;   // 粒子子物体已被上面销毁；Build 里重新 GetComponent/AddComponent
             _skillFx = null;   // SkillFx 子物体一并销毁；下次 EnsureSkillFx 重建（否则持已毁对象）
             _turnArrow = null; // 箭头子物体已被上面销毁；Build 里重建
@@ -2004,6 +2013,15 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             if (_turnArrow != null) _turnArrow.enabled = false;   // 每帧默认隐藏，循环里再为行动者点亮
 
             // 前景轻微摇曳（呼吸感；幅度很小，不干扰战斗阅读）
+            if (_bgDecor != null)
+            {
+                // 极缓视差：水平 ~32s 一个来回、垂直 ~45s，振幅仅 0.10/0.06 世界单位
+                // （1920 宽下约 7px / 4px）—— 只让画面"呼吸"，不产生位移感。
+                _bgDecor.localPosition = _bgHomePos + new Vector3(
+                    Mathf.Sin(_animT * 0.195f) * 0.10f,
+                    Mathf.Sin(_animT * 0.140f) * 0.06f,
+                    0f);
+            }
             if (_fgDecor != null)
             {
                 _fgDecor.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(_animT * 0.9f) * 0.5f);
