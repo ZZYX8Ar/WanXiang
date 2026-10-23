@@ -132,7 +132,8 @@ namespace WanXiang.Battle.Presentation
         /// 水面波光 + 乘性呼吸。纸面留白区域用亮度掩膜排除，绝不会发白。
         /// 返回材质实例（调用方负责销毁）。
         /// </summary>
-        public static Material ApplyShaderToBg(SpriteRenderer bgSr, Sprite bgSprite, string realmId)
+        public static Material ApplyShaderToBg(SpriteRenderer bgSr, Sprite bgSprite, string realmId,
+                                              float _waterLine = 0.42f)
         {
             if (bgSr == null || bgSprite == null) return null;
             var sh = Resources.Load<Shader>("Battle/BattleBgMotion");
@@ -151,27 +152,28 @@ namespace WanXiang.Battle.Presentation
                 mat.SetTexture("_NoiseTex", tex);
             }
 
-            // 通用参数：扰动极小（0.35% 视口），保证"看得清原画"
-            mat.SetFloat("_NoiseScale", 3.0f);
-            mat.SetFloat("_NoiseSpeed", 0.015f);
-            mat.SetFloat("_Distort", 0.0035f);
-            mat.SetFloat("_Breath", 0.018f);
-            mat.SetFloat("_BreathSpeed", 0.08f);
-            mat.SetFloat("_DarkMaskLo", 0.35f);
-            mat.SetFloat("_DarkMaskHi", 0.82f);
-            mat.SetFloat("_InkPulse", 0.02f);
-
-            // 场域差异：只有苍泽有明显水面；烬岭/荆墟做更强的墨脉冲（热气/风沙）
-            float waterY = 0.15f, waterStr = 0f;
-            switch (realmId)
+            // 云影贴图（程序化的多倍频值噪声：用于"云影掠过山脊"）
+            var cloud = Resources.Load<Sprite>("Battle/FX_motion_cloud");
+            if (cloud != null)
             {
-                case "realm_marsh": waterY = 0.42f; waterStr = 0.06f; break;
-                case "realm_ember": waterStr = 0f; mat.SetFloat("_InkPulse", 0.03f); break;
-                case "realm_thorn": waterStr = 0f; mat.SetFloat("_InkPulse", 0.028f); break;
+                cloud.texture.wrapMode = TextureWrapMode.Repeat;
+                mat.SetTexture("_CloudTex", cloud.texture);
             }
-            mat.SetFloat("_WaterY", waterY);
-            mat.SetFloat("_WaterStrength", waterStr);
-            mat.SetFloat("_WaterSpeed", 0.35f);
+
+            // 通用参数
+            mat.SetFloat("_Phase", 0f);
+            mat.SetFloat("_Distort", 0.0025f);
+            mat.SetFloat("_InkPulse", 0.02f);
+            mat.SetFloat("_PaperGuard", 0.90f);
+            mat.SetFloat("_CloudScale", 1.2f);
+            mat.SetFloat("_CloudSpeed", 0.022f);
+            mat.SetFloat("_CloudStrength", 0.17f);
+            mat.SetFloat("_CloudY", 0.60f);
+            mat.SetFloat("_RayStrength", 0.10f);
+            mat.SetFloat("_RaySpeed", 0.09f);
+            mat.SetFloat("_WaterY", _waterLine);
+            mat.SetFloat("_WaterWobble", 0.008f);
+            mat.SetFloat("_WaterShine", 0.16f);
 
             bgSr.material = mat;
             return mat;

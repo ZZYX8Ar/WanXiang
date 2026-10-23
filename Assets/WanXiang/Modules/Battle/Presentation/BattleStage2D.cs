@@ -494,12 +494,15 @@ namespace WanXiang.Battle.Presentation
             if (_bgMotion == null) _bgMotion = gameObject.AddComponent<BattleBgMotion>();
             _bgMotion.Build(realmId, act);
 
-            // ⛔ 2026-10-23 回退：把背景换成自定 shader 后，**实机整个背景不渲染**，
-            //   只剩相机 paper 底色 + 前景 ⇒ 用户看到"白茫茫一片"。
-            //   （离屏 RT 测过是正常的，说明是 2D Renderer 的 pass 路由/材质绑定在实机不一致。）
-            //   ⇒ 背景保持默认材质（一定出图），动效改为"淡黑暗噪层 + 视差"，绝不加白。
-            //   shader 资产 BattleBgMotion.shader 保留备用（等能稳定验证再启用）。
-            if (_bgMat != null) { Destroy(_bgMat); _bgMat = null; }
+            // ★ 2026-10-23 v2：重新启用背景 shader（v1 的"白茫茫"真因是动效组件 Clear()
+            //   误删了整个舞台，不是材质问题；已单独修好并验证过 BG 存活）。
+            if (springBg != null)
+            {
+                if (_bgMat != null) Destroy(_bgMat);
+                // 水面线：苍泽低一些（水面占比大），其它默认偏高
+                float wl = realmId == "realm_marsh" ? 0.46f : 0.35f;
+                _bgMat = BattleBgMotion.ApplyShaderToBg(bgSr, springBg, realmId, wl);
+            }
 
             // ---- 四周前景装饰（透明 PNG、随幕变化；sortingOrder 30 = 压过冲锋立绘 20）----
             if (fgDecor != null)
