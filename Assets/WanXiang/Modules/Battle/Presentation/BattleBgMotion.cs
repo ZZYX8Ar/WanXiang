@@ -32,14 +32,21 @@ namespace WanXiang.Battle.Presentation
             public Vector3 Home;
         }
 
+        private Transform _root;      // ⛔ 自己的子容器：绝不能在 stage 根上 Clear（会删掉背景/单位）
         private Layer[] _layers;
         private float _t;
         private bool _built;
 
         public void Clear()
         {
-            for (int i = transform.childCount - 1; i >= 0; i--)
-                Destroy(transform.GetChild(i).gameObject);
+            // ⛔ 2026-10-23 事故：本组件挂在 stage 根上，早先这里遍历 transform 子物体删除，
+            //   把**背景 BG_Spring / 前景 / 单位**一起删了 ⇒ 战斗里"白茫茫一片"（只剩相机纸色）。
+            //   现在只在自己的子容器 _root 里清理。
+            if (_root != null)
+            {
+                for (int i = _root.childCount - 1; i >= 0; i--)
+                    Destroy(_root.GetChild(i).gameObject);
+            }
             _layers = null;
             _built = false;
         }
@@ -48,6 +55,12 @@ namespace WanXiang.Battle.Presentation
         public void Build(string realmId, int act)
         {
             Clear();
+            if (_root == null)
+            {
+                var rt = new GameObject("BgMotionLayers");
+                rt.transform.SetParent(transform, false);
+                _root = rt.transform;
+            }
             var fog = Resources.Load<Sprite>("Battle/FX_motion_fog");
             var glow = Resources.Load<Sprite>("Battle/FX_motion_glow");
             var water = Resources.Load<Sprite>("Battle/FX_motion_water");
@@ -167,7 +180,7 @@ namespace WanXiang.Battle.Presentation
         private Layer Make(string name, Sprite sp, Vector3 pos, Vector2 size, Color col, int order)
         {
             var go = new GameObject(name);
-            go.transform.SetParent(transform, false);
+            go.transform.SetParent(_root != null ? _root : transform, false);
             go.transform.localPosition = pos;
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = sp;
