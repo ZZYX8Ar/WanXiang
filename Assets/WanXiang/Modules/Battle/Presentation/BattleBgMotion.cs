@@ -1,0 +1,198 @@
+// ============================================================================
+//  BattleBgMotion —— 战斗背景动效"档 3"（2026-10-23 用户："所有战斗场景背景都要动"）
+//  ---------------------------------------------------------------------------
+//  设计原则（美术向）：
+//   · 只用**低频、低对比**的三层动效：雾层横向漂移、大面积暖光呼吸、场域专属层；
+//   · 不用全屏高频噪声 / 强闪烁 / 明暗跳变（这类最容易让人觉得廉价、晕）；
+//   · 全部是 SpriteRenderer + Transform 位移，**不需要自定义 shader**，任何管线都能跑；
+//   · 每层都做"超铺 + 平铺回绕"，漂移永远不会露出画面边缘。
+//
+//  层级：背景 BG(-10) < 本组(-9 ~ -6) < 单位/立绘(10+)
+// ============================================================================
+using UnityEngine;
+
+namespace WanXiang.Battle.Presentation
+{
+    /// <summary>战斗背景的多层缓动叠层（雾 / 暖光 / 场域专属）。</summary>
+    public sealed class BattleBgMotion : MonoBehaviour
+    {
+        private struct Layer
+        {
+            public Transform T;
+            public SpriteRenderer Sr;
+            public float Speed;      // 横向漂移（世界单位/秒）
+            public float Span;       // 平铺回绕的半周期宽度
+            public float BaseAlpha;
+            public float PulseAmp;   // alpha 呼吸幅度
+            public float PulseFreq;  // 呼吸频率（Hz）
+            public float RotSpeed;   // 自转（度/秒）
+            public float BobAmp;     // 垂直浮动
+            public float BobFreq;
+            public float Phase;
+            public Vector3 Home;
+        }
+
+        private Layer[] _layers;
+        private float _t;
+        private bool _built;
+
+        public void Clear()
+        {
+            for (int i = transform.childCount - 1; i >= 0; i--)
+                Destroy(transform.GetChild(i).gameObject);
+            _layers = null;
+            _built = false;
+        }
+
+        /// <summary>构建叠层。realmId 非空 = 秘境场域；否则按幕（季节）取色。</summary>
+        public void Build(string realmId, int act)
+        {
+            Clear();
+            var fog = Resources.Load<Sprite>("Battle/FX_motion_fog");
+            var glow = Resources.Load<Sprite>("Battle/FX_motion_glow");
+            var water = Resources.Load<Sprite>("Battle/FX_motion_water");
+            var gear = Resources.Load<Sprite>("Battle/FX_motion_gear");
+            var dust = Resources.Load<Sprite>("Battle/FX_motion_dust");
+
+            Color tint = TintFor(realmId, act);
+            var list = new System.Collections.Generic.List<Layer>(6);
+
+            // ---- ① 远景雾 ×2（错频，互相穿插 ⇒ 有纵深）----
+            if (fog != null)
+            {
+                list.Add(Make("Fog_Far", fog, new Vector3(0f, 0.6f, 0f), new Vector2(26f, 13f),
+                              new Color(tint.r, tint.g, tint.b, 0.16f), -7));
+                list.Add(Make("Fog_Near", fog, new Vector3(0f, -0.9f, 0f), new Vector2(30f, 15f),
+                              new Color(tint.r, tint.g, tint.b, 0.12f), -6));
+            }
+
+            // ---- ② 大面积暖光（呼吸）----
+            if (glow != null)
+            {
+                list.Add(Make("Glow", glow, new Vector3(0f, 1.2f, 0f), new Vector2(20f, 14f),
+                              new Color(1f, 0.93f, 0.80f, 0.13f), -8));
+            }
+
+            // ---- ③ 场域专属 ----
+            if (realmId == "realm_marsh" && water != null)
+            {
+                // 苍泽：水面波光（贴着下半屏，慢速横移）
+                list.Add(Make("Water", water, new Vector3(0f, -3.2f, 0f), new Vector2(30f, 7f),
+                              new Color(0.90f, 0.98f, 1f, 0.14f), -5));
+            }
+            else if (realmId == "realm_gear" && gear != null)
+            {
+                // 机枢：齿轮环缓慢自转（极淡，只做"远处还在转"的暗示）
+                list.Add(Make("Gear", gear, new Vector3(0f, 2.4f, 0f), new Vector2(13f, 13f),
+                              new Color(0.86f, 0.80f, 0.62f, 0.10f), -8));
+            }
+            else if (realmId == "realm_silent" && dust != null)
+            {
+                // 寂域：横向尘埃带（几乎不动，只是让它"活着"）
+                list.Add(Make("Dust", dust, new Vector3(0f, 0.2f, 0f), new Vector2(30f, 9f),
+                              new Color(0.96f, 0.97f, 1f, 0.13f), -5));
+            }
+            else if (realmId == "realm_ember" && glow != null)
+            {
+                // 烬岭：下方熔光呼吸（比全局暖光更贴地、更强）
+                list.Add(Make("Lava", glow, new Vector3(0f, -3.4f, 0f), new Vector2(24f, 9f),
+                              new Color(1f, 0.62f, 0.36f, 0.16f), -5));
+            }
+            else if (realmId == "realm_thorn" && fog != null)
+            {
+                // 荆墟：风沙更快地扫过
+                list.Add(Make("Sand", fog, new Vector3(0f, -1.8f, 0f), new Vector2(34f, 11f),
+                              new Color(0.92f, 0.85f, 0.70f, 0.12f), -5));
+            }
+
+            if (list.Count > 0)
+            {
+                _layers = list.ToArray();
+                _built = true;
+            }
+        }
+
+        private Layer Make(string name, Sprite sp, Vector3 pos, Vector2 size, Color col, int order)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = pos;
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = sp;
+            sr.color = col;
+            sr.sortingOrder = order;
+            var b = sp.bounds.size;
+            go.transform.localScale = new Vector3(size.x / Mathf.Max(0.001f, b.x),
+                                                  size.y / Mathf.Max(0.001f, b.y), 1f);
+
+            return new Layer
+            {
+                T = go.transform,
+                Sr = sr,
+                // 不同层不同速度：远处慢、近处快
+                Speed = order >= -5 ? 0.42f : 0.22f,
+                Span = size.x * 0.35f,
+                BaseAlpha = col.a,
+                PulseAmp = order >= -5 ? 0.03f : 0.02f,
+                PulseFreq = order >= -5 ? 0.08f : 0.05f,
+                RotSpeed = name == "Gear" ? 1.6f : 0f,
+                BobAmp = order >= -6 ? 0.08f : 0.14f,
+                BobFreq = 0.045f,
+                Phase = Mathf.Abs(pos.x + pos.y) * 0.7f,
+                Home = pos,
+            };
+        }
+
+        /// <summary>按场域 / 幕给雾色（都是低饱和纸墨色，避免"彩色雾"的廉价感）。</summary>
+        private static Color TintFor(string realmId, int act)
+        {
+            switch (realmId)
+            {
+                case "realm_marsh": return new Color(0.86f, 0.94f, 0.92f);
+                case "realm_ember": return new Color(1f, 0.90f, 0.82f);
+                case "realm_gear": return new Color(0.90f, 0.88f, 0.80f);
+                case "realm_silent": return new Color(0.95f, 0.96f, 0.98f);
+                case "realm_thorn": return new Color(0.96f, 0.92f, 0.84f);
+            }
+            switch (Mathf.Clamp(act, 1, 5))
+            {
+                case 1: return new Color(0.98f, 0.94f, 0.96f);   // 春
+                case 2: return new Color(0.94f, 0.98f, 0.92f);   // 夏
+                case 3: return new Color(0.99f, 0.95f, 0.88f);   // 秋
+                case 4: return new Color(0.94f, 0.96f, 1f);      // 冬
+                default: return new Color(1f, 0.97f, 0.90f);     // 长夏
+            }
+        }
+
+        /// <summary>每帧推进（BattleStage2D.Step 转发）。</summary>
+        public void Step(float dt)
+        {
+            if (!_built || _layers == null) return;
+            _t += dt;
+
+            for (int i = 0; i < _layers.Length; i++)
+            {
+                var L = _layers[i];
+                if (L.T == null || L.Sr == null) continue;
+
+                float t = _t + L.Phase;
+
+                // 横向漂移 + 平铺回绕（走到 Span 就从头来，肉眼看不出来）
+                float x = L.Home.x + Mathf.Repeat(L.Speed * _t, L.Span * 2f) - L.Span;
+
+                // 垂直极缓浮动
+                float y = L.Home.y + Mathf.Sin(t * Mathf.PI * 2f * L.BobFreq) * L.BobAmp;
+
+                L.T.localPosition = new Vector3(x, y, L.Home.z);
+
+                // alpha 呼吸（只在小范围里，避免"闪"）
+                float a = L.BaseAlpha + Mathf.Sin(t * Mathf.PI * 2f * L.PulseFreq) * L.PulseAmp;
+                var c = L.Sr.color; c.a = Mathf.Clamp01(a); L.Sr.color = c;
+
+                // 自转（齿轮）
+                if (L.RotSpeed != 0f)
+                    L.T.localRotation = Quaternion.Euler(0f, 0f, L.RotSpeed * _t);
+            }
+        }
+    }
+}

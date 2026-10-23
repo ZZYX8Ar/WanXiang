@@ -298,7 +298,7 @@ namespace WanXiang.Modules.UI
 
                 // 寂域·尘：极慢、极淡、几乎不动 —— 这个场域的主题就是"没有动静"
                 case WanXiang.Campaign.RealmIds.Silent:
-                    return new Style { Count = 18, Size = 30f, FallSpeed = 5f, SwayAmp = 20f, SwayFreq = 0.18f, SpinDeg = 0f, AlphaMin = 0.20f, AlphaSpeed = 0.25f, Alpha = 0.45f };
+                    return new Style { Count = 30, Size = 64f, FallSpeed = 8f, SwayAmp = 34f, SwayFreq = 0.18f, SpinDeg = 0f, AlphaMin = 0.34f, AlphaSpeed = 0.25f, Alpha = 0.66f };
 
                 // 荆墟·枯叶屑：快而干，摆幅中等、叶片翻转明显
                 default:

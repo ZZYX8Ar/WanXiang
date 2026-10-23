@@ -200,7 +200,7 @@ namespace WanXiang.Battle.Presentation
         //  所以它是"还剩多少"的真实信息，不给玩家看就是隐形的第二管血。
         /// <summary>护盾牌宽度（世界单位）。</summary>
         /// <summary>护盾牌与数字相对血条中线的**抬高量**（2026-10-23 用户："护盾位置还要往上"）。</summary>
-        public float ShieldLiftY = 0.26f;
+        public float ShieldLiftY = 0.42f;
 
         public float ShieldPlateW = 0.46f;
         /// <summary>护盾牌高度（世界单位）。</summary>
@@ -444,6 +444,7 @@ namespace WanXiang.Battle.Presentation
 
         /// <summary>背景层（档 1 极缓视差漂移用；2026-10-23）。</summary>
         private Transform _bgDecor;
+        private BattleBgMotion _bgMotion;
         private Vector3 _bgHomePos;
         /// <summary>环境粒子（按幕：春花瓣/夏萤火/长夏花粉/秋落叶/冬雪花）。</summary>
         private BattleAmbientParticles _ambient;
@@ -486,6 +487,11 @@ namespace WanXiang.Battle.Presentation
             bgSr.sortingOrder = -10;
             _bgDecor = bg.transform;
             _bgHomePos = bg.transform.localPosition;
+
+            // ★ 2026-10-23 档 3：所有战斗场景都加多层缓动（雾 / 暖光 / 场域专属）
+            _bgMotion = GetComponent<BattleBgMotion>();
+            if (_bgMotion == null) _bgMotion = gameObject.AddComponent<BattleBgMotion>();
+            _bgMotion.Build(realmId, act);
 
             // ---- 四周前景装饰（透明 PNG、随幕变化；sortingOrder 30 = 压过冲锋立绘 20）----
             if (fgDecor != null)
@@ -1231,7 +1237,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
                 // ★ 2026-10-20 用户："护盾的位置还是差一点" —— 直接压进血条**右端内侧**：
                 //   与血条同高、不出格、不随列位飘（原来挂在血条右侧外面，靠边的格子会溢出）。
-                float shX = HpBarWidth * 0.5f - ShieldPlateW * 0.5f - 0.03f;
+                // ★ 2026-10-23 二次修正：改到**血条正上方居中**（贴左端永远像"压着血条"）
+                float shX = 0f;
                 view.ShieldPlate = MakeChildSprite(headGo, "ShieldPlate", ShieldColor,
                                                    new Vector2(ShieldPlateW, ShieldPlateH),
                                                    new Vector2(shX, ShieldLiftY), 6);   // ★ 抬到血条上方（2026-10-23）
@@ -2016,6 +2023,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             if (_turnArrow != null) _turnArrow.enabled = false;   // 每帧默认隐藏，循环里再为行动者点亮
 
             // 前景轻微摇曳（呼吸感；幅度很小，不干扰战斗阅读）
+            if (_bgMotion != null) _bgMotion.Step(dt);
             if (_bgDecor != null)
             {
                 // 极缓视差：水平 ~32s 一个来回、垂直 ~45s，振幅仅 0.10/0.06 世界单位
