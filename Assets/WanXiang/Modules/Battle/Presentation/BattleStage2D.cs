@@ -199,6 +199,9 @@ namespace WanXiang.Battle.Presentation
         //  为什么值得显示：护盾**不会自然消退**（只被伤害消耗，见 BattleUnit.TakeDamage / AddShield），
         //  所以它是"还剩多少"的真实信息，不给玩家看就是隐形的第二管血。
         /// <summary>护盾牌宽度（世界单位）。</summary>
+        /// <summary>护盾牌与数字相对血条中线的**抬高量**（2026-10-23 用户："护盾位置还要往上"）。</summary>
+        public float ShieldLiftY = 0.26f;
+
         public float ShieldPlateW = 0.46f;
         /// <summary>护盾牌高度（世界单位）。</summary>
         public float ShieldPlateH = 0.18f;
@@ -1231,10 +1234,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 float shX = HpBarWidth * 0.5f - ShieldPlateW * 0.5f - 0.03f;
                 view.ShieldPlate = MakeChildSprite(headGo, "ShieldPlate", ShieldColor,
                                                    new Vector2(ShieldPlateW, ShieldPlateH),
-                                                   new Vector2(shX, 0f), 6);   // ★ 与血条**同一中线对齐**（用户 2026-10-20 二次要求）
+                                                   new Vector2(shX, ShieldLiftY), 6);   // ★ 抬到血条上方（2026-10-23）
                 var shTxtGo = new GameObject("ShieldText");
                 shTxtGo.transform.SetParent(headGo.transform, false);  // ⛔ 挂 Head（不挂蓝牌，避免继承牌面缩放）
-                shTxtGo.transform.localPosition = new Vector3(shX, 0f, -0.02f);
+                shTxtGo.transform.localPosition = new Vector3(shX, ShieldLiftY, -0.02f);
                 view.ShieldText = shTxtGo.AddComponent<TextMesh>();
                 var shFont = LegacyFont();   // ⚠ 本方法里 `f` 在后面才声明，这里自己取一次
                 if (shFont != null)

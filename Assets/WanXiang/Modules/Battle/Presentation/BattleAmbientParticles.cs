@@ -63,19 +63,19 @@ namespace WanXiang.Battle.Presentation
             {
                 // 苍泽·浮萍：大、慢、横向大幅摆动（浮在水上）
                 case "realm_marsh":
-                    return new Style { ResPath = "UI/Realm/FX_realm_marsh", Count = 12, WorldSize = 0.55f, FallSpeed = 0.22f, SwayAmp = 1.30f, SwayFreq = 0.40f, SpinDeg = 12f, AlphaMin = 0.45f, AlphaSpeed = 0f };
+                    return new Style { ResPath = "UI/Realm/FX_realm_marsh", Count = 16, WorldSize = 0.85f, FallSpeed = 0.26f, SwayAmp = 1.30f, SwayFreq = 0.40f, SpinDeg = 12f, AlphaMin = 0.62f, AlphaSpeed = 0f };
                 // 烬岭·火星：小、快、上浮（热气流），带闪烁
                 case "realm_ember":
-                    return new Style { ResPath = "UI/Realm/FX_realm_ember", Count = 18, WorldSize = 0.18f, FallSpeed = -0.55f, SwayAmp = 0.55f, SwayFreq = 1.4f, SpinDeg = 0f, AlphaMin = 0.20f, AlphaSpeed = 2.2f };
+                    return new Style { ResPath = "UI/Realm/FX_realm_ember", Count = 22, WorldSize = 0.30f, FallSpeed = -0.55f, SwayAmp = 0.55f, SwayFreq = 1.4f, SpinDeg = 0f, AlphaMin = 0.34f, AlphaSpeed = 2.2f };
                 // 机枢·铜屑：中等、直线下落、快转（机械感）
                 case "realm_gear":
-                    return new Style { ResPath = "UI/Realm/FX_realm_gear", Count = 14, WorldSize = 0.26f, FallSpeed = 0.85f, SwayAmp = 0.10f, SwayFreq = 0.25f, SpinDeg = 180f, AlphaMin = 0.60f, AlphaSpeed = 0f };
+                    return new Style { ResPath = "UI/Realm/FX_realm_gear", Count = 18, WorldSize = 0.40f, FallSpeed = 0.85f, SwayAmp = 0.10f, SwayFreq = 0.25f, SpinDeg = 180f, AlphaMin = 0.75f, AlphaSpeed = 0f };
                 // 寂域·尘埃：几乎静止、极慢、极淡
                 case "realm_silent":
-                    return new Style { ResPath = "UI/Realm/FX_realm_silent", Count = 10, WorldSize = 0.14f, FallSpeed = 0.06f, SwayAmp = 0.18f, SwayFreq = 0.15f, SpinDeg = 4f, AlphaMin = 0.25f, AlphaSpeed = 0f };
+                    return new Style { ResPath = "UI/Realm/FX_realm_silent", Count = 18, WorldSize = 0.30f, FallSpeed = 0.10f, SwayAmp = 0.22f, SwayFreq = 0.18f, SpinDeg = 4f, AlphaMin = 0.48f, AlphaSpeed = 0f };
                 // 荆墟·枯叶：中等偏大、旋转多、摆动大
                 default:
-                    return new Style { ResPath = "UI/Realm/FX_realm_thorn", Count = 14, WorldSize = 0.34f, FallSpeed = 0.55f, SwayAmp = 1.00f, SwayFreq = 0.85f, SpinDeg = 90f, AlphaMin = 0.55f, AlphaSpeed = 0f };
+                    return new Style { ResPath = "UI/Realm/FX_realm_thorn", Count = 18, WorldSize = 0.52f, FallSpeed = 0.55f, SwayAmp = 1.00f, SwayFreq = 0.85f, SpinDeg = 90f, AlphaMin = 0.70f, AlphaSpeed = 0f };
             }
         }
 
