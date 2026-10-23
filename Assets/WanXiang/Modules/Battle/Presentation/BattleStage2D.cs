@@ -494,12 +494,12 @@ namespace WanXiang.Battle.Presentation
             if (_bgMotion == null) _bgMotion = gameObject.AddComponent<BattleBgMotion>();
             _bgMotion.Build(realmId, act);
 
-            // ★ 背景 shader 动效（不盖雾，直接在贴图上做 UV 微扰/墨脉冲/水面波光/呼吸）
-            if (springBg != null)
-            {
-                if (_bgMat != null) Destroy(_bgMat);
-                _bgMat = BattleBgMotion.ApplyShaderToBg(bgSr, springBg, realmId);
-            }
+            // ⛔ 2026-10-23 回退：把背景换成自定 shader 后，**实机整个背景不渲染**，
+            //   只剩相机 paper 底色 + 前景 ⇒ 用户看到"白茫茫一片"。
+            //   （离屏 RT 测过是正常的，说明是 2D Renderer 的 pass 路由/材质绑定在实机不一致。）
+            //   ⇒ 背景保持默认材质（一定出图），动效改为"淡黑暗噪层 + 视差"，绝不加白。
+            //   shader 资产 BattleBgMotion.shader 保留备用（等能稳定验证再启用）。
+            if (_bgMat != null) { Destroy(_bgMat); _bgMat = null; }
 
             // ---- 四周前景装饰（透明 PNG、随幕变化；sortingOrder 30 = 压过冲锋立绘 20）----
             if (fgDecor != null)

@@ -54,8 +54,8 @@ Shader "WanXiang/BattleBgMotion"
 
         Pass
         {
-            Name "BgMotion"
-            Tags { "LightMode" = "SRPDefaultUnlit" }
+            Name "BgMotion2D"
+            Tags { "LightMode" = "Universal2D" }
 
             HLSLPROGRAM
             #pragma vertex vert
@@ -146,6 +146,97 @@ Shader "WanXiang/BattleBgMotion"
                 c.rgb += ripple * float3(0.9, 0.97, 1.0) * darkMask;
 
                 c *= i.color;      // SpriteRenderer.color / 材质 tint
+                return c;
+            }
+            ENDHLSL
+        }
+
+        // ⚠ URP 2D Renderer 用 Universal2D 这个 tag 画精灵；但有些工程/相机走 SRPDefaultUnlit。
+        //   两个 pass 内容完全一致，谁被选中都能出图（2026-10-23：只写 SRPDefaultUnlit 时
+        //   实机背景整个不见，只剩相机 paper 底色 + 前景 ⇒ "白茫茫一片"）。
+        Pass
+        {
+            Name "BgMotionSRP"
+            Tags { "LightMode" = "SRPDefaultUnlit" }
+
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma target 2.0
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            TEXTURE2D(_MainTex);    SAMPLER(sampler_MainTex);
+            TEXTURE2D(_NoiseTex);   SAMPLER(sampler_NoiseTex);
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float4 _Color;
+                float4 _NoiseTex_ST;
+                float  _NoiseScale;
+                float  _NoiseSpeed;
+                float  _Distort;
+                float  _Breath;
+                float  _BreathSpeed;
+                float  _DarkMaskLo;
+                float  _DarkMaskHi;
+                float  _WaterY;
+                float  _WaterStrength;
+                float  _WaterSpeed;
+                float  _InkPulse;
+            CBUFFER_END
+
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float2 uv     : TEXCOORD0;
+                float4 color  : COLOR;
+            };
+
+            struct v2f
+            {
+                float4 pos   : SV_POSITION;
+                float2 uv    : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            v2f vert (appdata v)
+            {
+                v2f o;
+                o.pos = TransformObjectToHClip(v.vertex.xyz);
+                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.color = v.color * _Color;
+                return o;
+            }
+
+            float sampleNoise(float2 uv, float t)
+            {
+                float2 nuv = uv * _NoiseScale + float2(t * _NoiseSpeed, -t * _NoiseSpeed * 0.6);
+                float a = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, nuv).r;
+                float b = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, nuv * 2.7 + float2(-t * 0.013, t * 0.01)).r;
+                return saturate(a * 0.65 + b * 0.35);
+            }
+
+            float4 frag (v2f i) : SV_Target
+            {
+                float t = _Time.y;
+                float n = sampleNoise(i.uv, t);
+                float2 duv = i.uv + (n - 0.5) * _Distort;
+                float4 c = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, duv);
+
+                float lum = dot(c.rgb, float3(0.299, 0.587, 0.114));
+                float darkMask = saturate((_DarkMaskHi - lum) / max(0.001, _DarkMaskHi - _DarkMaskLo));
+
+                float breath = 1.0 + sin(t * _BreathSpeed * 6.2831) * _Breath;
+                c.rgb *= breath;
+                c.rgb *= (1.0 + (n - 0.5) * _InkPulse * darkMask);
+
+                float waterBand = smoothstep(_WaterY + 0.06, _WaterY - 0.06, i.uv.y);
+                float ripple = sin((i.uv.x * 60.0) + t * _WaterSpeed * 3.0 + n * 8.0);
+                ripple = smoothstep(0.55, 1.0, ripple) * waterBand * _WaterStrength;
+                c.rgb += ripple * float3(0.9, 0.97, 1.0) * darkMask;
+
+                c *= i.color;
                 return c;
             }
             ENDHLSL

@@ -57,15 +57,21 @@ namespace WanXiang.Battle.Presentation
             Color tint = TintFor(realmId, act);
             var list = new System.Collections.Generic.List<Layer>(6);
 
-            // ⛔ 2026-10-23：不再盖白色雾层 —— 那会把纸面糊成灰白（用户："背景都看不清了"）。
-            //   雾/水波/呼吸全部改到背景 shader 里做（见 ApplyShaderToBg）。
-            //   这里只保留"暖光呼吸"这一层（很淡，且是暖色不是白色）。
+            // ★ 2026-10-23：雾层改**淡黑**（之前白色雾把纸面糊成灰白）。
+            //   ⛔ 关键：浅底画面加白 = 洗白；要氛围只能用"淡黑暗噪"压一点层次。
+            if (fog != null)
+            {
+                list.Add(Make("Fog_Far", fog, new Vector3(0f, 0.6f, 0f), new Vector2(26f, 13f),
+                              new Color(0.42f, 0.40f, 0.37f, 0.07f), -7));
+                list.Add(Make("Fog_Near", fog, new Vector3(0f, -0.9f, 0f), new Vector2(30f, 15f),
+                              new Color(0.46f, 0.44f, 0.40f, 0.05f), -6));
+            }
 
             // ---- ② 大面积暖光（呼吸）----
             if (glow != null)
             {
                 list.Add(Make("Glow", glow, new Vector3(0f, 1.2f, 0f), new Vector2(20f, 14f),
-                              new Color(1f, 0.93f, 0.80f, 0.13f), -8));
+                              new Color(1f, 0.93f, 0.80f, 0.06f), -8));
             }
 
             // ---- ③ 场域专属 ----
