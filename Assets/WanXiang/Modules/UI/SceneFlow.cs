@@ -108,8 +108,12 @@ namespace WanXiang.Modules.UI
             //   复用 RealmTransition 的粒子/揭示流程，艺术字换成「战斗」，粒子用墨团。
             // ★ 粒子按**当前幕的季节**选（用户："按当前所在的幕的季节使用适合的粒子"）
             // 末尾追加冲击字「开始」：粒子散开 + 「战斗开始」消去之后砸出来
+            // ★ 2026-10-23 用户："秘境里战斗转场会出现彩色圆粒子，很难看" ——
+            //   秘境战斗必须用**该场域的粒子**（UI/Realm/FX_<realmId>），不能用季节花瓣/萤火。
+            var runF = WanXiang.Run.RunSave.Current;
+            string partPath = (runF != null && runF.InRealm) ? ("UI/Realm/FX_" + runF.RealmId) : ParticleForAct(act);
             RealmTransition.PlayAsync(null, () => Load(BattleScene), null,
-                "UI/Title/battle", ParticleForAct(act), revealDelay: 0.10f,
+                "UI/Title/battle", partPath, revealDelay: 0.10f,
                 impactWordRes: "UI/Title/start").Forget();
         }
 
@@ -131,8 +135,10 @@ namespace WanXiang.Modules.UI
             int actNow = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
             // revealDelay 0.55s：主城的节点地图是异步打开的，等它就绪再拨开，
             // 否则会先露出主界面背景（用户实测）。
+            var runX = WanXiang.Run.RunSave.Current;
+            string partExit = (runX != null && runX.InRealm) ? ("UI/Realm/FX_" + runX.RealmId) : ParticleForAct(actNow);
             RealmTransition.PlayAsync(null, () => Load(MainScene), null, word,
-                ParticleForAct(actNow), revealDelay: 0.55f).Forget();
+                partExit, revealDelay: 0.55f).Forget();
         }
 
         /// <summary>按幕取季节粒子（与 HomeScene3D / UiTransition 同一套资源）。</summary>

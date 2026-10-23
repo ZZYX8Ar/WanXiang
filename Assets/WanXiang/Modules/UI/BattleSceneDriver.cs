@@ -117,7 +117,7 @@ namespace WanXiang.Modules.UI
                     }
                     if (bg == null) bg = _background;   // 旧序列化引用兜底
                     Sprite fg = fgRealm != null ? fgRealm : (inRealm ? null : Resources.Load<Sprite>(FgByAct[act - 1]));
-                    _stage.Build(play.State, bg, _sprites, fg, act);
+                    _stage.Build(play.State, bg, _sprites, fg, act, inRealm ? runR.RealmId : null);
                     Debug.Log("[BattleSceneDriver] 舞台已搭建：" + req.Title +
                               "（act=" + act + " bg=" + (bg != null ? bg.name : "null") +
                               " fg=" + (fg != null ? fg.name : "null") + "）");

@@ -53,6 +53,32 @@ namespace WanXiang.Battle.Presentation
             }
         }
 
+        /// <summary>
+        /// 秘境场域风格（2026-10-23 用户："每一关秘境飘动的粒子也没有变化"）。
+        /// 图统一在 Resources/UI/Realm/FX_realm_&lt;id&gt;，与地图氛围共用一套。
+        /// </summary>
+        public static Style StyleForRealm(string realmId)
+        {
+            switch (realmId)
+            {
+                // 苍泽·浮萍：大、慢、横向大幅摆动（浮在水上）
+                case "realm_marsh":
+                    return new Style { ResPath = "UI/Realm/FX_realm_marsh", Count = 12, WorldSize = 0.55f, FallSpeed = 0.22f, SwayAmp = 1.30f, SwayFreq = 0.40f, SpinDeg = 12f, AlphaMin = 0.45f, AlphaSpeed = 0f };
+                // 烬岭·火星：小、快、上浮（热气流），带闪烁
+                case "realm_ember":
+                    return new Style { ResPath = "UI/Realm/FX_realm_ember", Count = 18, WorldSize = 0.18f, FallSpeed = -0.55f, SwayAmp = 0.55f, SwayFreq = 1.4f, SpinDeg = 0f, AlphaMin = 0.20f, AlphaSpeed = 2.2f };
+                // 机枢·铜屑：中等、直线下落、快转（机械感）
+                case "realm_gear":
+                    return new Style { ResPath = "UI/Realm/FX_realm_gear", Count = 14, WorldSize = 0.26f, FallSpeed = 0.85f, SwayAmp = 0.10f, SwayFreq = 0.25f, SpinDeg = 180f, AlphaMin = 0.60f, AlphaSpeed = 0f };
+                // 寂域·尘埃：几乎静止、极慢、极淡
+                case "realm_silent":
+                    return new Style { ResPath = "UI/Realm/FX_realm_silent", Count = 10, WorldSize = 0.14f, FallSpeed = 0.06f, SwayAmp = 0.18f, SwayFreq = 0.15f, SpinDeg = 4f, AlphaMin = 0.25f, AlphaSpeed = 0f };
+                // 荆墟·枯叶：中等偏大、旋转多、摆动大
+                default:
+                    return new Style { ResPath = "UI/Realm/FX_realm_thorn", Count = 14, WorldSize = 0.34f, FallSpeed = 0.55f, SwayAmp = 1.00f, SwayFreq = 0.85f, SpinDeg = 90f, AlphaMin = 0.55f, AlphaSpeed = 0f };
+            }
+        }
+
         private struct P
         {
             public Transform T;
@@ -71,10 +97,21 @@ namespace WanXiang.Battle.Presentation
         public int ActiveCount => _ps != null ? _ps.Length : 0;
 
         /// <summary>按幕构建粒子池。缺图或数量为 0 时静默跳过（不阻塞战斗）。</summary>
+        /// <summary>按秘境场域构建（与 Build(act) 二选一）。</summary>
+        public void BuildRealm(string realmId)
+        {
+            Build(StyleForRealm(realmId));
+        }
+
         public void Build(int act)
         {
             Clear();
-            _style = StyleForAct(act);
+            Build(StyleForAct(act));
+        }
+
+        private void Build(Style style)
+        {
+            _style = style;
             var sp = Resources.Load<Sprite>(_style.ResPath);
             if (sp == null)
             {
@@ -120,7 +157,7 @@ namespace WanXiang.Battle.Presentation
                     AlphaSpeed = _style.AlphaSpeed,
                 };
             }
-            Debug.Log("[Stage2D] 环境粒子已就绪 act=" + act + " count=" + _ps.Length + " sprite=" + sp.name);
+            Debug.Log("[Stage2D] 环境粒子已就绪 style=" + _style.ResPath + " count=" + _ps.Length + " sprite=" + (sp != null ? sp.name : "null"));
         }
 
         /// <summary>推进粒子（由 BattleStage2D.Step 转发 dt）。</summary>

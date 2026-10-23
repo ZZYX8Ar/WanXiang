@@ -454,7 +454,8 @@ namespace WanXiang.Battle.Presentation
         //  搭建
         // ================================================================
 
-        public void Build(BattleState st, Sprite springBg, SpriteCatalog catalog = null, Sprite fgDecor = null, int act = 1)
+        public void Build(BattleState st, Sprite springBg, SpriteCatalog catalog = null, Sprite fgDecor = null, int act = 1,
+                          string realmId = null)
         {
             _catalog = catalog;
             Clear();
@@ -496,7 +497,9 @@ namespace WanXiang.Battle.Presentation
             // ---- 环境粒子（按幕：春花瓣/夏萤火/长夏花粉/秋落叶/冬雪花）----
             _ambient = GetComponent<BattleAmbientParticles>();
             if (_ambient == null) _ambient = gameObject.AddComponent<BattleAmbientParticles>();
-            _ambient.Build(act);
+            // ★ 2026-10-23：秘境战斗用**场域专属**飘落粒子（用户："每关秘境粒子没有变化"）
+            if (!string.IsNullOrEmpty(realmId)) _ambient.BuildRealm(realmId);
+            else _ambient.Build(act);
 
             BuildBoard("BoardP", PlayerX, BoardY, true);
 
