@@ -173,6 +173,15 @@ namespace WanXiang.Battle.Presentation
             mat.SetFloat("_RaySpeed", 0.09f);
             mat.SetFloat("_WaterY", _waterLine);
             mat.SetFloat("_WaterWobble", 0.008f);
+
+            // 追加三层（2026-10-23）：竖向雾带 / 纸纹颗粒 / 暗角
+            mat.SetFloat("_FogBandY", 0.52f);
+            mat.SetFloat("_FogBandH", 0.11f);
+            mat.SetFloat("_FogStrength", 0.11f);
+            mat.SetFloat("_FogSpeed", 0.016f);
+            mat.SetFloat("_Grain", 0.045f);
+            mat.SetFloat("_GrainSpeed", 0.6f);
+            mat.SetFloat("_Vignette", 0.12f);
             mat.SetFloat("_WaterShine", 0.16f);
 
             bgSr.material = mat;

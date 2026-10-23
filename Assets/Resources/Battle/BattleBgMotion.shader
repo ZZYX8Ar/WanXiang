@@ -31,6 +31,15 @@ Shader "WanXiang/BattleBgMotion"
         _WaterWobble ("Water Wobble", Float) = 0.006
         _WaterShine ("Water Shine", Float) = 0.12
         _PaperGuard ("Paper Guard", Float) = 0.90
+
+        // ---- 追加：竖向雾带 / 纸纹颗粒 / 暗角（2026-10-23）----
+        _FogBandY ("Fog Band Y", Float) = 0.52
+        _FogBandH ("Fog Band Height", Float) = 0.10
+        _FogStrength ("Fog Strength", Float) = 0.10
+        _FogSpeed ("Fog Speed", Float) = 0.015
+        _Grain ("Paper Grain", Float) = 0.035
+        _GrainSpeed ("Grain Speed", Float) = 0.6
+        _Vignette ("Vignette", Float) = 0.10
     }
 
     SubShader
@@ -81,6 +90,13 @@ Shader "WanXiang/BattleBgMotion"
                 float _WaterWobble;
                 float _WaterShine;
                 float _PaperGuard;
+                float _FogBandY;
+                float _FogBandH;
+                float _FogStrength;
+                float _FogSpeed;
+                float _Grain;
+                float _GrainSpeed;
+                float _Vignette;
             CBUFFER_END
 
             struct appdata { float4 vertex:POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; };
@@ -135,6 +151,23 @@ Shader "WanXiang/BattleBgMotion"
                 float rays = smoothstep(0.90, 1.0, ray) * smoothstep(0.30, 0.85, uv.y) * _RayStrength;
                 c.rgb += rays * float3(1.0, 0.96, 0.86) * paper;
 
+                // ---- ⑥ 竖向雾带（贴着地平线的一条，缓慢横移；只加一点点亮度）----
+                //   参考：TinyPlay/VerticalFog、marcozakaria/Vertical Fog 的"带状雾"做法。
+                float bandY = exp(-pow((uv.y - _FogBandY) / max(0.001, _FogBandH), 2.0));
+                float fogN = SAMPLE_TEXTURE2D(_CloudTex, sampler_CloudTex,
+                                              uv * float2(2.2, 0.6) + float2(t * _FogSpeed, 0.0)).r;
+                c.rgb += _FogStrength * bandY * smoothstep(0.35, 0.85, fogN) * float3(1.0, 0.99, 0.96);
+
+                // ---- ⑦ 纸纹颗粒（高频细噪，乘性；让它像纸不像"AI 图"）----
+                float grain = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex,
+                                               uv * 18.0 + float2(t * _GrainSpeed * 0.03, t * _GrainSpeed * 0.021)).r;
+                c.rgb *= 1.0 + (grain - 0.5) * _Grain;
+
+                // ---- ⑧ 暗角（四角压暗，随呼吸极轻微起伏）----
+                float2 vd = uv - 0.5;
+                float vig = saturate(1.0 - dot(vd, vd) * 2.4);
+                c.rgb *= lerp(1.0 - _Vignette, 1.0, vig);
+
                 c *= i.color;
                 return c;
             }
@@ -176,6 +209,13 @@ Shader "WanXiang/BattleBgMotion"
                 float _WaterWobble;
                 float _WaterShine;
                 float _PaperGuard;
+                float _FogBandY;
+                float _FogBandH;
+                float _FogStrength;
+                float _FogSpeed;
+                float _Grain;
+                float _GrainSpeed;
+                float _Vignette;
             CBUFFER_END
 
             struct appdata { float4 vertex:POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; };
@@ -220,6 +260,23 @@ Shader "WanXiang/BattleBgMotion"
                 float ray = frac((uv.x + uv.y * _RayTilt) * 2.0 + t * _RaySpeed);
                 float rays = smoothstep(0.90, 1.0, ray) * smoothstep(0.30, 0.85, uv.y) * _RayStrength;
                 c.rgb += rays * float3(1.0, 0.96, 0.86) * paper;
+
+                // ---- ⑥ 竖向雾带（贴着地平线的一条，缓慢横移；只加一点点亮度）----
+                //   参考：TinyPlay/VerticalFog、marcozakaria/Vertical Fog 的"带状雾"做法。
+                float bandY = exp(-pow((uv.y - _FogBandY) / max(0.001, _FogBandH), 2.0));
+                float fogN = SAMPLE_TEXTURE2D(_CloudTex, sampler_CloudTex,
+                                              uv * float2(2.2, 0.6) + float2(t * _FogSpeed, 0.0)).r;
+                c.rgb += _FogStrength * bandY * smoothstep(0.35, 0.85, fogN) * float3(1.0, 0.99, 0.96);
+
+                // ---- ⑦ 纸纹颗粒（高频细噪，乘性；让它像纸不像"AI 图"）----
+                float grain = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex,
+                                               uv * 18.0 + float2(t * _GrainSpeed * 0.03, t * _GrainSpeed * 0.021)).r;
+                c.rgb *= 1.0 + (grain - 0.5) * _Grain;
+
+                // ---- ⑧ 暗角（四角压暗，随呼吸极轻微起伏）----
+                float2 vd = uv - 0.5;
+                float vig = saturate(1.0 - dot(vd, vd) * 2.4);
+                c.rgb *= lerp(1.0 - _Vignette, 1.0, vig);
 
                 c *= i.color;
                 return c;
