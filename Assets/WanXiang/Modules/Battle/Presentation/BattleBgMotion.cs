@@ -57,14 +57,9 @@ namespace WanXiang.Battle.Presentation
             Color tint = TintFor(realmId, act);
             var list = new System.Collections.Generic.List<Layer>(6);
 
-            // ---- ① 远景雾 ×2（错频，互相穿插 ⇒ 有纵深）----
-            if (fog != null)
-            {
-                list.Add(Make("Fog_Far", fog, new Vector3(0f, 0.6f, 0f), new Vector2(26f, 13f),
-                              new Color(tint.r, tint.g, tint.b, 0.16f), -7));
-                list.Add(Make("Fog_Near", fog, new Vector3(0f, -0.9f, 0f), new Vector2(30f, 15f),
-                              new Color(tint.r, tint.g, tint.b, 0.12f), -6));
-            }
+            // ⛔ 2026-10-23：不再盖白色雾层 —— 那会把纸面糊成灰白（用户："背景都看不清了"）。
+            //   雾/水波/呼吸全部改到背景 shader 里做（见 ApplyShaderToBg）。
+            //   这里只保留"暖光呼吸"这一层（很淡，且是暖色不是白色）。
 
             // ---- ② 大面积暖光（呼吸）----
             if (glow != null)
@@ -110,6 +105,57 @@ namespace WanXiang.Battle.Presentation
                 _layers = list.ToArray();
                 _built = true;
             }
+        }
+
+        /// <summary>
+        /// **shader 版背景动效**（2026-10-23 用户："叠雾把背景糊了，能不能写 shader"）。
+        /// 不再在背景上盖一层白雾，而是**在背景贴图本身上**做：UV 微扰 + 暗部墨脉冲 +
+        /// 水面波光 + 乘性呼吸。纸面留白区域用亮度掩膜排除，绝不会发白。
+        /// 返回材质实例（调用方负责销毁）。
+        /// </summary>
+        public static Material ApplyShaderToBg(SpriteRenderer bgSr, Sprite bgSprite, string realmId)
+        {
+            if (bgSr == null || bgSprite == null) return null;
+            var sh = Resources.Load<Shader>("Battle/BattleBgMotion");
+            if (sh == null) { Debug.LogWarning("[BattleBgMotion] 找不到 shader：Battle/BattleBgMotion"); return null; }
+
+            var mat = new Material(sh);
+            mat.SetTexture("_MainTex", bgSprite.texture);
+            mat.SetColor("_Color", Color.white);
+
+            // 噪声贴图：直接用程序化的柔雾图（柔和的低频块最适合做"空气感"）
+            var noise = Resources.Load<Sprite>("Battle/FX_motion_fog");
+            if (noise != null)
+            {
+                var tex = noise.texture;
+                tex.wrapMode = TextureWrapMode.Repeat;      // 必须 Repeat，否则 UV 越大越糊
+                mat.SetTexture("_NoiseTex", tex);
+            }
+
+            // 通用参数：扰动极小（0.35% 视口），保证"看得清原画"
+            mat.SetFloat("_NoiseScale", 3.0f);
+            mat.SetFloat("_NoiseSpeed", 0.015f);
+            mat.SetFloat("_Distort", 0.0035f);
+            mat.SetFloat("_Breath", 0.018f);
+            mat.SetFloat("_BreathSpeed", 0.08f);
+            mat.SetFloat("_DarkMaskLo", 0.35f);
+            mat.SetFloat("_DarkMaskHi", 0.82f);
+            mat.SetFloat("_InkPulse", 0.02f);
+
+            // 场域差异：只有苍泽有明显水面；烬岭/荆墟做更强的墨脉冲（热气/风沙）
+            float waterY = 0.15f, waterStr = 0f;
+            switch (realmId)
+            {
+                case "realm_marsh": waterY = 0.42f; waterStr = 0.06f; break;
+                case "realm_ember": waterStr = 0f; mat.SetFloat("_InkPulse", 0.03f); break;
+                case "realm_thorn": waterStr = 0f; mat.SetFloat("_InkPulse", 0.028f); break;
+            }
+            mat.SetFloat("_WaterY", waterY);
+            mat.SetFloat("_WaterStrength", waterStr);
+            mat.SetFloat("_WaterSpeed", 0.35f);
+
+            bgSr.material = mat;
+            return mat;
         }
 
         private Layer Make(string name, Sprite sp, Vector3 pos, Vector2 size, Color col, int order)

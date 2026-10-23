@@ -445,6 +445,7 @@ namespace WanXiang.Battle.Presentation
         /// <summary>背景层（档 1 极缓视差漂移用；2026-10-23）。</summary>
         private Transform _bgDecor;
         private BattleBgMotion _bgMotion;
+        private Material _bgMat;
         private Vector3 _bgHomePos;
         /// <summary>环境粒子（按幕：春花瓣/夏萤火/长夏花粉/秋落叶/冬雪花）。</summary>
         private BattleAmbientParticles _ambient;
@@ -492,6 +493,13 @@ namespace WanXiang.Battle.Presentation
             _bgMotion = GetComponent<BattleBgMotion>();
             if (_bgMotion == null) _bgMotion = gameObject.AddComponent<BattleBgMotion>();
             _bgMotion.Build(realmId, act);
+
+            // ★ 背景 shader 动效（不盖雾，直接在贴图上做 UV 微扰/墨脉冲/水面波光/呼吸）
+            if (springBg != null)
+            {
+                if (_bgMat != null) Destroy(_bgMat);
+                _bgMat = BattleBgMotion.ApplyShaderToBg(bgSr, springBg, realmId);
+            }
 
             // ---- 四周前景装饰（透明 PNG、随幕变化；sortingOrder 30 = 压过冲锋立绘 20）----
             if (fgDecor != null)
