@@ -1,57 +1,47 @@
 // ============================================================================
-//  万相 · 秘境转场「艺术字揭示」Shader（2026-10-16）
+//  万相 · 艺术字「笔锋写入」揭示 Shader（2026-10-23 重做）
 //  ---------------------------------------------------------------------------
-//  用户需求："重新设计这个转场，我建议使用粒子拨开，在这个粒子拨开的背景上加一些字…
-//  这个字你可以参考 D:\Unity_Project\Demo\InkAbyssWalker-Integration 里面的开场字
-//  「墨渊行者」，是使用了 shader 的…它这个字好像是生成好的图片，不是真正的字体，
-//  你也可以使用这个模式，这样这些艺术字好看一点"
+//  用户："写字转场不太行" —— 原来的实现是**径向涟漪**（从中心一圈圈洇开），
+//  对"毛笔写字"这种**单向运笔**的意象是错的：字应该像被一笔扫出来，
+//  而不是从中间泡开。
 //
-//  ⇒ 参考工程的 `Custom/LogoAppearWithNoise`：
-//     **不是**用 TMP 排字，而是拿一张**预渲染的艺术字图**（毛笔字 + 墨点飞白），
-//     用噪声扰动的**径向揭示**一笔笔"洇"出来。边缘还带一道发光涟漪。
-//     这样字的美术上限由原图决定，不受字形/字体限制 —— 正是用户要的效果。
+//  本版做法（仍然是 UI 用的内置管线 CGPROGRAM，与 Resources/Shaders 其它 UI shader 一致）：
+//   ① 单向扫描：沿 X（或 _Dir 指定的方向）推一条**带噪声的竖边**，
+//      边缘用双频噪声打碎 ⇒ 像笔锋走纸，而不是直尺推过来；
+//   ② 湿边：边界处**墨色加深 + 加宽 alpha**（湿墨在纸上洇开的那一圈）；
+//   ③ 前渗：边界前方一小段半透明"洇痕"，跟随 _Progress 出现、结束收掉；
+//   ④ 运笔微颤：边界位置叠一个低频 sin，手写感；
+//   ⑤ 墨色反相 _Invert 保留（黑墨字在暗底上要翻成白墨）。
 //
-//  ⚠ 与参考工程的差异（必须做的适配）：
-//    ① 参考用的是 URP（HLSLPROGRAM + Core.hlsl）；本工程 UI 层走**内置管线 CGPROGRAM**，
-//       与 Resources/Shaders 里其它 UI shader 保持一致（换 URP 写法会和现有 UI 材质冲突）。
-//    ② ⛔⛔ **UGUI 自定义 shader 必须把顶点色 i.color 与 _Color 乘进去** ——
-//       否则运行时改 Image.color 完全无效（本项目 2026-10-12 踩过，写进约定了）。
-//    ③ 用 `_MainTex_ST` 支持 Tiling/Offset（Image 的 uvRect 依赖它）。
-//
-//  两个可调的门面参数：
-//    _Progress 0→1 揭示进度（转场里由代码推）
-//    _RippleCenter 涟漪中心（默认落在字的重心附近，让"洇开"从主字起笔）
+//  兼容：仍然只吃 `_Progress`，RealmTransition 不需要改代码。
 // ============================================================================
-
 Shader "WanXiang/UI/RealmTitleReveal"
 {
     Properties
     {
         _MainTex      ("Title Art (RGBA)", 2D) = "white" {}
-        _Color        ("Tint", Color) = (1, 1, 1, 1)
+        _Color        ("Tint", Color) = (1,1,1,1)
         _NoiseTex     ("Noise (Grayscale)", 2D) = "gray" {}
 
-        _Progress     ("Progress", Range(0, 1)) = 0
-        _RippleCenter ("Ripple Center (UV)", Vector) = (0.5, 0.5, 0, 0)
-        _Feather      ("Feather", Range(0.01, 0.5)) = 0.16
-        _MaxRadius    ("Max Radius", Range(0.5, 2.5)) = 1.5
+        _Progress     ("Progress", Range(0,1)) = 0
+        _RippleCenter ("Legacy Center (unused)", Vector) = (0.5,0.5,0,0)
+        _Feather      ("Edge Feather", Range(0.005,0.4)) = 0.055
+        _MaxRadius    ("Legacy Radius (unused)", Range(0.5,2.5)) = 1.5
 
-        _NoiseStrength("Noise Strength", Range(0, 0.5)) = 0.15
-        _EdgeColor    ("Edge Color", Color) = (0.85, 0.78, 0.55, 1)
-        _EdgeWidth    ("Edge Width", Range(0, 0.2)) = 0.035
+        _NoiseStrength("Edge Noise", Range(0,0.4)) = 0.06
+        _EdgeColor    ("Wet Edge Color", Color) = (0.92,0.90,0.84,1)
+        _EdgeWidth    ("Wet Edge Width", Range(0,0.2)) = 0.03
 
-        // ⛔⛔ 墨色反相开关（2026-10-17 加）：
-        //   字图是**黑墨**画在白纸上的。如果转场底也是近黑（本工程就是黑幕），
-        //   黑字直接"融进背景"——实测 _Progress=0.75 时整幅字只剩边缘那圈白线，
-        //   字内部完全看不见，像没做出来。
-        //   ⇒ _Invert=1 把 RGB 翻成 (1−RGB)，黑墨变白墨，在暗底上才立得住；
-        //     alpha 不动，所以飞白/枯笔的镂空质感完全保留。
-        _Invert       ("Invert Ink (0 = 黑墨, 1 = 白墨)", Range(0, 1)) = 0
+        _SweepStart   ("Sweep Start X", Range(-0.4,0.4)) = -0.12
+        _SweepEnd     ("Sweep End X", Range(0.6,1.4)) = 1.12
+        _Bleed        ("Bleed Ahead", Range(0,0.15)) = 0.05
+        _Tremble      ("Hand Tremble", Range(0,0.01)) = 0.0025
+        _Invert       ("Invert Ink (0=黑墨, 1=白墨)", Range(0,1)) = 0
     }
 
     SubShader
     {
-        Tags { "Queue" = "Transparent" "RenderType" = "Transparent" "IgnoreProjector" = "True" }
+        Tags { "Queue"="Transparent" "RenderType"="Transparent" "IgnoreProjector"="True" }
         LOD 100
 
         Pass
@@ -75,14 +65,15 @@ Shader "WanXiang/UI/RealmTitleReveal"
 
             struct v2f
             {
-                float4 pos      : SV_POSITION;
-                float2 uv       : TEXCOORD0;
-                float2 uvNoise  : TEXCOORD1;
-                fixed4 color    : COLOR;
+                float4 pos     : SV_POSITION;
+                float2 uv      : TEXCOORD0;
+                float2 uvNoise : TEXCOORD1;
+                fixed4 color   : COLOR;
             };
 
             sampler2D _MainTex;  float4 _MainTex_ST;
             sampler2D _NoiseTex; float4 _NoiseTex_ST;
+
             fixed4 _Color;
             float  _Progress;
             float4 _RippleCenter;
@@ -91,6 +82,10 @@ Shader "WanXiang/UI/RealmTitleReveal"
             float  _NoiseStrength;
             fixed4 _EdgeColor;
             float  _EdgeWidth;
+            float  _SweepStart;
+            float  _SweepEnd;
+            float  _Bleed;
+            float  _Tremble;
             float  _Invert;
 
             v2f vert(appdata_t v)
@@ -98,7 +93,6 @@ Shader "WanXiang/UI/RealmTitleReveal"
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
-                // 噪声用**独立**的 tiling，避免和字图的 uvRect 绑死
                 o.uvNoise = TRANSFORM_TEX(v.texcoord, _NoiseTex);
                 o.color = v.color * _Color;
                 return o;
@@ -106,41 +100,47 @@ Shader "WanXiang/UI/RealmTitleReveal"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                // ---- 1. 噪声扰动：把完美的圆形边界打碎成水墨不规则边缘 ----
-                float noise = tex2D(_NoiseTex, i.uvNoise).r;
-                float noiseOffset = (noise - 0.5) * _NoiseStrength;
+                // ---- 边界位置（沿 X 推进；-0.12 起步让边缘不会一开始就"整片"出现）----
+                float edgeX = lerp(_SweepStart, _SweepEnd, _Progress);
 
-                float dist = distance(i.uv, _RippleCenter.xy) + noiseOffset;
+                // ---- 双频噪声：低频做大起伏（笔锋），高频做毛边（纸纤维）----
+                float n1 = tex2D(_NoiseTex, i.uvNoise).r;
+                float n2 = tex2D(_NoiseTex, i.uvNoise * 4.7 + float2(0.37, 0.21)).r;
+                float n = n1 * 0.65 + n2 * 0.35;
 
-                // ---- 2. 当前揭示半径 ----
-                float currentRadius = _Progress * _MaxRadius;
+                // ---- 运笔微颤：低频 sin，随时间轻摆（幅度很小，不能像"抖动故障"）----
+                float trem = sin(i.uv.y * 26.0 + _Time.y * 2.1) * _Tremble;
+                float localEdge = edgeX + (n - 0.5) * _NoiseStrength + trem;
 
-                // ---- 3. 可见性遮罩（软化边缘）----
-                float mask = 1.0 - smoothstep(currentRadius - _Feather, currentRadius, dist);
-                mask *= step(0.0001, _Progress);   // Progress=0 时避免浮点误差露出残影
+                float d = i.uv.x - localEdge;               // d<0 = 已写到的地方
 
-                // ---- 4. 字图 ----
+                // ---- 可见遮罩：d<0 显示；边缘 feather 内柔和过渡 ----
+                float mask = 1.0 - smoothstep(-_Feather, _Feather, d);
+                mask *= step(0.0001, _Progress);            // Progress=0 不许露残影
+
+                // ---- 字图 + 反相 + 顶点色 ----
                 fixed4 col = tex2D(_MainTex, i.uv);
-
-                // ★ 墨色反相（在乘 tint 之前做：tint 是"导演意图"，不该被反相翻掉）
-                //   只翻 RGB，alpha 不动 —— 飞白/枯笔的镂空全靠 alpha，翻不翻都一样。
                 col.rgb = lerp(col.rgb, 1.0 - col.rgb, _Invert);
-
-                // ⛔ 必须乘顶点色 × _Color：UGUI 靠这个改颜色，漏了就是"代码改了色但没反应"
                 col *= i.color;
 
-                // ---- 5. 涟漪边缘发光（顺着被噪声扰动的边界，所以也会弯曲）----
-                float edge = saturate(1.0 - abs(dist - currentRadius) / (_EdgeWidth + 0.0001));
-                edge *= step(0.0001, _Progress) * (1.0 - step(0.999, _Progress));  // 揭示完成时收掉
-                edge *= mask;
+                // ---- ② 湿边：只在**有墨的像素**上做（⛔ 否则空白处会被染成一条竖带）----
+                //   墨在纸上洇开：颜色往湿墨色偏一点、alpha 略微加厚。
+                float hasInk = step(0.04, col.a);
+                float wet = saturate(1.0 - abs(d) / (_EdgeWidth + 0.0001));
+                wet *= step(0.0001, _Progress) * (1.0 - step(0.999, _Progress)) * hasInk;
+                col.rgb = lerp(col.rgb, _EdgeColor.rgb, wet * _EdgeColor.a * 0.55);
+                col.a = saturate(col.a + wet * 0.12);
 
-                col.rgb = lerp(col.rgb, _EdgeColor.rgb, edge * _EdgeColor.a * col.a);
+                // ---- ③ 前渗：边界前方的洇痕，同样只作用在有墨处 ----
+                float ahead = saturate(1.0 - abs(d - _Bleed) / (_Bleed + 0.0001));
+                ahead *= step(0.0001, _Progress) * (1.0 - step(0.999, _Progress)) * hasInk;
+                col.a = saturate(col.a + ahead * 0.06);
+
                 col.a *= mask;
                 return col;
             }
             ENDCG
         }
     }
-
     Fallback Off
 }
