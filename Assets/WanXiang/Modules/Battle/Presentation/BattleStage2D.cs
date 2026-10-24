@@ -451,6 +451,8 @@ namespace WanXiang.Battle.Presentation
         private Transform _bgDecor;
         private BattleBgMotion _bgMotion;
         private Material _bgMat;
+        private bool _dissolveWarned;
+        private bool _dissolveLogDone;
         private Vector3 _bgHomePos;
         /// <summary>环境粒子（按幕：春花瓣/夏萤火/长夏花粉/秋落叶/冬雪花）。</summary>
         private BattleAmbientParticles _ambient;
@@ -2682,13 +2684,21 @@ if (life < 0.2f) life = 0.2f;
         /// </summary>
         private bool EnsureDissolveMat(UnitView2D v)
         {
-            if (v == null || v.Body == null) return false;
+            if (v == null) return false;
+            // 兜底：Body 引用可能为空（某些 sp 变体只在 Root 下挂了 SpriteRenderer）
+            if (v.Body == null && v.Root != null)
+                v.Body = v.Root.GetComponentInChildren<SpriteRenderer>(true);
+            if (v.Body == null)
+            {
+                if (!_dissolveWarned) { _dissolveWarned = true; Debug.LogWarning("[Stage2D] 墨蚀溶解跳过：找不到立绘 SpriteRenderer"); }
+                return false;
+            }
             if (v.DissolveMat != null) return true;
 
             var sh = Resources.Load<Shader>("Battle/InkDissolve");
             if (sh == null || !sh.isSupported)
             {
-                Debug.LogWarning("[Stage2D] 墨蚀溶解不可用（shader 缺失/不支持），退回淡出");
+                if (!_dissolveWarned) { _dissolveWarned = true; Debug.LogWarning("[Stage2D] 墨蚀溶解不可用（shader 缺失/不支持），退回淡出"); }
                 return false;
             }
             var mat = new Material(sh);
@@ -2705,6 +2715,11 @@ if (life < 0.2f) life = 0.2f;
             if (v.BodyMaterial == null) v.BodyMaterial = v.Body.sharedMaterial;
             v.Body.material = mat;
             v.DissolveMat = mat;
+            if (!_dissolveLogDone)
+            {
+                _dissolveLogDone = true;
+                Debug.Log("[Stage2D] 墨蚀溶解已挂到立绘：" + v.Body.name + " sprite=" + (v.Body.sprite != null ? v.Body.sprite.name : "null"));
+            }
             return true;
         }
 

@@ -552,6 +552,17 @@ namespace WanXiang.Modules.UI
             string text = t.Main ?? "";
             if (string.IsNullOrEmpty(text)) return;
 
+            // ★★ 2026-10-24：优先用**书法艺术字图**（横排、大小错落）+ 笔锋写入。
+            //   逐笔帧图的字形是矢量拆解出来的，笔画均匀、像字体；用户要的是"艺术字"。
+            //   有 `Resources/UI/Title/act<N>` 就走艺术字，没图自动退回逐笔帧图 / TMP。
+            int actIdx = System.Array.IndexOf(Titles, t) + 1;
+            var art = actIdx > 0 ? Resources.Load<Sprite>("UI/Title/act" + actIdx) : null;
+            if (art != null)
+            {
+                await WriteArtAsync(t, art);
+                return;
+            }
+
             var tpl = transform.Find("Root_Title/Img_TitleChar") as RectTransform;
             if (tpl == null) { await WriteByTmpAsync(text); return; }
 
@@ -614,6 +625,77 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>回退方案：TMP 原生逐字扫出（没有笔顺帧时用，保证一定有东西显示）。</summary>
+        /// <summary>
+        /// 用一张**书法艺术字图**做笔锋写入（横排、大小错落由美术图决定）。
+        /// · 复用 `Root_Title/Img_TitleChar` 作模板，克隆一个居中的大图；
+        /// · 材质 `WanXiang/UI/RealmTitleReveal`，`_Progress` 0→1 推 `_writeTotal`；
+        /// · 黑墨图叠在浅色宣纸上 ⇒ `_Invert = 0`；若将来换成白墨图，改这里一处即可。
+        /// </summary>
+        private async UniTask WriteArtAsync(ActTitle t, Sprite art)
+        {
+            var tpl = transform.Find("Root_Title/Img_TitleChar") as RectTransform;
+            if (tpl == null) { await WriteByTmpAsync(t.Main); return; }
+
+            _tmpTitleMain.enabled = false;
+
+            var clone = Instantiate(tpl, tpl.parent);
+            clone.gameObject.SetActive(true);
+            clone.name = "Img_TitleArt";
+            var img = clone.GetComponent<Image>();
+            if (img == null) { await WriteByTmpAsync(t.Main); return; }
+
+            img.enabled = true;
+            img.sprite = art;
+            img.color = Color.white;          // 艺术字自带墨色，不再染色
+            img.preserveAspect = true;
+
+            // 尺寸：高度取 Root_Title 的 78%，宽度按图比例（横排四字约 1.5:1）
+            var parentRt = tpl.parent as RectTransform;
+            float parentH = parentRt != null ? parentRt.rect.height : 420f;
+            float targetH = Mathf.Max(160f, parentH * 0.78f);
+            float aspect = art.rect.height > 1f ? art.rect.width / art.rect.height : 2f;
+            clone.sizeDelta = new Vector2(targetH * aspect, targetH);
+            clone.anchoredPosition = tpl.anchoredPosition;
+
+            // 笔锋写入材质
+            var sh = Shader.Find("WanXiang/UI/RealmTitleReveal");
+            Material mat = null;
+            if (sh != null)
+            {
+                mat = new Material(sh);
+                mat.hideFlags = HideFlags.HideAndDontSave;
+                var noise = Resources.Load<Texture2D>("UI/Realm/reveal_noise");
+                if (noise != null) mat.SetTexture("_NoiseTex", noise);
+                mat.SetFloat("_Invert", 0f);          // 黑墨（浅底）
+                mat.SetFloat("_NoiseStrength", 0.05f);
+                mat.SetFloat("_Feather", 0.05f);
+                mat.SetFloat("_Tremble", 0.002f);
+                mat.SetFloat("_Progress", 0f);
+                img.material = mat;
+            }
+
+            // 推进：与逐笔版同一时间轴
+            float total = Mathf.Max(0.4f, _writeTotal);
+            float e = 0f;
+            while (e < total)
+            {
+                e += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(e / total);
+                float eased = Mathf.SmoothStep(0f, 1f, k);
+                if (mat != null) mat.SetFloat("_Progress", eased);
+                else if (img != null) { var c = img.color; c.a = eased; img.color = c; }
+                await UniTask.Yield();
+            }
+            if (mat != null) mat.SetFloat("_Progress", 1f);
+
+            _titleArtMat = mat;
+            _titleArtImg = img;
+            Dbg("书法艺术字写入完成 act=" + t.Main);
+        }
+
+        private Material _titleArtMat;
+        private Image _titleArtImg;
+
         private async UniTask WriteByTmpAsync(string text)
         {
             if (_tmpTitleMain == null) return;
