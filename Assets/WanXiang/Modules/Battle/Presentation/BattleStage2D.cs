@@ -2094,8 +2094,20 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 float sink = 0f;
                 if (!v.Alive)
                 {
-                    v.DeadBlend = Mathf.Min(1f, v.DeadBlend + dt / 0.55f);
+                    bool justDied = v.DeadBlend <= 0.0001f;
+                    v.DeadBlend = Mathf.Min(1f, v.DeadBlend + dt / 0.75f);
                     sink = -0.5f * v.DeadBlend;
+
+                    // ★ 死亡瞬间炸一团墨点（配合溶解，才有"被打散"的实感）
+                    if (justDied)
+                    {
+                        var wp = v.Root.transform.position + new Vector3(0f, 0.55f, 0f);
+                        var inkCol = v.PlayerSide
+                            ? new Color(0.16f, 0.15f, 0.14f, 0.95f)
+                            : new Color(0.10f, 0.09f, 0.09f, 0.95f);
+                        InkBurst.Spawn(wp, 10, 1.0f, inkCol, 26);
+
+                    }
 
                     // ★ T13 墨蚀溶解：死亡不是淡出，而是墨从头像边缘啃进来
                     if (EnsureDissolveMat(v))

@@ -22,9 +22,9 @@ Shader "WanXiang/Battle/InkDissolve"
 
         _Progress ("Progress", Range(0,1)) = 0
         _NoiseScale ("Noise Scale", Float) = 3.5
-        _EdgeWidth ("Wet Edge Width", Range(0.01,0.3)) = 0.10
+        _EdgeWidth ("Wet Edge Width", Range(0.01,0.3)) = 0.16
         _EdgeColor ("Wet Edge Color", Color) = (0.10,0.09,0.08,1)
-        _EdgeStrength ("Wet Edge Strength", Range(0,1)) = 0.55
+        _EdgeStrength ("Wet Edge Strength", Range(0,1)) = 0.85
         _Invert ("Invert Mask (1 = 从外向内)", Range(0,1)) = 1
     }
 
@@ -94,7 +94,11 @@ Shader "WanXiang/Battle/InkDissolve"
                 // 径向权重：默认从边缘往里蚀（中心最后消失）
                 float2 d2 = i.uv - 0.5;
                 float radial = saturate(length(d2) * 1.9);
-                float maskInput = lerp(n, (n * 0.55 + radial * 0.45), _Invert);
+                // 方向偏置：从下往上被墨吃掉（0 = 底部先蚀，1 = 顶部先蚀）
+                float vert = i.uv.y;                      // 底部 0 → 顶部 1
+                float dirBias = 1.0 - vert;               // 底部权重最大
+                float baseMask = n * 0.55 + radial * 0.30 + dirBias * 0.15;
+                float maskInput = lerp(n, baseMask, _Invert);
 
                 float threshold = lerp(-0.15, 1.05, _Progress);   // 0 = 全在，1 = 全无
                 float visible = smoothstep(threshold, threshold + _EdgeWidth, maskInput);
@@ -158,7 +162,11 @@ Shader "WanXiang/Battle/InkDissolve"
 
                 float2 d2 = i.uv - 0.5;
                 float radial = saturate(length(d2) * 1.9);
-                float maskInput = lerp(n, (n * 0.55 + radial * 0.45), _Invert);
+                // 方向偏置：从下往上被墨吃掉（0 = 底部先蚀，1 = 顶部先蚀）
+                float vert = i.uv.y;                      // 底部 0 → 顶部 1
+                float dirBias = 1.0 - vert;               // 底部权重最大
+                float baseMask = n * 0.55 + radial * 0.30 + dirBias * 0.15;
+                float maskInput = lerp(n, baseMask, _Invert);
 
                 float threshold = lerp(-0.15, 1.05, _Progress);
                 float visible = smoothstep(threshold, threshold + _EdgeWidth, maskInput);
