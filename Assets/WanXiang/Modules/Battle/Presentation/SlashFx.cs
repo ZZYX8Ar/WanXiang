@@ -17,9 +17,12 @@ namespace WanXiang.Battle.Presentation
         private float _t;
         private float _life = 0.18f;
         private float _fadeFrom = 0.12f;
+        private Transform _follow;      // 出手者（弧光跟着"往前顶"一起走）
+        private Vector3 _toWorld;       // 目标点（世界坐标，冲锋落点）
 
         /// <summary>在世界坐标 from → to 之间甩一道弧光。</summary>
-        public static void Spawn(Vector3 from, Vector3 to, Color color, float life = 0.18f)
+        public static void Spawn(Vector3 from, Vector3 to, Color color, float life = 0.18f,
+                                 Transform follow = null)
         {
             var sh = Resources.Load<Shader>("Battle/SlashArc");
             var sp = Resources.Load<Sprite>("Battle/FX_slash_arc");
@@ -27,11 +30,14 @@ namespace WanXiang.Battle.Presentation
 
             var go = new GameObject("SlashFx");
             var fx = go.AddComponent<SlashFx>();
-            fx.Build(from, to, color, life, sh, sp);
+            fx.Build(from, to, color, life, sh, sp, follow);
         }
 
-        private void Build(Vector3 from, Vector3 to, Color color, float life, Shader sh, Sprite sp)
+        private void Build(Vector3 from, Vector3 to, Color color, float life, Shader sh, Sprite sp,
+                           Transform follow)
         {
+            _follow = follow;
+            _toWorld = to;
             _life = Mathf.Max(0.08f, life);
 
             Vector2 d = to - from;
@@ -62,6 +68,23 @@ namespace WanXiang.Battle.Presentation
         {
             if (_mat == null || _sr == null) { Destroy(gameObject); return; }
             _t += Time.deltaTime;                       // 真实时间：演出不吃倍速
+
+            // ★ 跟着出手者走：异兽往前顶，弧光跟着顶过去（用户 2026-10-24）
+            if (_follow != null)
+            {
+                Vector3 from = _follow.position;
+                Vector2 dir = (Vector2)(_toWorld - from);
+                if (dir.sqrMagnitude > 0.0001f)
+                {
+                    transform.position = from;
+                    transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
+                    var b = _sr.bounds.size;   // 注意：bounds 已是世界尺寸，这里用贴图原始尺寸换算
+                    var spb = _sr.sprite != null ? _sr.sprite.bounds.size : new Vector3(1f, 1f, 0f);
+                    float len = Mathf.Max(0.5f, dir.magnitude * 1.35f);
+                    transform.localScale = new Vector3(len / Mathf.Max(0.001f, spb.x),
+                                                       (len * 0.50f) / Mathf.Max(0.001f, spb.y), 1f);
+                }
+            }
 
             float k = Mathf.Clamp01(_t / _life);
             _mat.SetFloat("_Progress", Mathf.SmoothStep(0f, 1f, k));

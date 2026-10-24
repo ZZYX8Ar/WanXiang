@@ -70,6 +70,11 @@ namespace WanXiang.Modules.UI
         /// </summary>
         private static readonly Color CoverColor = Color.black;
 
+        // ★ T2（2026-10-24）：遮罩走"墨从四边洇入"——纯色淡入换成噪声驱动的墨缘推进。
+        //   shader 缺失时 _coverMat = null，行为退回原来的纯 alpha 淡入（不会挂）。
+        private Material _coverMat;
+        private static readonly int CoverProgressId = Shader.PropertyToID("_Progress");
+
         /// <summary>
         /// 调试慢放（1 = 正常）。整条时轴乘这个系数。
         /// <para>为什么要有：整场演出 2.6 秒，而远程调试工具一次往返就超过它 ——
@@ -208,6 +213,21 @@ namespace WanXiang.Modules.UI
             // ---- 纸色底（最底，盖旧画面 + 吃点击）----
             _cover = NewImage("Cover", 0);
             FullStretch(_cover.rectTransform);
+
+            // 墨缘遮罩材质（找不到 shader 就保持纯色淡入）
+            var coverShader = Shader.Find("WanXiang/UI/InkCover");
+            if (coverShader != null && _coverMat == null)
+            {
+                _coverMat = new Material(coverShader);
+                _coverMat.hideFlags = HideFlags.HideAndDontSave;
+                var noise = Resources.Load<Texture2D>("UI/Realm/reveal_noise");
+                if (noise != null) _coverMat.SetTexture("_NoiseTex", noise);
+                _coverMat.SetFloat("_Soft", 0.13f);
+                _coverMat.SetFloat("_NoiseAmt", 0.12f);
+                _coverMat.SetFloat("_EdgeDark", 0.45f);
+                _coverMat.SetFloat(CoverProgressId, 0f);
+                _cover.material = _coverMat;
+            }
             _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, 0f);
             _cover.raycastTarget = true;
 
@@ -280,10 +300,12 @@ namespace WanXiang.Modules.UI
                 float k = Mathf.Clamp01(t / dClose);
                 SetParticlePhase(EaseOut(k));
                 _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, Mathf.Lerp(a0, COVER_A, k));
+                if (_coverMat != null) _coverMat.SetFloat(CoverProgressId, Mathf.Lerp(0f, 1f, k));
                 yield return null;
             }
             SetParticlePhase(1f);
             _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, COVER_A);
+            if (_coverMat != null) _coverMat.SetFloat(CoverProgressId, 1f);
 
             // ---- ② 换场（屏幕已盖满）----
             try { onSwitch?.Invoke(); }
@@ -328,6 +350,8 @@ namespace WanXiang.Modules.UI
                 _title.color = tc;
                 // 纸底同步退掉，露出下面的秘境地图
                 _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, Mathf.Lerp(COVER_A, 0f, Mathf.Clamp01(k * 1.3f)));
+                // 墨缘反向收（从中心往四边退）
+                if (_coverMat != null) _coverMat.SetFloat(CoverProgressId, Mathf.Lerp(1f, 0f, Mathf.Clamp01(k * 1.3f)));
                 yield return null;
             }
 

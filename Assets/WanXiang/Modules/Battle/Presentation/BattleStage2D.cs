@@ -1955,13 +1955,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         {
                             var fromPos = slA.Root.transform.position + new Vector3(0f, 0.55f, -0.3f);
                             var toPos = new Vector3(slA.LungeTo.x, slA.LungeTo.y + 0.55f, -0.3f);
-                            // ⛔ 2026-10-24：战斗底是浅宣纸，弧光用"提亮的元素色"几乎看不见
-                            //   ⇒ 改成**压暗的元素墨色**（像用色墨画的一笔），浅底上才立得住。
-                            var col = BattlePalette.OfElement(e.Element);
-                            var ink = new Color(Mathf.Clamp01(col.r * 0.55f + 0.05f),
-                                                Mathf.Clamp01(col.g * 0.55f + 0.05f),
-                                                Mathf.Clamp01(col.b * 0.55f + 0.05f), 1f);
-                            SlashFx.Spawn(fromPos, toPos, ink, 0.22f);
+                            // 颜色（2026-10-24 用户："棕色不好看"）⇒ 改成**墨青 + 白刃核心**：
+                            //   浅底上靠"冷色 + 高光边"读出来，不再用发闷的棕墨。
+                            var ink = new Color(0.16f, 0.30f, 0.34f, 1f);
+                            SlashFx.Spawn(fromPos, toPos, ink, 0.22f, slA.Root.transform);
                         }
                         // ★ 连携追击：每次追加都飘一句"追加攻击"，让玩家看清是谁在补刀
                         if (e.IsCombo && e.ActorId != null && _views.TryGetValue(e.ActorId, out var fu))
