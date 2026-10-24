@@ -74,6 +74,11 @@ namespace WanXiang.Battle.Presentation
         public Vector2 HomePos;        // 站位（未加浮动）
         public float Phase;            // 待机浮动相位（随机，方案 §最易做错三件事之一）
         public float DeadBlend;
+
+        /// <summary>死亡"墨蚀"溶解材质（T13，2026-10-24）。null = 未启用/未创建。</summary>
+        public Material DissolveMat;
+        /// <summary>身体原始材质（溶解结束后还原）。</summary>
+        public Material BodyMaterial;
         public float ShakePulse;         // 受击回弹（>0 时向基色回退）
         public Color BaseColor = Color.white;
         public Vector2 KickVec;          // 受击位移（沿受击方向小踹一脚，衰减）
@@ -1181,6 +1186,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 bodySr.flipX = !player && u.Def.Id != BossCatalog.TwinBeastId;
                 // 敌方压暗一档（§4.4 敌我同源 + 浊化的轻量版）
                 if (!player) bodySr.color = new Color(0.72f, 0.72f, 0.80f);
+                view.BodyMaterial = bodySr.sharedMaterial;
                 view.Body = bodySr;
                 view.BaseColor = bodySr.color;
 
@@ -2001,6 +2007,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     {
                         rv.Alive = true;
                         rv.DeadBlend = 0f;                       // 复位：否则复活后仍顶着死亡灰调
+                        RestoreBodyMaterial(rv);
                         if (rv.Root != null && !rv.Root.activeSelf) rv.Root.SetActive(true);
                         rv.Body.color = rv.BaseColor;
                         SetHpBar2D(rv, rv.Hp, rv.MaxHp);
@@ -2087,11 +2094,25 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 float sink = 0f;
                 if (!v.Alive)
                 {
-                    v.DeadBlend = Mathf.Min(1f, v.DeadBlend + dt / 0.35f);
+                    v.DeadBlend = Mathf.Min(1f, v.DeadBlend + dt / 0.55f);
                     sink = -0.5f * v.DeadBlend;
-                    var c = v.Body.color;
-                    float g = Mathf.Lerp(1f, 0.35f, v.DeadBlend);
-                    v.Body.color = new Color(v.BaseColor.r * g, v.BaseColor.g * g, v.BaseColor.b * g, 1f - 0.5f * v.DeadBlend);
+
+                    // ★ T13 墨蚀溶解：死亡不是淡出，而是墨从头像边缘啃进来
+                    if (EnsureDissolveMat(v))
+                    {
+                        v.DissolveMat.SetFloat("_Progress", v.DeadBlend);
+                        // 溶解期只压一点灰，不再做 alpha 淡出（alpha 交给 shader）
+                        var cd = v.Body.color;
+                        float gd = Mathf.Lerp(1f, 0.55f, v.DeadBlend);
+                        v.Body.color = new Color(v.BaseColor.r * gd, v.BaseColor.g * gd, v.BaseColor.b * gd, 1f);
+                    }
+                    else
+                    {
+                        // 兜底：shader 不可用就退回原来的淡出
+                        var c = v.Body.color;
+                        float g = Mathf.Lerp(1f, 0.35f, v.DeadBlend);
+                        v.Body.color = new Color(v.BaseColor.r * g, v.BaseColor.g * g, v.BaseColor.b * g, 1f - 0.5f * v.DeadBlend);
+                    }
                 }
                 else if (v.HitFlash > 0f)
                 {
@@ -2644,6 +2665,48 @@ if (life < 0.2f) life = 0.2f;
         ///    也会被伤害消耗；无论哪种归零，这里都靠帧流 s.Shield 自动收牌（见 ApplyFrame→SetShield2D）。
         /// 所以它是"还剩多少"的真实信息，必须显示。
         /// </summary>
+        /// <summary>
+        /// 死亡墨蚀材质（懒创建）。返回 false = 本机不可用（shader 缺失/不支持），调用方走兜底。
+        /// </summary>
+        private bool EnsureDissolveMat(UnitView2D v)
+        {
+            if (v == null || v.Body == null) return false;
+            if (v.DissolveMat != null) return true;
+
+            var sh = Resources.Load<Shader>("Battle/InkDissolve");
+            if (sh == null || !sh.isSupported)
+            {
+                Debug.LogWarning("[Stage2D] 墨蚀溶解不可用（shader 缺失/不支持），退回淡出");
+                return false;
+            }
+            var mat = new Material(sh);
+            if (v.Body.sprite != null) mat.SetTexture("_MainTex", v.Body.sprite.texture);
+            var noise = Resources.Load<Sprite>("Battle/FX_motion_fog");
+            if (noise != null) mat.SetTexture("_NoiseTex", noise.texture);
+            mat.SetFloat("_NoiseScale", 3.5f);
+            mat.SetFloat("_EdgeWidth", 0.10f);
+            mat.SetFloat("_EdgeStrength", 0.55f);
+            mat.SetFloat("_Invert", 1f);
+            mat.SetColor("_EdgeColor", new Color(0.10f, 0.09f, 0.08f, 1f));
+            mat.SetFloat("_Progress", 0f);
+
+            if (v.BodyMaterial == null) v.BodyMaterial = v.Body.sharedMaterial;
+            v.Body.material = mat;
+            v.DissolveMat = mat;
+            return true;
+        }
+
+        private static void RestoreBodyMaterial(UnitView2D v)
+        {
+            if (v == null) return;
+            if (v.DissolveMat != null)
+            {
+                if (v.Body != null && v.BodyMaterial != null) v.Body.sharedMaterial = v.BodyMaterial;
+                Destroy(v.DissolveMat);
+                v.DissolveMat = null;
+            }
+        }
+
         private void SetShield2D(UnitView2D v, int shield)
         {
             bool on = shield > 0;
