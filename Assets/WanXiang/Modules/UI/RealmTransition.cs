@@ -117,7 +117,20 @@ namespace WanXiang.Modules.UI
         {
             var inst = Ensure();
             if (inst == null) { onSwitch?.Invoke(); return; }
-            if (inst._busy) { onSwitch?.Invoke(); return; }   // 重入：直接换，不叠演出
+
+            // ⛔ 2026-10-24：重入时**不能立刻 onSwitch** —— 上一次转场还没盖满屏幕，
+            //   这时切面板 = 玩家直接看到新地图（"离开秘境提前看到节点地图"的成因之一）。
+            //   改成等它播完再开始自己这一场。
+            if (inst._busy)
+            {
+                float waited = 0f;
+                while (inst != null && inst._busy && waited < 4f)
+                {
+                    waited += Time.unscaledDeltaTime;
+                    await UniTask.Yield(PlayerLoopTiming.Update);
+                }
+                if (inst == null) { onSwitch?.Invoke(); return; }
+            }
 
             bool done = false;
             inst._titleResOverride = titleResPath;

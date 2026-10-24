@@ -165,7 +165,9 @@ namespace WanXiang.Modules.UI
                     //   而"正在关闭的实例"会被**静默忽略** ⇒ 画面一片空白且无报错（踩过两次）。
                     var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
                     if (ui != null) ui.OpenAsync<CampaignPanel>(null).Forget();
-                });
+                // ★ 2026-10-24 用户："离开秘境时也提前看到节点地图"
+                //   同进入一样：纸底一开始就满，别让开场那 0.55s 透出后面的地图。
+                }, instantCover: true);
             });
         }
     }
