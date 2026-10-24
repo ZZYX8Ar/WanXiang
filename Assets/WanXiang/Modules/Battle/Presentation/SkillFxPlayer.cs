@@ -34,6 +34,7 @@ namespace WanXiang.Battle.Presentation
         public SkillFxKind Kind;
         public float StartAt;   // 相对本次 Play 的起播时刻（秒）
         public float Dur;       // 持续时间（秒）
+
         public float SizeMul;   // 体量倍率
         public int RayCount;
         public float RaySharp;
@@ -75,7 +76,16 @@ namespace WanXiang.Battle.Presentation
 
         private readonly List<SkillFxClip> _clips = new List<SkillFxClip>(16);
         private float _t;                 // 本地时钟（由 Step 累加）
-        private float _playStart;         // 本次 Play 起播时的 _t 值（片段 StartAt 都加上它）
+        private float _playStart;
+
+        // ---- 演出占用时长（2026-10-24 用户："放大招/连携期间其他单位都不能行动"）----
+        //   回放层据此**暂停推进事件**，实现"时停"：等演出快结束再让下一单位动。
+        private float _busyStart;
+        private float _busyDur;
+        /// <summary>最近一次大演出（终结/觉醒/连携）的总时长（秒）。</summary>
+        public float LastBusyDuration => _busyDur;
+        /// <summary>本次演出还剩多少秒（已放完 = 0）。</summary>
+        public float RemainingBusy => Mathf.Max(0f, _busyDur - (_t - _busyStart));         // 本次 Play 起播时的 _t 值（片段 StartAt 都加上它）
         private bool _ready;
 
         /// <summary>舞台相机（用于全屏闪的尺寸与爆心换算）。BattleStage2D.Bind 时注入。</summary>
@@ -197,6 +207,10 @@ namespace WanXiang.Battle.Presentation
             float ringDur   = (isAwaken ? 1.00f : 0.80f);
             float flashDur  = (isAwaken ? 0.34f : 0.25f);
 
+            // ★ 记下本次演出占用时长：回放层据此"时停"（用户 2026-10-24）
+            _busyStart = _t;
+            _busyDur = cutInDur + chargeDur + Mathf.Max(burstDur, Mathf.Max(ringDur, flashDur)) + 0.12f;
+
             // ⓪ 异兽头像特写（P5R 式 cut-in）：先让玩家看清"是谁开大"，再进特效
             if (cutInDur > 0f)
                 AddCutIn(worldPos, cutInDur, core, portrait, beastName, skillName, isAwaken, faceLeft);
@@ -252,6 +266,9 @@ namespace WanXiang.Battle.Presentation
             // 连携特写：比终结技短一点（它是"成果展示"，不是"起手预备"）
             AddCutIn(worldPos, 0.95f, element, hostPortrait, hostName, comboName,
                      isAwaken: false, faceLeft: false, extras: others, extrasBias: true);
+            // ★ 连携同样占用演出时长（含后续追加攻击的可见时间）
+            _busyStart = _t;
+            _busyDur = 1.55f;
         }
 
         private void AddCutIn(Vector3 worldPos, float dur, Color core, Sprite portrait, string beastName,

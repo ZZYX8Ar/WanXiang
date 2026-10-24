@@ -1465,6 +1465,11 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             _skillFx.Bind(_cam, TriggerShake, TriggerZoom);
         }
 
+        /// <summary>最近一次大演出（终结/觉醒/连携）的总时长；无演出 = 0。</summary>
+        public float LastFxDuration => _skillFx != null ? _skillFx.LastBusyDuration : 0f;
+        /// <summary>本次大演出剩余时间（秒）。战斗收尾要等它播完。</summary>
+        public float RemainingFxTime => _skillFx != null ? _skillFx.RemainingBusy : 0f;
+
         /// <summary>触发一次终结技/觉醒技演出。仅 Ultimate/Awaken 调用（大招要稀有）。</summary>
         private void PlaySkillFx(string actorId, string targetId, Element element, bool isAwaken, string skillName)
         {

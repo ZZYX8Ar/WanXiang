@@ -74,6 +74,8 @@ namespace WanXiang.Modules.UI
         //  回放
         // ================================================================
 
+        private float _fxHold;   // 大演出"时停"剩余秒数（终结/觉醒/连携）
+
         private async UniTask PlayLoop(CancellationToken ct)
         {
             ApplyFrames();
@@ -107,6 +109,18 @@ namespace WanXiang.Modules.UI
              await UniTask.Yield(PlayerLoopTiming.Update, ct);
       continue;
            }
+
+                // ★★ 2026-10-24 用户："放大招/连携期间其他异兽和敌方都不能行动，相当于时停"
+                //   ⇒ 演出期间**不推进模拟事件**，只让舞台动画自己走。
+                //   以前这里没有闸：终结技 cut-in 还在放，下一单位的事件已经播完了，
+                //   看到的就是"我方放完立马到敌方"。
+                if (_fxHold > 0f)
+                {
+                    _fxHold -= Time.unscaledDeltaTime;
+                    guard = 0;                      // 时停帧不算推进步数
+                    await UniTask.Yield(PlayerLoopTiming.Update, ct);
+                    continue;
+                }
     // ⛔ 此处**不再**有任何 Boss 机制提示的刷新逻辑：提示已改由战场表现层
                 //   （BattleStage2D）画成单位头顶的**世界空间文字**，内容随帧流（UnitSnapshot.StateHint）更新。
                 //   历次踩坑：① 曾写进 _tipText —— 那是【技能/连携 tooltip】的控件，会互相覆盖，
@@ -220,6 +234,17 @@ namespace WanXiang.Modules.UI
             // ★ 走到这里 = 战斗真的打完了（`!_play.Finished` 才会离开循环；
             //   guard 触顶只告警+清零，**不再中途退出** —— 那会把没打完的仗判成结束）。
             await DrainRest(ct);                     // 收尾：分帧走完剩余事件（见 DrainRest 注释）
+
+            // ★ 2026-10-24 用户："放完就立马胜利转场，大招动画还留在画面上"
+            //   ⇒ 结算前把还在播的大演出等完（最长 3s，防止异常卡死）。
+            float tail = _stage != null ? Mathf.Min(3f, _stage.RemainingFxTime) : 0f;
+            float waited = 0f;
+            while (waited < tail)
+            {
+                waited += Time.unscaledDeltaTime;
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
+
             _playing = false;
             FinishAndLeave(0.8f, ct);
         }
@@ -254,6 +279,19 @@ namespace WanXiang.Modules.UI
             ApplyFrames();
 
             var e = _play.Current;
+            // ★ 大演出（终结/觉醒/连携）⇒ 置时停，等演出放完再让下一单位动
+            if (e.Kind == WanXiang.Battle.Core.BattleEventKind.SkillCast && _stage != null)
+            {
+                bool big = e.Skill == WanXiang.Battle.Core.SkillType.Ultimate
+                        || e.Skill == WanXiang.Battle.Core.SkillType.Awaken
+                        || e.IsCombo;
+                if (big)
+                {
+                    float d = _stage.LastFxDuration;
+                    if (d <= 0f) d = e.IsCombo ? 1.55f : 2.2f;   // 无舞台/无立绘时的兜底
+                    _fxHold = Mathf.Max(_fxHold, d / Mathf.Max(1f, _speed));
+                }
+            }
             ApplyEvent(e);
             PlayEventSfx(e);   // 事件 → 音效（见 BattlePanel.Audio.cs）
             if (_stage != null) _stage.ApplyEvent(_play.EventIndex, e);
