@@ -210,6 +210,7 @@ namespace WanXiang.Modules.UI
             WanXiang.Campaign.LiveWeather.Reset();                     // 会话级星移余气一并清空，防跨局污染
             // 内存里的"待落地"也必须清：否则新局第一格会被上一局的待办劫持
             CampaignPanel.PendingCommit = -1;
+            CampaignPanel.NeedsViewReset = true;   // ★ 重开一局：节点地图的视图残留也要清
             SceneFlow.BattleDeploying = false;   // 重开一局：解除任何遗留的出征锁
             WanXiang.Modules.UI.RealmSession.ClearPlayerHazards(run);  // 秘境给我方挂的临时状态一并清
 

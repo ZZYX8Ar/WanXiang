@@ -102,6 +102,13 @@ BuildNodeMap();
         [SerializeField] private TMP_Text _tmpJie;             // Tmp_JieCount  劫数
 
         /// <summary>待推进节点（跨面板共享）：出征时保留、返回地图时撤销。</summary>
+        /// <summary>
+        /// 换存档 / 开新局时置 true：本面板是 Cached 复用实例，`_currentOffset/_visited/_passed/_graph`
+        /// 会带着上一局的残留（用户 2026-10-24："换档重新开始，有些节点已通过、异兽遗物还在"）。
+        /// ⛔ 只重置存档数据（RunState.ResetForNewRun）不够，视图必须一起清。
+        /// </summary>
+        public static bool NeedsViewReset;
+
         public static int PendingCommit = -1;      // 事件类节点：完成后才推进（未完成就关游戏 ， 节点不通过、奖励不丢）
         [SerializeField] private ScrollRect _scrollNodes;      // Scroll_Nodes  节点长卷
         [SerializeField] private RectTransform _nodeItemTemplate;  // Item_Node（模板，默认隐藏）
@@ -444,6 +451,23 @@ BuildNodeMap();
 
 protected override UniTask OnOpenAsync(object payload)
      {
+            // ★★ 换档/新局：先清上一局的视图残留，再走正常构建
+            if (NeedsViewReset)
+            {
+                NeedsViewReset = false;
+                _currentOffset = -1;
+                _visited.Clear();
+                _passed.Clear();
+                _fogWeather.Clear();
+                _graph = null;
+                _injectedGraph = null;
+                _realmGraphPayload = null;
+                _realmMode = false;
+                _justPassedNode = -1;
+                PendingCommit = -1;
+                Debug.Log("[Campaign] 换档/新局：视图状态已重置");
+            }
+
             // ★★ 秘境 = 特殊的一幕：payload 是 ActGraph 就走秘境模式。
             //   本面板**只有这一个分叉点**，其余（排布/连线/选中/出征/落印）全部是主线同一套代码。
             _realmGraphPayload = payload as WanXiang.Campaign.ActGraph;

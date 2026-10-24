@@ -96,6 +96,8 @@ namespace WanXiang.Modules.UI
             var state = RunSave.Load(slot);
             if (state == null) RunSave.StartNew(slot);
             else RunSave.ContinueWith(state);
+            // ★ 换档必须清上一局的视图残留（节点地图是 Cached 面板）
+            CampaignPanel.NeedsViewReset = true;
             WanXiang.Meta.MetaStore.ReloadHistory();   // ★ 切档后按新槽位重读历程，避免跨档污染
             WanXiang.Meta.MetaStore.ReloadMeta();      // ★ 局外数据（墨铊/精魄/等级/觉醒技/图鉴）同样按槽隔离
             CloseSelf();
@@ -162,6 +164,7 @@ namespace WanXiang.Modules.UI
                 if (!RunSave.Exists(slot))
                 {
                     RunSave.StartNew(slot);
+                    CampaignPanel.NeedsViewReset = true;
                     WanXiang.Meta.MetaStore.ReloadHistory();   // ★ 新档：内存历程应为空
                     WanXiang.Meta.MetaStore.ReloadMeta();      // ★ 新档：局外数据也应是该槽自己的（全新或已有）
                     CloseSelf();
