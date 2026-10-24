@@ -1947,19 +1947,6 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         // 纯增益）时退化为"朝敌方方向冲一段"，不影响观感。
                         StartLunge(e.ActorId, e.TargetId);
 
-                        // ★ T6 斩击弧光（2026-10-24）：普攻/战技出手甩一道笔刷弧光。
-                        //   ⛔ 不能依赖 `e.TargetId` —— 普攻的 SkillCast 事件**不带 targetId**
-                        //     （见 BattleSimulator.Action.cs），第一版就是因此一条都没画出来。
-                        //   改用冲锋落点 `LungeTo` 定方向；群体技（无落点偏移）也照画一道。
-                        if (_views.TryGetValue(e.ActorId, out var slA) && slA.Root != null)
-                        {
-                            var fromPos = slA.Root.transform.position + new Vector3(0f, 0.55f, -0.3f);
-                            var toPos = new Vector3(slA.LungeTo.x, slA.LungeTo.y + 0.55f, -0.3f);
-                            // 颜色（2026-10-24 用户："棕色不好看"）⇒ 改成**墨青 + 白刃核心**：
-                            //   浅底上靠"冷色 + 高光边"读出来，不再用发闷的棕墨。
-                            var ink = new Color(0.16f, 0.30f, 0.34f, 1f);
-                            SlashFx.Spawn(fromPos, toPos, ink, 0.22f, slA.Root.transform);
-                        }
                         // ★ 连携追击：每次追加都飘一句"追加攻击"，让玩家看清是谁在补刀
                         if (e.IsCombo && e.ActorId != null && _views.TryGetValue(e.ActorId, out var fu))
                         {
