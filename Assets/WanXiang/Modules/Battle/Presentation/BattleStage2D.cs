@@ -1943,23 +1943,26 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                     else
                     {
-                        // ★ T6 斩击弧光（2026-10-24）：普攻/战技出手时，从出手者朝目标甩一道笔刷弧光。
-                        //   仅单体（有 TargetId）才画，群体技不画（否则五道弧同时闪很乱）。
-                        if (!string.IsNullOrEmpty(e.TargetId)
-                            && _views.TryGetValue(e.ActorId, out var slA) && slA.Root != null
-                            && _views.TryGetValue(e.TargetId, out var slT) && slT.Root != null)
-                        {
-                            var col = BattlePalette.OfElement(e.Element);
-                            SlashFx.Spawn(slA.Root.transform.position + new Vector3(0f, 0.55f, -0.3f),
-                                          slT.Root.transform.position + new Vector3(0f, 0.55f, -0.3f),
-                                          new Color(Mathf.Lerp(col.r, 1f, 0.25f),
-                                                    Mathf.Lerp(col.g, 1f, 0.25f),
-                                                    Mathf.Lerp(col.b, 1f, 0.25f), 0.95f));
-                        }
-
                         // 出手：冲上去（GDD 的"跑到目标面前"）。目标 id 缺失（群体技/
                         // 纯增益）时退化为"朝敌方方向冲一段"，不影响观感。
                         StartLunge(e.ActorId, e.TargetId);
+
+                        // ★ T6 斩击弧光（2026-10-24）：普攻/战技出手甩一道笔刷弧光。
+                        //   ⛔ 不能依赖 `e.TargetId` —— 普攻的 SkillCast 事件**不带 targetId**
+                        //     （见 BattleSimulator.Action.cs），第一版就是因此一条都没画出来。
+                        //   改用冲锋落点 `LungeTo` 定方向；群体技（无落点偏移）也照画一道。
+                        if (_views.TryGetValue(e.ActorId, out var slA) && slA.Root != null)
+                        {
+                            var fromPos = slA.Root.transform.position + new Vector3(0f, 0.55f, -0.3f);
+                            var toPos = new Vector3(slA.LungeTo.x, slA.LungeTo.y + 0.55f, -0.3f);
+                            // ⛔ 2026-10-24：战斗底是浅宣纸，弧光用"提亮的元素色"几乎看不见
+                            //   ⇒ 改成**压暗的元素墨色**（像用色墨画的一笔），浅底上才立得住。
+                            var col = BattlePalette.OfElement(e.Element);
+                            var ink = new Color(Mathf.Clamp01(col.r * 0.55f + 0.05f),
+                                                Mathf.Clamp01(col.g * 0.55f + 0.05f),
+                                                Mathf.Clamp01(col.b * 0.55f + 0.05f), 1f);
+                            SlashFx.Spawn(fromPos, toPos, ink, 0.22f);
+                        }
                         // ★ 连携追击：每次追加都飘一句"追加攻击"，让玩家看清是谁在补刀
                         if (e.IsCombo && e.ActorId != null && _views.TryGetValue(e.ActorId, out var fu))
                         {

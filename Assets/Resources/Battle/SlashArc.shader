@@ -69,7 +69,7 @@ Shader "WanXiang/Battle/SlashArc"
                 float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
 
                 // 沿 x "扫过"：前沿是斜的（y 越大越早），像刀锋略斜切过去
-                float front = _Progress * 1.15 - 0.05 + (i.uv.y - 0.5) * 0.10;
+                float front = _Progress * 1.6 - 0.25 + (i.uv.y - 0.5) * 0.12;
                 float cover = 1.0 - smoothstep(front - _Soft, front, i.uv.x);
 
                 // 尾部渐隐：越靠近起点越淡（拖尾感）
@@ -77,7 +77,7 @@ Shader "WanXiang/Battle/SlashArc"
 
                 float a = tex.a * cover * tail * _Alpha;
                 // 前沿提亮：一条窄亮边（刀光"过曝"的那一下）
-                float edge = (1.0 - smoothstep(0.0, _Soft * 1.6, abs(i.uv.x - front))) * 0.55 * _EdgeBoost;
+                float edge = (1.0 - smoothstep(0.0, _Soft * 0.9, abs(i.uv.x - front))) * 0.55 * _EdgeBoost;
 
                 float3 col = tex.rgb * i.color.rgb * (1.0 + edge * 2.2);
                 return float4(col, saturate(a) * i.color.a);
@@ -120,11 +120,11 @@ Shader "WanXiang/Battle/SlashArc"
             float4 frag (v2f i) : SV_Target
             {
                 float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
-                float front = _Progress * 1.15 - 0.05 + (i.uv.y - 0.5) * 0.10;
+                float front = _Progress * 1.6 - 0.25 + (i.uv.y - 0.5) * 0.12;
                 float cover = 1.0 - smoothstep(front - _Soft, front, i.uv.x);
                 float tail = smoothstep(0.0, 0.35, _Progress) * (1.0 - smoothstep(front - 0.45, front, i.uv.x) * 0.65);
                 float a = tex.a * cover * tail * _Alpha;
-                float edge = (1.0 - smoothstep(0.0, _Soft * 1.6, abs(i.uv.x - front))) * 0.55 * _EdgeBoost;
+                float edge = (1.0 - smoothstep(0.0, _Soft * 0.9, abs(i.uv.x - front))) * 0.55 * _EdgeBoost;
                 float3 col = tex.rgb * i.color.rgb * (1.0 + edge * 2.2);
                 return float4(col, saturate(a) * i.color.a);
             }

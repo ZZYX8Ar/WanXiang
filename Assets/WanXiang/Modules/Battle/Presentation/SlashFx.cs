@@ -35,7 +35,7 @@ namespace WanXiang.Battle.Presentation
             _life = Mathf.Max(0.08f, life);
 
             Vector2 d = to - from;
-            float len = Mathf.Max(0.35f, d.magnitude * 1.05f);
+            float len = Mathf.Max(0.5f, d.magnitude * 1.35f);
             float ang = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
 
             transform.position = from;
@@ -47,7 +47,7 @@ namespace WanXiang.Battle.Presentation
 
             // 尺寸：长度对齐两点距离，高度 = 长度 × 0.55（弧的弯曲是贴图里的）
             var b = sp.bounds.size;
-            transform.localScale = new Vector3(len / Mathf.Max(0.001f, b.x), (len * 0.42f) / Mathf.Max(0.001f, b.y), 1f);
+            transform.localScale = new Vector3(len / Mathf.Max(0.001f, b.x), (len * 0.50f) / Mathf.Max(0.001f, b.y), 1f);
 
             _mat = new Material(sh);
             _mat.SetColor("_Color", color);
