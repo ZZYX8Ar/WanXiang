@@ -75,6 +75,10 @@ namespace WanXiang.Battle.Presentation
         public float Phase;            // 待机浮动相位（随机，方案 §最易做错三件事之一）
         public float DeadBlend;
 
+        /// <summary>护盾膜（T5，2026-10-24）。null = 无护盾/未创建。</summary>
+        public SpriteRenderer ShieldField;
+        public Material ShieldMat;
+
         /// <summary>死亡"墨蚀"溶解材质（T13，2026-10-24）。null = 未启用/未创建。</summary>
         public Material DissolveMat;
         /// <summary>身体原始材质（溶解结束后还原）。</summary>
@@ -2460,6 +2464,16 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
         private void SpawnDamageNumber(UnitView2D v, int amount, bool isMelt, bool reaction, bool crit)
         {
+            // ★ T4 受击墨点溅射（2026-10-24）：命中点上炸一小团墨，和数字一起出现。
+            //   用元素色偏暗的墨，暴击多两颗、稍大；同屏最多 6 个（由 InkBurst 自带寿命自然回收）。
+            if (v != null && v.Root != null)
+            {
+                var hitPos = v.Root.transform.position + new Vector3(0f, 0.55f, -0.5f);
+                var baseCol = isMelt ? BattlePalette.GoldRich : BattlePalette.Crimson;
+                var ink = new Color(baseCol.r * 0.35f, baseCol.g * 0.35f, baseCol.b * 0.35f, 0.92f);
+                InkBurst.Spawn(hitPos, crit ? 7 : 4, crit ? 0.62f : 0.45f, ink, 26);
+                if (v.ShieldMat != null) v.ShieldMat.SetFloat("_HitPhase", 1f);   // 护盾膜涟漪
+            }
             // 暴击：字号放大 1.6× + 换金白色；融冰保持鎏金；元素反应用紫罗兰高亮。
             // ★ 2026-10-17：反应**不再**在数字前加「反应!」——
             //   反应名现在由 SpawnReactionFx 的大字横幅负责（蒸发/感电/碎冰…），
@@ -2479,7 +2493,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             go.transform.SetParent(transform, false);
             // raise：同一次演出里的多行字（反应名/属性组合/伤害）要用不同高度分层，
             //   否则全叠在同一个锚点上（实测「蒸发」「火×水」「504」三行糊成一团）。
-            go.transform.localPosition = v.Root.transform.position + new Vector3(0f, 0.95f + raise, -1f);
+            go.transform.localPosition = v.Root.transform.position + new Vector3(0f, 1.02f + raise, -1f);
             go.transform.localScale = Vector3.one * baseScale;   // 暴击更大（弹出动画在此基础上叠加）
             var f = LegacyFont();
             var tm = go.AddComponent<TextMesh>();
@@ -2489,7 +2503,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 go.GetComponent<MeshRenderer>().sharedMaterial = f.material;
             }
             tm.text = text;
-            tm.characterSize = 0.045f;    // 世界高≈0.29（原来 0.83，满屏大字）
+            // ★ 2026-10-24 用户："数字再大一点" —— 0.045(≈0.29 世界高) → 0.062(≈0.40)
+            tm.characterSize = 0.062f;
             tm.fontSize = 64;
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;
@@ -2746,9 +2761,68 @@ if (life < 0.2f) life = 0.2f;
             }
         }
 
+        /// <summary>护盾膜（懒创建）：挂一个和立绘同尺寸的 SpriteRenderer + ShieldField 材质。</summary>
+        private void EnsureShieldField(UnitView2D v)
+        {
+            if (v == null || v.Root == null || v.Body == null) return;
+            if (v.ShieldField != null) return;
+
+            var sh = Resources.Load<Shader>("Battle/ShieldField");
+            var sp = Resources.Load<Sprite>("Battle/FX_shield_hex");
+            if (sh == null || sp == null || !sh.isSupported) return;   // 不可用就静默不套膜
+
+            var go = new GameObject("ShieldField");
+            go.transform.SetParent(v.Body.transform, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = sp;
+            sr.sortingOrder = v.Body.sortingOrder + 1;
+            sr.color = new Color(1f, 1f, 1f, 0.95f);
+
+            // 尺寸：按立绘世界尺寸的 1.15 倍（正好把身体裹住，不盖头顶血条）
+            var b = v.Body.sprite != null ? v.Body.sprite.bounds.size : new Vector3(1f, 1f, 0f);
+            var s2 = new Vector2(b.x * 1.15f / Mathf.Max(0.001f, sp.bounds.size.x),
+                                 b.y * 1.15f / Mathf.Max(0.001f, sp.bounds.size.y));
+            go.transform.localScale = new Vector3(s2.x, s2.y, 1f);
+
+            var mat = new Material(sh);
+            mat.SetFloat("_Strength", 0.8f);
+            mat.SetFloat("_ScrollSpeed", 0.06f);
+            mat.SetFloat("_BaseAlpha", 0.30f);
+            mat.SetFloat("_RimPower", 2.2f);
+            mat.SetFloat("_HitPhase", 0f);
+            mat.SetColor("_Color", new Color(0.66f, 0.92f, 1f, 1f));
+            sr.material = mat;
+
+            v.ShieldField = sr;
+            v.ShieldMat = mat;
+        }
+
         private void SetShield2D(UnitView2D v, int shield)
         {
             bool on = shield > 0;
+
+            // ★ T5 护盾膜：有护盾就套一层六边形能量膜，破了就收掉
+            if (on) EnsureShieldField(v);
+            if (v.ShieldField != null)
+            {
+                if (!on && v.ShieldField.gameObject.activeSelf)
+                {
+                    v.ShieldField.gameObject.SetActive(false);
+                    if (v.ShieldMat != null) Destroy(v.ShieldMat);
+                    v.ShieldMat = null;
+                }
+                else if (on && v.ShieldMat != null)
+                {
+                    float k = Mathf.Clamp01(shield / Mathf.Max(1f, v.MaxHp * 0.35f));
+                    v.ShieldMat.SetFloat("_Strength", Mathf.Lerp(0.45f, 1f, k));
+                    // 受击涟漪衰减（每帧 -2.8/s，约 0.36s 收完）
+                    float hp = v.ShieldMat.GetFloat("_HitPhase");
+                    if (hp > 0.001f) v.ShieldMat.SetFloat("_HitPhase", Mathf.Max(0f, hp - Time.deltaTime * 2.8f));
+                }
+            }
             if (v.ShieldPlate != null && v.ShieldPlate.gameObject.activeSelf != on)
                 v.ShieldPlate.gameObject.SetActive(on);
             if (v.ShieldText != null)
