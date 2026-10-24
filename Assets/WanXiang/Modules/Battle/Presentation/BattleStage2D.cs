@@ -75,6 +75,11 @@ namespace WanXiang.Battle.Presentation
         public float Phase;            // 待机浮动相位（随机，方案 §最易做错三件事之一）
         public float DeadBlend;
 
+        /// <summary>状态光环（2026-10-24）。null = 无状态/未创建。</summary>
+        public SpriteRenderer StatusAura;
+        public Material StatusAuraMat;
+        public string StatusAuraKey;
+
         /// <summary>护盾膜（T5，2026-10-24）。null = 无护盾/未创建。</summary>
         public SpriteRenderer ShieldField;
         public Material ShieldMat;
@@ -1642,6 +1647,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                              s.Alive ? s.FlawProgress : -1f,
                              s.Alive ? s.UnbalancedTurns : 0);
                 SetOverlay2D(v, s.Alive ? s.StatusIds : null);   // 阵亡不挂状态外观
+                SetStatusAura2D(v, s.Alive ? s.StatusIds : null); // ★ 状态色光环（脚下）
                 if (v.Alive && !s.Alive) v.DeadBlend = 0f;
                 v.Alive = s.Alive;
             }
@@ -1758,6 +1764,93 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             if (!_views.TryGetValue(unitId, out var v) || v == null) return false;
             text = v.FlawShownText;
             return !string.IsNullOrEmpty(text);
+        }
+
+        /// <summary>
+        /// 状态色光环（脚下一圈，灼烧/冻结/湿/毒…）。层数越高越亮。
+        /// ⚠ 画在立绘**之下**（sortingOrder = body - 1），只借噪声图、纯程序化。
+        /// </summary>
+        private void SetStatusAura2D(UnitView2D v, string ids)
+        {
+            if (v == null || v.Root == null || v.Body == null) return;
+
+            // 解析最高优先级状态
+            string key = null; int stacks = 0;
+            if (!string.IsNullOrEmpty(ids))
+            {
+                string best = null; int bestPri = -1;
+                foreach (var part in ids.Split('|'))
+                {
+                    var kv = part.Split(':');
+                    if (kv.Length < 1 || string.IsNullOrEmpty(kv[0])) continue;
+                    int st = kv.Length > 1 && int.TryParse(kv[1], out var n) ? Mathf.Max(1, n) : 1;
+                    int pri = kv[0] == "burn" ? 5 : kv[0] == "freeze" ? 4 : kv[0] == "wet" ? 3
+                            : kv[0] == "poison" ? 2 : 1;
+                    if (pri > bestPri) { bestPri = pri; best = kv[0]; stacks = st; }
+                }
+                key = best;
+            }
+
+            if (key == null)
+            {
+                if (v.StatusAura != null && v.StatusAura.gameObject.activeSelf)
+                {
+                    v.StatusAura.gameObject.SetActive(false);
+                    if (v.StatusAuraMat != null) { Destroy(v.StatusAuraMat); v.StatusAuraMat = null; }
+                    v.StatusAuraKey = null;
+                }
+                return;
+            }
+
+            if (v.StatusAura == null)
+            {
+                var sh = Resources.Load<Shader>("Battle/StatusAura");
+                var sp = Resources.Load<Sprite>("Battle/FX_shield_hex");   // 只用它的矩形 mesh
+                var noise = Resources.Load<Sprite>("Battle/FX_motion_fog");
+                if (sh == null || sp == null || !sh.isSupported) return;
+
+                var go = new GameObject("StatusAura");
+                go.transform.SetParent(v.Body.transform, false);
+                // ⛔ localPosition 在 Body 本地空间（单位=贴图 bounds），-0.42 会缩到没有；
+                //   用 sprite 高度的一半再往下挪，才是"脚底"。
+                go.transform.localPosition = new Vector3(0f, -(v.Body.sprite != null ? v.Body.sprite.bounds.size.y * 0.52f : 0.5f), 0.02f);
+
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = sp;
+                sr.sortingOrder = v.Body.sortingOrder - 1;
+
+                var ls = v.Body.transform.lossyScale;
+                var bs = v.Body.sprite != null ? v.Body.sprite.bounds.size : new Vector3(1f, 1f, 0f);
+                float worldW = Mathf.Abs(bs.x * ls.x);
+                // ⛔ 必须再除以**父级 lossyScale**（Body 在 Root 0.1 缩放之下），否则光环小到看不见
+                var pLossy = v.Body.transform.lossyScale;
+                go.transform.localScale = new Vector3(
+                    worldW * 1.5f / Mathf.Max(0.0001f, sp.bounds.size.x * Mathf.Abs(pLossy.x)),
+                    worldW * 0.75f / Mathf.Max(0.0001f, sp.bounds.size.y * Mathf.Abs(pLossy.y)), 1f);
+
+                var mat = new Material(sh);
+                if (noise != null) mat.SetTexture("_NoiseTex", noise.texture);
+                mat.SetFloat("_Speed", 1.0f);
+                sr.material = mat;
+
+                v.StatusAura = sr;
+                v.StatusAuraMat = mat;
+            }
+
+            // 颜色 / 强度（层数越高越亮）
+            Color c;
+            switch (key)
+            {
+                case "burn":   c = new Color(1.00f, 0.45f, 0.16f); break;
+                case "freeze": c = new Color(0.55f, 0.85f, 1.00f); break;
+                case "wet":    c = new Color(0.30f, 0.62f, 0.98f); break;
+                case "poison": c = new Color(0.58f, 0.80f, 0.30f); break;
+                default:       c = new Color(0.80f, 0.80f, 0.82f); break;
+            }
+            v.StatusAuraMat.SetColor("_Color", c);
+            v.StatusAuraMat.SetFloat("_Strength", Mathf.Clamp01(0.55f + 0.15f * (stacks - 1)));
+            v.StatusAura.gameObject.SetActive(true);
+            v.StatusAuraKey = key;
         }
 
         public bool TryGetViewStatusIds(string unitId, out string ids)
@@ -2487,8 +2580,6 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         /// <summary>命中反应：白闪 + 顶退（冲锋押后的伤害到期时调用）。</summary>
         private void ApplyHitReaction(UnitView2D target, Vector2 actorHome, float flashAlpha = 0.10f)
         {
-            // ★ 2026-10-24 用户："短促白闪 可以试试" —— 命中瞬间全屏白闪 0.07s（带冷却防频闪）
-            HitFlash.Flash(flashAlpha, _cam);
             if (target == null || target.Body == null) return;
             target.Body.color = Color.white;
             target.HitFlash = 0.10f;
