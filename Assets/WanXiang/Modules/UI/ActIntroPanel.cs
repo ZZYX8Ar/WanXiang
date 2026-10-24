@@ -649,13 +649,22 @@ namespace WanXiang.Modules.UI
             img.color = Color.white;          // 艺术字自带墨色，不再染色
             img.preserveAspect = true;
 
-            // 尺寸：高度取 Root_Title 的 78%，宽度按图比例（横排四字约 1.5:1）
-            var parentRt = tpl.parent as RectTransform;
-            float parentH = parentRt != null ? parentRt.rect.height : 420f;
-            float targetH = Mathf.Max(160f, parentH * 0.78f);
-            float aspect = art.rect.height > 1f ? art.rect.width / art.rect.height : 2f;
-            clone.sizeDelta = new Vector2(targetH * aspect, targetH);
-            clone.anchoredPosition = tpl.anchoredPosition;
+            // 尺寸：按**屏幕**算（用户："字太小"）。宽度 ≈ 画布 62%，高度按图比例且不超过画布 48%。
+            float aspect = art.rect.height > 1f ? art.rect.width / art.rect.height : 1.6f;
+            var canvas = GetComponentInParent<Canvas>();
+            float cw = 1920f, ch = 1080f;
+            if (canvas != null)
+            {
+                var cr = canvas.rootCanvas != null ? canvas.rootCanvas.GetComponent<RectTransform>() : canvas.GetComponent<RectTransform>();
+                if (cr != null && cr.rect.width > 1f) { cw = cr.rect.width; ch = cr.rect.height; }
+            }
+            float targetH = Mathf.Min(ch * 0.46f, (cw * 0.62f) / Mathf.Max(0.2f, aspect));
+            float targetW = targetH * aspect;
+            clone.sizeDelta = new Vector2(targetW, targetH);
+            // 居中：模板是"单字"的锚点，横排大图必须回到画布中轴
+            clone.anchorMin = clone.anchorMax = new Vector2(0.5f, 0.5f);
+            clone.pivot = new Vector2(0.5f, 0.5f);
+            clone.anchoredPosition = new Vector2(0f, tpl.anchoredPosition.y);
 
             // 笔锋写入材质
             var sh = Shader.Find("WanXiang/UI/RealmTitleReveal");
