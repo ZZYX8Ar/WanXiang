@@ -116,10 +116,19 @@ namespace WanXiang.Modules.UI
             bool entranceBusy = _camT >= 0f;
             var rt = (RectTransform)_stage.transform;
 
-            // 命中判定：指针在视频画面内，且没有点在真实 UI 控件上（按钮优先）
+            // 命中判定：指针在视频画面内，且最顶层命中的不是 UI_Layer 里的真按钮。
+            // ⛔ 不能用 IsPointerOverGameObject——Portrait_Root 的 Img_Bg/TapCatch 本身
+            //   就是 raycastTarget=true，会让它永远为 true，交互全程被拦死（踩过）。
             bool overStage = false;
             if (_stage.enabled && RectTransformUtility.RectangleContainsScreenPoint(rt, Input.mousePosition, null))
-                overStage = !(EventSystem.current != null && EventSystem.current.IsPointerOverGameObject());
+            {
+                var ped = new PointerEventData(EventSystem.current) { position = Input.mousePosition };
+                var hits = new List<RaycastResult>(4);
+                EventSystem.current.RaycastAll(ped, hits);
+                bool onButton = hits.Count > 0 && _uiLayer != null &&
+                                hits[0].gameObject.transform.IsChildOf(_uiLayer.transform);
+                overStage = !onButton;
+            }
 
             // 点击反应（按下那一帧触发一次）
             if (overStage && !entranceBusy && Input.GetMouseButtonDown(0))

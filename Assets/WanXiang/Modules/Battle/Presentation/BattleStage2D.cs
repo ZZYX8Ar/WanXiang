@@ -2282,7 +2282,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     if (d.V != null)
                     {
                         SpawnDamageNumber(d.V, d.Amount, d.Melt, d.Reaction, d.Crit);
-                        ApplyHitReaction(d.V, d.ActorHome);
+                        ApplyHitReaction(d.V, d.ActorHome, d.Crit ? 0.16f : 0.10f);
                     }
                     _deferredDmg.RemoveAt(i);
                 }
@@ -2481,12 +2481,14 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 return;      // ⛔ 白闪/顶退也一起押后：顶到位才算"打到"
             }
             SpawnDamageNumber(target, amount, isMelt, reaction, crit);
-            ApplyHitReaction(target, actorHome);
+            ApplyHitReaction(target, actorHome, crit ? 0.16f : 0.10f);
         }
 
         /// <summary>命中反应：白闪 + 顶退（冲锋押后的伤害到期时调用）。</summary>
-        private void ApplyHitReaction(UnitView2D target, Vector2 actorHome)
+        private void ApplyHitReaction(UnitView2D target, Vector2 actorHome, float flashAlpha = 0.10f)
         {
+            // ★ 2026-10-24 用户："短促白闪 可以试试" —— 命中瞬间全屏白闪 0.07s（带冷却防频闪）
+            HitFlash.Flash(flashAlpha, _cam);
             if (target == null || target.Body == null) return;
             target.Body.color = Color.white;
             target.HitFlash = 0.10f;

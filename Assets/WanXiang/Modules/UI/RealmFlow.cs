@@ -96,11 +96,13 @@ namespace WanXiang.Modules.UI
 
             UniTask.Void(async () =>
             {
+                // ★ 2026-10-24 用户："刚进转场就看到秘境背景了"
+                //   instantCover: 纸底**一开始就是满的**，只让粒子做合拢 ⇒ 开场没有任何透图。
                 await RealmTransition.PlayAsync(realm.Id, () =>
                 {
                     var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
                     if (ui != null) ui.OpenAsync<CampaignPanel>(map.Graph).Forget();
-                });
+                }, instantCover: true);
                 onAfterEnter?.Invoke();
             });
             return true;

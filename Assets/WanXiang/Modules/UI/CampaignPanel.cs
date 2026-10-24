@@ -920,7 +920,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         //   `OpenAsync<CampaignPanel>()`，**不带秘境图** ⇒ 面板按主线重开，直接把人踢出秘境。
         //   靠每个调用方记得"顺手带上秘境图"迟早会漏（已经有五个面板了），
         //   所以改成在这里按存档自愈：InRealm 就重建秘境图。
-if (injected == null && run != null && run.InRealm)
+if (injected == null && run != null && run.InRealm && !RealmTransition.IsPlaying)
        {
         var __rl = WanXiang.Campaign.RealmCatalog.For(run.RealmId);
         var __m = WanXiang.Campaign.RealmMapBuilder.Build(__rl, RealmSession.RealmSeedFor(run));
