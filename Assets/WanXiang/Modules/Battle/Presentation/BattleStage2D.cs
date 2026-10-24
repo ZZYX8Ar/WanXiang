@@ -2254,14 +2254,19 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             StepCellFlash(dt);
 
             // 伤害数字上浮 + 弹出缩放 + 回收
+            // ⛔ 2026-10-24 用户："数字怎么变小了 / 4 倍速看不到伤害"
+            //   原来用**倍速后的 dt** 推进 ⇒ 4 倍速下 0.7s 寿命只剩 0.17s，弹出也一闪而过，
+            //   读起来就是"又小又快、几乎看不见"。飘字是读数信息，应按真实时间走。
+            float numDt = fxDt > 0f ? Mathf.Min(fxDt, dt > 0f ? dt * 4f : fxDt) : dt;
+            if (numDt < 0.0001f) numDt = dt;
             for (int i = _tempTexts.Count - 1; i >= 0; i--)
             {
-_tempLife[i] -= dt;
+                _tempLife[i] -= numDt;
        var go = _tempTexts[i];
          float lifeMax = i < _tempLifeMax.Count && _tempLifeMax[i] > 0.01f ? _tempLifeMax[i] : 0.7f;
        if (go != null)
             {
-          go.transform.localPosition += new Vector3(0f, dt * 0.9f, 0f);
+          go.transform.localPosition += new Vector3(0f, numDt * 0.9f, 0f);
             // 弹出：起手 1.5× 快速回落（easeOutBack 手感），暴击基准更大
       float age = lifeMax - _tempLife[i];
                     float pop = 1f;

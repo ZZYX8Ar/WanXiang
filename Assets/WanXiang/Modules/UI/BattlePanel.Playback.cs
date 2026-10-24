@@ -291,9 +291,12 @@ namespace WanXiang.Modules.UI
                     //   ⇒ 时停只等**立绘特写**那一段，特写一结束就放事件（冲锋 + 伤害数字 + 冲击波同步）。
                     //   原来等的是整段演出（约 2.6~2.9s）⇒ 伤害事件被压到爆发之后，
                     //   玩家只看到光、看不到数字（用户报"很多大招没有伤害"）。
+                    // ⛔ 这里**不能除以 _speed**：BattleStage2D.Step(sdt, Time.deltaTime) 明确规定
+                    //   "大招演出用真实 dt，不被倍速带快"。之前除了倍速 ⇒ 4 倍速只停 0.26s，
+                    //   而特写实际放 1.05s ⇒ "闪头像期间敌人已经打完了"（用户 2026-10-24 实测）。
                     float d = _stage.LastCutInDuration;
                     if (d <= 0f) d = e.IsCombo ? 0.95f : 1.05f;   // 无立绘/无舞台时的兜底
-                    _fxHold = Mathf.Max(_fxHold, d / Mathf.Max(1f, _speed));
+                    _fxHold = Mathf.Max(_fxHold, d);
                 }
             }
             ApplyEvent(e);
