@@ -82,6 +82,9 @@ namespace WanXiang.Battle.Presentation
         //   回放层据此**暂停推进事件**，实现"时停"：等演出快结束再让下一单位动。
         private float _busyStart;
         private float _busyDur;
+        private float _cutInDur;
+        /// <summary>本次演出的**立绘特写**时长（秒）—— 事件回放只等这一段。</summary>
+        public float LastCutInDuration => _cutInDur;
         /// <summary>最近一次大演出（终结/觉醒/连携）的总时长（秒）。</summary>
         public float LastBusyDuration => _busyDur;
         /// <summary>本次演出还剩多少秒（已放完 = 0）。</summary>
@@ -209,6 +212,7 @@ namespace WanXiang.Battle.Presentation
 
             // ★ 记下本次演出占用时长：回放层据此"时停"（用户 2026-10-24）
             _busyStart = _t;
+            _cutInDur = cutInDur;
             _busyDur = cutInDur + chargeDur + Mathf.Max(burstDur, Mathf.Max(ringDur, flashDur)) + 0.12f;
 
             // ⓪ 异兽头像特写（P5R 式 cut-in）：先让玩家看清"是谁开大"，再进特效
@@ -268,6 +272,7 @@ namespace WanXiang.Battle.Presentation
                      isAwaken: false, faceLeft: false, extras: others, extrasBias: true);
             // ★ 连携同样占用演出时长（含后续追加攻击的可见时间）
             _busyStart = _t;
+            _cutInDur = 0.95f;
             _busyDur = 1.55f;
         }
 

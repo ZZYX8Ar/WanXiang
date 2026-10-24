@@ -287,8 +287,12 @@ namespace WanXiang.Modules.UI
                         || e.IsCombo;
                 if (big)
                 {
-                    float d = _stage.LastFxDuration;
-                    if (d <= 0f) d = e.IsCombo ? 1.55f : 2.2f;   // 无舞台/无立绘时的兜底
+                    // ★ 2026-10-24 用户："放完这个闪过头像的动画才开始动，攻击和伤害一起出现"
+                    //   ⇒ 时停只等**立绘特写**那一段，特写一结束就放事件（冲锋 + 伤害数字 + 冲击波同步）。
+                    //   原来等的是整段演出（约 2.6~2.9s）⇒ 伤害事件被压到爆发之后，
+                    //   玩家只看到光、看不到数字（用户报"很多大招没有伤害"）。
+                    float d = _stage.LastCutInDuration;
+                    if (d <= 0f) d = e.IsCombo ? 0.95f : 1.05f;   // 无立绘/无舞台时的兜底
                     _fxHold = Mathf.Max(_fxHold, d / Mathf.Max(1f, _speed));
                 }
             }

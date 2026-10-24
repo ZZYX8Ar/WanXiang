@@ -1467,6 +1467,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
         /// <summary>最近一次大演出（终结/觉醒/连携）的总时长；无演出 = 0。</summary>
         public float LastFxDuration => _skillFx != null ? _skillFx.LastBusyDuration : 0f;
+        /// <summary>本次演出的立绘特写时长（秒）。事件回放只等这一段：特写结束后立刻出伤害。</summary>
+        public float LastCutInDuration => _skillFx != null ? _skillFx.LastCutInDuration : 0f;
         /// <summary>本次大演出剩余时间（秒）。战斗收尾要等它播完。</summary>
         public float RemainingFxTime => _skillFx != null ? _skillFx.RemainingBusy : 0f;
 
