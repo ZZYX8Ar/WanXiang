@@ -679,6 +679,7 @@ namespace WanXiang.Battle.Presentation
             var go = new GameObject("ParryBurst");
             go.transform.SetParent(transform, false);
             go.transform.position = pos;
+            sp.texture.wrapMode = TextureWrapMode.Repeat;   // 网格要平铺，不然边缘拉花
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = sp;
             sr.sortingOrder = order;
@@ -2778,21 +2779,29 @@ if (life < 0.2f) life = 0.2f;
 
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = sp;
-            sr.sortingOrder = v.Body.sortingOrder + 1;
+            sr.sortingOrder = v.Body.sortingOrder + 2;
             sr.color = new Color(1f, 1f, 1f, 0.95f);
 
-            // 尺寸：按立绘世界尺寸的 1.15 倍（正好把身体裹住，不盖头顶血条）
-            var b = v.Body.sprite != null ? v.Body.sprite.bounds.size : new Vector3(1f, 1f, 0f);
-            var s2 = new Vector2(b.x * 1.15f / Mathf.Max(0.001f, sp.bounds.size.x),
-                                 b.y * 1.15f / Mathf.Max(0.001f, sp.bounds.size.y));
-            go.transform.localScale = new Vector3(s2.x, s2.y, 1f);
+            // 尺寸：按立绘**世界**尺寸 ×1.15（⛔ 必须用 lossyScale：单位根节点有 0.1 缩放，
+            //   直接拿 sprite.bounds 会算成世界尺寸，膜会大得离谱或小到看不见）
+            var bs = v.Body.sprite != null ? v.Body.sprite.bounds.size : new Vector3(1f, 1f, 0f);
+            var ls = v.Body.transform.lossyScale;
+            float worldW = Mathf.Abs(bs.x * ls.x);
+            float worldH = Mathf.Abs(bs.y * ls.y);
+
+            // 父级是 Body（可能带缩放），localScale = 目标世界尺寸 / 父级世界缩放 / 贴图原始尺寸
+            float pw = Mathf.Abs(v.Body.transform.lossyScale.x) > 0.0001f ? Mathf.Abs(v.Body.transform.lossyScale.x) : 1f;
+            float ph = Mathf.Abs(v.Body.transform.lossyScale.y) > 0.0001f ? Mathf.Abs(v.Body.transform.lossyScale.y) : 1f;
+            go.transform.localScale = new Vector3(worldW * 1.35f / pw / Mathf.Max(0.001f, sp.bounds.size.x),
+                                                  worldH * 1.35f / ph / Mathf.Max(0.001f, sp.bounds.size.y), 1f);
 
             var mat = new Material(sh);
             mat.SetFloat("_Strength", 0.8f);
             mat.SetFloat("_ScrollSpeed", 0.06f);
-            mat.SetFloat("_BaseAlpha", 0.30f);
-            mat.SetFloat("_RimPower", 2.2f);
+            mat.SetFloat("_BaseAlpha", 1.0f);   // ⛔ 0.30 时只有 6% 实显，肉眼等于没有
+            mat.SetFloat("_RimPower", 1.6f);
             mat.SetFloat("_HitPhase", 0f);
+            mat.SetFloat("_BaseAlpha", 1f);
             mat.SetColor("_Color", new Color(0.66f, 0.92f, 1f, 1f));
             sr.material = mat;
 

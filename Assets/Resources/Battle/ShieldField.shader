@@ -1,23 +1,21 @@
 // ============================================================================
-//  WanXiang/Battle/ShieldField —— 护盾膜（T5，2026-10-24）
+//  WanXiang/Battle/ShieldField —— 护盾膜（T5，2026-10-24 重写）
 //  ---------------------------------------------------------------------------
-//  设计：贴在单位身上的半透明六边形膜，破盾时碎裂淡出。
-//   · _Strength 0..1 由护盾值驱动（越高越亮）；
-//   · 网格缓慢上移（"能量在流动"），边缘更亮（UV 距中心的径向加强）；
-//   · 命中涟漪：_HitPhase 由代码在受击时置 1，之后自己衰减 —— 一圈扩散亮环；
-//   · 双 pass（Universal2D + SRPDefaultUnlit），避免 2D Renderer 下整块不渲染。
-//  ⚠ 不遮挡判定：alpha 很低（基础 0.28 上限），sortingOrder 压在立绘之上但透明。
+//  ⛔ 第一版两个坑（都已实测）：
+//   ① 按方形 uv 算遮罩 ⇒ 整块变"青色方板"；
+//   ② 网格线 alpha 只有 ~0.47，乘系数后实显 ~6% ⇒ 肉眼看等于没有。
+//  ⇒ 现在：圆形膜面 + 亮轮廓环 + 极淡网格（单位立绘只有 ~0.15 世界尺寸，靠轮廓读取）。
+//  双 pass（Universal2D + SRPDefaultUnlit），避免 2D Renderer 下整块不渲染。
 // ============================================================================
 Shader "WanXiang/Battle/ShieldField"
 {
     Properties
     {
         [PerRendererData] _MainTex ("Hex Grid", 2D) = "white" {}
-        _Color ("Tint", Color) = (0.62, 0.90, 1.0, 1)
-        _Strength ("Strength", Range(0,1)) = 0.7
+        _Color ("Tint", Color) = (0.72, 0.94, 1, 1)
+        _Strength ("Strength", Range(0,1)) = 0.8
         _ScrollSpeed ("Scroll Speed", Float) = 0.06
-        _BaseAlpha ("Base Alpha", Range(0,1)) = 0.28
-        _RimPower ("Rim Power", Range(0.5,6)) = 2.2
+        _BaseAlpha ("Base Alpha", Range(0,1)) = 1.0
         _HitPhase ("Hit Ripple (0..1)", Range(0,1)) = 0
     }
 
@@ -25,11 +23,8 @@ Shader "WanXiang/Battle/ShieldField"
     {
         Tags
         {
-            "Queue"="Transparent"
-            "RenderType"="Transparent"
-            "IgnoreProjector"="True"
-            "PreviewType"="Plane"
-            "CanUseSpriteAtlas"="True"
+            "Queue"="Transparent" "RenderType"="Transparent" "IgnoreProjector"="True"
+            "PreviewType"="Plane" "CanUseSpriteAtlas"="True"
         }
         Cull Off
         Lighting Off
@@ -53,7 +48,6 @@ Shader "WanXiang/Battle/ShieldField"
                 float _Strength;
                 float _ScrollSpeed;
                 float _BaseAlpha;
-                float _RimPower;
                 float _HitPhase;
             CBUFFER_END
 
@@ -72,27 +66,22 @@ Shader "WanXiang/Battle/ShieldField"
             float4 frag (v2f i) : SV_Target
             {
                 float t = _Time.y;
-                // 网格缓慢上移（能量流动），UV 重复两次让格子更密
-                float2 uv = i.uv * 2.0 + float2(sin(t * 0.7) * 0.02, t * _ScrollSpeed);
-                float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, uv);
+                float r = length(i.uv - 0.5) * 2.0;
+                float body = saturate(1.0 - smoothstep(0.60, 1.0, r));
+                float ring = smoothstep(0.58, 0.88, r) * (1.0 - smoothstep(0.88, 1.0, r));
 
-                // 边缘光：离中心越远越亮（圆膜感）
-                float2 d = i.uv - 0.5;
-                float r = saturate(length(d) * 2.0);
-                float rim = pow(saturate(r), _RimPower);
+                float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv * 3.0 + float2(0.0, t * _ScrollSpeed));
+                float grid = tex.a * 1.4;
 
-                // 命中涟漪：一圈向外扩散的亮环（_HitPhase 由代码衰减）
                 float ripple = 0.0;
                 if (_HitPhase > 0.001)
                 {
-                    float ring = abs(r - (1.0 - _HitPhase));
-                    ripple = saturate(1.0 - ring / 0.12) * _HitPhase;
+                    float rd = abs(r - (1.0 - _HitPhase));
+                    ripple = saturate(1.0 - rd / 0.16) * _HitPhase;
                 }
 
-                float a = (tex.a * (0.55 + rim * 0.75) + rim * 0.20) * _BaseAlpha * _Strength;
-                a += ripple * 0.55;
-
-                float3 col = tex.rgb * (0.7 + rim * 0.5) + ripple * float3(1.0, 0.96, 0.85);
+                float a = (body * 0.16 + ring * 0.85 + grid * body * 0.55 + ripple * 0.75) * _BaseAlpha * _Strength;
+                float3 col = float3(0.72, 0.94, 1.0) * (0.85 + ring * 0.55) + ripple * float3(1.0, 0.97, 0.88);
                 return float4(col * i.color.rgb, saturate(a) * i.color.a);
             }
             ENDHLSL
@@ -115,7 +104,6 @@ Shader "WanXiang/Battle/ShieldField"
                 float _Strength;
                 float _ScrollSpeed;
                 float _BaseAlpha;
-                float _RimPower;
                 float _HitPhase;
             CBUFFER_END
 
@@ -134,20 +122,19 @@ Shader "WanXiang/Battle/ShieldField"
             float4 frag (v2f i) : SV_Target
             {
                 float t = _Time.y;
-                float2 uv = i.uv * 2.0 + float2(sin(t * 0.7) * 0.02, t * _ScrollSpeed);
-                float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, uv);
-                float2 d = i.uv - 0.5;
-                float r = saturate(length(d) * 2.0);
-                float rim = pow(saturate(r), _RimPower);
+                float r = length(i.uv - 0.5) * 2.0;
+                float body = saturate(1.0 - smoothstep(0.60, 1.0, r));
+                float ring = smoothstep(0.58, 0.88, r) * (1.0 - smoothstep(0.88, 1.0, r));
+                float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv * 3.0 + float2(0.0, t * _ScrollSpeed));
+                float grid = tex.a * 1.4;
                 float ripple = 0.0;
                 if (_HitPhase > 0.001)
                 {
-                    float ring = abs(r - (1.0 - _HitPhase));
-                    ripple = saturate(1.0 - ring / 0.12) * _HitPhase;
+                    float rd = abs(r - (1.0 - _HitPhase));
+                    ripple = saturate(1.0 - rd / 0.16) * _HitPhase;
                 }
-                float a = (tex.a * (0.55 + rim * 0.75) + rim * 0.20) * _BaseAlpha * _Strength;
-                a += ripple * 0.55;
-                float3 col = tex.rgb * (0.7 + rim * 0.5) + ripple * float3(1.0, 0.96, 0.85);
+                float a = (body * 0.16 + ring * 0.85 + grid * body * 0.55 + ripple * 0.75) * _BaseAlpha * _Strength;
+                float3 col = float3(0.72, 0.94, 1.0) * (0.85 + ring * 0.55) + ripple * float3(1.0, 0.97, 0.88);
                 return float4(col * i.color.rgb, saturate(a) * i.color.a);
             }
             ENDHLSL
