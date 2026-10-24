@@ -443,6 +443,18 @@ namespace WanXiang.Battle.Presentation
         private static Sprite _turnArrowSprite;     // 向下箭头贴图（战斗间共享，懒构建）
         private bool _critNext;        // 下一条伤害数字是否按暴击放大（Crit 事件先于 Damage 到）
 
+        // ★ 2026-10-24 用户："大招的伤害要等异兽往前顶一下才出现，闪过头像就出不合理"
+        //   ⇒ 冲锋前段（LungeForward 0.14s）里到的伤害先压住，冲到目标面前再落数字/墨点。
+        private struct DeferredDmg
+        {
+            public UnitView2D V;
+            public int Amount;
+            public bool Melt, Reaction, Crit;
+            public Vector2 ActorHome;
+            public float Due;          // _animT 到期时刻
+        }
+        private readonly List<DeferredDmg> _deferredDmg = new List<DeferredDmg>(8);
+
         // 大招特写期间押后的伤害反馈（cut-in 播完、起爆那一下再统一飘出来）
         private struct PendDmg { public UnitView2D View; public int Amount; public bool Melt; public bool Reaction; public bool Crit; public Vector2 ActorHome; }
         private readonly List<PendDmg> _pendingDmg = new List<PendDmg>(8);
@@ -1033,6 +1045,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             _skillFx = null;   // SkillFx 子物体一并销毁；下次 EnsureSkillFx 重建（否则持已毁对象）
             _turnArrow = null; // 箭头子物体已被上面销毁；Build 里重建
             _shakeDur = 0f; _shakeAmp = 0f;
+            _deferredDmg.Clear();
             _parryBursts.Clear();   // 爆闪子物体已被上面统一销毁；只清列表（别对已毁对象操作）
         }
 
@@ -2258,6 +2271,22 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             // 克制染色：放在**预览高亮之后**执行（预览每帧写底色，这里再覆盖上去）
             StepCellFlash(dt);
 
+            // 冲锋押后的伤害：到点就落（顺序与事件一致）
+            if (_deferredDmg.Count > 0)
+            {
+                for (int i = _deferredDmg.Count - 1; i >= 0; i--)
+                {
+                    var d = _deferredDmg[i];
+                    if (_animT < d.Due) continue;
+                    if (d.V != null)
+                    {
+                        SpawnDamageNumber(d.V, d.Amount, d.Melt, d.Reaction, d.Crit);
+                        ApplyHitReaction(d.V, d.ActorHome);
+                    }
+                    _deferredDmg.RemoveAt(i);
+                }
+            }
+
             // 伤害数字上浮 + 弹出缩放 + 回收
             // ⛔ 2026-10-24 用户："数字怎么变小了 / 4 倍速看不到伤害"
             //   原来用**倍速后的 dt** 推进 ⇒ 4 倍速下 0.7s 寿命只剩 0.17s，弹出也一闪而过，
@@ -2438,13 +2467,42 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         private void ApplyDamageVisual(UnitView2D target, int amount, bool isMelt, bool reaction, bool crit, Vector2 actorHome)
         {
             if (target == null) return;
+
+            // ★ 冲锋还没顶到目标 ⇒ 先压住数字与墨点（冲到"贴脸"那一刻再落）
+            float remain = LungeRemainOfActing();
+            if (remain > 0.001f)
+            {
+                _deferredDmg.Add(new DeferredDmg
+                {
+                    V = target, Amount = amount, Melt = isMelt, Reaction = reaction, Crit = crit,
+                    ActorHome = actorHome, Due = _animT + remain,
+                });
+                return;      // ⛔ 白闪/顶退也一起押后：顶到位才算"打到"
+            }
             SpawnDamageNumber(target, amount, isMelt, reaction, crit);
-            target.Body.color = Color.white;      // 受击白闪（HitFlash 在 Step 里衰减回基色）
+            ApplyHitReaction(target, actorHome);
+        }
+
+        /// <summary>命中反应：白闪 + 顶退（冲锋押后的伤害到期时调用）。</summary>
+        private void ApplyHitReaction(UnitView2D target, Vector2 actorHome)
+        {
+            if (target == null || target.Body == null) return;
+            target.Body.color = Color.white;
             target.HitFlash = 0.10f;
             target.ShakePulse = 0.16f;
             Vector2 dir = target.HomePos - actorHome;
             if (dir.sqrMagnitude > 0.0001f) target.KickVec = dir.normalized * 0.22f;
             target.KickT = 0.12f;
+        }
+
+        /// <summary>当前行动者是否还在"前冲"阶段；返回剩余秒数（0 = 已贴脸/没在冲）。</summary>
+        private float LungeRemainOfActing()
+        {
+            if (string.IsNullOrEmpty(_actingId)) return 0f;
+            if (!_views.TryGetValue(_actingId, out var a) || a == null) return 0f;
+            if (!a.LungeActive) return 0f;
+            if (a.LungeElapsed >= LungeForward) return 0f;      // 已经顶到了
+            return Mathf.Max(0f, LungeForward - a.LungeElapsed) + 0.02f;
         }
 
         /// <summary>大招特写结束后，把押后的伤害/暴击反馈一次性补出来（起爆那一下）。</summary>
