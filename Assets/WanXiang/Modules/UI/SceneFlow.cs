@@ -146,7 +146,7 @@ namespace WanXiang.Modules.UI
             }
             RealmTransition.PlayAsync(null, () => Load(BattleScene), null,
                 battleWord, partPath, revealDelay: 0.10f,
-                impactWordRes: "UI/Title/start", instantCover: true).Forget();
+                impactWordRes: ResolveStartWord(actForFx, realmForFx), instantCover: true).Forget();
         }
 
         /// <summary>
@@ -250,6 +250,17 @@ namespace WanXiang.Modules.UI
 
             RealmTransition.PlayAsync(null, () => Load(MainScene), null, word,
                 partExit, revealDelay: 0.55f).Forget();
+        }
+
+        /// <summary>「开始」冲击字：场域 → 幕 → 通用。</summary>
+        private static string ResolveStartWord(int act, string realmId)
+        {
+            if (!string.IsNullOrEmpty(realmId) &&
+                UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Title/start_" + realmId) != null)
+                return "UI/Title/start_" + realmId;
+            var byAct = "UI/Title/start_act" + act;
+            if (UnityEngine.Resources.Load<UnityEngine.Sprite>(byAct) != null) return byAct;
+            return "UI/Title/start";
         }
 
         /// <summary>按幕取季节粒子（与 HomeScene3D / UiTransition 同一套资源）。</summary>
