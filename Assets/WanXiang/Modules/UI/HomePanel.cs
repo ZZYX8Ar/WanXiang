@@ -31,6 +31,8 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button  _btnArchive;      // Btn_Archive 残卷阁（底排·卷轴图标）
         [SerializeField] private Button  _btnSettings;     // Hot_Settings 设置
         [SerializeField] private Button  _btnHistory;      // Btn_History 历程（底排·沙漏图标）
+        /// <summary>首领试炼入口（Btn_BossRush，2026-10-25）。null = 该版本预制体还没这个按钮。</summary>
+        [SerializeField] private Button  _btnBossRush;
         [SerializeField] private HomeMapJourney _homeMap;  // Map_Journey   中央四季旅程图（进图刷新进度）
         [SerializeField] private HomeScene3D _scene3D;       // 3D 层：背景 + 异兽行走 + 天气粒子（2026-10-11）
 
@@ -82,6 +84,7 @@ namespace WanXiang.Modules.UI
             if (_btnCodex != null) _btnCodex.onClick.AddListener(OnCodexClicked);
             if (_btnMeta != null) _btnMeta.onClick.AddListener(OnMetaClicked);
             if (_btnHistory != null) _btnHistory.onClick.AddListener(() => OpenPanelAsync<HistoryPanel>().Forget());
+            if (_btnBossRush != null) _btnBossRush.onClick.AddListener(() => OpenPanelAsync<BossRushPanel>().Forget());
             if (_btnArchive != null) _btnArchive.onClick.AddListener(OnArchiveClicked);
             if (_btnSettings != null) _btnSettings.onClick.AddListener(OnSettingsClicked);
             if (_btnPortrait != null) _btnPortrait.onClick.AddListener(OnPortraitClicked);
