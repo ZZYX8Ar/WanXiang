@@ -134,7 +134,7 @@ namespace WanXiang.Modules.UI
             RealmTransition.Prewarm(partPath);
             // 战斗艺术字：按幕取专属（`UI/Title/battle_act1..5`），缺图退回通用「战斗」
             string battleWord = "UI/Title/battle_act" + actForFx;
-            if (Resources.Load<Sprite>(battleWord) == null) battleWord = "UI/Title/battle";
+            if (UnityEngine.Resources.Load<UnityEngine.Sprite>(battleWord) == null) battleWord = "UI/Title/battle";
             RealmTransition.PlayAsync(null, () => Load(BattleScene), null,
                 battleWord, partPath, revealDelay: 0.10f,
                 impactWordRes: "UI/Title/start", instantCover: true).Forget();
