@@ -636,6 +636,13 @@ namespace WanXiang.Modules.UI
             //   上一版先 CloseSelf 再用 BattleRequest 重开，面板走了"非场景模式"，
             //   在已有舞台上又画了一遍单位 ⇒ 棋盘上出现两套单位（用户实测截图）。
             //   现在交给 BattleSceneDriver.Restart：清舞台 → 重建 playback → CloseAll → 重开面板。
+            if (SceneFlow.LastWasBossRush)
+            {
+                // 首领试炼：重挑回试炼面板（不结算、不进节点图）
+                SceneFlow.ReturnToBossRushPanel();
+                return;
+            }
+
             if (SceneFlow.LastWasPvp)
             {
                 // ★ 2026-10-25 用户："我要的是败退转场回到对战面板" ——

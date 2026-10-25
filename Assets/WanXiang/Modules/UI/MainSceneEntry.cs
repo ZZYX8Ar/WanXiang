@@ -63,6 +63,19 @@ namespace WanXiang.Modules.Boot
                 return;
             }
 
+            // ★ 首领试炼：打完回试炼面板，**不弹结算**
+            if (SceneFlow.PendingBossRushReturn)
+            {
+                SceneFlow.PendingBossRushReturn = false;
+                SceneFlow.LastWasBossRush = false;
+                ui.Close<BattlePanel>();
+                ui.Close<StartPanel>();
+                await ui.OpenAsync<HomePanel>();
+                await ui.OpenAsync<BossRushPanel>();
+                Debug.Log("[MainSceneEntry] 首领试炼结束 → 回到试炼面板");
+                return;
+            }
+
             if (SceneFlow.ConsumeResult(out var result))
             {
                 // ⚠ 旧的天阙触发条件（Act==4 && NodeOffset==11）已废弃并删除：

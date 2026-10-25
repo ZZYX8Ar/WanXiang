@@ -36,7 +36,7 @@ namespace WanXiang.EditorTools
             {
                 btnT = existing;
                 var ert = (RectTransform)existing;
-                ert.anchoredPosition = ((RectTransform)tpl).anchoredPosition + new Vector2(150f, 0f);
+                ert.anchoredPosition = ((RectTransform)tpl).anchoredPosition + new Vector2(150f, 92f);
             }
             else
             {
@@ -44,7 +44,7 @@ namespace WanXiang.EditorTools
                 clone.name = "Btn_BossRush";
                 var rt = (RectTransform)clone.transform;
                 var src = (RectTransform)tpl;
-                rt.anchoredPosition = src.anchoredPosition + new Vector2(150f, 0f);   // 横向排到右侧，不要往下压底排文字
+                rt.anchoredPosition = src.anchoredPosition + new Vector2(150f, 92f);   // 横向排到右侧，不要往下压底排文字
                 btnT = clone.transform;
             }
 

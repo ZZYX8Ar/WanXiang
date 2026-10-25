@@ -169,6 +169,19 @@ namespace WanXiang.Modules.UI
         /// ⛔ 2026-10-25 用户明确要的就是这条：转场 → 对战面板（不是原地重开战斗）。
         /// 实现：置 `PendingPvpReturn`（MainSceneEntry 据此开 Home + PvpPanel）→ ExitBattle(null)。
         /// </summary>
+        /// <summary>首领试炼：本场是否来自试炼面板（打完/重挑都回试炼面板，不进结算、不记历程）。</summary>
+        public static bool LastWasBossRush;
+        /// <summary>回主城后要打开试炼面板。</summary>
+        public static bool PendingBossRushReturn;
+
+        /// <summary>首领试炼：打完/重挑 → 播转场回主城 → 打开试炼面板。</summary>
+        public static void ReturnToBossRushPanel()
+        {
+            PendingBossRushReturn = true;
+            PendingResult = null;
+            ExitBattle(null);
+        }
+
         public static void ReturnToPvpPanel()
         {
             PendingPvpReturn = true;

@@ -146,6 +146,7 @@ namespace WanXiang.Modules.UI
             }
 
             // ★ 场景按 Boss 归属：主线用所在幕，秘境用场域（否则全是第一幕春景）
+            SceneFlow.LastWasBossRush = true;
             SceneFlow.PendingBattleAct = e.Act;
             SceneFlow.PendingBattleRealmId = e.RealmId;
 
