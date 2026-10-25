@@ -567,7 +567,13 @@ namespace WanXiang.Modules.UI
             _titleMat.SetFloat("_EdgeWidth", 0.035f);
             // ⛔ 反相成白墨：底色是黑幕，黑墨字会完全融进去（实测只剩边缘一圈白线）。
             //   白墨 + 金涟漪在暗底上才是"墨从水里洇出来"的观感。
-            _titleMat.SetFloat("_Invert", 1f);
+            // ★★★ 2026-10-25：**新出的白色艺术字不能再反相** ——
+            //   `_Invert=1` 会把白墨翻成黑墨，压到黑幕上直接看不见（用户实测："看不清"）。
+            //   约定：`UI/Title/battle_act*` / `start_act*` / `defeat_act*` 是**白墨**（_Invert=0），
+            //         `UI/Realm/realm_title` 等旧图是黑墨（_Invert=1）。
+            bool whiteInk = _titleResOverride != null &&
+                            (_titleResOverride.Contains("_act") || _titleResOverride.Contains("battle"));
+            _titleMat.SetFloat("_Invert", whiteInk ? 0f : 1f);
             _titleMat.SetFloat(ProgressId, 0f);
             _title.material = _titleMat;
         }
