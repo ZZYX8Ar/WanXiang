@@ -40,6 +40,24 @@ namespace WanXiang.EditorTools
             if (sp != null) { img.sprite = sp; img.type = Image.Type.Sliced; img.color = tint; }
         }
 
+        /// <summary>把圆角图设成九宫格（border 24）并重导入 —— 与手绘 UI 的圆角/描边一致。</summary>
+        private static void EnsureRoundedImport()
+        {
+            string[] names = { "round_card", "round_btn", "round_btn_dark" };
+            foreach (var n in names)
+            {
+                string path = "Assets/Resources/UI/Kit/" + n + ".png";
+                var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+                if (imp == null) { Debug.LogWarning("[BuildBossRush] 找不到 " + path); continue; }
+                imp.textureType = TextureImporterType.Sprite;
+                imp.spriteImportMode = SpriteImportMode.Single;
+                imp.spriteBorder = new Vector4(24f, 24f, 24f, 24f);
+                imp.mipmapEnabled = false;
+                imp.alphaIsTransparency = true;
+                imp.SaveAndReimport();
+            }
+        }
+
         [MenuItem("WanXiang/UI/生成首领试炼面板", priority = 121)]
         internal static void Build()
         {
@@ -47,6 +65,7 @@ namespace WanXiang.EditorTools
             if (font == null) font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
                 "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset");
             UIBuild.SetFont(font);
+            EnsureRoundedImport();
 
             var old = AssetDatabase.LoadAssetAtPath<GameObject>(Dir + "/Panel_BossRush.prefab");
             if (old != null) AssetDatabase.DeleteAsset(Dir + "/Panel_BossRush.prefab");
@@ -55,6 +74,10 @@ namespace WanXiang.EditorTools
             var root = new GameObject("Panel_BossRush", typeof(RectTransform)).GetComponent<RectTransform>();
             root.anchorMin = Vector2.zero; root.anchorMax = Vector2.one;
             root.offsetMin = Vector2.zero; root.offsetMax = Vector2.zero;
+
+            // 全屏压暗底（弹窗语义：底下主界面要退后）
+            var dim = UIBuild.Stretch(root, "Img_Dim", 0, 0, 0, 0);
+            UIBuild.Img(dim, new Color(0.04f, 0.05f, 0.07f, 0.62f), true);
 
             // 顶栏：丝绢底 + 墨字标题（MIO 标准）
             var top = UIBuild.Node(root, "Root_TopBar", new Vector2(0f, 1f), new Vector2(1f, 1f),
@@ -67,7 +90,7 @@ namespace WanXiang.EditorTools
             // ---------------- 左列：首领列表 ----------------
             var listCard = UIBuild.Node(root, "Root_ListCard", new Vector2(0f, 0f), new Vector2(0f, 1f),
                 new Vector2(30f, 30f), new Vector2(30f + 900f, -116f));
-            Sliced(listCard, Kit("card_solid"), Color.white);
+            Sliced(listCard, Kit("round_card"), Color.white);
             var listArea = UIBuild.Node(listCard, "Root_List", new Vector2(0f, 0f), new Vector2(1f, 1f),
                 new Vector2(16f, 16f), new Vector2(-16f, -16f));
             var vlg = listArea.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -79,7 +102,7 @@ namespace WanXiang.EditorTools
             vlg.childForceExpandWidth = true;
 
             var item = UIBuild.Fixed(listArea, "Item_Boss", new Vector2(0f, 1f), new Vector2(860f, 34f), Vector2.zero);
-            Sliced(item, Kit("card_solid"), new Color(1f, 1f, 1f, 0.92f));
+            Sliced(item, Kit("round_card"), new Color(1f, 1f, 1f, 0.90f));
             var headRt = UIBuild.Fixed(item, "Img_Head", new Vector2(0f, 0.5f), new Vector2(26f, 26f), new Vector2(14f, 0f));
             UIBuild.Img(headRt, new Color(1f, 1f, 1f, 0f));
             var nameRt = UIBuild.Node(item, "Tmp_Name", new Vector2(0f, 0f), new Vector2(1f, 1f),
@@ -91,7 +114,7 @@ namespace WanXiang.EditorTools
             UIBuild.Tmp(tagRt, "", 18f, new Color(0.45f, 0.36f, 0.24f, 1f), TextAlignmentOptions.Right);
 
             var chRt = UIBuild.Fixed(item, "Btn_Challenge", new Vector2(1f, 0.5f), new Vector2(112f, 26f), new Vector2(-64f, 0f));
-            Sliced(chRt, Kit("btn_secondary"), Color.white);
+            Sliced(chRt, Kit("round_btn"), Color.white);
             var chBtn = chRt.gameObject.AddComponent<Button>();
             chBtn.targetGraphic = chRt.GetComponent<Image>();
             UIBuild.Tmp(UIBuild.Node(chRt, "Tmp_Label", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero),
@@ -100,7 +123,7 @@ namespace WanXiang.EditorTools
             // ---------------- 右上：对战码 ----------------
             var codeBox = UIBuild.Node(root, "Root_Code", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(960f, -300f), new Vector2(-30f, -116f));
-            Sliced(codeBox, Kit("card_solid"), Color.white);
+            Sliced(codeBox, Kit("round_card"), Color.white);
 
             var codeLabelRt = UIBuild.Node(codeBox, "Tmp_CodeLabel", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(16f, -42f), new Vector2(-16f, -8f));
@@ -121,7 +144,7 @@ namespace WanXiang.EditorTools
             input.targetGraphic = inpRt.GetComponent<Image>();
 
             var loadRt = UIBuild.Fixed(codeBox, "Btn_LoadCode", new Vector2(1f, 0f), new Vector2(120f, 44f), new Vector2(-136f, 60f));
-            Sliced(loadRt, Kit("btn_primary"), Color.white);
+            Sliced(loadRt, Kit("round_btn_dark"), Color.white);
             var loadBtn = loadRt.gameObject.AddComponent<Button>();
             loadBtn.targetGraphic = loadRt.GetComponent<Image>();
             UIBuild.Tmp(UIBuild.Node(loadRt, "Tmp_Label", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero),
