@@ -156,7 +156,20 @@ namespace WanXiang.Modules.UI
 
         private BattleRequest BuildRequest(BossRushEntry e)
         {
-            var boss = BossCatalog.BuildBoss(e.Id);
+            // 秘境首领：没有独立 BeastDef ⇒ 取**同属性**的主线 Boss 作战斗体，
+            // 再把场域镇守钩子挂上（`RealmChampionHookId`），场地用场域背景。
+            string bossId = e.Id;
+            if (string.IsNullOrEmpty(bossId))
+            {
+                foreach (var bd in BossCatalog.All)
+                {
+                    if (bd == null || !bd.Id.StartsWith("b_")) continue;
+                    if (bd.Element == e.Element) { bossId = bd.Id; break; }
+                }
+                if (string.IsNullOrEmpty(bossId) && BossCatalog.All.Count > 0)
+                    bossId = BossCatalog.All[0].Id;
+            }
+            var boss = BossCatalog.BuildBoss(bossId);
             if (boss == null) return null;
 
             var req = new BattleRequest
@@ -165,6 +178,7 @@ namespace WanXiang.Modules.UI
                 WeatherName = "试炼（无天时）",
                 Seed = (ulong)Random.Range(1, int.MaxValue),
                 IsBoss = true,
+                RealmChampionHookId = string.IsNullOrEmpty(e.RealmId) ? null : e.HookId,
             };
 
             // 敌方：首领本体（站中排）

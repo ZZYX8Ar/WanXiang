@@ -76,7 +76,7 @@ namespace WanXiang.Modules.UI
                                 RealmId = realm.Id,
                                 RealmName = realm.Name,
                                 HookId = ch.HookId,
-                                Playable = false,       // v2：接进战斗后置 true
+                                Playable = true,        // v2：用同属性 Boss 作战斗体 + 场域钩子
                             });
                         }
                     }
