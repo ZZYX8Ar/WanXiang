@@ -498,6 +498,10 @@ namespace WanXiang.Battle.Presentation
 
         private string _realmId;   // 本场所属场域（空 = 主线）；Boss 登场文案要用
 
+        /// <summary>外部注册的立绘覆盖（Def.Id → Sprite）。秘境首领用 `Resources/UI/Realm/Champion/*`。</summary>
+        public static readonly System.Collections.Generic.Dictionary<string, Sprite> PortraitOverrides =
+            new System.Collections.Generic.Dictionary<string, Sprite>();
+
         public void Build(BattleState st, Sprite springBg, SpriteCatalog catalog = null, Sprite fgDecor = null, int act = 1,
                           string realmId = null)
         {
@@ -1167,6 +1171,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 // 立绘：SpriteCatalog 按 BeastDef.Id 查；查不到回退五行色块
                 var bodySr = root.AddComponent<SpriteRenderer>();
                 var sprite = catalog != null ? catalog.Get(u.Def.Id) : null;
+                // ★ 秘境首领：这些 id 不在 SpriteCatalog 里，靠外部注册的覆盖图
+                if (PortraitOverrides.TryGetValue(u.Def.Id, out var ov) && ov != null) sprite = ov;
                 // ⚠ 测试阵容 Id（pw/eg 等）对不上 catalog 里的真实异兽 id ——
                 //   查不到就**按 catalog 序号分配**：Player 取前半、Enemy 取后半，
                 //   这样立绘立刻出现在棋盘上（后续真实内容接入后 Id 会对上）。

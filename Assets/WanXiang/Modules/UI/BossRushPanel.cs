@@ -172,6 +172,21 @@ namespace WanXiang.Modules.UI
             var boss = BossCatalog.BuildBoss(bossId);
             if (boss == null) return null;
 
+            // ★ 秘境首领：改成自己的 id/名字，并把 `UI/Realm/Champion/<本名>` 注册成立绘覆盖
+            //   （用户实测指出这 10 张图本来就有，之前是我没找到）
+            if (!string.IsNullOrEmpty(e.RealmId) && !string.IsNullOrEmpty(e.ChampionName))
+            {
+                boss.Id = "rc_" + (e.HookId ?? "x");
+                boss.DisplayName = e.ChampionName;
+                var sp = Resources.Load<Sprite>("UI/Realm/Champion/" + e.ChampionName);
+                if (sp != null)
+                {
+                    BattleStage2D.PortraitOverrides[boss.Id] = sp;
+                    Debug.Log("[BossRush] 秘境首领立绘已绑定：" + e.ChampionName);
+                }
+                else Debug.LogWarning("[BossRush] 缺立绘 UI/Realm/Champion/" + e.ChampionName);
+            }
+
             var req = new BattleRequest
             {
                 Title = "首领试炼 · " + e.Name,

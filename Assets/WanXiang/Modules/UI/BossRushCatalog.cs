@@ -24,6 +24,7 @@ namespace WanXiang.Modules.UI
         public string RealmId;     // 非空 = 秘境首领
         public string RealmName;   // 秘境名（显示用）
         public string HookId;      // 秘境机制钩子（rc_*）
+        public string ChampionName; // 秘境首领本名（不含场域后缀），用来查立绘
         public bool Playable;      // false = 本阶段还不能直接开战
     }
 
@@ -76,6 +77,7 @@ namespace WanXiang.Modules.UI
                                 RealmId = realm.Id,
                                 RealmName = realm.Name,
                                 HookId = ch.HookId,
+                            ChampionName = ch.Name,
                                 Playable = true,        // v2：用同属性 Boss 作战斗体 + 场域钩子
                             });
                         }
