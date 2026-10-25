@@ -30,15 +30,21 @@ namespace WanXiang.EditorTools
             if (tpl == null) { Debug.LogError("[PatchHome] 找不到 Btn_History 作模板"); PrefabUtility.UnloadPrefabContents(root); return; }
 
             var existing = tpl.parent.Find("Btn_BossRush");
+            // 已存在也重新摆位（重跑补丁时生效）
             Transform btnT;
-            if (existing != null) btnT = existing;
+            if (existing != null)
+            {
+                btnT = existing;
+                var ert = (RectTransform)existing;
+                ert.anchoredPosition = ((RectTransform)tpl).anchoredPosition + new Vector2(150f, 0f);
+            }
             else
             {
                 var clone = Object.Instantiate(tpl.gameObject, tpl.parent);
                 clone.name = "Btn_BossRush";
                 var rt = (RectTransform)clone.transform;
                 var src = (RectTransform)tpl;
-                rt.anchoredPosition = src.anchoredPosition + new Vector2(0f, -110f);
+                rt.anchoredPosition = src.anchoredPosition + new Vector2(150f, 0f);   // 横向排到右侧，不要往下压底排文字
                 btnT = clone.transform;
             }
 
