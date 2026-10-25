@@ -120,7 +120,15 @@ namespace WanXiang.Modules.UI
             // ★ 2026-10-23 用户："秘境里战斗转场会出现彩色圆粒子，很难看" ——
             //   秘境战斗必须用**该场域的粒子**（UI/Realm/FX_<realmId>），不能用季节花瓣/萤火。
             var runF = WanXiang.Run.RunSave.Current;
-            string partPath = (runF != null && runF.InRealm) ? ("UI/Realm/FX_" + runF.RealmId) : ParticleForAct(act);
+            // ★ 2026-10-25 用户："Boss 连战的转场粒子也要按幕/秘境变化"
+            //   试炼没有 RunState 的 InRealm/Act，取面板传的覆盖值。
+            int actForFx = PendingBattleAct > 0 ? UnityEngine.Mathf.Clamp(PendingBattleAct, 1, 5) : act;
+            string realmForFx = !string.IsNullOrEmpty(PendingBattleRealmId)
+                ? PendingBattleRealmId
+                : (runF != null && runF.InRealm ? runF.RealmId : null);
+            string partPath = !string.IsNullOrEmpty(realmForFx)
+                ? ("UI/Realm/FX_" + realmForFx)
+                : ParticleForAct(actForFx);
             // ★ 2026-10-23 首战闪主界面：先把转场层建好（Build 要到下一帧才画得出，
             //   第一次播时开场那两帧盖不住旧画面）。同时把主界面收掉 —— 战场只需节点图垫底。
             RealmTransition.Prewarm(partPath);
