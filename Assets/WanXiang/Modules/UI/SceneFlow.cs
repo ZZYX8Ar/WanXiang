@@ -133,8 +133,17 @@ namespace WanXiang.Modules.UI
             //   第一次播时开场那两帧盖不住旧画面）。同时把主界面收掉 —— 战场只需节点图垫底。
             RealmTransition.Prewarm(partPath);
             // 战斗艺术字：按幕取专属（`UI/Title/battle_act1..5`），缺图退回通用「战斗」
-            string battleWord = "UI/Title/battle_act" + actForFx;
-            if (UnityEngine.Resources.Load<UnityEngine.Sprite>(battleWord) == null) battleWord = "UI/Title/battle";
+            // 战斗艺术字：先找**场域专属**（UI/Title/battle_<realmId>），再按幕，最后通用
+            string battleWord = null;
+            if (!string.IsNullOrEmpty(realmForFx) &&
+                UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Title/battle_" + realmForFx) != null)
+                battleWord = "UI/Title/battle_" + realmForFx;
+            if (battleWord == null)
+            {
+                battleWord = "UI/Title/battle_act" + actForFx;
+                if (UnityEngine.Resources.Load<UnityEngine.Sprite>(battleWord) == null)
+                    battleWord = "UI/Title/battle";
+            }
             RealmTransition.PlayAsync(null, () => Load(BattleScene), null,
                 battleWord, partPath, revealDelay: 0.10f,
                 impactWordRes: "UI/Title/start", instantCover: true).Forget();

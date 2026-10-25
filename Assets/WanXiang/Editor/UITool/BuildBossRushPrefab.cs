@@ -26,6 +26,20 @@ namespace WanXiang.EditorTools
         private const string Dir = "Assets/Resources/UI";
         private const float W = 1600f, H = 900f;
 
+        /// <summary>取 UI/Kit 下的九宫格图并设成 Sliced（与图鉴/局外成长同一套按钮美术）。</summary>
+        private static Sprite Kit(string name)
+        {
+            var sp = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/UI/Kit/" + name + ".png");
+            if (sp == null) Debug.LogWarning("[BuildBossRush] 缺 Kit 图：" + name);
+            return sp;
+        }
+
+        private static void Sliced(RectTransform rt, Sprite sp, Color tint)
+        {
+            var img = UIBuild.Img(rt, tint, true);
+            if (sp != null) { img.sprite = sp; img.type = Image.Type.Sliced; img.color = tint; }
+        }
+
         [MenuItem("WanXiang/UI/生成首领试炼面板", priority = 121)]
         internal static void Build()
         {
@@ -53,7 +67,7 @@ namespace WanXiang.EditorTools
             // ---------------- 左列：首领列表 ----------------
             var listCard = UIBuild.Node(root, "Root_ListCard", new Vector2(0f, 0f), new Vector2(0f, 1f),
                 new Vector2(30f, 30f), new Vector2(30f + 900f, -116f));
-            UIBuild.Img(listCard, UIBuild.Card, true);
+            Sliced(listCard, Kit("card_solid"), Color.white);
             var listArea = UIBuild.Node(listCard, "Root_List", new Vector2(0f, 0f), new Vector2(1f, 1f),
                 new Vector2(16f, 16f), new Vector2(-16f, -16f));
             var vlg = listArea.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -65,7 +79,7 @@ namespace WanXiang.EditorTools
             vlg.childForceExpandWidth = true;
 
             var item = UIBuild.Fixed(listArea, "Item_Boss", new Vector2(0f, 1f), new Vector2(860f, 34f), Vector2.zero);
-            UIBuild.Img(item, new Color(0.86f, 0.82f, 0.72f, 0.45f), false);
+            Sliced(item, Kit("card_solid"), new Color(1f, 1f, 1f, 0.92f));
             var headRt = UIBuild.Fixed(item, "Img_Head", new Vector2(0f, 0.5f), new Vector2(26f, 26f), new Vector2(14f, 0f));
             UIBuild.Img(headRt, new Color(1f, 1f, 1f, 0f));
             var nameRt = UIBuild.Node(item, "Tmp_Name", new Vector2(0f, 0f), new Vector2(1f, 1f),
@@ -77,16 +91,16 @@ namespace WanXiang.EditorTools
             UIBuild.Tmp(tagRt, "", 18f, new Color(0.45f, 0.36f, 0.24f, 1f), TextAlignmentOptions.Right);
 
             var chRt = UIBuild.Fixed(item, "Btn_Challenge", new Vector2(1f, 0.5f), new Vector2(112f, 26f), new Vector2(-64f, 0f));
-            var chImg = UIBuild.Img(chRt, new Color(0.36f, 0.30f, 0.22f, 0.90f), true);
+            Sliced(chRt, Kit("btn_secondary"), Color.white);
             var chBtn = chRt.gameObject.AddComponent<Button>();
-            chBtn.targetGraphic = chImg;
+            chBtn.targetGraphic = chRt.GetComponent<Image>();
             UIBuild.Tmp(UIBuild.Node(chRt, "Tmp_Label", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero),
                 "挑战", 18f, new Color(0.97f, 0.94f, 0.86f, 1f));
 
             // ---------------- 右上：对战码 ----------------
             var codeBox = UIBuild.Node(root, "Root_Code", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(960f, -300f), new Vector2(-30f, -116f));
-            UIBuild.Img(codeBox, UIBuild.Card, true);
+            Sliced(codeBox, Kit("card_solid"), Color.white);
 
             var codeLabelRt = UIBuild.Node(codeBox, "Tmp_CodeLabel", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(16f, -42f), new Vector2(-16f, -8f));
@@ -107,9 +121,9 @@ namespace WanXiang.EditorTools
             input.targetGraphic = inpRt.GetComponent<Image>();
 
             var loadRt = UIBuild.Fixed(codeBox, "Btn_LoadCode", new Vector2(1f, 0f), new Vector2(120f, 44f), new Vector2(-136f, 60f));
-            var loadImg = UIBuild.Img(loadRt, new Color(0.36f, 0.30f, 0.22f, 0.90f), true);
+            Sliced(loadRt, Kit("btn_primary"), Color.white);
             var loadBtn = loadRt.gameObject.AddComponent<Button>();
-            loadBtn.targetGraphic = loadImg;
+            loadBtn.targetGraphic = loadRt.GetComponent<Image>();
             UIBuild.Tmp(UIBuild.Node(loadRt, "Tmp_Label", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero),
                 "载入", 20f, new Color(0.97f, 0.94f, 0.86f, 1f));
 
@@ -124,9 +138,10 @@ namespace WanXiang.EditorTools
             var hintTxt = UIBuild.Tmp(hintRt, "", 20f, new Color(0.36f, 0.30f, 0.22f, 1f), TextAlignmentOptions.TopLeft);
             hintTxt.enableWordWrapping = true;
 
-            var closeRt = UIBuild.MakeBtn(root, "Btn_Close", new Vector2(1f, 0f),
-                new Vector2(168f, 58f), new Vector2(-48f, 44f), "关闭", UIBuild.Ink, 26f);
-            var closeBtn = closeRt.GetComponent<Button>();
+            var closeRt = UIBuild.Fixed(root, "Btn_Close", new Vector2(1f, 0f), new Vector2(64f, 64f), new Vector2(-48f, 44f));
+            Sliced(closeRt, Kit("btn_close"), Color.white);
+            var closeBtn = closeRt.gameObject.AddComponent<Button>();
+            closeBtn.targetGraphic = closeRt.GetComponent<Image>();
 
             // ---------------- 绑定 ----------------
             var panel = root.gameObject.AddComponent<BossRushPanel>();
