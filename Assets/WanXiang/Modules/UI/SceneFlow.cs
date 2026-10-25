@@ -219,7 +219,15 @@ namespace WanXiang.Modules.UI
             // revealDelay 0.55s：主城的节点地图是异步打开的，等它就绪再拨开，
             // 否则会先露出主界面背景（用户实测）。
             var runX = WanXiang.Run.RunSave.Current;
-            string partExit = (runX != null && runX.InRealm) ? ("UI/Realm/FX_" + runX.RealmId) : ParticleForAct(actNow);
+            // ★ 2026-10-25 用户："败退的粒子没有变化"
+            //   离开战斗同样要用**当前这场**的幕/场域（试炼走 PendingBattleAct/RealmId）。
+            int actExit = PendingBattleAct > 0 ? UnityEngine.Mathf.Clamp(PendingBattleAct, 1, 5) : actNow;
+            string realmExit = !string.IsNullOrEmpty(PendingBattleRealmId)
+                ? PendingBattleRealmId
+                : (runX != null && runX.InRealm ? runX.RealmId : null);
+            string partExit = !string.IsNullOrEmpty(realmExit)
+                ? ("UI/Realm/FX_" + realmExit)
+                : ParticleForAct(actExit);
             RealmTransition.PlayAsync(null, () => Load(MainScene), null, word,
                 partExit, revealDelay: 0.55f).Forget();
         }
