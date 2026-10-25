@@ -1575,6 +1575,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 bool bigEntrance = defId == "b_guixu" || defId == "b_hongmeng" || defId == "b_wangliang";
                 _skillFx.Play(v.Root.transform.position, defId, col, bigEntrance,
                               portrait, beastName, kicker, faceLeft: true);
+
+                // 元素异象：按五行撒方向性粒子（藤蔓窜起 / 火星上腾 / 刃风横扫 / 逆流 / 压顶）
+                EntranceSpark.Burst(v.Root.transform.position + new Vector3(0f, 0.15f, -0.2f),
+                                    el, col, bigEntrance ? 26 : 18);
                 Debug.Log("[Stage2D] Boss 登场演出：" + beastName + " (" + defId + ")");
                 return _skillFx.LastBusyDuration;
             }
