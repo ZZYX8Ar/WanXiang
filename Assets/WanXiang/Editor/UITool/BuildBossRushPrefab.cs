@@ -43,7 +43,7 @@ namespace WanXiang.EditorTools
         /// <summary>把圆角图设成九宫格（border 24）并重导入 —— 与手绘 UI 的圆角/描边一致。</summary>
         private static void EnsureRoundedImport()
         {
-            string[] names = { "round_card", "round_btn", "round_btn_dark" };
+            string[] names = { "panel_dialog", "panel_strip", "btn_secondary" };
             foreach (var n in names)
             {
                 string path = "Assets/Resources/UI/Kit/" + n + ".png";
@@ -51,7 +51,8 @@ namespace WanXiang.EditorTools
                 if (imp == null) { Debug.LogWarning("[BuildBossRush] 找不到 " + path); continue; }
                 imp.textureType = TextureImporterType.Sprite;
                 imp.spriteImportMode = SpriteImportMode.Single;
-                imp.spriteBorder = new Vector4(24f, 24f, 24f, 24f);
+                // ⛔ 已有九宫格边距的图**不要覆盖**（panel_dialog/panel_strip 是项目原有美术）
+                if (imp.spriteBorder == Vector4.zero) imp.spriteBorder = new Vector4(20f, 20f, 20f, 20f);
                 imp.mipmapEnabled = false;
                 imp.alphaIsTransparency = true;
                 imp.SaveAndReimport();
@@ -90,7 +91,7 @@ namespace WanXiang.EditorTools
             // ---------------- 左列：首领列表 ----------------
             var listCard = UIBuild.Node(root, "Root_ListCard", new Vector2(0f, 0f), new Vector2(0f, 1f),
                 new Vector2(30f, 30f), new Vector2(30f + 900f, -116f));
-            Sliced(listCard, Kit("round_card"), Color.white);
+            Sliced(listCard, Kit("panel_dialog"), Color.white);
             var listArea = UIBuild.Node(listCard, "Root_List", new Vector2(0f, 0f), new Vector2(1f, 1f),
                 new Vector2(16f, 16f), new Vector2(-16f, -16f));
             var vlg = listArea.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -102,7 +103,7 @@ namespace WanXiang.EditorTools
             vlg.childForceExpandWidth = true;
 
             var item = UIBuild.Fixed(listArea, "Item_Boss", new Vector2(0f, 1f), new Vector2(860f, 34f), Vector2.zero);
-            Sliced(item, Kit("round_card"), new Color(1f, 1f, 1f, 0.90f));
+            Sliced(item, Kit("panel_strip"), new Color(1f, 1f, 1f, 0.95f));
             var headRt = UIBuild.Fixed(item, "Img_Head", new Vector2(0f, 0.5f), new Vector2(26f, 26f), new Vector2(14f, 0f));
             UIBuild.Img(headRt, new Color(1f, 1f, 1f, 0f));
             var nameRt = UIBuild.Node(item, "Tmp_Name", new Vector2(0f, 0f), new Vector2(1f, 1f),
@@ -114,7 +115,7 @@ namespace WanXiang.EditorTools
             UIBuild.Tmp(tagRt, "", 18f, new Color(0.45f, 0.36f, 0.24f, 1f), TextAlignmentOptions.Right);
 
             var chRt = UIBuild.Fixed(item, "Btn_Challenge", new Vector2(1f, 0.5f), new Vector2(112f, 26f), new Vector2(-64f, 0f));
-            Sliced(chRt, Kit("round_btn"), Color.white);
+            Sliced(chRt, Kit("btn_secondary"), Color.white);
             var chBtn = chRt.gameObject.AddComponent<Button>();
             chBtn.targetGraphic = chRt.GetComponent<Image>();
             UIBuild.Tmp(UIBuild.Node(chRt, "Tmp_Label", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero),
@@ -123,7 +124,7 @@ namespace WanXiang.EditorTools
             // ---------------- 右上：对战码 ----------------
             var codeBox = UIBuild.Node(root, "Root_Code", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(960f, -300f), new Vector2(-30f, -116f));
-            Sliced(codeBox, Kit("round_card"), Color.white);
+            Sliced(codeBox, Kit("panel_dialog"), Color.white);
 
             var codeLabelRt = UIBuild.Node(codeBox, "Tmp_CodeLabel", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(16f, -42f), new Vector2(-16f, -8f));
@@ -144,7 +145,7 @@ namespace WanXiang.EditorTools
             input.targetGraphic = inpRt.GetComponent<Image>();
 
             var loadRt = UIBuild.Fixed(codeBox, "Btn_LoadCode", new Vector2(1f, 0f), new Vector2(120f, 44f), new Vector2(-136f, 60f));
-            Sliced(loadRt, Kit("round_btn_dark"), Color.white);
+            Sliced(loadRt, Kit("btn_secondary"), Color.white);
             var loadBtn = loadRt.gameObject.AddComponent<Button>();
             loadBtn.targetGraphic = loadRt.GetComponent<Image>();
             UIBuild.Tmp(UIBuild.Node(loadRt, "Tmp_Label", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero),

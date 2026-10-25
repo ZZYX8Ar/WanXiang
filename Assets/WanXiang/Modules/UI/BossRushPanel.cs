@@ -89,8 +89,20 @@ namespace WanXiang.Modules.UI
                 var img = row.GetComponentInChildren<Image>(true);
                 if (img != null && _sprites != null && !string.IsNullOrEmpty(e.Id))
                 {
-                    var sp = _sprites.GetHead(e.Id) ?? _sprites.Get(e.Id);
-                    if (sp != null) { img.sprite = sp; img.preserveAspect = true; img.color = Color.white; }
+                    // ⛔ 只用头像图（GetHead）；取不到就别放 —— 用全身立绘塞进 26px 会被拉成宽条
+                    // 秘境首领：头像在 Resources/UI/Realm/Champion/<本名>（与战场立绘同一张）
+                    Sprite sp = null;
+                    if (!string.IsNullOrEmpty(e.RealmId) && !string.IsNullOrEmpty(e.ChampionName))
+                        sp = Resources.Load<Sprite>("UI/Realm/Champion/" + e.ChampionName);
+                    if (sp == null && _sprites != null && !string.IsNullOrEmpty(e.Id)) sp = _sprites.GetHead(e.Id);
+                    if (sp != null)
+                    {
+                        img.sprite = sp;
+                        img.type = Image.Type.Simple;      // 头像不能 Sliced
+                        img.preserveAspect = true;
+                        img.color = Color.white;
+                    }
+                    else img.enabled = false;
                 }
 
                 var captured = e;
