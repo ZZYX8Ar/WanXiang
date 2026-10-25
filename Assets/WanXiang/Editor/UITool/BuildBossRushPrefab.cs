@@ -37,16 +37,25 @@ namespace WanXiang.EditorTools
             var old = AssetDatabase.LoadAssetAtPath<GameObject>(Dir + "/Panel_BossRush.prefab");
             if (old != null) AssetDatabase.DeleteAsset(Dir + "/Panel_BossRush.prefab");
 
-            var root = UIBuild.Fixed(null, "Panel_BossRush", new Vector2(0.5f, 0.5f), new Vector2(W, H), Vector2.zero);
-            UIBuild.Img(root, new Color(0.93f, 0.90f, 0.83f, 0.99f), true);
+            // ---- 根：**铺满**（与 PvP / 秘境面板同一套 MIO 版式）----
+            var root = new GameObject("Panel_BossRush", typeof(RectTransform)).GetComponent<RectTransform>();
+            root.anchorMin = Vector2.zero; root.anchorMax = Vector2.one;
+            root.offsetMin = Vector2.zero; root.offsetMax = Vector2.zero;
 
-            var titleRt = UIBuild.Node(root, "Tmp_Title", new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(48f, -108f), new Vector2(-48f, -32f));
-            var title = UIBuild.Tmp(titleRt, "首领试炼", 48f, UIBuild.Ink);
+            // 顶栏：丝绢底 + 墨字标题（MIO 标准）
+            var top = UIBuild.Node(root, "Root_TopBar", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(30f, -96f), new Vector2(-30f, -16f));
+            UIBuild.Img(top, UIBuild.Silk, true);
+            var title = UIBuild.Tmp(UIBuild.Node(top, "Tmp_Title", Vector2.zero, Vector2.one,
+                new Vector2(24f, 0f), new Vector2(-24f, 0f)), "首领试炼", 40f, UIBuild.Ink,
+                TextAlignmentOptions.MidlineLeft);
 
             // ---------------- 左列：首领列表 ----------------
-            var listArea = UIBuild.Node(root, "Root_List", new Vector2(0f, 0f), new Vector2(0f, 1f),
-                new Vector2(48f, 96f), new Vector2(48f + 860f, -128f));
+            var listCard = UIBuild.Node(root, "Root_ListCard", new Vector2(0f, 0f), new Vector2(0f, 1f),
+                new Vector2(30f, 30f), new Vector2(30f + 900f, -116f));
+            UIBuild.Img(listCard, UIBuild.Card, true);
+            var listArea = UIBuild.Node(listCard, "Root_List", new Vector2(0f, 0f), new Vector2(1f, 1f),
+                new Vector2(16f, 16f), new Vector2(-16f, -16f));
             var vlg = listArea.gameObject.AddComponent<VerticalLayoutGroup>();
             vlg.spacing = 2f;
             vlg.childAlignment = TextAnchor.UpperLeft;
@@ -76,8 +85,8 @@ namespace WanXiang.EditorTools
 
             // ---------------- 右上：对战码 ----------------
             var codeBox = UIBuild.Node(root, "Root_Code", new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(960f, -270f), new Vector2(-48f, -140f));
-            UIBuild.Img(codeBox, new Color(0.88f, 0.85f, 0.76f, 0.55f), false);
+                new Vector2(960f, -300f), new Vector2(-30f, -116f));
+            UIBuild.Img(codeBox, UIBuild.Card, true);
 
             var codeLabelRt = UIBuild.Node(codeBox, "Tmp_CodeLabel", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(16f, -42f), new Vector2(-16f, -8f));
@@ -106,12 +115,12 @@ namespace WanXiang.EditorTools
 
             // ---------------- 右下：说明 ----------------
             var teamRt = UIBuild.Node(root, "Tmp_Team", new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(960f, -360f), new Vector2(-48f, -290f));
+                new Vector2(960f, -380f), new Vector2(-46f, -312f));
             var teamTxt = UIBuild.Tmp(teamRt, "", 22f, new Color(0.28f, 0.24f, 0.18f, 1f), TextAlignmentOptions.TopLeft);
             teamTxt.enableWordWrapping = true;
 
             var hintRt = UIBuild.Node(root, "Tmp_Hint", new Vector2(0f, 0f), new Vector2(1f, 0f),
-                new Vector2(960f, 180f), new Vector2(-48f, 380f));
+                new Vector2(960f, 150f), new Vector2(-46f, 340f));
             var hintTxt = UIBuild.Tmp(hintRt, "", 20f, new Color(0.36f, 0.30f, 0.22f, 1f), TextAlignmentOptions.TopLeft);
             hintTxt.enableWordWrapping = true;
 

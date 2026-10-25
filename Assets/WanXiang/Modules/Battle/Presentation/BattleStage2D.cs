@@ -1552,7 +1552,21 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 _skillFx.OnImpact = null;                 // 登场不冲锋、不补伤害
                 // ★ 每个 Boss 的登场"抬头"文案区分层级（2026-10-25）：
                 //   秘境镇守 / 终局 / 普通首领；配合元素色环，至少让 25 个 Boss 不完全雷同。
-                string kicker = string.IsNullOrEmpty(_realmId) ? "首领登场" : "镇守登场";
+                // 元素专属抬头（2026-10-25 第 2 项：让 25 个 Boss 有辨识度的第一步）
+                string kicker;
+                if (!string.IsNullOrEmpty(_realmId)) kicker = "镇守登场";
+                else
+                {
+                    switch (el)
+                    {
+                        case WanXiang.Battle.Core.Element.Wood:  kicker = "藤蔓缠生"; break;
+                        case WanXiang.Battle.Core.Element.Fire:  kicker = "烈焰涌起"; break;
+                        case WanXiang.Battle.Core.Element.Metal: kicker = "兵刃出鞘"; break;
+                        case WanXiang.Battle.Core.Element.Water: kicker = "寒渊漫上"; break;
+                        case WanXiang.Battle.Core.Element.Earth: kicker = "山岳压境"; break;
+                        default: kicker = "首领登场"; break;
+                    }
+                }
                 if (defId == "b_guixu" || defId == "b_hongmeng") kicker = "终局降临";
                 else if (defId == "b_bairen" || defId == "b_shuangfeng") kicker = "双刃登场";
                 else if (defId == "b_xuanming" || defId == "b_shuangying") kicker = "寒渊降临";
