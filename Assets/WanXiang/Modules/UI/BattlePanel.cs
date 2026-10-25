@@ -515,6 +515,16 @@ namespace WanXiang.Modules.UI
 
         private void HandOff(ResultRequest result)
         {
+            // ★ 首领试炼：不结算、不进节点图 ⇒ 直接播转场回试炼面板
+            //   （用户 2026-10-25："战斗胜利怎么就回到节点地图，还弹出了面板"）
+            if (SceneFlow.LastWasBossRush)
+            {
+                Debug.Log("[BattlePanel] 首领试炼结束（" + (result != null && result.Win ? "胜" : "非胜") +
+                          "）→ 回试炼面板，不弹结算");
+                SceneFlow.ReturnToBossRushPanel();
+                return;
+            }
+
             // ★ 阵亡记账时机（用户 2026-10-04 定案：**只在过节点时丢**）
             //   打赢（= 过节点）才真正把阵亡兽从队伍/拥有移除；**战败 / 平局撤退 / 重新挑战都不丢**。
             //   ⚠ 原先是无条件调用 —— 于是"打输了 → 点重新挑战"会把整队清掉（用户报障：
