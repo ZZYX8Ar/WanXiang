@@ -197,10 +197,13 @@ namespace WanXiang.Modules.UI
             };
 
             // 敌方：首领本体（站中排）
-            // ★ 2026-10-25 用户："血量太低，还没看到机制就死了" ⇒ 试炼里给首领加厚
-            //   （正式关卡的血量照旧；这里只是让机制能演完，便于测技能）
+            // ★ 2026-10-25 两轮反馈合并：
+            //   ① "血量太低，看不到机制" → 要加厚
+            //   ② "伤害不要这么高，我一下就被打死" → ⛔ StatMul 会同时放大 生命/攻击/防御
+            //   ⇒ 只加**生命**（直接抬 BaseHp），攻击防御保持原样。
+            boss.BaseHp = Mathf.RoundToInt(boss.BaseHp * 8f);
             req.EnemyEntries.Add(new DeployEntry {
-                Def = boss, Side = TeamSide.Enemy, PosIndex = 4, StatMul = 12f });
+                Def = boss, Side = TeamSide.Enemy, PosIndex = 4, StatMul = 1f });
 
             // ★ ① 有对战码：解码成**真实阵容**（含站位 + 养成倍率）
             //   ⛔ 之前只把码存成字符串、没参与组队 —— 用户："载入了队伍还是没变"。
