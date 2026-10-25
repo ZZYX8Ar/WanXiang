@@ -1534,8 +1534,17 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 catch { }
                 var col = BattlePalette.OfElement(el);
                 _skillFx.OnImpact = null;                 // 登场不冲锋、不补伤害
-                _skillFx.Play(v.Root.transform.position, defId, col, false,
-                              portrait, beastName, "首领登场", faceLeft: true);
+                // ★ 每个 Boss 的登场"抬头"文案区分层级（2026-10-25）：
+                //   秘境镇守 / 终局 / 普通首领；配合元素色环，至少让 25 个 Boss 不完全雷同。
+                string kicker = "首领登场";
+                if (defId == "b_guixu" || defId == "b_hongmeng") kicker = "终局降临";
+                else if (defId == "b_bairen" || defId == "b_shuangfeng") kicker = "双刃登场";
+                else if (defId == "b_xuanming" || defId == "b_shuangying") kicker = "寒渊降临";
+
+                // 终局 / 觉醒级体量：觉醒参数会让环更多、闪更强、镜头更狠
+                bool bigEntrance = defId == "b_guixu" || defId == "b_hongmeng" || defId == "b_wangliang";
+                _skillFx.Play(v.Root.transform.position, defId, col, bigEntrance,
+                              portrait, beastName, kicker, faceLeft: true);
                 Debug.Log("[Stage2D] Boss 登场演出：" + beastName + " (" + defId + ")");
                 return _skillFx.LastBusyDuration;
             }
