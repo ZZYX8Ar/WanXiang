@@ -170,6 +170,41 @@ namespace WanXiang.Modules.UI
             // 敌方：首领本体（站中排）
             req.EnemyEntries.Add(new DeployEntry { Def = boss, Side = TeamSide.Enemy, PosIndex = 4, StatMul = 1f });
 
+            // ★ ① 有对战码：解码成**真实阵容**（含站位 + 养成倍率）
+            //   ⛔ 之前只把码存成字符串、没参与组队 —— 用户："载入了队伍还是没变"。
+            if (!string.IsNullOrEmpty(_code) && _content != null)
+            {
+                var beasts = WanXiang.Fusion.ContentLibrary.BuildBeasts(_content);
+                var souls = WanXiang.Fusion.ContentLibrary.BuildSouls(_content);
+                var pay = new WanXiang.Fusion.SharePayload();
+                if (beasts != null && souls != null &&
+                    WanXiang.Fusion.ShareCode.TryDecode(_code, beasts.Length, souls.Length, out pay) &&
+                    pay.BeastIndices != null && pay.BeastIndices.Length > 0)
+                {
+                    for (int i = 0; i < pay.BeastIndices.Length; i++)
+                    {
+                        int bi = pay.BeastIndices[i];
+                        if (bi < 0 || bi >= beasts.Length) continue;
+                        float mul = 1f;
+                        if (pay.Growth != null && i < pay.Growth.Length)
+                        {
+                            WanXiang.Fusion.ShareCode.UnpackGrowth(pay.Growth[i], out int lv, out bool ev);
+                            mul = WanXiang.Meta.MetaDefaults.CombatBonusMul(lv, ev);
+                        }
+                        req.Player.Add(beasts[bi]);
+                        req.PlayerCells.Add(pay.BoardSlots != null && i < pay.BoardSlots.Length ? pay.BoardSlots[i] : i);
+                        req.PlayerMulPer.Add(mul);
+                    }
+                    if (req.Player.Count > 0)
+                    {
+                        if (pay.RelicMul > 0f) req.PlayerMul *= pay.RelicMul;
+                        Debug.Log("[BossRush] 对战码组队成功：" + req.Player.Count + " 只，RelicMul=" + pay.RelicMul);
+                        return req;
+                    }
+                }
+                Debug.LogWarning("[BossRush] 对战码解析失败，退回当前旅程队伍");
+            }
+
             // 我方：优先当前队伍，其次 Collection 前 5
             var run = WanXiang.Run.RunSave.Current;
             var ids = new List<string>();
