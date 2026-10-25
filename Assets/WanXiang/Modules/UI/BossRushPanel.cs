@@ -197,7 +197,10 @@ namespace WanXiang.Modules.UI
             };
 
             // 敌方：首领本体（站中排）
-            req.EnemyEntries.Add(new DeployEntry { Def = boss, Side = TeamSide.Enemy, PosIndex = 4, StatMul = 1f });
+            // ★ 2026-10-25 用户："血量太低，还没看到机制就死了" ⇒ 试炼里给首领加厚
+            //   （正式关卡的血量照旧；这里只是让机制能演完，便于测技能）
+            req.EnemyEntries.Add(new DeployEntry {
+                Def = boss, Side = TeamSide.Enemy, PosIndex = 4, StatMul = 12f });
 
             // ★ ① 有对战码：解码成**真实阵容**（含站位 + 养成倍率）
             //   ⛔ 之前只把码存成字符串、没参与组队 —— 用户："载入了队伍还是没变"。

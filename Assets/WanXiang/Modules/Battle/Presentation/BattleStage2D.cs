@@ -128,7 +128,7 @@ namespace WanXiang.Battle.Presentation
         /// 首领立绘的额外身量倍数（用户 2026-10-03 定案："boss 整的大一点，起码是普通异兽的 2-3 倍"）。
         /// 取 2.5：够醒目又不会溢出中宫格太多（2.5×0.60×1.75 ≈ 2.6 世界单位 ≈ 1.5 格高）。
         /// </summary>
-        private const float BossScaleMul = 2.5f;
+        private const float BossScaleMul = 1.85f;   // 2026-10-25 用户："比九宫格大一点点就行"（原 2.5 太大）
 
         /// <summary>
         /// 首领**召唤物/分身**的身量倍数（如镜影等，非双子）。
@@ -157,6 +157,10 @@ namespace WanXiang.Battle.Presentation
         /// <summary>召唤物/分身（复用 b_ 立绘 id，但既不是本体也不是双子）。</summary>
         private static bool IsBossSidekick(string id)
             => BossCatalog.IsBoss(id) && !BossScaleIds.Contains(id);
+
+        /// <summary>秘境首领（试炼/秘境战斗用 `rc_(&lt;hookId&gt;)` 作 id）：与主线首领同级放大。</summary>
+        private static bool IsRealmChampion(string id)
+            => !string.IsNullOrEmpty(id) && id.StartsWith("rc_");
 
         private static System.Collections.Generic.HashSet<string> BuildBossScaleIds()
         {
@@ -1205,7 +1209,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         //   它也是 b_ 前缀 —— 用 IsBoss 会把**所有** b_ 前缀都放大（含真分身，太宽）。
                         //   ★ 用户 2026-10-03 更正："他们两个都是 Boss 啊，不是召唤出来的，他们是一起出现的"
                         //     ， 双子（b_suren）与本体同级放大，不再用 1.15 的小尺寸。
-                        bool isBossTier = u.Side == TeamSide.Enemy && BossScaleIds.Contains(u.Def.Id);
+                        // ★ 秘境首领（rc_*）也按首领身量（它们不在 BossScaleIds 里）
+                        bool isBossTier = u.Side == TeamSide.Enemy
+                                          && (BossScaleIds.Contains(u.Def.Id) || IsRealmChampion(u.Def.Id));
                         float unitH = isBossTier ? UnitHeight * BossScaleMul
                                   : IsBossSidekick(u.Def.Id) ? UnitHeight * BossSidekickScaleMul
                                   : UnitHeight;
