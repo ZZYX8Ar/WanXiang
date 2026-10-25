@@ -1579,6 +1579,12 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 // 元素异象：按五行撒方向性粒子（藤蔓窜起 / 火星上腾 / 刃风横扫 / 逆流 / 压顶）
                 EntranceSpark.Burst(v.Root.transform.position + new Vector3(0f, 0.15f, -0.2f),
                                     el, col, bigEntrance ? 26 : 18);
+
+                // 压迫感三件套：压暗 + 名字砸下 + 镜头推近/震屏（用户："没有冲击力"）
+                BossIntroFx.Play(v.Root.transform.position, beastName ?? "首领", col,
+                                 bigEntrance ? 1.9f : 1.5f);
+                TriggerZoom(bigEntrance ? 0.9f : 0.6f, 0.55f);
+                TriggerShake(bigEntrance ? 0.16f : 0.09f, 0.5f);
                 Debug.Log("[Stage2D] Boss 登场演出：" + beastName + " (" + defId + ")");
                 return _skillFx.LastBusyDuration;
             }
