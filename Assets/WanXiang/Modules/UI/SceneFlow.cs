@@ -220,10 +220,10 @@ namespace WanXiang.Modules.UI
             if (result == null) CampaignPanel.PendingCommit = -1;
             // ★ 2026-10-20：回城同样走秘境式转场，胜负各配一张艺术字
             //   （胜利「胜利」/ 失败「败退」/ 平局撤退「败退」/ 通关「通关」）。
-            string word = "UI/Title/defeat";
-            if (result != null && result.Win) word = result.Draw ? "UI/Title/defeat" : "UI/Title/victory";
+            string baseWord = "UI/Title/defeat";
+            if (result != null && result.Win) baseWord = result.Draw ? "UI/Title/defeat" : "UI/Title/victory";
             if (WanXiang.Run.RunSave.Current != null && WanXiang.Run.RunSave.Current.Act >= 5 && result != null && result.Win)
-                word = "UI/Title/clear";
+                baseWord = "UI/Title/clear";
             int actNow = WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : 1;
             // revealDelay 0.55s：主城的节点地图是异步打开的，等它就绪再拨开，
             // 否则会先露出主界面背景（用户实测）。
@@ -237,6 +237,17 @@ namespace WanXiang.Modules.UI
             string partExit = !string.IsNullOrEmpty(realmExit)
                 ? ("UI/Realm/FX_" + realmExit)
                 : ParticleForAct(actExit);
+            // 胜负字：按 场域 → 幕 取专属（victory_realm_x / victory_act1..5），缺图退回通用
+            string kind = baseWord.Substring("UI/Title/".Length);
+            string word = null;
+            if (!string.IsNullOrEmpty(realmExit) &&
+                UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Title/" + kind + "_" + realmExit) != null)
+                word = "UI/Title/" + kind + "_" + realmExit;
+            if (word == null &&
+                UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Title/" + kind + "_act" + actExit) != null)
+                word = "UI/Title/" + kind + "_act" + actExit;
+            if (word == null) word = baseWord;
+
             RealmTransition.PlayAsync(null, () => Load(MainScene), null, word,
                 partExit, revealDelay: 0.55f).Forget();
         }
