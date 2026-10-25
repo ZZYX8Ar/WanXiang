@@ -132,8 +132,11 @@ namespace WanXiang.Modules.UI
             // ★ 2026-10-23 首战闪主界面：先把转场层建好（Build 要到下一帧才画得出，
             //   第一次播时开场那两帧盖不住旧画面）。同时把主界面收掉 —— 战场只需节点图垫底。
             RealmTransition.Prewarm(partPath);
+            // 战斗艺术字：按幕取专属（`UI/Title/battle_act1..5`），缺图退回通用「战斗」
+            string battleWord = "UI/Title/battle_act" + actForFx;
+            if (Resources.Load<Sprite>(battleWord) == null) battleWord = "UI/Title/battle";
             RealmTransition.PlayAsync(null, () => Load(BattleScene), null,
-                "UI/Title/battle", partPath, revealDelay: 0.10f,
+                battleWord, partPath, revealDelay: 0.10f,
                 impactWordRes: "UI/Title/start", instantCover: true).Forget();
         }
 
