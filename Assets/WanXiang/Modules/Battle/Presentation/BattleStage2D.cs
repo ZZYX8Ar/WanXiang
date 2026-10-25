@@ -65,6 +65,9 @@ namespace WanXiang.Battle.Presentation
         public string FlawShownText;
         public int Hp, MaxHp;
         public bool Alive = true;
+        /// <summary>阵亡时是否已隐藏头顶 HUD（血条/名字/护盾/破绽/状态排/光环）。
+        /// 复活的单位要把它们全部恢复 —— 用户 2026-10-25 报"死了血条名字还在"。</summary>
+        public bool ChromeHidden;
         /// <summary>头顶信息容器（血条/名字/护盾/破绽条）。缩放为 1/身体缩放 ⇒ **世界尺寸恒定**。</summary>
         public Transform Head;
         /// <summary>该单位脚下格子（0~8，与 <c>u.Pos.Index</c> 同一套）。克制染色按它定位。</summary>
@@ -1648,7 +1651,18 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                              s.Alive ? s.UnbalancedTurns : 0);
                 SetOverlay2D(v, s.Alive ? s.StatusIds : null);   // 阵亡不挂状态外观
                 SetStatusAura2D(v, s.Alive ? s.StatusIds : null); // ★ 状态色光环（脚下）
-                if (v.Alive && !s.Alive) v.DeadBlend = 0f;
+                if (v.Alive && !s.Alive)
+                {
+                    v.DeadBlend = 0f;
+                    HideUnitChrome(v);                       // ★ 阵亡：头顶 HUD / 状态排 / 光环 / 护盾膜 全部收掉
+                }
+                else if (!v.Alive && s.Alive)
+                {
+                    ShowUnitChrome(v);                       // ★ 复活（Boss 一两回合后站起来）
+                    var rp = v.Root != null ? v.Root.transform.position : Vector3.zero;
+                    ReviveFx.Spawn(rp + new Vector3(0f, 0.25f, -0.4f),
+                                   new Color(1f, 0.90f, 0.62f, 1f));   // 金色复苏光柱
+                }
                 v.Alive = s.Alive;
             }
         }
@@ -1764,6 +1778,50 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             if (!_views.TryGetValue(unitId, out var v) || v == null) return false;
             text = v.FlawShownText;
             return !string.IsNullOrEmpty(text);
+        }
+
+        /// <summary>阵亡：收掉这个单位**所有**附属显示（头顶 HUD / 状态排 / 破绽条 / 光环 / 护盾膜 / 状态外观）。
+        /// ⛔ 只隐藏、不销毁 —— 复活的单位要原样恢复。</summary>
+        private void HideUnitChrome(UnitView2D v)
+        {
+            if (v == null || v.ChromeHidden) return;
+            v.ChromeHidden = true;
+            if (v.Head != null) v.Head.gameObject.SetActive(false);
+            if (v.StatusRow != null) v.StatusRow.SetActive(false);
+            if (v.StatusAura != null) v.StatusAura.gameObject.SetActive(false);
+            if (v.ShieldField != null) v.ShieldField.gameObject.SetActive(false);
+            if (v.Overlay != null) v.Overlay.enabled = false;
+            // 散落的 TextMesh（不挂在 Head 下的也要关）
+            if (v.Hint != null) v.Hint.gameObject.SetActive(false);
+            if (v.Telegraph != null) v.Telegraph.gameObject.SetActive(false);
+            if (v.ShieldText != null) v.ShieldText.gameObject.SetActive(false);
+            if (v.FlawLabel != null) v.FlawLabel.gameObject.SetActive(false);
+            if (v.NameText != null) v.NameText.gameObject.SetActive(false);
+
+            // 冲锋中阵亡：把冲锋状态与临时置顶一并复位（否则尸体永远压在别人上面）
+            v.LungeActive = false;
+            v.LungeElapsed = 0f;
+            if (v.Body != null && v.BaseSortingOrder > 0) v.Body.sortingOrder = v.BaseSortingOrder;
+            v.KickT = 0f;
+            v.HitFlash = 0f;
+        }
+
+        /// <summary>复活：把阵列全部恢复（状态/光环/护盾交给下一帧的帧流重新判定）。</summary>
+        private void ShowUnitChrome(UnitView2D v)
+        {
+            if (v == null || !v.ChromeHidden) return;
+            v.ChromeHidden = false;
+            if (v.Head != null) v.Head.gameObject.SetActive(true);
+            if (v.StatusRow != null) v.StatusRow.SetActive(true);
+            if (v.Overlay != null) v.Overlay.enabled = true;
+            if (v.Hint != null) v.Hint.gameObject.SetActive(true);
+            if (v.Telegraph != null) v.Telegraph.gameObject.SetActive(true);
+            if (v.ShieldText != null) v.ShieldText.gameObject.SetActive(true);
+            if (v.FlawLabel != null) v.FlawLabel.gameObject.SetActive(true);
+            if (v.NameText != null) v.NameText.gameObject.SetActive(true);
+            v.OverlayShown = null;      // 强制重设外观（否则复活后状态贴图不刷新）
+            v.StatusShown = null;
+            v.FlawShownText = null;
         }
 
         /// <summary>
@@ -2372,7 +2430,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 {
                     var d = _deferredDmg[i];
                     if (_animT < d.Due) continue;
-                    if (d.V != null)
+                    if (d.V != null && d.V.Alive)     // 阵亡单位不再补飘字（召唤物/Escort 死亡很常见）
                     {
                         SpawnDamageNumber(d.V, d.Amount, d.Melt, d.Reaction, d.Crit);
                         ApplyHitReaction(d.V, d.ActorHome, d.Crit ? 0.16f : 0.10f);
