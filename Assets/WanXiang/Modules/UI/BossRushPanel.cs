@@ -32,6 +32,8 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button _btnClose;
         [SerializeField] private SpriteCatalog _sprites;
         [SerializeField] private ContentCatalogSO _content;
+        [SerializeField] private TMP_InputField _inputCode;   // 对战码输入（可空）
+        [SerializeField] private Button _btnLoadCode;         // 载入对战码
 
         private readonly List<GameObject> _rows = new List<GameObject>(32);
 
@@ -43,6 +45,7 @@ namespace WanXiang.Modules.UI
             if (_btnClose != null) _btnClose.onClick.AddListener(CloseSelf);
             if (_tmpTitle != null) _tmpTitle.text = "首领试炼";
             BuildList();
+            if (_btnLoadCode != null) _btnLoadCode.onClick.AddListener(OnLoadCode);
             RefreshTeamLabel();
             if (_tmpHint != null) _tmpHint.text = "选一个首领开战；打完整场会回到这里（方便逐个测技能）。";
             return UniTask.CompletedTask;
@@ -90,12 +93,22 @@ namespace WanXiang.Modules.UI
                     if (sp != null) { img.sprite = sp; img.preserveAspect = true; img.color = Color.white; }
                 }
 
-                var btn = row.GetComponent<Button>();
-                if (btn != null)
+                var captured = e;
+                // 行内「挑战」按钮（用户要求：不要整行点就进战斗）
+                Transform challengeT = null;
+                foreach (var t in row.GetComponentsInChildren<Transform>(true))
+                    if (t.name == "Btn_Challenge") { challengeT = t; break; }
+                if (challengeT != null)
                 {
-                    var captured = e;
-                    btn.onClick.RemoveAllListeners();
-                    btn.onClick.AddListener(() => OnPick(captured));
+                    var cb = challengeT.GetComponent<Button>();
+                    if (cb != null) { cb.onClick.RemoveAllListeners(); cb.onClick.AddListener(() => OnPick(captured)); }
+                    var rowBtn = row.GetComponent<Button>();
+                    if (rowBtn != null) rowBtn.onClick.RemoveAllListeners();   // 整行不再触发
+                }
+                else
+                {
+                    var btn = row.GetComponent<Button>();
+                    if (btn != null) { btn.onClick.RemoveAllListeners(); btn.onClick.AddListener(() => OnPick(captured)); }
                 }
             }
         }
@@ -131,6 +144,10 @@ namespace WanXiang.Modules.UI
                 if (_tmpHint != null) _tmpHint.text = "拿不到战斗数据（内容目录或队伍为空）。";
                 return;
             }
+
+            // ★ 场景按 Boss 归属：主线用所在幕，秘境用场域（否则全是第一幕春景）
+            SceneFlow.PendingBattleAct = e.Act;
+            SceneFlow.PendingBattleRealmId = e.RealmId;
 
             CloseSelf();
             SceneFlow.EnterBattle(req);
@@ -186,6 +203,17 @@ namespace WanXiang.Modules.UI
             }
             if (req.Player.Count == 0) return null;
             return req;
+        }
+
+        private string _code;
+
+        private void OnLoadCode()
+        {
+            var code = _inputCode != null ? (_inputCode.text ?? "").Trim() : "";
+            if (string.IsNullOrEmpty(code)) { if (_tmpHint != null) _tmpHint.text = "先把对战码粘进来。"; return; }
+            _code = code;
+            if (_tmpHint != null) _tmpHint.text = "已载入对战码（长度 " + code.Length + "），挑战时优先用这套队伍。";
+            RefreshTeamLabel();
         }
 
         private void RefreshTeamLabel()

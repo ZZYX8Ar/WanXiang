@@ -96,6 +96,15 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>出征：进战斗场景。</summary>
+        /// <summary>
+        /// 首领试炼：这场战斗要用的**幕**（决定背景/前景/粒子）。0 = 不覆盖（按节点图）。
+        /// ⛔ 试炼没有 `PendingBattleNode`，驱动会退化成 act=1（全是春景）——
+        ///   用户 2026-10-25 实测："每个 Boss 都是第一幕的战斗场景"。
+        /// </summary>
+        public static int PendingBattleAct;
+        /// <summary>首领试炼：场域 id（非空 ⇒ 用场域专属 BG_/FG_/FX_）。</summary>
+        public static string PendingBattleRealmId;
+
         public static void EnterBattle(BattleRequest request)
         {
             LastWasPvp = request != null && request.IsPvpMatch;

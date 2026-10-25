@@ -109,6 +109,8 @@ var play = new BattlePlayback(req, _manualBattle);
                     int act = 1;
                     var node = SceneFlow.PendingBattleNode;
                     if (node != null) act = Mathf.Clamp(node.Act, 1, 5);
+                    // ★ 首领试炼：没有节点，用面板传的幕/场域（否则全是第一幕春景）
+                    if (SceneFlow.PendingBattleAct > 0) act = Mathf.Clamp(SceneFlow.PendingBattleAct, 1, 5);
                     Sprite bg = Resources.Load<Sprite>(BgByAct[act - 1]);
                     // ★ 2026-10-22 用户："秘境里的背景/前景还是主线那一幕" ——
                     //   秘境战斗改用**场域专属背景**（Resources/UI/Realm/map_bg_<realmId>），
@@ -116,6 +118,13 @@ var play = new BattlePlayback(req, _manualBattle);
                     Sprite fgRealm = null;
                     var runR = WanXiang.Run.RunSave.Current;
                     bool inRealm = runR != null && runR.InRealm;
+                    // ★ 试炼指定场域时，等同于"在秘境里打"
+                    string realmOverride = SceneFlow.PendingBattleRealmId;
+                    if (!string.IsNullOrEmpty(realmOverride))
+                    {
+                        inRealm = true;
+                        if (runR != null) runR.RealmId = realmOverride;
+                    }
                     if (inRealm)
                     {
                         // ★ 2026-10-22：优先用**专属战场图** Resources/Battle/BG_<realmId>
