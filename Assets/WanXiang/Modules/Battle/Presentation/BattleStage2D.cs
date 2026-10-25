@@ -1793,16 +1793,15 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
             if (key == null)
             {
+                // ⛔ 只隐藏、**不销毁材质**：销毁后 SpriteRenderer 还在，
+                //   下次状态回来会跳过创建直接 SetColor ⇒ NullReferenceException（用户实测报障）。
                 if (v.StatusAura != null && v.StatusAura.gameObject.activeSelf)
-                {
                     v.StatusAura.gameObject.SetActive(false);
-                    if (v.StatusAuraMat != null) { Destroy(v.StatusAuraMat); v.StatusAuraMat = null; }
-                    v.StatusAuraKey = null;
-                }
+                v.StatusAuraKey = null;
                 return;
             }
 
-            if (v.StatusAura == null)
+            if (v.StatusAura == null || v.StatusAuraMat == null)
             {
                 var sh = Resources.Load<Shader>("Battle/StatusAura");
                 var sp = Resources.Load<Sprite>("Battle/FX_shield_hex");   // 只用它的矩形 mesh
@@ -1847,6 +1846,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 case "poison": c = new Color(0.58f, 0.80f, 0.30f); break;
                 default:       c = new Color(0.80f, 0.80f, 0.82f); break;
             }
+            if (v.StatusAura == null || v.StatusAuraMat == null) return;   // 兜底：建不出来就别往下写
             v.StatusAuraMat.SetColor("_Color", c);
             v.StatusAuraMat.SetFloat("_Strength", Mathf.Clamp01(0.55f + 0.15f * (stacks - 1)));
             v.StatusAura.gameObject.SetActive(true);
@@ -2918,7 +2918,7 @@ if (life < 0.2f) life = 0.2f;
         private void EnsureShieldField(UnitView2D v)
         {
             if (v == null || v.Root == null || v.Body == null) return;
-            if (v.ShieldField != null) return;
+            if (v.ShieldField != null && v.ShieldMat != null) return;   // 有膜且材质在 → 复用
 
             var sh = Resources.Load<Shader>("Battle/ShieldField");
             var sp = Resources.Load<Sprite>("Battle/FX_shield_hex");
@@ -2969,11 +2969,11 @@ if (life < 0.2f) life = 0.2f;
             if (on) EnsureShieldField(v);
             if (v.ShieldField != null)
             {
-                if (!on && v.ShieldField.gameObject.activeSelf)
+                if (!on)
                 {
-                    v.ShieldField.gameObject.SetActive(false);
-                    if (v.ShieldMat != null) Destroy(v.ShieldMat);
-                    v.ShieldMat = null;
+                    // ⛔ 同光环：破盾只隐藏、**不销毁材质**，否则护盾再回来时
+                    //   EnsureShieldField 会因为 ShieldField != null 提前 return ⇒ 再也不显示。
+                    if (v.ShieldField.gameObject.activeSelf) v.ShieldField.gameObject.SetActive(false);
                 }
                 else if (on && v.ShieldMat != null)
                 {
