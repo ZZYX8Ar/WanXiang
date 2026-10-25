@@ -496,9 +496,13 @@ namespace WanXiang.Battle.Presentation
         //  搭建
         // ================================================================
 
+        private string _realmId;   // 本场所属场域（空 = 主线）；Boss 登场文案要用
+
         public void Build(BattleState st, Sprite springBg, SpriteCatalog catalog = null, Sprite fgDecor = null, int act = 1,
                           string realmId = null)
         {
+            _realmId = realmId;   // ★ 供 Boss 登场文案判断"秘境镇守"
+
             _catalog = catalog;
             Clear();
             _state = st;
@@ -1536,7 +1540,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 _skillFx.OnImpact = null;                 // 登场不冲锋、不补伤害
                 // ★ 每个 Boss 的登场"抬头"文案区分层级（2026-10-25）：
                 //   秘境镇守 / 终局 / 普通首领；配合元素色环，至少让 25 个 Boss 不完全雷同。
-                string kicker = "首领登场";
+                string kicker = string.IsNullOrEmpty(_realmId) ? "首领登场" : "镇守登场";
                 if (defId == "b_guixu" || defId == "b_hongmeng") kicker = "终局降临";
                 else if (defId == "b_bairen" || defId == "b_shuangfeng") kicker = "双刃登场";
                 else if (defId == "b_xuanming" || defId == "b_shuangying") kicker = "寒渊降临";
