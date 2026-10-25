@@ -845,7 +845,12 @@ private void BackToCampaign()
             {
                 var metaH = WanXiang.Meta.MetaStore.Ensure();
                 if (metaH == null) return;
-                var allies = WanXiang.Modules.UI.SceneFlow.LastAllyIds;
+                // ⛔ 原来用 `SceneFlow.LastAllyIds`（上一场战斗的出场阵容）—— 它是**跨局残留**，
+                //   于是历程里的异兽名和这一局实际带的对不上（用户 2026-10-25 截图举证）。
+                //   ⇒ 改成读**这一局自己的队伍**；队伍缺失才退回 LastAllyIds。
+                var allies = (run.Team != null && run.Team.Count > 0)
+                    ? new System.Collections.Generic.List<string>(run.Team)
+                    : WanXiang.Modules.UI.SceneFlow.LastAllyIds;
                 // ★ 调试：记录点数据
                 Debug.Log("[ResultPanel][调试] PushRunHistory：Act=" + run.Act +
                           " LastAllyIds=[" + string.Join(",", allies ?? new System.Collections.Generic.List<string>()) + "]" +
