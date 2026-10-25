@@ -155,6 +155,18 @@ namespace WanXiang.Modules.UI
             });
         }
 
+        /// <summary>
+        /// PvP「重新挑战」：**播败退转场回主城，并直接打开好友对战面板**。
+        /// ⛔ 2026-10-25 用户明确要的就是这条：转场 → 对战面板（不是原地重开战斗）。
+        /// 实现：置 `PendingPvpReturn`（MainSceneEntry 据此开 Home + PvpPanel）→ ExitBattle(null)。
+        /// </summary>
+        public static void ReturnToPvpPanel()
+        {
+            PendingPvpReturn = true;
+            PendingResult = null;
+            ExitBattle(null);
+        }
+
         /// <summary>战斗结束（或被撤退）：回主城并带结算。</summary>
         public static void ExitBattle(ResultRequest result)
         {

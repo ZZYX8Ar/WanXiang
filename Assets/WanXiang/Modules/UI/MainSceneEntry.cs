@@ -35,6 +35,7 @@ namespace WanXiang.Modules.Boot
             if (SceneFlow.PendingPvpReturn)
             {
                 SceneFlow.PendingPvpReturn = false;
+                ui.Close<BattlePanel>();   // 旧战斗 HUD 必须关掉，否则会叠在 PvpPanel 下面
                 ui.Close<StartPanel>();
                 await ui.OpenAsync<HomePanel>();   // 底下垫主界面，关掉对战面板不是空屏
                 await ui.OpenAsync<PvpPanel>();    // 再叠好友对战面板

@@ -638,7 +638,9 @@ namespace WanXiang.Modules.UI
             //   现在交给 BattleSceneDriver.Restart：清舞台 → 重建 playback → CloseAll → 重开面板。
             if (SceneFlow.LastWasPvp)
             {
-                SceneFlow.ReplayBattleInPlace();
+                // ★ 2026-10-25 用户："我要的是败退转场回到对战面板" ——
+                //   播败退转场 → 主城 → 自动打开好友对战面板（分享码队伍还在）。
+                SceneFlow.ReturnToPvpPanel();
                 return;
             }
 
