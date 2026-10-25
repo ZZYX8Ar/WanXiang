@@ -1532,7 +1532,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 var v = kv.Value;
                 if (v == null || v.Root == null || v.PlayerSide) continue;
                 var defId = v.DefId;
-                if (string.IsNullOrEmpty(defId) || !WanXiang.Battle.Core.BossCatalog.IsBoss(defId)) continue;
+                // ⛔ 秘境首领 id 是 `rc_<hookId>`，不是 b_ 前缀 —— 用 IsBoss 会一个都进不来
+                bool isBossUnit = !string.IsNullOrEmpty(defId) &&
+                                  (WanXiang.Battle.Core.BossCatalog.IsBoss(defId) || IsRealmChampion(defId));
+                if (!isBossUnit) continue;
                 if (!v.Alive) continue;
 
                 EnsureSkillFx();

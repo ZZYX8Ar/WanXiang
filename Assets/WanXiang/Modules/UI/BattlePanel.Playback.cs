@@ -101,6 +101,10 @@ namespace WanXiang.Modules.UI
             //   （与"大招时停"同一口径：玩家要先看清是谁，再开打）。
             if (_stage != null)
             {
+                // ⛔ 之前一进战斗就放，全被转场遮罩盖住（用户："什么都看不到"）。
+                //   等「战斗 / 开始」整段转场播完、幕布拨开之后再演。
+                await UniTask.WaitUntil(() => !RealmTransition.IsPlaying, cancellationToken: ct);
+                await UniTask.Delay(System.TimeSpan.FromSeconds(0.25), cancellationToken: ct);
                 float bossDur = _stage.PlayBossEntrance();
                 if (bossDur > 0f)
                 {
