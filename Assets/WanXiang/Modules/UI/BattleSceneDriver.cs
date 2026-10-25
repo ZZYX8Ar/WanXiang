@@ -86,7 +86,18 @@ namespace WanXiang.Modules.UI
 
             // ★ 2026-10-16：PvP 与 PvE 同口径（用户："好友对战改回可以手动作战，
             //   和平常的探索没有什么区别"）⇒ 一律按 _manualBattle 决定回放模式，不再对 PvP 特判。
-            var play = new BattlePlayback(req, _manualBattle);
+
+            BuildAndOpen(req);
+
+        }
+        /// <summary>
+        /// 建舞台 + 开战斗 HUD（Start 与 Restart 共用）。
+        /// ⚠ 重开一场必须先 `_stage.Clear()`，否则上一次的单位/血条会**叠在新战场上**
+        ///   （用户 2026-10-25 截图：好友对战重开后棋盘上出现两套单位）。
+        /// </summary>
+        private async void BuildAndOpen(BattleRequest req)
+        {
+var play = new BattlePlayback(req, _manualBattle);
 
             if (_stage == null) _stage = FindObjectOfType<BattleStage2D>();
             if (_stage != null)
@@ -172,5 +183,17 @@ namespace WanXiang.Modules.UI
                 Request = req,
             });
         }
+
+        /// <summary>
+        /// PvP「重新挑战」：**不切场景、不播转场**，原地重建同一场。
+        /// </summary>
+        public void Restart()
+        {
+            var req = SceneFlow.PendingBattle;
+            if (req == null) return;
+            if (_stage != null) _stage.Clear();     // ⛔ 先清，防叠单位
+            BuildAndOpen(req);
+        }
+
     }
 }

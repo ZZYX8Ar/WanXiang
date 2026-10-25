@@ -136,10 +136,19 @@ namespace WanXiang.Modules.UI
                 ExitBattle(null);
                 return;
             }
+            // ★ 交给场景驱动重建（清舞台 → 新 playback → CloseAll → 重开面板）。
+            //   ⛔ 不要再"用 BattleRequest 直接重开面板"：那会走非场景模式，
+            //     在已有舞台上再画一套单位（用户实测：棋盘上两套单位）。
+            var drv = UnityEngine.Object.FindObjectOfType<BattleSceneDriver>();
+            if (drv != null)
+            {
+                drv.Restart();
+                return;
+            }
+
+            // 兜底（纯面板模式：主城内直接打，没有战斗场景驱动）
             UniTask.Void(async () =>
             {
-                // 旧面板正在 Closing：UISystem 对"正在关闭的实例"会静默忽略重开，
-                // 等两帧让它真正关掉再开。
                 await UniTask.DelayFrame(2);
                 var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
                 if (ui != null) ui.OpenAsync<BattlePanel>(req).Forget();

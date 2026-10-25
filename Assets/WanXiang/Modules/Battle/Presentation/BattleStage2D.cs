@@ -1026,7 +1026,8 @@ if (_verdictBg != null)
 return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
    }
 
-        private void Clear()
+        /// <summary>清空舞台（重开一场时用）。public 供 BattleSceneDriver.Restart 调用。</summary>
+        public void Clear()
         {
             for (int i = transform.childCount - 1; i >= 0; i--)
                 DestroyImmediate(transform.GetChild(i).gameObject);
