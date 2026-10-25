@@ -201,7 +201,7 @@ namespace WanXiang.Modules.UI
             //   ① "血量太低，看不到机制" → 要加厚
             //   ② "伤害不要这么高，我一下就被打死" → ⛔ StatMul 会同时放大 生命/攻击/防御
             //   ⇒ 只加**生命**（直接抬 BaseHp），攻击防御保持原样。
-            boss.BaseHp = Mathf.RoundToInt(boss.BaseHp * 8f);
+            boss.BaseHp = Mathf.RoundToInt(boss.BaseHp * 30f);   // 2026-10-25：8 倍仍偏少，抬到 30 倍（只加血不加攻防）
             req.EnemyEntries.Add(new DeployEntry {
                 Def = boss, Side = TeamSide.Enemy, PosIndex = 4, StatMul = 1f });
 
