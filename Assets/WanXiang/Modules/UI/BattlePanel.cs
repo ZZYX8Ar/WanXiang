@@ -641,11 +641,17 @@ namespace WanXiang.Modules.UI
                 CampaignPanel.PendingCommit = -1;
                 SceneFlow.ExitBattle(null);   // 回主城（不带结算）→ MainSceneEntry 接管
       }
+    else if (SceneFlow.LastWasPvp)
+    {
+        // ★ 2026-10-25 用户实测 bug：PvP 点重新挑战会播败退转场并回主界面。
+        //   正确行为是**留在战斗场景**原地重开同一场（分享码队伍不变）。
+        SceneFlow.ReplayBattleInPlace();
+    }
     else
-   {
-   // PvP / 试炼等无节点战斗：直接回主城
-   SceneFlow.ExitBattle(null);
-        }
+    {
+        // 试炼等其它无节点战斗：直接回主城
+        SceneFlow.ExitBattle(null);
+    }
         }
 
         // ================================================================

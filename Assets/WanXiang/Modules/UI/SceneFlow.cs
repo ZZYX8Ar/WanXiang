@@ -120,6 +120,32 @@ namespace WanXiang.Modules.UI
                 impactWordRes: "UI/Title/start", instantCover: true).Forget();
         }
 
+        /// <summary>
+        /// PvP「重新挑战」：**留在战斗场景**原地重开同一场，不回主城、不播败退转场。
+        /// ⛔ 2026-10-25 用户实测："好友对战点重新挑战，败退转场播到一半水墨就出来，
+        ///   而且没回对战面板，直接回主界面了" —— 因为旧实现走 ExitBattle(null)：
+        ///   必定 Load(MainScene) + 败退转场，而 MainSceneEntry 不知道"这是 PvP 重战"，
+        ///   于是开了 HomePanel。
+        /// </summary>
+        public static void ReplayBattleInPlace()
+        {
+            var req = PendingBattle;
+            PendingResult = null;
+            if (req == null)
+            {
+                ExitBattle(null);
+                return;
+            }
+            UniTask.Void(async () =>
+            {
+                // 旧面板正在 Closing：UISystem 对"正在关闭的实例"会静默忽略重开，
+                // 等两帧让它真正关掉再开。
+                await UniTask.DelayFrame(2);
+                var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+                if (ui != null) ui.OpenAsync<BattlePanel>(req).Forget();
+            });
+        }
+
         /// <summary>战斗结束（或被撤退）：回主城并带结算。</summary>
         public static void ExitBattle(ResultRequest result)
         {

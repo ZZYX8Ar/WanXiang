@@ -97,6 +97,18 @@ namespace WanXiang.Modules.UI
             bool realmNoQte = RealmSession.QteDisabled(WanXiang.Run.RunSave.Current);
             if (_play.State != null) _play.State.ParryEnabled = !_autoBattle && !realmNoQte;
 
+            // ★ 2026-10-25 Boss 登场：开局先放一次首领 cut-in，演出期间**不推进任何事件**
+            //   （与"大招时停"同一口径：玩家要先看清是谁，再开打）。
+            if (_stage != null)
+            {
+                float bossDur = _stage.PlayBossEntrance();
+                if (bossDur > 0f)
+                {
+                    _tmpLog.text = "首领登场";
+                    await UniTask.Delay(System.TimeSpan.FromSeconds(bossDur), cancellationToken: ct);
+                }
+            }
+
             int guard = 0;
             while (!_play.Finished)
         {

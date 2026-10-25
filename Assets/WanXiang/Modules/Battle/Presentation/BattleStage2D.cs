@@ -30,6 +30,8 @@ namespace WanXiang.Battle.Presentation
     public sealed class UnitView2D
     {
         public string UnitId;
+        /// <summary>异兽定义 id（如 `b_suren`）。`UnitId` 是运行时 id，查表要用这个。</summary>
+        public string DefId;
         public GameObject Root;        // 立绘容器
         public SpriteRenderer Body;    // 立绘
         public SpriteRenderer HpBg;
@@ -1142,6 +1144,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 var view = new UnitView2D
                 {
                     UnitId = u.RuntimeId,
+                    DefId = u.Def != null ? u.Def.Id : null,
                     Hp = u.Hp, MaxHp = u.MaxHp,
                     Alive = u.IsAlive,
                 };
@@ -1497,6 +1500,46 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         public float LastCutInDuration => _skillFx != null ? _skillFx.LastCutInDuration : 0f;
         /// <summary>本次大演出剩余时间（秒）。战斗收尾要等它播完。</summary>
         public float RemainingFxTime => _skillFx != null ? _skillFx.RemainingBusy : 0f;
+
+        /// <summary>
+        /// Boss 登场演出（2026-10-25）：战斗一开始给首领放一次 cut-in（立绘推入 + 震屏 + 元素环），
+        /// 文案「首领 · 名字」，让玩家先"看清是谁"再开打。
+        /// 返回演出时长（秒）；0 = 本场没有 Boss（调用方不用等）。
+        /// ⚠ 只负责**表现**：不暂停模拟（暂停由 BattlePanel 在开局 await 这个时长实现）。
+        /// </summary>
+        public float PlayBossEntrance()
+        {
+            if (_views == null) return 0f;
+            foreach (var kv in _views)
+            {
+                var v = kv.Value;
+                if (v == null || v.Root == null || v.PlayerSide) continue;
+                var defId = v.DefId;
+                if (string.IsNullOrEmpty(defId) || !WanXiang.Battle.Core.BossCatalog.IsBoss(defId)) continue;
+                if (!v.Alive) continue;
+
+                EnsureSkillFx();
+                if (_skillFx == null) return 0f;
+
+                var portrait = v.Body != null ? v.Body.sprite : null;
+                var beastName = v.NameText != null ? v.NameText.text : null;
+                // 元素色：从 BossCatalog 按 id 查（没有就退化为金，不抛异常）
+                var el = WanXiang.Battle.Core.Element.None;
+                try
+                {
+                    foreach (var bd in WanXiang.Battle.Core.BossCatalog.All)
+                        if (bd != null && bd.Id == defId) { el = bd.Element; break; }
+                }
+                catch { }
+                var col = BattlePalette.OfElement(el);
+                _skillFx.OnImpact = null;                 // 登场不冲锋、不补伤害
+                _skillFx.Play(v.Root.transform.position, defId, col, false,
+                              portrait, beastName, "首领登场", faceLeft: true);
+                Debug.Log("[Stage2D] Boss 登场演出：" + beastName + " (" + defId + ")");
+                return _skillFx.LastBusyDuration;
+            }
+            return 0f;
+        }
 
         /// <summary>触发一次终结技/觉醒技演出。仅 Ultimate/Awaken 调用（大招要稀有）。</summary>
         private void PlaySkillFx(string actorId, string targetId, Element element, bool isAwaken, string skillName)
