@@ -433,6 +433,7 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new BurnOnHitPhaseHook(boss, 0.40f, 0.014f));
                     st.Hooks.Add(new DevourGrowthHook(boss, 0.02f, 0.02f));   // 余烬（近似）
                     st.Hooks.Add(new BurnDetonateHook(boss, 5, 0.042f));       // 引燃：总层 ≥8 → 引爆
+                    st.Hooks.Add(new StaticHintHook(boss, "烬蛟：命中叠灼烧｜总层 ≥8 引爆一次", "11"));
                     break;
 
                 case "b_jiaozhi":  // 燋彘：硬壳 + 破壳窗口 + 岩浆喷发 + 熔核
@@ -440,6 +441,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new CrustHook(boss, 0.06f, 0.50f));
                     st.Hooks.Add(new PeriodicNukeHook(boss, 3, 0.085f, "岩浆喷发"));
                     st.Hooks.Add(new DeathSummonHook(boss, RongYing, 2));
+                    st.Hooks.Add(new StaticHintHook(boss, "燋彘：硬壳减伤 6%/层｜每 3 回合岩浆喷发 8.5%", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "破壳窗口：外壳被打空后才是输出期", "16"));
                     break;
 
                 // ---- 幕三 · 金 ----
@@ -449,6 +452,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new TwinSpawnHook(boss, SuBai, TwinCell, 0.30f, 0.50f, 2));
                     st.Hooks.Add(new StreakDamageHook(boss, 0.10f));      // 连环斩：压同一目标越打越痛
                     st.Hooks.Add(new FirstHitReduceHook(0.70f));          // 金身：每回合首次受伤 -70%
+                    st.Hooks.Add(new StaticHintHook(boss, "白魍：双子同命｜每回合首次受伤 -70%", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "连环斩：压同一目标越打越痛", "16"));
                     break;
 
                 case "b_shai":     // 铩：机关护盾 + 齿轮反击 + 组装 + 过载
@@ -456,6 +461,7 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new CrustHook(boss, 0.05f, 0.40f));
                     st.Hooks.Add(new ShieldBreakReflectHook(boss, 1.50f, 0.10f));  // 齿轮反击
                     st.Hooks.Add(new AssembleHook(boss, 0.10f, 0.25f));
+                    st.Hooks.Add(new StaticHintHook(boss, "铩：护盾破裂反伤｜每回合自行组装 +10% 攻", "11"));
                     break;
 
                 case "b_shuangfeng": // 霜锋：连环斩 + 剜心 + 残刃
@@ -465,6 +471,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new PhaseHook(boss, 0.75f, (s, b) => AoeNuke(s, b, 0.30f)));
                     st.Hooks.Add(new PhaseHook(boss, 0.50f, (s, b) => AoeNuke(s, b, 0.30f)));
                     st.Hooks.Add(new PhaseHook(boss, 0.25f, (s, b) => AoeNuke(s, b, 0.30f)));
+                    st.Hooks.Add(new StaticHintHook(boss, "霜锋：连环斩｜每 2 回合剜心（打最低血）", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "血量 75/50/25% 各放一次全场 30%", "16"));
                     break;
 
                 // ---- 幕四 · 水 ----
