@@ -195,18 +195,19 @@ namespace WanXiang.Modules.UI
         public static bool PendingBossRushReturn;
 
         /// <summary>首领试炼：打完/重挑 → 播转场回主城 → 打开试炼面板。</summary>
-        public static void ReturnToBossRushPanel()
+        public static void ReturnToBossRushPanel(ResultRequest result = null)
         {
+            // ⛔ 必须把 result 传下去：之前固定传 null ⇒ 打赢也播「败退」（用户实测）。
             PendingBossRushReturn = true;
-            PendingResult = null;
-            ExitBattle(null);
+            PendingResult = null;          // 试炼不弹结算，但胜负**要**用于选字
+            ExitBattle(result);
         }
 
-        public static void ReturnToPvpPanel()
+        public static void ReturnToPvpPanel(ResultRequest result = null)
         {
             PendingPvpReturn = true;
             PendingResult = null;
-            ExitBattle(null);
+            ExitBattle(result);
         }
 
         /// <summary>战斗结束（或被撤退）：回主城并带结算。</summary>

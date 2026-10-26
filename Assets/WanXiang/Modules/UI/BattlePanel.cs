@@ -521,7 +521,7 @@ namespace WanXiang.Modules.UI
             {
                 Debug.Log("[BattlePanel] 首领试炼结束（" + (result != null && result.Win ? "胜" : "非胜") +
                           "）→ 回试炼面板，不弹结算");
-                SceneFlow.ReturnToBossRushPanel();
+                SceneFlow.ReturnToBossRushPanel(result);
                 return;
             }
 
