@@ -483,6 +483,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new FreezeStealMpHook(boss, 3, 3));      // 冰封：冻结 + 偷灵力
                     st.Hooks.Add(new IceCrystalRebirthHook(boss, IceCrystal, CrossCells,
                                                           3, new float[] { 0.35f }, 0.10f));
+                    st.Hooks.Add(new StaticHintHook(boss, "玄溟：反伤 30%｜每 3 回合冰封并偷灵力", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "冰晶不碎它会重生（优先清冰晶）", "16"));
                     break;
 
                 case "b_mingkun":  // 溟鲲：潮汐 + 吞舟 + 鲸落 + 深潜
@@ -491,6 +493,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new HighestHpNukeHook(boss, 2, 0.12f));  // 吞舟：生命最高者 35% 当前生命
                     st.Hooks.Add(new DeathAoeHook(boss, 0.30f));
                     st.Hooks.Add(new LastStandHook(boss, 0.20f));         // 深潜：≤35% 每回合额外行动
+                    st.Hooks.Add(new StaticHintHook(boss, "溟鲲：每 2 回合抽灵力｜吞舟打当前生命最高者", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "深潜：血量 ≤35% 每回合多行动一次", "16"));
                     break;
 
                 case "b_shuangying": // 霜影：镜像分身 + 虚实 + 寒渊 + 镜碎
@@ -499,6 +503,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new RandomImmunityHook(2));               // 虚实：每回合 1 个单位免疫
                     st.Hooks.Add(new SpeedAuraHook(0.20f));
                     st.Hooks.Add(new CloneDamageShareHook(boss, 0.30f));  // 镜碎
+                    st.Hooks.Add(new StaticHintHook(boss, "霜影：召唤镜像｜分身受伤 30% 转给本体", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "虚实：每回合有 1 个单位免疫伤害", "16"));
                     break;
 
                 // ---- 幕五 · 终局 ----
@@ -515,6 +521,8 @@ namespace WanXiang.Battle.Core
                     }));
                     st.Hooks.Add(new AllyPresenceRegenHook(boss, 0.03f));
                     st.Hooks.Add(new DpsTimeoutHook(25));
+                    st.Hooks.Add(new StaticHintHook(boss, "归墟：每 3 回合轮转五行｜每存活 1 敌回血 3%", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "血量 ≤30% 召唤守护｜25 回合内必须打完", "16"));
                     break;
 
                 case "b_hongmeng": // 鸿蒙：混元 + 造化 + 混沌护持 + 湮灭
@@ -523,6 +531,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new SummonHook(3, new[]{ ZaoHua }, new[]{ 2 }));
                     st.Hooks.Add(new FirstHitReduceHook(0.40f));
                     st.Hooks.Add(new DpsTimeoutHook(25));
+                    st.Hooks.Add(new StaticHintHook(boss, "鸿蒙：每 3 回合召唤造化｜首次受伤 -40%", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "免疫反击｜25 回合内必须打完", "16"));
                     break;
             }
         }
@@ -536,8 +546,8 @@ namespace WanXiang.Battle.Core
         {
             switch (id)
             {
-                case "b_fuman":   return "蔓生：每 2 回合召唤藤奴。生机：每存活 1 只召唤物，其伤害 +6%（可叠）。根缚：每 3 回合缚住 1 人 1 回合。枯荣：血量 ≤50% 吞噬召唤物回血。";
-                case "b_manman":  return "荆棘：受击反弹，且被同一单位连续攻击时反弹递增。汲养：吸取造成伤害的一部分回血。根缚：每 2 回合缚 1 人。";
+                case "b_fuman":   return "蔓生：每 2 回合召唤藤奴。生机：每存活 1 只召唤物，其伤害 +6%（可叠）。根缚：每 5 回合缚住 1 人 1 回合。枯荣：血量 ≤50% 吞噬召唤物回血。";
+                case "b_manman":  return "缠丝：每 2 回合绞杀当前生命最高者 6%。荆棘：被同一单位连续攻击时反弹逐次 +15%。汲养：造成伤害回复自身 10%。";
                 case "b_wangliang": return "瘴气：每回合末全体 +1 层（每层攻 -3%）。散瘴：清自身负面并把瘴气翻倍。瘴爆：死亡时按瘴气层数造成伤害。拖越久越难打。";
                 case "b_chiba":   return "燎原：每层灼烧使其伤害 +3%（封顶 +120%）。分身：血量 75/50/25% 各分裂一只，分身崩解时波及全体。火种同源：死亡时若仍有分身存活，以 50% 血复活。";
                 case "b_jinjiao": return "灼烧叠层（血量 ≤40% 时叠层翻倍）。引燃：灼烧总层 ≥8 时引爆。余烬：持续成长加深。";
