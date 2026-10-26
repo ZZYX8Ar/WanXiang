@@ -2347,7 +2347,23 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     break;
                 case BattleEventKind.Death:
                     if (e.TargetId != null && _views.TryGetValue(e.TargetId, out var dv))
+                    {
+                        // 首领阵亡：一圈"溃散"爆发 + 重震屏（小兵保持安静）
+                        bool wasBoss = !dv.PlayerSide && !string.IsNullOrEmpty(dv.DefId) &&
+                                       (WanXiang.Battle.Core.BossCatalog.IsBoss(dv.DefId) ||
+                                        dv.DefId.StartsWith("rc_"));
+                        if (wasBoss && dv.Root != null)
+                        {
+                            var st = BossFxStyle.For(dv.DefId);
+                            int shape = st.HasValue ? st.Value.Shape : 0;
+                            var col = new Color(1f, 0.88f, 0.62f, 1f);
+                            BossSkillBurst.Play(dv.Root.transform.position, col, 3.4f, 20, 0.75f, shape);
+                            BossSkillBurst.Play(dv.Root.transform.position, col, 2.2f, 10, 0.50f, 0);
+                            TriggerShake(0.14f, 0.45f);
+                            SpawnNumberInternal(dv, "溃散", col, 1.4f, 1.1f, raise: 1.1f);
+                        }
                         dv.Alive = false;
+                    }
                     break;
             }
         }
