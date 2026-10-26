@@ -18,6 +18,8 @@ namespace WanXiang.Battle.Presentation
         private SpriteRenderer _dim;
         private TextMesh _tag, _name, _stat;
         private SpriteRenderer _rule;
+        private SpriteRenderer _band;
+        private Material _bandMat;
         private Transform _block;
         private float _t;
         private const float Life = 1.55f;
@@ -76,11 +78,37 @@ namespace WanXiang.Battle.Presentation
             dimGo.transform.position = camC;
             fx._dim = sr;
 
+            // ①.5 斜切色带（shader：从左揭开 + 上下细边高光 + 轻微流动）
+            var bandGo = new GameObject("Band");
+            bandGo.transform.SetParent(go.transform, false);
+            var bandSr = bandGo.AddComponent<SpriteRenderer>();
+            bandSr.sprite = Resources.Load<Sprite>("Battle/FX_motion_glow");
+            bandSr.sortingOrder = 31;
+            if (bandSr.sprite != null)
+            {
+                var bb = bandSr.sprite.bounds.size;
+                bandGo.transform.localScale = new Vector3(w * 2.0f / Mathf.Max(0.001f, bb.x),
+                                                          h * 0.52f / Mathf.Max(0.001f, bb.y), 1f);
+            }
+            bandGo.transform.position = camC + new Vector3(0f, h * 0.25f, 0f);
+            bandGo.transform.localRotation = Quaternion.Euler(0f, 0f, -8f);
+            var shBand = Shader.Find("WanXiang/BossIntroBand");
+            if (shBand != null)
+            {
+                fx._bandMat = new Material(shBand) { hideFlags = HideFlags.HideAndDontSave };
+                fx._bandMat.SetColor("_Color", new Color(color.r * 0.55f, color.g * 0.55f, color.b * 0.55f, 0.34f));
+                fx._bandMat.SetColor("_EdgeColor", new Color(1f, 0.97f, 0.88f, 0.75f));
+                fx._bandMat.SetFloat("_Progress", 0f);
+                bandSr.material = fx._bandMat;
+            }
+            else bandSr.color = new Color(color.r, color.g, color.b, 0.22f);
+            fx._band = bandSr;
+
             // ② 文本块：放在画面左侧 32% 处
             var block = new GameObject("Block");
             block.transform.SetParent(go.transform, false);
-            float x = camC.x - w * 0.60f;
-            float y = camC.y + h * 0.22f;
+            float x = camC.x - w * 0.72f;
+            float y = camC.y + h * 0.20f;
             block.transform.position = new Vector3(x, y, 0f);
             fx._block = block.transform;
             fx._startX = block.transform.localPosition.x;
@@ -89,9 +117,9 @@ namespace WanXiang.Battle.Presentation
                                  new Color(color.r, color.g, color.b, 1f), TextAnchor.UpperLeft);
             tagTm.transform.localPosition = Vector3.zero;
 
-            var nameTm = MakeText(block.transform, "Name", bossName, 0.20f,
+            var nameTm = MakeText(block.transform, "Name", bossName, 0.24f,
                                   new Color(1f, 0.98f, 0.94f, 1f), TextAnchor.UpperLeft);
-            nameTm.transform.localPosition = new Vector3(0f, -0.30f, 0f);
+            nameTm.transform.localPosition = new Vector3(0f, -0.34f, 0f);
 
             var ruleGo = new GameObject("Rule");
             ruleGo.transform.SetParent(block.transform, false);
@@ -99,12 +127,12 @@ namespace WanXiang.Battle.Presentation
             rule.sprite = Resources.Load<Sprite>("Battle/FX_motion_glow");
             rule.sortingOrder = 519;
             rule.color = new Color(color.r, color.g, color.b, 0.9f);
-            ruleGo.transform.localPosition = new Vector3(0f, -0.46f, 0f);
+            ruleGo.transform.localPosition = new Vector3(0f, -0.52f, 0f);
             fx._rule = rule;
 
             var statTm = MakeText(block.transform, "Stat", stats, 0.085f,
                                   new Color(0.86f, 0.83f, 0.76f, 1f), TextAnchor.UpperLeft);
-            statTm.transform.localPosition = new Vector3(0f, -0.60f, 0f);
+            statTm.transform.localPosition = new Vector3(0f, -0.66f, 0f);
 
             fx._tag = tagTm; fx._name = nameTm; fx._stat = statTm;
             block.transform.localPosition += new Vector3(-w * 0.35f, 0f, 0f);   // 起始位置：左侧画外
@@ -131,6 +159,10 @@ namespace WanXiang.Battle.Presentation
                 lp.x = Mathf.Lerp(_startX - 6.5f, _startX, e);
                 _block.localPosition = lp;
 
+                // 色带从左揭开
+                if (_bandMat != null)
+                    _bandMat.SetFloat("_Progress", Mathf.Clamp01((_t - 0.02f) / 0.35f));
+
                 // 规线展开
                 if (_rule != null && _rule.sprite != null)
                 {
@@ -151,6 +183,11 @@ namespace WanXiang.Battle.Presentation
         }
 
         private float _startX = 0f;
+
+        private void OnDestroy()
+        {
+            if (_bandMat != null) { Destroy(_bandMat); _bandMat = null; }
+        }
 
         private static void SetAlpha(TextMesh tm, float a)
         {

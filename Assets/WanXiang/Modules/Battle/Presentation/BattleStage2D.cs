@@ -1576,8 +1576,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
                 // 终局 / 觉醒级体量：觉醒参数会让环更多、闪更强、镜头更狠
                 bool bigEntrance = defId == "b_guixu" || defId == "b_hongmeng" || defId == "b_wangliang";
+                // ⛔ 名字/抬头传 null：由 BossIntroFx 那层排版负责，
+                //   否则 cut-in 自己也印一遍 ⇒ 字重影（用户截图就是这个）
                 _skillFx.Play(v.Root.transform.position, defId, col, bigEntrance,
-                              portrait, beastName, kicker, faceLeft: true);
+                              portrait, null, null, faceLeft: true);
 
                 // 元素异象：按五行撒方向性粒子（藤蔓窜起 / 火星上腾 / 刃风横扫 / 逆流 / 压顶）
                 EntranceSpark.Burst(v.Root.transform.position + new Vector3(0f, 0.15f, -0.2f),
