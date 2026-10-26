@@ -1639,6 +1639,18 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     default:            radius = 2.3f; dur = 0.45f; streaks = 16; break;
                 }
                 if (big) { radius *= 1.35f; dur *= 1.3f; streaks += 8; }
+
+                // 单个 Boss 的个性化覆盖（同一元素也要有区别）
+                var st = BossFxStyle.For(v.DefId);
+                if (st.HasValue)
+                {
+                    radius *= st.Value.RadiusMul;
+                    dur = st.Value.Dur;
+                    streaks = st.Value.Streaks;
+                    col = new Color(Mathf.Min(1f, col.r * st.Value.Brightness),
+                                    Mathf.Min(1f, col.g * st.Value.Brightness),
+                                    Mathf.Min(1f, col.b * st.Value.Brightness), col.a);
+                }
                 BossSkillBurst.Play(at, col, radius, streaks, dur);
                 TriggerShake(big ? 0.10f : 0.06f, 0.28f);
             }
