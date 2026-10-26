@@ -249,6 +249,9 @@ namespace WanXiang.Modules.UI
                 word = "UI/Title/" + kind + "_act" + actExit;
             if (word == null) word = baseWord;
 
+            // PvP / 试炼：转场要用 result 选字，但**不能**把结算留在 PendingResult 里
+            if (PendingPvpReturn || PendingBossRushReturn) PendingResult = null;
+
             RealmTransition.PlayAsync(null, () => Load(MainScene), null, word,
                 partExit, revealDelay: 0.55f).Forget();
         }

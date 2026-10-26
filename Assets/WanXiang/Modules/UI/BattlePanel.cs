@@ -574,8 +574,8 @@ namespace WanXiang.Modules.UI
                 // ★ PvP：不弹结果面板、不回节点地图 —— 直接回好友对战面板（用户要求）。
                 if (SceneFlow.LastWasPvp)
                 {
-                    SceneFlow.PendingPvpReturn = true;
-                    SceneFlow.ExitBattle(null);   // 不带结算 → 主城不弹 ResultPanel
+                    // ⛔ 这里也必须把 result 传下去，否则打赢也播「败退」
+                    SceneFlow.ReturnToPvpPanel(result);
                     Debug.Log("[BattlePanel][调试] PvP 结束 → 回主城直接重开对战面板（无结算）");
                     return;
                 }
