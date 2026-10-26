@@ -342,6 +342,15 @@ namespace WanXiang.Battle.Core
         public static void AttachHooks(BattleState st, BattleUnit boss)
         {
             if (boss == null || boss.Def == null) return;
+
+            // ★ 2026-10-26：秘境首领在**试炼**里 id 是 `rc_<hookId>`（不是 b_ 前缀），
+            //   之前 `AttachAllBossHooks` 直接跳过 ⇒ 打秘境 Boss 跟小兵一样没机制。
+            if (!string.IsNullOrEmpty(boss.Def.Id) && boss.Def.Id.StartsWith("rc_"))
+            {
+                RealmChampionMechanics.Attach(st, boss.Def.Id.Substring(3));
+                return;
+            }
+
             switch (boss.Def.Id)
             {
                 // ---- 幕一 · 木（2026-10-06 按《首领战设计文档 v1.0》补齐：生机 / 根缚 / 缠丝 / 瘴气 / 瘴爆 / 散瘴）----
@@ -352,7 +361,11 @@ namespace WanXiang.Battle.Core
                     // 生机（被动）：场上每存活 1 只召唤物，伤害 +6%（可叠）， 清场 = 直接削弱它
                     st.Hooks.Add(new OutgoingDamageBonusHook(boss,
                         (s, d) => 0.04f * System.Math.Min(3, CountSummons(s, boss))));
-                    st.Hooks.Add(new RootHook(4));                // 根缚：每 3 回合缚住 1 人 1 回合
+                    // ⛔ 2026-10-26 用户："第一幕三个 Boss 都是束缚" ⇒ 根缚降到**每 5 回合**，
+                    //   它的招牌改成"召唤 + 枯荣"（清场才有输出窗口）
+                    st.Hooks.Add(new RootHook(5));
+                    st.Hooks.Add(new StaticHintHook(boss, "召唤物每存活 1 只伤害 +4%｜枯荣：半血吞召唤回血", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "根缚：每 5 回合缚 1 人", "16"));
                     st.Hooks.Add(new PhaseHook(boss, 0.50f, (s, b) =>
                     {
                         var foes = s.UnitsOf(TeamSide.Enemy);
@@ -378,7 +391,10 @@ namespace WanXiang.Battle.Core
                     // 荆棘 + 缠丝二合一：基础反弹 25%，被**同一单位**连续攻击时第 2 次起 +15%/次
                     st.Hooks.Add(new ThornStreakHook(0.10f, 0.05f));
                     st.Hooks.Add(new LifestealHook(boss, 0.10f));
-                    st.Hooks.Add(new RootHook(3));                // 根缚：每 2 回合
+                    // ⛔ 不再用根缚：蔓娘的招牌是"缠丝绞杀"——专抓你**血最厚**的那只
+                    st.Hooks.Add(new HighestHpNukeHook(boss, 2, 0.06f));
+                    st.Hooks.Add(new StaticHintHook(boss, "缠丝：每 2 回合绞杀当前生命最高者 6%", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "荆棘：被同一人连击，反弹逐次 +15%", "16"));
                     break;
 
                 case "b_wangliang": // 魍魉：瘴气 + 隐遁 + 瘴爆 + 散瘴（拖越久你越弱）
@@ -387,6 +403,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new FirstHitReduceHook(0.60f));   // 隐遁
                     st.Hooks.Add(new ScatterMiasmaHook(boss, 3));  // 散瘴：清自身负面 + 瘴气翻倍
                     st.Hooks.Add(new MiasmaBurstHook(boss, 0.02f));// 瘴爆：死亡时按层数 ×4% 最大生命
+                    st.Hooks.Add(new StaticHintHook(boss, "瘴气：每回合全体 +1 层（每层攻 -3%）", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "隐遁：首次受击 -60%｜散瘴：清负面并翻倍瘴气", "16"));
                     break;
 
                 // ---- 幕二 · 火 ----
