@@ -1584,8 +1584,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                                     el, col, bigEntrance ? 26 : 18);
 
                 // 压迫感三件套：压暗 + 名字砸下 + 镜头推近/震屏（用户："没有冲击力"）
-                BossIntroFx.Play(v.Root.transform.position, beastName ?? "首领", col,
-                                 bigEntrance ? 1.9f : 1.5f);
+                // 独立排版层：元素标签 / 名字 / 数据（不碰终结技 cut-in）
+                string tagLine = string.IsNullOrEmpty(_realmId) ? ("◆ " + kicker) : ("◆ " + kicker + " · 秘境");
+                string statLine = "HP " + v.MaxHp;
+                BossIntroFx.Play(v.Root.transform.position, tagLine, beastName ?? "首领", statLine, col);
                 TriggerZoom(bigEntrance ? 0.9f : 0.6f, 0.55f);
                 TriggerShake(bigEntrance ? 0.16f : 0.09f, 0.5f);
                 Debug.Log("[Stage2D] Boss 登场演出：" + beastName + " (" + defId + ")");
