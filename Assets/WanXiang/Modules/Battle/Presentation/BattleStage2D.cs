@@ -40,6 +40,8 @@ namespace WanXiang.Battle.Presentation
         public SpriteRenderer ShieldPlate;
         /// <summary>上一帧的机制提示文本（用于"变化时飘一条"）。</summary>
         public string LastStateHint;
+        /// <summary>最近一帧的快照（双击查看面板用，避免去读终局态 state）。</summary>
+        public WanXiang.Battle.Core.UnitSnapshot LastSnap;
         /// <summary>护盾数值（独立对象，**不能挂在蓝牌下** —— 蓝牌有缩放，会把字一起放大）。</summary>
         public TextMesh ShieldText;
         /// <summary>状态外观层（冰封/束缚/燃烧…），是 <see cref="Body"/> 的子节点 ， 跟着立绘走。</summary>
@@ -1795,6 +1797,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         SpawnNumberInternal(v, s.StateHint, new Color(1f, 0.86f, 0.55f), 1.15f, 0.9f, raise: 1.05f);
                     }
                 }
+                v.LastSnap = s;
                 v.Hp = s.Hp; v.MaxHp = s.MaxHp;
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 SetShield2D(v, s.Shield);
@@ -2388,8 +2391,61 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
         /// <param name="dt">舞台动画步长（含倍速缩放——单位抖动/冲锋等随倍速变快是对的）。</param>
         /// <param name="fxDt">大招演出的步长（**不含倍速**——用户 2026-10-14：释放速度跟几倍速没关系，cut-in 别被 ×4 一闪而过）。&lt;0 表示同 dt。</param>
+        private float _lastClickAt = -1f;
+
+        /// <summary>双击任意单位 → 弹出信息卡（小怪也支持）。</summary>
+        private void PollInspectClick()
+        {
+            if (_cam == null) return;
+            if (!Input.GetMouseButtonDown(0)) return;
+            if (Time.unscaledTime - _lastClickAt < 0.30f) { _lastClickAt = -1f; TryInspectUnderMouse(); }
+            else _lastClickAt = Time.unscaledTime;
+        }
+
+        private void TryInspectUnderMouse()
+        {
+            Vector3 wp = _cam.ScreenToWorldPoint(Input.mousePosition);
+            wp.z = 0f;
+            UnitView2D best = null; float bestD = 1.15f;
+            foreach (var kv in _views)
+            {
+                var v = kv.Value;
+                if (v == null || v.Root == null || !v.Root.activeSelf) continue;
+                float d = Vector2.Distance(wp, v.Root.transform.position);
+                if (d < bestD) { bestD = d; best = v; }
+            }
+            if (best == null) return;
+
+            var s = best.LastSnap;
+            string side = best.PlayerSide ? "我方" : "敌方";
+            var lines = new System.Collections.Generic.List<string>(6)
+            {
+                best.NameText != null ? best.NameText.text : "单位",
+                side + "　HP " + s.Hp + " / " + s.MaxHp + (s.Shield > 0 ? "　盾 " + s.Shield : ""),
+                "元素 " + ElementCn(s.Element),
+                string.IsNullOrEmpty(s.Statuses) ? "状态：无" : "状态：" + s.Statuses,
+            };
+            if (!string.IsNullOrEmpty(s.StateHint)) lines.Add("机制：" + s.StateHint);
+            UnitInspectCard.Show(best.Root.transform.position, lines.ToArray(),
+                                 BattlePalette.OfElement(s.Element));
+        }
+
+        private static string ElementCn(Element el)
+        {
+            switch (el)
+            {
+                case Element.Wood: return "木";
+                case Element.Fire: return "火";
+                case Element.Metal: return "金";
+                case Element.Water: return "水";
+                case Element.Earth: return "土";
+                default: return "无";
+            }
+        }
+
         public void Step(float dt, float fxDt = -1f)
         {
+            PollInspectClick();
             if (fxDt < 0f) fxDt = dt;
             // 舞台自己的动画时钟：由 dt 累加（**不用 `Time.time`**）——
             // 这样表现层动画与"推进了多少帧"严格对应，编辑器里连调 Step 也能被验证到。
