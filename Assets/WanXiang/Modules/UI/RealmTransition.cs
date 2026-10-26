@@ -571,8 +571,14 @@ namespace WanXiang.Modules.UI
             //   `_Invert=1` 会把白墨翻成黑墨，压到黑幕上直接看不见（用户实测："看不清"）。
             //   约定：`UI/Title/battle_act*` / `start_act*` / `defeat_act*` 是**白墨**（_Invert=0），
             //         `UI/Realm/realm_title` 等旧图是黑墨（_Invert=1）。
-            bool whiteInk = _titleResOverride != null &&
-                            (_titleResOverride.Contains("_act") || _titleResOverride.Contains("battle"));
+            // ⛔ 2026-10-26 用户实测："秘境的败退全是黑的看不清" —— 之前用 Contains("_act"|"battle")，
+            //   `defeat_realm_marsh` 两个都不含 ⇒ 被当成黑墨图翻相 ⇒ 白墨翻黑幕上隐形。
+            //   改成**按前缀白名单**：只要是我们自己出的四个词系列，一律白墨。
+            string tn = _titleResOverride ?? "";
+            int slash = tn.LastIndexOf('/');
+            string file = slash >= 0 ? tn.Substring(slash + 1) : tn;
+            bool whiteInk = file.StartsWith("battle") || file.StartsWith("victory") ||
+                            file.StartsWith("defeat") || file.StartsWith("start");
             _titleMat.SetFloat("_Invert", whiteInk ? 0f : 1f);
             _titleMat.SetFloat(ProgressId, 0f);
             _title.material = _titleMat;

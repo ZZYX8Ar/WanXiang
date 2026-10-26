@@ -396,22 +396,41 @@ namespace WanXiang.Battle.Presentation
             {
                 var nGo = new GameObject("CutName");
                 nGo.transform.SetParent(go.transform, false);
-                nGo.transform.localPosition = new Vector3(-halfW * 0.30f, -halfH * 0.30f, -0.1f);
+                nGo.transform.localPosition = new Vector3(-halfW * 0.30f, -halfH * 0.24f, -0.1f);
                 nameTm = nGo.AddComponent<TextMesh>();
                 var nmr = nGo.GetComponent<MeshRenderer>();
                 if (f2 != null) { nameTm.font = f2; if (nmr != null) nmr.sharedMaterial = f2.material; }
                 if (nmr != null) nmr.sortingOrder = 520;
                 nameTm.text = beastName;
-                nameTm.characterSize = 0.22f;
+                nameTm.characterSize = 0.27f;
                 nameTm.fontSize = 48;
                 nameTm.anchor = TextAnchor.MiddleLeft;
                 nameTm.color = new Color(1f, 0.97f, 0.90f);
             }
+            // 名字下的细横线（PV 排版：大字 + 一条细规线）
+            SpriteRenderer rule = null;
+            if (!string.IsNullOrEmpty(beastName))
+            {
+                var rGo = new GameObject("CutRule");
+                rGo.transform.SetParent(go.transform, false);
+                rGo.transform.localPosition = new Vector3(-halfW * 0.30f, -halfH * 0.335f, -0.1f);
+                rule = rGo.AddComponent<SpriteRenderer>();
+                rule.sprite = Resources.Load<Sprite>("Battle/FX_motion_glow");
+                rule.sortingOrder = 519;
+                rule.color = new Color(core.r, core.g, core.b, 0.75f);
+                if (rule.sprite != null)
+                {
+                    var rb = rule.sprite.bounds.size;
+                    float rw = halfW * 0.95f;
+                    rGo.transform.localScale = new Vector3(rw / Mathf.Max(0.001f, rb.x), 0.02f / Mathf.Max(0.001f, rb.y), 1f);
+                }
+            }
+
             if (!string.IsNullOrEmpty(skillName))
             {
                 var sGo = new GameObject("CutSkill");
                 sGo.transform.SetParent(go.transform, false);
-                sGo.transform.localPosition = new Vector3(-halfW * 0.30f, -halfH * 0.40f, -0.1f);
+                sGo.transform.localPosition = new Vector3(-halfW * 0.30f, -halfH * 0.46f, -0.1f);   // ⛔ 与名字拉开（原 0.40 太近）
                 skillTm = sGo.AddComponent<TextMesh>();
                 var smr = sGo.GetComponent<MeshRenderer>();
                 if (f2 != null) { skillTm.font = f2; if (smr != null) smr.sharedMaterial = f2.material; }
