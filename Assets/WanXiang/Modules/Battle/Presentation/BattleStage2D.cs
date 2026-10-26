@@ -38,6 +38,8 @@ namespace WanXiang.Battle.Presentation
         public SpriteRenderer HpFill;
         /// <summary>护盾指示（血条右侧的蓝牌）。护盾 &gt; 0 才显示。</summary>
         public SpriteRenderer ShieldPlate;
+        /// <summary>上一帧的机制提示文本（用于"变化时飘一条"）。</summary>
+        public string LastStateHint;
         /// <summary>护盾数值（独立对象，**不能挂在蓝牌下** —— 蓝牌有缩放，会把字一起放大）。</summary>
         public TextMesh ShieldText;
         /// <summary>状态外观层（冰封/束缚/燃烧…），是 <see cref="Body"/> 的子节点 ， 跟着立绘走。</summary>
@@ -1781,6 +1783,14 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 // ⛔ 阵亡单位必须**清空**图标排 —— 否则尸体头上还挂着一串状态（用户 2026-10-07 截图反馈）
                 string sids = s.Alive ? (s.StatusIds ?? "") : "";
                 if (v.StatusRow != null && v.StatusShown != sids) UpdateStatusRow(v, sids);
+                // ★ 2026-10-26 用户："机制别用长条文字挂着，像伤害数字那样飘一下"
+                //   常驻横幅仍保留（已缩成 2~5 字标签），变化时额外飘一条，让玩家"看到它发动了"
+                if (s.StateHint != v.LastStateHint)
+                {
+                    v.LastStateHint = s.StateHint;
+                    if (!string.IsNullOrEmpty(s.StateHint) && v.Root != null)
+                        SpawnNumberInternal(v, s.StateHint, new Color(1f, 0.86f, 0.55f), 1.15f, 0.9f, raise: 1.05f);
+                }
                 v.Hp = s.Hp; v.MaxHp = s.MaxHp;
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 SetShield2D(v, s.Shield);

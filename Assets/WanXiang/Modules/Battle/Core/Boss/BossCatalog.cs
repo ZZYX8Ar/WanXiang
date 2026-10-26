@@ -364,8 +364,8 @@ namespace WanXiang.Battle.Core
                     // ⛔ 2026-10-26 用户："第一幕三个 Boss 都是束缚" ⇒ 根缚降到**每 5 回合**，
                     //   它的招牌改成"召唤 + 枯荣"（清场才有输出窗口）
                     st.Hooks.Add(new RootHook(5));
-                    st.Hooks.Add(new StaticHintHook(boss, "召唤物每存活 1 只伤害 +4%｜枯荣：半血吞召唤回血", "11"));
-                    st.Hooks.Add(new StaticHintHook(boss, "根缚：每 5 回合缚 1 人", "16"));
+                    st.Hooks.Add(new StaticHintHook(boss, "召唤·枯荣", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "根缚", "16"));
                     st.Hooks.Add(new PhaseHook(boss, 0.50f, (s, b) =>
                     {
                         var foes = s.UnitsOf(TeamSide.Enemy);
@@ -393,8 +393,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new LifestealHook(boss, 0.10f));
                     // ⛔ 不再用根缚：蔓娘的招牌是"缠丝绞杀"——专抓你**血最厚**的那只
                     st.Hooks.Add(new HighestHpNukeHook(boss, 2, 0.06f));
-                    st.Hooks.Add(new StaticHintHook(boss, "缠丝：每 2 回合绞杀当前生命最高者 6%", "11"));
-                    st.Hooks.Add(new StaticHintHook(boss, "荆棘：被同一人连击，反弹逐次 +15%", "16"));
+                    st.Hooks.Add(new StaticHintHook(boss, "缠丝", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "荆棘", "16"));
                     break;
 
                 case "b_wangliang": // 魍魉：瘴气 + 隐遁 + 瘴爆 + 散瘴（拖越久你越弱）
@@ -403,8 +403,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new FirstHitReduceHook(0.60f));   // 隐遁
                     st.Hooks.Add(new ScatterMiasmaHook(boss, 3));  // 散瘴：清自身负面 + 瘴气翻倍
                     st.Hooks.Add(new MiasmaBurstHook(boss, 0.02f));// 瘴爆：死亡时按层数 ×4% 最大生命
-                    st.Hooks.Add(new StaticHintHook(boss, "瘴气：每回合全体 +1 层（每层攻 -3%）", "11"));
-                    st.Hooks.Add(new StaticHintHook(boss, "隐遁：首次受击 -60%｜散瘴：清负面并翻倍瘴气", "16"));
+                    st.Hooks.Add(new StaticHintHook(boss, "瘴气", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "隐遁·散瘴", "16"));
                     break;
 
                 // ---- 幕二 · 火 ----
@@ -433,7 +433,7 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new BurnOnHitPhaseHook(boss, 0.40f, 0.014f));
                     st.Hooks.Add(new DevourGrowthHook(boss, 0.02f, 0.02f));   // 余烬（近似）
                     st.Hooks.Add(new BurnDetonateHook(boss, 5, 0.042f));       // 引燃：总层 ≥8 → 引爆
-                    st.Hooks.Add(new StaticHintHook(boss, "烬蛟：命中叠灼烧｜总层 ≥8 引爆一次", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "引燃", "11"));
                     break;
 
                 case "b_jiaozhi":  // 燋彘：硬壳 + 破壳窗口 + 岩浆喷发 + 熔核
@@ -441,8 +441,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new CrustHook(boss, 0.06f, 0.50f));
                     st.Hooks.Add(new PeriodicNukeHook(boss, 3, 0.085f, "岩浆喷发"));
                     st.Hooks.Add(new DeathSummonHook(boss, RongYing, 2));
-                    st.Hooks.Add(new StaticHintHook(boss, "燋彘：硬壳减伤 6%/层｜每 3 回合岩浆喷发 8.5%", "11"));
-                    st.Hooks.Add(new StaticHintHook(boss, "破壳窗口：外壳被打空后才是输出期", "16"));
+                    st.Hooks.Add(new StaticHintHook(boss, "硬壳·岩浆", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "破壳", "16"));
                     break;
 
                 // ---- 幕三 · 金 ----
@@ -452,8 +452,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new TwinSpawnHook(boss, SuBai, TwinCell, 0.30f, 0.50f, 2));
                     st.Hooks.Add(new StreakDamageHook(boss, 0.10f));      // 连环斩：压同一目标越打越痛
                     st.Hooks.Add(new FirstHitReduceHook(0.70f));          // 金身：每回合首次受伤 -70%
-                    st.Hooks.Add(new StaticHintHook(boss, "白魍：双子同命｜每回合首次受伤 -70%", "11"));
-                    st.Hooks.Add(new StaticHintHook(boss, "连环斩：压同一目标越打越痛", "16"));
+                    st.Hooks.Add(new StaticHintHook(boss, "双子·金身", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "连环斩", "16"));
                     break;
 
                 case "b_shai":     // 铩：机关护盾 + 齿轮反击 + 组装 + 过载
@@ -461,7 +461,7 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new CrustHook(boss, 0.05f, 0.40f));
                     st.Hooks.Add(new ShieldBreakReflectHook(boss, 1.50f, 0.10f));  // 齿轮反击
                     st.Hooks.Add(new AssembleHook(boss, 0.10f, 0.25f));
-                    st.Hooks.Add(new StaticHintHook(boss, "铩：护盾破裂反伤｜每回合自行组装 +10% 攻", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "反伤·组装", "11"));
                     break;
 
                 case "b_shuangfeng": // 霜锋：连环斩 + 剜心 + 残刃
@@ -471,8 +471,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new PhaseHook(boss, 0.75f, (s, b) => AoeNuke(s, b, 0.30f)));
                     st.Hooks.Add(new PhaseHook(boss, 0.50f, (s, b) => AoeNuke(s, b, 0.30f)));
                     st.Hooks.Add(new PhaseHook(boss, 0.25f, (s, b) => AoeNuke(s, b, 0.30f)));
-                    st.Hooks.Add(new StaticHintHook(boss, "霜锋：连环斩｜每 2 回合剜心（打最低血）", "11"));
-                    st.Hooks.Add(new StaticHintHook(boss, "血量 75/50/25% 各放一次全场 30%", "16"));
+                    st.Hooks.Add(new StaticHintHook(boss, "剜心", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "三阶段", "16"));
                     break;
 
                 // ---- 幕四 · 水 ----
@@ -483,8 +483,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new FreezeStealMpHook(boss, 3, 3));      // 冰封：冻结 + 偷灵力
                     st.Hooks.Add(new IceCrystalRebirthHook(boss, IceCrystal, CrossCells,
                                                           3, new float[] { 0.35f }, 0.10f));
-                    st.Hooks.Add(new StaticHintHook(boss, "玄溟：反伤 30%｜每 3 回合冰封并偷灵力", "11"));
-                    st.Hooks.Add(new StaticHintHook(boss, "冰晶不碎它会重生（优先清冰晶）", "16"));
+                    st.Hooks.Add(new StaticHintHook(boss, "寒狱·冰封", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "冰晶重生", "16"));
                     break;
 
                 case "b_mingkun":  // 溟鲲：潮汐 + 吞舟 + 鲸落 + 深潜
@@ -493,8 +493,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new HighestHpNukeHook(boss, 2, 0.12f));  // 吞舟：生命最高者 35% 当前生命
                     st.Hooks.Add(new DeathAoeHook(boss, 0.30f));
                     st.Hooks.Add(new LastStandHook(boss, 0.20f));         // 深潜：≤35% 每回合额外行动
-                    st.Hooks.Add(new StaticHintHook(boss, "溟鲲：每 2 回合抽灵力｜吞舟打当前生命最高者", "11"));
-                    st.Hooks.Add(new StaticHintHook(boss, "深潜：血量 ≤35% 每回合多行动一次", "16"));
+                    st.Hooks.Add(new StaticHintHook(boss, "吞舟", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "深潜", "16"));
                     break;
 
                 case "b_shuangying": // 霜影：镜像分身 + 虚实 + 寒渊 + 镜碎
@@ -503,8 +503,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new RandomImmunityHook(2));               // 虚实：每回合 1 个单位免疫
                     st.Hooks.Add(new SpeedAuraHook(0.20f));
                     st.Hooks.Add(new CloneDamageShareHook(boss, 0.30f));  // 镜碎
-                    st.Hooks.Add(new StaticHintHook(boss, "霜影：召唤镜像｜分身受伤 30% 转给本体", "11"));
-                    st.Hooks.Add(new StaticHintHook(boss, "虚实：每回合有 1 个单位免疫伤害", "16"));
+                    st.Hooks.Add(new StaticHintHook(boss, "镜像", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "虚实", "16"));
                     break;
 
                 // ---- 幕五 · 终局 ----
@@ -521,8 +521,8 @@ namespace WanXiang.Battle.Core
                     }));
                     st.Hooks.Add(new AllyPresenceRegenHook(boss, 0.03f));
                     st.Hooks.Add(new DpsTimeoutHook(25));
-                    st.Hooks.Add(new StaticHintHook(boss, "归墟：每 3 回合轮转五行｜每存活 1 敌回血 3%", "11"));
-                    st.Hooks.Add(new StaticHintHook(boss, "血量 ≤30% 召唤守护｜25 回合内必须打完", "16"));
+                    st.Hooks.Add(new StaticHintHook(boss, "五行轮转", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "终焉之卵", "16"));
                     break;
 
                 case "b_hongmeng": // 鸿蒙：混元 + 造化 + 混沌护持 + 湮灭
@@ -531,8 +531,8 @@ namespace WanXiang.Battle.Core
                     st.Hooks.Add(new SummonHook(3, new[]{ ZaoHua }, new[]{ 2 }));
                     st.Hooks.Add(new FirstHitReduceHook(0.40f));
                     st.Hooks.Add(new DpsTimeoutHook(25));
-                    st.Hooks.Add(new StaticHintHook(boss, "鸿蒙：每 3 回合召唤造化｜首次受伤 -40%", "11"));
-                    st.Hooks.Add(new StaticHintHook(boss, "免疫反击｜25 回合内必须打完", "16"));
+                    st.Hooks.Add(new StaticHintHook(boss, "造化", "11"));
+                    st.Hooks.Add(new StaticHintHook(boss, "混沌", "16"));
                     break;
             }
         }
