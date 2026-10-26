@@ -34,6 +34,21 @@ namespace WanXiang.Battle.Core
             var boss = StrongestEnemy(st);
             if (boss == null) return;
 
+            // ★ 2026-10-26：给 10 个镇守各挂一条**场上提示**（否则玩家读不到机制，只能感觉"莫名死了"）
+            switch (hookId)
+            {
+                case "rc_drown": st.Hooks.Add(new StaticHintHook(boss, "沉沦：每 2 回合拖走速度最高的我方", "11")); break;
+                case "rc_tide":  st.Hooks.Add(new StaticHintHook(boss, "潮讯：每回合全体 +1 湿（上限 4）", "11")); break;
+                case "rc_bloodfury": st.Hooks.Add(new StaticHintHook(boss, "薪火：每回合自焚 5% 换永久 +8% 攻", "11")); break;
+                case "rc_emberblade": st.Hooks.Add(new StaticHintHook(boss, "燃刃：你格挡一次，它永久 +10% 攻", "11")); break;
+                case "rc_overload": st.Hooks.Add(new StaticHintHook(boss, "过载：护盾越厚它越痛（破盾优先）", "11")); break;
+                case "rc_execute": st.Hooks.Add(new StaticHintHook(boss, "处决：对残血单位伤害翻倍", "11")); break;
+                case "rc_mute": st.Hooks.Add(new StaticHintHook(boss, "静默：每 3 回合封你一个技能", "11")); break;
+                case "rc_pendulum": st.Hooks.Add(new StaticHintHook(boss, "摆钟：奇数回合加防、偶数回合加攻", "11")); break;
+                case "rc_gamble": st.Hooks.Add(new StaticHintHook(boss, "坐庄：每回合赌一次，输赢都改数值", "11")); break;
+                case "rc_allin": st.Hooks.Add(new StaticHintHook(boss, "梭哈：血量越低越猛（别拖）", "11")); break;
+            }
+
             switch (hookId)
             {
                 case "rc_drown":      st.Hooks.Add(new ChampionDrownHook());      break; // 苍泽·泽殍
