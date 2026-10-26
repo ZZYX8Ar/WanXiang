@@ -88,38 +88,60 @@ namespace WanXiang.EditorTools
                 new Vector2(24f, 0f), new Vector2(-24f, 0f)), "首领试炼", 40f, UIBuild.Ink,
                 TextAlignmentOptions.MidlineLeft);
 
-            // ---------------- 左列：首领列表 ----------------
+            // ---------------- 左列：首领列表（可滑动，行更大）----------------
             var listCard = UIBuild.Node(root, "Root_ListCard", new Vector2(0f, 0f), new Vector2(0f, 1f),
                 new Vector2(30f, 30f), new Vector2(30f + 900f, -116f));
             Sliced(listCard, Kit("panel_dialog"), Color.white);
-            var listArea = UIBuild.Node(listCard, "Root_List", new Vector2(0f, 0f), new Vector2(1f, 1f),
-                new Vector2(16f, 16f), new Vector2(-16f, -16f));
-            var vlg = listArea.gameObject.AddComponent<VerticalLayoutGroup>();
-            vlg.spacing = 2f;
-            vlg.childAlignment = TextAnchor.UpperLeft;
+
+            // ScrollRect：Viewport(RectMask2D) + Content(VLG + ContentSizeFitter)
+            var viewport = UIBuild.Node(listCard, "Viewport", Vector2.zero, Vector2.one,
+                new Vector2(14f, 14f), new Vector2(-14f, -14f));
+            viewport.gameObject.AddComponent<RectMask2D>();
+
+            var content = UIBuild.Node(viewport, "Root_List", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0f, 0f), new Vector2(0f, 0f));
+            var vlg = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            vlg.spacing = 6f;
+            vlg.childAlignment = TextAnchor.UpperCenter;
             vlg.childControlHeight = false;
             vlg.childControlWidth = true;
             vlg.childForceExpandHeight = false;
             vlg.childForceExpandWidth = true;
+            vlg.padding = new RectOffset(0, 0, 0, 0);
+            var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            var item = UIBuild.Fixed(listArea, "Item_Boss", new Vector2(0f, 1f), new Vector2(860f, 34f), Vector2.zero);
-            Sliced(item, Kit("panel_strip"), new Color(1f, 1f, 1f, 0.95f));
-            var headRt = UIBuild.Fixed(item, "Img_Head", new Vector2(0f, 0.5f), new Vector2(26f, 26f), new Vector2(14f, 0f));
-            UIBuild.Img(headRt, new Color(1f, 1f, 1f, 0f));
+            var scroll = listCard.gameObject.AddComponent<ScrollRect>();
+            scroll.viewport = viewport;
+            scroll.content = content;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40f;
+
+            // 行：96 高，大头像
+            var item = UIBuild.Fixed(content, "Item_Boss", new Vector2(0.5f, 1f), new Vector2(850f, 96f), Vector2.zero);
+            Sliced(item, Kit("panel_strip"), Color.white);
+            var headRt = UIBuild.Fixed(item, "Img_Head", new Vector2(0f, 0.5f), new Vector2(76f, 76f), new Vector2(54f, 0f));
+            var headImg = UIBuild.Img(headRt, Color.white);
+            headImg.type = Image.Type.Simple;
+            headImg.preserveAspect = true;
+
             var nameRt = UIBuild.Node(item, "Tmp_Name", new Vector2(0f, 0f), new Vector2(1f, 1f),
-                new Vector2(48f, 0f), new Vector2(-250f, 0f));
-            var nameTxt = UIBuild.Tmp(nameRt, "首领", 22f, UIBuild.Ink, TextAlignmentOptions.Left);
+                new Vector2(104f, 0f), new Vector2(-260f, 0f));
+            var nameTxt = UIBuild.Tmp(nameRt, "首领", 30f, UIBuild.Ink, TextAlignmentOptions.Left);
             nameTxt.enableWordWrapping = false;
-            var tagRt = UIBuild.Node(item, "Tmp_Tag", new Vector2(1f, 0f), new Vector2(1f, 1f),
-                new Vector2(-244f, 0f), new Vector2(-130f, 0f));
-            UIBuild.Tmp(tagRt, "", 18f, new Color(0.45f, 0.36f, 0.24f, 1f), TextAlignmentOptions.Right);
 
-            var chRt = UIBuild.Fixed(item, "Btn_Challenge", new Vector2(1f, 0.5f), new Vector2(112f, 26f), new Vector2(-64f, 0f));
+            var tagRt = UIBuild.Node(item, "Tmp_Tag", new Vector2(1f, 0f), new Vector2(1f, 1f),
+                new Vector2(-252f, 0f), new Vector2(-136f, 0f));
+            UIBuild.Tmp(tagRt, "", 24f, new Color(0.45f, 0.36f, 0.24f, 1f), TextAlignmentOptions.Right);
+
+            var chRt = UIBuild.Fixed(item, "Btn_Challenge", new Vector2(1f, 0.5f), new Vector2(120f, 56f), new Vector2(-70f, 0f));
             Sliced(chRt, Kit("btn_secondary"), Color.white);
             var chBtn = chRt.gameObject.AddComponent<Button>();
             chBtn.targetGraphic = chRt.GetComponent<Image>();
             UIBuild.Tmp(UIBuild.Node(chRt, "Tmp_Label", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero),
-                "挑战", 18f, new Color(0.97f, 0.94f, 0.86f, 1f));
+                "挑战", 24f, UIBuild.Ink);
 
             // ---------------- 右上：对战码 ----------------
             var codeBox = UIBuild.Node(root, "Root_Code", new Vector2(0f, 1f), new Vector2(1f, 1f),
@@ -173,7 +195,7 @@ namespace WanXiang.EditorTools
             so.FindProperty("_tmpTitle").objectReferenceValue = title;
             so.FindProperty("_tmpHint").objectReferenceValue = hintTxt;
             so.FindProperty("_tmpTeam").objectReferenceValue = teamTxt;
-            so.FindProperty("_rootList").objectReferenceValue = listArea;
+            so.FindProperty("_rootList").objectReferenceValue = content;
             so.FindProperty("_itemTemplate").objectReferenceValue = item;
             so.FindProperty("_btnClose").objectReferenceValue = closeBtn;
             so.FindProperty("_inputCode").objectReferenceValue = input;

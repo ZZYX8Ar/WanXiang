@@ -85,24 +85,37 @@ namespace WanXiang.Modules.UI
                 if (txts.Length > 1)
                     txts[1].text = e.Playable ? ElementLabel(e.Element) : "接入中";
 
-                // 立绘小图标
-                var img = row.GetComponentInChildren<Image>(true);
-                if (img != null && _sprites != null && !string.IsNullOrEmpty(e.Id))
+                // 行底板：统一 panel_strip（主线/秘境都要有框）
+                var rowImg = row.GetComponent<Image>();
+                if (rowImg != null)
                 {
-                    // ⛔ 只用头像图（GetHead）；取不到就别放 —— 用全身立绘塞进 26px 会被拉成宽条
-                    // 秘境首领：头像在 Resources/UI/Realm/Champion/<本名>（与战场立绘同一张）
+                    var strip = Resources.Load<Sprite>("UI/Kit/panel_strip");
+                    if (strip != null) { rowImg.sprite = strip; rowImg.type = Image.Type.Sliced; rowImg.color = Color.white; }
+                }
+
+                // 头像：按节点名取（不是"第一个 Image"，那是行底板）
+                var headT = row.Find("Img_Head");
+                var headImg = headT != null ? headT.GetComponent<Image>() : null;
+                if (headImg != null)
+                {
                     Sprite sp = null;
                     if (!string.IsNullOrEmpty(e.RealmId) && !string.IsNullOrEmpty(e.ChampionName))
                         sp = Resources.Load<Sprite>("UI/Realm/Champion/" + e.ChampionName);
                     if (sp == null && _sprites != null && !string.IsNullOrEmpty(e.Id)) sp = _sprites.GetHead(e.Id);
+                    if (sp == null && _sprites != null && !string.IsNullOrEmpty(e.Id)) sp = _sprites.Get(e.Id);
                     if (sp != null)
                     {
-                        img.sprite = sp;
-                        img.type = Image.Type.Simple;      // 头像不能 Sliced
-                        img.preserveAspect = true;
-                        img.color = Color.white;
+                        headImg.sprite = sp;
+                        headImg.type = Image.Type.Simple;
+                        headImg.preserveAspect = true;
+                        headImg.enabled = true;
                     }
-                    else img.enabled = false;
+                    else
+                    {
+                        // 实在没有图：至少画一个元素色块，别留空洞
+                        headImg.sprite = null;
+                        headImg.color = new Color(0.45f, 0.38f, 0.28f, 0.55f);
+                    }
                 }
 
                 var captured = e;
