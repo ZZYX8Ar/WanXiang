@@ -494,6 +494,7 @@ namespace WanXiang.Battle.Presentation
         private Vector3 _camBase;                 // 相机基准位（震动围绕它抖）
         private float _shakeAmp, _shakeT, _shakeDur;
         private float _zoomBase = 5.4f;           // 相机基准 orthographicSize（BuildCamera 覆写）
+        private float _lastHintPop;   // 机制飘字限流（0.7s 一条，避免两行叠在一起）
         private float _zoomDip, _zoomT, _zoomDur; // 起爆点 Zoom Punch（推近再弹回）
 
         public Camera Camera => _cam;
@@ -1761,11 +1762,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 // 该单位第一次出现在帧流里 = 真的入场了 ， 把（预建但隐藏 / 刚补建的）view 显出来。
                 if (v.Root != null && !v.Root.activeSelf) v.Root.SetActive(true);
                 // Boss 机制提示（冰晶期倒数等）：随帧流更新（空串 = 隐藏）
-                if (v.Hint != null)
-                {
-                    string hint = s.StateHint ?? "";
-                    if (v.Hint.text != hint) v.Hint.text = hint;
-                }
+                // ⛔ 2026-10-26 用户："这个红色机制字不要一直悬浮着，直接删了"
+                //   ⇒ 常驻文本一律清空，只在**变化时**飘一条（见下面的 StateHint 比对）
+                if (v.Hint != null && !string.IsNullOrEmpty(v.Hint.text)) v.Hint.text = "";
                 // ---- 起手预警（2026-10-16 FoeKit）：⚠ 内容一律来自**帧流**（FoeTelegraph），
                 //   理由与 StateHint 相同（自动模式 state 是终局态，手动模式是分片的）。
                 if (v.Telegraph != null)
@@ -1788,8 +1787,13 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 if (s.StateHint != v.LastStateHint)
                 {
                     v.LastStateHint = s.StateHint;
-                    if (!string.IsNullOrEmpty(s.StateHint) && v.Root != null)
+                    // 限流：0.7s 内只飘一条，避免多段机制同帧刷出两行叠在一起
+                    if (!string.IsNullOrEmpty(s.StateHint) && v.Root != null &&
+                        Time.time - _lastHintPop > 0.7f)
+                    {
+                        _lastHintPop = Time.time;
                         SpawnNumberInternal(v, s.StateHint, new Color(1f, 0.86f, 0.55f), 1.15f, 0.9f, raise: 1.05f);
+                    }
                 }
                 v.Hp = s.Hp; v.MaxHp = s.MaxHp;
                 SetHpBar2D(v, s.Hp, s.MaxHp);

@@ -146,7 +146,7 @@ namespace WanXiang.Modules.UI
                 // ★ 2026-10-26 用户："点左边横条，右边看这个 Boss 的详细信息"
                 //   整行点击 = 选中并展示详情；开战仍只走「挑战」按钮。
                 var rowBtn2 = row.GetComponent<Button>();
-                if (rowBtn2 != null && challengeT != null)
+                if (rowBtn2 != null)
                 {
                     rowBtn2.onClick.RemoveAllListeners();
                     rowBtn2.onClick.AddListener(() => ShowDetail(captured));

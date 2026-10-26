@@ -122,6 +122,9 @@ namespace WanXiang.EditorTools
             // 行：96 高，大头像
             var item = UIBuild.Fixed(content, "Item_Boss", new Vector2(0.5f, 1f), new Vector2(850f, 96f), Vector2.zero);
             Sliced(item, Kit("panel_strip"), Color.white);
+            // ★ 2026-10-26：整行可点（用户："点左边横条没反应" —— 之前只有「挑战」有 Button）
+            var itemBtn = item.gameObject.AddComponent<Button>();
+            itemBtn.targetGraphic = item.GetComponent<Image>();
             var headRt = UIBuild.Fixed(item, "Img_Head", new Vector2(0f, 0.5f), new Vector2(76f, 76f), new Vector2(54f, 0f));
             var headImg = UIBuild.Img(headRt, Color.white);
             headImg.type = Image.Type.Simple;
