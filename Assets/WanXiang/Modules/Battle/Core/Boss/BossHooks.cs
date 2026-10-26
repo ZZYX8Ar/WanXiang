@@ -258,8 +258,15 @@ namespace WanXiang.Battle.Core
             int before = st.UnitsOf(TeamSide.Enemy).Count;
             BattleFactoryDeploy(st, e);
             if (st.UnitsOf(TeamSide.Enemy).Count > before)
+            {
+                var spawned = st.SlotAt(TeamSide.Enemy, cell);
                 st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
                            note: $"召唤 {def.DisplayName}（格 {cell}）");
+                // ★ 2026-10-26：单独发一条 Summon（表现层据此播"落地"爆发）
+                st.Log.Add(st.Turn, BattleEventKind.Summon,
+                           targetId: spawned != null ? spawned.RuntimeId : null,
+                           note: def.DisplayName);
+            }
         }
         private static void BattleFactoryDeploy(BattleState st, DeployEntry e)
         {

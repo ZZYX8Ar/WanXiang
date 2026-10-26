@@ -56,6 +56,12 @@ namespace WanXiang.Battle.Core
         ///   用 <see cref="FoeKitRuntime.FamilyOf"/> 等三个函数拆。</para>
         /// </summary>
         Windup = 18,
+
+        /// <summary>
+        /// 召唤/分身登场（2026-10-26）：TargetId = 新单位的 RuntimeId。
+        /// 表现层据此在它的格子放一圈"落地"爆发，别让召唤物凭空出现。
+        /// </summary>
+        Summon = 19,
     }
 
     /// <summary>
