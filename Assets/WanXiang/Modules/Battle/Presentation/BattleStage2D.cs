@@ -1616,6 +1616,21 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             // faceLeft：敌方在右侧、面向我方 ⇒ 特写立绘要镜像（用户 2026-10-18 报"头像反了"）
             _skillFx.Play(v.Root.transform.position, actorId, col, isAwaken, portrait, beastName, skillName,
                           faceLeft: !v.PlayerSide);
+
+            // ★ 首领专属爆发：敌方首领放大招时，在目标位置加一圈加色冲击（环形 + 放射条纹）
+            bool bossCaster = !v.PlayerSide &&
+                              (!string.IsNullOrEmpty(v.DefId) &&
+                               (WanXiang.Battle.Core.BossCatalog.IsBoss(v.DefId) || (v.DefId ?? "").StartsWith("rc_")));
+            if (bossCaster)
+            {
+                Vector3 at = v.Root.transform.position;
+                if (!string.IsNullOrEmpty(targetId) && _views.TryGetValue(targetId, out var tv) && tv.Root != null)
+                    at = Vector3.Lerp(at, tv.Root.transform.position, 0.6f);
+                bool big = !string.IsNullOrEmpty(skillName) && skillName.Contains("终");
+                BossSkillBurst.Play(at, col, big ? 3.2f : 2.3f, big ? 24 : 14, big ? 0.6f : 0.45f);
+                TriggerShake(big ? 0.10f : 0.06f, 0.28f);
+            }
+
         }
 
         /// <summary>
