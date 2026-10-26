@@ -2257,13 +2257,13 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
                 case BattleEventKind.Summon:
                     // 召唤物 / 分身落地：一圈金环 + 轻微震屏（别让它凭空出现）
-                    if (!string.IsNullOrEmpty(e.TargetId) && _views.TryGetValue(e.TargetId, out var sv) && sv.Root != null)
+                    if (!string.IsNullOrEmpty(e.TargetId) && _views.TryGetValue(e.TargetId, out var suv) && suv.Root != null)
                     {
                         var gold = new Color(0.95f, 0.82f, 0.45f, 1f);
-                        BossSkillBurst.Play(sv.Root.transform.position, gold, 1.15f, 8, 0.40f, 0);
+                        BossSkillBurst.Play(suv.Root.transform.position, gold, 1.15f, 8, 0.40f, 0);
                         TriggerShake(0.03f, 0.18f);
-                        if (sv.NameText != null && !string.IsNullOrEmpty(e.Note))
-                            SpawnNumberInternal(sv, e.Note + " 现身", gold, 1.0f, 0.8f, raise: 0.9f);
+                        if (suv.NameText != null && !string.IsNullOrEmpty(e.Note))
+                            SpawnNumberInternal(suv, e.Note + " 现身", gold, 1.0f, 0.8f, raise: 0.9f);
                     }
                     break;
 
