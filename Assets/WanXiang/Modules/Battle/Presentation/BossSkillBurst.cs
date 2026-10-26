@@ -20,7 +20,7 @@ namespace WanXiang.Battle.Presentation
         private Vector3 _from, _to;
 
         public static void Play(Vector3 center, Color color, float radius = 2.2f,
-                                int streaks = 16, float dur = 0.45f)
+                                int streaks = 16, float dur = 0.45f, int shape = 0)
         {
             var sh = Shader.Find("WanXiang/BossSkillBurst");
             if (sh == null) return;                       // 没有 shader 就静默跳过（不影响战斗）
@@ -38,6 +38,7 @@ namespace WanXiang.Battle.Presentation
             mat.SetFloat("_Progress", 0f);
             mat.SetFloat("_Streaks", Mathf.Max(4f, streaks));
             mat.SetFloat("_Intensity", 1.15f);
+            mat.SetFloat("_Shape", Mathf.Clamp(shape, 0, 3));
             mr.sharedMaterial = mat;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
