@@ -250,8 +250,22 @@ namespace WanXiang.Battle.Core
         /// <summary>把一只召唤物放上敌方棋盘（克隆 + 占位面板 + 上阵）。</summary>
         public static void DeploySummon(BattleState st, BeastDef proto, int cell)
         {
-            if (proto == null || cell < 0 || cell >= BoardLayout.CellCount) return;
-            if (st.SlotAt(TeamSide.Enemy, cell) != null) return;
+            if (proto == null) return;
+            // ★ 2026-10-26 用户："每 2 回合召唤，怎么只召唤了一次" ——
+            //   原来目标格被占就**直接放弃**，两只召唤物都活着时后续回合全跳过。
+            //   改成：目标格被占就往后找空格（最多 3 只同时在场的上限仍由调用方的格表决定）。
+            if (cell < 0 || cell >= BoardLayout.CellCount) return;
+            if (st.SlotAt(TeamSide.Enemy, cell) != null)
+            {
+                int free = -1;
+                for (int c = 0; c < BoardLayout.CellCount; c++)
+                {
+                    int idx = (cell + 1 + c) % BoardLayout.CellCount;
+                    if (st.SlotAt(TeamSide.Enemy, idx) == null) { free = idx; break; }
+                }
+                if (free < 0) return;          // 真满了（9 格全占）
+                cell = free;
+            }
             var def = proto.Clone();
             st.Config.ApplyPlaceholderStats(def);          // summon_ 前缀会被跳过，保留弱面板
             var e = DeployEntry.Enemy(def, cell);

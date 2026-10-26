@@ -229,9 +229,17 @@ namespace WanXiang.Modules.UI
             }
             if (_tmpDSkills != null)
             {
-                _tmpDSkills.text = "普攻  " + (sk[0] != null ? sk[0].Name : "-") +
-                                   "\n战技  " + (sk[1] != null ? sk[1].Name : "-") +
-                                   "\n绝技  " + (sk[2] != null ? sk[2].Name : "-");
+                // ★ 2026-10-26 用户："技能名写出来啊，效果是什么" —— 原来只显示 Name（普攻/战技/绝技 三个字）
+                //   现在显示「类型 + 实际效果描述（含段数/附带状态）」
+                System.Func<SkillDef, string> line = (d2) =>
+                {
+                    if (d2 == null) return "-";
+                    string desc = string.IsNullOrEmpty(d2.Description) ? "" : "　" + d2.Description;
+                    return d2.Description != null && d2.Description.Length > 0 ? desc : "　（无描述）";
+                };
+                _tmpDSkills.text = "<b>普攻</b>" + line(sk[0]) +
+                                   "\n<b>战技</b>" + line(sk[1]) +
+                                   "\n<b>绝技</b>" + line(sk[2]);
             }
             if (_tmpDMech != null)
             {
