@@ -1627,7 +1627,19 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 if (!string.IsNullOrEmpty(targetId) && _views.TryGetValue(targetId, out var tv) && tv.Root != null)
                     at = Vector3.Lerp(at, tv.Root.transform.position, 0.6f);
                 bool big = !string.IsNullOrEmpty(skillName) && skillName.Contains("终");
-                BossSkillBurst.Play(at, col, big ? 3.2f : 2.3f, big ? 24 : 14, big ? 0.6f : 0.45f);
+                // 五行各有一套爆发"体型"：木宽而缓、火小而躁、金细密、水大而慢、土短促沉重
+                float radius, dur; int streaks;
+                switch (element)
+                {
+                    case Element.Wood:  radius = 2.8f; dur = 0.60f; streaks = 10; break;   // 蔓生扩散
+                    case Element.Fire:  radius = 2.1f; dur = 0.34f; streaks = 22; break;   // 爆燃
+                    case Element.Metal: radius = 2.4f; dur = 0.28f; streaks = 32; break;   // 刃风密
+                    case Element.Water: radius = 3.0f; dur = 0.70f; streaks = 8;  break;   // 潮涌
+                    case Element.Earth: radius = 2.2f; dur = 0.40f; streaks = 14; break;   // 坠石
+                    default:            radius = 2.3f; dur = 0.45f; streaks = 16; break;
+                }
+                if (big) { radius *= 1.35f; dur *= 1.3f; streaks += 8; }
+                BossSkillBurst.Play(at, col, radius, streaks, dur);
                 TriggerShake(big ? 0.10f : 0.06f, 0.28f);
             }
 
