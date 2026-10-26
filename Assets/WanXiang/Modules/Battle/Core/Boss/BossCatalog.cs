@@ -92,7 +92,9 @@ namespace WanXiang.Battle.Core
                 { EffectAtom.Damage(TargetSelector.AllEnemies, 0.30f, 2) };
             var ult = new System.Collections.Generic.List<EffectAtom>
                 { EffectAtom.Damage(TargetSelector.AllEnemies, 0.24f, 3) };
-            string actDesc = "全体攻击 ×2 段", ultDesc = "全体重击 ×3 段";
+            // ★ 2026-10-26 用户："技能说明写明白，多少伤害、几段、打谁、附带什么"
+            string actDesc = "对全体造成 0.30× 攻击的伤害，共 2 段（合计 0.60×）；冷却 2 回合";
+            string ultDesc = "对全体造成 0.24× 攻击的伤害，共 3 段（合计 0.72×）；需能量满";
 
             if (!string.IsNullOrEmpty(flavor))
             {
@@ -108,14 +110,15 @@ namespace WanXiang.Battle.Core
                 //   绝技受"元气满"门槛限制（`UltimateNeedsRage` + `RageMax=100`）， 天然稀有，
                 //   这才是"招牌技能"该出现的位置：不常来，一来就是大事。
                 ult.Add(EffectAtom.Status(TargetSelector.SingleFrontMost, flavor, 2, 3));
-                ultDesc = "全体重击 + 单体" + sn + " ×2";
+                ultDesc = "对全体造成 0.24× 攻击的伤害，共 3 段（合计 0.72×），" +
+                          "并给最前排目标附加「" + sn + "」2 层 / 3 回合；需能量满";
             }
 
             return new[]
             {
                 new SkillDef { Id = "b_basic", Name = "普攻", Type = SkillType.Basic, Cd = 0,
                     Element = element, PrimaryTarget = TargetSelector.AllEnemies,
-                    Effects = basics, Description = "全体攻击" },
+                    Effects = basics, Description = "对全体造成 0.40× 攻击的伤害（无冷却）" },
                 new SkillDef { Id = "b_active", Name = "战技", Type = SkillType.Active, Cd = 2,
                     Element = element, PrimaryTarget = TargetSelector.AllEnemies,
                     Effects = act.ToArray(), Description = actDesc },

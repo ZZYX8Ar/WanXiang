@@ -173,6 +173,8 @@ namespace WanXiang.Modules.UI
             {
                 _sceneMode = true;
                 _stage = sceneCtx.Stage;
+                // 双击单位 → 打开查看面板并暂停战斗
+                _stage.OnInspectRequested += ShowUnitInspect;
                 _play = sceneCtx.Play;
                 _req = sceneCtx.Request;
             }
@@ -511,6 +513,33 @@ namespace WanXiang.Modules.UI
                 UnityEngine.Debug.Log("[BattlePanel][阵亡] 本局阵亡 " + deadIds.Count + " 只，已从队伍/拥有移除（灵市可重新购买）：" +
                     string.Join(",", deadIds));
             }
+        }
+
+        private bool _inspectOpen;
+
+        /// <summary>双击单位：暂停战斗，弹出正式查看面板（崩铁式）。</summary>
+        private void ShowUnitInspect(string name, string stats, string status, string skills,
+                                     string mech, Color accent)
+        {
+            if (_inspectOpen) return;
+            _inspectOpen = true;
+            _halted = true;                       // ← 战斗暂停（PlayLoop / QTE 都认这个开关）
+
+            var data = new UnitInspectData
+            {
+                Name = name, Stats = stats, Statuses = status,
+                Skills = string.IsNullOrEmpty(skills) ? "" : skills,
+                Mechanic = mech, Accent = accent,
+            };
+            OpenInspectAsync(data).Forget();
+        }
+
+        private async UniTask OpenInspectAsync(UnitInspectData data)
+        {
+            var panel = await OpenPanelAsync<UnitInspectPanel>(data);
+            if (panel != null)
+                panel.OnClosed = () => { _inspectOpen = false; _halted = false; };
+            else { _inspectOpen = false; _halted = false; }
         }
 
         private void HandOff(ResultRequest result)

@@ -42,6 +42,8 @@ namespace WanXiang.Battle.Presentation
         public string LastStateHint;
         /// <summary>最近一帧的快照（双击查看面板用，避免去读终局态 state）。</summary>
         public WanXiang.Battle.Core.UnitSnapshot LastSnap;
+        /// <summary>静态定义（技能明细用；建视图时从 u.Def 拷一份引用即可）。</summary>
+        public WanXiang.Battle.Core.BeastDef Def;
         /// <summary>护盾数值（独立对象，**不能挂在蓝牌下** —— 蓝牌有缩放，会把字一起放大）。</summary>
         public TextMesh ShieldText;
         /// <summary>状态外观层（冰封/束缚/燃烧…），是 <see cref="Body"/> 的子节点 ， 跟着立绘走。</summary>
@@ -1481,6 +1483,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                 }
 
+                view.Def = u.Def;
                 _views[u.RuntimeId] = view;
                 // 开场就有的单位立刻可见；中途增员先隐藏 —— 由 ApplyFrame 在它第一次出现在帧流里时唤起。
                 if (hasFrame0 && !bornAtStart.Contains(u.RuntimeId)) root.SetActive(false);
@@ -2393,10 +2396,16 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         /// <param name="fxDt">大招演出的步长（**不含倍速**——用户 2026-10-14：释放速度跟几倍速没关系，cut-in 别被 ×4 一闪而过）。&lt;0 表示同 dt。</param>
         private float _lastClickAt = -1f;
 
+        /// <summary>双击单位 → 抛给 UI 层（BattlePanel 打开 UGUI 面板并暂停）。
+        /// 参数：名字 / 数值行 / 状态行 / 技能行 / 机制行 / 元素色。</summary>
+        public System.Action<string, string, string, string, string, Color> OnInspectRequested;
+
         /// <summary>双击任意单位 → 弹出信息卡（小怪也支持）。</summary>
         private void PollInspectClick()
         {
             if (_cam == null) return;
+            // ⛔ QTE 窗口期不响应双击（用户 2026-10-26）：格挡要连点，别被"查看"抢走
+            if (!string.IsNullOrEmpty(_qteHintText)) return;
             if (!Input.GetMouseButtonDown(0)) return;
             if (Time.unscaledTime - _lastClickAt < 0.30f) { _lastClickAt = -1f; TryInspectUnderMouse(); }
             else _lastClickAt = Time.unscaledTime;
@@ -2418,16 +2427,41 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
             var s = best.LastSnap;
             string side = best.PlayerSide ? "我方" : "敌方";
-            var lines = new System.Collections.Generic.List<string>(6)
+            string nm = best.NameText != null ? best.NameText.text : "单位";
+            string st = side + "　HP " + s.Hp + " / " + s.MaxHp +
+                        (s.Shield > 0 ? "　护盾 " + s.Shield : "") + "　元素 " + ElementCn(s.Element);
+            string sk = BuildSkillDetail(best);
+
+            if (OnInspectRequested != null)
             {
-                best.NameText != null ? best.NameText.text : "单位",
-                side + "　HP " + s.Hp + " / " + s.MaxHp + (s.Shield > 0 ? "　盾 " + s.Shield : ""),
-                "元素 " + ElementCn(s.Element),
-                string.IsNullOrEmpty(s.Statuses) ? "状态：无" : "状态：" + s.Statuses,
+                OnInspectRequested(nm, st, s.Statuses ?? "", sk, s.StateHint ?? "",
+                                   BattlePalette.OfElement(s.Element));
+            }
+            else
+            {
+                var lines = new System.Collections.Generic.List<string>(6)
+                { nm, st, string.IsNullOrEmpty(s.Statuses) ? "状态：无" : "状态：" + s.Statuses };
+                if (!string.IsNullOrEmpty(s.StateHint)) lines.Add("机制：" + s.StateHint);
+                UnitInspectCard.Show(best.Root.transform.position, lines.ToArray(), BattlePalette.OfElement(s.Element));
+            }
+        }
+
+        /// <summary>技能明细（名字 + 效果）。用当前帧的 Def 取，不需要 state。</summary>
+        private static string BuildSkillDetail(UnitView2D v)
+        {
+            var d = v != null ? v.Def : null;
+            if (d == null) return "（无技能数据）";
+            System.Func<SkillDef, string> fmt = (sk) =>
+            {
+                if (sk == null) return "";
+                string desc = string.IsNullOrEmpty(sk.Description) ? "" : "　" + sk.Description;
+                return "<b>" + sk.Name + "</b>" + desc;
             };
-            if (!string.IsNullOrEmpty(s.StateHint)) lines.Add("机制：" + s.StateHint);
-            UnitInspectCard.Show(best.Root.transform.position, lines.ToArray(),
-                                 BattlePalette.OfElement(s.Element));
+            var sb = new System.Text.StringBuilder();
+            sb.Append(fmt(d.Basic)).Append('\n');
+            sb.Append(fmt(d.Active)).Append('\n');
+            sb.Append(fmt(d.Ultimate));
+            return sb.ToString();
         }
 
         private static string ElementCn(Element el)
