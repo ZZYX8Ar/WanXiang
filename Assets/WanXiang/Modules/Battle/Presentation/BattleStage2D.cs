@@ -2290,6 +2290,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         if (reaction)
                         {
                             SpawnReactionFx(hit, e.Reaction);
+                            // ★ 2026-10-26 用户："Boss 有护盾却还在掉血" —— 反应是**真实伤害**，
+                            //   会绕过护盾。这里补一个「穿盾」标记，避免玩家以为护盾失效。
+                            if (hit.ShieldPlate != null && hit.ShieldPlate.gameObject.activeSelf)
+                                SpawnNumberInternal(hit, "反应·穿盾", new Color(1f, 0.55f, 0.35f), 1.0f, 0.85f, raise: 1.35f);
                             // ★ 反应也染格子：用户反映"格子颜色变化没看到"，只靠克制太稀有了
                             ReactionInfo(e.Reaction, out _, out Color rxC, out _);
                             FlashCounterCell(hit, rxC);
