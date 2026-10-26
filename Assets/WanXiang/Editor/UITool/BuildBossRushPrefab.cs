@@ -173,6 +173,31 @@ namespace WanXiang.EditorTools
             UIBuild.Tmp(UIBuild.Node(loadRt, "Tmp_Label", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero),
                 "载入", 20f, new Color(0.97f, 0.94f, 0.86f, 1f));
 
+            // ---------------- 右中：首领详情（点左侧横条显示）----------------
+            var detail = UIBuild.Node(root, "Root_Detail", new Vector2(1f, 0f), new Vector2(1f, 1f),
+                new Vector2(-960f, 360f), new Vector2(-30f, -320f));
+            Sliced(detail, Kit("panel_dialog"), Color.white);
+
+            var dnRt = UIBuild.Node(detail, "Tmp_DName", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(22f, -96f), new Vector2(-22f, -16f));
+            var dName = UIBuild.Tmp(dnRt, "选中左侧首领查看详情", 30f, UIBuild.Ink, TextAlignmentOptions.TopLeft);
+            dName.enableWordWrapping = true;
+
+            var dsRt = UIBuild.Node(detail, "Tmp_DStats", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(22f, -162f), new Vector2(-22f, -100f));
+            var dStats = UIBuild.Tmp(dsRt, "", 24f, new Color(0.30f, 0.26f, 0.20f, 1f), TextAlignmentOptions.TopLeft);
+            dStats.enableWordWrapping = true;
+
+            var dkRt = UIBuild.Node(detail, "Tmp_DSkills", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(22f, -262f), new Vector2(-22f, -168f));
+            var dSkills = UIBuild.Tmp(dkRt, "", 24f, new Color(0.24f, 0.20f, 0.15f, 1f), TextAlignmentOptions.TopLeft);
+            dSkills.enableWordWrapping = true;
+
+            var dmRt = UIBuild.Node(detail, "Tmp_DMech", new Vector2(0f, 0f), new Vector2(1f, 1f),
+                new Vector2(22f, 14f), new Vector2(-22f, -270f));
+            var dMech = UIBuild.Tmp(dmRt, "", 22f, new Color(0.36f, 0.30f, 0.22f, 1f), TextAlignmentOptions.TopLeft);
+            dMech.enableWordWrapping = true;
+
             // ---------------- 右下：说明 ----------------
             var teamRt = UIBuild.Node(root, "Tmp_Team", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(960f, -380f), new Vector2(-46f, -312f));
@@ -200,6 +225,10 @@ namespace WanXiang.EditorTools
             so.FindProperty("_btnClose").objectReferenceValue = closeBtn;
             so.FindProperty("_inputCode").objectReferenceValue = input;
             so.FindProperty("_btnLoadCode").objectReferenceValue = loadBtn;
+            so.FindProperty("_tmpDName").objectReferenceValue = dName;
+            so.FindProperty("_tmpDStats").objectReferenceValue = dStats;
+            so.FindProperty("_tmpDSkills").objectReferenceValue = dSkills;
+            so.FindProperty("_tmpDMech").objectReferenceValue = dMech;
             so.FindProperty("_sprites").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<SpriteCatalog>("Assets/WanXiang/Config/SpriteCatalog.asset");
             var guids = AssetDatabase.FindAssets("t:ContentCatalogSO");

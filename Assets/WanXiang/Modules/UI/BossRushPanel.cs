@@ -35,6 +35,12 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_InputField _inputCode;   // 对战码输入（可空）
         [SerializeField] private Button _btnLoadCode;         // 载入对战码
 
+        [Header("右侧详情（点横条查看）")]
+        [SerializeField] private TMP_Text _tmpDName;          // 名字 + 称号
+        [SerializeField] private TMP_Text _tmpDStats;         // HP / ATK / DEF / SPD
+        [SerializeField] private TMP_Text _tmpDSkills;        // 三个技能
+        [SerializeField] private TMP_Text _tmpDMech;          // 机制说明
+
         private readonly List<GameObject> _rows = new List<GameObject>(32);
 
         protected override void OnCreate() { }
@@ -69,19 +75,20 @@ namespace WanXiang.Modules.UI
             for (int i = 0; i < all.Count; i++)
             {
                 var e = all[i];
+
+                // 分组标题：第一行或分组变化时，单独插一行（不塞进名字里，避免溢出压行）
+                string group = BossRushCatalog.GroupTitle(e);
+                bool newGroup = i == 0 || BossRushCatalog.GroupTitle(all[i - 1]) != group;
+                if (newGroup) MakeGroupRow(group);
+
                 var row = Instantiate(_itemTemplate, _rootList);
                 row.gameObject.SetActive(true);
                 row.name = "Item_" + (string.IsNullOrEmpty(e.Id) ? e.RealmId + "_" + i : e.Id);
                 _rows.Add(row.gameObject);
 
-                // 分组标题：第一行或分组变化时，名字前缀带上组名
-                string group = BossRushCatalog.GroupTitle(e);
-                bool newGroup = i == 0 || BossRushCatalog.GroupTitle(all[i - 1]) != group;
-
                 var txts = row.GetComponentsInChildren<TMP_Text>(true);
                 // 约定：0 = 名字（大），1 = 标签（小）
-                if (txts.Length > 0)
-                    txts[0].text = (newGroup ? "<size=70%><color=#8A7A5F>" + group + "</color></size>\n" : "") + e.Name;
+                if (txts.Length > 0) txts[0].text = e.Name;
                 if (txts.Length > 1)
                     txts[1].text = e.Playable ? ElementLabel(e.Element) : "接入中";
 
@@ -135,7 +142,43 @@ namespace WanXiang.Modules.UI
                     var btn = row.GetComponent<Button>();
                     if (btn != null) { btn.onClick.RemoveAllListeners(); btn.onClick.AddListener(() => OnPick(captured)); }
                 }
+
+                // ★ 2026-10-26 用户："点左边横条，右边看这个 Boss 的详细信息"
+                //   整行点击 = 选中并展示详情；开战仍只走「挑战」按钮。
+                var rowBtn2 = row.GetComponent<Button>();
+                if (rowBtn2 != null && challengeT != null)
+                {
+                    rowBtn2.onClick.RemoveAllListeners();
+                    rowBtn2.onClick.AddListener(() => ShowDetail(captured));
+                }
             }
+        }
+
+        /// <summary>组标题行：复用行模板，去掉头像与挑战按钮，只留一行小字。</summary>
+        private void MakeGroupRow(string title)
+        {
+            if (_itemTemplate == null) return;
+            var row = Instantiate(_itemTemplate, _rootList);
+            row.gameObject.SetActive(true);
+            row.name = "Group_" + title;
+            _rows.Add(row.gameObject);
+
+            var bg = row.GetComponent<Image>();
+            if (bg != null) bg.color = new Color(1f, 1f, 1f, 0.35f);
+            var head = row.Find("Img_Head");
+            if (head != null) head.gameObject.SetActive(false);
+            var ch = row.Find("Btn_Challenge");
+            if (ch != null) ch.gameObject.SetActive(false);
+
+            var txts = row.GetComponentsInChildren<TMP_Text>(true);
+            if (txts.Length > 0)
+            {
+                txts[0].text = "<size=64%><color=#7A6B55>" + title + "</color></size>";
+                txts[0].alignment = TextAlignmentOptions.Left;
+            }
+            if (txts.Length > 1) txts[1].text = "";
+            var b = row.GetComponent<Button>();
+            if (b != null) b.onClick.RemoveAllListeners();
         }
 
         private static string ElementLabel(Element el)
@@ -154,6 +197,61 @@ namespace WanXiang.Modules.UI
         // ------------------------------------------------------------------
         //  开战
         // ------------------------------------------------------------------
+        /// <summary>点横条：右侧展示这个首领的技能/数值/机制。</summary>
+        private void ShowDetail(BossRushEntry e)
+        {
+            BossDef def = null;
+            if (!string.IsNullOrEmpty(e.RealmId))
+            {
+                var bodyId = ElementBodyBossId(e.Element);
+                if (!string.IsNullOrEmpty(bodyId)) def = BossCatalog.Get(bodyId);
+            }
+            else def = BossCatalog.Get(e.Id);
+
+            if (def == null) return;
+
+            var sk = BossSkills.Default(def.Element, def.FlavorStatus);
+            string title = e.Name;
+            if (!string.IsNullOrEmpty(e.RealmId))
+                title = e.ChampionName + "  ·  " + e.RealmName;
+
+            if (_tmpDName != null)
+            {
+                _tmpDName.text = title + (string.IsNullOrEmpty(e.Epithet) ? "" : "\n<size=70%><color=#8A7A5F>" + e.Epithet + "</color></size>");
+            }
+            if (_tmpDStats != null)
+            {
+                _tmpDStats.text = "HP " + def.BaseHp + "    ATK " + def.BaseAtk +
+                                  "    DEF " + def.BaseDef + "    SPD " + def.BaseSpeed +
+                                  "\n<size=75%><color=#7A6B55>元素 " + ElementLabel(def.Element) +
+                                  "    暴击 " + (def.CritRate * 100f).ToString("0") + "%" +
+                                  "    暴伤 +" + (def.CritDamage * 100f).ToString("0") + "%</color></size>";
+            }
+            if (_tmpDSkills != null)
+            {
+                _tmpDSkills.text = "普攻  " + (sk[0] != null ? sk[0].Name : "-") +
+                                   "\n战技  " + (sk[1] != null ? sk[1].Name : "-") +
+                                   "\n绝技  " + (sk[2] != null ? sk[2].Name : "-");
+            }
+            if (_tmpDMech != null)
+            {
+                var mech = string.IsNullOrEmpty(e.Mechanic) ? BossCatalog.MechanicText(e.Id) : e.Mechanic;
+                _tmpDMech.text = string.IsNullOrEmpty(mech) ? "机制：无（普通首领）" : mech;
+            }
+            if (_tmpHint != null) _tmpHint.text = "已选中「" + title + "」，点右侧「挑战」开战。";
+        }
+
+        /// <summary>秘境镇守借用的战斗体：取该属性的主线首领 id。</summary>
+        private static string ElementBodyBossId(Element el)
+        {
+            foreach (var d in BossCatalog.All)
+            {
+                if (d == null || string.IsNullOrEmpty(d.Id) || !d.Id.StartsWith("b_")) continue;
+                if (d.Element == el) return d.Id;
+            }
+            return BossCatalog.All.Count > 0 ? BossCatalog.All[0].Id : null;
+        }
+
         private void OnPick(BossRushEntry e)
         {
             if (!e.Playable)

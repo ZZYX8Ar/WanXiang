@@ -26,6 +26,8 @@ namespace WanXiang.Modules.UI
         public string HookId;      // 秘境机制钩子（rc_*）
         public string ChampionName; // 秘境首领本名（不含场域后缀），用来查立绘
         public bool Playable;      // false = 本阶段还不能直接开战
+        public string Epithet;     // 一句人设（秘境镇守用）
+        public string Mechanic;    // 机制文案（详情面板展示）
     }
 
     public static class BossRushCatalog
@@ -78,6 +80,8 @@ namespace WanXiang.Modules.UI
                                 RealmName = realm.Name,
                                 HookId = ch.HookId,
                             ChampionName = ch.Name,
+                                Epithet = ch.Epithet,
+                                Mechanic = ch.MechanicText,
                                 Playable = true,        // v2：用同属性 Boss 作战斗体 + 场域钩子
                             });
                         }
