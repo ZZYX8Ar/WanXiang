@@ -509,6 +509,22 @@ namespace WanXiang.Battle.Core
             for (int i = 0; i < _all.Count; i++)
                 if (_all[i].IsAlive) order.Add(_all[i]);
 
+            // ★ 2026-10-30 用户："召唤物好像不会攻击，这是设定吗" ——
+            //   `_all` 是开场名册、中途增员不进（保指纹），结果所有召唤物**从不行动**，
+            //   看起来像站桩的花瓶。这里把"出场后仍在场的增员"补进出手序列：
+            //   · 只补 `_allEver` 里**不在** `_all` 且存活的（即召唤/分身）；
+            //   · 追加在末尾、不参与排序 —— 不改变原有单位的相对顺序（指纹只在有召唤的战里变）。
+            if (_allEver.Count > _all.Count)
+            {
+                for (int i = 0; i < _allEver.Count; i++)
+                {
+                    var u = _allEver[i];
+                    if (u == null || !u.IsAlive) continue;
+                    if (_all.Contains(u)) continue;
+                    order.Add(u);
+                }
+            }
+
             // 排序键 = 有效速度（面板 × 天时乘数）。天时为空时 EffectiveSpeed 恒等于
             // u.Speed，比较结果与旧版 CompareActionOrder 完全一致（指纹红线）。
             // 插入排序 + 显式键数组：速度乘数是按单位算的，没法塞进静态比较器；

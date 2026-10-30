@@ -133,6 +133,17 @@ namespace WanXiang.Battle.Core
                 return u.GetSkill(SkillType.Basic);
             }
 
+            // ★ 2026-10-30 用户："自动战斗怎么不自动放终结技" ——
+            //   自动战斗提交的是 SkillIndex = **-1**（交给 AI），但这里只认 >=0，
+            //   于是永远走到最后 `return Basic` ⇒ 我方自动战斗**只用普攻**。
+            //   ⇒ -1 时消费掉指令，交给下面的 DecideSlot（含终结技判断）。
+            if (st.PendingCommand.Valid && st.PendingCommand.SkillIndex < 0
+                && st.PendingCommand.ActorId == u.RuntimeId)
+            {
+                st.PendingCommand = default;
+                return u.GetSkill(DecideSlot(st, u, out _));
+            }
+
             return u.GetSkill(SkillType.Basic);
         }
         /// <summary>

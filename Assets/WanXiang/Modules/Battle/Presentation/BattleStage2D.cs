@@ -2432,9 +2432,16 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         (s.Shield > 0 ? "　护盾 " + s.Shield : "") + "　元素 " + ElementCn(s.Element);
             string sk = BuildSkillDetail(best);
 
+            // 机制说明：主线首领用**完整文案**（几回合召唤/半血做什么都写清楚），
+            // 秘境暂时只有短标签（完整文案在 Campaign 层，Battle 不反向依赖）。
+            string mech = null;
+            if (!string.IsNullOrEmpty(best.DefId) && WanXiang.Battle.Core.BossCatalog.IsBoss(best.DefId))
+                mech = WanXiang.Battle.Core.BossCatalog.MechanicText(best.DefId);
+            if (string.IsNullOrEmpty(mech)) mech = s.StateHint ?? "";
+
             if (OnInspectRequested != null)
             {
-                OnInspectRequested(nm, st, s.Statuses ?? "", sk, s.StateHint ?? "",
+                OnInspectRequested(nm, st, s.Statuses ?? "", sk, mech,
                                    BattlePalette.OfElement(s.Element));
             }
             else
