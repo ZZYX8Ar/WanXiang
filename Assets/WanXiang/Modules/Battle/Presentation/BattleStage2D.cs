@@ -2463,7 +2463,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             string nm = best.NameText != null ? best.NameText.text : "单位";
             string st = side + "　HP " + s.Hp + " / " + s.MaxHp +
                         (s.Shield > 0 ? "　护盾 " + s.Shield : "") + "　元素 " + ElementCn(s.Element);
-            string sk = BuildSkillDetail(best);
+            string sk = BuildSkillDetail(best, s);
 
             // 机制说明：主线首领用**完整文案**（几回合召唤/半血做什么都写清楚），
             // 秘境暂时只有短标签（完整文案在 Campaign 层，Battle 不反向依赖）。
@@ -2491,21 +2491,23 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         }
 
         /// <summary>技能明细（名字 + 效果）。用当前帧的 Def 取，不需要 state。</summary>
-        private static string BuildSkillDetail(UnitView2D v)
+        private static string BuildSkillDetail(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot snap)
         {
             var d = v != null ? v.Def : null;
             if (d == null) return "（无技能数据）";
-            System.Func<SkillDef, string, string> fmt = (sk, tag) =>
+            System.Func<SkillDef, string, int, string> fmt = (sk, tag, remain) =>
             {
                 if (sk == null) return "";
-                string cd = sk.Cd > 0 ? "（冷却 " + sk.Cd + " 回合）" : "（无冷却）";
+                string cd = sk.Cd > 0
+                    ? (remain > 0 ? "（冷却 " + sk.Cd + " 回合 · 剩余 " + remain + "）" : "（冷却 " + sk.Cd + " 回合 · 就绪）")
+                    : "（无冷却）";
                 string desc = string.IsNullOrEmpty(sk.Description) ? "" : "\n　　" + sk.Description;
                 return "【" + tag + "】" + sk.Name + "　" + cd + desc;
             };
             var sb = new System.Text.StringBuilder();
-            sb.Append(fmt(d.Basic, "普攻")).Append('\n');
-            sb.Append(fmt(d.Active, "战技")).Append('\n');
-            sb.Append(fmt(d.Ultimate, "绝技"));
+            sb.Append(fmt(d.Basic, "普攻", snap.Cd0)).Append('\n');
+            sb.Append(fmt(d.Active, "战技", snap.Cd1)).Append('\n');
+            sb.Append(fmt(d.Ultimate, "绝技", snap.Cd2));
             return sb.ToString();
         }
 
