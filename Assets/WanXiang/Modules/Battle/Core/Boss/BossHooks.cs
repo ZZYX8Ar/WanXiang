@@ -266,12 +266,15 @@ namespace WanXiang.Battle.Core
                     eu.Def.Id.StartsWith("summon_")) alive++;
             }
             if (alive >= 4) return;
+            // ⛔ 尸体不腾格 ⇒ 打几波后 9 格全被"死掉的召唤物"占着，再也召不出来（用户 2026-10-30 报障）。
+            st.ClearSlotIfDead(TeamSide.Enemy, cell);
             if (st.SlotAt(TeamSide.Enemy, cell) != null)
             {
                 int free = -1;
                 for (int c = 0; c < BoardLayout.CellCount; c++)
                 {
                     int idx = (cell + 1 + c) % BoardLayout.CellCount;
+                    st.ClearSlotIfDead(TeamSide.Enemy, idx);
                     if (st.SlotAt(TeamSide.Enemy, idx) == null) { free = idx; break; }
                 }
                 if (free < 0) return;          // 真满了（9 格全占）

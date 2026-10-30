@@ -62,6 +62,9 @@ namespace WanXiang.Battle.Core
         /// 表现层据此在它的格子放一圈"落地"爆发，别让召唤物凭空出现。
         /// </summary>
         Summon = 19,
+
+        /// <summary>吞噬（枯荣）：首领吃掉自己的召唤物回血。TargetId = 首领，Amount = 回血量。</summary>
+        Devour = 20,
     }
 
     /// <summary>

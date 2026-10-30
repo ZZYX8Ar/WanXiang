@@ -2291,6 +2291,17 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                     break;
 
+                case BattleEventKind.Devour:
+                    // 枯荣吞噬：绿色环向内收 + 治疗数字（用户 2026-10-30："吞噬有特效吗"）
+                    if (!string.IsNullOrEmpty(e.TargetId) && _views.TryGetValue(e.TargetId, out var dvv) && dvv.Root != null)
+                    {
+                        var green = new Color(0.45f, 0.85f, 0.55f, 1f);
+                        BossSkillBurst.PlayInward(dvv.Root.transform.position, green, 2.2f, 0.55f);
+                        TriggerShake(0.05f, 0.22f);
+                        if (e.Amount > 0) SpawnNumberInternal(dvv, "+" + e.Amount, green, 1.3f, 0.9f, raise: 0.9f);
+                    }
+                    break;
+
                 case BattleEventKind.Damage:
                     if (e.TargetId != null && _views.TryGetValue(e.TargetId, out var hit))
                     {

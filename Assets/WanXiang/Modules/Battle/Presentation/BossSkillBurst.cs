@@ -21,8 +21,20 @@ namespace WanXiang.Battle.Presentation
         private MeshRenderer _mr;
         private float _t, _dur;
         private bool _active;
+        private bool _inward;
+        private float _radius;
 
         private static Material _sharedMatTemplate;
+
+        /// <summary>向内收（吞噬/吸能）：环从大收向中心，用来表现"把东西吸进来"。</summary>
+        public static void PlayInward(Vector3 center, Color color, float radius = 2.0f, float dur = 0.55f)
+        {
+            Play(center, color, radius, 10, dur, 0);
+            if (_pool == null) return;
+            for (int i = 0; i < _pool.Length; i++)
+                if (_pool[i] != null && _pool[i]._active && _pool[i]._mat != null &&
+                    Mathf.Approximately(_pool[i]._radius, radius)) { _pool[i]._inward = true; break; }
+        }
 
         public static void Play(Vector3 center, Color color, float radius = 2.2f,
                                 int streaks = 16, float dur = 0.45f, int shape = 0)
@@ -44,6 +56,8 @@ namespace WanXiang.Battle.Presentation
                 if (inst == null) return;
             }
 
+            inst._inward = false;
+            inst._radius = radius;
             inst.transform.position = center;
             inst.transform.localScale = Vector3.one * radius * 2f;
             inst.transform.rotation = Quaternion.identity;
@@ -99,6 +113,12 @@ namespace WanXiang.Battle.Presentation
             _t += Time.deltaTime;
             float k = Mathf.Clamp01(_t / _dur);
             if (_mat != null) _mat.SetFloat("_Progress", k);
+            if (_inward)
+            {
+                // 由外向内收：2.0×半径 → 0.25×半径
+                float sc = Mathf.Lerp(_radius * 2f, _radius * 0.25f, k);
+                transform.localScale = Vector3.one * sc;
+            }
             if (k >= 1f) { _active = false; gameObject.SetActive(false); }
         }
 

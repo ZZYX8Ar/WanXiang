@@ -383,8 +383,14 @@ namespace WanXiang.Battle.Core
                         if (consumed > 0)
                         {
                             int h = b.Heal(CoreMath.RoundDamage(b.MaxHp * 0.08f * consumed));
-                            if (h > 0) s.Log.Add(s.Turn, BattleEventKind.RoundResolve,
-                                note: $"{b.DisplayName} 枯荣：吞噬 {consumed} 召唤物回血 {h}");
+                            if (h > 0)
+                            {
+                                s.Log.Add(s.Turn, BattleEventKind.RoundResolve,
+                                    note: $"{b.DisplayName} 枯荣：吞噬 {consumed} 召唤物回血 {h}");
+                                // ★ 2026-10-30：单独发 Devour，表现层放"向内吸"的特效
+                                s.Log.Add(s.Turn, BattleEventKind.Devour,
+                                    targetId: b.RuntimeId, amount: h);
+                            }
                         }
                     }));
                     break;

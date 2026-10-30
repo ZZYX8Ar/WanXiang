@@ -392,6 +392,16 @@ namespace WanXiang.Battle.Core
             return _slots[(int)side][index];
         }
 
+        /// <summary>清掉某格上**已阵亡**的单位（召唤物尸体不占位）。返回是否清掉了。</summary>
+        public bool ClearSlotIfDead(TeamSide side, int index)
+        {
+            if (index < 0 || index >= BoardLayout.CellCount) return false;
+            var u = _slots[(int)side][index];
+            if (u == null || u.IsAlive) return false;
+            _slots[(int)side][index] = null;
+            return true;
+        }
+
         /// <summary>取某方 9 格的原样数组（BoardRules 按固定顺序遍历 12 对相邻格时用它）。
         /// ⚠ 返回的是**内部数组本身**，请不要写它。</summary>
         public BattleUnit[] SlotsOf(TeamSide side) => _slots[(int)side];
