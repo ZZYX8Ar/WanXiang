@@ -499,6 +499,7 @@ namespace WanXiang.Battle.Presentation
         private float _shakeAmp, _shakeT, _shakeDur;
         private float _zoomBase = 5.4f;           // 相机基准 orthographicSize（BuildCamera 覆写）
         private float _lastHintPop;   // 机制飘字限流（0.7s 一条，避免两行叠在一起）
+        private float _flushDelay = -1f;   // >0 = 等冲锋到位后再飘伤害数字
         private float _zoomDip, _zoomT, _zoomDur; // 起爆点 Zoom Punch（推近再弹回）
 
         public Camera Camera => _cam;
@@ -1620,7 +1621,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             // ★ 冲锋等到"起爆"那一下才冲（否则特写期间就冲完 ⇒ 玩家看到"攻击完才出现冲击波"）；
             //   同时把特写期间押后的伤害数字在这里补飘（用户 2026-10-14）。
             string a = actorId, t = targetId;
-            _skillFx.OnImpact = () => { StartLunge(a, t); FlushPendingDmg(); };
+            // ★ 2026-10-30 用户："数字比立绘前顶还早出现" ——
+            //   OnImpact 里同时冲+出数字，数字立刻生效 ⇒ 看起来数字先于冲锋。
+            //   改成：先 StartLunge，等**前冲时长**（LungeForward）到了再 Flush。
+            _skillFx.OnImpact = () => { StartLunge(a, t); _flushDelay = LungeForward; };
             // faceLeft：敌方在右侧、面向我方 ⇒ 特写立绘要镜像（用户 2026-10-18 报"头像反了"）
             _skillFx.Play(v.Root.transform.position, actorId, col, isAwaken, portrait, beastName, skillName,
                           faceLeft: !v.PlayerSide);
@@ -2488,6 +2492,13 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         public void Step(float dt, float fxDt = -1f)
         {
             PollInspectClick();
+
+            // 冲锋到位 → 补飘伤害数字（见 PlaySkillFx 的 OnImpact）
+            if (_flushDelay > 0f)
+            {
+                _flushDelay -= dt;
+                if (_flushDelay <= 0f) { _flushDelay = -1f; FlushPendingDmg(); }
+            }
             if (fxDt < 0f) fxDt = dt;
             // 舞台自己的动画时钟：由 dt 累加（**不用 `Time.time`**）——
             // 这样表现层动画与"推进了多少帧"严格对应，编辑器里连调 Step 也能被验证到。
