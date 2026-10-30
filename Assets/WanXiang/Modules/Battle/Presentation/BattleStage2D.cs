@@ -2470,6 +2470,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             string mech = null;
             if (!string.IsNullOrEmpty(best.DefId) && WanXiang.Battle.Core.BossCatalog.IsBoss(best.DefId))
                 mech = WanXiang.Battle.Core.BossCatalog.MechanicText(best.DefId);
+            else if (!string.IsNullOrEmpty(best.DefId) && best.DefId.StartsWith("rc_"))
+                // 秘境：完整文案在 Campaign 层，Battle 不认识 —— 带上 id 让 UI 层去查，
+                // 查不到就退回短标签（`@realm:<rcId>|<tag>` 是两层的约定格式）。
+                mech = "@realm:" + best.DefId + "|" + (s.StateHint ?? "");
             if (string.IsNullOrEmpty(mech)) mech = s.StateHint ?? "";
 
             if (OnInspectRequested != null)

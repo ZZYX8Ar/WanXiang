@@ -530,6 +530,17 @@ namespace WanXiang.Modules.UI
             _inspectOpen = true;
             _halted = true;                       // ← 战斗暂停（PlayLoop / QTE 都认这个开关）
 
+            // 秘境镇守：完整机制文案在 Campaign 层（RealmChampionDef.MechanicText），
+            // Battle 层拿不到 ⇒ 约定格式 `@realm:<rcId>|<短标签>`，这里反查补全。
+            if (!string.IsNullOrEmpty(mech) && mech.StartsWith("@realm:"))
+            {
+                int bar = mech.IndexOf('|');
+                string rcId = bar > 7 ? mech.Substring(7, bar - 7) : mech.Substring(7);
+                string tag = bar >= 0 && bar + 1 < mech.Length ? mech.Substring(bar + 1) : "";
+                var full = RealmMechanicText(rcId);
+                mech = string.IsNullOrEmpty(full) ? tag : full;
+            }
+
             var data = new UnitInspectData
             {
                 Name = name, Stats = stats, Statuses = status,
@@ -537,6 +548,25 @@ namespace WanXiang.Modules.UI
                 Mechanic = mech, Accent = accent,
             };
             OpenInspectAsync(data).Forget();
+        }
+
+        /// <summary>按镇守 id（rc_xxx）反查 Campaign 里的完整机制文案。</summary>
+        private static string RealmMechanicText(string rcId)
+        {
+            var realms = WanXiang.Campaign.RealmCatalog.All;
+            if (realms == null) return null;
+            for (int i = 0; i < realms.Count; i++)
+            {
+                var r = realms[i];
+                if (r == null || r.Champions == null) continue;
+                for (int c = 0; c < r.Champions.Length; c++)
+                {
+                    var ch = r.Champions[c];
+                    if (ch != null && !string.IsNullOrEmpty(ch.HookId) && ch.HookId == rcId)
+                        return ch.MechanicText;
+                }
+            }
+            return null;
         }
 
         private async UniTask OpenInspectAsync(UnitInspectData data)
