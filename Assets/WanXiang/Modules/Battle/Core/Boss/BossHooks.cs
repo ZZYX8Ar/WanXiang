@@ -243,7 +243,8 @@ namespace WanXiang.Battle.Core
                 var proto = _protos[i];
                 int cell = _cells[i];
                 if (proto == null || cell < 0 || cell >= BoardLayout.CellCount) continue;
-                if (st.SlotAt(TeamSide.Enemy, cell) != null) continue;   // 该格被占就跳过，不挤位
+                // ⛔ 这里**不能**再判占位 —— 那样 DeploySummon 内的"找空格"永远走不到，
+                //    两只召唤物活着时后续回合照样全跳过（用户 2026-10-30 再次反馈）。
                 DeploySummon(st, proto, cell);
             }
         }
@@ -255,6 +256,16 @@ namespace WanXiang.Battle.Core
             //   原来目标格被占就**直接放弃**，两只召唤物都活着时后续回合全跳过。
             //   改成：目标格被占就往后找空格（最多 3 只同时在场的上限仍由调用方的格表决定）。
             if (cell < 0 || cell >= BoardLayout.CellCount) return;
+            // 上限 4 只（别把 9 格全塞满，玩家会看不清谁是谁）
+            int alive = 0;
+            var enemies = st.UnitsOf(TeamSide.Enemy);
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                var e = enemies[i];
+                if (e != null && e.IsAlive && e.Def != null && !string.IsNullOrEmpty(e.Def.Id) &&
+                    e.Def.Id.StartsWith("summon_")) alive++;
+            }
+            if (alive >= 4) return;
             if (st.SlotAt(TeamSide.Enemy, cell) != null)
             {
                 int free = -1;

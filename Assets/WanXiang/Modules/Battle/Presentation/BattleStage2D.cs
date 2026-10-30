@@ -2451,16 +2451,17 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         {
             var d = v != null ? v.Def : null;
             if (d == null) return "（无技能数据）";
-            System.Func<SkillDef, string> fmt = (sk) =>
+            System.Func<SkillDef, string, string> fmt = (sk, tag) =>
             {
                 if (sk == null) return "";
-                string desc = string.IsNullOrEmpty(sk.Description) ? "" : "　" + sk.Description;
-                return "<b>" + sk.Name + "</b>" + desc;
+                string cd = sk.Cd > 0 ? "（冷却 " + sk.Cd + " 回合）" : "（无冷却）";
+                string desc = string.IsNullOrEmpty(sk.Description) ? "" : "\n　　" + sk.Description;
+                return "【" + tag + "】" + sk.Name + "　" + cd + desc;
             };
             var sb = new System.Text.StringBuilder();
-            sb.Append(fmt(d.Basic)).Append('\n');
-            sb.Append(fmt(d.Active)).Append('\n');
-            sb.Append(fmt(d.Ultimate));
+            sb.Append(fmt(d.Basic, "普攻")).Append('\n');
+            sb.Append(fmt(d.Active, "战技")).Append('\n');
+            sb.Append(fmt(d.Ultimate, "绝技"));
             return sb.ToString();
         }
 
