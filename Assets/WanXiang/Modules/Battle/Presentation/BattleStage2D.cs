@@ -1299,6 +1299,24 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                                               Vector2.zero, 3);
                 SetHpBar2D(view, u.Hp, u.MaxHp);
 
+                // ★ 2026-10-30：首领血条加**阶段刻度**（75/50/25% 之类）
+                if (u.Side == WanXiang.Battle.Core.TeamSide.Enemy && u.Def != null && !string.IsNullOrEmpty(u.Def.Id))
+                {
+                    var ticks = BossPhaseTicks.For(u.Def.Id);
+                    if (ticks != null)
+                    {
+                        float inner = Mathf.Max(0.05f, HpBarWidth - 0.06f);
+                        for (int ti = 0; ti < ticks.Length; ti++)
+                        {
+                            var tick = MakeChildSprite(headGo, "PhaseTick" + ti,
+                                                       new Color(0.10f, 0.08f, 0.06f, 0.85f),
+                                                       new Vector2(0.014f, HpBarBackHeight + 0.03f),
+                                                       new Vector2((ticks[ti] - 0.5f) * inner, 0f), 5);
+                            if (tick != null) tick.transform.localPosition = new Vector3((ticks[ti] - 0.5f) * inner, 0f, 0f);
+                        }
+                    }
+                }
+
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
                 // ★ 2026-10-20 用户："护盾的位置还是差一点" —— 直接压进血条**右端内侧**：
