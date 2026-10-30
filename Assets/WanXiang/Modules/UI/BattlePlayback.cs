@@ -173,9 +173,12 @@ namespace WanXiang.Modules.UI
         {
             var cfg = BattleConfig.Default;
             cfg.AiProfile = req.AiProfile;      // 敌方打法跟随节点遭遇（v2.1 P4）
-            // 回合制 v2.1 P3：**手动模式下 AI 不抢放终结技**，把它留给玩家决定时机；
-            // 自动模式（manual=false）保持自动放 —— 两种模式的差别只在"谁来做决定"。
-            cfg.AutoCastUltimate = !manual;
+            // ⛔ 2026-10-30 用户："自动战斗和敌方都不放终结技" ——
+            //   原来 `AutoCastUltimate = !manual`，而**手动模式是默认**（我方要被下令），
+            //   于是敌方 AI 也被一起关掉了终结技（敌方永远走 AI），我方"自动战斗"同样被关。
+            //   这个开关的语义应该是"**AI 驱动的单位**要不要自动放终结技"，与"玩家是否手动下令"无关：
+            //   玩家手动的单位有自己的指令路径，AI 的单位才看这个开关。
+            cfg.AutoCastUltimate = true;
             cfg.MaxTurns = 48 + req.MaxTurnsDelta;   // ★ 单场回合上限（用户要求 48；遗物「延时/速决符」可修正）
             // ★ 遗物机制（v1.2）：改规则而不改数值
             cfg.UltimateNeedsRage = !req.UltimateNoRage;   // 「无相」：奥义免元气
