@@ -51,6 +51,7 @@ namespace WanXiang.Modules.UI
             if (_btnClose != null) _btnClose.onClick.AddListener(CloseSelf);
             if (_tmpTitle != null) _tmpTitle.text = "首领试炼";
             BuildList();
+            ResetListToTop();
             if (_btnLoadCode != null) _btnLoadCode.onClick.AddListener(OnLoadCode);
             RefreshTeamLabel();
             if (_tmpHint != null) _tmpHint.text = "选一个首领开战；打完整场会回到这里（方便逐个测技能）。";
@@ -197,6 +198,17 @@ namespace WanXiang.Modules.UI
         // ------------------------------------------------------------------
         //  开战
         // ------------------------------------------------------------------
+        /// <summary>打开面板时回到列表顶部（否则会停在上次的位置/底部）。</summary>
+        private void ResetListToTop()
+        {
+            var scroll = GetComponentInChildren<ScrollRect>(true);
+            if (scroll == null) return;
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(scroll.content);
+            scroll.verticalNormalizedPosition = 1f;
+            scroll.StopMovement();
+        }
+
         /// <summary>点横条：右侧展示这个首领的技能/数值/机制。</summary>
         private void ShowDetail(BossRushEntry e)
         {

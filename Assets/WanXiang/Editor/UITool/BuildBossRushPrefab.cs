@@ -100,6 +100,9 @@ namespace WanXiang.EditorTools
 
             var content = UIBuild.Node(viewport, "Root_List", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0f, 0f), new Vector2(0f, 0f));
+            // ⛔ 枢轴必须在顶部：默认 (0.5,0.5) 会让内容以中心生长，
+            //    滚轮一格就跳到底、打开时还停在中间（用户 2026-10-30 两个现象同源）
+            content.pivot = new Vector2(0.5f, 1f);
             var vlg = content.gameObject.AddComponent<VerticalLayoutGroup>();
             vlg.spacing = 6f;
             vlg.childAlignment = TextAnchor.UpperCenter;
@@ -117,7 +120,7 @@ namespace WanXiang.EditorTools
             scroll.horizontal = false;
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 40f;
+            scroll.scrollSensitivity = 14f;
 
             // 行：96 高，大头像
             var item = UIBuild.Fixed(content, "Item_Boss", new Vector2(0.5f, 1f), new Vector2(850f, 96f), Vector2.zero);
