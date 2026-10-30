@@ -110,6 +110,8 @@ namespace WanXiang.EditorTools
 
             var module = es.GetComponent<InputSystemUIInputModule>();
             if (module == null) module = es.gameObject.AddComponent<InputSystemUIInputModule>();
+            // 滚轮一格 = 120（新输入后端原始值）→ 归一化，否则所有列表一格到底
+            module.scrollDeltaPerTick = 120f;
             module.actionsAsset = asset;
             EditorUtility.SetDirty(module);
         }

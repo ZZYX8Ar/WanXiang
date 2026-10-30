@@ -234,6 +234,13 @@ var asset = ResolveAsset();
             {
                 module.actionsAsset = asset;
             }
+
+            // ⛔⛔ 2026-10-30 用户："所有列表滚轮一格直接到底" ——
+            //   新输入后端的滚轮值是「每格 120」（鼠标 notch 的原始 delta），
+            //   而 `scrollDeltaPerTick` 默认 1 ⇒ 送进 ScrollRect 的 delta 是 120×，
+            //   再乘 scrollSensitivity（14/40）就一格滚过整段内容。
+            //   ⇒ 这里按 Windows 标准一格 = 120 归一化，让 UI 侧回到 ±1 的直觉量级。
+            module.scrollDeltaPerTick = 120f;
         }
     }
 }

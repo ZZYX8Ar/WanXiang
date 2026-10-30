@@ -120,7 +120,7 @@ namespace WanXiang.EditorTools
             scroll.horizontal = false;
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 14f;
+            scroll.scrollSensitivity = 30f;
 
             // 行：96 高，大头像
             var item = UIBuild.Fixed(content, "Item_Boss", new Vector2(0.5f, 1f), new Vector2(850f, 96f), Vector2.zero);
