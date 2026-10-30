@@ -261,9 +261,9 @@ namespace WanXiang.Battle.Core
             var enemies = st.UnitsOf(TeamSide.Enemy);
             for (int i = 0; i < enemies.Count; i++)
             {
-                var e = enemies[i];
-                if (e != null && e.IsAlive && e.Def != null && !string.IsNullOrEmpty(e.Def.Id) &&
-                    e.Def.Id.StartsWith("summon_")) alive++;
+                var eu = enemies[i];
+                if (eu != null && eu.IsAlive && eu.Def != null && !string.IsNullOrEmpty(eu.Def.Id) &&
+                    eu.Def.Id.StartsWith("summon_")) alive++;
             }
             if (alive >= 4) return;
             if (st.SlotAt(TeamSide.Enemy, cell) != null)
