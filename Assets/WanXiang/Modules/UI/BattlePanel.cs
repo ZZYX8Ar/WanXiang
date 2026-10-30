@@ -435,7 +435,12 @@ namespace WanXiang.Modules.UI
                 sdt = 0f;                                  // 冻结：单位抖动/冲锋/下沉全停一拍
             }
             // 舞台动画按倍速推进；但大招演出（cut-in/镜头）用**真实 dt**，不被倍速带快。
-            _stage.Step(sdt, sdt == 0f ? 0f : Time.deltaTime);
+            // ⛔ 2026-10-30 用户："大招往内聚的冲击波一卡一卡的" ——
+            //   原来顿帧时 `sdt == 0 → fxDt 也传 0`，把**演出时钟**一起冻了：
+            //   多段大招每段命中都置一次 _hitStop ⇒ 蓄力环冻→跳→冻→跳。
+            //   顿帧只该冻"舞台动作"（冲锋/抖动/下沉），不该冻 shader 进度。
+            float fxDt = Mathf.Min(0.05f, Time.smoothDeltaTime > 0f ? Time.smoothDeltaTime : Time.deltaTime);
+            _stage.Step(sdt, fxDt);
         }
 
         /// <summary>
