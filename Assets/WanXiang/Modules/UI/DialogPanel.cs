@@ -80,6 +80,9 @@ namespace WanXiang.Modules.UI
         /// <summary>当前活着的弹窗实例。用于处理"连弹"的竞态，见 Open 的注释。</summary>
         private static DialogPanel _current;
 
+        /// <summary>外部只读（供 <see cref="Dialog.IsAnyOpen"/>）。</summary>
+        internal static DialogPanel Current => _current;
+
         /// <summary>
         /// 打开弹窗并重试：连续弹窗（如孵穴的 Choose → Tip）时，上一个还在淡出，
         /// 重入保护会拒绝新的打开（返回 null）， 调用方 NRE。这里等 30 帧重试最多 3 次。
@@ -404,6 +407,16 @@ namespace WanXiang.Modules.UI
     /// </summary>
     public static class Dialog
     {
+        /// <summary>当前是否有活着的弹窗（给"冻结看门狗"用，避免排队弹窗把战斗永久冻住）。</summary>
+        public static bool IsAnyOpen
+        {
+            get
+            {
+                var cur = DialogPanel.Current;
+                return cur != null && cur.State != UIPanelState.Closed && cur.State != UIPanelState.None;
+            }
+        }
+
         public static UniTask Tip(string title, string body) => DialogPanel.Tip(title, body);
 
         public static UniTask<bool> Confirm(string title, string body,

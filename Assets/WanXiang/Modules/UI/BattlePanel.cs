@@ -76,6 +76,7 @@ namespace WanXiang.Modules.UI
         protected override bool AutoButtonSfx => false;
         private float _speed = 1f;   // 默认 1x：先能看清，再谈加速
         private bool _playing;      // 回放中（控制舞台是否逐帧推进）
+        private float _haltedAt;    // _halted 置 true 的时刻（看门狗用）
         private float _hitStop;     // 命中顿帧剩余时间（>0 时冻结舞台动画，制造打击"顿"感）
         private const float HitStopSec = 0.055f;   // 命中/暴击顿帧时长（受倍速缩放）
                 private bool _actionEnabled = true;        // 技能/连携按钮当前是否可点（每帧兜底：非我方决策点就置灰）
@@ -423,6 +424,23 @@ namespace WanXiang.Modules.UI
                     }
                 }
             }
+
+            // ★ 2026-10-31 防卡死看门狗：
+            //   用户实测"点重新挑战→关掉确认框→战斗永远不动"。
+            //   根因是 `_halted` 被置 true 后没有任何人复位（确认框被非常规路径关掉时，
+            //   `await Confirm` 不是唯一的恢复者）。这里兜一层：冻结超过 1.5s 且
+            //   既没有查看面板、也没有弹窗 ⇒ 强制解冻并告警。
+            if (_halted)
+            {
+                if (_haltedAt <= 0f) _haltedAt = Time.unscaledTime;
+                if (!_inspectOpen && !Dialog.IsAnyOpen && Time.unscaledTime - _haltedAt > 1.5f)
+                {
+                    Debug.LogWarning("[BattlePanel] 冻结超时（无弹窗/无查看面板）—— 强制解冻，避免卡死");
+                    _halted = false;
+                    _haltedAt = 0f;
+                }
+            }
+            else _haltedAt = 0f;
 
             if (_stage == null) return;                    // 舞台推进才需要 _stage
             // ★ 命中顿帧：受击/暴击的瞬间冻结舞台动画几帧（dt=0），打出"顿"的打击感。

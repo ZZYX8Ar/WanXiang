@@ -2868,8 +2868,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 case ReactionKind.Steam:    name = "蒸 发"; color = new Color(1.00f, 0.58f, 0.24f); tag = "火×水"; break;
                 case ReactionKind.Forge:    name = "锻 击"; color = new Color(1.00f, 0.82f, 0.35f); tag = "火×金"; break;
                 case ReactionKind.Erode:    name = "侵 蚀"; color = new Color(0.72f, 0.80f, 0.45f); tag = "水×土"; break;
-                case ReactionKind.Quench:   name = "淬 刃"; color = new Color(0.62f, 0.86f, 0.98f); tag = "金×水"; break;
-                case ReactionKind.Kindle:   name = "燎 原"; color = new Color(1.00f, 0.42f, 0.18f); tag = "木×火"; break;
+                case ReactionKind.Quench:   name = "感 电"; color = new Color(0.72f, 0.80f, 1.00f); tag = "金×水"; break;
+                case ReactionKind.Kindle:   name = "助 燃"; color = new Color(1.00f, 0.42f, 0.18f); tag = "木×火"; break;
                 case ReactionKind.TakeRoot: name = "扎 根"; color = new Color(0.58f, 0.84f, 0.50f); tag = "木×土"; break;
                 case ReactionKind.Execute:  name = "肃 杀"; color = new Color(0.92f, 0.62f, 0.92f); tag = "木×金"; break;
                 case ReactionKind.Bastion:  name = "坚 壁"; color = new Color(0.86f, 0.78f, 0.52f); tag = "金×土"; break;

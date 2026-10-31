@@ -143,12 +143,13 @@ namespace WanXiang.Battle.Core
                     EmitBuff(st, src, side, "元素反应·扎根（治疗+护盾）", kind);
                     break;
                 }
-                case ReactionKind.Quench:     // 淬刃：施法者攻击 +30%（2 回合）
+                case ReactionKind.Quench:     // 感电（旧名沿用）：伤害 + 麻痹
                 {
-                    // ⛔ 原设计"下次技能 CD -2"没意义：本工程 `BattleConfig.UseCooldown` 默认**关**，
-                    //   技能根本没有 CD。改成直接加攻击力，玩家能立刻感到"刃更利"。
-                    if (src != null) src.AddModifier(StatKeys.Attack, 0.30f, 2);
-                    EmitBuff(st, src, side, "元素反应·淬刃（攻击 +30%）", kind);
+                    // 用户 2026-10-31："有些反应和旧的一样，直接套旧名字不就行了" ——
+                    // 金+水 就是旧的「感电」，效果对齐：普通伤害 + 挂「感电」2 回合。
+                    int dmg = dst.TakeDamage(CoreMath.RoundDamage(atk * 0.80f * stacks));
+                    dst.ApplyStatus(StatusCatalog.Shock, 1, 2);
+                    EmitDamage(st, src, dst, dmg, Element.Metal, "元素反应·感电（麻痹）", kind);
                     break;
                 }
                 case ReactionKind.Bastion:    // 坚壁：全队护盾 + 清 1 个减益
