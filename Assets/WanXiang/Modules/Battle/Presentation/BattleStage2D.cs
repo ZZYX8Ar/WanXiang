@@ -41,6 +41,7 @@ namespace WanXiang.Battle.Presentation
         /// <summary>元素附着指示（2026-10-31）：头顶一颗元素色圆点 + 层数。</summary>
         public SpriteRenderer AuraDot;      // 附着徽章底板
         public SpriteRenderer[] AuraPips;   // 4 格层数刻度
+        public SpriteRenderer AuraOutline;  // 立绘描边（放大 4.5% 的同图剪影，垫在身后）
         public Material AuraMat;
         public TextMesh AuraText;           // 旧版文字牌（已停用，保留字段避免 prefab 引用丢失）
         /// <summary>上一帧的机制提示文本（用于"变化时飘一条"）。</summary>
@@ -1322,21 +1323,33 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                 }
 
-                // ---- 元素附着：4 段圆环（2026-10-31 v6，终末地式）----
-                //   前几版（文字牌/描边/脚下方格/徽章+刻度）在实机上要么看不见、要么抢格子。
-                //   现在直接画**一圈 4 段圆弧**在单位身上：亮几段 = 几层。
+                // ---- 元素附着（2026-10-31 v7）----
+                //   ① 4 段小环：挂在**血条右侧**（不再糊在身上/格子里），尺寸 ~0.22
+                //   ② 立绘描边：同 sprite 放大 4.5% 垫在身后、染元素色 —— 不用 shader，
+                //      靠"放大后的剪影"露出的一圈边，规避了之前 UV/缩放全糊的问题。
                 var ringGo = new GameObject("AuraRing");
-                ringGo.transform.SetParent(root.transform, false);
-                ringGo.transform.localPosition = new Vector3(0f, 0.62f, 0.03f);
-                float ringK = Mathf.Max(0.0001f, Mathf.Abs(root.transform.lossyScale.y));
-                float ringSize = Cell * 1.05f / ringK;
-                ringGo.transform.localScale = new Vector3(ringSize, ringSize, 1f);
+                ringGo.transform.SetParent(headGo.transform, false);
+                ringGo.transform.localPosition = new Vector3(HpBarWidth * 0.5f + 0.22f, 0.02f, 0f);
+                float rk = Mathf.Max(0.0001f, Mathf.Abs(root.transform.lossyScale.y));
+                float rSize = 0.24f / rk;
+                ringGo.transform.localScale = new Vector3(rSize, rSize, 1f);
                 var ringSr = ringGo.AddComponent<SpriteRenderer>();
                 ringSr.sprite = AuraRing(1);
-                ringSr.sortingOrder = 6;                  // 立绘之上（看得见），不吃格子色
+                ringSr.sortingOrder = 8;
                 ringSr.color = new Color(1f, 1f, 1f, 0f);
                 ringGo.SetActive(false);
                 view.AuraDot = ringSr;
+
+                var outGo = new GameObject("AuraOutline");
+                outGo.transform.SetParent(bodySr.transform.parent, false);
+                outGo.transform.localPosition = bodySr.transform.localPosition;
+                outGo.transform.localScale = bodySr.transform.localScale * 1.045f;
+                var outSr = outGo.AddComponent<SpriteRenderer>();
+                outSr.sprite = bodySr.sprite;
+                outSr.sortingOrder = bodySr.sortingOrder - 1;
+                outSr.color = new Color(1f, 1f, 1f, 0f);
+                outGo.SetActive(false);
+                view.AuraOutline = outSr;
 
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
@@ -3132,10 +3145,12 @@ if (life < 0.2f) life = 0.2f;
             return _auraRings[filled];
         }
 
-        /// <summary>元素附着：4 段圆环，亮段数 = 层数；颜色 = 元素色。</summary>
+        /// <summary>元素附着：血条右侧 4 段小环（层数）+ 立绘描边（元素色剪影）。</summary>
         private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
         {
             bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
+            var col = on ? BattlePalette.OfElement(s.AuraEl) : Color.white;
+
             if (v.AuraDot != null)
             {
                 if (v.AuraDot.gameObject.activeSelf != on) v.AuraDot.gameObject.SetActive(on);
@@ -3143,9 +3158,16 @@ if (life < 0.2f) life = 0.2f;
                 {
                     var sp = AuraRing(s.AuraStacks);
                     if (v.AuraDot.sprite != sp) v.AuraDot.sprite = sp;
-                    var c = BattlePalette.OfElement(s.AuraEl);
-                    c.a = 0.95f;
-                    v.AuraDot.color = c;
+                    var c = col; c.a = 0.95f; v.AuraDot.color = c;
+                }
+            }
+            if (v.AuraOutline != null)
+            {
+                if (v.AuraOutline.gameObject.activeSelf != on) v.AuraOutline.gameObject.SetActive(on);
+                if (on)
+                {
+                    if (v.Body != null && v.AuraOutline.sprite != v.Body.sprite) v.AuraOutline.sprite = v.Body.sprite;
+                    var c = col; c.a = 0.85f; v.AuraOutline.color = c;
                 }
             }
             if (v.AuraText != null && v.AuraText.gameObject.activeSelf) v.AuraText.gameObject.SetActive(false);
