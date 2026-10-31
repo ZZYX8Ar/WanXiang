@@ -1322,42 +1322,21 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                 }
 
-                // ---- 元素附着：徽章 + 4 格层数（2026-10-31 v5）----
-                //   用户：① 脚下已有其它元素色，别抢；② 要一眼看出层数；③ 上限改 4 层（参考终末地）。
-                //   做法：血条左侧一枚元素色小徽章（写元素字），下面 4 个小格子表示层数。
-                float badgeX = -HpBarWidth * 0.5f - 0.20f;
-                view.AuraDot = MakeChildSprite(headGo, "AuraBadge", Color.white,
-                                               new Vector2(0.26f, 0.26f), new Vector2(badgeX, 0.30f), 8);
-                if (view.AuraDot != null)
-                {
-                    view.AuraDot.sprite = Resources.Load<Sprite>("Battle/FX_motion_glow");
-                    view.AuraDot.gameObject.SetActive(false);
-                }
-                var auraTxGo = new GameObject("AuraChar");
-                auraTxGo.transform.SetParent(headGo.transform, false);
-                auraTxGo.transform.localPosition = new Vector3(badgeX, 0.30f, -0.01f);
-                var auraTm = auraTxGo.AddComponent<TextMesh>();
-                var auraMr = auraTxGo.GetComponent<MeshRenderer>();
-                var fA = LegacyFont();
-                if (fA != null) { auraTm.font = fA; if (auraMr != null) auraMr.sharedMaterial = fA.material; }
-                if (auraMr != null) auraMr.sortingOrder = 10;
-                auraTm.characterSize = 0.052f;
-                auraTm.fontSize = 48;
-                auraTm.anchor = TextAnchor.MiddleCenter;
-                auraTm.color = new Color(0.12f, 0.10f, 0.08f);
-                auraTm.text = "";
-                auraTxGo.SetActive(false);
-                view.AuraText = auraTm;
-
-                view.AuraPips = new SpriteRenderer[4];
-                for (int pi = 0; pi < 4; pi++)
-                {
-                    var pip = MakeChildSprite(headGo, "AuraPip" + pi, Color.white,
-                                              new Vector2(0.05f, 0.028f),
-                                              new Vector2(badgeX - 0.085f + pi * 0.057f, 0.14f), 8);
-                    if (pip != null) pip.gameObject.SetActive(false);
-                    view.AuraPips[pi] = pip;
-                }
+                // ---- 元素附着：4 段圆环（2026-10-31 v6，终末地式）----
+                //   前几版（文字牌/描边/脚下方格/徽章+刻度）在实机上要么看不见、要么抢格子。
+                //   现在直接画**一圈 4 段圆弧**在单位身上：亮几段 = 几层。
+                var ringGo = new GameObject("AuraRing");
+                ringGo.transform.SetParent(root.transform, false);
+                ringGo.transform.localPosition = new Vector3(0f, 0.62f, 0.03f);
+                float ringK = Mathf.Max(0.0001f, Mathf.Abs(root.transform.lossyScale.y));
+                float ringSize = Cell * 1.05f / ringK;
+                ringGo.transform.localScale = new Vector3(ringSize, ringSize, 1f);
+                var ringSr = ringGo.AddComponent<SpriteRenderer>();
+                ringSr.sprite = AuraRing(1);
+                ringSr.sortingOrder = 6;                  // 立绘之上（看得见），不吃格子色
+                ringSr.color = new Color(1f, 1f, 1f, 0f);
+                ringGo.SetActive(false);
+                view.AuraDot = ringSr;
 
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
@@ -3118,49 +3097,62 @@ if (life < 0.2f) life = 0.2f;
         }
     }
 
-        /// <summary>元素附着：元素徽章 + 4 格层数刻度（层数上限 4）。</summary>
+        /// <summary>附着圆环：4 段圆弧（终末地式），点亮 filled 段，段间留缺口。</summary>
+        private static Sprite[] _auraRings;
+        private static Sprite AuraRing(int filled)
+        {
+            if (_auraRings == null) _auraRings = new Sprite[5];
+            filled = Mathf.Clamp(filled, 0, 4);
+            if (_auraRings[filled] != null) return _auraRings[filled];
+
+            const int S = 128;
+            var tex = new Texture2D(S, S, TextureFormat.RGBA32, false);
+            var px = new Color[S * S];
+            float cx = S * 0.5f, cy = S * 0.5f;
+            float rOut = S * 0.46f, rIn = S * 0.36f;
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    float dx = x - cx, dy = y - cy;
+                    float r = Mathf.Sqrt(dx * dx + dy * dy);
+                    float ang = Mathf.Atan2(dy, dx) / (2f * Mathf.PI) + 0.5f;
+                    int seg = Mathf.Clamp((int)(ang * 4f), 0, 3);
+                    float segFrac = ang * 4f - seg;
+                    bool inRing = r >= rIn && r <= rOut;
+                    bool inGap = segFrac < 0.10f || segFrac > 0.90f;
+                    Color c = new Color(1f, 1f, 1f, 0f);
+                    if (inRing && !inGap)
+                        c = seg < filled ? new Color(1f, 1f, 1f, 1f)
+                                         : new Color(0.10f, 0.09f, 0.07f, 0.35f);
+                    px[y * S + x] = c;
+                }
+            tex.SetPixels(px);
+            tex.Apply();
+            _auraRings[filled] = Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f), 100f);
+            return _auraRings[filled];
+        }
+
+        /// <summary>元素附着：4 段圆环，亮段数 = 层数；颜色 = 元素色。</summary>
         private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
         {
             bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
-
             if (v.AuraDot != null)
             {
                 if (v.AuraDot.gameObject.activeSelf != on) v.AuraDot.gameObject.SetActive(on);
                 if (on)
                 {
+                    var sp = AuraRing(s.AuraStacks);
+                    if (v.AuraDot.sprite != sp) v.AuraDot.sprite = sp;
                     var c = BattlePalette.OfElement(s.AuraEl);
                     c.a = 0.95f;
                     v.AuraDot.color = c;
                 }
             }
-            if (v.AuraText != null)
-            {
-                if (v.AuraText.gameObject.activeSelf != on) v.AuraText.gameObject.SetActive(on);
-                if (on)
-                {
-                    string el = ElementCn(s.AuraEl);
-                    if (v.AuraText.text != el) v.AuraText.text = el;
-                }
-            }
+            if (v.AuraText != null && v.AuraText.gameObject.activeSelf) v.AuraText.gameObject.SetActive(false);
             if (v.AuraPips != null)
-            {
                 for (int i = 0; i < v.AuraPips.Length; i++)
-                {
-                    var pip = v.AuraPips[i];
-                    if (pip == null) continue;
-                    bool show = on;
-                    if (pip.gameObject.activeSelf != show) pip.gameObject.SetActive(show);
-                    if (!show) continue;
-                    bool filled = i < s.AuraStacks;
-                    if (filled)
-                    {
-                        var pc = BattlePalette.OfElement(s.AuraEl);
-                        pc.a = 0.95f;
-                        pip.color = pc;
-                    }
-                    else pip.color = new Color(0.10f, 0.09f, 0.07f, 0.35f);
-                }
-            }
+                    if (v.AuraPips[i] != null && v.AuraPips[i].gameObject.activeSelf)
+                        v.AuraPips[i].gameObject.SetActive(false);
         }
 
         /// <summary>血条按比例伸缩。<paramref name="v"/> 的填充宽度 = <see cref="HpBarWidth"/>（可在 Inspector 调）。</summary>
