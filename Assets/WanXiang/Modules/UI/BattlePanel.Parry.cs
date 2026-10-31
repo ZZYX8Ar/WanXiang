@@ -251,20 +251,29 @@ namespace WanXiang.Modules.UI
             // ★ 冻结时不耗窗口时长（重新挑战确认框期间）：把已过时间补回来，
   //   否则弹出确认框的那一秒会被算成"没按 ⇒ 未挡"，取消后回来白挨一下。
         //   ⚠ 本窗口只在我方手动战斗时开（自动战斗 ParryEnabled=false），但仍写上以防万一。
-      float frozen = 0f;
+            float frozen = 0f;
+            float lastT = t0;      // ⛔ 必须记"上一帧"，不能每帧拿 now - t0 累加（那是平方级）
 
             while (true)
             {
-   // ⛔ 2026-10-31：只有当**真的弹窗**（重新挑战确认框）时才冻结窗口；
-   //   之前只看 `_halted`，一旦它在异常路径没复位，格挡窗口就永远停着 ⇒ 卡死。
-   if (_halted && Dialog.IsAnyOpen)
-      {
-    // 冻结：暂停累计窗口进度（把这段时间从已耗时里扣掉）
-     frozen += Time.unscaledTime - t0;
-           await UniTask.Yield(PlayerLoopTiming.Update, ct);
-           continue;
-      }
-         float k = (Time.unscaledTime - t0 - frozen) / window;
+                float now = Time.unscaledTime;
+
+                // 只有**真的弹窗**（重新挑战确认框）时才冻结窗口。
+                if (_halted && Dialog.IsAnyOpen)
+                {
+                    // 冻结：按**帧增量**累计要扣除的时长。
+                    // ⛔ 2026-10-31 真因：原来写 `frozen += now - t0`，每帧都把"从开始到现在的总时长"
+                    //   累加一遍 ⇒ frozen 呈平方级暴涨（弹 2 秒框能算出上百秒），
+                    //   于是 k 永远是负数、窗口永远走不到 1.0 ⇒ **敌人再也不出手**（用户实测卡死）。
+                    frozen += now - lastT;
+                    lastT = now;
+                    await UniTask.Yield(PlayerLoopTiming.Update, ct);
+                    continue;
+                }
+                lastT = now;
+
+                float k = (now - t0 - frozen) / window;
+                if (k < 0f) k = 0f;    // 兜底：任何原因导致的时间倒流都按"刚开始"算
                 if (_stage != null) _stage.SetParryProgress(Mathf.Clamp01(k));
 
      if (ParryPressedThisFrame(segIndex, segTotal))
