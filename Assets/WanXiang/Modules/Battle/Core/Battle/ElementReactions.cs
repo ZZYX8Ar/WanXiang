@@ -91,24 +91,26 @@ namespace WanXiang.Battle.Core
                     EmitDamage(st, src, dst, dmg, Element.Fire, "元素反应·蒸发（" + stacks + " 层）", kind);
                     break;
                 }
-                case ReactionKind.Forge:      // 锻击：真伤 + 裂甲
+                case ReactionKind.Forge:      // 锻击：**普通伤害**（吃护盾/防御）+ 裂甲
                 {
-                    int dmg = TrueDmg(dst, 0.040f * stacks);
+                    // ⛔ 2026-10-31 用户："怎么这么多反应都是真伤" —— 只有蒸发保留真伤（招牌），
+                    //   其余走普通伤害：能被护盾挡、被防御削，才有"选哪种反应"的意义。
+                    int dmg = dst.TakeDamage(CoreMath.RoundDamage(atk * 1.10f * stacks));
                     dst.ApplyStatus(StatusCatalog.ArmorBreak, 1, 2);
                     EmitDamage(st, src, dst, dmg, Element.Metal, "元素反应·锻击（裂甲）", kind);
                     break;
                 }
-                case ReactionKind.Erode:      // 侵蚀：真伤 + 易伤
+                case ReactionKind.Erode:      // 侵蚀：普通伤害 + 易伤
                 {
-                    int dmg = TrueDmg(dst, 0.030f * stacks);
+                    int dmg = dst.TakeDamage(CoreMath.RoundDamage(atk * 0.70f * stacks));
                     dst.ApplyStatus(StatusCatalog.Marked, 1, 2);
                     EmitDamage(st, src, dst, dmg, Element.Water, "元素反应·侵蚀（易伤）", kind);
                     break;
                 }
-                case ReactionKind.Execute:    // 肃杀：残血加成
+                case ReactionKind.Execute:    // 肃杀：普通伤害，残血加成
                 {
-                    float ratio = 0.050f * stacks * (dst.HpPercent < 0.30f ? 1.5f : 1f);
-                    int dmg = TrueDmg(dst, ratio);
+                    float mul = 1.5f * stacks * (dst.HpPercent < 0.30f ? 1.5f : 1f);
+                    int dmg = dst.TakeDamage(CoreMath.RoundDamage(atk * mul));
                     EmitDamage(st, src, dst, dmg, Element.Metal, "元素反应·肃杀", kind);
                     break;
                 }
@@ -141,10 +143,12 @@ namespace WanXiang.Battle.Core
                     EmitBuff(st, src, side, "元素反应·扎根（治疗+护盾）", kind);
                     break;
                 }
-                case ReactionKind.Quench:     // 淬刃：施法者凝神（下次技能 CD -2）
+                case ReactionKind.Quench:     // 淬刃：施法者攻击 +30%（2 回合）
                 {
-                    if (src != null) src.ApplyStatus(StatusCatalog.Haste, 1, 2);
-                    EmitBuff(st, src, side, "元素反应·淬刃（凝神）", kind);
+                    // ⛔ 原设计"下次技能 CD -2"没意义：本工程 `BattleConfig.UseCooldown` 默认**关**，
+                    //   技能根本没有 CD。改成直接加攻击力，玩家能立刻感到"刃更利"。
+                    if (src != null) src.AddModifier(StatKeys.Attack, 0.30f, 2);
+                    EmitBuff(st, src, side, "元素反应·淬刃（攻击 +30%）", kind);
                     break;
                 }
                 case ReactionKind.Bastion:    // 坚壁：全队护盾 + 清 1 个减益

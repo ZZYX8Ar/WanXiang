@@ -38,6 +38,9 @@ namespace WanXiang.Battle.Presentation
         public SpriteRenderer HpFill;
         /// <summary>护盾指示（血条右侧的蓝牌）。护盾 &gt; 0 才显示。</summary>
         public SpriteRenderer ShieldPlate;
+        /// <summary>元素附着指示（2026-10-31）：头顶一颗元素色圆点 + 层数。</summary>
+        public SpriteRenderer AuraDot;
+        public TextMesh AuraText;
         /// <summary>上一帧的机制提示文本（用于"变化时飘一条"）。</summary>
         public string LastStateHint;
         /// <summary>最近一帧的快照（双击查看面板用，避免去读终局态 state）。</summary>
@@ -1317,6 +1320,31 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                 }
 
+                // ---- 元素附着指示（2026-10-31）----
+                //   位置：血条**左上方**（不与护盾牌撞），颜色 = 元素色，层数 ≥2 时带 ×N。
+                view.AuraDot = MakeChildSprite(headGo, "AuraDot", Color.white,
+                                               new Vector2(0.15f, 0.15f), new Vector2(-HpBarWidth * 0.5f - 0.10f, 0.02f), 7);
+                if (view.AuraDot != null)
+                {
+                    view.AuraDot.sprite = Resources.Load<Sprite>("Battle/FX_motion_glow");
+                    view.AuraDot.gameObject.SetActive(false);
+                }
+                var auraTxGo = new GameObject("AuraText");
+                auraTxGo.transform.SetParent(headGo.transform, false);
+                auraTxGo.transform.localPosition = new Vector3(-HpBarWidth * 0.5f - 0.10f, 0.14f, 0f);
+                var auraTm = auraTxGo.AddComponent<TextMesh>();
+                var auraMr = auraTxGo.GetComponent<MeshRenderer>();
+                var f0 = LegacyFont();
+                if (f0 != null) { auraTm.font = f0; if (auraMr != null) auraMr.sharedMaterial = f0.material; }
+                if (auraMr != null) auraMr.sortingOrder = 8;
+                auraTm.characterSize = 0.05f;
+                auraTm.fontSize = 48;
+                auraTm.anchor = TextAnchor.MiddleCenter;
+                auraTm.color = Color.white;
+                auraTm.text = "";
+                auraTxGo.SetActive(false);
+                view.AuraText = auraTm;
+
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
                 // ★ 2026-10-20 用户："护盾的位置还是差一点" —— 直接压进血条**右端内侧**：
@@ -1826,6 +1854,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 v.Hp = s.Hp; v.MaxHp = s.MaxHp;
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 SetShield2D(v, s.Shield);
+                SetAura2D(v, s);
                 // ---- 破绽/失衡条：随帧流更新（死亡清空）----
                 SetFlawBar2D(v,
                              s.Alive ? (s.FlawText ?? "") : "",
@@ -3071,6 +3100,23 @@ if (life < 0.2f) life = 0.2f;
         if (_tempLifeMax.Count > 0) _tempLifeMax.RemoveAt(0);
         }
     }
+
+        /// <summary>元素附着指示：颜色 = 元素，层数 ≥2 显示 ×N。</summary>
+        private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
+        {
+            bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
+            if (v.AuraDot != null)
+            {
+                if (v.AuraDot.gameObject.activeSelf != on) v.AuraDot.gameObject.SetActive(on);
+                if (on) v.AuraDot.color = BattlePalette.OfElement(s.AuraEl);
+            }
+            if (v.AuraText != null)
+            {
+                bool showTxt = on && s.AuraStacks > 1;
+                if (v.AuraText.gameObject.activeSelf != showTxt) v.AuraText.gameObject.SetActive(showTxt);
+                if (showTxt) v.AuraText.text = "×" + s.AuraStacks;
+            }
+        }
 
         /// <summary>血条按比例伸缩。<paramref name="v"/> 的填充宽度 = <see cref="HpBarWidth"/>（可在 Inspector 调）。</summary>
         /// <summary>

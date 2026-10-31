@@ -45,6 +45,10 @@ namespace WanXiang.Battle.Core
         /// 做成文本而不是结构化列表，是因为灰盒阶段不需要点状态图标看详情。</summary>
         public string Statuses;
 
+        /// <summary>元素附着（2026-10-31）：None = 无。表现层据此画头顶元素点。</summary>
+        public Element AuraEl;
+        public int AuraStacks;
+
         /// <summary>
         /// 同一批状态的**机器可读**形式：`id:层数|id:层数`（如 `burn:3|root:1`）。
         /// ★ 2026-10-06：正式战斗界面要画**状态图标**，而图标是按**状态 id** 查图/查色的
@@ -162,6 +166,8 @@ namespace WanXiang.Battle.Core
                 Statuses = DescribeStatuses(u),
                 StatusIds = DescribeStatusIds(u),
                 StateHint = u.StateHint,
+                AuraEl = u.AuraEl,
+                AuraStacks = u.AuraStacks,
                 FoeTelegraph = u.FoeTelegraph,
                 ResonanceBonus = u.ResonanceAttackBonus,
             };
