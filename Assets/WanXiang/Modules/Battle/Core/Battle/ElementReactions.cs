@@ -19,6 +19,8 @@ namespace WanXiang.Battle.Core
 {
     public static class ElementReactions
     {
+        /// <summary>附着层数上限（2026-10-31 用户："最高 4 层行不行" ⇒ 3 → 4）。</summary>
+        public const int MaxStacks = 4;
         /// <summary>对 (target, incoming) 结算一次附着/反应。返回触发的反应（None = 只附着）。</summary>
         public static ReactionKind Resolve(BattleState st, BattleUnit src, BattleUnit dst, Element incoming)
         {
@@ -35,12 +37,12 @@ namespace WanXiang.Battle.Core
             // ② 同元素：叠层（上限 3）
             if (dst.AuraEl == incoming)
             {
-                SetAura(dst, incoming, Math.Min(3, dst.AuraStacks + 1));
+                SetAura(dst, incoming, Math.Min(MaxStacks, dst.AuraStacks + 1));
                 return ReactionKind.None;
             }
 
             // ③ 异元素：反应（消耗旧附着层数）
-            int stacks = Math.Max(1, Math.Min(3, dst.AuraStacks));
+            int stacks = Math.Max(1, System.Math.Min(MaxStacks, dst.AuraStacks));
             Element a = dst.AuraEl, b = incoming;
             var kind = Pair(a, b);
             Apply(st, src, dst, kind, stacks, a, b);
@@ -53,7 +55,7 @@ namespace WanXiang.Battle.Core
         private static void SetAura(BattleUnit u, Element el, int stacks)
         {
             u.AuraEl = el;
-            u.AuraStacks = Math.Max(0, Math.Min(3, stacks));
+            u.AuraStacks = Math.Max(0, Math.Min(MaxStacks, stacks));
         }
 
         /// <summary>两元素 → 反应种类（顺序无关）。⛔ 用**枚举名**判断，不要用 int 值

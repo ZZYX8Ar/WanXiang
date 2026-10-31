@@ -39,7 +39,8 @@ namespace WanXiang.Battle.Presentation
         /// <summary>护盾指示（血条右侧的蓝牌）。护盾 &gt; 0 才显示。</summary>
         public SpriteRenderer ShieldPlate;
         /// <summary>元素附着指示（2026-10-31）：头顶一颗元素色圆点 + 层数。</summary>
-        public SpriteRenderer AuraDot;      // 附着描边层（与本体同 sprite 的第二个渲染器）
+        public SpriteRenderer AuraDot;      // 附着徽章底板
+        public SpriteRenderer[] AuraPips;   // 4 格层数刻度
         public Material AuraMat;
         public TextMesh AuraText;           // 旧版文字牌（已停用，保留字段避免 prefab 引用丢失）
         /// <summary>上一帧的机制提示文本（用于"变化时飘一条"）。</summary>
@@ -1321,21 +1322,42 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                 }
 
-                // ---- 元素附着：**格子底色光**（2026-10-31 v4）----
-                //   v3 的描边 shader 在实机上糊成满屏藤蔓（模板/UV 问题），直接换掉。
-                //   用户："位置以九宫格为基准" ⇒ 就画在**脚下方格**上：一格大小、Additive、随层数变亮。
-                var aurGo = new GameObject("AuraCell");
-                aurGo.transform.SetParent(root.transform, false);
-                aurGo.transform.localPosition = new Vector3(0f, 0.08f, 0.02f);
-                float auraK = Mathf.Max(0.0001f, Mathf.Abs(root.transform.lossyScale.y));   // Boss 会被放大，得除回来
-                aurGo.transform.localScale = new Vector3(Cell * 0.92f / auraK, Cell * 0.92f * 0.62f / auraK, 1f);
-                var aurSr = aurGo.AddComponent<SpriteRenderer>();
-                aurSr.sprite = Resources.Load<Sprite>("Battle/FX_motion_glow");
-                aurSr.sortingOrder = 1;                    // 格子之上、立绘之下
-                aurSr.color = new Color(1f, 1f, 1f, 0f);
-                aurGo.SetActive(false);
-                view.AuraDot = aurSr;
-                view.AuraMat = null;
+                // ---- 元素附着：徽章 + 4 格层数（2026-10-31 v5）----
+                //   用户：① 脚下已有其它元素色，别抢；② 要一眼看出层数；③ 上限改 4 层（参考终末地）。
+                //   做法：血条左侧一枚元素色小徽章（写元素字），下面 4 个小格子表示层数。
+                float badgeX = -HpBarWidth * 0.5f - 0.20f;
+                view.AuraDot = MakeChildSprite(headGo, "AuraBadge", Color.white,
+                                               new Vector2(0.26f, 0.26f), new Vector2(badgeX, 0.30f), 8);
+                if (view.AuraDot != null)
+                {
+                    view.AuraDot.sprite = Resources.Load<Sprite>("Battle/FX_motion_glow");
+                    view.AuraDot.gameObject.SetActive(false);
+                }
+                var auraTxGo = new GameObject("AuraChar");
+                auraTxGo.transform.SetParent(headGo.transform, false);
+                auraTxGo.transform.localPosition = new Vector3(badgeX, 0.30f, -0.01f);
+                var auraTm = auraTxGo.AddComponent<TextMesh>();
+                var auraMr = auraTxGo.GetComponent<MeshRenderer>();
+                var fA = LegacyFont();
+                if (fA != null) { auraTm.font = fA; if (auraMr != null) auraMr.sharedMaterial = fA.material; }
+                if (auraMr != null) auraMr.sortingOrder = 10;
+                auraTm.characterSize = 0.052f;
+                auraTm.fontSize = 48;
+                auraTm.anchor = TextAnchor.MiddleCenter;
+                auraTm.color = new Color(0.12f, 0.10f, 0.08f);
+                auraTm.text = "";
+                auraTxGo.SetActive(false);
+                view.AuraText = auraTm;
+
+                view.AuraPips = new SpriteRenderer[4];
+                for (int pi = 0; pi < 4; pi++)
+                {
+                    var pip = MakeChildSprite(headGo, "AuraPip" + pi, Color.white,
+                                              new Vector2(0.05f, 0.028f),
+                                              new Vector2(badgeX - 0.085f + pi * 0.057f, 0.14f), 8);
+                    if (pip != null) pip.gameObject.SetActive(false);
+                    view.AuraPips[pi] = pip;
+                }
 
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
@@ -3096,23 +3118,49 @@ if (life < 0.2f) life = 0.2f;
         }
     }
 
-        /// <summary>元素附着：脚下方格底色光（颜色=元素，亮度=层数，轻微呼吸）。</summary>
+        /// <summary>元素附着：元素徽章 + 4 格层数刻度（层数上限 4）。</summary>
         private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
         {
             bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
+
             if (v.AuraDot != null)
             {
                 if (v.AuraDot.gameObject.activeSelf != on) v.AuraDot.gameObject.SetActive(on);
                 if (on)
                 {
                     var c = BattlePalette.OfElement(s.AuraEl);
-                    float k = 0.30f + 0.12f * (s.AuraStacks - 1);        // 1层 0.30 → 3层 0.54
-                    float breathe = 0.85f + 0.15f * Mathf.Sin(Time.time * 2.6f);
-                    c.a = k * breathe;
+                    c.a = 0.95f;
                     v.AuraDot.color = c;
                 }
             }
-            if (v.AuraText != null && v.AuraText.gameObject.activeSelf) v.AuraText.gameObject.SetActive(false);
+            if (v.AuraText != null)
+            {
+                if (v.AuraText.gameObject.activeSelf != on) v.AuraText.gameObject.SetActive(on);
+                if (on)
+                {
+                    string el = ElementCn(s.AuraEl);
+                    if (v.AuraText.text != el) v.AuraText.text = el;
+                }
+            }
+            if (v.AuraPips != null)
+            {
+                for (int i = 0; i < v.AuraPips.Length; i++)
+                {
+                    var pip = v.AuraPips[i];
+                    if (pip == null) continue;
+                    bool show = on;
+                    if (pip.gameObject.activeSelf != show) pip.gameObject.SetActive(show);
+                    if (!show) continue;
+                    bool filled = i < s.AuraStacks;
+                    if (filled)
+                    {
+                        var pc = BattlePalette.OfElement(s.AuraEl);
+                        pc.a = 0.95f;
+                        pip.color = pc;
+                    }
+                    else pip.color = new Color(0.10f, 0.09f, 0.07f, 0.35f);
+                }
+            }
         }
 
         /// <summary>血条按比例伸缩。<paramref name="v"/> 的填充宽度 = <see cref="HpBarWidth"/>（可在 Inspector 调）。</summary>

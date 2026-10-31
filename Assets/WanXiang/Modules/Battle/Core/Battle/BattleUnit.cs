@@ -59,7 +59,7 @@ namespace WanXiang.Battle.Core
         // ---- 生命 ----
         public int MaxHp { get; private set; }
         public int Hp { get; private set; }
-        /// <summary>元素附着（2026-10-31 新反应系统）：当前挂在身上的元素与层数（1~3）。</summary>
+        /// <summary>元素附着（2026-10-31 新反应系统）：当前挂在身上的元素与层数（1~4）。</summary>
         public Element AuraEl = Element.None;
         public int AuraStacks;
 
