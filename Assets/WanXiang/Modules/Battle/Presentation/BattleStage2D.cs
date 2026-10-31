@@ -1320,10 +1320,12 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                 }
 
-                // ---- 元素附着指示（2026-10-31）----
-                //   位置：血条**左上方**（不与护盾牌撞），颜色 = 元素色，层数 ≥2 时带 ×N。
-                view.AuraDot = MakeChildSprite(headGo, "AuraDot", Color.white,
-                                               new Vector2(0.15f, 0.15f), new Vector2(-HpBarWidth * 0.5f - 0.10f, 0.02f), 7);
+                // ---- 元素附着指示（2026-10-31 v2）----
+                //   用户反馈：只有一个色点 + "×2" 看不懂是什么。
+                //   ⇒ 改成「元素字 + 层数」的小牌：木/火/土/金/水 + ×N，底板取元素色。
+                //   位置：血条**正上方**居中（不与护盾牌/伤害数字抢位）。
+                view.AuraDot = MakeChildSprite(headGo, "AuraPlate", Color.white,
+                                               new Vector2(0.46f, 0.20f), new Vector2(0f, 0.30f), 7);
                 if (view.AuraDot != null)
                 {
                     view.AuraDot.sprite = Resources.Load<Sprite>("Battle/FX_motion_glow");
@@ -1331,16 +1333,16 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 }
                 var auraTxGo = new GameObject("AuraText");
                 auraTxGo.transform.SetParent(headGo.transform, false);
-                auraTxGo.transform.localPosition = new Vector3(-HpBarWidth * 0.5f - 0.10f, 0.14f, 0f);
+                auraTxGo.transform.localPosition = new Vector3(0f, 0.30f, -0.01f);
                 var auraTm = auraTxGo.AddComponent<TextMesh>();
                 var auraMr = auraTxGo.GetComponent<MeshRenderer>();
                 var f0 = LegacyFont();
                 if (f0 != null) { auraTm.font = f0; if (auraMr != null) auraMr.sharedMaterial = f0.material; }
-                if (auraMr != null) auraMr.sortingOrder = 8;
-                auraTm.characterSize = 0.05f;
+                if (auraMr != null) auraMr.sortingOrder = 9;
+                auraTm.characterSize = 0.040f;
                 auraTm.fontSize = 48;
                 auraTm.anchor = TextAnchor.MiddleCenter;
-                auraTm.color = Color.white;
+                auraTm.color = new Color(0.12f, 0.10f, 0.08f);   // 深墨字压在元素色底上
                 auraTm.text = "";
                 auraTxGo.SetActive(false);
                 view.AuraText = auraTm;
@@ -2491,7 +2493,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             string side = best.PlayerSide ? "我方" : "敌方";
             string nm = best.NameText != null ? best.NameText.text : "单位";
             string st = side + "　HP " + s.Hp + " / " + s.MaxHp +
-                        (s.Shield > 0 ? "　护盾 " + s.Shield : "") + "　元素 " + ElementCn(s.Element);
+                        (s.Shield > 0 ? "　护盾 " + s.Shield : "") + "　元素 " + ElementCn(s.Element) +
+                        (s.AuraEl != Element.None && s.AuraStacks > 0
+                            ? "\n附着：" + ElementCn(s.AuraEl) + " ×" + s.AuraStacks + "（再打其它元素可触发反应）"
+                            : "\n附着：无（先用一种元素打它，再换另一种）");
             string sk = BuildSkillDetail(best, s);
 
             // 机制说明：主线首领用**完整文案**（几回合召唤/半血做什么都写清楚），
@@ -3101,20 +3106,29 @@ if (life < 0.2f) life = 0.2f;
         }
     }
 
-        /// <summary>元素附着指示：颜色 = 元素，层数 ≥2 显示 ×N。</summary>
+        /// <summary>元素附着指示：元素字 + 层数（如「水×2」），底板取元素色。</summary>
         private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
         {
             bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
             if (v.AuraDot != null)
             {
                 if (v.AuraDot.gameObject.activeSelf != on) v.AuraDot.gameObject.SetActive(on);
-                if (on) v.AuraDot.color = BattlePalette.OfElement(s.AuraEl);
+                if (on)
+                {
+                    var c = BattlePalette.OfElement(s.AuraEl);
+                    c.a = 0.92f;
+                    v.AuraDot.color = c;
+                }
             }
             if (v.AuraText != null)
             {
-                bool showTxt = on && s.AuraStacks > 1;
-                if (v.AuraText.gameObject.activeSelf != showTxt) v.AuraText.gameObject.SetActive(showTxt);
-                if (showTxt) v.AuraText.text = "×" + s.AuraStacks;
+                if (v.AuraText.gameObject.activeSelf != on) v.AuraText.gameObject.SetActive(on);
+                if (on)
+                {
+                    string el = ElementCn(s.AuraEl);
+                    string t = s.AuraStacks > 1 ? el + "×" + s.AuraStacks : el;
+                    if (v.AuraText.text != t) v.AuraText.text = t;
+                }
             }
         }
 
