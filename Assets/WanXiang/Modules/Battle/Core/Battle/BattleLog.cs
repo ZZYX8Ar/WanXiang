@@ -73,19 +73,20 @@ namespace WanXiang.Battle.Core
     ///   一个标记 —— 多一条事件会改事件序列（指纹里的 Kind/Turn/Amount 都会漂），
     ///   而"可复现性"是本项目的红线。标记字段不进 <see cref="BattleEvent.Fingerprint"/>。</para>
     /// </summary>
+    /// <summary>元素反应的 10 个种类（五行两两配对，顺序无关）。见 <c>ElementReactions.Pair</c>。</summary>
     public enum ReactionKind
     {
         None = 0,
-        /// <summary>蒸：火 打 湿 → 额外真伤。</summary>
-        Steam = 1,
-        /// <summary>感电：金 打 湿 → 附感电 + 真伤。</summary>
-        Shock = 2,
-        /// <summary>碎冰：金 打 冰蚀 → 移除 2 层 + 真伤。</summary>
-        Shatter = 3,
-        /// <summary>助燃：木 打 灼烧 → 灼烧 +2 层。</summary>
-        Kindle = 4,
-        /// <summary>镇：土 打 灼烧 → 熄灭 2 层。</summary>
-        Quell = 5,
+        Sheng = 1,      // 木+水 润生（治疗）
+        Bulwark = 2,    // 火+土 熔盾（护盾）
+        Steam = 3,      // 火+水 蒸发（真伤）
+        Forge = 4,      // 火+金 锻击（真伤+裂甲）
+        Erode = 5,      // 水+土 侵蚀（真伤+易伤）
+        Quench = 6,     // 金+水 淬刃（凝神）
+        Kindle = 7,     // 木+火 燎原（灼烧）
+        TakeRoot = 8,   // 木+土 扎根（治疗+护盾）
+        Execute = 9,    // 木+金 肃杀（斩杀）
+        Bastion = 10,   // 金+土 坚壁（护盾+净除）
     }
 
     public struct BattleEvent

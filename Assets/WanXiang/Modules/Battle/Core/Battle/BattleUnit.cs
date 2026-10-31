@@ -59,6 +59,10 @@ namespace WanXiang.Battle.Core
         // ---- 生命 ----
         public int MaxHp { get; private set; }
         public int Hp { get; private set; }
+        /// <summary>元素附着（2026-10-31 新反应系统）：当前挂在身上的元素与层数（1~3）。</summary>
+        public Element AuraEl = Element.None;
+        public int AuraStacks;
+
         public int Shield { get; private set; }
         /// <summary>护盾是**第几回合**获得的（用户 2026-10-13：护盾改为一个回合后自动消失）。
         /// TickStatuses 在每回合开始时把上一回合的旧盾清掉。0 = 无盾/未记录。</summary>

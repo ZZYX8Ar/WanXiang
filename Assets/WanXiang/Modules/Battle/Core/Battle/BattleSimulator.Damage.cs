@@ -471,80 +471,17 @@ namespace WanXiang.Battle.Core
             }
         }
 
+        /// <summary>
+        /// 元素反应入口（2026-10-31 重做）：**10 组五行两两配对**，旧的 5 组（蒸/感电/碎冰/助燃/镇）已整体替换。
+        /// <para>新机制：单位身上带「元素附着」（AuraEl + 1~3 层）。
+        /// 同元素 → 叠层；异元素 → 触发反应、消耗旧附着、挂上新元素。
+        /// 具体效果见 <see cref="ElementReactions"/>。</para>
+        /// </summary>
         public static void ResolveElementReactions(BattleState st, BattleUnit src, BattleUnit dst, Element el)
         {
-            if (dst == null || !dst.IsAlive) return;
-
-            // 蒸：火 打 湿 → 蒸发（移除湿，额外真伤，随层数加深）
-            if (el == Element.Fire && dst.HasStatus(StatusCatalog.Wet))
-            {
-                int wet = dst.GetStacks(StatusCatalog.Wet);
-                dst.RemoveStatus(StatusCatalog.Wet);
-                int bonus = CoreMath.RoundDamage(dst.MaxHp * 0.06f * System.Math.Min(wet, 5));
-                int dealt = dst.TakeTrueDamage(bonus);
-                st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId, targetId: dst.RuntimeId,
-                           amount: dealt, element: Element.Fire,
-                           note: $"元素反应·蒸（蒸发 {wet} 层湿）", reaction: ReactionKind.Steam);
-                if (dealt > 0 && !dst.IsAlive)
-                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
-                               note: $"{dst.DisplayName} 阵亡（蒸）");
-                return;
-            }
-
-            // 感电：金 打 湿 → 感电（移除湿，附感电状态 + 少量真伤；感电本身是下一次金/水的引信）
-            if (el == Element.Metal && dst.HasStatus(StatusCatalog.Wet))
-            {
-                int wet = dst.GetStacks(StatusCatalog.Wet);
-                dst.RemoveStatus(StatusCatalog.Wet);
-                dst.ApplyStatus(StatusCatalog.Shock, 1, 2);
-                int bonus = CoreMath.RoundDamage(dst.MaxHp * 0.04f * System.Math.Min(wet, 5));
-                int dealt = dst.TakeTrueDamage(bonus);
-                st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId, targetId: dst.RuntimeId,
-                           amount: dealt, element: Element.Metal,
-                           note: $"元素反应·感电（{wet} 层湿）", reaction: ReactionKind.Shock);
-                if (dealt > 0 && !dst.IsAlive)
-                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
-                               note: $"{dst.DisplayName} 阵亡（感电）");
-                return;
-            }
-
-            // 碎冰：金 打 冰蚀 → 碎裂（移除 2 层冰蚀 + 额外真伤）
-            if (el == Element.Metal && dst.HasStatus(StatusCatalog.IceErosion))
-            {
-                int ice = dst.GetStacks(StatusCatalog.IceErosion);
-                dst.RemoveStatusStacks(StatusCatalog.IceErosion, 2);
-                int bonus = CoreMath.RoundDamage(dst.MaxHp * 0.05f * System.Math.Min(ice, 5));
-                int dealt = dst.TakeTrueDamage(bonus);
-                st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId, targetId: dst.RuntimeId,
-                           amount: dealt, element: Element.Metal,
-                           note: $"元素反应·碎冰（{ice} 层冰蚀）", reaction: ReactionKind.Shatter);
-                if (dealt > 0 && !dst.IsAlive)
-                    st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
-                               note: $"{dst.DisplayName} 阵亡（碎冰）");
-                return;
-            }
-
-            // 助燃：木 打 灼烧 → 火势助长（灼烧 +2 层，保留原 DoT 数值，时长取较大值）
-            if (el == Element.Wood && dst.HasStatus(StatusCatalog.Burn))
-            {
-                dst.ApplyStatus(StatusCatalog.Burn, 2, 2);
-                st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: src.RuntimeId,
-                           targetId: dst.RuntimeId, amount: dst.GetStacks(StatusCatalog.Burn),
-                           note: "元素反应·助燃（灼烧 +2）", reaction: ReactionKind.Kindle);
-                return;
-            }
-
-            // 镇：土 打 灼烧 → 厚土灭火（移除 2 层灼烧）
-            if (el == Element.Earth && dst.HasStatus(StatusCatalog.Burn))
-            {
-                int before = dst.GetStacks(StatusCatalog.Burn);
-                dst.RemoveStatusStacks(StatusCatalog.Burn, 2);
-                st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: src.RuntimeId,
-                           targetId: dst.RuntimeId, amount: before,
-                           note: $"元素反应·镇（熄灭 {System.Math.Min(before, 2)} 层灼烧）", reaction: ReactionKind.Quell);
-                return;
-            }
+            ElementReactions.Resolve(st, src, dst, el);
         }
+
         /// <summary>
         /// 击杀溢出转全队护盾：总量按**存活人数均分**，除不尽的余数给站得最前的那位。
         /// ⚠ GDD 只写"转化为全队护盾"，没说"每人一份"还是"大家分一份" —— 取分一份

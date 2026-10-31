@@ -2826,14 +2826,20 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         /// <summary>反应名 + 颜色。名字要短（两个字最好读），颜色绑**反应自身的属性语义**。</summary>
         private static void ReactionInfo(ReactionKind k, out string name, out Color color, out string tag)
         {
+            // 10 组五行两两配对（2026-10-31）：名字 / 颜色 / 组合标签
             switch (k)
             {
-                case ReactionKind.Steam:   name = "蒸 发"; color = new Color(1.00f, 0.55f, 0.22f); tag = "火×水"; break;
-                case ReactionKind.Shock:   name = "感 电"; color = new Color(0.85f, 0.72f, 1.00f); tag = "金×水"; break;
-                case ReactionKind.Shatter: name = "碎 冰"; color = new Color(0.55f, 0.85f, 1.00f); tag = "金×冰"; break;
-                case ReactionKind.Kindle:  name = "助 燃"; color = new Color(1.00f, 0.42f, 0.18f); tag = "木×火"; break;
-                case ReactionKind.Quell:   name = "镇";    color = new Color(0.86f, 0.72f, 0.36f); tag = "土×火"; break;
-                default:                   name = "反 应"; color = Color.white; tag = ""; break;
+                case ReactionKind.Sheng:    name = "润 生"; color = new Color(0.55f, 0.90f, 0.62f); tag = "木×水"; break;
+                case ReactionKind.Bulwark:  name = "熔 盾"; color = new Color(0.98f, 0.74f, 0.42f); tag = "火×土"; break;
+                case ReactionKind.Steam:    name = "蒸 发"; color = new Color(1.00f, 0.58f, 0.24f); tag = "火×水"; break;
+                case ReactionKind.Forge:    name = "锻 击"; color = new Color(1.00f, 0.82f, 0.35f); tag = "火×金"; break;
+                case ReactionKind.Erode:    name = "侵 蚀"; color = new Color(0.72f, 0.80f, 0.45f); tag = "水×土"; break;
+                case ReactionKind.Quench:   name = "淬 刃"; color = new Color(0.62f, 0.86f, 0.98f); tag = "金×水"; break;
+                case ReactionKind.Kindle:   name = "燎 原"; color = new Color(1.00f, 0.42f, 0.18f); tag = "木×火"; break;
+                case ReactionKind.TakeRoot: name = "扎 根"; color = new Color(0.58f, 0.84f, 0.50f); tag = "木×土"; break;
+                case ReactionKind.Execute:  name = "肃 杀"; color = new Color(0.92f, 0.62f, 0.92f); tag = "木×金"; break;
+                case ReactionKind.Bastion:  name = "坚 壁"; color = new Color(0.86f, 0.78f, 0.52f); tag = "金×土"; break;
+                default:                    name = "反 应"; color = Color.white; tag = ""; break;
             }
         }
 
