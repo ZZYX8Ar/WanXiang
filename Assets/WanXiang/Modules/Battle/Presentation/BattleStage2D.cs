@@ -39,8 +39,9 @@ namespace WanXiang.Battle.Presentation
         /// <summary>护盾指示（血条右侧的蓝牌）。护盾 &gt; 0 才显示。</summary>
         public SpriteRenderer ShieldPlate;
         /// <summary>元素附着指示（2026-10-31）：头顶一颗元素色圆点 + 层数。</summary>
-        public SpriteRenderer AuraDot;
-        public TextMesh AuraText;
+        public SpriteRenderer AuraDot;      // 附着描边层（与本体同 sprite 的第二个渲染器）
+        public Material AuraMat;
+        public TextMesh AuraText;           // 旧版文字牌（已停用，保留字段避免 prefab 引用丢失）
         /// <summary>上一帧的机制提示文本（用于"变化时飘一条"）。</summary>
         public string LastStateHint;
         /// <summary>最近一帧的快照（双击查看面板用，避免去读终局态 state）。</summary>
@@ -1320,32 +1321,24 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                 }
 
-                // ---- 元素附着指示（2026-10-31 v2）----
-                //   用户反馈：只有一个色点 + "×2" 看不懂是什么。
-                //   ⇒ 改成「元素字 + 层数」的小牌：木/火/土/金/水 + ×N，底板取元素色。
-                //   位置：血条**正上方**居中（不与护盾牌/伤害数字抢位）。
-                view.AuraDot = MakeChildSprite(headGo, "AuraPlate", Color.white,
-                                               new Vector2(0.46f, 0.20f), new Vector2(0f, 0.30f), 7);
-                if (view.AuraDot != null)
+                // ---- 元素附着：描边 shader（2026-10-31 v3）----
+                //   用户："文字牌还是不行，做个特效/shader 吧"。
+                //   做法：与本体**同一张 sprite** 再画一层，shader 只取轮廓 + 薄辉光并呼吸。
+                var aurGo = new GameObject("AuraOverlay");
+                aurGo.transform.SetParent(bodySr.transform.parent, false);
+                aurGo.transform.localPosition = Vector3.zero;
+                aurGo.transform.localScale = Vector3.one;
+                var aurSr = aurGo.AddComponent<SpriteRenderer>();
+                aurSr.sprite = bodySr.sprite;
+                aurSr.sortingOrder = bodySr.sortingOrder + 1;
+                var aurSh = Shader.Find("WanXiang/UnitAura");
+                if (aurSh != null)
                 {
-                    view.AuraDot.sprite = Resources.Load<Sprite>("Battle/FX_motion_glow");
-                    view.AuraDot.gameObject.SetActive(false);
+                    view.AuraMat = new Material(aurSh) { hideFlags = HideFlags.HideAndDontSave };
+                    aurSr.sharedMaterial = view.AuraMat;
                 }
-                var auraTxGo = new GameObject("AuraText");
-                auraTxGo.transform.SetParent(headGo.transform, false);
-                auraTxGo.transform.localPosition = new Vector3(0f, 0.30f, -0.01f);
-                var auraTm = auraTxGo.AddComponent<TextMesh>();
-                var auraMr = auraTxGo.GetComponent<MeshRenderer>();
-                var f0 = LegacyFont();
-                if (f0 != null) { auraTm.font = f0; if (auraMr != null) auraMr.sharedMaterial = f0.material; }
-                if (auraMr != null) auraMr.sortingOrder = 9;
-                auraTm.characterSize = 0.040f;
-                auraTm.fontSize = 48;
-                auraTm.anchor = TextAnchor.MiddleCenter;
-                auraTm.color = new Color(0.12f, 0.10f, 0.08f);   // 深墨字压在元素色底上
-                auraTm.text = "";
-                auraTxGo.SetActive(false);
-                view.AuraText = auraTm;
+                aurGo.SetActive(false);
+                view.AuraDot = aurSr;
 
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
@@ -3106,7 +3099,7 @@ if (life < 0.2f) life = 0.2f;
         }
     }
 
-        /// <summary>元素附着指示：元素字 + 层数（如「水×2」），底板取元素色。</summary>
+        /// <summary>元素附着：描边层开关 / 着色 / sprite 跟随本体。</summary>
         private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
         {
             bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
@@ -3115,21 +3108,19 @@ if (life < 0.2f) life = 0.2f;
                 if (v.AuraDot.gameObject.activeSelf != on) v.AuraDot.gameObject.SetActive(on);
                 if (on)
                 {
+                    // sprite 跟随本体（立绘可能换图）
+                    if (v.Body != null && v.AuraDot.sprite != v.Body.sprite) v.AuraDot.sprite = v.Body.sprite;
                     var c = BattlePalette.OfElement(s.AuraEl);
-                    c.a = 0.92f;
-                    v.AuraDot.color = c;
+                    if (v.AuraMat != null)
+                    {
+                        v.AuraMat.SetColor("_Color", c);
+                        // 层数越厚越亮：1 层 0.75，3 层 1.25
+                        v.AuraMat.SetFloat("_Strength", 0.75f + 0.25f * (s.AuraStacks - 1));
+                    }
+                    else v.AuraDot.color = c;
                 }
             }
-            if (v.AuraText != null)
-            {
-                if (v.AuraText.gameObject.activeSelf != on) v.AuraText.gameObject.SetActive(on);
-                if (on)
-                {
-                    string el = ElementCn(s.AuraEl);
-                    string t = s.AuraStacks > 1 ? el + "×" + s.AuraStacks : el;
-                    if (v.AuraText.text != t) v.AuraText.text = t;
-                }
-            }
+            if (v.AuraText != null && v.AuraText.gameObject.activeSelf) v.AuraText.gameObject.SetActive(false);
         }
 
         /// <summary>血条按比例伸缩。<paramref name="v"/> 的填充宽度 = <see cref="HpBarWidth"/>（可在 Inspector 调）。</summary>
