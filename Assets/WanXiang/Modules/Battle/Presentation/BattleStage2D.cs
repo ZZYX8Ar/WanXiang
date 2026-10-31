@@ -1321,24 +1321,21 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                 }
 
-                // ---- 元素附着：描边 shader（2026-10-31 v3）----
-                //   用户："文字牌还是不行，做个特效/shader 吧"。
-                //   做法：与本体**同一张 sprite** 再画一层，shader 只取轮廓 + 薄辉光并呼吸。
-                var aurGo = new GameObject("AuraOverlay");
-                aurGo.transform.SetParent(bodySr.transform.parent, false);
-                aurGo.transform.localPosition = Vector3.zero;
-                aurGo.transform.localScale = Vector3.one;
+                // ---- 元素附着：**格子底色光**（2026-10-31 v4）----
+                //   v3 的描边 shader 在实机上糊成满屏藤蔓（模板/UV 问题），直接换掉。
+                //   用户："位置以九宫格为基准" ⇒ 就画在**脚下方格**上：一格大小、Additive、随层数变亮。
+                var aurGo = new GameObject("AuraCell");
+                aurGo.transform.SetParent(root.transform, false);
+                aurGo.transform.localPosition = new Vector3(0f, 0.08f, 0.02f);
+                float auraK = Mathf.Max(0.0001f, Mathf.Abs(root.transform.lossyScale.y));   // Boss 会被放大，得除回来
+                aurGo.transform.localScale = new Vector3(Cell * 0.92f / auraK, Cell * 0.92f * 0.62f / auraK, 1f);
                 var aurSr = aurGo.AddComponent<SpriteRenderer>();
-                aurSr.sprite = bodySr.sprite;
-                aurSr.sortingOrder = bodySr.sortingOrder + 1;
-                var aurSh = Shader.Find("WanXiang/UnitAura");
-                if (aurSh != null)
-                {
-                    view.AuraMat = new Material(aurSh) { hideFlags = HideFlags.HideAndDontSave };
-                    aurSr.sharedMaterial = view.AuraMat;
-                }
+                aurSr.sprite = Resources.Load<Sprite>("Battle/FX_motion_glow");
+                aurSr.sortingOrder = 1;                    // 格子之上、立绘之下
+                aurSr.color = new Color(1f, 1f, 1f, 0f);
                 aurGo.SetActive(false);
                 view.AuraDot = aurSr;
+                view.AuraMat = null;
 
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
@@ -3099,7 +3096,7 @@ if (life < 0.2f) life = 0.2f;
         }
     }
 
-        /// <summary>元素附着：描边层开关 / 着色 / sprite 跟随本体。</summary>
+        /// <summary>元素附着：脚下方格底色光（颜色=元素，亮度=层数，轻微呼吸）。</summary>
         private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
         {
             bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
@@ -3108,16 +3105,11 @@ if (life < 0.2f) life = 0.2f;
                 if (v.AuraDot.gameObject.activeSelf != on) v.AuraDot.gameObject.SetActive(on);
                 if (on)
                 {
-                    // sprite 跟随本体（立绘可能换图）
-                    if (v.Body != null && v.AuraDot.sprite != v.Body.sprite) v.AuraDot.sprite = v.Body.sprite;
                     var c = BattlePalette.OfElement(s.AuraEl);
-                    if (v.AuraMat != null)
-                    {
-                        v.AuraMat.SetColor("_Color", c);
-                        // 层数越厚越亮：1 层 0.75，3 层 1.25
-                        v.AuraMat.SetFloat("_Strength", 0.75f + 0.25f * (s.AuraStacks - 1));
-                    }
-                    else v.AuraDot.color = c;
+                    float k = 0.30f + 0.12f * (s.AuraStacks - 1);        // 1层 0.30 → 3层 0.54
+                    float breathe = 0.85f + 0.15f * Mathf.Sin(Time.time * 2.6f);
+                    c.a = k * breathe;
+                    v.AuraDot.color = c;
                 }
             }
             if (v.AuraText != null && v.AuraText.gameObject.activeSelf) v.AuraText.gameObject.SetActive(false);
