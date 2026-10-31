@@ -143,6 +143,14 @@ namespace WanXiang.Modules.UI
         /// </summary>
         private async UniTask RunParryWindowAsync(CancellationToken ct)
         {
+            // ★ 2026-10-31：自动战斗**不该要求按键**。若窗口已经开出来（例如中途切自动），
+            //   直接按"未挡"提交，避免玩家被一个必须按 E 的窗口卡住。
+            if (_autoBattle)
+            {
+                _play.SubmitParry(0);
+                return;
+            }
+
             var actor = _play.ParryAttacker;
             string actorId = actor != null ? actor.RuntimeId : null;
             string actorName = actor != null ? actor.DisplayName : "?";
@@ -247,7 +255,9 @@ namespace WanXiang.Modules.UI
 
             while (true)
             {
-   if (_halted)
+   // ⛔ 2026-10-31：只有当**真的弹窗**（重新挑战确认框）时才冻结窗口；
+   //   之前只看 `_halted`，一旦它在异常路径没复位，格挡窗口就永远停着 ⇒ 卡死。
+   if (_halted && Dialog.IsAnyOpen)
       {
     // 冻结：暂停累计窗口进度（把这段时间从已耗时里扣掉）
      frozen += Time.unscaledTime - t0;
@@ -327,7 +337,7 @@ if (grade == WanXiang.Battle.Core.ParryGrade.Perfect) Sfx("sfx_bt_guard");
     int sGuard = 0;
       while (true)
       {
-        if (_halted)
+        if (_halted && Dialog.IsAnyOpen)
         {
    sFrozen += Time.unscaledTime - s0;
    if (++sGuard > 900) break;         // 兜底：冻结一直不解也要放行，别把战斗锁死

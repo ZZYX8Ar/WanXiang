@@ -433,10 +433,19 @@ namespace WanXiang.Modules.UI
             if (_halted)
             {
                 if (_haltedAt <= 0f) _haltedAt = Time.unscaledTime;
-                if (!_inspectOpen && !Dialog.IsAnyOpen && Time.unscaledTime - _haltedAt > 1.5f)
+                bool inspectReallyOpen = _inspectPanel != null &&
+                                         _inspectPanel.State != UIPanelState.Closed &&
+                                         _inspectPanel.State != UIPanelState.None;
+                // ⛔ 2026-10-31 二次修复：原先判 `_inspectOpen` 布尔，面板被异常关闭时它永远是 true
+                //   ⇒ 看门狗一次都不触发（用户："还是一样动不了"）。改成**看实例的状态**。
+                //   另加硬上限 6s：无论什么理由，冻结都不能超过 6 秒。
+                if (!inspectReallyOpen && !Dialog.IsAnyOpen &&
+                    (Time.unscaledTime - _haltedAt > 1.5f || Time.unscaledTime - _haltedAt > 6f))
                 {
                     Debug.LogWarning("[BattlePanel] 冻结超时（无弹窗/无查看面板）—— 强制解冻，避免卡死");
                     _halted = false;
+                    _inspectOpen = false;
+                    _inspectPanel = null;
                     _haltedAt = 0f;
                 }
             }
@@ -539,6 +548,7 @@ namespace WanXiang.Modules.UI
         }
 
         private bool _inspectOpen;
+        private UnitInspectPanel _inspectPanel;   // 实例（看门狗要判它是否真的还开着）
 
         /// <summary>双击单位：暂停战斗，弹出正式查看面板（崩铁式）。</summary>
         private void ShowUnitInspect(string name, string stats, string status, string skills,
@@ -590,9 +600,10 @@ namespace WanXiang.Modules.UI
         private async UniTask OpenInspectAsync(UnitInspectData data)
         {
             var panel = await OpenPanelAsync<UnitInspectPanel>(data);
+            _inspectPanel = panel;
             if (panel != null)
-                panel.OnClosed = () => { _inspectOpen = false; _halted = false; };
-            else { _inspectOpen = false; _halted = false; }
+                panel.OnClosed = () => { _inspectOpen = false; _inspectPanel = null; _halted = false; };
+            else { _inspectOpen = false; _inspectPanel = null; _halted = false; }
         }
 
         private void HandOff(ResultRequest result)
