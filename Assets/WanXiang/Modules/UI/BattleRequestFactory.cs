@@ -212,6 +212,10 @@ namespace WanXiang.Modules.UI
 
                     // ★ 2026-11-01 共享主等级：只放大**基础攻击/生命**（+6% / +7% 每级），
                     //   不加暴击/防御/技能 —— 数值成长只走这一条线（设计稿 §6.1）。
+                    // ★ 2026-11-01 专精生效（设计稿 §6.2）：
+                    //   Lv1 技能倍率 ×1.12；Lv2 段数 +1；Lv3 再 ×1.20（总 1.34）。无专精不动。
+                    ApplyMastery(run, id, d);
+
                     // ★ 2026-11-01 进化：每只兽整局只能进化一次，进化后**基础攻/血 +10%**
                     //   （等级上限/专精上限/觉醒技的解锁在各自系统里读 run.IsEvolved）。
                     if (run.IsEvolved(id))
@@ -441,6 +445,30 @@ namespace WanXiang.Modules.UI
         }
     
         /// <summary>按技能 id 在全部异兽的技能里找（觉醒技池来源：90 个技能）。</summary>
+        /// <summary>把该兽 3 个技能槽的专精等级作用到克隆体上（不改内容目录）。</summary>
+        private static void ApplyMastery(WanXiang.Run.RunState run, string beastId, WanXiang.Battle.Core.BeastDef d)
+        {
+            if (run == null || d == null) return;
+            var slots = new[] { d.Basic, d.Active, d.Ultimate };
+            for (int slot = 0; slot < slots.Length; slot++)
+            {
+                var sk = slots[slot];
+                if (sk == null || sk.Effects == null) continue;
+                int m = run.MasteryOf(beastId, slot);
+                if (m <= 0) continue;
+                float mul = 1f;
+                if (m >= 1) mul *= 1.12f;
+                if (m >= 3) mul *= 1.20f;
+                for (int e = 0; e < sk.Effects.Length; e++)
+                {
+                    var atom = sk.Effects[e];
+                    if (atom.Power > 0f) { atom.Power *= mul; }
+                    if (m >= 2) atom.Hits = System.Math.Max(1, atom.Hits) + 1;   // Lv2：段数 +1
+                    sk.Effects[e] = atom;
+                }
+            }
+        }
+
         private static WanXiang.Battle.Core.SkillDef FindSkillById(BeastDef[] all, string skillId)
         {
             if (all == null || string.IsNullOrEmpty(skillId)) return null;
