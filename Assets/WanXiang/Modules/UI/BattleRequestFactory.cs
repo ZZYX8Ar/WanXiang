@@ -163,6 +163,21 @@ namespace WanXiang.Modules.UI
             // ★ 2026-09-25：局外养成（等级/进化/觉醒技）已全部改为读**本局快照**，
             //   这里只处理"本场挂起修正"（孵穴回复 / 天象异闻）—— 与局外养成无关，
             //   所以**不再需要**去读 MetaStore（原来那处现读是漏进本局的根源之一）。
+            // ★ 2026-11-01「五行俱全」：上阵 5 只**五种不同元素** ⇒ 全队 +10%（反应流的补偿）
+            {
+                var seen = new System.Collections.Generic.HashSet<int>();
+                for (int i = 0; i < req.Player.Count; i++)
+                {
+                    var bd = req.Player[i];
+                    if (bd != null && bd.Element != WanXiang.Battle.Core.Element.None) seen.Add((int)bd.Element);
+                }
+                if (req.Player.Count >= 5 && seen.Count >= 5)
+                {
+                    req.PlayerMul *= 1.10f;
+                    UnityEngine.Debug.Log("[BattleRequestFactory] 五行俱全：5 种不同元素 → 全队 ×1.10");
+                }
+            }
+
             if (run.HealPending != 0 || run.PlayerBuffPct != 0 || run.EnemyBuffPct != 0
                 || run.GrowthPct != 0)
             {
