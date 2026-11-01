@@ -42,6 +42,8 @@ namespace WanXiang.Run
         public int PlayerLevel = 1;
         /// <summary>当前等级内的经验（升级后清零）。</summary>
         public int PlayerExp;
+        /// <summary>事件给的"限时"：下一场必须在该回合数内通过（0 = 不限制）；打完即清。</summary>
+        public int EventTurnLimit;
         /// <summary>每只兽的"战后血量百分比"（0~100）：阵亡记 50，编队界面据此显示重伤。</summary>
         public System.Collections.Generic.Dictionary<string, int> TeamHpPct
             = new System.Collections.Generic.Dictionary<string, int>();

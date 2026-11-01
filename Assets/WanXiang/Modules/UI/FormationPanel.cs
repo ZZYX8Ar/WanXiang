@@ -972,6 +972,7 @@ namespace WanXiang.Modules.UI
 
         private void PresentBondTip(string text)
         {
+            CancelInvoke(nameof(ActuallyHideBondTip));   // 取消挂起的隐藏（防闪烁）
             _bondTipPanel.gameObject.SetActive(true);
             _bondTipText.text = text;
             // ★ 高度自适应：首领机制/技能列表可能很长，面板固定高会溢出。按文本实宽量高度再撑开。
@@ -983,7 +984,19 @@ namespace WanXiang.Modules.UI
             _bondTipGroup.alpha = 1f;
         }
 
+        /// <summary>
+        /// 隐藏改**延迟 0.15s**（2026-11-01 用户："来回切换悬浮会一闪一闪"）。
+        /// 指针在两个相邻徽章之间移动时，会先触发 A 的 Exit 再触发 B 的 Enter；
+        /// 立即隐藏 ⇒ 面板先灭再亮 = 闪。延迟后 Enter 会把 Invoke 取消，面板一直亮着。
+        /// </summary>
         private void HideBondTip()
+        {
+            if (_bondTipPanel == null) return;
+            CancelInvoke(nameof(ActuallyHideBondTip));
+            Invoke(nameof(ActuallyHideBondTip), 0.15f);
+        }
+
+        private void ActuallyHideBondTip()
         {
             if (_bondTipPanel == null || !_bondTipPanel.gameObject.activeSelf) return;
             _bondTipSlot = -1;

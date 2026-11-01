@@ -382,6 +382,14 @@ namespace WanXiang.Modules.UI
                 }
                 int turnsDelta = WanXiang.Campaign.RelicCatalog.RuleTurnsDelta(run.Relics);
                 req.MaxTurnsDelta += turnsDelta;
+
+                // ★ 2026-11-01 事件的"限时 N 回合"：换算成相对 48 的差值，打完即清（一场有效）
+                if (run.EventTurnLimit > 0)
+                {
+                    req.MaxTurnsDelta += run.EventTurnLimit - 48;
+                    UnityEngine.Debug.Log("[BattleRequestFactory] 事件限时：" + run.EventTurnLimit + " 回合（MaxTurnsDelta=" + req.MaxTurnsDelta + "）");
+                    run.EventTurnLimit = 0;
+                }
                 if (WanXiang.Campaign.RelicCatalog.HasMechanic(run.Relics, WanXiang.Campaign.RelicMechanic.UltimateNoRage))
                     req.UltimateNoRage = true;
                 if (WanXiang.Campaign.RelicCatalog.HasMechanic(run.Relics, WanXiang.Campaign.RelicMechanic.NoHitChance))

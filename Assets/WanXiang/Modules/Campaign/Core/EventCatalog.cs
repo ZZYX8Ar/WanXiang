@@ -21,6 +21,7 @@ namespace WanXiang.Campaign
         GrantMaterial,    // Value = 进化素材数量
         GrantRelic,       // ScopeId = 遗物 id
         TurnDelta,        // Value = 回合上限变化（正/负）
+        TurnLimit,        // Value = 本场"必须在 N 回合内通过"（写成限时，而不是减回合）
     }
 
     public sealed class EventChoice
@@ -87,10 +88,10 @@ namespace WanXiang.Campaign
                 Story = "一条船搁在干裂的河床上。船夫说：风还在，只是你得决定要不要借。",
                 Choices = new[]
                 {
-                    // ⛔ 2026-11-01 用户："-4 太轻了"。基准 48 回合，-4 只有 8% —— 惩罚必须有感。
-                    //   改成 -10（约 20%），奖励 +60%；对照项 +6（12%）。
-                    new EventChoice { Text = "借风疾行（本幕回合上限 -10，约 20%；奖励 +60%）", Effect = EventEffect.TurnDelta, Value = -10 },
-                    new EventChoice { Text = "稳扎稳打（本幕回合上限 +6，奖励不变）", Effect = EventEffect.TurnDelta, Value = 6 },
+                    // ★ 2026-11-01 用户："减回合不如写成『在 N 回合内通过』"。改成限时条款：
+                    //   玩家看的是"20 回合内打完"，比"上限 -10"直观，也更有挑战感。
+                    new EventChoice { Text = "借风疾行（限时：本场须在 20 回合内通过；奖励 +60%）", Effect = EventEffect.TurnLimit, Value = 20 },
+                    new EventChoice { Text = "稳扎稳打（本场回合上限 +6，奖励不变）", Effect = EventEffect.TurnDelta, Value = 6 },
                     new EventChoice { Text = "弃舟步行（全队回复 25% 生命）", Effect = EventEffect.HealTeamPct, Value = 25 },
                 }
             });

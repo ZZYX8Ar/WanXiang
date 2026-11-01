@@ -65,6 +65,10 @@ namespace WanXiang.Modules.UI
                     if (!string.IsNullOrEmpty(c.ScopeId)) run.Relics.Add(c.ScopeId);
                     return "获得遗物 " + c.ScopeId;
 
+                case EventEffect.TurnLimit:
+                    run.EventTurnLimit = Mathf.Max(1, c.Value);
+                    return "限时：下一场须在 " + run.EventTurnLimit + " 回合内通过";
+
                 case EventEffect.TurnDelta:
                     // TODO: 回合上限改写在 BattleRequestFactory 读取 run 的字段，等该字段落地
                     return "本幕回合上限 " + (c.Value >= 0 ? "+" : "") + c.Value + "（待接战斗参数）";
