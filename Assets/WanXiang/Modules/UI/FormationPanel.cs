@@ -409,6 +409,32 @@ namespace WanXiang.Modules.UI
                 img.preserveAspect = true;
                 var sprite = _sprites != null ? _sprites.GetHead(_all[idx].Id) : null;
                 if (sprite != null) img.sprite = sprite;
+
+                // ★ 2026-11-01 用户："编队的出手顺序要在九宫格右上角加数字"。
+                //   顺序 = 上阵顺序（去掉空格后计 1、2、3…），与战斗里"我方按上阵位次行动"一致。
+                int order = 0;
+                for (int c2 = 0; c2 <= cell && c2 < _deployed.Length; c2++)
+                    if (_deployed[c2] >= 0) order++;
+
+                var numGo = new GameObject("Tmp_Order", typeof(RectTransform));
+                var nrt = (RectTransform)numGo.transform;
+                nrt.SetParent(crt, false);
+                nrt.anchorMin = new Vector2(1f, 1f);
+                nrt.anchorMax = new Vector2(1f, 1f);
+                nrt.pivot = new Vector2(1f, 1f);
+                nrt.anchoredPosition = new Vector2(-4f, -4f);
+                nrt.sizeDelta = new Vector2(30f, 30f);
+                var nx = numGo.AddComponent<TextMeshProUGUI>();
+                nx.font = TMP_Settings.defaultFontAsset;
+                nx.fontSize = 24f;
+                nx.fontStyle = FontStyles.Bold;
+                nx.alignment = TextAlignmentOptions.TopRight;
+                nx.raycastTarget = false;
+                nx.text = order.ToString();
+                nx.color = new Color(0.10f, 0.09f, 0.07f, 0.95f);
+                // 描影：读不清时也能压住浅色底
+                nx.outlineWidth = 0.18f;
+                nx.outlineColor = new Color(1f, 1f, 1f, 0.85f);
             }
         }
 

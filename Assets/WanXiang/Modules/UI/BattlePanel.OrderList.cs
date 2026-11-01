@@ -63,9 +63,13 @@ namespace WanXiang.Modules.UI
 }
 
         /// <summary>刷新行动顺序（带守卫：只有变化才重建 UI）。</summary>
+        /// <summary>行动顺序面板：用户 2026-11-01 定案"暂时不需要，隐藏起来"。</summary>
+        private const bool ShowOrderPanel = false;
+
         private void RefreshOrderList()
         {
             if (_orderPanel == null || _play == null || _play.State == null) return;
+            if (!ShowOrderPanel) { if (_orderPanel.gameObject.activeSelf) _orderPanel.gameObject.SetActive(false); return; }
             var stt = _play.State;
 
             // ⚠ 读 State.TurnOrder（回合开始时定下的那份），不要自己按当前速度重排 ——
