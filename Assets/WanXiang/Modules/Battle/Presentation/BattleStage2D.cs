@@ -2898,6 +2898,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 case ReactionKind.TakeRoot: name = "扎 根"; color = new Color(0.58f, 0.84f, 0.50f); tag = "木×土"; break;
                 case ReactionKind.Execute:  name = "肃 杀"; color = new Color(0.92f, 0.62f, 0.92f); tag = "木×金"; break;
                 case ReactionKind.Bastion:  name = "坚 壁"; color = new Color(0.86f, 0.78f, 0.52f); tag = "金×土"; break;
+                case ReactionKind.Consume:  name = "消 耗"; color = new Color(0.95f, 0.85f, 0.55f); tag = "同元素"; break;
                 default:                    name = "反 应"; color = Color.white; tag = ""; break;
             }
         }

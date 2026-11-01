@@ -45,9 +45,26 @@ namespace WanXiang.Battle.Core
                 return ReactionKind.None;
             }
 
-            // ② 同元素：叠层（上限 MaxStacks）
+            // ② 同元素：**消耗流** —— 目标已有 2 层以上就吃掉换伤害（纯色队的输出手段）。
+            //   ⛔ 2026-11-01：同元素以前只会叠层 ⇒ 纯色队没有任何输出手段，只能干挂着。
+            //   现在：≥2 层即触发【消耗】，层数越深伤害越高（0.35×层，4 层 2.4 倍）。
             if (dst.AuraEl == incoming)
             {
+                if (dst.AuraStacks >= 2)
+                {
+                    int use = Math.Min(dst.AuraStacks, MaxStacks);
+                    SetAura(dst, incoming, dst.AuraStacks - use);
+                    int cstacks = use;
+                    int cdmg = dst.TakeDamage(CoreMath.RoundDamage(atkSrc(src) * 0.35f * cstacks));
+                    st.Log.Add(st.Turn, BattleEventKind.Damage,
+                               actorId: src != null ? src.RuntimeId : null, targetId: dst.RuntimeId,
+                               amount: cdmg, element: incoming,
+                               note: "元素消耗（" + cstacks + " 层）", reaction: ReactionKind.Consume);
+                    if (cdmg > 0 && !dst.IsAlive)
+                        st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
+                                   note: dst.DisplayName + " 阵亡（消耗）");
+                    return ReactionKind.Consume;
+                }
                 SetAura(dst, incoming, Math.Min(MaxStacks, dst.AuraStacks + applyStacks));
                 return ReactionKind.None;
             }
@@ -180,6 +197,8 @@ namespace WanXiang.Battle.Core
                 }
             }
         }
+
+        private static float atkSrc(BattleUnit src) => src != null ? src.Attack : 100f;
 
         private static int TrueDmg(BattleUnit dst, float ratio)
         {

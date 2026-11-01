@@ -87,6 +87,7 @@ namespace WanXiang.Battle.Core
         TakeRoot = 8,   // 木+土 扎根（治疗+护盾）
         Execute = 9,    // 木+金 肃杀（斩杀）
         Bastion = 10,   // 金+土 坚壁（护盾+净除）
+        Consume = 11,   // ★ 同元素消耗（纯色队）：吃掉自己挂的附着换伤害，不触发反应
     }
 
     public struct BattleEvent
