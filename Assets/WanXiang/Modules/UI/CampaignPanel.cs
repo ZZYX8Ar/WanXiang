@@ -301,6 +301,20 @@ BuildNodeMap();
                             if (isFinale) gain = 500;                          // 幕末首领（生成器里用 Elite 表示）
                             else if (kindVal == (int)WanXiang.Campaign.NodeKind.Elite) gain = 250;
                             else if (_realmMode) gain = 180;                  // 秘境
+                            // ★ 2026-11-01 死亡不消失：通关后阵亡/重伤的兽以 **50% 生命**进下一场。
+                            //   精确逐单位血量要等战斗结算回传；这里先把"低于 50% 的抬到 50%"落地。
+                            if (prun.Team != null)
+                            {
+                                for (int ti = 0; ti < prun.Team.Count; ti++)
+                                {
+                                    var tid = prun.Team[ti];
+                                    if (string.IsNullOrEmpty(tid)) continue;
+                                    int cur = 100;
+                                    if (prun.TeamHpPct != null && prun.TeamHpPct.TryGetValue(tid, out int hv)) cur = hv;
+                                    prun.TeamHpPct[tid] = Mathf.Max(50, cur);
+                                }
+                            }
+
                             int ups = prun.AddExp(gain);
                             if (ups > 0)
                                 Debug.Log("[Campaign] 主等级提升 → Lv" + prun.PlayerLevel + "（经验 +" + gain + "）");
