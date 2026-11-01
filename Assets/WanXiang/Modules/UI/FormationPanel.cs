@@ -391,6 +391,7 @@ namespace WanXiang.Modules.UI
                 var rt = _cells[cell];
                 if (rt == null) continue;
 
+
                 var existing = rt.Find("Img_Unit");
                 if (existing != null) Destroy(existing.gameObject);
 
