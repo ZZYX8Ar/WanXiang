@@ -1330,8 +1330,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 var ringGo = new GameObject("AuraRing");
                 ringGo.transform.SetParent(headGo.transform, false);
                 ringGo.transform.localPosition = new Vector3(HpBarWidth * 0.5f + 0.22f, 0.02f, 0f);
-                float rk = Mathf.Max(0.0001f, Mathf.Abs(root.transform.lossyScale.y));
-                float rSize = 0.24f / rk;
+                float rk = Mathf.Max(0.0001f, Mathf.Abs(headGo.transform.lossyScale.y));
+                float rSize = 0.24f / rk;      // 0.24 世界单位（挂 headGo 下，必须除 headGo 的缩放）
                 ringGo.transform.localScale = new Vector3(rSize, rSize, 1f);
                 var ringSr = ringGo.AddComponent<SpriteRenderer>();
                 ringSr.sprite = AuraRing(1);
@@ -1340,16 +1340,17 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 ringGo.SetActive(false);
                 view.AuraDot = ringSr;
 
-                var outGo = new GameObject("AuraOutline");
-                outGo.transform.SetParent(bodySr.transform.parent, false);
-                outGo.transform.localPosition = bodySr.transform.localPosition;
-                outGo.transform.localScale = bodySr.transform.localScale * 1.045f;
-                var outSr = outGo.AddComponent<SpriteRenderer>();
-                outSr.sprite = bodySr.sprite;
-                outSr.sortingOrder = bodySr.sortingOrder - 1;
-                outSr.color = new Color(1f, 1f, 1f, 0f);
-                outGo.SetActive(false);
-                view.AuraOutline = outSr;
+                // ---- 元素描边：直接换**本体材质**（同 mesh 同 uv，描边不会错位）----
+                var auraSh = Shader.Find("WanXiang/SpriteAura");
+                if (auraSh != null && bodySr != null)
+                {
+                    var bm = new Material(auraSh) { hideFlags = HideFlags.HideAndDontSave };
+                    bm.mainTexture = bodySr.sprite != null ? bodySr.sprite.texture : null;
+                    bm.SetColor("_AuraColor", new Color(1f, 1f, 1f, 0f));
+                    bm.SetFloat("_Strength", 0f);
+                    bodySr.sharedMaterial = bm;
+                    view.AuraMat = bm;
+                }
 
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
@@ -3145,11 +3146,10 @@ if (life < 0.2f) life = 0.2f;
             return _auraRings[filled];
         }
 
-        /// <summary>元素附着：血条右侧 4 段小环（层数）+ 立绘描边（元素色剪影）。</summary>
+        /// <summary>元素附着：血条右侧 4 段小环（层数）+ 本体材质描边。</summary>
         private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
         {
             bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
-            var col = on ? BattlePalette.OfElement(s.AuraEl) : Color.white;
 
             if (v.AuraDot != null)
             {
@@ -3158,17 +3158,16 @@ if (life < 0.2f) life = 0.2f;
                 {
                     var sp = AuraRing(s.AuraStacks);
                     if (v.AuraDot.sprite != sp) v.AuraDot.sprite = sp;
-                    var c = col; c.a = 0.95f; v.AuraDot.color = c;
+                    var c = BattlePalette.OfElement(s.AuraEl); c.a = 0.95f;
+                    v.AuraDot.color = c;
                 }
             }
-            if (v.AuraOutline != null)
+            if (v.AuraMat != null)
             {
-                if (v.AuraOutline.gameObject.activeSelf != on) v.AuraOutline.gameObject.SetActive(on);
-                if (on)
-                {
-                    if (v.Body != null && v.AuraOutline.sprite != v.Body.sprite) v.AuraOutline.sprite = v.Body.sprite;
-                    var c = col; c.a = 0.85f; v.AuraOutline.color = c;
-                }
+                var ac = BattlePalette.OfElement(s.AuraEl);
+                ac.a = 1f;
+                v.AuraMat.SetColor("_AuraColor", on ? ac : new Color(1f, 1f, 1f, 0f));
+                v.AuraMat.SetFloat("_Strength", on ? 0.55f + 0.15f * (s.AuraStacks - 1) : 0f);
             }
             if (v.AuraText != null && v.AuraText.gameObject.activeSelf) v.AuraText.gameObject.SetActive(false);
             if (v.AuraPips != null)
