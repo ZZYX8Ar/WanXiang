@@ -2929,8 +2929,26 @@ if (_tmpActTitle != null)
                     OpenPanelAsync<MarketPanel>().Forget();
                     return;
                 case WanXiang.Campaign.NodeKind.Tale:
-                    OpenPanelAsync<TalePanel>().Forget();
+                {
+                    // ★ 2026-11-01「不期而遇」：Tale 节点改为**事件节点**（复用 Panel_Tale）。
+                    //   事件按 seed+offset 固定抽取，同一局同一格永远是同一个事件（可复盘）。
+                    var prun2 = WanXiang.Run.RunSave.Current;
+                    ulong evSeed = WanXiang.Battle.Core.CoreMath.Fnv1a(
+                        "evt:" + (prun2 != null ? prun2.RunSeed : 0) + ":" + (prun2 != null ? prun2.NodeOffset : 0));
+                    var pool = WanXiang.Campaign.EventCatalog.All;
+                    var ev = (pool != null && pool.Length > 0)
+                             ? pool[(int)(evSeed % (ulong)pool.Length)] : null;
+                    if (ev != null)
+                    {
+                        Debug.Log("[Campaign] 不期而遇 → " + ev.Title);
+                        TalePanel.OpenEvent(ev, null);
+                    }
+                    else
+                    {
+                        OpenPanelAsync<TalePanel>().Forget();   // 兜底：数据缺失时走旧异闻
+                    }
                     return;
+                }
                 case WanXiang.Campaign.NodeKind.Forge:
                     OpenPanelAsync<ForgePanel>().Forget();
                     return;

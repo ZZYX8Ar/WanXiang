@@ -217,7 +217,7 @@ namespace WanXiang.Modules.UI
                 if (_tmpStory != null) _tmpStory.text = result;
                 var cb = _eventCallback; _eventCallback = null; _event = null;
                 cb?.Invoke(index);
-                CloseSoon();
+                BackToMap(true);   // ★ 事件也走"完成即推进节点"（与异闻一致），不要只 CloseSelf
                 return;
             }
             var run = WanXiang.Run.RunSave.Current;
