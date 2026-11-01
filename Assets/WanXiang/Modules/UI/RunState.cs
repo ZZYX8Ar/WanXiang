@@ -42,6 +42,52 @@ namespace WanXiang.Run
         public int PlayerLevel = 1;
         /// <summary>当前等级内的经验（升级后清零）。</summary>
         public int PlayerExp;
+        /// <summary>进化记录：beastId → 路线（0=未进化，1=路线A 消耗化，2=路线B 引爆化）。
+        /// 每只**整局只能进化一次**（设计稿 §6.3）。</summary>
+        public System.Collections.Generic.Dictionary<string, int> Evolved
+            = new System.Collections.Generic.Dictionary<string, int>();
+
+        public int EvolutionOf(string id)
+        {
+            if (string.IsNullOrEmpty(id) || Evolved == null) return 0;
+            return Evolved.TryGetValue(id, out int v) ? v : 0;
+        }
+
+        public bool IsEvolved(string id) => EvolutionOf(id) > 0;
+
+        /// <summary>进化一次。返回 false = 已经进化过（或 id 非法）。</summary>
+        public bool Evolve(string id, int route)
+        {
+            if (string.IsNullOrEmpty(id) || route <= 0) return false;
+            if (EvolutionOf(id) > 0) return false;          // ⛔ 每只只能进化一次
+            Evolved[id] = route;
+            return true;
+        }
+
+        /// <summary>专精：key = "兽id:技能槽(0普攻/1战技/2绝技)"，值 0~3（设计稿 §6.2）。
+        /// 未进化上限 2，已进化上限 3。</summary>
+        public System.Collections.Generic.Dictionary<string, int> Mastery
+            = new System.Collections.Generic.Dictionary<string, int>();
+
+        public int MasteryOf(string beastId, int slot)
+        {
+            if (string.IsNullOrEmpty(beastId) || Mastery == null) return 0;
+            return Mastery.TryGetValue(beastId + ":" + slot, out int v) ? v : 0;
+        }
+
+        /// <summary>专精上限：未进化 2，已进化 3。</summary>
+        public int MasteryCap(string beastId) => IsEvolved(beastId) ? 3 : 2;
+
+        /// <summary>提升一级专精（自动按上限截断）。返回升完后的等级。</summary>
+        public int AddMastery(string beastId, int slot, int add = 1)
+        {
+            if (string.IsNullOrEmpty(beastId)) return 0;
+            int cur = MasteryOf(beastId, slot);
+            int next = System.Math.Min(MasteryCap(beastId), cur + System.Math.Max(0, add));
+            Mastery[beastId + ":" + slot] = next;
+            return next;
+        }
+
         /// <summary>事件给的"限时"：下一场必须在该回合数内通过（0 = 不限制）；打完即清。</summary>
         public int EventTurnLimit;
         /// <summary>每只兽的"战后血量百分比"（0~100）：阵亡记 50，编队界面据此显示重伤。</summary>

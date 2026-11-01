@@ -197,6 +197,14 @@ namespace WanXiang.Modules.UI
 
                     // ★ 2026-11-01 共享主等级：只放大**基础攻击/生命**（+6% / +7% 每级），
                     //   不加暴击/防御/技能 —— 数值成长只走这一条线（设计稿 §6.1）。
+                    // ★ 2026-11-01 进化：每只兽整局只能进化一次，进化后**基础攻/血 +10%**
+                    //   （等级上限/专精上限/觉醒技的解锁在各自系统里读 run.IsEvolved）。
+                    if (run.IsEvolved(id))
+                    {
+                        d.BaseAtk = UnityEngine.Mathf.RoundToInt(d.BaseAtk * 1.10f);
+                        d.BaseHp = UnityEngine.Mathf.RoundToInt(d.BaseHp * 1.10f);
+                    }
+
                     int lvNow = UnityEngine.Mathf.Clamp(run.PlayerLevel, 1, WanXiang.Run.RunState.PlayerLevelMax);
                     if (lvNow > 1)
                     {
