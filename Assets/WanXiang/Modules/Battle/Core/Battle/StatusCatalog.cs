@@ -89,7 +89,7 @@ namespace WanXiang.Battle.Core
         public const string Silence     = "silence";      // 沉默（不能放技能）—— 清明免疫它
         public const string Root        = "root";         // 根缚（不能行动）—— 蝮魇 / 蔓娘
         public const string Miasma      = "miasma";       // 瘴气（每层攻击 -3%）—— 魍魉
-        public const string Shock       = "shock";        // 感电（金+湿触发，可被再次引爆）
+        public const string Shock       = "shock";        // 感电（金+水反应附带：伤害 +6%/层）
 
         // ---- 增益 ----
         public const string Qi          = "qi";           // 同气（相生相邻产出，每层 +2% 技能效果）
@@ -103,12 +103,12 @@ namespace WanXiang.Battle.Core
         {
             new StatusDef { Id = Burn, Name = "灼烧", IsDebuff = true, MaxStacks = 10,
                 DotFlatPerStack = 0f,
-                Description = "每层每回合造成伤害（数值在施加时按施加者攻击力折算）。引信状态：" +
-                              "被木属性命中触发「助燃」（灼烧 +2 层）；被土属性命中触发「镇」" },
+                Description = "每层每回合造成伤害（数值在施加时按施加者攻击力折算）。" +
+                              "状态本身不参与元素反应（反应只看元素附着）" },
 
             new StatusDef { Id = IceErosion, Name = "冰蚀", IsDebuff = true, MaxStacks = 20,
                 DotFlatPerStack = 0f,
-                Description = "每层每回合造成 1.5% 最大生命伤害。引信状态：被金属性命中触发「碎冰」" +
+                Description = "每层每回合造成 1.5% 最大生命伤害（寒系玩法专用，不参与元素反应）" +
                               "（移除 2 层并受额外真伤）" },
 
             new StatusDef { Id = Corrode, Name = "蚀", IsDebuff = true, MaxStacks = 5,
@@ -116,7 +116,7 @@ namespace WanXiang.Battle.Core
 
             new StatusDef { Id = Wet, Name = "湿", IsDebuff = true, MaxStacks = 5,
                 DamageTakenDeltaPerStack = 0.08f,
-                Description = "每层受水属性伤害 +8%。引信状态：被火属性命中触发「蒸」（额外真伤）；" +
+                Description = "每层受水属性伤害 +8%（不参与元素反应，反应只看附着）；" +
                               "被金属性命中触发「感电」" },
 
             new StatusDef { Id = Frost, Name = "霜", IsDebuff = true, MaxStacks = 5,
@@ -146,10 +146,10 @@ namespace WanXiang.Battle.Core
                 AttackDeltaPerStack = -0.03f, Description = "每层攻击 -3%（可叠，魍魉的瘴林）" },
 
             // 元素反应链（2026-10-14）：金打湿触发感电。感电让目标受金/水属性伤害加深，
-            // 且"附感电"本身又是一次反应，可被后续金/水命中再次引爆（与湿互为引信）。
+            // 感电只是反应附带的状态，本身不再引发任何反应。
             new StatusDef { Id = Shock, Name = "感电", IsDebuff = true, MaxStacks = 3,
                 DamageTakenDeltaPerStack = 0.06f,
-                Description = "每层受金/水属性伤害 +6%。引信状态：可被金/水属性再次引爆（反应链）" },
+                Description = "每层受金/水属性伤害 +6%（反应附带的状态，本身不再引爆任何东西）" },
 
             new StatusDef { Id = Qi, Name = "同气", IsDebuff = false, MaxStacks = 5,
                 Description = "相生相邻产出。每层 +2% 技能效果" },

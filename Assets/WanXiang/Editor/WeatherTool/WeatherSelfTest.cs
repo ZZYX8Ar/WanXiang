@@ -527,61 +527,41 @@ namespace WanXiang.Editor.WeatherTool
                        && CountNoteKind(bSteam.Log, BattleEventKind.Damage, "元素反应·蒸") > 0,
                   "㉙ 蒸：火 + 湿 → 蒸发并造成额外真伤");
 
-            // 感电：金 打 湿 → 移除湿 + 附感电状态 + 少量真伤
-            var bShk = BattleFactory.Create(rCfg, 20260914UL,
-                new[] { DeployEntry.Player(BattleSampleContent.Make("rC", "金", Element.Metal, RoleType.Striker), 0) },
-                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rD", "湿", Element.Water, RoleType.Guard), 8) }, null);
-            var eShk = bShk.UnitsOf(TeamSide.Enemy)[0];
-            eShk.ApplyStatus(StatusCatalog.Wet, 2, 99, 0);
-            BattleSimulator.ResolveElementReactions(bShk, bShk.UnitsOf(TeamSide.Player)[0], eShk, Element.Metal);
-            Check(lines, !eShk.HasStatus(StatusCatalog.Wet) && eShk.HasStatus(StatusCatalog.Shock)
-                       && CountNoteKind(bShk.Log, BattleEventKind.Damage, "元素反应·感电") > 0,
-                  "㉙ 感电：金 + 湿 → 附感电状态（可被再次引爆）");
+            // ★ 2026-11-01 重写：反应已改为「元素附着（Aura）+ 充能」体系，
+            //   旧的"状态引信（湿/冰蚀/灼烧 → 镇/碎冰/助燃）"测试全部作废。
+            //   这里只验证三件事：① 有充能会挂附着；② 异元素触发反应；③ 没充能不挂。
+            {
+                var bA = BattleFactory.Create(rCfg, 20260914UL,
+                    new[] { DeployEntry.Player(BattleSampleContent.Make("rC", "水", Element.Water, RoleType.Caster), 0) },
+                    new[] { DeployEntry.Enemy(BattleSampleContent.Make("rD", "木", Element.Wood, RoleType.Guard), 8) }, null);
+                var srcA = bA.UnitsOf(TeamSide.Player)[0];
+                var dstA = bA.UnitsOf(TeamSide.Enemy)[0];
+                srcA.ChargeStacks = 3;
+                BattleSimulator.ResolveElementReactions(bA, srcA, dstA, Element.Water);
+                Check(lines, dstA.AuraEl == Element.Water && dstA.AuraStacks == 3 && srcA.ChargeStacks == 0,
+                      "㉙ 附着：3 层充能 → 挂 3 层水，充能清零");
 
-            // 碎冰：金 打 冰蚀 → 移除 2 层冰蚀 + 额外真伤
-            var bSh = BattleFactory.Create(rCfg, 20260914UL,
-                new[] { DeployEntry.Player(BattleSampleContent.Make("rE", "金", Element.Metal, RoleType.Striker), 0) },
-                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rF", "冰", Element.Water, RoleType.Guard), 8) }, null);
-            var eSh = bSh.UnitsOf(TeamSide.Enemy)[0];
-            eSh.ApplyStatus(StatusCatalog.IceErosion, 4, 99, 0);
-            int iceBefore = eSh.GetStacks(StatusCatalog.IceErosion);
-            BattleSimulator.ResolveElementReactions(bSh, bSh.UnitsOf(TeamSide.Player)[0], eSh, Element.Metal);
-            Check(lines, eSh.GetStacks(StatusCatalog.IceErosion) == iceBefore - 2
-                       && CountNoteKind(bSh.Log, BattleEventKind.Damage, "元素反应·碎冰") > 0,
-                  "㉙ 碎冰：金 + 冰蚀 → 移除 2 层冰蚀并额外真伤");
+                var bB = BattleFactory.Create(rCfg, 20260914UL,
+                    new[] { DeployEntry.Player(BattleSampleContent.Make("rE", "金", Element.Metal, RoleType.Striker), 0) },
+                    new[] { DeployEntry.Enemy(BattleSampleContent.Make("rF", "木", Element.Wood, RoleType.Guard), 8) }, null);
+                var srcB = bB.UnitsOf(TeamSide.Player)[0];
+                var dstB = bB.UnitsOf(TeamSide.Enemy)[0];
+                dstB.AuraEl = Element.Water; dstB.AuraStacks = 2;
+                srcB.ChargeStacks = 2;
+                BattleSimulator.ResolveElementReactions(bB, srcB, dstB, Element.Metal);
+                Check(lines, CountNoteKind(bB.Log, BattleEventKind.Damage, "元素反应·感电") > 0,
+                      "㉙ 反应：金 打 水附着 → 感电（旧「碎冰/镇」已删除）");
 
-            // 助燃：木 打 灼烧 → 灼烧 +2 层
-            var bStk = BattleFactory.Create(rCfg, 20260914UL,
-                new[] { DeployEntry.Player(BattleSampleContent.Make("rG", "木", Element.Wood,  RoleType.Striker), 0) },
-                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rH", "焚", Element.Fire,  RoleType.Guard), 8) }, null);
-            var eStk = bStk.UnitsOf(TeamSide.Enemy)[0];
-            eStk.ApplyStatus(StatusCatalog.Burn, 1, 5, 30f);
-            int burnBefore = eStk.GetStacks(StatusCatalog.Burn);
-            BattleSimulator.ResolveElementReactions(bStk, bStk.UnitsOf(TeamSide.Player)[0], eStk, Element.Wood);
-            Check(lines, eStk.GetStacks(StatusCatalog.Burn) == burnBefore + 2
-                       && CountNoteKind(bStk.Log, BattleEventKind.StatusApplied, "元素反应·助燃") > 0,
-                  "㉙ 助燃：木 + 灼烧 → 灼烧 +2 层（保留原 DoT）");
-
-            // 镇：土 打 灼烧 → 熄灭 2 层
-            var bQu = BattleFactory.Create(rCfg, 20260914UL,
-                new[] { DeployEntry.Player(BattleSampleContent.Make("rI", "土", Element.Earth, RoleType.Striker), 0) },
-                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rJ", "焚", Element.Fire,  RoleType.Guard), 8) }, null);
-            var eQu = bQu.UnitsOf(TeamSide.Enemy)[0];
-            eQu.ApplyStatus(StatusCatalog.Burn, 3, 5, 30f);
-            int burnQ = eQu.GetStacks(StatusCatalog.Burn);
-            BattleSimulator.ResolveElementReactions(bQu, bQu.UnitsOf(TeamSide.Player)[0], eQu, Element.Earth);
-            Check(lines, eQu.GetStacks(StatusCatalog.Burn) == System.Math.Max(0, burnQ - 2)
-                       && CountNoteKind(bQu.Log, BattleEventKind.StatusApplied, "元素反应·镇") > 0,
-                  "㉙ 镇：土 + 灼烧 → 熄灭 2 层灼烧");
-
-            // 对照：无对应状态时零反应事件（证明默认局指纹安全 —— 反应只在有引信时才发生）
-            var bNone = BattleFactory.Create(rCfg, 20260914UL,
-                new[] { DeployEntry.Player(BattleSampleContent.Make("rK", "焰", Element.Fire, RoleType.Striker), 0) },
-                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rL", "空", Element.Wood, RoleType.Guard), 8) }, null);
-            var eNone = bNone.UnitsOf(TeamSide.Enemy)[0];
-            BattleSimulator.ResolveElementReactions(bNone, bNone.UnitsOf(TeamSide.Player)[0], eNone, Element.Fire);
-            Check(lines, CountNote(bNone.Log, "元素反应") == 0,
-                  "㉙ 对照：无对应状态时零反应事件（默认局指纹不变）");
+                var bC = BattleFactory.Create(rCfg, 20260914UL,
+                    new[] { DeployEntry.Player(BattleSampleContent.Make("rG", "火", Element.Fire, RoleType.Caster), 0) },
+                    new[] { DeployEntry.Enemy(BattleSampleContent.Make("rH", "土", Element.Earth, RoleType.Guard), 8) }, null);
+                var srcC = bC.UnitsOf(TeamSide.Player)[0];
+                var dstC = bC.UnitsOf(TeamSide.Enemy)[0];
+                srcC.ChargeStacks = 0;
+                BattleSimulator.ResolveElementReactions(bC, srcC, dstC, Element.Fire);
+                Check(lines, dstC.AuraEl == Element.None,
+                      "㉙ 无充能：不会挂附着（反应不会白给）");
+            }
 
             return Finish(lines);
         }
