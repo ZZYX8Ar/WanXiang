@@ -515,54 +515,30 @@ namespace WanXiang.Battle.Core
         /// <summary>同 <see cref="BuildActionOrder"/>，但填进调用方给的缓冲（战斗循环每回合复用同一个 List）。</summary>
         public void BuildActionOrderInto(List<BattleUnit> order)
         {
+            // ★ 2026-11-01 用户："速度相关全部删掉。我方存活异兽打完就轮到敌方，
+            //   出手顺序在上阵时由玩家决定。" ⇒ 不再按速度排序：
+            //   我方按**上阵位次**（Slot 升序）依次行动，然后敌方同样按站位依次行动。
             order.Clear();
-            for (int i = 0; i < _all.Count; i++)
-                if (_all[i].IsAlive) order.Add(_all[i]);
 
-            // ★ 2026-10-30 用户："召唤物好像不会攻击，这是设定吗" ——
-            //   `_all` 是开场名册、中途增员不进（保指纹），结果所有召唤物**从不行动**，
-            //   看起来像站桩的花瓶。这里把"出场后仍在场的增员"补进出手序列：
-            //   · 只补 `_allEver` 里**不在** `_all` 且存活的（即召唤/分身）；
-            //   · 追加在末尾、不参与排序 —— 不改变原有单位的相对顺序（指纹只在有召唤的战里变）。
-            if (_allEver.Count > _all.Count)
+            void AppendSide(TeamSide side)
             {
+                var list = UnitsOf(side);
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var u = list[i];
+                    if (u != null && u.IsAlive && !order.Contains(u)) order.Add(u);
+                }
+                // 中途增员（召唤/分身）不进 _all：补在该阵营末尾
                 for (int i = 0; i < _allEver.Count; i++)
                 {
                     var u = _allEver[i];
-                    if (u == null || !u.IsAlive) continue;
-                    if (_all.Contains(u)) continue;
+                    if (u == null || !u.IsAlive || u.Side != side || order.Contains(u)) continue;
                     order.Add(u);
                 }
             }
 
-            // 排序键 = 有效速度（面板 × 天时乘数）。天时为空时 EffectiveSpeed 恒等于
-            // u.Speed，比较结果与旧版 CompareActionOrder 完全一致（指纹红线）。
-            // 插入排序 + 显式键数组：速度乘数是按单位算的，没法塞进静态比较器；
-            // 而插入排序的次序完全由输入与比较结果决定，不给算法留自由度。
-            int n = order.Count;
-            if (_speedBuf == null || _speedBuf.Length < n) _speedBuf = new float[BoardLayout.MaxDeployed * 2];
-            for (int i = 0; i < n; i++) _speedBuf[i] = EffectiveSpeed(order[i]);
-
-            for (int i = 1; i < n; i++)
-            {
-                var cu = order[i];
-                float cs = _speedBuf[i];
-                int j = i - 1;
-                // 标准插入排序：只要"当前待插单位 cu 应排在 order[j] 之前"就继续右移 order[j]。
-                // ⚠ 方向千万别写反 —— 反了就变成速度升序（最慢的先手），
-                //   而且冒烟的 R1 是"自己跟自己比"，拦不住这种错；只有基准指纹回归能拦住。
-                while (j >= 0 && RanksBefore(cu, cs, order[j], _speedBuf[j]))
-                {
-                    order[j + 1] = order[j];
-                    _speedBuf[j + 1] = _speedBuf[j];
-                    j--;
-                }
-                order[j + 1] = cu;
-                _speedBuf[j + 1] = cs;
-            }
-
-            // 冬至"首回合先手方伤害 +50%"的判定锚点：只在第 1 回合序列生成时落笔。
-            if (Turn == 1 && n > 0) FirstMoverSide = order[0].Side;
+            AppendSide(TeamSide.Player);
+            AppendSide(TeamSide.Enemy);
         }
 
         private float[] _speedBuf;

@@ -2520,7 +2520,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             string nm = best.NameText != null ? best.NameText.text : "单位";
             string st = side + "　HP " + s.Hp + " / " + s.MaxHp +
                         (s.Shield > 0 ? "　护盾 " + s.Shield : "") +
-                        "　攻击 " + s.Atk + "　速度 " + s.Spd + "　元素 " + ElementCn(s.Element) +
+                        "　攻击 " + s.Atk + "　元素 " + ElementCn(s.Element) +
                         (s.AuraEl != Element.None && s.AuraStacks > 0
                             ? "\n附着：" + ElementCn(s.AuraEl) + " ×" + s.AuraStacks + "（再打其它元素可触发反应）"
                             : "\n附着：无（先用一种元素打它，再换另一种）");
@@ -2559,11 +2559,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             System.Func<SkillDef, string, int, string> fmt = (sk, tag, remain) =>
             {
                 if (sk == null) return "";
-                string cd = sk.Cd > 0
-                    ? (remain > 0 ? "（冷却 " + sk.Cd + " 回合 · 剩余 " + remain + "）" : "（冷却 " + sk.Cd + " 回合 · 就绪）")
-                    : "（无冷却）";
+                // ⛔ 2026-11-01 用户："技能没有 CD，别再写冷却" ⇒ 只留名字与效果
                 string desc = string.IsNullOrEmpty(sk.Description) ? "" : "\n　　" + sk.Description;
-                return "【" + tag + "】" + sk.Name + "　" + cd + desc;
+                return "【" + tag + "】" + sk.Name + desc;
             };
             var sb = new System.Text.StringBuilder();
             sb.Append(fmt(d.Basic, "普攻", snap.Cd0)).Append('\n');
