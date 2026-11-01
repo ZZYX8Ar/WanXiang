@@ -290,6 +290,22 @@ BuildNodeMap();
                     var prun = WanXiang.Run.RunSave.Current;
                     if (prun != null)
                 {
+                        // ★ 2026-11-01 共享主等级：通过节点给经验（精英/首领更多），
+                        //   上阵 5 人共享这一条等级（设计稿 §6.1）。
+                        {
+                            int kindVal = (_graph != null && _graph.Kinds != null &&
+                                           PendingCommit >= 0 && PendingCommit < _graph.Kinds.Length)
+                                          ? (int)_graph.Kinds[PendingCommit] : -1;
+                            int gain = 100;                                   // 普通战斗 / 事件
+                            bool isFinale = _graph != null && PendingCommit == _graph.NodeCount - 1;
+                            if (isFinale) gain = 500;                          // 幕末首领（生成器里用 Elite 表示）
+                            else if (kindVal == (int)WanXiang.Campaign.NodeKind.Elite) gain = 250;
+                            else if (_realmMode) gain = 180;                  // 秘境
+                            int ups = prun.AddExp(gain);
+                            if (ups > 0)
+                                Debug.Log("[Campaign] 主等级提升 → Lv" + prun.PlayerLevel + "（经验 +" + gain + "）");
+                        }
+
            // ⛔⛔ 秘境模式：**一个字都不许写进主线的进度字段**。
             //   NodeOffset / VisitedNodes / PassedNodes 全是"主线走到第几格"的存档，
             //   语义完全属于主线。秘境借用它们 ⇒ ① 中途存档/退出再进来，位置就停在秘境格上；

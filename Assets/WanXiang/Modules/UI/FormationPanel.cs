@@ -435,6 +435,48 @@ namespace WanXiang.Modules.UI
                 // 描影：读不清时也能压住浅色底
                 nx.outlineWidth = 0.18f;
                 nx.outlineColor = new Color(1f, 1f, 1f, 0.85f);
+
+                // 等级 + 战后血量（设计稿 §6.1 / §7）：共享主等级 + 下一场以 50% 血开场的提示
+                var runNow = WanXiang.Run.RunSave.Current;
+                if (runNow != null)
+                {
+                    var lvGo = new GameObject("Tmp_Lv", typeof(RectTransform));
+                    var lrt = (RectTransform)lvGo.transform;
+                    lrt.SetParent(crt, false);
+                    lrt.anchorMin = new Vector2(1f, 1f);
+                    lrt.anchorMax = new Vector2(1f, 1f);
+                    lrt.pivot = new Vector2(1f, 1f);
+                    lrt.anchoredPosition = new Vector2(-4f, -34f);
+                    lrt.sizeDelta = new Vector2(60f, 22f);
+                    var lv = lvGo.AddComponent<TextMeshProUGUI>();
+                    lv.font = TMP_Settings.defaultFontAsset;
+                    lv.fontSize = 16f;
+                    lv.alignment = TextAlignmentOptions.TopRight;
+                    lv.raycastTarget = false;
+                    lv.text = "Lv" + runNow.PlayerLevel;
+                    lv.color = new Color(0.16f, 0.13f, 0.09f, 0.9f);
+
+                    int hp = 100;
+                    if (runNow.TeamHpPct != null && runNow.TeamHpPct.TryGetValue(_all[idx].Id, out int hpv)) hp = hpv;
+                    if (hp < 100)
+                    {
+                        var hpGo = new GameObject("Tmp_Hp", typeof(RectTransform));
+                        var hrt = (RectTransform)hpGo.transform;
+                        hrt.SetParent(crt, false);
+                        hrt.anchorMin = new Vector2(0f, 0f);
+                        hrt.anchorMax = new Vector2(1f, 0f);
+                        hrt.pivot = new Vector2(0.5f, 0f);
+                        hrt.anchoredPosition = new Vector2(0f, 4f);
+                        hrt.sizeDelta = new Vector2(-8f, 18f);
+                        var ht = hpGo.AddComponent<TextMeshProUGUI>();
+                        ht.font = TMP_Settings.defaultFontAsset;
+                        ht.fontSize = 15f;
+                        ht.alignment = TextAlignmentOptions.Bottom;
+                        ht.raycastTarget = false;
+                        ht.text = "HP " + hp + "%";
+                        ht.color = new Color(0.75f, 0.18f, 0.12f, 0.95f);
+                    }
+                }
             }
         }
 
