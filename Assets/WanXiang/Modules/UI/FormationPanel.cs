@@ -248,6 +248,14 @@ namespace WanXiang.Modules.UI
                 item.name = "Item_Roster_" + i;
                 item.gameObject.SetActive(true);
 
+                // 整条往右挪（用户："异兽一整个横条要往右移"）——直接改 RectTransform，不依赖 LayoutGroup
+                var irt = item as RectTransform;
+                if (irt != null)
+                {
+                    irt.offsetMin = new Vector2(irt.offsetMin.x + 18f, irt.offsetMin.y);
+                    irt.offsetMax = new Vector2(irt.offsetMax.x - 6f, irt.offsetMax.y);
+                }
+
                 // 挂拖拽/点击代理（点击 = 推荐位上阵；拖拽 = 拖到格子上阵）
                 var drag = item.gameObject.GetComponent<RosterDragItem>();
                 if (drag == null) drag = item.gameObject.AddComponent<RosterDragItem>();
@@ -1030,6 +1038,21 @@ namespace WanXiang.Modules.UI
         // ================================================================
 
         private Image _ghostImg;
+
+        // ★ 卡池"长按拖动 = 上阵"：长按 0.28s 后 _holdBeast 生效，短拖仍是滚动
+        private int _holdBeast = -1;
+        public void RosterHoldBegin(int beastIndex)
+        {
+            _holdBeast = -1;
+            CancelInvoke(nameof(MarkRosterHold));
+            _holdBeastPending = beastIndex;
+            Invoke(nameof(MarkRosterHold), 0.28f);
+        }
+        public void RosterHoldEnd() { CancelInvoke(nameof(MarkRosterHold)); _holdBeast = -1; _holdBeastPending = -1; }
+        public bool IsRosterHold(int beastIndex) => _holdBeast >= 0 && _holdBeast == beastIndex;
+
+        private int _holdBeastPending = -1;
+        private void MarkRosterHold() { _holdBeast = _holdBeastPending; }
         private bool _dragActive;
 
         /// <summary>给 9 个格子挂上点击/拖拽代理（幂等，面板常驻时只挂一次）。</summary>

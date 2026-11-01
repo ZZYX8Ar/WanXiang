@@ -16,10 +16,24 @@ using UnityEngine.EventSystems;
 namespace WanXiang.Modules.UI
 {
     public sealed class RosterDragItem : MonoBehaviour,
-        IPointerClickHandler, IInitializePotentialDragHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
+        IPointerClickHandler, IPointerDownHandler, IPointerUpHandler,
+        IInitializePotentialDragHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         public FormationPanel Owner;
         public int BeastIndex = -1;
+
+        // ★ 2026-11-01 用户："列表里的兽拖不到九宫格"。
+        //   原规则（2026-10-12）：拖动一律用于滚动列表，上阵只能双击 ⇒ 拖拽永远不生效。
+        //   现在拆开：**长按 0.28 秒再拖 = 拖拽上阵**，直接拖 = 滚动列表。
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            if (Owner != null && BeastIndex >= 0) Owner.RosterHoldBegin(BeastIndex);
+        }
+
+        public void OnPointerUp(PointerEventData eventData)
+        {
+            if (Owner != null) Owner.RosterHoldEnd();
+        }
 
         public void OnInitializePotentialDrag(PointerEventData eventData)
         {
@@ -46,17 +60,24 @@ namespace WanXiang.Modules.UI
         // 拖动 = 滚动列表（把拖拽事件转发给卡池 ScrollRect）。
         public void OnBeginDrag(PointerEventData eventData)
         {
-            if (Owner != null) Owner.RosterScrollBegin(eventData);
+            if (Owner == null) return;
+            if (Owner.IsRosterHold(BeastIndex)) { Owner.OnDragBegin(BeastIndex, -1, eventData); return; }
+            Owner.RosterScrollBegin(eventData);
         }
 
         public void OnDrag(PointerEventData eventData)
         {
-            if (Owner != null) Owner.RosterScrollDrag(eventData);
+            if (Owner == null) return;
+            if (Owner.IsRosterHold(BeastIndex)) { Owner.OnDragMove(eventData); return; }
+            Owner.RosterScrollDrag(eventData);
         }
 
         public void OnEndDrag(PointerEventData eventData)
         {
-            if (Owner != null) Owner.RosterScrollEnd(eventData);
+            if (Owner == null) return;
+            if (Owner.IsRosterHold(BeastIndex)) { Owner.OnDragEnd(BeastIndex, -1, eventData); Owner.RosterHoldEnd(); return; }
+            Owner.RosterScrollEnd(eventData);
+            Owner.RosterHoldEnd();
         }
     }
 
