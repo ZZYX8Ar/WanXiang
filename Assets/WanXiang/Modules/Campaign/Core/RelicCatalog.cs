@@ -188,7 +188,15 @@ namespace WanXiang.Campaign
             // ⚠ 必须在静态构造函数里 Build：下面的 Elements/Roles/… 是**内联**静态数组，
             //   若写成 `All = Build()` 的字段初始化器，它会按声明顺序先于那些数组执行
             //   ， Build() 里读到 null 数组 ， TypeInitializationException（实测踩过）。
-            All = Build();
+            // ⛔ 2026-11-01 用户："把大量遗物删掉，主要靠异兽局内养成，只保留一些好玩的（参考杀戮尖塔）"
+            //   ⇒ 170 件里只保留**改变规则/带代价**的那些（r_mech_ 技能改写 / r_trait_ 劫象 /
+            //   r_rule_ 全场规则 / r_trade_ 代价交易）。纯数值、分族、专属印记全部不进池子。
+            All = System.Array.FindAll(Build(), d =>
+                d != null && (
+                    d.Id.StartsWith("r_mech_") ||
+                    d.Id.StartsWith("r_trait_") ||
+                    d.Id.StartsWith("r_rule_") ||
+                    d.Id.StartsWith("r_trade_")));
             foreach (var d in All) _byId[d.Id] = d;
         }
 
