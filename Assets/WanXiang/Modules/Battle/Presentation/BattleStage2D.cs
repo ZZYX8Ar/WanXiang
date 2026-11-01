@@ -41,7 +41,8 @@ namespace WanXiang.Battle.Presentation
         /// <summary>元素附着指示（2026-10-31）：头顶一颗元素色圆点 + 层数。</summary>
         public SpriteRenderer AuraDot;      // 附着徽章底板
         public SpriteRenderer[] AuraPips;   // 4 格层数刻度
-        public GameObject AuraLabelRoot;    // 附着大字标签根
+        public SpriteRenderer AuraStacksRing;   // 血条右侧 4 段层数小圈
+        public GameObject AuraLabelRoot;    // 附着大字标签根（已停用）
         public TextMesh AuraShadow;         // 描影层
         public Material AuraMat;
         public TextMesh AuraText;           // 旧版文字牌（已停用，保留字段避免 prefab 引用丢失）
@@ -1355,6 +1356,20 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     view.AuraDot = asr;
                     view.AuraMat = amat;
                 }
+
+                // 4 段小圈：只负责"几层"（亮段数），放在血条右侧，尺寸固定 0.22 世界单位
+                var stackGo = new GameObject("AuraStacks");
+                stackGo.transform.SetParent(headGo.transform, false);
+                stackGo.transform.localPosition = new Vector3(HpBarWidth * 0.5f + 0.24f, 0.02f, 0f);
+                float sk = Mathf.Max(0.0001f, Mathf.Abs(headGo.transform.lossyScale.y));
+                float sSize = 0.22f / sk;
+                stackGo.transform.localScale = new Vector3(sSize, sSize, 1f);
+                var stackSr = stackGo.AddComponent<SpriteRenderer>();
+                stackSr.sprite = AuraRing(1);
+                stackSr.sortingOrder = 9;
+                stackSr.color = new Color(1f, 1f, 1f, 0f);
+                stackGo.SetActive(false);
+                view.AuraStacksRing = stackSr;
 
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
@@ -3152,19 +3167,33 @@ if (life < 0.2f) life = 0.2f;
             return _auraRings[filled];
         }
 
-        /// <summary>元素附着：脚下一圈元素色光（比状态光圈更大），亮度随层数。</summary>
+        /// <summary>元素附着：脚下圈 = 元素色（恒定亮度）；血条右侧 4 段小圈 = 层数。</summary>
         private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
         {
             bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
+
+            // 元素色统一提亮一点：水/金这类深色元素在浅背景上不至于"黑黑的"
+            Color bright = on ? Color.Lerp(BattlePalette.OfElement(s.AuraEl), Color.white, 0.35f) : Color.white;
+            bright.a = 1f;
+
             if (v.AuraDot != null)
             {
                 if (v.AuraDot.gameObject.activeSelf != on) v.AuraDot.gameObject.SetActive(on);
                 if (on && v.AuraMat != null)
                 {
-                    var c = BattlePalette.OfElement(s.AuraEl);
-                    c.a = 1f;
-                    v.AuraMat.SetColor("_Color", c);
-                    v.AuraMat.SetFloat("_Strength", Mathf.Clamp01(0.60f + 0.13f * (s.AuraStacks - 1)));
+                    v.AuraMat.SetColor("_Color", bright);
+                    // ⛔ 2026-11-01 用户："颜色别随层数变，不然水看着黑" ⇒ 亮度恒定
+                    v.AuraMat.SetFloat("_Strength", 0.85f);
+                }
+            }
+            if (v.AuraStacksRing != null)
+            {
+                if (v.AuraStacksRing.gameObject.activeSelf != on) v.AuraStacksRing.gameObject.SetActive(on);
+                if (on)
+                {
+                    var sp = AuraRing(s.AuraStacks);
+                    if (v.AuraStacksRing.sprite != sp) v.AuraStacksRing.sprite = sp;
+                    v.AuraStacksRing.color = bright;
                 }
             }
             if (v.AuraLabelRoot != null && v.AuraLabelRoot.activeSelf) v.AuraLabelRoot.SetActive(false);
