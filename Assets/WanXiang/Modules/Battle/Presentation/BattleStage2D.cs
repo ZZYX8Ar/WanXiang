@@ -1360,9 +1360,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 // 4 段小圈：只负责"几层"（亮段数），放在血条右侧，尺寸固定 0.22 世界单位
                 var stackGo = new GameObject("AuraStacks");
                 stackGo.transform.SetParent(headGo.transform, false);
-                stackGo.transform.localPosition = new Vector3(HpBarWidth * 0.5f + 0.24f, 0.02f, 0f);
+                stackGo.transform.localPosition = new Vector3(HpBarWidth * 0.5f + 0.28f, 0.02f, 0f);
                 float sk = Mathf.Max(0.0001f, Mathf.Abs(headGo.transform.lossyScale.y));
-                float sSize = 0.22f / sk;
+                float sSize = 0.27f / sk;
                 stackGo.transform.localScale = new Vector3(sSize, sSize, 1f);
                 var stackSr = stackGo.AddComponent<SpriteRenderer>();
                 stackSr.sprite = AuraRing(1);
@@ -3158,7 +3158,7 @@ if (life < 0.2f) life = 0.2f;
                     Color c = new Color(1f, 1f, 1f, 0f);
                     if (inRing && !inGap)
                         c = seg < filled ? new Color(1f, 1f, 1f, 1f)
-                                         : new Color(0.10f, 0.09f, 0.07f, 0.35f);
+                                         : new Color(0f, 0f, 0f, 0.55f);   // 空槽纯黑：染色后仍是黑，对比强
                     px[y * S + x] = c;
                 }
             tex.SetPixels(px);
@@ -3167,13 +3167,29 @@ if (life < 0.2f) life = 0.2f;
             return _auraRings[filled];
         }
 
+        /// <summary>附着专用高饱和色（不复用美术调色板，避免水墨风格把颜色压灰）。</summary>
+        private static Color AuraColorOf(Element el)
+        {
+            switch (el)
+            {
+                case Element.Water: return new Color(0.10f, 0.62f, 1.00f);   // 水：亮天蓝
+                case Element.Fire:  return new Color(1.00f, 0.40f, 0.10f);   // 火：橙红
+                case Element.Wood:  return new Color(0.22f, 0.82f, 0.35f);   // 木：翠绿
+                case Element.Metal: return new Color(1.00f, 0.84f, 0.20f);   // 金：亮黄
+                case Element.Earth: return new Color(0.95f, 0.62f, 0.18f);   // 土：琥珀
+                default:            return Color.white;
+            }
+        }
+
         /// <summary>元素附着：脚下圈 = 元素色（恒定亮度）；血条右侧 4 段小圈 = 层数。</summary>
         private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
         {
             bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
 
-            // 元素色统一提亮一点：水/金这类深色元素在浅背景上不至于"黑黑的"
-            Color bright = on ? Color.Lerp(BattlePalette.OfElement(s.AuraEl), Color.white, 0.35f) : Color.white;
+            // ⛔ 2026-11-01 用户："水还是不够蓝、4 格圈也不够亮" ——
+            //   混白会把颜色洗淡（水混白变灰）。改成**专用的高饱和元素色**，
+            //   与美术调色板（偏水墨、饱和度低）分开，保证在浅色背景上一眼可辨。
+            Color bright = on ? AuraColorOf(s.AuraEl) : Color.white;
             bright.a = 1f;
 
             if (v.AuraDot != null)
@@ -3183,7 +3199,7 @@ if (life < 0.2f) life = 0.2f;
                 {
                     v.AuraMat.SetColor("_Color", bright);
                     // ⛔ 2026-11-01 用户："颜色别随层数变，不然水看着黑" ⇒ 亮度恒定
-                    v.AuraMat.SetFloat("_Strength", 0.85f);
+                    v.AuraMat.SetFloat("_Strength", 1.0f);
                 }
             }
             if (v.AuraStacksRing != null)
