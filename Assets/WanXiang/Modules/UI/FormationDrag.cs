@@ -21,6 +21,7 @@ namespace WanXiang.Modules.UI
     {
         public FormationPanel Owner;
         public int BeastIndex = -1;
+        public UnityEngine.UI.Image SelectionOutline;   // 选中高亮框（BuildRoster 里建）
 
         // ★ 2026-11-01 用户："列表里的兽拖不到九宫格"。
         //   原规则（2026-10-12）：拖动一律用于滚动列表，上阵只能双击 ⇒ 拖拽永远不生效。
@@ -51,33 +52,31 @@ namespace WanXiang.Modules.UI
             //   ★ 单击 = 看战斗详情（用户 2026-10-14：卡池单击无既有语义，用来驱动中上详情区）。
             if (eventData.clickCount < 2)
             {
+                // ★ 2026-11-01：单击 = **选中**（高亮）+ 看详情；再点格子放置
+                Owner.SelectRosterItem(BeastIndex, SelectionOutline);
                 Owner.ShowBeastDetailByIndex(BeastIndex);
                 return;
             }
-            Owner.OnRosterClicked(BeastIndex);
+            Owner.OnRosterClicked(BeastIndex);   // 双击仍然直接上阵（保底路径）
         }
 
         // 拖动 = 滚动列表（把拖拽事件转发给卡池 ScrollRect）。
         public void OnBeginDrag(PointerEventData eventData)
         {
             if (Owner == null) return;
-            if (Owner.IsRosterHold(BeastIndex)) { Owner.OnDragBegin(BeastIndex, -1, eventData); return; }
-            Owner.RosterScrollBegin(eventData);
+            Owner.RosterScrollBegin(eventData);   // ★ 2026-11-01 用户：删掉拖拽上阵，统一走"点选→点格子"
         }
 
         public void OnDrag(PointerEventData eventData)
         {
             if (Owner == null) return;
-            if (Owner.IsRosterHold(BeastIndex)) { Owner.OnDragMove(eventData); return; }
             Owner.RosterScrollDrag(eventData);
         }
 
         public void OnEndDrag(PointerEventData eventData)
         {
             if (Owner == null) return;
-            if (Owner.IsRosterHold(BeastIndex)) { Owner.OnDragEnd(BeastIndex, -1, eventData); Owner.RosterHoldEnd(); return; }
             Owner.RosterScrollEnd(eventData);
-            Owner.RosterHoldEnd();
         }
     }
 

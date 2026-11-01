@@ -141,6 +141,7 @@ namespace WanXiang.Modules.UI
 
             FillEnemyIntel();
             BuildRoster();
+            SwapGridAndDetailOnce();
             RefreshBonds();
             RefreshShapePreview();
             if (!TryInheritTeam())
@@ -204,6 +205,36 @@ namespace WanXiang.Modules.UI
         //  卡池
         // ================================================================
 
+        // ★ 2026-11-01 点选上阵：先单击左侧卡池选中（高亮边框），再点九宫格格子上阵/移动。
+        private int _selectedBeast = -1;
+        private Image _selectedOutline;
+
+        private void SelectBeast(int index, Image outline)
+        {
+            if (_selectedOutline != null) _selectedOutline.enabled = false;
+            _selectedBeast = index;
+            _selectedOutline = outline;
+            if (_selectedOutline != null) _selectedOutline.enabled = true;
+            Debug.Log("[Formation] 选中异兽 idx=" + index + "（再点格子放置）");
+        }
+
+        /// <summary>格子点击：有选中兽 → 放进去（已上阵则移动）；没选中 → 原来的双击下阵。</summary>
+        public void PlaceSelectedIntoCell(int cell)
+        {
+            if (_selectedBeast < 0 || _deployed == null || cell < 0 || cell >= _deployed.Length) return;
+
+            // 已在别处 → 先清空原位（"改变到点击的格子"）
+            for (int c = 0; c < _deployed.Length; c++)
+                if (_deployed[c] == _selectedBeast) _deployed[c] = -1;
+
+            _deployed[cell] = _selectedBeast;
+            if (_selectedOutline != null) _selectedOutline.enabled = false;
+            _selectedOutline = null;
+            _selectedBeast = -1;
+            CommitLayout();
+            Debug.Log("[Formation] 放入格子 " + cell);
+        }
+
         private void BuildRoster()
         {
             if (_scrollRoster == null || _rosterItemTemplate == null || _all == null) return;
@@ -233,7 +264,7 @@ namespace WanXiang.Modules.UI
                 tt.alignment = TextAlignmentOptions.MidlineLeft;
                 tt.raycastTarget = false;
                 tt.color = new Color(0.16f, 0.13f, 0.09f, 1f);
-                tt.text = "万灵谱 · 我方异兽（双击上阵 / 拖到格子）";
+                tt.text = "万灵谱 · 我方异兽（单击选中，再点格子放置）";
             }
 
             // ★ 2026-11-01（第二次修）：上一版改 LayoutGroup.padding 无效 —— 行由布局组按
@@ -241,12 +272,16 @@ namespace WanXiang.Modules.UI
             //   整列（含头像/名字/属性块）一起右移，布局组管不到容器外部。
             if (_scrollRoster != null && !_rosterShifted)
             {
-                _rosterShifted = true;                     // ⛔ 只挪一次：BuildRoster 会被反复调用，否则会越挪越右
-                var srt = _scrollRoster.transform as RectTransform;
-                if (srt != null)
+                _rosterShifted = true;
+                // ⛔ 挪 **viewport**（不是 ScrollRect 本体，也不是行 offset）：
+                //   ScrollRect 每帧写 content.anchoredPosition，行又由 LayoutGroup 摆，
+                //   只有 viewport 的 RectTransform 没人动 ⇒ 位移能稳定保留。
+                var vp = _scrollRoster.viewport != null ? _scrollRoster.viewport
+                                                        : _scrollRoster.transform as RectTransform;
+                if (vp != null)
                 {
-                    srt.offsetMin = new Vector2(srt.offsetMin.x + 26f, srt.offsetMin.y);
-                    srt.offsetMax = new Vector2(srt.offsetMax.x - 6f, srt.offsetMax.y);
+                    vp.offsetMin = new Vector2(vp.offsetMin.x + 34f, vp.offsetMin.y);
+                    vp.offsetMax = new Vector2(vp.offsetMax.x - 4f, vp.offsetMax.y);
                 }
             }
 
@@ -269,6 +304,22 @@ namespace WanXiang.Modules.UI
                 if (drag == null) drag = item.gameObject.AddComponent<RosterDragItem>();
                 drag.Owner = this;
                 drag.BeastIndex = i;
+
+                // 选中高亮框（默认隐藏）
+                Image selImg = null;
+                {
+                    var selGo = new GameObject("Img_SelOutline", typeof(RectTransform), typeof(Image));
+                    var srt2 = (RectTransform)selGo.transform;
+                    srt2.SetParent(item, false);
+                    srt2.anchorMin = Vector2.zero; srt2.anchorMax = Vector2.one;
+                    srt2.offsetMin = new Vector2(-2f, -2f); srt2.offsetMax = new Vector2(2f, 2f);
+                    selImg = selGo.GetComponent<Image>();
+                    selImg.color = new Color(1f, 0.72f, 0.25f, 0.35f);
+                    selImg.raycastTarget = false;
+                    selImg.enabled = false;
+                }
+                var rd = item.gameObject.GetComponent<RosterDragItem>();
+                if (rd != null) rd.SelectionOutline = selImg;
 
                 var head = item.Find("Img_Head");
                 if (head != null)
@@ -422,6 +473,28 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>把上阵的立绘落到格子上（文字/头像由 Img_Head 之类承担，这里直接画立绘）。</summary>
+        /// <summary>把九宫格容器与说明面板的兄弟顺序互换（2026-11-01 用户要求）。</summary>
+        private void SwapGridAndDetailOnce()
+        {
+            if (_swappedLayout || _cells == null || _cells.Length == 0 || _cells[0] == null || _detailPanel == null) return;
+            _swappedLayout = true;
+
+            Transform Top(Transform t)
+            {
+                while (t != null && t.parent != null && t.parent != transform) t = t.parent;
+                return t;
+            }
+            var a = Top(_cells[0]);
+            var b = Top(_detailPanel);
+            if (a == null || b == null || a == b) return;
+            int ia = a.GetSiblingIndex(), ib = b.GetSiblingIndex();
+            a.SetSiblingIndex(ib);
+            b.SetSiblingIndex(ia);
+            Debug.Log("[Formation] 九宫格与说明面板已换位");
+        }
+
+        private bool _swappedLayout;
+
         private void RefreshCells()
         {
             if (_cells == null) return;
@@ -1078,6 +1151,13 @@ namespace WanXiang.Modules.UI
             }
         }
 
+        /// <summary>单击卡池条目 = 选中（高亮）；再点格子放置。双击仍可直接上阵。</summary>
+        public void SelectRosterItem(int beastIndex, Image outline)
+        {
+            SelectBeast(beastIndex, outline);
+            CommitLayout();
+        }
+
         /// <summary>点击卡池条目：已上阵 → 下阵；未上阵 → 放进第一个空推荐位。</summary>
         public void OnRosterClicked(int beastIndex)
         {
@@ -1119,6 +1199,12 @@ namespace WanXiang.Modules.UI
 
         /// <summary>空手点击格子：有兽 → 下阵。</summary>
         public void OnCellClicked(int cell)
+        {
+            if (_selectedBeast >= 0) { PlaceSelectedIntoCell(cell); return; }
+            OnCellClickedCore(cell);
+        }
+
+        private void OnCellClickedCore(int cell)
         {
             if (cell < 0 || cell >= _deployed.Length || _deployed[cell] < 0) return;
             _deployed[cell] = -1;
