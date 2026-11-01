@@ -41,7 +41,8 @@ namespace WanXiang.Battle.Presentation
         /// <summary>元素附着指示（2026-10-31）：头顶一颗元素色圆点 + 层数。</summary>
         public SpriteRenderer AuraDot;      // 附着徽章底板
         public SpriteRenderer[] AuraPips;   // 4 格层数刻度
-        public SpriteRenderer AuraOutline;  // 立绘描边（放大 4.5% 的同图剪影，垫在身后）
+        public GameObject AuraLabelRoot;    // 附着大字标签根
+        public TextMesh AuraShadow;         // 描影层
         public Material AuraMat;
         public TextMesh AuraText;           // 旧版文字牌（已停用，保留字段避免 prefab 引用丢失）
         /// <summary>上一帧的机制提示文本（用于"变化时飘一条"）。</summary>
@@ -1323,34 +1324,40 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                 }
 
-                // ---- 元素附着（2026-10-31 v7）----
-                //   ① 4 段小环：挂在**血条右侧**（不再糊在身上/格子里），尺寸 ~0.22
-                //   ② 立绘描边：同 sprite 放大 4.5% 垫在身后、染元素色 —— 不用 shader，
-                //      靠"放大后的剪影"露出的一圈边，规避了之前 UV/缩放全糊的问题。
-                var ringGo = new GameObject("AuraRing");
-                ringGo.transform.SetParent(headGo.transform, false);
-                ringGo.transform.localPosition = new Vector3(HpBarWidth * 0.5f + 0.22f, 0.02f, 0f);
-                float rk = Mathf.Max(0.0001f, Mathf.Abs(headGo.transform.lossyScale.y));
-                float rSize = 0.24f / rk;      // 0.24 世界单位（挂 headGo 下，必须除 headGo 的缩放）
-                ringGo.transform.localScale = new Vector3(rSize, rSize, 1f);
-                var ringSr = ringGo.AddComponent<SpriteRenderer>();
-                ringSr.sprite = AuraRing(1);
-                ringSr.sortingOrder = 8;
-                ringSr.color = new Color(1f, 1f, 1f, 0f);
-                ringGo.SetActive(false);
-                view.AuraDot = ringSr;
+                // ---- 元素附着：大字标签（2026-11-01 v9）----
+                //   用户："木/水附着看不清，底下那个红圈是不是附着" ——
+                //   红圈是**状态光环**（灼烧等），不是附着。附着改成**大号元素字 + 层数**：
+                //   例如「木3」，白字 + 深墨描影，放血条正上方，比任何图形都直白。
+                var auraRoot = new GameObject("AuraLabel");
+                auraRoot.transform.SetParent(headGo.transform, false);
+                auraRoot.transform.localPosition = new Vector3(0f, 0.42f, -0.02f);
 
-                // ---- 元素描边：直接换**本体材质**（同 mesh 同 uv，描边不会错位）----
-                var auraSh = Shader.Find("WanXiang/SpriteAura");
-                if (auraSh != null && bodySr != null)
+                GameObject MakeTxt(string nm, Color col, float dy)
                 {
-                    var bm = new Material(auraSh) { hideFlags = HideFlags.HideAndDontSave };
-                    bm.mainTexture = bodySr.sprite != null ? bodySr.sprite.texture : null;
-                    bm.SetColor("_AuraColor", new Color(1f, 1f, 1f, 0f));
-                    bm.SetFloat("_Strength", 0f);
-                    bodySr.sharedMaterial = bm;
-                    view.AuraMat = bm;
+                    var go = new GameObject(nm);
+                    go.transform.SetParent(auraRoot.transform, false);
+                    go.transform.localPosition = new Vector3(0.006f, dy, 0f);
+                    var tm = go.AddComponent<TextMesh>();
+                    var mr = go.GetComponent<MeshRenderer>();
+                    var f = LegacyFont();
+                    if (f != null) { tm.font = f; if (mr != null) mr.sharedMaterial = f.material; }
+                    if (mr != null) mr.sortingOrder = 12;
+                    tm.characterSize = 0.075f;
+                    tm.fontSize = 64;
+                    tm.anchor = TextAnchor.MiddleCenter;
+                    tm.fontStyle = FontStyle.Bold;
+                    tm.color = col;
+                    tm.text = "";
+                    return go;
                 }
+
+                // 描影（深墨，偏移一点点）+ 主字（元素色，偏亮）
+                var shadowGo = MakeTxt("AuraShadow", new Color(0.08f, 0.07f, 0.06f, 0.9f), -0.006f);
+                var mainGo = MakeTxt("AuraMain", Color.white, 0f);
+                auraRoot.SetActive(false);
+                view.AuraLabelRoot = auraRoot;
+                view.AuraText = mainGo.GetComponent<TextMesh>();
+                view.AuraShadow = shadowGo.GetComponent<TextMesh>();
 
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
@@ -3146,34 +3153,27 @@ if (life < 0.2f) life = 0.2f;
             return _auraRings[filled];
         }
 
-        /// <summary>元素附着：血条右侧 4 段小环（层数）+ 本体材质描边。</summary>
+        /// <summary>元素附着：大号「元素字+层数」标签（如「木3」）。</summary>
         private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
         {
             bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
 
-            if (v.AuraDot != null)
+            if (v.AuraLabelRoot != null && v.AuraLabelRoot.activeSelf != on) v.AuraLabelRoot.SetActive(on);
+            if (!on) return;
+
+            string el = ElementCn(s.AuraEl);
+            string t = s.AuraStacks > 1 ? el + s.AuraStacks : el;
+            if (v.AuraText != null && v.AuraText.text != t) v.AuraText.text = t;
+            if (v.AuraShadow != null && v.AuraShadow.text != t) v.AuraShadow.text = t;
+
+            // 颜色：元素色偏亮（在白字基础上压色），保证在浅色背景上也读得清
+            if (v.AuraText != null)
             {
-                if (v.AuraDot.gameObject.activeSelf != on) v.AuraDot.gameObject.SetActive(on);
-                if (on)
-                {
-                    var sp = AuraRing(s.AuraStacks);
-                    if (v.AuraDot.sprite != sp) v.AuraDot.sprite = sp;
-                    var c = BattlePalette.OfElement(s.AuraEl); c.a = 0.95f;
-                    v.AuraDot.color = c;
-                }
+                var c = BattlePalette.OfElement(s.AuraEl);
+                c = Color.Lerp(c, Color.white, 0.25f);
+                c.a = 1f;
+                v.AuraText.color = c;
             }
-            if (v.AuraMat != null)
-            {
-                var ac = BattlePalette.OfElement(s.AuraEl);
-                ac.a = 1f;
-                v.AuraMat.SetColor("_AuraColor", on ? ac : new Color(1f, 1f, 1f, 0f));
-                v.AuraMat.SetFloat("_Strength", on ? 0.55f + 0.15f * (s.AuraStacks - 1) : 0f);
-            }
-            if (v.AuraText != null && v.AuraText.gameObject.activeSelf) v.AuraText.gameObject.SetActive(false);
-            if (v.AuraPips != null)
-                for (int i = 0; i < v.AuraPips.Length; i++)
-                    if (v.AuraPips[i] != null && v.AuraPips[i].gameObject.activeSelf)
-                        v.AuraPips[i].gameObject.SetActive(false);
         }
 
         /// <summary>血条按比例伸缩。<paramref name="v"/> 的填充宽度 = <see cref="HpBarWidth"/>（可在 Inspector 调）。</summary>
