@@ -1324,40 +1324,37 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     }
                 }
 
-                // ---- 元素附着：大字标签（2026-11-01 v9）----
-                //   用户："木/水附着看不清，底下那个红圈是不是附着" ——
-                //   红圈是**状态光环**（灼烧等），不是附着。附着改成**大号元素字 + 层数**：
-                //   例如「木3」，白字 + 深墨描影，放血条正上方，比任何图形都直白。
-                var auraRoot = new GameObject("AuraLabel");
-                auraRoot.transform.SetParent(headGo.transform, false);
-                auraRoot.transform.localPosition = new Vector3(0f, 0.42f, -0.02f);
-
-                GameObject MakeTxt(string nm, Color col, float dy)
+                // ---- 元素附着：脚下一圈光（2026-11-01 v10）----
+                //   用户："脚下的这个圈能不能改成附着" —— 状态光环那套视觉本来就好用，
+                //   直接复用同一 shader（Battle/StatusAura）与尺寸算法，**比状态光圈大一圈**，
+                //   颜色 = 元素色，亮度随层数。两层圈同时存在：内圈状态、外圈附着。
+                var auraSh2 = Resources.Load<Shader>("Battle/StatusAura");
+                var auraHex = Resources.Load<Sprite>("Battle/FX_shield_hex");
+                var auraNoise = Resources.Load<Sprite>("Battle/FX_motion_fog");
+                if (auraSh2 != null && auraHex != null && auraSh2.isSupported && bodySr != null && bodySr.sprite != null)
                 {
-                    var go = new GameObject(nm);
-                    go.transform.SetParent(auraRoot.transform, false);
-                    go.transform.localPosition = new Vector3(0.006f, dy, 0f);
-                    var tm = go.AddComponent<TextMesh>();
-                    var mr = go.GetComponent<MeshRenderer>();
-                    var f = LegacyFont();
-                    if (f != null) { tm.font = f; if (mr != null) mr.sharedMaterial = f.material; }
-                    if (mr != null) mr.sortingOrder = 12;
-                    tm.characterSize = 0.075f;
-                    tm.fontSize = 64;
-                    tm.anchor = TextAnchor.MiddleCenter;
-                    tm.fontStyle = FontStyle.Bold;
-                    tm.color = col;
-                    tm.text = "";
-                    return go;
-                }
+                    var ag = new GameObject("AuraFoot");
+                    ag.transform.SetParent(bodySr.transform, false);
+                    ag.transform.localPosition = new Vector3(0f, -(bodySr.sprite.bounds.size.y * 0.52f), 0.02f);
+                    var asr = ag.AddComponent<SpriteRenderer>();
+                    asr.sprite = auraHex;
+                    asr.sortingOrder = bodySr.sortingOrder - 2;   // 比状态光环再靠后一点
 
-                // 描影（深墨，偏移一点点）+ 主字（元素色，偏亮）
-                var shadowGo = MakeTxt("AuraShadow", new Color(0.08f, 0.07f, 0.06f, 0.9f), -0.006f);
-                var mainGo = MakeTxt("AuraMain", Color.white, 0f);
-                auraRoot.SetActive(false);
-                view.AuraLabelRoot = auraRoot;
-                view.AuraText = mainGo.GetComponent<TextMesh>();
-                view.AuraShadow = shadowGo.GetComponent<TextMesh>();
+                    var lsA = bodySr.transform.lossyScale;
+                    var bsA = bodySr.sprite.bounds.size;
+                    float worldWA = Mathf.Abs(bsA.x * lsA.x);
+                    ag.transform.localScale = new Vector3(
+                        worldWA * 1.85f / Mathf.Max(0.0001f, auraHex.bounds.size.x * Mathf.Abs(lsA.x)),
+                        worldWA * 0.95f / Mathf.Max(0.0001f, auraHex.bounds.size.y * Mathf.Abs(lsA.y)), 1f);
+
+                    var amat = new Material(auraSh2);
+                    if (auraNoise != null) amat.SetTexture("_NoiseTex", auraNoise.texture);
+                    amat.SetFloat("_Speed", 0.8f);
+                    asr.material = amat;
+                    ag.SetActive(false);
+                    view.AuraDot = asr;
+                    view.AuraMat = amat;
+                }
 
                 // ---- 护盾指示（血条**右侧**）----
                 //  护盾**不会自然消退**（只被伤害消耗）， 不显示就等于一管隐形的血。
@@ -3153,27 +3150,22 @@ if (life < 0.2f) life = 0.2f;
             return _auraRings[filled];
         }
 
-        /// <summary>元素附着：大号「元素字+层数」标签（如「木3」）。</summary>
+        /// <summary>元素附着：脚下一圈元素色光（比状态光圈更大），亮度随层数。</summary>
         private void SetAura2D(UnitView2D v, WanXiang.Battle.Core.UnitSnapshot s)
         {
             bool on = s.AuraEl != Element.None && s.AuraStacks > 0 && s.Alive;
-
-            if (v.AuraLabelRoot != null && v.AuraLabelRoot.activeSelf != on) v.AuraLabelRoot.SetActive(on);
-            if (!on) return;
-
-            string el = ElementCn(s.AuraEl);
-            string t = s.AuraStacks > 1 ? el + s.AuraStacks : el;
-            if (v.AuraText != null && v.AuraText.text != t) v.AuraText.text = t;
-            if (v.AuraShadow != null && v.AuraShadow.text != t) v.AuraShadow.text = t;
-
-            // 颜色：元素色偏亮（在白字基础上压色），保证在浅色背景上也读得清
-            if (v.AuraText != null)
+            if (v.AuraDot != null)
             {
-                var c = BattlePalette.OfElement(s.AuraEl);
-                c = Color.Lerp(c, Color.white, 0.25f);
-                c.a = 1f;
-                v.AuraText.color = c;
+                if (v.AuraDot.gameObject.activeSelf != on) v.AuraDot.gameObject.SetActive(on);
+                if (on && v.AuraMat != null)
+                {
+                    var c = BattlePalette.OfElement(s.AuraEl);
+                    c.a = 1f;
+                    v.AuraMat.SetColor("_Color", c);
+                    v.AuraMat.SetFloat("_Strength", Mathf.Clamp01(0.60f + 0.13f * (s.AuraStacks - 1)));
+                }
             }
+            if (v.AuraLabelRoot != null && v.AuraLabelRoot.activeSelf) v.AuraLabelRoot.SetActive(false);
         }
 
         /// <summary>血条按比例伸缩。<paramref name="v"/> 的填充宽度 = <see cref="HpBarWidth"/>（可在 Inspector 调）。</summary>
