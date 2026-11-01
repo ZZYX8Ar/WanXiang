@@ -36,6 +36,39 @@ namespace WanXiang.Run
         public int Realm = 1;                   // 境 1..3（旧）
         public int Jie = 1;                     // 劫 1..3（旧）
         public int Eggs = 0;                    // 灵卵（每局从 0 开始；局末结转 MetaState.Eggs）
+
+        // ---- 2026-11-01 局内养成：共享主等级（设计稿 v3 §6.1）----
+        /// <summary>主等级：战斗获得经验，<b>上阵 5 人共享</b>；只加基础攻击/生命。</summary>
+        public int PlayerLevel = 1;
+        /// <summary>当前等级内的经验（升级后清零）。</summary>
+        public int PlayerExp;
+        /// <summary>每只兽的"战后血量百分比"（0~100）：阵亡记 50，编队界面据此显示重伤。</summary>
+        public System.Collections.Generic.Dictionary<string, int> TeamHpPct
+            = new System.Collections.Generic.Dictionary<string, int>();
+
+        public const int PlayerLevelMax = 20;
+        /// <summary>升到下一级所需经验：Lv1→2 需 300，之后每级 +180。</summary>
+        public static int ExpToNext(int level) => 300 + 180 * (System.Math.Max(1, level) - 1);
+        /// <summary>等级带来的攻击倍率（+6%/级）。</summary>
+        public float LevelAtkMul => 1f + 0.06f * (System.Math.Clamp(PlayerLevel, 1, PlayerLevelMax) - 1);
+        /// <summary>等级带来的生命倍率（+7%/级）。</summary>
+        public float LevelHpMul => 1f + 0.07f * (System.Math.Clamp(PlayerLevel, 1, PlayerLevelMax) - 1);
+
+        /// <summary>加经验并处理升级（可能连升）。返回升了几级。</summary>
+        public int AddExp(int amount)
+        {
+            if (amount <= 0) return 0;
+            PlayerExp += amount;
+            int ups = 0;
+            while (PlayerLevel < PlayerLevelMax && PlayerExp >= ExpToNext(PlayerLevel))
+            {
+                PlayerExp -= ExpToNext(PlayerLevel);
+                PlayerLevel++;
+                ups++;
+            }
+            if (PlayerLevel >= PlayerLevelMax) PlayerExp = 0;
+            return ups;
+        }
         // ⚠ 2026-09-25 删掉了 `Ink`（局内墨锭）字段：全项目**无人消费**（HomePanel.RunInk 声明未用、
         //   灵市花的是灵卵），每场胜利给它 +1 只是死数据。局外墨铊是 MetaState.Ink，与此无关。
         public int Wins;                        // 本程胜场

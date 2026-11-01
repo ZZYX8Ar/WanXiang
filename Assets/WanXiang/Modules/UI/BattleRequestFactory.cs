@@ -195,6 +195,15 @@ namespace WanXiang.Modules.UI
                     //   直接改会污染全局（之后每场战斗都带着觉醒技）。
                     var d = def.Clone();
 
+                    // ★ 2026-11-01 共享主等级：只放大**基础攻击/生命**（+6% / +7% 每级），
+                    //   不加暴击/防御/技能 —— 数值成长只走这一条线（设计稿 §6.1）。
+                    int lvNow = UnityEngine.Mathf.Clamp(run.PlayerLevel, 1, WanXiang.Run.RunState.PlayerLevelMax);
+                    if (lvNow > 1)
+                    {
+                        d.BaseAtk = UnityEngine.Mathf.RoundToInt(d.BaseAtk * (1f + 0.06f * (lvNow - 1)));
+                        d.BaseHp = UnityEngine.Mathf.RoundToInt(d.BaseHp * (1f + 0.07f * (lvNow - 1)));
+                    }
+
                     // 觉醒技：取**快照**，不再读现档
                     string aid = run.SnapAwakenOf(id);
                     if (!string.IsNullOrEmpty(aid))
