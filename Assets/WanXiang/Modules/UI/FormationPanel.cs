@@ -219,6 +219,29 @@ namespace WanXiang.Modules.UI
                 Destroy(child.gameObject);
             }
 
+            // ★ 2026-11-01：列表顶部标题（用户："加个我方异兽的名字，结合游戏来起"）
+            //   取名「万灵谱」——万相世界观里异兽皆灵，谱 = 可查阅的名录。
+            {
+                var titleGo = new GameObject("Tmp_RosterTitle", typeof(RectTransform));
+                var trt = (RectTransform)titleGo.transform;
+                trt.SetParent(content, false);
+                trt.sizeDelta = new Vector2(0f, 44f);
+                var tt = titleGo.AddComponent<TextMeshProUGUI>();
+                tt.font = TMP_Settings.defaultFontAsset;
+                tt.fontSize = 26f;
+                tt.fontStyle = FontStyles.Bold;
+                tt.alignment = TextAlignmentOptions.MidlineLeft;
+                tt.raycastTarget = false;
+                tt.color = new Color(0.16f, 0.13f, 0.09f, 1f);
+                tt.text = "万灵谱 · 我方异兽（双击上阵 / 拖到格子）";
+            }
+
+            // 列表整体右移一点（用户："异兽条往右移一下"）——改 LayoutGroup 左内边距，不动 prefab
+            {
+                var vlg = content.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+                if (vlg != null) vlg.padding.left = Mathf.Max(vlg.padding.left, 14);
+            }
+
             for (int i = 0; i < _all.Length; i++)
             {
                 var item = Instantiate(_rosterItemTemplate, content);
@@ -924,19 +947,17 @@ namespace WanXiang.Modules.UI
                 var g = WanXiang.Battle.Core.ElementMatrix.GenerateRing;
                 string a = Cn.Of(g[i]), c = Cn.Of(g[(i + 1) % 5]);
                 title = "五行相生 · " + a + "生" + c;
-                body = "五行：木火土金水。相生 = 前者生后者（" + a + "生" + c + "）。\n" +
-                       "这一格亮起，说明你场上有相邻的「" + a + "属性 + " + c + "属性」一对异兽，触发相生羁绊增益。\n" +
-                       "相生链：木生火、火生土、土生金、金生水、水生木。";
+                // ⛔ 2026-11-01 用户："只说明对战斗的作用和怎么站位触发，别废话"
+                body = "作用：这两只全队攻击 +8%。\n" +
+                       "站位：把「" + a + "」和「" + c + "」放在**相邻格**（上下左右），这一格就亮。";
             }
             else
             {
                 int tier = i - 5;
                 int need = tier == 0 ? 2 : (tier == 1 ? 4 : 5);
                 title = "同属共鸣 · " + need + " 只";
-                body = "上阵同属性异兽达 " + need + " 只，全队攻击提升：\n" +
-                       "2 只 +8%、4 只 +16%、5 只 +25%（同属 5 只时，该属性单位绝技冷却 -2）。\n" +
-                       "每回合开局自动结算，数值实时显示在面板右侧。\n\n" +
-                       "（共鸣技 = 同属 4 只解锁的专属合击，本版本尚未开放。）";
+                body = "作用：全队攻击 +" + (need == 2 ? "8" : need == 4 ? "16" : "25") + "%。\n" +
+                       "触发：上阵 " + need + " 只**同属性**异兽，自动生效。";
             }
             PresentBondTip("<size=24><b>" + title + "</b></size>\n" + body);
         }
@@ -954,20 +975,13 @@ namespace WanXiang.Modules.UI
             if (_bondTipPanel == null || _bondTipText == null) return;
             if (_bondTipSlot == 90 && _bondTipPanel.gameObject.activeSelf) return;
             _bondTipSlot = 90;
+            // ⛔ 2026-11-01 用户："只写作用和怎么触发"
             var sb = new System.Text.StringBuilder();
-            sb.Append("中宫有特殊效果：\n");
-            sb.Append("· 中宫土德：站中间的异兽受到伤害 -8%（全属性减伤）。\n");
-            sb.Append("· 平息相冲：若相冲（相克）涉及中宫，该次相冲被化解。\n");
-            sb.Append("· 连携技必须由站中宫的主兽发动。\n");
-            sb.Append("所以把主兽放进中间格收益最大。");
-
-            // ★ 2026-10-20 用户："九宫格中间那个描述就不要了" —— 阵形说明搬到下面的阵形预览
+            sb.Append("作用：站这里的异兽受伤 -8%，且相冲被化解；连携技必须由它发动。\n");
+            sb.Append("触发：把主力放进**正中间那格**即生效。");
             var center = CenterBeast();
-            if (center != null)
-                sb.Append("\n当前主兽：").Append(center.DisplayName);
-            sb.Append("\n（全部阵形与成阵状态见下方「阵形」栏，悬停可看说明）");
-
-            PresentBondTip("<size=24><b>九宫格中宫（中间格）</b></size>\n" + sb);
+            if (center != null) sb.Append("\n当前：").Append(center.DisplayName);
+            PresentBondTip("<size=24><b>中宫</b></size>\n" + sb);
         }
 
         private void PresentBondTip(string text)
