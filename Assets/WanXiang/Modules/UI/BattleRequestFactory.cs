@@ -212,6 +212,9 @@ namespace WanXiang.Modules.UI
 
                     // ★ 2026-11-01 共享主等级：只放大**基础攻击/生命**（+6% / +7% 每级），
                     //   不加暴击/防御/技能 —— 数值成长只走这一条线（设计稿 §6.1）。
+                    // ★ 2026-11-01 技能改写（设计稿 §8）：按覆盖表替换名字/说明/倍率
+                    ApplySkillOverrides(id, d);
+
                     // ★ 2026-11-01 专精生效（设计稿 §6.2）：
                     //   Lv1 技能倍率 ×1.12；Lv2 段数 +1；Lv3 再 ×1.20（总 1.34）。无专精不动。
                     ApplyMastery(run, id, d);
@@ -445,6 +448,32 @@ namespace WanXiang.Modules.UI
         }
     
         /// <summary>按技能 id 在全部异兽的技能里找（觉醒技池来源：90 个技能）。</summary>
+        /// <summary>按覆盖表改写该兽的技能（名字/说明/倍率/段数），只作用于克隆体。</summary>
+        private static void ApplySkillOverrides(string beastId, WanXiang.Battle.Core.BeastDef d)
+        {
+            if (d == null) return;
+            var slots = new[] { d.Basic, d.Active, d.Ultimate };
+            for (int slot = 0; slot < slots.Length; slot++)
+            {
+                var ov = WanXiang.Campaign.SkillOverrideCatalog.Get(beastId, slot);
+                var sk = slots[slot];
+                if (ov == null || sk == null) continue;
+
+                if (!string.IsNullOrEmpty(ov.Name)) sk.Name = ov.Name;
+                if (!string.IsNullOrEmpty(ov.Desc)) sk.Description = ov.Desc;
+                if (sk.Effects != null)
+                {
+                    for (int e = 0; e < sk.Effects.Length; e++)
+                    {
+                        var a = sk.Effects[e];
+                        if (a.Power > 0f) a.Power *= ov.PowerMul;
+                        if (ov.HitsDelta != 0) a.Hits = System.Math.Max(1, a.Hits) + ov.HitsDelta;
+                        sk.Effects[e] = a;
+                    }
+                }
+            }
+        }
+
         /// <summary>把该兽 3 个技能槽的专精等级作用到克隆体上（不改内容目录）。</summary>
         private static void ApplyMastery(WanXiang.Run.RunState run, string beastId, WanXiang.Battle.Core.BeastDef d)
         {
