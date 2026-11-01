@@ -82,6 +82,20 @@ namespace WanXiang.Modules.UI
         private Tale _current;
         private int _picked = -1;
 
+        // ★ 2026-11-01「不期而遇」复用本面板：事件模式下不再从 Pool 抽，而是显示外部传入的 EventDef。
+        private static WanXiang.Campaign.EventDef _event;
+        private static System.Action<int> _eventCallback;
+
+        /// <summary>用「不期而遇」事件打开本面板（复用 Panel_Tale，不再新建 prefab）。</summary>
+        public static void OpenEvent(WanXiang.Campaign.EventDef ev, System.Action<int> onPicked)
+        {
+            _event = ev;
+            _eventCallback = onPicked;
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (ui == null) { onPicked?.Invoke(-1); return; }
+            ui.OpenAsync<TalePanel>().Forget();
+        }
+
         protected override void OnCreate()
         {
             for (int i = 0; i < _optBtns.Length; i++)
@@ -95,6 +109,25 @@ namespace WanXiang.Modules.UI
         protected override UniTask OnOpenAsync(object payload)
         {
             EnsureBackButton();
+
+            // ★ 事件模式：直接铺 EventDef 的内容（标题/故事/三个选项，代价写在选项文本里）
+            if (_event != null)
+            {
+                _picked = -1;
+                if (_tmpTitle != null) _tmpTitle.text = "不期而遇 · " + _event.Title;
+                if (_tmpQuote != null) _tmpQuote.text = "";
+                if (_tmpStory != null) _tmpStory.text = _event.Story;
+                for (int i = 0; i < _tmpOpts.Length; i++)
+                {
+                    bool has = _event.Choices != null && i < _event.Choices.Length;
+                    if (_tmpOpts[i] != null) _tmpOpts[i].text = has ? _event.Choices[i].Text : "";
+                    if (_tmpCosts[i] != null) _tmpCosts[i].text = "";
+                    if (_optBtns[i] != null) _optBtns[i].gameObject.SetActive(has);
+                }
+                if (_btnDecline != null) _btnDecline.gameObject.SetActive(false);
+                return UniTask.CompletedTask;
+            }
+
             var run = WanXiang.Run.RunSave.Current;
             ulong seed = WanXiang.Battle.Core.CoreMath.Fnv1a(
                 "tale:" + (run != null ? run.RunSeed : 0) + ":" + (run != null ? run.NodeOffset : 0));
@@ -173,6 +206,20 @@ namespace WanXiang.Modules.UI
         private void OnOptionClicked(int index)
         {
             if (_picked >= 0) return;      // 只能选一次
+
+            // ★ 事件模式：结算 + 显示结果，然后短暂停留再关
+            if (_event != null)
+            {
+                _picked = index;
+                string result = CampaignEventRuntime.Apply(_event, index);
+                for (int i = 0; i < _optBtns.Length; i++)
+                    if (_optBtns[i] != null) _optBtns[i].gameObject.SetActive(false);
+                if (_tmpStory != null) _tmpStory.text = result;
+                var cb = _eventCallback; _eventCallback = null; _event = null;
+                cb?.Invoke(index);
+                CloseSoon();
+                return;
+            }
             var run = WanXiang.Run.RunSave.Current;
             if (run != null && run.Eggs < _current.EggCost[index])
             {
@@ -184,6 +231,12 @@ namespace WanXiang.Modules.UI
             Apply(index);
             DropFragment(_current.FragmentBeast);   // ★ v6：做完异闻掉落相关异兽的剧情碎片
             BackToMap(true);   // ★ 做出选择 = 异闻完成 ， 保留 PendingCommit 让节点推进
+        }
+
+        private async void CloseSoon()
+        {
+            await UniTask.Delay(1400);
+            CloseSelf();
         }
 
         private void OnDeclineClicked()

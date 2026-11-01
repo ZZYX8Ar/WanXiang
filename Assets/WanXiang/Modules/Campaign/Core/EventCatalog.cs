@@ -87,8 +87,10 @@ namespace WanXiang.Campaign
                 Story = "一条船搁在干裂的河床上。船夫说：风还在，只是你得决定要不要借。",
                 Choices = new[]
                 {
-                    new EventChoice { Text = "借风疾行（本幕回合上限 -4，奖励 +50%）", Effect = EventEffect.TurnDelta, Value = -4 },
-                    new EventChoice { Text = "稳扎稳打（本幕回合上限 +4）", Effect = EventEffect.TurnDelta, Value = 4 },
+                    // ⛔ 2026-11-01 用户："-4 太轻了"。基准 48 回合，-4 只有 8% —— 惩罚必须有感。
+                    //   改成 -10（约 20%），奖励 +60%；对照项 +6（12%）。
+                    new EventChoice { Text = "借风疾行（本幕回合上限 -10，约 20%；奖励 +60%）", Effect = EventEffect.TurnDelta, Value = -10 },
+                    new EventChoice { Text = "稳扎稳打（本幕回合上限 +6，奖励不变）", Effect = EventEffect.TurnDelta, Value = 6 },
                     new EventChoice { Text = "弃舟步行（全队回复 25% 生命）", Effect = EventEffect.HealTeamPct, Value = 25 },
                 }
             });
