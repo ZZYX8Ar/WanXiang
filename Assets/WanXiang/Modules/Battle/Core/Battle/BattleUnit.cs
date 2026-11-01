@@ -60,6 +60,10 @@ namespace WanXiang.Battle.Core
         public int MaxHp { get; private set; }
         public int Hp { get; private set; }
         /// <summary>元素附着（2026-10-31 新反应系统）：当前挂在身上的元素与层数（1~4）。</summary>
+        /// <summary>元素充能（2026-11-01）：我方异兽行动时攒、出手时一次性消耗，用来给敌人挂附着。</summary>
+        public Element ChargeEl = Element.None;
+        public int ChargeStacks;
+
         public Element AuraEl = Element.None;
         public int AuraStacks;
 

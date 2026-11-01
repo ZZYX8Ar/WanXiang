@@ -36,6 +36,8 @@ namespace WanXiang.Battle.Core
         public int Hp;
         public int MaxHp;
         public int Shield;
+        public int Atk;      // 当前攻击（含加成）
+        public int Spd;      // 当前速度
         public float Rage;
 
         /// <summary>三个技能的剩余 CD（0=普攻 1=战技 2=绝技）。</summary>
@@ -166,6 +168,8 @@ namespace WanXiang.Battle.Core
                 Statuses = DescribeStatuses(u),
                 StatusIds = DescribeStatusIds(u),
                 StateHint = u.StateHint,
+                Atk = CoreMath.RoundDamage(u.Attack),
+                Spd = CoreMath.RoundDamage(u.Speed),
                 AuraEl = u.AuraEl,
                 AuraStacks = u.AuraStacks,
                 FoeTelegraph = u.FoeTelegraph,

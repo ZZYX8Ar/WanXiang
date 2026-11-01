@@ -33,6 +33,18 @@ namespace WanXiang.Battle.Core
                 st.Turn = turn;
                 st.Log.Add(turn, BattleEventKind.TurnStart);
                 BattleHooks.TurnStart(st);            // 首领战：回合始机制（首击标记清零 / 属性轮转 / 召唤计时）
+                // ★ 2026-11-01 元素充能：我方每只异兽每回合 +1 层（上限 4），出手时一次性消耗。
+                //   这样"挂附着"变成需要攒的资源，而不是随手就能上。
+                {
+                    var mine = st.UnitsOf(TeamSide.Player);
+                    for (int ci = 0; ci < mine.Count; ci++)
+                    {
+                        var cu = mine[ci];
+                        if (cu == null || !cu.IsAlive || cu.Def == null) continue;
+                        cu.ChargeEl = cu.Def.Element;
+                        if (cu.ChargeStacks < ElementReactions.MaxStacks) cu.ChargeStacks++;
+                    }
+                }
 
                 // 灵力自然回复（v2.1 §3）：超出上限的部分丢失 —— 逼玩家在回合内花掉
                 // ★ 第 1 回合**不回灵**（2026-09-26 用户定案）：

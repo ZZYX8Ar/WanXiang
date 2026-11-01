@@ -2519,7 +2519,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             string side = best.PlayerSide ? "我方" : "敌方";
             string nm = best.NameText != null ? best.NameText.text : "单位";
             string st = side + "　HP " + s.Hp + " / " + s.MaxHp +
-                        (s.Shield > 0 ? "　护盾 " + s.Shield : "") + "　元素 " + ElementCn(s.Element) +
+                        (s.Shield > 0 ? "　护盾 " + s.Shield : "") +
+                        "　攻击 " + s.Atk + "　速度 " + s.Spd + "　元素 " + ElementCn(s.Element) +
                         (s.AuraEl != Element.None && s.AuraStacks > 0
                             ? "\n附着：" + ElementCn(s.AuraEl) + " ×" + s.AuraStacks + "（再打其它元素可触发反应）"
                             : "\n附着：无（先用一种元素打它，再换另一种）");

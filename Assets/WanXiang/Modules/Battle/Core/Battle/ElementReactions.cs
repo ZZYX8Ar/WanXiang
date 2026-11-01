@@ -27,28 +27,41 @@ namespace WanXiang.Battle.Core
             if (st == null || dst == null || !dst.IsAlive) return ReactionKind.None;
             if (incoming == Element.None) return ReactionKind.None;
 
-            // ① 空附着：直接挂上
+            // ⛔ 2026-11-01 用户："附着太容易上了" ⇒ **我方必须先用元素充能**：
+            //   充能层数就是这次能挂多少层；一次出手耗尽；没充能就完全不附着。
+            //   敌方仍按 1 层处理（Boss/小怪不需要充能，否则它们永远挂不上）。
+            int applyStacks = 1;
+            if (src != null && src.Side == TeamSide.Player)
+            {
+                if (src.ChargeStacks <= 0) return ReactionKind.None;
+                applyStacks = Math.Min(MaxStacks, src.ChargeStacks);
+                src.ChargeStacks = 0;                 // 一次出手耗尽
+            }
+
+            // ① 空附着：直接挂上（按充能层数）
             if (dst.AuraEl == Element.None || dst.AuraStacks <= 0)
             {
-                SetAura(dst, incoming, 1);
+                SetAura(dst, incoming, applyStacks);
                 return ReactionKind.None;
             }
 
-            // ② 同元素：叠层（上限 3）
+            // ② 同元素：叠层（上限 MaxStacks）
             if (dst.AuraEl == incoming)
             {
-                SetAura(dst, incoming, Math.Min(MaxStacks, dst.AuraStacks + 1));
+                SetAura(dst, incoming, Math.Min(MaxStacks, dst.AuraStacks + applyStacks));
                 return ReactionKind.None;
             }
 
-            // ③ 异元素：反应（消耗旧附着层数）
-            int stacks = Math.Max(1, System.Math.Min(MaxStacks, dst.AuraStacks));
+            // ③ 异元素：反应 —— **反应多少层 = min(这次充能, 目标身上层数)**
+            int consumed = Math.Max(1, Math.Min(applyStacks, dst.AuraStacks));
+            int stacks = consumed;
+            int leftover = Math.Max(0, applyStacks - consumed);
             Element a = dst.AuraEl, b = incoming;
             var kind = Pair(a, b);
             Apply(st, src, dst, kind, stacks, a, b);
 
-            // 反应后：旧附着被消耗，挂上新元素（1 层）
-            SetAura(dst, incoming, 1);
+            // 反应后：旧附着被消耗，把**剩余充能**挂成新元素（没剩就不挂）
+            SetAura(dst, incoming, leftover);
             return kind;
         }
 
