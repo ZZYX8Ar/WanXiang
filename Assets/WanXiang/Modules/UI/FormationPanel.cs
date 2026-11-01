@@ -1152,6 +1152,9 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>单击卡池条目 = 选中（高亮）；再点格子放置。双击仍可直接上阵。</summary>
+        /// <summary>是否已经从卡池"点选"了某只兽（格子单击据此决定是放置还是等双击）。</summary>
+        public bool HasSelectedBeast => _selectedBeast >= 0;
+
         public void SelectRosterItem(int beastIndex, Image outline)
         {
             SelectBeast(beastIndex, outline);

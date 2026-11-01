@@ -427,14 +427,16 @@ namespace WanXiang.Campaign
         {
             switch (act)
             {
+                // ⛔ 2026-11-01 清理：天象(Omen)/修行(Training)/古战场(Ruins) **不再生成**。
+                //   它们的内容已并入「异闻/事件」(Tale)：天象的风险收益 → 事件 C，修行 → 工坊，古战场 → 精英。
+                //   枚举值保留只为兼容老存档（存档里存的是 int）。
                 case 1: return new System.Collections.Generic.HashSet<NodeKind>
                     { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop,
-                      NodeKind.Nest, NodeKind.Tale, NodeKind.Omen, NodeKind.Spring };
+                      NodeKind.Nest, NodeKind.Tale, NodeKind.Spring };
                 default:
                     var set = new System.Collections.Generic.HashSet<NodeKind>
                     { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop, NodeKind.Nest,
-                      NodeKind.Tale, NodeKind.Forge, NodeKind.Omen, NodeKind.Spring,
-                      NodeKind.Training, NodeKind.Ruins };
+                      NodeKind.Tale, NodeKind.Forge, NodeKind.Spring };
                     // ★ 秘境第 2 幕起解禁（第 1 幕玩家还没学会格挡，进秘境是纯挫败）
                     if (act >= 2) set.Add(NodeKind.Realm);
                     return set;
@@ -444,11 +446,11 @@ namespace WanXiang.Campaign
         /// <summary>统一的抽取权重（v1.2 第 3 节口径；问号 4%→14% 是用户要求）。</summary>
         private static readonly (NodeKind kind, int weight)[] KindWeights =
         {
-            (NodeKind.Encounter, 32), (NodeKind.Elite, 12), (NodeKind.Shop, 9),
-            (NodeKind.Nest, 8), (NodeKind.Tale, 7), (NodeKind.Forge, 6),
-            (NodeKind.Omen, 12), (NodeKind.Question, 14),
-            // ★ 2026-10-20 新增：养成类节点（合计约 20% 权重）
-            (NodeKind.Spring, 8), (NodeKind.Training, 7), (NodeKind.Ruins, 5),
+            // ⛔ 2026-11-01：按设计稿 v3 的 9 种节点重排权重；天象/修行/古战场已删除。
+            (NodeKind.Encounter, 34), (NodeKind.Elite, 11), (NodeKind.Shop, 9),
+            (NodeKind.Nest, 10), (NodeKind.Tale, 12), (NodeKind.Forge, 9),
+            (NodeKind.Question, 15),
+            (NodeKind.Spring, 8),
             // ★ 秘境权重 5（约 4%）：一条支线 = 一整张秘境图 + 2 次进场，
             //   满地图都是秘境会变成日常而不是"选择"（设计文档 1.4硬约束 ③）。
             (NodeKind.Realm, 5),
@@ -592,7 +594,7 @@ namespace WanXiang.Campaign
                     Kinds = new[]
                     {
                         NodeKind.Encounter, NodeKind.Tale, NodeKind.Encounter,
-                        NodeKind.Omen, NodeKind.Elite, NodeKind.Shop,
+                        NodeKind.Tale, NodeKind.Elite, NodeKind.Shop,
                     },
                     Layers = new[] { new[] { 0, 1 }, new[] { 2, 3 }, new[] { 4 }, new[] { 5 } },
                 },
@@ -615,7 +617,7 @@ namespace WanXiang.Campaign
                     Terms = new[] { 19, 20, 21, 22, 23, 24 },
                     Kinds = new[]
                     {
-                        NodeKind.Encounter, NodeKind.Omen, NodeKind.Encounter,
+                        NodeKind.Encounter, NodeKind.Tale, NodeKind.Encounter,
                         NodeKind.Tale, NodeKind.Elite, NodeKind.Forge,
                     },
                     Layers = new[] { new[] { 0, 1 }, new[] { 2, 3 }, new[] { 4 }, new[] { 5 } },

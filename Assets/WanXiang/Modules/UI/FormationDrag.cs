@@ -92,6 +92,12 @@ namespace WanXiang.Modules.UI
             //   为什么：单击太容易误触（尤其和"格内拖拽换位"连用时，拖失败的尾巴会变成一次点击
             //   把兽甩下场）。双击与卡池的"双击上阵"也形成对称。
             //   ⛔ 单击**不做任何事**（不再下阵；详情已由悬浮负责，不必占用单击）。
+            // ★ 2026-11-01：若左侧已"点选"了某只兽，**单击**格子就要放置（原来是只认双击）。
+            if (Owner != null && Owner.HasSelectedBeast)
+            {
+                if (CellIndex >= 0) Owner.OnCellClicked(CellIndex);
+                return;
+            }
             if (eventData != null && eventData.clickCount < 2) return;
             if (Owner != null && CellIndex >= 0) Owner.OnCellClicked(CellIndex);
         }
