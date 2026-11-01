@@ -236,10 +236,18 @@ namespace WanXiang.Modules.UI
                 tt.text = "万灵谱 · 我方异兽（双击上阵 / 拖到格子）";
             }
 
-            // 列表整体右移一点（用户："异兽条往右移一下"）——改 LayoutGroup 左内边距，不动 prefab
+            // ★ 2026-11-01（第二次修）：上一版改 LayoutGroup.padding 无效 —— 行由布局组按
+            //   anchoredPosition 摆，offsetMin 又会被覆盖。这次直接挪 **ScrollRect 本身**，
+            //   整列（含头像/名字/属性块）一起右移，布局组管不到容器外部。
+            if (_scrollRoster != null && !_rosterShifted)
             {
-                var vlg = content.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
-                if (vlg != null) vlg.padding.left = Mathf.Max(vlg.padding.left, 14);
+                _rosterShifted = true;                     // ⛔ 只挪一次：BuildRoster 会被反复调用，否则会越挪越右
+                var srt = _scrollRoster.transform as RectTransform;
+                if (srt != null)
+                {
+                    srt.offsetMin = new Vector2(srt.offsetMin.x + 26f, srt.offsetMin.y);
+                    srt.offsetMax = new Vector2(srt.offsetMax.x - 6f, srt.offsetMax.y);
+                }
             }
 
             for (int i = 0; i < _all.Length; i++)
@@ -1037,6 +1045,7 @@ namespace WanXiang.Modules.UI
         //    · 每次变动都重算羁绊与战力（相生相邻、共鸣档位实时变）
         // ================================================================
 
+        private bool _rosterShifted;   // 列表右移只执行一次
         private Image _ghostImg;
 
         // ★ 卡池"长按拖动 = 上阵"：长按 0.28s 后 _holdBeast 生效，短拖仍是滚动
@@ -1268,10 +1277,23 @@ namespace WanXiang.Modules.UI
         private int FindCellAt(Vector2 screenPos)
         {
             if (_cells == null) return -1;
+
+            // ⛔ 2026-11-01 修：原来固定传 null（只对 Screen Space - Overlay 成立）。
+            //   本面板若挂在 Screen Space - Camera 的 Canvas 下，null 相机 ⇒ 永远判不中 ⇒
+            //   "拖到九宫格没反应"（用户实测）。这里按格子所在 Canvas 取相机。
+            Camera cam = null;
+            var anyCell = _cells.Length > 0 ? _cells[0] : null;
+            if (anyCell != null)
+            {
+                var cv = anyCell.GetComponentInParent<Canvas>();
+                if (cv != null && cv.renderMode != RenderMode.ScreenSpaceOverlay)
+                    cam = cv.worldCamera != null ? cv.worldCamera : Camera.main;
+            }
+
             for (int i = 0; i < _cells.Length; i++)
             {
                 if (_cells[i] == null) continue;
-                if (RectTransformUtility.RectangleContainsScreenPoint(_cells[i], screenPos, null))
+                if (RectTransformUtility.RectangleContainsScreenPoint(_cells[i], screenPos, cam))
                     return i;
             }
             return -1;
