@@ -1344,7 +1344,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     var bsA = bodySr.sprite.bounds.size;
                     float worldWA = Mathf.Abs(bsA.x * lsA.x);
                     ag.transform.localScale = new Vector3(
-                        worldWA * 1.85f / Mathf.Max(0.0001f, auraHex.bounds.size.x * Mathf.Abs(lsA.x)),
+                        worldWA * 1.55f / Mathf.Max(0.0001f, auraHex.bounds.size.x * Mathf.Abs(lsA.x)),
                         worldWA * 0.95f / Mathf.Max(0.0001f, auraHex.bounds.size.y * Mathf.Abs(lsA.y)), 1f);
 
                     var amat = new Material(auraSh2);
@@ -1872,7 +1872,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                              s.Alive ? s.FlawProgress : -1f,
                              s.Alive ? s.UnbalancedTurns : 0);
                 SetOverlay2D(v, s.Alive ? s.StatusIds : null);   // 阵亡不挂状态外观
-                SetStatusAura2D(v, s.Alive ? s.StatusIds : null); // ★ 状态色光环（脚下）
+                // ⛔ 2026-11-01 用户："不要状态光环了，已经有状态图标" ⇒ 脚下只留元素附着圈。
+                //   仍调用一次 null 把已经建出来的光环关掉（池化视图复用时会残留）。
+                SetStatusAura2D(v, null);
                 if (v.Alive && !s.Alive)
                 {
                     v.DeadBlend = 0f;
