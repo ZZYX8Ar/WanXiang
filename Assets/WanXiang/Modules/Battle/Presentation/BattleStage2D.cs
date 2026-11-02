@@ -1201,10 +1201,14 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     {
                         var cm = new Material(corruptSh) { hideFlags = HideFlags.HideAndDontSave };
                         cm.SetFloat("_Amount", 0.85f);
-                        cm.SetFloat("_CrackScale", 4f);
-                        cm.SetFloat("_CrackWidth", 0.16f);
                         cm.SetFloat("_Dirt", 0.45f);
                         cm.SetFloat("_Pulse", 0.35f);
+                        // ★ 裂纹随机化：每只敌人风格/密度/宽度/种子都不同，避免"一眼同款"
+                        bool mainStyle = UnityEngine.Random.value < 0.5f;
+                        cm.SetFloat("_Style", mainStyle ? 1f : 0f);
+                        cm.SetFloat("_CrackScale", UnityEngine.Random.Range(3.2f, 5.2f));
+                        cm.SetFloat("_CrackWidth", UnityEngine.Random.Range(0.12f, 0.20f));
+                        cm.SetFloat("_Seed", UnityEngine.Random.Range(0f, 10f));
                         bodySr.sharedMaterial = cm;
                         view.CorruptMat = cm;
                     }
@@ -1901,7 +1905,6 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 SetShield2D(v, s.Shield);
                 SetAura2D(v, s);
-                SetCorruptAura(v, s.Alive && !(v.DefId != null && v.DefId.StartsWith("b_")));
                 // ---- 破绽/失衡条：随帧流更新（死亡清空）----
                 SetFlawBar2D(v,
                              s.Alive ? (s.FlawText ?? "") : "",

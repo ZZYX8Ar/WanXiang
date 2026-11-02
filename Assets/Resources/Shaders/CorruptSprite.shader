@@ -14,6 +14,8 @@ Shader "WanXiang/CorruptSprite"
         _CrackWidth ("Crack Width", Range(0.01,0.35)) = 0.16
         _Dirt       ("Dirt", Range(0,1)) = 0.45
         _Pulse      ("Pulse", Range(0,1)) = 0.35
+        _Style      ("Crack Style (0=网格 1=主裂纹)", Range(0,1)) = 0
+        _Seed       ("Crack Seed", Float) = 0
     }
     SubShader
     {
@@ -33,7 +35,7 @@ Shader "WanXiang/CorruptSprite"
 
             sampler2D _MainTex;
             fixed4 _Color, _CrackColor;
-            float _Amount, _CrackScale, _CrackWidth, _Dirt, _Pulse;
+            float _Amount, _CrackScale, _CrackWidth, _Dirt, _Pulse, _Style, _Seed;
 
             float hash21(float2 p)
             {
@@ -58,6 +60,23 @@ Shader "WanXiang/CorruptSprite"
                     else if (d < d2) { d2 = d; }
                 }
                 return sqrt(d2) - sqrt(d1);
+            }
+
+            // 主裂纹：沿纵向 2~3 条扭曲线（像从伤口裂开的主缝），0~1
+            float mainCracks(float2 uv)
+            {
+                float total = 0.0;
+                for (int i = 0; i < 3; i++)
+                {
+                    float base = 0.28 + 0.22 * i + 0.06 * sin(_Seed + i * 2.1);
+                    float wob = 0.05 * sin(uv.y * (5.0 + i * 1.7) + _Seed * 3.1 + i);
+                    float d = abs(uv.x - base - wob);
+                    float line = 1.0 - smoothstep(0.0, _CrackWidth * 1.2, d);
+                    // 纵向断续：让裂缝有断口
+                    float gap = 0.55 + 0.45 * smoothstep(0.25, 0.8, fbm(float2(uv.y * 4.0 + i, _Seed)));
+                    total = max(total, line * gap);
+                }
+                return total;
             }
 
             float fbm(float2 uv)
@@ -85,12 +104,13 @@ Shader "WanXiang/CorruptSprite"
                 float3 corrupt = c.rgb * float3(0.66, 0.52, 0.86) + float3(0.03, 0.0, 0.07);
                 float3 col = lerp(c.rgb, corrupt, _Amount);
 
-                // ② 裂痕（Voronoi 边界，宽度可调）
-                float e = voronoiEdge(i.uv);
-                float crack = 1.0 - smoothstep(0.0, _CrackWidth, e);
-                // 断续：0.55 基础强度 + 少量噪声扰动，保证"看得见但不糊满"
-                float mask = 0.55 + 0.45 * smoothstep(0.30, 0.80, fbm(i.uv * 3.0));
-                crack *= mask;
+                // ② 裂痕：两种风格混合（_Style 由材质随机决定，避免所有敌人长一样）
+                float crackGrid = 1.0 - smoothstep(0.0, _CrackWidth, voronoiEdge(i.uv));
+                float maskGrid = 0.55 + 0.45 * smoothstep(0.30, 0.80, fbm(i.uv * 3.0));
+                crackGrid *= maskGrid;
+
+                float crackMain = mainCracks(i.uv);
+                float crack = lerp(crackGrid, max(crackGrid, crackMain), _Style);
 
                 // ④ 裂痕脉动（呼吸）
                 float pulse = 1.0 - _Pulse * 0.5 * (1.0 - sin(_Time.y * 2.2));
