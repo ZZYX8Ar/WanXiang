@@ -1,7 +1,7 @@
 side,beastId,slot,name,desc,powerMul,hitsDelta,target
 Player,jumang,0,句芒·藤鞭,单体 0.8×攻击；【挂】木 1 层,1.0,0,
 Player,jumang,1,句芒·鼓舞,全队攻击 +15%（2 回合）,1.0,0,
-Player,jumang,2,句芒·春生,【木】引爆木附着：全队回复 1.0×攻击；触发润生额外 +50%,1.0,0,
+Player,jumang,2,句芒·春生,【木】引爆木附着：全队治疗 1.0×攻击；触发润生额外 +50%,1.0,0,
 Player,jiuweihu,0,九尾狐·藤鞭,单体 0.8×攻击；【挂】木 1 层,1.0,0,
 Player,jiuweihu,1,九尾狐·突袭,单体 1.5×攻击,1.0,0,
 Player,jiuweihu,2,九尾狐·九尾惑心,【木】全体减速 1 回合 + 【挂】木 2 层,1.0,0,
