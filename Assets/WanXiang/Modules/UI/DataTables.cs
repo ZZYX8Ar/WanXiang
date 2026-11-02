@@ -50,6 +50,8 @@ namespace WanXiang.Modules.UI
         public static int RelicCount { get; private set; }
         public static int ComboCount { get; private set; }
         public static int ProgressionKeys { get; private set; }
+        public static int TrialLawCount { get; private set; }
+        public static int MarketKeys { get; private set; }
 
         /// <summary>解析期收集到的全部问题（行号 + 原因）。空 = 全部正常。</summary>
         public static readonly List<string> Problems = new List<string>();
@@ -74,13 +76,16 @@ namespace WanXiang.Modules.UI
             LoadRelics();
             LoadCombos();
             LoadProgression();
+            LoadTrialLaws();
+            LoadMarket();
 
             if (Problems.Count > 0)
                 Debug.LogError("[DataTables] 共 " + Problems.Count + " 处问题：\n" + string.Join("\n", Problems.ToArray()));
             Debug.Log("[DataTables] 装表完成：状态 " + StatusCount + "／首领 " + BossCount +
                       "／天时 " + WeatherCount + "／预算 " + BudgetKeys + " 项／规模 " + SquadActs +
                       " 幕／地图 " + (MapInstalled ? "已装" : "内置") + "／节点权重 " + WeightRows + " 行" +
-                      "／遗物 " + RelicCount + "／阵形 " + ComboCount + "／曲线 " + ProgressionKeys + " 键");
+                      "／遗物 " + RelicCount + "／阵形 " + ComboCount + "／曲线 " + ProgressionKeys + " 键" +
+                      "／劫律 " + TrialLawCount + "／灵市 " + MarketKeys + " 键");
         }
 
         /// <summary>
@@ -91,7 +96,7 @@ namespace WanXiang.Modules.UI
         {
             _done = false;
             StatusCount = BossCount = WeatherCount = BudgetKeys = SquadActs = WeightRows = 0;
-            RelicCount = ComboCount = ProgressionKeys = 0;
+            RelicCount = ComboCount = ProgressionKeys = TrialLawCount = MarketKeys = 0;
             MapInstalled = false;
             EnsureInstalled();
         }
@@ -512,6 +517,59 @@ namespace WanXiang.Modules.UI
                 ok++;
             }
             ProgressionKeys = ok;
+        }
+
+        // ================================================================
+        //  trial_laws.csv / market.csv
+        // ================================================================
+
+        private static void LoadTrialLaws()
+        {
+            var rows = Read("trial_laws", out var header);
+            if (rows == null) return;
+            int ok = 0;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "trial_laws.csv", i + 2, Problems);
+                string id = r.Str("id");
+                if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                if (System.Array.IndexOf(WanXiang.Trials.TrialLaws.Order, id) < 0)
+                {
+                    r.Fail("未知劫律 id：" + id + "（只能是 01..20，见 TrialLaws.Order）");
+                    continue;
+                }
+                string key = r.Str("effect_key", "keep").Trim().ToLowerInvariant();
+                if (System.Array.IndexOf(WanXiang.Trials.TrialLaws.KnownEffectKeys, key) < 0)
+                {
+                    r.Fail("未知 effect_key：" + key + "（写 none 表示只改文案，写 keep 表示沿用内置效果）");
+                    continue;
+                }
+                WanXiang.Trials.TrialLaws.Install(id, r.Str("name"), r.Str("desc"), key, r.Float("effect_value", 0f));
+                ok++;
+            }
+            TrialLawCount = ok;
+        }
+
+        private static void LoadMarket()
+        {
+            var rows = Read("market", out var header);
+            if (rows == null) return;
+            int ok = 0;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "market.csv", i + 2, Problems);
+                string key = r.Str("key").Trim().ToLowerInvariant();
+                if (string.IsNullOrEmpty(key)) { r.Fail("key 为空"); continue; }
+                float v = r.Float("value", float.NaN);
+                if (float.IsNaN(v)) { r.Fail("value 不是数字"); continue; }
+                if (!WanXiang.Run.MarketPricing.TrySet(key, v))
+                {
+                    r.Fail("未知 key：" + key + "（见 万相_数据表_说明.md）");
+                    continue;
+                }
+                ok++;
+            }
+            MarketKeys = ok;
         }
 
         // ================================================================

@@ -59,8 +59,90 @@ namespace WanXiang.Trials
             ColdAltar, BeastKing, NoEscape, LowSky, AllIsOne,
         };
 
+        // ================================================================
+        //  外置表（Resources/Data/trial_laws.csv）
+        //  ------------------------------------------------------------------
+        //  ⭐ 2026-11-02：名字/描述/生效数值都允许表覆盖，但 **Order 不改** ——
+        //    劫律的生效顺序是"第 N 道劫"的语义，重排会让老存档的劫数对不上。
+        //  ⛔ effect_key 只认这里列出的键；写错会让该劫变成"只有文案、没有效果"，
+        //    解析器会直接报行号（避免又出现"文案承诺了但没实现"的假字）。
+        // ================================================================
+
+        private static readonly System.Collections.Generic.Dictionary<string, string> _nameOverride
+            = new System.Collections.Generic.Dictionary<string, string>();
+
+        private static readonly System.Collections.Generic.Dictionary<string, string> _descOverride
+            = new System.Collections.Generic.Dictionary<string, string>();
+
+        /// <summary>id → (效果键, 数值)。表里写了的覆盖内置。</summary>
+        private static readonly System.Collections.Generic.Dictionary<string, (string key, float val)> _effect
+            = new System.Collections.Generic.Dictionary<string, (string key, float val)>();
+
+        /// <summary>内置效果表（= 2026-11-02 之前硬编码在 TrialTuning.From 里的那一份）。</summary>
+        private static readonly System.Collections.Generic.Dictionary<string, (string key, float val)> _builtinEffect
+            = new System.Collections.Generic.Dictionary<string, (string key, float val)>
+        {
+            { LingeringQi, ("linger_nodes", 3f) },
+            { StubbornQi,  ("none", 0f) },            // 02 未接线（节气残留 3→2 需天气系统配合）
+            { HeavenPunish,("backlash_extra", 0.25f) },
+            { EndlessClash,("counter_true", 0.035f) },
+            { CenterFall,  ("center_reduction", 0f) },
+            { FewHands,    ("none", 0f) },            // 06 未接线（上阵 5→4 需编队校验）
+            { BeastStrong, ("elite_extra_mul", 1.15f) },
+            { GreedyMarket,("none", 0f) },            // 08 未接线（灵市 +50% 需定价接劫律）
+            { NarrowPath,  ("narrow_path", 1f) },
+            { NoRevive,    ("soul_fade", 1f) },
+            { BurnDeep,    ("burn_taken_mul", 1.30f) },
+            { IceLast,     ("ice_dot_mul", 1.67f) },
+            { Silenced,    ("none", 0f) },            // 13 未接线（技能 CD 已于 2026-11-01 删除）
+            { BossCrown,   ("boss_traits", 1f) },
+            { ChaosWuxing, ("resonance_shift", 1f) },
+            { ColdAltar,   ("nest_heal", 0.20f) },
+            { BeastKing,   ("force_elite", 1f) },
+            { NoEscape,    ("none", 0f) },            // 18 未接线
+            { LowSky,      ("finale_mirrors", 5f) },
+            { AllIsOne,    ("all_is_one", 1f) },
+        };
+
+        /// <summary>已从表里安装的条数（0 = 全内置）。</summary>
+        public static int InstalledFromTable { get; private set; }
+
+        /// <summary>表里认识的效果键（解析器用它校验，写错立即报行号）。</summary>
+        public static readonly string[] KnownEffectKeys =
+        {
+            "none", "linger_nodes", "backlash_extra", "counter_true", "center_reduction",
+            "elite_extra_mul", "narrow_path", "soul_fade", "burn_taken_mul", "ice_dot_mul",
+            "boss_traits", "resonance_shift", "nest_heal", "force_elite", "finale_mirrors", "all_is_one",
+        };
+
+        /// <summary>覆盖一条劫律的名字/描述/效果（表里没写的保持内置）。</summary>
+        public static void Install(string id, string name, string desc, string effectKey, float effectValue)
+        {
+            if (string.IsNullOrEmpty(id)) return;
+            if (!string.IsNullOrEmpty(name)) _nameOverride[id] = name;
+            if (!string.IsNullOrEmpty(desc)) _descOverride[id] = desc;
+            if (!string.IsNullOrEmpty(effectKey) && effectKey != "keep")
+            {
+                _effect[id] = (effectKey.Trim().ToLowerInvariant(), effectValue);
+            }
+            InstalledFromTable++;
+        }
+
+        /// <summary>取一条劫律的生效效果（表优先，其次内置）。</summary>
+        public static (string key, float val) EffectOf(string id)
+        {
+            if (_effect.TryGetValue(id, out var e)) return e;
+            if (_builtinEffect.TryGetValue(id, out var b)) return b;
+            return ("none", 0f);
+        }
+
+        /// <summary>劫律描述（表里没写 = 空串；UI 可只显示名字）。</summary>
+        public static string Desc(string id)
+            => !string.IsNullOrEmpty(id) && _descOverride.TryGetValue(id, out var d) ? d : "";
+
         public static string Name(string id)
         {
+            if (!string.IsNullOrEmpty(id) && _nameOverride.TryGetValue(id, out var n)) return n;
             switch (id)
             {
                 case LingeringQi: return "余气不散";
@@ -118,26 +200,29 @@ namespace WanXiang.Trials
         public static TrialTuning From(IReadOnlyList<string> laws)
         {
             var t = new TrialTuning();
-            foreach (var id in laws)
+            if (laws == null) return t;
+            for (int i = 0; i < laws.Count; i++)
             {
-                switch (id)
+                var (key, val) = TrialLaws.EffectOf(laws[i]);
+                switch (key)
                 {
-                    case TrialLaws.LingeringQi: t.LingerNodes = 3; break;
-                    case TrialLaws.HeavenPunish: t.BacklashExtra = 0.25f; break;
-                    case TrialLaws.EndlessClash: t.CounterTrueDamage = 0.035f; break;
-                    case TrialLaws.CenterFall: t.CenterReduction = 0f; break;
-                    case TrialLaws.BeastStrong: t.EliteExtraMul = 1.15f; break;
-                    case TrialLaws.BurnDeep: t.BurnTakenMul = 1.30f; break;
-                    case TrialLaws.ColdAltar: t.NestHealPercent = 0.20f; break;
-                    case TrialLaws.LowSky: t.FinaleMirrors = 5; break;
-                    case TrialLaws.NoRevive: t.SoulFade = true; break;
-                    case TrialLaws.AllIsOne: t.AllIsOne = true; break;
-                    case TrialLaws.IceLast: t.IceErosionDotMul = 1.67f; break;   // 1.5% → 2.5%
-                    case TrialLaws.ChaosWuxing: t.ResonanceCountShift = 1; break;
-                    case TrialLaws.BossCrown: t.BossTraitCount = 1; break;
-                    case TrialLaws.NarrowPath: t.NarrowPath = true; break;
-                    case TrialLaws.BeastKing: t.ForceEliteFirst = true; break;
-                        // 02/06/08/09/12/13/14/15/17/18：待对应系统接入（记录在清单 P3 备注）
+                    case "linger_nodes": t.LingerNodes = (int)val; break;
+                    case "backlash_extra": t.BacklashExtra = val; break;
+                    case "counter_true": t.CounterTrueDamage = val; break;
+                    case "center_reduction": t.CenterReduction = val; break;
+                    case "elite_extra_mul": t.EliteExtraMul = val; break;
+                    case "narrow_path": t.NarrowPath = val != 0f; break;
+                    case "soul_fade": t.SoulFade = val != 0f; break;
+                    case "burn_taken_mul": t.BurnTakenMul = val; break;
+                    case "ice_dot_mul": t.IceErosionDotMul = val; break;
+                    case "boss_traits": t.BossTraitCount = (int)val; break;
+                    case "resonance_shift": t.ResonanceCountShift = (int)val; break;
+                    case "nest_heal": t.NestHealPercent = val; break;
+                    case "force_elite": t.ForceEliteFirst = val != 0f; break;
+                    case "finale_mirrors": t.FinaleMirrors = (int)val; break;
+                    case "all_is_one": t.AllIsOne = val != 0f; break;
+                    case "none": break;    // 只写文案、没有数值效果的劫律（未接线，见 _builtinEffect 注释）
+                    default: break;        // 未知键已被解析器拦下，这里只求不崩
                 }
             }
             return t;

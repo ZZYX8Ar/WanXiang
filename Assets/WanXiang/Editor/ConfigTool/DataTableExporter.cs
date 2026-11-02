@@ -48,10 +48,12 @@ namespace WanXiang.EditorTools
             int relics = ExportRelics();
             int combos = ExportCombos();
             ExportProgression();
+            ExportTrialLaws();
+            ExportMarket();
 
             AssetDatabase.Refresh();
             Debug.Log($"[DataTable] 导出完成 → {OutDir}：状态 {status}、首领 {boss}、天时 {weather}、" +
-                      $"遗物 {relics}、阵形 {combos}、养成曲线 1 张。");
+                      $"遗物 {relics}、阵形 {combos}、养成曲线/劫律/灵市各 1 张。");
         }
 
         // ================================================================
@@ -307,6 +309,70 @@ namespace WanXiang.EditorTools
             Row("material_win_elite", I(WanXiang.Run.ProgressionTuning.MaterialWinElite), "精英掉落素材");
             Row("material_win_boss", I(WanXiang.Run.ProgressionTuning.MaterialWinBoss), "首领掉落素材");
             Write("progression.csv", sb);
+        }
+
+        // ================================================================
+        //  劫律 / 灵市
+        // ================================================================
+
+        /// <summary>
+        /// 劫律描述。**这里是唯一来源**（代码里只有名字，没有描述）——
+        /// 改文案改 exporter 里的这张表，再点一次导出；⛔ 不要只改 CSV，下次导出会被覆盖回这里。
+        /// </summary>
+        private static readonly (string id, string desc)[] TrialLawDesc =
+        {
+            ("01", "上一幕首节点的天时余气，多残留 1 个节点（2 → 3）"),
+            ("02", "节点天时的覆盖只持续 2 回合（正常 3 回合）—— 未接线"),
+            ("03", "逆天时反噬从 15% 提升到 25%"),
+            ("04", "相冲真伤从 2% 提升到 3.5%"),
+            ("05", "中宫不再减伤（8% → 0）"),
+            ("06", "上阵上限 5 → 4 —— 未接线"),
+            ("07", "精英战的敌方属性额外 +15%"),
+            ("08", "灵市价格 +50% —— 未接线"),
+            ("09", "分叉层的候选从 3 个减到 1 个"),
+            ("10", "复活只恢复到 60% 生命"),
+            ("11", "我方受到的灼烧伤害 +30%"),
+            ("12", "冰蚀每层每回合 1.5% → 2.5% 最大生命"),
+            ("13", "控制类技能 CD +1 —— 未接线（技能 CD 已删除）"),
+            ("14", "守关首领多 1 条特性"),
+            ("15", "五行共鸣门槛 2/4/5 → 3/5/5"),
+            ("16", "孵穴回复 40% → 20%"),
+            ("17", "每幕首节点强制为精英"),
+            ("18", "精英不可跳过 —— 未接线"),
+            ("19", "终局镜像 3 → 5"),
+            ("20", "前 19 条全部生效，且敌方每回合攻击 +1%"),
+        };
+
+        private static void ExportTrialLaws()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("id,order,name,desc,effect_key,effect_value");
+            var order = WanXiang.Trials.TrialLaws.Order;
+            for (int i = 0; i < order.Length; i++)
+            {
+                string id = order[i];
+                var (key, val) = WanXiang.Trials.TrialLaws.EffectOf(id);
+                string desc = "";
+                for (int d = 0; d < TrialLawDesc.Length; d++)
+                    if (TrialLawDesc[d].id == id) { desc = TrialLawDesc[d].desc; break; }
+                sb.AppendLine(string.Join(",",
+                    Esc(id), I(i + 1), Esc(WanXiang.Trials.TrialLaws.Name(id)), Esc(desc), key, F(val)));
+            }
+            Write("trial_laws.csv", sb);
+        }
+
+        private static void ExportMarket()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("key,value,note");
+            void Row(string key, string value, string note) => sb.AppendLine(key + "," + value + "," + note);
+            Row("price_common", I(WanXiang.Run.MarketPricing.PriceCommon), "灵品异兽基础价");
+            Row("price_rare", I(WanXiang.Run.MarketPricing.PriceRare), "玄品基础价");
+            Row("price_epic", I(WanXiang.Run.MarketPricing.PriceEpic), "神品基础价");
+            Row("price_soul", I(WanXiang.Run.MarketPricing.PriceSoul), "魂的基础价");
+            Row("act_step", F(WanXiang.Run.MarketPricing.ActStep), "每幕涨价比例(0.3=+30%)");
+            Row("min_price", I(WanXiang.Run.MarketPricing.MinPrice), "价格下限");
+            Write("market.csv", sb);
         }
 
         // ================================================================

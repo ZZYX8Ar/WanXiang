@@ -1,0 +1,7 @@
+key,value,note
+price_common,5,灵品异兽基础价
+price_rare,8,玄品基础价
+price_epic,12,神品基础价
+price_soul,5,魂的基础价
+act_step,0.3,每幕涨价比例(0.3=+30%)
+min_price,2,价格下限

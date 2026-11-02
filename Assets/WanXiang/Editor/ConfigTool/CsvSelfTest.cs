@@ -34,7 +34,9 @@ namespace WanXiang.EditorTools
                 "／节点权重 " + DataTables.WeightRows + " 行" +
                 "／遗物 " + DataTables.RelicCount +
                 "／阵形 " + DataTables.ComboCount +
-                "／曲线 " + DataTables.ProgressionKeys + " 键";
+                "／曲线 " + DataTables.ProgressionKeys + " 键" +
+                "／劫律 " + DataTables.TrialLawCount +
+                "／灵市 " + DataTables.MarketKeys + " 键";
 
             if (problems == 0)
                 Debug.Log("[CsvSelfTest] ✅ 通过：" + summary);

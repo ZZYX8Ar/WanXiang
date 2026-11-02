@@ -168,13 +168,14 @@ namespace WanXiang.Modules.UI
                 if (used.Contains(b.Id) || owned.Contains(b.Id)) continue;
                 used.Add(b.Id);
                 // 价格随稀有度与幕数上浮（GDD：价格随幕数与劫数上浮）
-                int baseP = b.Rarity == Rarity.Rare ? 8 : (b.Rarity == Rarity.Epic ? 12 : 5);
+                // ★ 2026-11-02：定价统一走 MarketPricing（market.csv 可覆盖）
+                int baseP = WanXiang.Run.MarketPricing.BasePriceOf(b.Rarity);
                 // ★ 天气地图效果层：当前节点天时影响物价（LiveWeather.Current 为 null ， ×1，旧行为）。
                 float priceMul = WanXiang.Campaign.WeatherMapEffects.Current.PriceMul;
                 _goods.Add(new Good
                 {
                     Beast = b,
-                    Price = System.Math.Max(2, (int)(baseP * (1f + (run.Act - 1) * 0.3f) * priceMul)),
+                    Price = WanXiang.Run.MarketPricing.FinalPrice(baseP, run.Act, priceMul),
                 });
             }
 
@@ -191,7 +192,8 @@ namespace WanXiang.Modules.UI
                 _goods.Add(new Good
                 {
                     Beast = b,
-                    Price = System.Math.Max(2, (int)(SoulPrice * (1f + (run.Act - 1) * 0.3f) * soulMul)),
+                    Price = WanXiang.Run.MarketPricing.FinalPrice(
+                                WanXiang.Run.MarketPricing.PriceSoul, run.Act, soulMul),
                     IsSoul = true,
                     SoulOrdinal = System.Array.IndexOf(all, b),
                 });
@@ -265,7 +267,7 @@ namespace WanXiang.Modules.UI
 
 
         /// <summary>魂的基准价（灵卵）；实际上架价随幕数与天时物价浮动（见 Reroll）。</summary>
-        private const int SoulPrice = 5;
+        // ⛔ 价格常量统一在 WanXiang.Run.MarketPricing（market.csv），别在这里再留一份。
 
         private void SetHint(string msg)
         {

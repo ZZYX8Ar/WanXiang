@@ -13,7 +13,8 @@
         "UniTask",
         "Unity.TextMeshPro",
         "DOTween",
-        "DOTween.Modules"
+        "DOTween.Modules",
+        "WanXiang.Trials.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
