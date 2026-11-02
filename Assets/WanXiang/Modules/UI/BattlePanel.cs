@@ -513,38 +513,45 @@ namespace WanXiang.Modules.UI
 
         /// <summary>真正交接：场景模式回主城（弹结算），否则就地开结算面板。</summary>
         /// <summary>
-        /// 阵亡处理：把本场战斗阵亡的我方异兽从「上阵队伍」与「拥有」中直接移除，
-        /// 整局（这一趟旅程）失去该异兽，直到从灵市重新购买。
-        /// ⚠ **只在打赢（= 过节点）时调用**，见 <see cref="HandOff"/>；战败/平局撤退/重新挑战都不调用。
-        /// 设计：异兽唯一且可重新购买 ， 阵亡=本局失去，编阵界面自然选不到（无需额外禁用名单）。
-        /// 商店只卖你"还没有"的异兽，故阵亡兽会自动重新出现在货架上。
-        /// PvP 是独立玩法、不消耗本局阵容；无战斗状态/无当前旅程时跳过。
+        /// 战后血量结算（2026-11-02 用户定案，取代原来的「阵亡=本局失去」）。
+        /// ------------------------------------------------------------------
+        /// 规则：**每只参战异兽的血量 = 本场剩余 + 50%，上限 100%**。
+        ///   · 阵亡（0%）= 0 + 50 ⇒ **以 50% 血复活**，不再从队伍/拥有里移除；
+        ///   · 存活（如 30%）= 30 + 50 = 80%，"在剩下的基础上加 50"；
+        ///   · 没上场的队员不动（没打就没有收益）。
+        /// ⛔ 旧实现（2026-10-04）是"阵亡直接从 Team/Collection 删除，灵市重新买"——
+        ///   与"50% 复活"冲突，用户实测报"异兽直接消失了"。
+        /// ⚠ 只在**打赢（过节点）**时结算，见 HandOff；战败/平局撤退/重挑不结算。
+        /// PvP 不影响本局阵容，直接跳过。
         /// </summary>
-        private void RecordDeaths()
+        private void RecordHpAfterBattle()
         {
-            if (SceneFlow.LastWasPvp) return;                 // PvP：不影响本局阵容
+            if (SceneFlow.LastWasPvp) return;
             var run = WanXiang.Run.RunSave.Current;
             if (run == null || _play == null || _play.State == null) return;
+            if (run.TeamHpPct == null)
+                run.TeamHpPct = new System.Collections.Generic.Dictionary<string, int>();
 
-            if (run.Team == null) run.Team = new System.Collections.Generic.List<string>();
-            if (run.Collection == null) run.Collection = new System.Collections.Generic.List<string>();
-            var deadIds = new System.Collections.Generic.List<string>();
-            foreach (var u in _play.State.UnitsOf(WanXiang.Battle.Core.TeamSide.Player))
+            int gain = WanXiang.Run.ProgressionTuning.ReviveHpPct;   // 50
+            string log = "";
+            var units = _play.State.UnitsOf(WanXiang.Battle.Core.TeamSide.Player);
+            for (int i = 0; i < units.Count; i++)
             {
-                if (u == null || u.IsAlive) continue;
-                string id = u.Def != null ? u.Def.Id : null;
+                var u = units[i];
+                if (u == null || u.Def == null) continue;
+                string id = u.Def.Id;
                 if (string.IsNullOrEmpty(id)) continue;
-                // ★ 直接从拥有/队伍里移除：阵亡 = 本局失去，编阵自然选不到
-                bool removed = run.Team.Remove(id);
-                removed = run.Collection.Remove(id) || removed;
-                if (removed) deadIds.Add(id);
+
+                int pct = u.MaxHp > 0
+                        ? UnityEngine.Mathf.Clamp(UnityEngine.Mathf.RoundToInt(100f * u.Hp / u.MaxHp), 0, 100)
+                        : 0;
+                int next = UnityEngine.Mathf.Clamp(pct + gain, 0, 100);
+                run.TeamHpPct[id] = next;
+                log += id + " " + pct + "%→" + next + "%" + (u.IsAlive ? "" : "(阵亡→复活)") + "  ";
             }
-            if (deadIds.Count > 0)
-            {
-                WanXiang.Run.RunSave.SaveCurrent();
-                UnityEngine.Debug.Log("[BattlePanel][阵亡] 本局阵亡 " + deadIds.Count + " 只，已从队伍/拥有移除（灵市可重新购买）：" +
-                    string.Join(",", deadIds));
-            }
+
+            WanXiang.Run.RunSave.SaveCurrent();
+            UnityEngine.Debug.Log("[BattlePanel][血量] 战后结算（剩余 +" + gain + "%，上限 100%）：" + log);
         }
 
         private bool _inspectOpen;
@@ -618,15 +625,12 @@ namespace WanXiang.Modules.UI
                 return;
             }
 
-            // ★ 阵亡记账时机（用户 2026-10-04 定案：**只在过节点时丢**）
-            //   打赢（= 过节点）才真正把阵亡兽从队伍/拥有移除；**战败 / 平局撤退 / 重新挑战都不丢**。
-            //   ⚠ 原先是无条件调用 —— 于是"打输了 → 点重新挑战"会把整队清掉（用户报障：
-            //     "重新挑战这些死亡的异兽好像就消失了"；另外战斗已结束再点重新挑战会 early-return
-            //     走正常结算，同样记账）。现在统一由这里的胜负门控。
-            //   代价（用户已知并接受）：输了可以无限重试，没有惩罚。
+            // ★ 战后血量结算时机（2026-11-02 改）：**只在过节点时结算**
+            //   打赢才把"剩余血量 +50%"写进 TeamHpPct；战败 / 平局撤退 / 重新挑战都不写
+            //   （输了可以无限重试，没有惩罚 —— 用户已知并接受）。
             if (result.Win && !result.Draw)
             {
-                RecordDeaths();
+                RecordHpAfterBattle();
                 // ★ 同一存档事务里把"待落地的节点"也持久化：否则"胜利但没点结果面板就退游戏"
                 //   会留下"阵亡已扣、节点未过"的半截状态（用户 2026-10-20 实测 bug）。
                 var runW = WanXiang.Run.RunSave.Current;

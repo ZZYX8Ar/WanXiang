@@ -301,7 +301,7 @@ namespace WanXiang.EditorTools
             Row("mastery_lv3_mul", F(WanXiang.Run.ProgressionTuning.MasteryLv3Mul), "专精3的额外倍率（与专精1叠乘）");
             Row("evolve_stat_mul", F(WanXiang.Run.ProgressionTuning.EvolveStatMul), "进化后基础攻血倍率");
             Row("evolve_material_cost", I(WanXiang.Run.ProgressionTuning.EvolveMaterialCost), "进化消耗素材");
-            Row("revive_hp_pct", I(WanXiang.Run.ProgressionTuning.ReviveHpPct), "通关后阵亡单位进下一场的血量%");
+            Row("revive_hp_pct", I(WanXiang.Run.ProgressionTuning.ReviveHpPct), "战后血量增益：剩余% + 该值，上限100（阵亡=0+50复活）");
             Row("exp_win_normal", I(WanXiang.Run.ProgressionTuning.ExpWinNormal), "普通战经验");
             Row("exp_win_elite", I(WanXiang.Run.ProgressionTuning.ExpWinElite), "精英战经验");
             Row("exp_win_realm", I(WanXiang.Run.ProgressionTuning.ExpWinRealm), "秘境经验");

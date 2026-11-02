@@ -370,19 +370,9 @@ BuildNodeMap();
                             else if (kindVal == (int)WanXiang.Campaign.NodeKind.Elite)
                                 gain = WanXiang.Run.ProgressionTuning.ExpWinElite;
                             else if (_realmMode) gain = WanXiang.Run.ProgressionTuning.ExpWinRealm;   // 秘境
-                            // ★ 2026-11-01 死亡不消失：通关后阵亡/重伤的兽以 **50% 生命**进下一场。
-                            //   精确逐单位血量要等战斗结算回传；这里先把"低于 50% 的抬到 50%"落地。
-                            if (prun.Team != null)
-                            {
-                                for (int ti = 0; ti < prun.Team.Count; ti++)
-                                {
-                                    var tid = prun.Team[ti];
-                                    if (string.IsNullOrEmpty(tid)) continue;
-                                    int cur = 100;
-                                    if (prun.TeamHpPct != null && prun.TeamHpPct.TryGetValue(tid, out int hv)) cur = hv;
-                                    prun.TeamHpPct[tid] = Mathf.Max(WanXiang.Run.ProgressionTuning.ReviveHpPct, cur);
-                                }
-                            }
+                            // ★ 2026-11-02：血量结算搬到 BattlePanel.RecordHpAfterBattle（剩余 +50%，上限 100%）。
+                            //   ⛔ 这里原来有个"把所有人抬到至少 50%"的兜底 —— 它会把 30% 的残血
+                            //      直接抹成 50%，等于把"打完加 50%"的规则盖掉，已删除。
 
                             // ★ 2026-11-02 素材掉落：打赢硬仗才给（普通 0 / 精英 1 / 幕末 2）
                             {

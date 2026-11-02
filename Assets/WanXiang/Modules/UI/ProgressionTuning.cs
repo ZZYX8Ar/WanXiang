@@ -42,7 +42,10 @@ namespace WanXiang.Run
         public static int EvolveMaterialCost = 1;
 
         // ---- 结算 ----
-        /// <summary>通关后阵亡单位进下一场的血量百分比。</summary>
+        /// <summary>
+        /// 战后血量增益：**每只参战异兽 = 本场剩余% + 这个值，上限 100%**。
+        /// 阵亡（0%）= 直接得到 50% ⇒ 等价于"以 50% 血复活"，所以字段名沿用 ReviveHpPct。
+        /// </summary>
         public static int ReviveHpPct = 50;
         public static int ExpWinNormal = 100;
         public static int ExpWinElite = 250;

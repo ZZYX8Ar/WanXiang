@@ -245,6 +245,15 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                         d.BaseHp = UnityEngine.Mathf.RoundToInt(d.BaseHp * run.LevelHpMul);
                     }
 
+                    // ★ 2026-11-02 残血进场：上一场结束时的血量百分比（阵亡 = 50%）在这里落到生命上限上。
+                    //   ⛔ 必须放在等级/进化之后：那两步算的是"满血上限"，这里才是"当前还剩多少"。
+                    //   没有记录（新招募/老存档）按满血算。
+                    if (run.TeamHpPct != null && run.TeamHpPct.TryGetValue(id, out int hpPct) && hpPct < 100)
+                    {
+                        int clamped = UnityEngine.Mathf.Clamp(hpPct, 1, 100);
+                        d.BaseHp = UnityEngine.Mathf.Max(1, UnityEngine.Mathf.RoundToInt(d.BaseHp * (clamped / 100f)));
+                    }
+
                     // 觉醒技：取**快照**，不再读现档
                     string aid = run.SnapAwakenOf(id);
                     if (!string.IsNullOrEmpty(aid))
