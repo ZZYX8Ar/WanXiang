@@ -33,8 +33,8 @@ namespace WanXiang.Editor.TrialsTool
             var lines = Run("trials.selftest");
             foreach (var l in lines) Debug.Log("[劫循环自检] " + l);
             if (_fail > 0)
-                EditorUtility.DisplayDialog("劫循环自检",
-                    $"❌ {_pass} 过 / {_fail} 败，失败项见 Console 与 {ReportPath}。", "好");
+                WanXiang.EditorTools.SelfTestUi.Failed("劫循环自检",
+                    $"❌ {_pass} 过 / {_fail} 败，失败项见 Console 与 {ReportPath}。");
         }
 
         public static string[] Run(string command)

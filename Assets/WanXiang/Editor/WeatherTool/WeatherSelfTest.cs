@@ -47,11 +47,15 @@ namespace WanXiang.Editor.WeatherTool
         // ⚠ 2026-10-16 敌方战术层（EnemyTactics：残血反扑永久加攻）并入常驻战斗 → 再次重标。
         //   回退实验（EnemyTactics.Enabled=false）指纹**精确**回到 0x20D2DEC1、41/41 全绿，
         //   证明漂移仅来自这一层（对照实验是本次改动自带的举证方式）。
-        private const uint BaselineFingerprint = 0x34C97914u;
+        // ⚠ 2026-11-02 重标：2026-11-01 删掉技能 CD 与出手速度、并把元素反应换成「附着+充能」，
+        //   战斗结果必然变化 ⇒ 旧基线 0x34C97914 已失效。新基线取自重载域（未装 CSV）的一次实跑，
+        //   并且与"装了 Resources/Data/*.csv 之后"的实跑**逐位相同**（A/B 对照），
+        //   证明数据表外置对战斗零影响。
+        private const uint BaselineFingerprint = 0x18A7F588u;
 
         /// <summary>当前"关抖动"的基线（先手连击机制已移除，默认即无连击）—— 用来做"抖动贡献"的对照。</summary>
         // ⚠ 同上，关抖动基线随敌方战术层重标（回退实验回到 0xC4E3FE30）。
-        private const uint LegacyBaselineFingerprint = 0x3DF7C713u;
+        private const uint LegacyBaselineFingerprint = 0xF760B70Eu;   // 同上：2026-11-02 随 R1 一起重标
 
         private static int _pass, _fail;
         private static readonly List<string> Failures = new List<string>();
@@ -64,8 +68,8 @@ namespace WanXiang.Editor.WeatherTool
             // ⚠ 只在失败时弹模态框：全绿也弹会把编辑器主线程卡在对话框上，
             // 自动化（诊断桥/MCP）跑这条命令时后续命令会全部超时。
             if (_fail > 0)
-                EditorUtility.DisplayDialog("天时自检",
-                    $"❌ {_pass} 过 / {_fail} 败，失败项见 Console 与 {ReportPath}。", "好");
+                WanXiang.EditorTools.SelfTestUi.Failed("天时自检",
+                    $"❌ {_pass} 过 / {_fail} 败，失败项见 Console 与 {ReportPath}。");
         }
 
         public static string[] Run(string command)
@@ -242,8 +246,10 @@ namespace WanXiang.Editor.WeatherTool
                                       new WeatherDef { Id = "t_speed", NodeName = "测", BuffName = "测",
                                           SpeedMulPlayer = 2f });
             var firstBoost = playerBoost.BuildActionOrder()[0].Side;
-            Check(lines, firstPlain == TeamSide.Enemy && firstBoost == TeamSide.Player,
-                  "⑩ 单方速度乘数：敌方先手 ， 我方提速后反先（排序真被改了）");
+            // ⚠ 2026-11-01 用户定案「速度彻底删」：出手序改成"我方按上阵位次 → 敌方按站位"，
+            //   速度乘数不再参与排序 ⇒ 断言换成"提速也不改首手阵营"（防止速度被偷偷接回来）。
+            Check(lines, firstPlain == firstBoost,
+                  $"⑩ 速度乘数不再影响出手顺序（速度已删除）：未提速 {firstPlain} ， 提速后 {firstBoost}");
             var daxue = WeatherCatalog.GetSolarTerm(21);
             var sDaxue = Make1v1("wP", "缓", Element.Metal, RoleType.Guard,
                                  "wQ", "疾", Element.Wood, RoleType.Swift, daxue);
@@ -285,11 +291,16 @@ namespace WanXiang.Editor.WeatherTool
             var def = BattleSampleContent.Make("wY", "御", Element.Earth, RoleType.Guard);
             var stXm = Run1v1Full(atk, def, 11, xiaoman);
             var stNone = Run1v1Full(atk, def, 11, null);
+            // ⚠ 2026-11-01「技能 CD 彻底删」后，「麦气至」从 CdAdvanceMulPlayer 1.3
+            //   改成了 CritDamageBonusPlayer 0.30 ⇒ 断言改为"暴伤生效 + CD 字段保持中性"。
             float mulP = stXm.Weather != null ? stXm.Weather.CdAdvanceMulFor(TeamSide.Player) : 0f;
             float mulE = stXm.Weather != null ? stXm.Weather.CdAdvanceMulFor(TeamSide.Enemy) : 0f;
             float mulNone = stNone.Weather != null ? stNone.Weather.CdAdvanceMulFor(TeamSide.Player) : 1f;
-            Check(lines, mulP > 1f && mulE == 1f && mulNone == 1f,
-                  $"⑪ 小满 CD 推进接线：我方乘数 {mulP:F2}（>1）、敌方 {mulE:F2}（=1）、无天时 {mulNone:F2}（=1）");
+            float critBonus = stXm.Weather != null ? stXm.Weather.CritDamageBonusFor(TeamSide.Player) : 0f;
+            Check(lines, System.Math.Abs(critBonus - 0.30f) < 0.0001f
+                         && mulP == 1f && mulE == 1f && mulNone == 1f,
+                  $"⑪ 小满（麦气至）：我方暴伤 +{critBonus:P0}（CD 已删除，CD 乘数应恒为 1："
+                  + $"我方 {mulP:F2}／敌方 {mulE:F2}／无天时 {mulNone:F2}）");
 
             // ---- ⑫ 雨水：治疗溢出 50% 转护盾（受控：先打掉 1% 血，再手动推一次回合末天时） ----
             //     ⚠ 双方都会结算：敌方满血全额溢出，必须按目标 id 过滤，别把敌方的盾当成玩家的。
@@ -516,16 +527,9 @@ namespace WanXiang.Editor.WeatherTool
             // 预先在敌人身上铺好引信状态，再按五行触发，逐条核对"消耗/附加/事件"。
             var rCfg = BattleConfig.Default.WithoutJitter();
 
-            // 蒸：火 打 湿 → 移除湿 + 额外真伤
-            var bSteam = BattleFactory.Create(rCfg, 20260914UL,
-                new[] { DeployEntry.Player(BattleSampleContent.Make("rA", "焰", Element.Fire,  RoleType.Striker), 0) },
-                new[] { DeployEntry.Enemy (BattleSampleContent.Make("rB", "湿", Element.Water, RoleType.Guard), 8) }, null);
-            var eSteam = bSteam.UnitsOf(TeamSide.Enemy)[0];
-            eSteam.ApplyStatus(StatusCatalog.Wet, 3, 99, 0);
-            BattleSimulator.ResolveElementReactions(bSteam, bSteam.UnitsOf(TeamSide.Player)[0], eSteam, Element.Fire);
-            Check(lines, !eSteam.HasStatus(StatusCatalog.Wet)
-                       && CountNoteKind(bSteam.Log, BattleEventKind.Damage, "元素反应·蒸") > 0,
-                  "㉙ 蒸：火 + 湿 → 蒸发并造成额外真伤");
+            // ⛔ 2026-11-02 删除「蒸/碎冰/助燃/镇」的旧断言：
+            //   2026-11-01 起元素反应已重写为「附着（Aura）+ 充能 → 同元素消耗 / 异元素反应」，
+            //   这些旧反应名在代码里已经不存在。现行规则由下面三条断言覆盖。
 
             // ★ 2026-11-01 重写：反应已改为「元素附着（Aura）+ 充能」体系，
             //   旧的"状态引信（湿/冰蚀/灼烧 → 镇/碎冰/助燃）"测试全部作废。

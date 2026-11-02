@@ -34,8 +34,8 @@ namespace WanXiang.Editor.CampaignTool
             foreach (var l in lines) Debug.Log("[节点图自检] " + l);
             // 只在失败时弹模态框（全绿弹窗会卡死 MCP 自动化，见项目记忆）
             if (_fail > 0)
-                EditorUtility.DisplayDialog("节点图自检",
-                    $"❌ {_pass} 过 / {_fail} 败，失败项见 Console 与 {ReportPath}。", "好");
+                WanXiang.EditorTools.SelfTestUi.Failed("节点图自检",
+                    $"❌ {_pass} 过 / {_fail} 败，失败项见 Console 与 {ReportPath}。");
         }
 
         public static string[] Run(string command)
@@ -44,6 +44,10 @@ namespace WanXiang.Editor.CampaignTool
             _pass = 0;
             _fail = 0;
             Failures.Clear();
+
+            // ★ 2026-11-02：先把 Resources/Data 的 CSV 装上，自检才验的是"表里那套规则"
+            //   （map.csv 的层数 / node_weights.csv 的权重与解禁幕）。
+            WanXiang.Modules.UI.DataTables.EnsureInstalled();
 
             lines.Add("万相 · 节气节点图自检（campaign.selftest）");
             lines.Add("========================================================================");
@@ -130,10 +134,13 @@ namespace WanXiang.Editor.CampaignTool
             var w1 = run2.ComposeCurrentWeather();
             ok &= w1 != null && w1.Element == Element.Fire                // 元素/名字全取节点
                && w1.BuffName == "麦气至"
-               && System.Math.Abs(w1.CdAdvanceMulPlayer - 1.3f) < 0.0001f  // 节点修正保留
+               // ⚠ 2026-11-01 技能 CD 已彻底删除，「麦气至」由 CdAdvanceMulPlayer 1.3
+               //   改成了 CritDamageBonusPlayer 0.30 —— 断言跟着规则走，别守着旧字段。
+               && System.Math.Abs(w1.CritDamageBonusPlayer - 0.30f) < 0.0001f  // 节点修正保留
+               && System.Math.Abs(w1.CdAdvanceMulPlayer - 1f) < 0.0001f         // CD 相关字段应为中性
                && w1.TurnStart.Length == 1                                 // 余气原子拼进来
                && w1.TurnStart[0].Atom.Kind == EffectAtomKind.ApplyStatus;
-            Check(lines, ok, "⑤ 节点1（小满）：节点 CD+30% 保留，余气生机原子拼入，元素/名字取节点");
+            Check(lines, ok, "⑤ 节点1（小满）：节点暴伤 +30% 保留，余气生机原子拼入，元素/名字取节点");
 
             // 节点 2（夏至·10）：余气仍在场（残留 2 节点 ， 前两个节点都算）
             ok = run2.EnterNode(3);
@@ -265,14 +272,19 @@ namespace WanXiang.Editor.CampaignTool
                 squadOk &= squad1[i].PosIndex == SeededEnemyProvider.DefaultFormation[i]
                         && squad1[i].Side == TeamSide.Enemy && !seen[squad1[i].PosIndex];
                 seen[squad1[i].PosIndex] = true;
-                squadOk &= ReferenceEquals(squad1[i].Def, squad2[i].Def);
+                // ⚠ 2026-10-16 起敌方战术会 EnemyTactics.Apply（**克隆**后改技能），
+                //   两次调用拿到的已经不是同一个实例 ⇒ 不能用 ReferenceEquals 判"同阵容"，
+                //   只能比 id 序列（这也是玩家真正感受到的"同种子同一批敌人"）。
+                squadOk &= squad1[i].Def != null && squad2[i].Def != null
+                        && squad1[i].Def.Id == squad2[i].Def.Id;
             }
             bool squadVaries = false;
             for (ulong alt = 701UL; alt < 720UL && !squadVaries; alt++)
             {
                 var s = content.EnemiesFor(2, 10, NodeKind.Encounter, alt);
                 for (int i = 0; i < s.Length && i < squad1.Length; i++)
-                    if (!ReferenceEquals(s[i].Def, squad1[i].Def)) { squadVaries = true; break; }
+                    if (s[i].Def != null && squad1[i].Def != null && s[i].Def.Id != squad1[i].Def.Id)
+                    { squadVaries = true; break; }
             }
             Check(lines, squadOk && squadVaries,
                   $"⑩ 敌队供给：{squad1.Length} 人（按规模表）/ 站位 0·1·4·7·8 唯一合法 / 同种子同阵容 / 换种子换人");
@@ -432,16 +444,16 @@ namespace WanXiang.Editor.CampaignTool
             var whyQuota = "";
             for (int act = 1; act <= 4; act++)
             {
-                // 与 SolarTermGraph.UnlockKinds 同口径：幕 1 无铸魂台，幕 2~4 全 7 种
-                var expect = act == 1
-                    ? new HashSet<NodeKind> { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop,
-                                              NodeKind.Nest, NodeKind.Tale, NodeKind.Omen }
-                    : new HashSet<NodeKind> { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop,
-                                              NodeKind.Nest, NodeKind.Tale, NodeKind.Forge, NodeKind.Omen };
+                // ⚠ 2026-11-01 起天象(Omen)/修行/古战场不再生成、2026-11-02 权重搬进
+                //   node_weights.csv ⇒ 断言必须读 MapRules 的真实解禁表，不能再手抄一份。
+                //   问号是"随机节点"不参与配额考核，故排除。
+                var expect = new HashSet<NodeKind>();
+                foreach (var k in MapRules.UnlockedList(act))
+                    if (k != NodeKind.Question) expect.Add(k);
                 for (int s = 0; s < seedN; s++)
                 {
                     var g = SolarTermGraph.BuildRoute(act, 1000u + (uint)(act * 100000 + s));
-                    if (g == null || g.Layers.Length != SolarTermGraph.DefaultLayers)
+                    if (g == null || g.Layers.Length != MapRules.Layers)
                         { quotaOk = false; whyQuota = $"幕{act} 种子{s} 回退/层数异常"; fallbackHits++; break; }
                     if (!SolarTermGraph.MeetsV12Constraints(g))
                         { quotaOk = false; whyQuota = $"幕{act} 种子{s} 不满足 v1.2 约束"; break; }
@@ -454,7 +466,7 @@ namespace WanXiang.Editor.CampaignTool
                 if (!quotaOk) break;
             }
             Check(lines, quotaOk,
-                  $"⑳ 配额：200 种子 × 幕1~4 全部生成 {SolarTermGraph.DefaultLayers} 层合规图且本幕解锁类型全覆盖"
+                  $"⑳ 配额：200 种子 × 幕1~4 全部生成 {MapRules.Layers} 层合规图且本幕解锁类型全覆盖"
                   + (quotaOk ? "" : $"（{whyQuota}，回退次数={fallbackHits}）"));
 
             lines.Add("========================================================================");

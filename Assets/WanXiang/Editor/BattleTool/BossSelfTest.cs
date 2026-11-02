@@ -87,8 +87,8 @@ namespace WanXiang.Editor.BattleTool
             var lines = Run("boss.selftest");
             foreach (var l in lines) Debug.Log("[首领战自检] " + l);
             if (/* fail count tracked in report */ lines.Length > 0 && Array.Exists(lines, x => x.Contains("项失败") && !x.Contains("0 项失败")))
-                EditorUtility.DisplayDialog("首领战自检",
-                    "❌ 有失败项，见 Console 与 " + ReportPath + "。", "好");
+                WanXiang.EditorTools.SelfTestUi.Failed("首领战自检",
+                    "❌ 有失败项，见 Console 与 " + ReportPath + "。");
         }
 
         private static void WriteReport(string text)
