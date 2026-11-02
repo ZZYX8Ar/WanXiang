@@ -30,24 +30,28 @@ namespace WanXiang.Modules.UI
                 var line = lines[i];
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 var c = SplitCsv(line);
-                if (c.Count < 4) { Debug.LogError("[Encounter] 第 " + (i + 1) + " 行列数不足，跳过"); bad++; continue; }
+                if (c.Count < 6) { Debug.LogError("[Encounter] 第 " + (i + 1) + " 行列数不足，跳过"); bad++; continue; }
 
                 var def = new EncounterDef
                 {
                     Act = int.TryParse(c[0].Trim(), out int a) ? a : 0,
                     NodeKind = c[1].Trim(),
-                    EnemyIds = ParseComp(c[2]),
-                    Scale = float.TryParse(c[3].Trim(), System.Globalization.NumberStyles.Float,
+                    Name = c[2].Trim(),
+                    Synergy = c[3].Trim(),
+                    Entries = ParseComp(c[4]),
+                    Scale = float.TryParse(c[5].Trim(), System.Globalization.NumberStyles.Float,
                                            System.Globalization.CultureInfo.InvariantCulture, out float s) ? s : 1f,
                 };
-                if (def.Act <= 0 || def.EnemyIds.Length == 0)
+                if (def.Act <= 0 || def.Entries.Length == 0)
                 {
                     Debug.LogError("[Encounter] 第 " + (i + 1) + " 行数据非法（act/comp）"); bad++; continue;
                 }
-                for (int e = 0; e < def.EnemyIds.Length; e++)
+                for (int e = 0; e < def.Entries.Length; e++)
                 {
-                    if (WanXiang.Battle.Core.BossCatalog.BuildBoss(def.EnemyIds[e]) == null)
-                        Debug.LogError("[Encounter] 第 " + (i + 1) + " 行敌人 id 不存在：" + def.EnemyIds[e]);
+                    if (WanXiang.Battle.Core.BossCatalog.BuildBoss(def.Entries[e].Id) == null)
+                        Debug.LogError("[Encounter] 第 " + (i + 1) + " 行敌人 id 不存在：" + def.Entries[e].Id);
+                    if (def.Entries[e].Slot < 0 || def.Entries[e].Slot > 8)
+                        Debug.LogError("[Encounter] 第 " + (i + 1) + " 行站位越界：" + def.Entries[e].Slot);
                 }
                 rows.Add(def);
             }
@@ -57,19 +61,23 @@ namespace WanXiang.Modules.UI
         }
 
         // comp 形如 "b_fuman:3,b_manman:1"（CSV 里整体用引号包住），展开成重复 id 数组
-        private static string[] ParseComp(string comp)
+        /// <summary>
+        /// comp 形如 `b_fuman@1;b_fuman@7`：`@` 后是**上阵格**（0~8）。
+        /// 每只敌人的站位都要写清楚 —— 站位本身就是设计（配合/夹击/护主）。
+        /// </summary>
+        private static EncounterEntry[] ParseComp(string comp)
         {
-            var list = new List<string>(4);
+            var list = new List<EncounterEntry>(4);
             if (string.IsNullOrEmpty(comp)) return list.ToArray();
-            var parts = comp.Trim().Trim('"').Split(',');
+            var parts = comp.Trim().Trim('"').Split(';');
             foreach (var p in parts)
             {
                 var seg = p.Trim();
                 if (seg.Length == 0) continue;
-                int mul = 1;
-                int ci = seg.LastIndexOf(':');
-                if (ci > 0 && int.TryParse(seg.Substring(ci + 1), out int m)) { mul = Mathf.Clamp(m, 1, 9); seg = seg.Substring(0, ci); }
-                for (int k = 0; k < mul; k++) list.Add(seg);
+                int slot = 4;
+                int at = seg.LastIndexOf('@');
+                if (at > 0 && int.TryParse(seg.Substring(at + 1), out int sl)) { slot = Mathf.Clamp(sl, 0, 8); seg = seg.Substring(0, at); }
+                list.Add(new EncounterEntry { Id = seg.Trim(), Slot = slot });
             }
             return list.ToArray();
         }

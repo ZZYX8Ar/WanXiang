@@ -9,11 +9,20 @@ using System.Collections.Generic;
 
 namespace WanXiang.Campaign
 {
+    /// <summary>一条敌人：id + 上阵格（0~8，4 = 中宫）。</summary>
+    public struct EncounterEntry
+    {
+        public string Id;
+        public int Slot;
+    }
+
     public sealed class EncounterDef
     {
         public int Act;
         public string NodeKind;      // "Encounter"/"Elite"/"Boss"
-        public string[] EnemyIds;    // b_fuman 等
+        public string Name;          // 编队名（设计用）
+        public string Synergy;       // 这组敌人怎么配合（设计用，进 Console/图鉴）
+        public EncounterEntry[] Entries;
         public float Scale = 1f;
     }
 
