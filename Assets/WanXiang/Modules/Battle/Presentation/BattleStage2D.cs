@@ -2366,19 +2366,15 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     var sideCol = new Color(0.55f, 0.95f, 0.75f);
                     if (_views.TryGetValue(e.ActorId, out var actView) && !actView.PlayerSide)
                     { sideCn = "敌方行动"; sideCol = new Color(0.95f, 0.55f, 0.85f); }
-                    if (_turnBanner != null && _turnBannerT > 0f)
-                    {
-                        _turnBanner.text = _turnNo > 0 ? ("第 " + _turnNo + " 回合 · " + sideCn) : sideCn;
-                        _turnBanner.color = new Color(sideCol.r, sideCol.g, sideCol.b, _turnBanner.color.a);
-                        _turnBannerT = Mathf.Max(_turnBannerT, 0.9f);
-                    }
+                    ShowTurnBanner(_turnNo, sideCn, sideCol);   // 换成"我方/敌方回合"（同一次显示内改字，不重播滑入）
+                    _tbT = Mathf.Max(_tbT, 1.6f);
                     break;
                 }
 
                 case BattleEventKind.TurnStart:
                     _actingId = null;
-                    _turnNo = e.Turn;                       // ★ 回合数：每次开始都显示
-                    ShowTurnBanner("第 " + e.Turn + " 回合");
+                    _turnNo = e.Turn;
+                    ShowTurnBanner(e.Turn, null, TbColNeutral);   // 先显示"第 N 回合"，随后第一条行动立刻换色换字
                     break;
 
                 case BattleEventKind.BattleEnd:
@@ -2671,16 +2667,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 }
             }
 
-            // 回合横幅：尾部 0.8s 渐隐 + 缩放回弹 1.08→1
-            if (_turnBannerT > 0f && _turnBanner != null)
-            {
-                _turnBannerT -= dt;
-                float a = Mathf.Clamp01(_turnBannerT / 0.8f);
-                var c = _turnBanner.color; c.a = a; _turnBanner.color = c;
-                float sc = Mathf.MoveTowards(_turnBanner.transform.localScale.x, 1f, dt * 0.4f);
-                _turnBanner.transform.localScale = Vector3.one * sc;
-                if (_turnBannerT <= 0f) _turnBanner.gameObject.SetActive(false);
-            }
+            StepTurnBanner(dt);
 
             PollInspectClick();
 
@@ -3735,14 +3722,79 @@ if (life < 0.2f) life = 0.2f;
             v.ShieldMat = mat;
         }
 
-        private TextMesh _turnBanner;
-        private float _turnBannerT;
-        private int _turnNo;
+        // ---- 回合横幅（带装饰的组：黑色压条 + 两侧细线 + 大字 + 小字） ----
+        private Transform _tbGroup;
+        private TextMesh _tbBig, _tbSub;
+        private SpriteRenderer _tbBack, _tbRuleL, _tbRuleR;
+        private float _tbT;                 // 剩余显示时间
+        private int _tbTurn;
+        private int _turnNo;                // 当前回合数（横幅与逻辑共用）
+        private const float TbLife = 2.4f, TbFade = 0.55f, TbSlide = 0.28f;
 
-        /// <summary>
-        /// 战斗回合横幅（屏幕上方居中）：每回合开始显示"第 N 回合"，每次行动补"我方/敌方行动"。
-        /// 用 TextMesh + 内置字体，不依赖任何 UI prefab。
-        /// </summary>
+        private static readonly Color TbColNeutral = new Color(0.95f, 0.93f, 0.82f);
+        private static readonly Color TbColPlayer  = new Color(0.55f, 0.95f, 0.75f);
+        private static readonly Color TbColEnemy   = new Color(0.98f, 0.52f, 0.86f);
+
+        private TextMesh TbText(Transform parent, string name, int fontSize, float charSize, int order)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var f = LegacyFont();
+            var tm = go.AddComponent<TextMesh>();
+            if (f != null) { tm.font = f; go.GetComponent<MeshRenderer>().sharedMaterial = f.material; }
+            tm.fontSize = fontSize; tm.characterSize = charSize;
+            tm.anchor = TextAnchor.MiddleCenter; tm.alignment = TextAlignment.Center;
+            go.GetComponent<MeshRenderer>().sortingOrder = order;
+            return tm;
+        }
+
+        private void ShowTurnBanner(int turn, string sideCn, Color col)
+        {
+            if (_tbGroup == null)
+            {
+                var go = new GameObject("TurnBanner");
+                go.transform.SetParent(transform, false);
+                go.transform.position = new Vector3((PlayerX + EnemyX) * 0.5f, BoardY + 2.55f, -3f);
+                _tbGroup = go.transform;
+
+                _tbBack = new GameObject("Back").AddComponent<SpriteRenderer>();
+                _tbBack.transform.SetParent(_tbGroup, false);
+                _tbBack.sprite = SolidSprite(Color.white, 100, 48, 0, Color.white);
+                _tbBack.transform.localScale = new Vector3(11f, 0.95f, 1f);
+                _tbBack.color = new Color(0f, 0f, 0f, 0.55f);
+                _tbBack.sortingOrder = 58;
+
+                _tbRuleL = new GameObject("RuleL").AddComponent<SpriteRenderer>();
+                _tbRuleL.transform.SetParent(_tbGroup, false);
+                _tbRuleL.sprite = SolidSprite(Color.white, 100, 4, 0, Color.white);
+                _tbRuleL.transform.localScale = new Vector3(2.3f, 0.045f, 1f);
+                _tbRuleL.color = new Color(0.92f, 0.88f, 0.75f, 0.9f);
+                _tbRuleL.sortingOrder = 59;
+
+                _tbRuleR = new GameObject("RuleR").AddComponent<SpriteRenderer>();
+                _tbRuleR.transform.SetParent(_tbGroup, false);
+                _tbRuleR.sprite = SolidSprite(Color.white, 100, 4, 0, Color.white);
+                _tbRuleR.transform.localScale = new Vector3(2.3f, 0.045f, 1f);
+                _tbRuleR.color = new Color(0.92f, 0.88f, 0.75f, 0.9f);
+                _tbRuleR.sortingOrder = 59;
+
+                _tbBig = TbText(_tbGroup, "Big", 88, 0.105f, 60);
+                _tbSub = TbText(_tbGroup, "Sub", 44, 0.05f, 60);
+                _tbSub.transform.localPosition = new Vector3(0f, 0.42f, 0f);
+                _tbBig.transform.localPosition = Vector3.zero;
+            }
+
+            _tbTurn = turn;
+            _tbBig.text = sideCn != null ? sideCn : ("第 " + turn + " 回合");
+            _tbBig.color = col;
+            _tbSub.gameObject.SetActive(sideCn == null);
+            if (sideCn == null) _tbSub.text = "ROUND " + turn;
+            _tbGroup.gameObject.SetActive(true);
+            _tbT = TbLife;
+            // 出场：大字轻微回弹
+            _tbBig.transform.localScale = Vector3.one * 1.1f;
+        }
+
         /// <summary>入场落地尘：6 片小方块向外弹开（复用 _bursts，不用粒子系统）。</summary>
         private void SpawnDust(UnitView2D v)
         {
@@ -3768,30 +3820,33 @@ if (life < 0.2f) life = 0.2f;
             }
         }
 
-        private void ShowTurnBanner(string msg)
+        private void StepTurnBanner(float dt)
         {
-            if (_turnBanner == null)
+            if (_tbGroup == null || !_tbGroup.gameObject.activeSelf) return;
+            _tbT -= dt;
+            if (_tbT <= 0f) { _tbGroup.gameObject.SetActive(false); return; }
+
+            // 两侧细线滑入（TbSlide 秒内从 ±5 → ±3.05）
+            float k = Mathf.Clamp01(1f - _tbT / (TbLife - TbSlide));
+            float ease = Mathf.SmoothStep(0f, 1f, k);
+            float x = Mathf.Lerp(5f, 3.05f, ease);
+            if (_tbRuleL != null) _tbRuleL.transform.localPosition = new Vector3(-x, 0f, 0f);
+            if (_tbRuleR != null) _tbRuleR.transform.localPosition = new Vector3(x, 0f, 0f);
+
+            // 大字回弹 1.1 → 1
+            if (_tbBig != null)
             {
-                var go = new GameObject("TurnBanner");
-                go.transform.SetParent(transform, false);
-                go.transform.position = new Vector3((PlayerX + EnemyX) * 0.5f, BoardY + 2.55f, -3f);  // 压在天时条下方，避免被挡
-                _turnBanner = go.AddComponent<TextMesh>();
-                var f = LegacyFont();
-                if (f != null) { _turnBanner.font = f; go.GetComponent<MeshRenderer>().sharedMaterial = f.material; }
-                _turnBanner.fontSize = 72;
-                _turnBanner.characterSize = 0.09f;
-                _turnBanner.anchor = TextAnchor.MiddleCenter;
-                _turnBanner.alignment = TextAlignment.Center;
-                _turnBanner.color = Color.white;
-                var mr = go.GetComponent<MeshRenderer>();
-                mr.sortingOrder = 60;
+                float sc = Mathf.MoveTowards(_tbBig.transform.localScale.x, 1f, dt * 0.5f);
+                _tbBig.transform.localScale = Vector3.one * sc;
             }
-            _turnBanner.text = msg;
-            _turnBanner.color = new Color(0.95f, 0.93f, 0.82f, 1f);
-            _turnBannerT = 1.8f;                 // ★ 更慢：看清"第几回合"，尾部 0.8s 渐隐
-            _turnBanner.gameObject.SetActive(true);
-            // 轻微放大回弹（1.08 → 1，0.25s），比纯文字出现有仪式感
-            _turnBanner.transform.localScale = Vector3.one * 1.08f;
+
+            // 尾部淡出
+            float a = _tbT < TbFade ? Mathf.Clamp01(_tbT / TbFade) : 1f;
+            if (_tbBig != null) { var c = _tbBig.color; c.a = a; _tbBig.color = c; }
+            if (_tbSub != null) { var c = _tbSub.color; c.a = a * 0.8f; _tbSub.color = c; }
+            if (_tbBack != null) { var c = _tbBack.color; c.a = 0.55f * a; _tbBack.color = c; }
+            if (_tbRuleL != null) { var c = _tbRuleL.color; c.a = 0.9f * a; _tbRuleL.color = c; }
+            if (_tbRuleR != null) { var c = _tbRuleR.color; c.a = 0.9f * a; _tbRuleR.color = c; }
         }
 
         private static Sprite _shieldCircle;
