@@ -65,6 +65,25 @@ namespace WanXiang.Modules.UI
                     if (!string.IsNullOrEmpty(c.ScopeId)) run.Relics.Add(c.ScopeId);
                     return "获得遗物 " + c.ScopeId;
 
+                case EventEffect.GrantMastery:
+                {
+                    var id = PickTeamBeast(run, wantEvolved: false, preferMasteryRoom: true);
+                    if (string.IsNullOrEmpty(id)) return "没有可专精的异兽";
+                    int slot = UnityEngine.Random.Range(0, 3);
+                    int lv = run.AddMastery(id, slot, 1);
+                    return id + " 的" + SlotCn(slot) + " 专精 → Lv" + lv;
+                }
+
+                case EventEffect.Evolve:
+                {
+                    var id = PickTeamBeast(run, wantEvolved: false, preferMasteryRoom: false);
+                    if (string.IsNullOrEmpty(id)) return "队伍里没有可进化的异兽";
+                    int route = (c.Value == 1 || c.Value == 2) ? c.Value
+                                : (UnityEngine.Random.value < 0.5f ? 1 : 2);
+                    run.Evolve(id, route);
+                    return id + " 进化（路线 " + (route == 1 ? "A·消耗化" : "B·引爆化") + "）";
+                }
+
                 case EventEffect.TurnLimit:
                     run.EventTurnLimit = Mathf.Max(1, c.Value);
                     return "限时：下一场须在 " + run.EventTurnLimit + " 回合内通过";
@@ -79,6 +98,31 @@ namespace WanXiang.Modules.UI
                     return "+" + (Mathf.Max(0, c.Value) * 40) + " 灵卵（素材系统待接）";
             }
             return "（未处理的效果）";
+        }
+
+        private static string SlotCn(int slot) => slot == 0 ? "普攻" : slot == 1 ? "战技" : "绝技";
+
+        /// <summary>从队伍里挑一只（优先没进化的 / 还有专精空间的）。</summary>
+        private static string PickTeamBeast(WanXiang.Run.RunState run, bool wantEvolved, bool preferMasteryRoom)
+        {
+            if (run.Team == null || run.Team.Count == 0) return null;
+            string fallback = null;
+            for (int i = 0; i < run.Team.Count; i++)
+            {
+                var id = run.Team[i];
+                if (string.IsNullOrEmpty(id)) continue;
+                if (fallback == null) fallback = id;
+                if (!wantEvolved && run.IsEvolved(id)) continue;
+                if (preferMasteryRoom)
+                {
+                    int cap = run.MasteryCap(id);
+                    int sum = 0;
+                    for (int s = 0; s < 3; s++) sum = System.Math.Max(sum, run.MasteryOf(id, s));
+                    if (sum >= cap) continue;
+                }
+                return id;
+            }
+            return fallback;
         }
 
         private static int HealTeam(WanXiang.Run.RunState run, int pct)

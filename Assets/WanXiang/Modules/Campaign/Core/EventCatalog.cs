@@ -20,6 +20,8 @@ namespace WanXiang.Campaign
         StartFog,         // Value = 起雾节数（复用现有瘴雾）
         GrantMaterial,    // Value = 进化素材数量
         GrantRelic,       // ScopeId = 遗物 id
+        GrantMastery,     // 随机一只上阵异兽的随机技能 专精 +1
+        Evolve,           // 随机一只未进化的上阵异兽 进化（路线随机）
         TurnDelta,        // Value = 回合上限变化（正/负）
         TurnLimit,        // Value = 本场"必须在 N 回合内通过"（写成限时，而不是减回合）
     }
