@@ -320,6 +320,7 @@ namespace WanXiang.Modules.UI
                         // 首领战：第一条是本体吃满 scale，其余随从按旧的 BossSidekickMul(0.55) 打折
                         float mul = row.Scale;
                         if (kindName == "Boss" && ei > 0) mul *= WanXiang.Campaign.SeededEnemyProvider.BossSidekickMul;
+                        ApplyEnemySkillOverrides(def);       // 敌方技能（配合向）
                         list.Add(WanXiang.Battle.Core.DeployEntry.Enemy(def, en.Slot).WithMul(mul));
                     }
                     if (list.Count > 0)
@@ -488,6 +489,28 @@ namespace WanXiang.Modules.UI
         }
     
         /// <summary>按技能 id 在全部异兽的技能里找（觉醒技池来源：90 个技能）。</summary>
+        /// <summary>敌方专用技能覆盖（如"嘲讽挡路""全队回春"），让敌人之间有分工。</summary>
+        private static void ApplyEnemySkillOverrides(WanXiang.Battle.Core.BeastDef d)
+        {
+            if (d == null || string.IsNullOrEmpty(d.Id)) return;
+            var slots = new[] { d.Basic, d.Active, d.Ultimate };
+            for (int slot = 0; slot < slots.Length; slot++)
+            {
+                var ov = WanXiang.Campaign.SkillOverrideCatalog.GetEnemy(d.Id, slot);
+                var sk = slots[slot];
+                if (ov == null || sk == null) continue;
+                if (!string.IsNullOrEmpty(ov.Name)) sk.Name = ov.Name;
+                if (!string.IsNullOrEmpty(ov.Desc)) sk.Description = ov.Desc;
+                if (sk.Effects != null && ov.PowerMul != 1f)
+                    for (int e = 0; e < sk.Effects.Length; e++)
+                    {
+                        var a = sk.Effects[e];
+                        if (a.Power > 0f) a.Power *= ov.PowerMul;
+                        sk.Effects[e] = a;
+                    }
+            }
+        }
+
         /// <summary>按覆盖表改写该兽的技能（名字/说明/倍率/段数），只作用于克隆体。</summary>
         private static void ApplySkillOverrides(string beastId, WanXiang.Battle.Core.BeastDef d)
         {

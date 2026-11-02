@@ -12,6 +12,7 @@ namespace WanXiang.Campaign
 {
     public sealed class SkillOverride
     {
+        public bool Enemy;            // true = 敌方专用覆盖（同 id 敌我技能可以不同）
         public string BeastId;
         public int Slot;              // 0 普攻 / 1 战技 / 2 绝技
         public string Name;
@@ -68,12 +69,14 @@ namespace WanXiang.Campaign
         private static Dictionary<string, SkillOverride> _byKey;
 
         private static SkillOverride[] _table = All;
+        private static Dictionary<string, SkillOverride> _enemyByKey;
 
         /// <summary>外部（UI 层从 JSON/CSV 导入后）注入覆盖表；传 null 则恢复内置样板。</summary>
         public static void Install(SkillOverride[] table)
         {
             _table = (table != null && table.Length > 0) ? table : All;
             _byKey = null;
+            _enemyByKey = null;
             // 无 UnityEngine 依赖（纯 core 程序集），日志交给调用方
         }
 
@@ -82,9 +85,23 @@ namespace WanXiang.Campaign
             if (_byKey == null)
             {
                 _byKey = new Dictionary<string, SkillOverride>();
-                for (int i = 0; i < _table.Length; i++) _byKey[_table[i].BeastId + ":" + _table[i].Slot] = _table[i];
+                for (int i = 0; i < _table.Length; i++)
+                    if (!_table[i].Enemy) _byKey[_table[i].BeastId + ":" + _table[i].Slot] = _table[i];
             }
             return _byKey.TryGetValue(beastId + ":" + slot, out var v) ? v : null;
+        }
+
+        /// <summary>敌方专用覆盖（没有就回退我方表，再没有返回 null）。</summary>
+        public static SkillOverride GetEnemy(string beastId, int slot)
+        {
+            if (_enemyByKey == null)
+            {
+                _enemyByKey = new Dictionary<string, SkillOverride>();
+                for (int i = 0; i < _table.Length; i++)
+                    if (_table[i].Enemy) _enemyByKey[_table[i].BeastId + ":" + _table[i].Slot] = _table[i];
+            }
+            var k = beastId + ":" + slot;
+            return _enemyByKey.TryGetValue(k, out var v) ? v : null;
         }
 
         public static int Count => _table.Length;

@@ -1,20 +1,20 @@
 act,nodeKind,name,synergy,comp,scale
-1,Encounter,林地游猎,前排两只灵兽顶线，后排一只远程吊着,mengji@6;xingxing@8;guanguan@1,1.00
-1,Encounter,藤影伏击,鹿蜀前排突进，迷榖在后排护阵,lushu@6;migu@4;zhuhuai@8,1.00
-1,Elite,群兽首领,诸怀中宫压阵，两只灵兽前排开路,mengji@6;zhuhuai@4;lushu@8;guanguan@1,1.15
-1,Boss,藤海之主,蝮魇本体居中，四只林中灵兽护驾,b_manman@4;mengji@6;xingxing@8;guanguan@0;lushu@2,1.20
-2,Encounter,焦原游猎,双火鼠前排压线，后排一只叠灼烧,huoshu@6;huoshu@8;zhen@1,1.05
-2,Encounter,焰羽伏击,毕方前排切入，肥遗中宫压阵,bifang@6;feiyi@4;zhen@8,1.05
-2,Elite,赤羽群首,九婴中宫群攻，双火鼠前排，鸩后排叠毒,jiuying@4;huoshu@6;huoshu@8;zhen@0,1.25
-2,Boss,赤地炎君,赤魃居中，四只火属灵兽护驾,b_chiba@4;huoshu@6;huoshu@8;zhen@0;bifang@2,1.30
-3,Encounter,金戈游猎,双白猿前排夹击，长右后排放减速,changyou@1;baiyuan@6;baiyuan@8,1.10
-3,Encounter,山石截击,土蝼中宫顶阵，豪彘前排开路,tulou@4;haozhi@6;shangao@8,1.10
-3,Elite,铁壁群首,狻猊中宫抗伤，三只金土灵兽分列切入,suanni@4;pixiu@6;xiezhi@8;baiyuan@1,1.30
-3,Boss,鸣金之阵,归墟居中，四只金土灵兽护驾,b_guixu@4;suanni@6;pixiu@8;xiezhi@0;baiyuan@2,1.35
-4,Encounter,幽都游猎,蜃中宫布幻象，两只鲛人后排骚扰,shen@4;jiaoren@0;jiaoren@2,1.15
-4,Encounter,深潜截击,巴蛇前排突进，夫诸中宫续航,bashe@8;fuzhu@4;chiru@6,1.15
-4,Elite,寒潭群首,相柳中宫群攻，三只水属灵兽轮流控场,xiangliu@4;chiru@6;lingli@8;jiaoren@1,1.35
-4,Boss,玄冥之潮,溟鲲居中控场，四只水属灵兽护驾,b_mingkun@4;chiru@6;lingli@8;fuzhu@0;jiaoren@2,1.40
-5,Encounter,长夏游猎,三只火土灵兽前排压线，逼你速清,huoshu@6;haozhi@8;tulou@4,1.20
-5,Elite,终焉双煞,九婴与狻猊分列中宫两翼，两只灵兽前排开路,jiuying@3;suanni@5;pixiu@6;baiyuan@8,1.40
-5,Boss,天阙之主,溟鲲与赤魃占中宫两翼，三只灵兽牵制,b_mingkun@3;b_chiba@5;huoshu@6;chiru@8;jiaoren@0,1.50
+1,Encounter,林地游猎,坦在前顶、输出压中、奶在后；破局点=先杀后排灌灌,zhuhuai@6;mengji@8;guanguan@2,1.00
+1,Encounter,藤影伏击,迷榖挡路、鹿蜀突进、絜钩后排上易伤；破局点=先拆迷榖 ,migu@6;lushu@8;xiegou@2,1.00
+1,Elite,群兽首领,诸怀坦+双输出+灌灌奶；不杀奶就会一直回血,zhuhuai@6;mengji@8;lushu@3;guanguan@2,1.15
+1,Boss,藤海之主,蝮魇居中召唤，坦顶前排，奶在后排；破局点=先杀灌灌 ,b_manman@4;zhuhuai@6;mengji@8;guanguan@2;xiegou@0,1.20
+2,Encounter,焦原游猎,肥遗坦在前，火鼠压中，鸩后排上毒；破局点=先杀鸩,feiyi@6;huoshu@8;zhen@2,1.05
+2,Encounter,焰羽伏击,肥遗+毕方前排双压，重明鸟后排解控；破局点=断奶,feiyi@6;bifang@8;chongming@2,1.05
+2,Elite,赤羽群首,肥遗坦、九婴+火鼠双输出、重明鸟奶；拖久必崩,feiyi@6;jiuying@8;huoshu@3;chongming@2,1.25
+2,Boss,赤地炎君,赤魃居中，肥遗顶前，重明鸟后排奶；破局点=切后排 ,b_chiba@4;feiyi@6;jiuying@8;chongming@2;zhen@0,1.30
+3,Encounter,金戈游猎,豪彘坦+白猿输出+当康奶；破局点=先杀当康,haozhi@6;baiyuan@8;dangkang@2,1.10
+3,Encounter,山石截击,土蝼反伤顶前，山膏群伤压中，当康后排 ,tulou@6;shangao@8;dangkang@2,1.10
+3,Elite,铁壁群首,狻猊坦、貔貅+白猿双输出、当康奶；久战不利,tulou@6;pixiu@8;baiyuan@3;dangkang@2,1.30
+3,Boss,鸣金之阵,归墟居中，土蝼顶前，当康后排；破局点=先断奶 ,b_guixu@4;tulou@6;pixiu@8;dangkang@2;baiyuan@0,1.35
+4,Encounter,幽都游猎,旋龟坦+巴蛇输出+鲛人奶；破局点=先杀鲛人,xuangui@6;bashe@8;jiaoren@2,1.15
+4,Encounter,深潜截击,陵鲤挡路、相柳群伤、夫诸回血,lingli@6;xiangliu@8;fuzhu@2,1.15
+4,Elite,寒潭群首,陵鲤坦、相柳+巴蛇双输出、夫诸奶+xuangui@6;xiangliu@8;bashe@3;jiaoren@2,1.35
+4,Boss,玄冥之潮,溟鲲居中控场，陵鲤顶前，鲛人后排奶；破局点=切后排 ,b_mingkun@4;lingli@6;xiangliu@8;jiaoren@2;fuzhu@0,1.40
+5,Encounter,长夏游猎,豪彘坦+火鼠输出+当康奶；破局点=先断奶,haozhi@6;huoshu@8;dangkang@2,1.20
+5,Elite,终焉双煞,双核心分列中宫，豪彘顶前，貔貅压迫,jiuying@3;suanni@5;haozhi@6;pixiu@8,1.40
+5,Boss,天阙之主,溟鲲与赤魃双核心，豪彘+鲛人前后呼应；先断奶再集火 ,b_mingkun@3;b_chiba@5;haozhi@6;jiaoren@2;huoshu@8,1.50

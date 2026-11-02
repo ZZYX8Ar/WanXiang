@@ -30,15 +30,16 @@ namespace WanXiang.Modules.UI
                 var line = lines[i];
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 var c = SplitCsv(line);
-                if (c.Count < 6 || string.IsNullOrEmpty(c[0])) continue;
+                if (c.Count < 7 || string.IsNullOrEmpty(c[1])) continue;
                 list.Add(new SkillOverride
                 {
-                    BeastId = c[0].Trim(),
-                    Slot = ParseInt(c[1]),
-                    Name = c[2].Trim(),
-                    Desc = c[3].Trim(),
-                    PowerMul = ParseFloat(c[4], 1f),
-                    HitsDelta = ParseInt(c[5]),
+                    Enemy = c[0].Trim().Equals("Enemy", System.StringComparison.OrdinalIgnoreCase),
+                    BeastId = c[1].Trim(),
+                    Slot = ParseInt(c[2]),
+                    Name = c[3].Trim(),
+                    Desc = c[4].Trim(),
+                    PowerMul = ParseFloat(c[5], 1f),
+                    HitsDelta = ParseInt(c[6]),
                 });
             }
 
