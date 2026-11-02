@@ -2361,20 +2361,26 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 {
                     _actingId = e.ActorId;
                     // ★ 2026-11-02：谁在行动 —— 回合横幅补上"我方/敌方"
-                    // ★ 2026-11-02：行动时只**补字**（我方/敌方）不重新弹出；颜色随阵营变
-                    string sideCn = "我方行动";
-                    var sideCol = new Color(0.55f, 0.95f, 0.75f);
+                    // ★ 2026-11-02 用户："不用每一个人行动都显示" ⇒ **只在阵营切换时改一次字**
+                    //   （我方开始→"…我方"；轮到敌方→"…敌方"），同一个阵营内的连续行动不再触发。
+                    string sideCn = "我方";
+                    var sideCol = TbColPlayer;
                     if (_views.TryGetValue(e.ActorId, out var actView) && !actView.PlayerSide)
-                    { sideCn = "敌方行动"; sideCol = new Color(0.95f, 0.55f, 0.85f); }
-                    ShowTurnBanner(_turnNo, sideCn, sideCol);   // 换成"我方/敌方回合"（同一次显示内改字，不重播滑入）
-                    _tbT = Mathf.Max(_tbT, 1.6f);
+                    { sideCn = "敌方"; sideCol = TbColEnemy; }
+                    if (_tbLastSide != sideCn)
+                    {
+                        _tbLastSide = sideCn;
+                        ShowTurnBanner(_turnNo, "第 " + _turnNo + " 回合 · " + sideCn + "回合", sideCol);
+                        _tbT = Mathf.Max(_tbT, 1.6f);
+                    }
                     break;
                 }
 
                 case BattleEventKind.TurnStart:
                     _actingId = null;
                     _turnNo = e.Turn;
-                    ShowTurnBanner(e.Turn, null, TbColNeutral);   // 先显示"第 N 回合"，随后第一条行动立刻换色换字
+                    _tbLastSide = null;
+                    ShowTurnBanner(e.Turn, "第 " + e.Turn + " 回合", TbColNeutral);
                     break;
 
                 case BattleEventKind.BattleEnd:
@@ -3704,7 +3710,7 @@ if (life < 0.2f) life = 0.2f;
             float ph = Mathf.Abs(v.Body.transform.lossyScale.y) > 0.0001f ? Mathf.Abs(v.Body.transform.lossyScale.y) : 1f;
             // ★ 2026-11-02：**统一直径**（格子边长 ×1.02）—— 大小一致才不像"随机泡泡"。
             //   长边方案会让大立绘的圈特别大、小立绘特别小（用户截图实锤）。
-            float dia = Cell * 1.02f;
+            float dia = Cell * 0.78f;   // ★ 用户：太大 ⇒ 缩到 0.78 格
             float spSize = Mathf.Max(0.001f, sp.bounds.size.x);
             go.transform.localScale = new Vector3(dia / pw / spSize, dia / ph / spSize, 1f);
 
@@ -3729,9 +3735,10 @@ if (life < 0.2f) life = 0.2f;
         private float _tbT;                 // 剩余显示时间
         private int _tbTurn;
         private int _turnNo;                // 当前回合数（横幅与逻辑共用）
+        private string _tbLastSide;         // 横幅当前显示的阵营（防重复刷新）
         private const float TbLife = 2.4f, TbFade = 0.55f, TbSlide = 0.28f;
 
-        private static readonly Color TbColNeutral = new Color(0.95f, 0.93f, 0.82f);
+        private static readonly Color TbColNeutral = new Color(0.93f, 0.90f, 0.74f);
         private static readonly Color TbColPlayer  = new Color(0.55f, 0.95f, 0.75f);
         private static readonly Color TbColEnemy   = new Color(0.98f, 0.52f, 0.86f);
 
@@ -3760,27 +3767,27 @@ if (life < 0.2f) life = 0.2f;
                 _tbBack = new GameObject("Back").AddComponent<SpriteRenderer>();
                 _tbBack.transform.SetParent(_tbGroup, false);
                 _tbBack.sprite = SolidSprite(Color.white, 100, 48, 0, Color.white);
-                _tbBack.transform.localScale = new Vector3(11f, 0.95f, 1f);
+                _tbBack.transform.localScale = new Vector3(9f, 0.78f, 1f);
                 _tbBack.color = new Color(0f, 0f, 0f, 0.55f);
                 _tbBack.sortingOrder = 58;
 
                 _tbRuleL = new GameObject("RuleL").AddComponent<SpriteRenderer>();
                 _tbRuleL.transform.SetParent(_tbGroup, false);
                 _tbRuleL.sprite = SolidSprite(Color.white, 100, 4, 0, Color.white);
-                _tbRuleL.transform.localScale = new Vector3(2.3f, 0.045f, 1f);
+                _tbRuleL.transform.localScale = new Vector3(1.8f, 0.04f, 1f);
                 _tbRuleL.color = new Color(0.92f, 0.88f, 0.75f, 0.9f);
                 _tbRuleL.sortingOrder = 59;
 
                 _tbRuleR = new GameObject("RuleR").AddComponent<SpriteRenderer>();
                 _tbRuleR.transform.SetParent(_tbGroup, false);
                 _tbRuleR.sprite = SolidSprite(Color.white, 100, 4, 0, Color.white);
-                _tbRuleR.transform.localScale = new Vector3(2.3f, 0.045f, 1f);
+                _tbRuleR.transform.localScale = new Vector3(1.8f, 0.04f, 1f);
                 _tbRuleR.color = new Color(0.92f, 0.88f, 0.75f, 0.9f);
                 _tbRuleR.sortingOrder = 59;
 
-                _tbBig = TbText(_tbGroup, "Big", 88, 0.105f, 60);
-                _tbSub = TbText(_tbGroup, "Sub", 44, 0.05f, 60);
-                _tbSub.transform.localPosition = new Vector3(0f, 0.42f, 0f);
+                _tbBig = TbText(_tbGroup, "Big", 64, 0.082f, 60);
+                _tbSub = TbText(_tbGroup, "Sub", 36, 0.042f, 60);
+                _tbSub.transform.localPosition = new Vector3(0f, 0.34f, 0f);
                 _tbBig.transform.localPosition = Vector3.zero;
             }
 
@@ -3829,7 +3836,7 @@ if (life < 0.2f) life = 0.2f;
             // 两侧细线滑入（TbSlide 秒内从 ±5 → ±3.05）
             float k = Mathf.Clamp01(1f - _tbT / (TbLife - TbSlide));
             float ease = Mathf.SmoothStep(0f, 1f, k);
-            float x = Mathf.Lerp(5f, 3.05f, ease);
+            float x = Mathf.Lerp(5f, 2.45f, ease);
             if (_tbRuleL != null) _tbRuleL.transform.localPosition = new Vector3(-x, 0f, 0f);
             if (_tbRuleR != null) _tbRuleR.transform.localPosition = new Vector3(x, 0f, 0f);
 
