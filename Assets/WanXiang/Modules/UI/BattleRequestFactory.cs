@@ -201,6 +201,8 @@ namespace WanXiang.Modules.UI
                 //   局内中途回主城在「异兽培养」里怎么升级/进化/换觉醒技，都不影响这一局。
                 run.EnsureMetaSnapshot();
 
+                WanXiang.Modules.UI.SkillOverrideBootstrap.EnsureInstalled();   // ★ 技能表只加载一次
+
                 foreach (var id in run.Team)
                 {
                     if (string.IsNullOrEmpty(id) || !byId.TryGetValue(id, out var def)) continue;

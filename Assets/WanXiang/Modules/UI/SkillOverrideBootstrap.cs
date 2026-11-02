@@ -1,0 +1,76 @@
+// ============================================================================
+//  技能表加载（2026-11-02）
+//  ---------------------------------------------------------------------------
+//  数据源：`Assets/Resources/Data/skills.csv`（Excel 可直接打开/另存为 CSV UTF-8）。
+//  运行时解析 → `SkillOverrideCatalog.Install(...)`，只覆盖克隆体，不动 asset。
+//  ⛔ 不做"编辑器导入"这一步：少一个环节就少一处不同步。
+// ============================================================================
+using System.Collections.Generic;
+using UnityEngine;
+using WanXiang.Campaign;
+
+namespace WanXiang.Modules.UI
+{
+    public static class SkillOverrideBootstrap
+    {
+        private static bool _done;
+
+        public static void EnsureInstalled()
+        {
+            if (_done) return;
+            _done = true;
+
+            var ta = Resources.Load<TextAsset>("Data/skills");
+            if (ta == null) { Debug.LogWarning("[SkillOverride] 找不到 Resources/Data/skills.csv，用内置表"); return; }
+
+            var list = new List<SkillOverride>();
+            var lines = ta.text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            for (int i = 1; i < lines.Length; i++)            // 第 0 行是表头
+            {
+                var line = lines[i];
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var c = SplitCsv(line);
+                if (c.Count < 6 || string.IsNullOrEmpty(c[0])) continue;
+                list.Add(new SkillOverride
+                {
+                    BeastId = c[0].Trim(),
+                    Slot = ParseInt(c[1]),
+                    Name = c[2].Trim(),
+                    Desc = c[3].Trim(),
+                    PowerMul = ParseFloat(c[4], 1f),
+                    HitsDelta = ParseInt(c[5]),
+                });
+            }
+
+            if (list.Count == 0) { Debug.LogWarning("[SkillOverride] CSV 没有有效行"); return; }
+            SkillOverrideCatalog.Install(list.ToArray());
+            Debug.Log("[SkillOverride] 已从 CSV 载入 " + list.Count + " 条技能覆盖");
+        }
+
+        /// <summary>支持引号包裹与逗号转义的极简 CSV 切分（够用即可）。</summary>
+        private static List<string> SplitCsv(string line)
+        {
+            var outp = new List<string>(8);
+            var sb = new System.Text.StringBuilder();
+            bool quote = false;
+            for (int i = 0; i < line.Length; i++)
+            {
+                char ch = line[i];
+                if (ch == '"')
+                {
+                    if (quote && i + 1 < line.Length && line[i + 1] == '"') { sb.Append('"'); i++; }
+                    else quote = !quote;
+                }
+                else if (ch == ',' && !quote) { outp.Add(sb.ToString()); sb.Length = 0; }
+                else sb.Append(ch);
+            }
+            outp.Add(sb.ToString());
+            return outp;
+        }
+
+        private static int ParseInt(string s) => int.TryParse(s.Trim(), out int v) ? v : 0;
+        private static float ParseFloat(string s, float fallback)
+            => float.TryParse(s.Trim(), System.Globalization.NumberStyles.Float,
+                              System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : fallback;
+    }
+}

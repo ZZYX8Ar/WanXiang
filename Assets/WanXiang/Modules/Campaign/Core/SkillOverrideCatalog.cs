@@ -67,16 +67,26 @@ namespace WanXiang.Campaign
 
         private static Dictionary<string, SkillOverride> _byKey;
 
+        private static SkillOverride[] _table = All;
+
+        /// <summary>外部（UI 层从 JSON/CSV 导入后）注入覆盖表；传 null 则恢复内置样板。</summary>
+        public static void Install(SkillOverride[] table)
+        {
+            _table = (table != null && table.Length > 0) ? table : All;
+            _byKey = null;
+            // 无 UnityEngine 依赖（纯 core 程序集），日志交给调用方
+        }
+
         public static SkillOverride Get(string beastId, int slot)
         {
             if (_byKey == null)
             {
                 _byKey = new Dictionary<string, SkillOverride>();
-                for (int i = 0; i < All.Length; i++) _byKey[All[i].BeastId + ":" + All[i].Slot] = All[i];
+                for (int i = 0; i < _table.Length; i++) _byKey[_table[i].BeastId + ":" + _table[i].Slot] = _table[i];
             }
             return _byKey.TryGetValue(beastId + ":" + slot, out var v) ? v : null;
         }
 
-        public static int Count => All.Length;
+        public static int Count => _table.Length;
     }
 }
