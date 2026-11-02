@@ -117,6 +117,8 @@ namespace WanXiang.Modules.UI
                 // ★ 2026-11-02：节点自带的事件（休整/工坊）不要"奇遇"前缀 ——
                 //   玩家点的是地图上的「休整」，标题突然变成"奇遇·扎营"会串味。
                 bool isNodeEvent = !string.IsNullOrEmpty(_event.Id) && _event.Id.StartsWith("ev_node_");
+                // ★ 2026-11-02：版式（44 号 / 卷轴下方 / 墨色）已经在 prefab 里定好，
+                //   这里只填文案 —— 别在运行时代码里写字号，否则 prefab 调整会被代码盖掉。
                 if (_tmpTitle != null) _tmpTitle.text = (isNodeEvent ? "" : "奇遇 · ") + _event.Title;
                 if (_tmpQuote != null) _tmpQuote.text = "";
                 if (_tmpStory != null) _tmpStory.text = _event.Story;

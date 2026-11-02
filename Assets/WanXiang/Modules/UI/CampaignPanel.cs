@@ -2403,9 +2403,12 @@ if (_tmpActTitle != null)
                 case WanXiang.Campaign.NodeKind.Elite: return "精英：敌方规模 +1，旗舰携劫象";
                 case WanXiang.Campaign.NodeKind.Shop: return "灵市：用灵卵换异兽 / 灵魂 / 重铸";
                 case WanXiang.Campaign.NodeKind.Nest: return "休整：回血 / +1 进化素材 / 拾一枚灵兽蛋";
-                case WanXiang.Campaign.NodeKind.Tale: return "异闻：典籍轶事，三选一（可拒绝换灵卵）";
-                case WanXiang.Campaign.NodeKind.Forge: return "铸魂台：免费融合一次（灵魂需在灵市购买）";
-                case WanXiang.Campaign.NodeKind.Omen: return "天象：三选一，增益都配一条明确代价";
+                // ★ 2026-11-02：这三条信息卡文案早就落后于实现了（工坊还写着"免费融合"、
+                //   奇遇还写着"可拒绝换灵卵"、天象写着"三选一"其实是接受/拒绝二选一）。
+                //   文案必须对得上实现，否则玩家按文案做决策会吃亏。
+                case WanXiang.Campaign.NodeKind.Tale: return "奇遇：三选一，每个选项都带代价";
+                case WanXiang.Campaign.NodeKind.Forge: return "工坊：淬炼专精 / 化形进化 / 只取炉灰换灵卵";
+                case WanXiang.Campaign.NodeKind.Omen: return "天象：接受一条预兆（收益配代价），或直接拒绝";
                 case WanXiang.Campaign.NodeKind.Recruit: return "招募：免费挑选异兽入队（每属性随机 2 选，可刷新）";
                 case WanXiang.Campaign.NodeKind.Relic: return "遗物：从遗物池随机 3 选 1，局内变强";
                 // ★ 越境（2026-10-18）：续劫专属 —— 直入下一幕，代价是本幕剩余节点全放弃
