@@ -382,6 +382,16 @@ BuildNodeMap();
                                 }
                             }
 
+                            // ★ 2026-11-02 素材掉落：打赢硬仗才给（普通 0 / 精英 1 / 幕末 2）
+                            {
+                                int matGain = isFinale ? 2 : (kindVal == (int)WanXiang.Campaign.NodeKind.Elite ? 1 : 0);
+                                if (matGain > 0)
+                                {
+                                    prun.Materials += matGain;
+                                    Debug.Log("[Campaign] 获得进化素材 +" + matGain + "（现有 " + prun.Materials + "）");
+                                }
+                            }
+
                             int ups = prun.AddExp(gain);
                             if (ups > 0)
                                 Debug.Log("[Campaign] 主等级提升 → Lv" + prun.PlayerLevel + "（经验 +" + gain + "）");
