@@ -3701,7 +3701,9 @@ if (life < 0.2f) life = 0.2f;
             ringSr.sprite = sp;
             ringSr.sortingOrder = v.Body.sortingOrder + 3;
             ringSr.color = new Color(0.62f, 0.92f, 1f, 0.85f);   // 环：亮青蓝
-            ringGo.GetComponent<MeshRenderer>().sortingOrder = v.Body.sortingOrder + 3;
+            // ⛔ 不要再碰 MeshRenderer —— 这是 SpriteRenderer，取 MeshRenderer 会抛
+            //   MissingComponentException，把整个战斗播放循环打断 ⇒ 表现为"卡死"。
+            //   sortingOrder 在上面 Add<SpriteRenderer> 后已经设过。
 
             // 尺寸：按立绘**世界**尺寸 ×1.15（⛔ 必须用 lossyScale：单位根节点有 0.1 缩放，
             //   直接拿 sprite.bounds 会算成世界尺寸，膜会大得离谱或小到看不见）
