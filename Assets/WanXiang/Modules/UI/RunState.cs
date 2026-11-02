@@ -76,7 +76,8 @@ namespace WanXiang.Run
         }
 
         /// <summary>专精上限：未进化 2，已进化 3。</summary>
-        public int MasteryCap(string beastId) => IsEvolved(beastId) ? 3 : 2;
+        public int MasteryCap(string beastId)
+            => IsEvolved(beastId) ? ProgressionTuning.MasteryCapEvolved : ProgressionTuning.MasteryCapNormal;
 
         /// <summary>提升一级专精（自动按上限截断）。返回升完后的等级。</summary>
         public int AddMastery(string beastId, int slot, int add = 1)
@@ -101,13 +102,18 @@ namespace WanXiang.Run
         public System.Collections.Generic.Dictionary<string, int> TeamHpPct
             = new System.Collections.Generic.Dictionary<string, int>();
 
-        public const int PlayerLevelMax = 20;
+        // ★ 2026-11-02：曲线数值统一读 ProgressionTuning（progression.csv 可覆盖）。
+        //   原来这里与 BattleRequestFactory 各写一份 +6%/+7%，改一处漏一处。
+        public static int PlayerLevelMax => ProgressionTuning.LevelMax;
         /// <summary>升到下一级所需经验：Lv1→2 需 300，之后每级 +180。</summary>
-        public static int ExpToNext(int level) => 300 + 180 * (System.Math.Max(1, level) - 1);
+        public static int ExpToNext(int level)
+            => ProgressionTuning.ExpBase + ProgressionTuning.ExpStep * (System.Math.Max(1, level) - 1);
         /// <summary>等级带来的攻击倍率（+6%/级）。</summary>
-        public float LevelAtkMul => 1f + 0.06f * (System.Math.Clamp(PlayerLevel, 1, PlayerLevelMax) - 1);
+        public float LevelAtkMul
+            => 1f + ProgressionTuning.LevelAtk * (System.Math.Clamp(PlayerLevel, 1, PlayerLevelMax) - 1);
         /// <summary>等级带来的生命倍率（+7%/级）。</summary>
-        public float LevelHpMul => 1f + 0.07f * (System.Math.Clamp(PlayerLevel, 1, PlayerLevelMax) - 1);
+        public float LevelHpMul
+            => 1f + ProgressionTuning.LevelHp * (System.Math.Clamp(PlayerLevel, 1, PlayerLevelMax) - 1);
 
         /// <summary>加经验并处理升级（可能连升）。返回升了几级。</summary>
         public int AddExp(int amount)

@@ -31,7 +31,10 @@ namespace WanXiang.EditorTools
                 "／预算 " + DataTables.BudgetKeys + " 项" +
                 "／规模 " + DataTables.SquadActs + " 幕" +
                 "／地图 " + (DataTables.MapInstalled ? "已装" : "内置") +
-                "／节点权重 " + DataTables.WeightRows + " 行";
+                "／节点权重 " + DataTables.WeightRows + " 行" +
+                "／遗物 " + DataTables.RelicCount +
+                "／阵形 " + DataTables.ComboCount +
+                "／曲线 " + DataTables.ProgressionKeys + " 键";
 
             if (problems == 0)
                 Debug.Log("[CsvSelfTest] ✅ 通过：" + summary);

@@ -363,11 +363,13 @@ BuildNodeMap();
                             int kindVal = (_graph != null && _graph.Kinds != null &&
                                            PendingCommit >= 0 && PendingCommit < _graph.Kinds.Length)
                                           ? (int)_graph.Kinds[PendingCommit] : -1;
-                            int gain = 100;                                   // 普通战斗 / 事件
+                            // ★ 2026-11-02：经验值读 ProgressionTuning（progression.csv 可覆盖）
+                            int gain = WanXiang.Run.ProgressionTuning.ExpWinNormal;   // 普通战斗 / 事件
                             bool isFinale = _graph != null && PendingCommit == _graph.NodeCount - 1;
-                            if (isFinale) gain = 500;                          // 幕末首领（生成器里用 Elite 表示）
-                            else if (kindVal == (int)WanXiang.Campaign.NodeKind.Elite) gain = 250;
-                            else if (_realmMode) gain = 180;                  // 秘境
+                            if (isFinale) gain = WanXiang.Run.ProgressionTuning.ExpWinBoss;   // 幕末首领
+                            else if (kindVal == (int)WanXiang.Campaign.NodeKind.Elite)
+                                gain = WanXiang.Run.ProgressionTuning.ExpWinElite;
+                            else if (_realmMode) gain = WanXiang.Run.ProgressionTuning.ExpWinRealm;   // 秘境
                             // ★ 2026-11-01 死亡不消失：通关后阵亡/重伤的兽以 **50% 生命**进下一场。
                             //   精确逐单位血量要等战斗结算回传；这里先把"低于 50% 的抬到 50%"落地。
                             if (prun.Team != null)
@@ -378,13 +380,16 @@ BuildNodeMap();
                                     if (string.IsNullOrEmpty(tid)) continue;
                                     int cur = 100;
                                     if (prun.TeamHpPct != null && prun.TeamHpPct.TryGetValue(tid, out int hv)) cur = hv;
-                                    prun.TeamHpPct[tid] = Mathf.Max(50, cur);
+                                    prun.TeamHpPct[tid] = Mathf.Max(WanXiang.Run.ProgressionTuning.ReviveHpPct, cur);
                                 }
                             }
 
                             // ★ 2026-11-02 素材掉落：打赢硬仗才给（普通 0 / 精英 1 / 幕末 2）
                             {
-                                int matGain = isFinale ? 2 : (kindVal == (int)WanXiang.Campaign.NodeKind.Elite ? 1 : 0);
+                                int matGain = isFinale
+                                    ? WanXiang.Run.ProgressionTuning.MaterialWinBoss
+                                    : (kindVal == (int)WanXiang.Campaign.NodeKind.Elite
+                                        ? WanXiang.Run.ProgressionTuning.MaterialWinElite : 0);
                                 if (matGain > 0)
                                 {
                                     prun.Materials += matGain;

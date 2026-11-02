@@ -232,15 +232,17 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                     if (run.IsEvolved(id))
                     {
                         WanXiang.Battle.Presentation.BattleStage2D.AwakenedDefIds.Add(d.Id);
-                        d.BaseAtk = UnityEngine.Mathf.RoundToInt(d.BaseAtk * 1.10f);
-                        d.BaseHp = UnityEngine.Mathf.RoundToInt(d.BaseHp * 1.10f);
+                        // ★ 2026-11-02：倍率读 ProgressionTuning（progression.csv 可覆盖）
+                        d.BaseAtk = UnityEngine.Mathf.RoundToInt(d.BaseAtk * WanXiang.Run.ProgressionTuning.EvolveStatMul);
+                        d.BaseHp = UnityEngine.Mathf.RoundToInt(d.BaseHp * WanXiang.Run.ProgressionTuning.EvolveStatMul);
                     }
 
+                    // ⛔ 别在这里再抄一遍公式：直接读 run 的倍率（唯一来源 = ProgressionTuning）
                     int lvNow = UnityEngine.Mathf.Clamp(run.PlayerLevel, 1, WanXiang.Run.RunState.PlayerLevelMax);
                     if (lvNow > 1)
                     {
-                        d.BaseAtk = UnityEngine.Mathf.RoundToInt(d.BaseAtk * (1f + 0.06f * (lvNow - 1)));
-                        d.BaseHp = UnityEngine.Mathf.RoundToInt(d.BaseHp * (1f + 0.07f * (lvNow - 1)));
+                        d.BaseAtk = UnityEngine.Mathf.RoundToInt(d.BaseAtk * run.LevelAtkMul);
+                        d.BaseHp = UnityEngine.Mathf.RoundToInt(d.BaseHp * run.LevelHpMul);
                     }
 
                     // 觉醒技：取**快照**，不再读现档
@@ -615,8 +617,8 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                 int m = run.MasteryOf(beastId, slot);
                 if (m <= 0) continue;
                 float mul = 1f;
-                if (m >= 1) mul *= 1.12f;
-                if (m >= 3) mul *= 1.20f;
+                if (m >= 1) mul *= WanXiang.Run.ProgressionTuning.MasteryLv1Mul;
+                if (m >= 3) mul *= WanXiang.Run.ProgressionTuning.MasteryLv3Mul;
                 for (int e = 0; e < sk.Effects.Length; e++)
                 {
                     var atom = sk.Effects[e];

@@ -1,0 +1,11 @@
+id,name,note,cells,cellsAlt,effect,power,power2
+fm_scale,鱼鳞阵,中宫+四角满阵：对全体敌人造成伤害，并为我方全体回复 15% 生命,0;2;4;6;8,,WoodPulse,1,0
+fm_cloud,云龙阵,中宫+四正满阵：对全体敌人造成伤害，并为其铺 2 层霜寒,1;3;4;5;7,,AllAoeStatus,0.9,0
+fm_wedge,锋矢阵,中宫+前排三格：对全体敌人造成 80% 伤害（突击）,2;4;5;8,,FireStorm,0.8,0
+fm_goose,雁行阵,中宫+任一条对角线：对随机 3 名敌人各造成一次伤害,0;4;8,2;4;6,RandomThreeHit,0.75,0
+fm_crescent,偃月阵,中宫+上排三格+下方中点：全體伤害并铺 1 层霜寒,0;1;2;4;8,,AllAoeStatus,0.7,0
+fm_wing,鹤翼阵,中宫+右上两格：对全体敌人造成较轻伤害,1;2;4;5,,FireStorm,0.65,0
+fm_square,方圆阵,中宫+左列上下：全体伤害并为我方回复 12% 生命,0;1;4;7,,WoodPulse,0.75,0
+fm_snake,长蛇阵,中宫+中排三格：对随机 2 名敌人各造成一次伤害,3;4;5;8,,RandomTwoHit,0.8,0
+fm_yoke,衝轭阵,中宫+上排三格（或下排三格）：最前排单体重击,0;1;2;4,4;6;7;8,MetalBreak,0.85,0
+fm_veil,玄襄阵,中宫+下排两角：最前排单体伤害并破防,4;6;8,,FrontShred,0.75,0

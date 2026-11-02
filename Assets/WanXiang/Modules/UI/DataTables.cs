@@ -47,6 +47,9 @@ namespace WanXiang.Modules.UI
         public static int SquadActs { get; private set; }
         public static bool MapInstalled { get; private set; }
         public static int WeightRows { get; private set; }
+        public static int RelicCount { get; private set; }
+        public static int ComboCount { get; private set; }
+        public static int ProgressionKeys { get; private set; }
 
         /// <summary>解析期收集到的全部问题（行号 + 原因）。空 = 全部正常。</summary>
         public static readonly List<string> Problems = new List<string>();
@@ -68,12 +71,16 @@ namespace WanXiang.Modules.UI
             LoadSquad();
             LoadMap();
             LoadNodeWeights();
+            LoadRelics();
+            LoadCombos();
+            LoadProgression();
 
             if (Problems.Count > 0)
                 Debug.LogError("[DataTables] 共 " + Problems.Count + " 处问题：\n" + string.Join("\n", Problems.ToArray()));
             Debug.Log("[DataTables] 装表完成：状态 " + StatusCount + "／首领 " + BossCount +
                       "／天时 " + WeatherCount + "／预算 " + BudgetKeys + " 项／规模 " + SquadActs +
-                      " 幕／地图 " + (MapInstalled ? "已装" : "内置") + "／节点权重 " + WeightRows + " 行");
+                      " 幕／地图 " + (MapInstalled ? "已装" : "内置") + "／节点权重 " + WeightRows + " 行" +
+                      "／遗物 " + RelicCount + "／阵形 " + ComboCount + "／曲线 " + ProgressionKeys + " 键");
         }
 
         /// <summary>
@@ -84,6 +91,7 @@ namespace WanXiang.Modules.UI
         {
             _done = false;
             StatusCount = BossCount = WeatherCount = BudgetKeys = SquadActs = WeightRows = 0;
+            RelicCount = ComboCount = ProgressionKeys = 0;
             MapInstalled = false;
             EnsureInstalled();
         }
@@ -405,6 +413,105 @@ namespace WanXiang.Modules.UI
                 count++;
             }
             WeightRows = count;
+        }
+
+        // ================================================================
+        //  relics.csv / combos.csv / progression.csv
+        // ================================================================
+
+        private static void LoadRelics()
+        {
+            var rows = Read("relics", out var header);
+            if (rows == null) return;
+            var list = new List<RelicDef>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "relics.csv", i + 2, Problems);
+                string id = r.Str("id");
+                if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                list.Add(new RelicDef(
+                    id,
+                    r.Str("name", id),
+                    r.Str("desc"),
+                    r.Enum("rarity", RelicRarity.Common),
+                    r.Enum("effect", RelicEffect.None),
+                    r.Float("value", 0f),
+                    r.Float("value2", 0f),
+                    r.Str("scopeId"),
+                    r.Enum("mechanic", RelicMechanic.None)));
+            }
+            if (list.Count == 0) { Problems.Add("relics.csv：没有有效行，保持内置池"); return; }
+            RelicCatalog.Install(list);
+            RelicCount = list.Count;
+        }
+
+        private static void LoadCombos()
+        {
+            var rows = Read("combos", out var header);
+            if (rows == null) return;
+            var list = new List<ComboDef>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "combos.csv", i + 2, Problems);
+                string id = r.Str("id");
+                if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                var cells = ParseCells(r.Str("cells"), r);
+                if (cells == null || cells.Length == 0) { r.Fail("cells 为空或格式不对（应为 0;2;4）"); continue; }
+                list.Add(new ComboDef
+                {
+                    Id = id,
+                    Name = r.Str("name", id),
+                    Note = r.Str("note"),
+                    Cells = cells,
+                    CellsAlt = ParseCells(r.Str("cellsAlt"), r),
+                    Effect = r.Enum("effect", ComboEffect.FireStorm),
+                    Power = r.Float("power", 1f),
+                    Power2 = r.Float("power2", 0f),
+                });
+            }
+            if (list.Count == 0) { Problems.Add("combos.csv：没有有效行，保持内置 10 组"); return; }
+            ComboRules.Install(list);
+            ComboCount = list.Count;
+        }
+
+        private static int[] ParseCells(string text, Row row)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            var parts = text.Split(new[] { ';', '|', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var cells = new List<int>(parts.Length);
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (!int.TryParse(parts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out int v))
+                {
+                    row.Fail("格号不是整数：" + parts[i]);
+                    return null;
+                }
+                if (v < 0 || v > 8) { row.Fail("格号越界（0..8）：" + v); return null; }
+                cells.Add(v);
+            }
+            return cells.ToArray();
+        }
+
+        private static void LoadProgression()
+        {
+            var rows = Read("progression", out var header);
+            if (rows == null) return;
+            int ok = 0;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "progression.csv", i + 2, Problems);
+                string key = r.Str("key").Trim().ToLowerInvariant();
+                if (string.IsNullOrEmpty(key)) { r.Fail("key 为空"); continue; }
+                float v = r.Float("value", float.NaN);
+                if (float.IsNaN(v)) { r.Fail("value 不是数字"); continue; }
+                if (!WanXiang.Run.ProgressionTuning.TrySet(key, v))
+                {
+                    r.Fail("未知 key：" + key + "（见 万相_数据表_说明.md）");
+                    continue;
+                }
+                ok++;
+            }
+            ProgressionKeys = ok;
         }
 
         // ================================================================

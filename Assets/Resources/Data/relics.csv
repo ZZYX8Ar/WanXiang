@@ -1,0 +1,21 @@
+id,name,desc,rarity,effect,value,value2,scopeId,mechanic
+r_mech_all_hits,兵无常势,全队普攻改为攻击【全体敌人】,Boss,None,0,0,,BasicHitsAll
+r_mech_extra_hit,连环击,全队普攻段数 +1（更易触发连携/破盾）,Rare,None,0,0,,BasicExtraHit
+r_mech_burn,火种,全队普攻额外附带【灼烧】,Rare,None,0,0,,BasicBurn
+r_mech_pierce,破甲锥,全队普攻无视护盾,Rare,None,0,0,,BasicPierce
+r_mech_true,真实之刃,全队普攻改为【真实伤害】（无视护盾与减伤）,Boss,None,0,0,,BasicTrue
+r_mech_heal,仁心,全队战记改为【治疗全体我方】,Boss,None,0,0,,ActiveHealAll
+r_mech_ult_pierce,贯绝,全队奥义无视护盾,Boss,None,0,0,,UltimatePierce
+r_trait_tenacity,不动印,全队获得【坚韧】劫象：生命 +25%、速度 -15%（厚血队专用）,Rare,None,0,0,,GrantTenacity
+r_trait_sharpedge,利刃符,全队获得【锐锋】劫象：攻击 +25%，但受真实伤害 +20%,Rare,None,0,0,,GrantSharpedge
+r_trait_swiftshadow,风踪符,全队获得【疾影】劫象：速度 +25%，但受控制时长 +1,Rare,None,0,0,,GrantSwiftshadow
+r_trait_thickwall,磐石印,全队获得【厚壁】劫象：防御 +25%，但【无法被治疗】（高风险，慎选）,Boss,None,0,0,,GrantThickwall
+r_trait_devour,饕餮纹,全队获得【吞噬】劫象：行动时剥离目标 1 个增益，但自身每回合损失 4% 生命,Boss,None,0,0,,GrantDevour
+r_rule_turns_plus,延时符,本局每一场回合上限 +4（更从容，但也不是纯赚）,Common,None,0,4,,TurnsPlus
+r_rule_turns_minus,速决符,全队 生命/攻击/防御 +25%，但本场回合上限 -4（打不完就输）,Rare,PlayerStatPct,25,4,,TurnsMinus
+r_rule_no_rage,无相,全队奥义【不再需要元气】,Boss,None,0,0,,UltimateNoRage
+r_rule_no_hit,澄明,本场关闭命中率判定 —— 全队必定命中,Rare,None,0,0,,NoHitChance
+r_rule_enemy_cautious,乱其心,敌方打法变为【保守】（不抢放奥义、不激进）,Rare,None,0,0,,EnemyCautious
+r_trade_1,赌命契·小,全队 生命/攻击/防御 +12%，但战斗开局灵力 -1,Common,TradeStatPct,12,1,,None
+r_trade_5,赌命契·险,全队 生命/攻击/防御 +28%，但战斗开局灵力 -3,Rare,TradeStatPct,28,3,,None
+r_trade_10,赌命契·狂,全队 生命/攻击/防御 +80%，但战斗开局灵力 -8,Boss,TradeStatPct,80,8,,None

@@ -77,12 +77,14 @@ namespace WanXiang.Modules.UI
                 case EventEffect.Evolve:
                 {
                     // ★ 2026-11-02 进化要花素材：背包里没有就明说，不静默失败
-                    if (run.Materials < 1) return "缺少进化素材（需 1 个，现有 " + run.Materials + "）";
+                    int need = WanXiang.Run.ProgressionTuning.EvolveMaterialCost;
+                    if (run.Materials < need)
+                        return "缺少进化素材（需 " + need + " 个，现有 " + run.Materials + "）";
                     var id = PickTeamBeast(run, wantEvolved: false, preferMasteryRoom: false);
                     if (string.IsNullOrEmpty(id)) return "队伍里没有可进化的异兽";
                     int route = (c.Value == 1 || c.Value == 2) ? c.Value
                                 : (UnityEngine.Random.value < 0.5f ? 1 : 2);
-                    run.Materials -= 1;
+                    run.Materials -= need;
                     run.Evolve(id, route);
                     return id + " 进化（路线 " + (route == 1 ? "A·消耗化" : "B·引爆化") + "，余素材 " + run.Materials + "）";
                 }

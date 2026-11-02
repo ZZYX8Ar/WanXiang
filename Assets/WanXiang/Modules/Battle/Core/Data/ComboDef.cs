@@ -112,7 +112,7 @@ namespace WanXiang.Battle.Core
         //  ★ 全部以中宫为核心（主兽站中宫发动）；按格数从多到少排序 ——
         //    AvailableFor 取第一条可用的，大阵优先（满阵 > 小阵）。
         // ================================================================
-        private static readonly ComboDef[] Table =
+        private static readonly System.Collections.Generic.List<ComboDef> Table = new System.Collections.Generic.List<ComboDef>
         {
             // ---- 满阵（5 格，5 只全上才可能成阵）----
             new ComboDef { Id = "fm_scale", Name = "鱼鳞阵",
@@ -172,10 +172,28 @@ namespace WanXiang.Battle.Core
 
         public static System.Collections.Generic.IReadOnlyList<ComboDef> All => Table;
 
+        /// <summary>已从外置表（Resources/Data/combos.csv）安装的条数；0 = 用内置 10 组。</summary>
+        public static int InstalledFromTable { get; private set; }
+
+        /// <summary>
+        /// 用外置表替换阵形表（combos.csv）。**顺序即优先度**：AvailableFor 取第一条可用的，
+        /// 大阵（格数多）要排在前面，否则永远被小阵抢走。
+        /// ⛔ 结算口径在 BattleSimulator.Combo.cs 的 ExecuteCombo 与 PreviewComboTargets，
+        ///   表里只放"形状 + 效果枚举 + 系数"，改形状不需要动代码。
+        /// </summary>
+        public static void Install(System.Collections.Generic.IReadOnlyList<ComboDef> rows)
+        {
+            if (rows == null || rows.Count == 0) return;
+            Table.Clear();
+            for (int i = 0; i < rows.Count; i++)
+                if (rows[i] != null) Table.Add(rows[i]);
+            InstalledFromTable = Table.Count;
+        }
+
         public static ComboDef For(string id)
         {
             if (string.IsNullOrEmpty(id)) return null;
-            for (int i = 0; i < Table.Length; i++)
+            for (int i = 0; i < Table.Count; i++)
                 if (Table[i].Id == id) return Table[i];
             return null;
         }
@@ -277,7 +295,7 @@ namespace WanXiang.Battle.Core
             if (st == null || actor == null || !actor.IsAlive || actor.CanCastSkills == false) return list;
             if (!actor.Pos.IsCenter) return list;     // 主兽须站中宫（短路，省得逐条判）
 
-            for (int i = 0; i < Table.Length; i++)
+            for (int i = 0; i < Table.Count; i++)
             {
                 string why;
                 if (CanFire(st, actor, Table[i], out why)) list.Add(Table[i]);
@@ -296,13 +314,13 @@ namespace WanXiang.Battle.Core
             if (!actor.IsAlive) return "单位已阵亡";
 
             // ① 有能发的 → null
-            for (int i = 0; i < Table.Length; i++)
+            for (int i = 0; i < Table.Count; i++)
             {
                 string okWhy;
                 if (CanFire(st, actor, Table[i], out okWhy)) return null;
             }
             // ② 形状已够、只差资源（元气/灵力/已用过）
-            for (int i = 0; i < Table.Length; i++)
+            for (int i = 0; i < Table.Count; i++)
             {
                 var c = Table[i];
                 if (!FormationMatched(st, actor.Side, c)) continue;
@@ -356,7 +374,7 @@ namespace WanXiang.Battle.Core
             int bestMiss = int.MaxValue;
             string bestMissing = null;
 
-            for (int i = 0; i < Table.Length; i++)
+            for (int i = 0; i < Table.Count; i++)
             {
                 var c = Table[i];
                 if (c == null) continue;

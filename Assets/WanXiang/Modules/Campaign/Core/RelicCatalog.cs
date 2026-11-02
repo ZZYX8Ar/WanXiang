@@ -179,7 +179,11 @@ namespace WanXiang.Campaign
     public static class RelicCatalog
     {
         /// <summary>全部遗物（内容侧唯一来源；新增只改 Build()）。</summary>
-        public static readonly RelicDef[] All;
+        /// <summary>当前遗物池（★ 2026-11-02 起可被 Resources/Data/relics.csv 整体替换）。</summary>
+        public static RelicDef[] All;
+
+        /// <summary>已从外置表安装的条数（0 = 用内置白名单）。</summary>
+        public static int InstalledFromTable { get; private set; }
 
         private static readonly Dictionary<string, RelicDef> _byId = new Dictionary<string, RelicDef>();
 
@@ -203,6 +207,44 @@ namespace WanXiang.Campaign
 
         public static RelicDef Get(string id)
             => string.IsNullOrEmpty(id) || !_byId.TryGetValue(id, out var d) ? null : d;
+
+        /// <summary>
+        /// 用外置表替换整个遗物池（relics.csv）。
+        /// ⛔ **整体替换**而不是合并：遗物是"这一局能刷出什么"的白名单，删掉一行就该消失。
+        ///   代价是表里漏了某个 id 会让它从池子里消失 —— 所以这里会打一条"内置有、表里没有"的 Warning，
+        ///   漏删只会在 Console 里出现，不会静默。
+        /// ⚠ 行为（Effect/Mechanic）仍由代码解释，表里只放 id/名字/描述/稀有度/数值/作用域/枚举名。
+        /// </summary>
+        public static void Install(System.Collections.Generic.IReadOnlyList<RelicDef> rows)
+        {
+            if (rows == null || rows.Count == 0) return;
+
+            var old = All;
+            All = new RelicDef[rows.Count];
+            for (int i = 0; i < rows.Count; i++) All[i] = rows[i];
+
+            _byId.Clear();
+            for (int i = 0; i < All.Length; i++)
+            {
+                var d = All[i];
+                if (d == null || string.IsNullOrEmpty(d.Id)) continue;
+                _byId[d.Id] = d;
+            }
+
+            if (old != null)
+            {
+                var gone = new System.Text.StringBuilder();
+                for (int i = 0; i < old.Length; i++)
+                {
+                    if (old[i] == null || string.IsNullOrEmpty(old[i].Id)) continue;
+                    if (!_byId.ContainsKey(old[i].Id)) gone.Append(old[i].Id).Append(' ');
+                }
+                if (gone.Length > 0)
+                    System.Diagnostics.Debug.WriteLine("[RelicCatalog] 这些内置遗物不在表里，已从池中移除：" + gone);
+            }
+
+            InstalledFromTable = All.Length;
+        }
 
         // ==================================================================
         //  构建：基础 + 分族（改数值 / 加族只动这里）

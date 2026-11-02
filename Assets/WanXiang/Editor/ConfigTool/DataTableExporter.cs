@@ -45,9 +45,13 @@ namespace WanXiang.EditorTools
             ExportSquad();
             ExportMap();
             ExportNodeWeights();
+            int relics = ExportRelics();
+            int combos = ExportCombos();
+            ExportProgression();
 
             AssetDatabase.Refresh();
-            Debug.Log($"[DataTable] 导出完成 → {OutDir}：状态 {status} 条、首领 {boss} 只、天时 {weather} 条。");
+            Debug.Log($"[DataTable] 导出完成 → {OutDir}：状态 {status}、首领 {boss}、天时 {weather}、" +
+                      $"遗物 {relics}、阵形 {combos}、养成曲线 1 张。");
         }
 
         // ================================================================
@@ -227,6 +231,82 @@ namespace WanXiang.EditorTools
                 sb.AppendLine(string.Join(",", ws[i].Key.ToString(), I(ws[i].Value), I(minAct)));
             }
             Write("node_weights.csv", sb);
+        }
+
+        // ================================================================
+        //  遗物 / 阵形 / 养成曲线
+        // ================================================================
+
+        private static int ExportRelics()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("id,name,desc,rarity,effect,value,value2,scopeId,mechanic");
+            var all = RelicCatalog.All;
+            for (int i = 0; i < all.Length; i++)
+            {
+                var d = all[i];
+                if (d == null) continue;
+                sb.AppendLine(string.Join(",",
+                    Esc(d.Id), Esc(d.Name), Esc(d.Desc), d.Rarity.ToString(), d.Effect.ToString(),
+                    F(d.Value), F(d.Value2), Esc(d.ScopeId), d.Mechanic.ToString()));
+            }
+            Write("relics.csv", sb);
+            return all.Length;
+        }
+
+        private static int ExportCombos()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("id,name,note,cells,cellsAlt,effect,power,power2");
+            var all = ComboRules.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var d = all[i];
+                if (d == null) continue;
+                sb.AppendLine(string.Join(",",
+                    Esc(d.Id), Esc(d.Name), Esc(d.Note),
+                    Esc(JoinCells(d.Cells)), Esc(JoinCells(d.CellsAlt)),
+                    d.Effect.ToString(), F(d.Power), F(d.Power2)));
+            }
+            Write("combos.csv", sb);
+            return all.Count;
+        }
+
+        private static string JoinCells(int[] cells)
+        {
+            if (cells == null || cells.Length == 0) return "";
+            var parts = new string[cells.Length];
+            for (int i = 0; i < cells.Length; i++) parts[i] = cells[i].ToString(CultureInfo.InvariantCulture);
+            return string.Join(";", parts);
+        }
+
+        private static void ExportProgression()
+        {
+            // ⛔ 不要用反射按 key 找字段：key 是 snake_case（level_max），字段是 PascalCase（LevelMax），
+            //   反射会全部落空、静默写成 0（第一次导出就踩了）。这里逐项显式写，编译期就能查出漏项。
+            var sb = new StringBuilder();
+            sb.AppendLine("key,value,note");
+            void Row(string key, string value, string note) => sb.AppendLine(key + "," + value + "," + note);
+
+            Row("level_max", I(WanXiang.Run.ProgressionTuning.LevelMax), "主等级上限");
+            Row("exp_base", I(WanXiang.Run.ProgressionTuning.ExpBase), "Lv1到2所需经验");
+            Row("exp_step", I(WanXiang.Run.ProgressionTuning.ExpStep), "每级额外经验");
+            Row("level_atk", F(WanXiang.Run.ProgressionTuning.LevelAtk), "每级攻击加成(0.06=+6%)");
+            Row("level_hp", F(WanXiang.Run.ProgressionTuning.LevelHp), "每级生命加成(0.07=+7%)");
+            Row("mastery_cap", I(WanXiang.Run.ProgressionTuning.MasteryCapNormal), "专精上限（未进化）");
+            Row("mastery_cap_evolved", I(WanXiang.Run.ProgressionTuning.MasteryCapEvolved), "专精上限（已进化）");
+            Row("mastery_lv1_mul", F(WanXiang.Run.ProgressionTuning.MasteryLv1Mul), "专精1的技能倍率");
+            Row("mastery_lv3_mul", F(WanXiang.Run.ProgressionTuning.MasteryLv3Mul), "专精3的额外倍率（与专精1叠乘）");
+            Row("evolve_stat_mul", F(WanXiang.Run.ProgressionTuning.EvolveStatMul), "进化后基础攻血倍率");
+            Row("evolve_material_cost", I(WanXiang.Run.ProgressionTuning.EvolveMaterialCost), "进化消耗素材");
+            Row("revive_hp_pct", I(WanXiang.Run.ProgressionTuning.ReviveHpPct), "通关后阵亡单位进下一场的血量%");
+            Row("exp_win_normal", I(WanXiang.Run.ProgressionTuning.ExpWinNormal), "普通战经验");
+            Row("exp_win_elite", I(WanXiang.Run.ProgressionTuning.ExpWinElite), "精英战经验");
+            Row("exp_win_realm", I(WanXiang.Run.ProgressionTuning.ExpWinRealm), "秘境经验");
+            Row("exp_win_boss", I(WanXiang.Run.ProgressionTuning.ExpWinBoss), "幕末首领经验");
+            Row("material_win_elite", I(WanXiang.Run.ProgressionTuning.MaterialWinElite), "精英掉落素材");
+            Row("material_win_boss", I(WanXiang.Run.ProgressionTuning.MaterialWinBoss), "首领掉落素材");
+            Write("progression.csv", sb);
         }
 
         // ================================================================
