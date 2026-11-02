@@ -205,6 +205,7 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                 run.EnsureMetaSnapshot();
 
                 WanXiang.Modules.UI.SkillOverrideBootstrap.EnsureInstalled();   // ★ 技能表只加载一次
+                WanXiang.Battle.Presentation.BattleStage2D.AwakenedDefIds.Clear();  // ★ 每场重建，避免上一局残留
                 WanXiang.Modules.UI.EncounterBootstrap.EnsureInstalled();      // ★ 遭遇表 + 引用校验
 
                 foreach (var id in run.Team)

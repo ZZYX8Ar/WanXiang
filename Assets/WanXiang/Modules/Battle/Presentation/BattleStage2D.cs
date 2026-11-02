@@ -1197,6 +1197,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 // 立绘：SpriteCatalog 按 BeastDef.Id 查；查不到回退五行色块
                 var bodySr = root.AddComponent<SpriteRenderer>();
                 // ★ 2026-11-02 觉醒立绘：已进化的我方异兽换金色描边/流光材质
+                // ⛔ 不能用 RunSave（Battle 程序集不引用 Run）—— 集合由组队侧每场重建，见工厂 Clear()
                 if (player && u.Def != null && AwakenedDefIds.Contains(u.Def.Id))
                 {
                     var awSh = Shader.Find("WanXiang/AwakenSprite");
@@ -3630,7 +3631,8 @@ if (life < 0.2f) life = 0.2f;
             if (v.ShieldField != null && v.ShieldMat != null) return;   // 有膜且材质在 → 复用
 
             var sh = Resources.Load<Shader>("Battle/ShieldField");
-            var sp = Resources.Load<Sprite>("Battle/FX_shield_hex");
+            // ★ 2026-11-02 用户："护盾还是不圆" ⇒ 换成程序化**圆形**贴图（六边形贴图本身是方的）
+            var sp = ShieldCircleSprite();
             if (sh == null || sp == null || !sh.isSupported) return;   // 不可用就静默不套膜
 
             var go = new GameObject("ShieldField");
@@ -3668,6 +3670,29 @@ if (life < 0.2f) life = 0.2f;
 
             v.ShieldField = sr;
             v.ShieldMat = mat;
+        }
+
+        private static Sprite _shieldCircle;
+        /// <summary>程序化圆形护盾贴图（128×128，边缘 2px 柔化）。</summary>
+        private static Sprite ShieldCircleSprite()
+        {
+            if (_shieldCircle != null) return _shieldCircle;
+            const int N = 128;
+            var tex = new Texture2D(N, N, TextureFormat.RGBA32, false);
+            var px = new Color[N * N];
+            float r = N * 0.5f - 1f;
+            for (int y = 0; y < N; y++)
+                for (int x = 0; x < N; x++)
+                {
+                    float dx = x - N * 0.5f + 0.5f, dy = y - N * 0.5f + 0.5f;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    float a = Mathf.Clamp01((r - d) / 2f);
+                    px[y * N + x] = new Color(1f, 1f, 1f, a);
+                }
+            tex.SetPixels(px); tex.Apply(); tex.wrapMode = TextureWrapMode.Clamp;
+            _shieldCircle = Sprite.Create(tex, new Rect(0, 0, N, N), new Vector2(0.5f, 0.5f), 100f);
+            _shieldCircle.name = "ShieldCircle";
+            return _shieldCircle;
         }
 
         private void SetShield2D(UnitView2D v, int shield)

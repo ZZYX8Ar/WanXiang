@@ -148,7 +148,7 @@ namespace WanXiang.Campaign
                 case NodeKind.Shop: return "市集";
                 case NodeKind.Nest: return "休整";
                 case NodeKind.Tale: return "奇遇";   // 2026-11-01：异闻改为事件节点
-                case NodeKind.Forge: return "铸魂台";
+                case NodeKind.Forge: return "工坊";
                 case NodeKind.Omen: return "天象";
                 case NodeKind.Question: return "？";
                 case NodeKind.Recruit: return "招募";
