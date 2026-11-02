@@ -1,0 +1,15 @@
+id,name,element,role,rarity,hp,atk,def,speed,critRate,critDamage,flavorStatus
+b_fuman,腐木之君·蝮魇,Wood,Guard,Legend,3000,300,140,85,0.15,0.5,root
+b_manman,缠丝女萝·蔓娘,Wood,Swift,Legend,2600,340,110,120,0.15,0.5,root
+b_wangliang,瘴林之影·魍魉,Wood,Striker,Legend,8200,400,165,135,0.15,0.5,miasma
+b_chiba,炎狱之君·赤魃,Fire,Striker,Legend,2800,380,120,105,0.15,0.5,burn
+b_jinjiao,焚天凶骸·烬蛟,Fire,Striker,Legend,2700,320,115,110,0.15,0.5,burn
+b_jiaozhi,熔岩行尸·燋彘,Fire,Guard,Legend,1880,320,160,80,0.15,0.5,burn
+b_bairen,白魍·白刃,Metal,Striker,Legend,5900,420,120,110,0.15,0.5,armor_break
+b_shai,千机傀儡·铩,Metal,Guard,Legend,1760,215,110,80,0.15,0.5,armor_break
+b_shuangfeng,断刃游侠·霜锋,Metal,Swift,Legend,1880,295,110,140,0.15,0.5,marked
+b_xuanming,凝冰之君·玄溟,Water,Guard,Legend,1400,340,150,90,0.15,0.5,freeze
+b_mingkun,深渊鲸落·溟鲲,Water,Guard,Legend,2630,290,150,85,0.15,0.5,wet
+b_shuangying,冰渊镜魔·霜影,Water,Swift,Legend,2350,360,120,115,0.15,0.5,frost
+b_guixu,归墟之主,Earth,Guard,Legend,1150,290,180,100,0.15,0.5,armor_break
+b_hongmeng,混沌之母·鸿蒙,None,Striker,Legend,1880,440,170,105,0.15,0.5,silence

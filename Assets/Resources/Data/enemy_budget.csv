@@ -1,0 +1,12 @@
+key,value
+base,5
+jie_step,0.03
+cap_jie_step,0.02
+boss_mul,1.75
+node_elite,1.18
+node_encounter,1
+act1,1.08
+act2,1.22
+act3,1.34
+act4,1.28
+act5,1.36

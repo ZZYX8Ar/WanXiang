@@ -31,12 +31,13 @@ namespace WanXiang.EditorTools
         [MenuItem("万相/配置/从 CSV 导入数据表", priority = 200)]
         public static void Import()
         {
-            string root = Path.GetDirectoryName(Application.dataPath);   // 工程根
-            int beastUpdated = ImportBeasts(Path.Combine(root, CsvDir, "beast.csv"));
-            int skillUpdated = ImportSkills(Path.Combine(root, CsvDir, "skill.csv"));
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            Debug.Log($"[ConfigCsv] 导入完成：异兽 {beastUpdated} 条、技能 {skillUpdated} 条已更新。");
+            // ⛔ 2026-11-02 下线：ConfigCSV/ 下的 beast.csv / skill.csv 是 2026-09-17 的旧表
+            //   （只有 30 只异兽、skill.csv 还带已废弃的 cd 列）。点一次会把 SO 回滚到 9 月版本
+            //   （20 只新兽的数值被覆盖、CD 被写回），所以文件已删除、入口改为提示。
+            //   现在的数据源是 Assets/Resources/Data/*.csv（运行时解析，见 DataTables.cs）。
+            Debug.LogWarning("[ConfigCsv] 该入口已下线（旧表会回滚 SO）。" +
+                             "异兽/技能数值请改 Assets/Resources/Data/*.csv；" +
+                             "改完在「万相/配置/校验所有 CSV」里验证。");
         }
 
         // ================================================================

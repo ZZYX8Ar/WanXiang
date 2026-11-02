@@ -49,6 +49,59 @@ namespace WanXiang.Battle.Core
             return null;
         }
 
+        /// <summary>已从外置表安装的节气条数（0 = 用内置表）。</summary>
+        public static int InstalledTerms { get; private set; }
+
+        /// <summary>已从外置表安装的天气技条数。</summary>
+        public static int InstalledSkills { get; private set; }
+
+        /// <summary>
+        /// 用外置表覆盖某一条节气天时（按 SolarIndex 替换，未列出的保持内置）。
+        /// ⛔ 只换 WeatherDef 数据，效果结算路径不变 —— 表里漏字段 = 那条天时变弱，不会炸。
+        /// </summary>
+        public static void InstallSolarTerm(int solarIndex, WeatherDef weather)
+        {
+            if (weather == null || solarIndex <= 0) return;
+            for (int i = 0; i < SolarTerms.Count; i++)
+            {
+                if (SolarTerms[i].SolarIndex != solarIndex) continue;
+                SolarTerms[i] = new TermEntry { SolarIndex = solarIndex, Weather = weather };
+                InstalledTerms++;
+                return;
+            }
+            SolarTerms.Add(new TermEntry { SolarIndex = solarIndex, Weather = weather });
+            InstalledTerms++;
+        }
+
+        /// <summary>用外置表覆盖天气技（按 Id 替换，未列出的保持内置）。</summary>
+        public static void InstallWeatherSkill(WeatherSkillDef skill)
+        {
+            if (skill == null || string.IsNullOrEmpty(skill.Id) || skill.Brings == null) return;
+            for (int i = 0; i < WeatherSkills.Count; i++)
+            {
+                if (WeatherSkills[i].Id != skill.Id) continue;
+                WeatherSkills[i] = skill;
+                InstalledSkills++;
+                return;
+            }
+            WeatherSkills.Add(skill);
+            InstalledSkills++;
+        }
+
+        /// <summary>内置节气全表（导出器/自检用；顺序 = 声明顺序）。</summary>
+        public static System.Collections.Generic.IReadOnlyList<int> SolarIndices
+        {
+            get
+            {
+                var list = new System.Collections.Generic.List<int>(SolarTerms.Count);
+                foreach (var t in SolarTerms) list.Add(t.SolarIndex);
+                return list;
+            }
+        }
+
+        /// <summary>内置天气技全表（导出器/自检用）。</summary>
+        public static System.Collections.Generic.IReadOnlyList<WeatherSkillDef> AllSkills => WeatherSkills;
+
         // ====================================================================
         //  二十四节气（本批 7 条）
         // ====================================================================
@@ -60,7 +113,7 @@ namespace WanXiang.Battle.Core
             public string Untreated;   // 未翻译时保留 GDD 原文
         }
 
-        private static readonly TermEntry[] SolarTerms =
+        private static readonly List<TermEntry> SolarTerms = new List<TermEntry>
         {
             // 01 立春：战斗开始时，我方全体 2 层「生机」（每层每回合回复 2% 最大生命）
             new TermEntry
@@ -438,7 +491,7 @@ namespace WanXiang.Battle.Core
         //  天气技（GDD 3.4 逆天改势）——覆盖 3 回合后回归原天时
         // ====================================================================
 
-        private static readonly WeatherSkillDef[] WeatherSkills =
+        private static readonly List<WeatherSkillDef> WeatherSkills = new List<WeatherSkillDef>
         {
             // 祷雨（水）：全场回复 2%/回合 + 冰蚀 +1/回合 + 火伤 -20%
             new WeatherSkillDef

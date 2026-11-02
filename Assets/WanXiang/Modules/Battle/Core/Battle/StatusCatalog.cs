@@ -181,6 +181,30 @@ namespace WanXiang.Battle.Core
 
         public static System.Collections.Generic.IReadOnlyList<StatusDef> All => _all;
 
+        /// <summary>已从外置表（Resources/Data/status.csv）安装过的条数；0 = 用内置表。</summary>
+        public static int InstalledFromTable { get; private set; }
+
+        /// <summary>
+        /// 用外置表覆盖状态定义（按 Id 合并：表里有的替换、表里没有的保持内置）。
+        /// ⛔ 只覆盖**数值与文案**，行为的落点（BattleSimulator / StatusInstance）仍读这里，
+        ///   所以表里写错只会让某个状态变弱/变强，不会让战斗起不来。
+        /// </summary>
+        public static void Install(System.Collections.Generic.IReadOnlyList<StatusDef> rows)
+        {
+            if (rows == null) return;
+            int applied = 0;
+            for (int r = 0; r < rows.Count; r++)
+            {
+                var d = rows[r];
+                if (string.IsNullOrEmpty(d.Id)) continue;
+                int idx = -1;
+                for (int i = 0; i < _all.Count; i++) if (_all[i].Id == d.Id) { idx = i; break; }
+                if (idx >= 0) _all[idx] = d; else _all.Add(d);
+                applied++;
+            }
+            InstalledFromTable = applied;
+        }
+
         /// <summary>一个便于书写天时/技能的内联构造：按"目标最大生命 x%"折算持续伤害。</summary>
         public static float DotFromMaxHp(float percent, int maxHp) => maxHp * percent;
     }

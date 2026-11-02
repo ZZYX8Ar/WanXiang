@@ -558,6 +558,10 @@ BuildNodeMap();
 
 protected override UniTask OnOpenAsync(object payload)
      {
+            // ★ 2026-11-02：地图之前先装表（map.csv / node_weights.csv 决定层数与节点权重）。
+            //   EnsureInstalled 是幂等的，BattleRequestFactory 那边也会调一次。
+            DataTables.EnsureInstalled();
+
             // ★★ 换档/新局：先清上一局的视图残留，再走正常构建
             if (NeedsViewReset)
             {
@@ -718,7 +722,9 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private static readonly Color NodeLocked = new Color(0.61f, 0.58f, 0.53f);    // 灰
 
         // 路线图尺寸常量（连线的节点坐标必须与排布公式一致，所以提出来共用）
-        private const int Layers = WanXiang.Campaign.SolarTermGraph.DefaultLayers;   // 路线图层数（每幕节点数；连线的节点坐标必须与排布公式一致）
+        // ★ 2026-11-02：层数改为读 MapRules（Resources/Data/map.csv 可覆盖），
+        //   不能再写 const —— 否则表里改了层数，这里的坐标/上限还是 18。
+        private static int Layers => WanXiang.Campaign.MapRules.Layers;
         private const float NodeW = 420f, NodeH = 110f, GapX = 24f, GapY = 90f;   // 2026-10-10 节点加大、间距收窄（配合 Scroll_Nodes 加宽到 1376，三列不再被裁）
         private static readonly Color EdgeInk = new Color(0.72f, 0.68f, 0.60f, 0.9f);
         private static readonly Color PathGold = new Color(0.79f, 0.63f, 0.39f, 1f);
@@ -1000,7 +1006,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     run.NodeOffset = -1;
                     Debug.LogWarning("[Campaign] 存档自愈：Act 越界 → 钳到 " + run.Act);
                 }
-                if (run.NodeOffset >= Layers * 3)      // 格号上限 = 层数 × 每层格数
+                if (run.NodeOffset >= Layers * WanXiang.Campaign.MapRules.Width)   // 格号上限 = 层数 × 每层格数
                 {
                     Debug.LogWarning("[Campaign] 存档自愈：NodeOffset 越界(" + run.NodeOffset + ") → 回到本幕起点");
                     run.NodeOffset = -1;

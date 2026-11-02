@@ -342,7 +342,7 @@ namespace WanXiang.Campaign
                 bool isBoss = layer == layers - 1;
 
                 // ★ 2026-11-02 用户：每层候选数应当一致（原来 2~3 随机）；首领层固定 1
-                    int width = isBoss ? 1 : 3;
+                    int width = isBoss ? 1 : MapRules.Width;   // ★ 每层候选数可外置（map.csv）
                 var row = new int[width];
                 for (int k = 0; k < width; k++)
                 {
@@ -422,63 +422,23 @@ namespace WanXiang.Campaign
             return g;
         }
 
-        /// <summary>本幕解锁的节点类型（解禁幕表，v2.0）。
-        /// 铸魂台（Forge）第 2 幕才解禁——第 1 幕就出熔炼会让难度曲线崩。
-        /// ？是「随机/神奇」节点，不参与配额（否则不再有惊喜），故不在表里。
-        /// 第 5 幕（天阙）走固定图、不调用本生成器，故无需列出。</summary>
+        /// <summary>本幕解锁的节点类型 —— ★ 2026-11-02 起由 MapRules 统一给出（可被 node_weights.csv 覆盖）。
+        /// ⛔ 2026-11-01 清理：天象(Omen)/修行(Training)/古战场(Ruins) **不再生成**。
+        ///   它们的内容已并入「异闻/事件」(Tale)：天象的风险收益 → 事件 C，修行 → 工坊，古战场 → 精英。
+        ///   枚举值保留只为兼容老存档（存档里存的是 int）。</summary>
         private static System.Collections.Generic.HashSet<NodeKind> UnlockKinds(int act)
         {
-            switch (act)
-            {
-                // ⛔ 2026-11-01 清理：天象(Omen)/修行(Training)/古战场(Ruins) **不再生成**。
-                //   它们的内容已并入「异闻/事件」(Tale)：天象的风险收益 → 事件 C，修行 → 工坊，古战场 → 精英。
-                //   枚举值保留只为兼容老存档（存档里存的是 int）。
-                case 1: return new System.Collections.Generic.HashSet<NodeKind>
-                    { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop,
-                      NodeKind.Nest, NodeKind.Tale };
-                default:
-                    var set = new System.Collections.Generic.HashSet<NodeKind>
-                    { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop, NodeKind.Nest,
-                      NodeKind.Tale, NodeKind.Forge };
-                    // ★ 秘境第 2 幕起解禁（第 1 幕玩家还没学会格挡，进秘境是纯挫败）
-                    if (act >= 2) set.Add(NodeKind.Realm);
-                    return set;
-            }
+            var set = new System.Collections.Generic.HashSet<NodeKind>();
+            foreach (var k in MapRules.UnlockedList(act)) set.Add(k);
+            return set;
         }
 
-        /// <summary>统一的抽取权重（v1.2 第 3 节口径；问号 4%→14% 是用户要求）。</summary>
-        private static readonly (NodeKind kind, int weight)[] KindWeights =
-        {
-            // ⛔ 2026-11-01：按设计稿 v3 的 9 种节点重排权重；天象/修行/古战场已删除。
-            (NodeKind.Encounter, 34), (NodeKind.Elite, 11), (NodeKind.Shop, 9),
-            (NodeKind.Nest, 10), (NodeKind.Tale, 12), (NodeKind.Forge, 9),
-            (NodeKind.Question, 15),
-            // ★ 秘境权重 5（约 4%）：一条支线 = 一整张秘境图 + 2 次进场，
-            //   满地图都是秘境会变成日常而不是"选择"（设计文档 1.4硬约束 ③）。
-            (NodeKind.Realm, 5),
-        };
-
         /// <summary>按权重抽一个节点类型。首层只出战斗 —— 开局第一脚不该是盲盒或商店。
-        /// 只从 <paramref name="act"/> 已解锁的类型里抽（见 <see cref="UnlockKinds"/>）。</summary>
+        /// ★ 权重与解禁幕由 MapRules 维护（node_weights.csv）。</summary>
         private static NodeKind PickKind(DeterministicRandom rng, bool firstLayer, int act)
         {
             if (firstLayer) return NodeKind.Encounter;
-
-            var allowed = UnlockKinds(act);
-            // ？始终可抽：约束要求每图 2~5 个 ？节点，但它不参与「配额」
-            // （配额只考核计划类节点，见 MeetsV12Constraints）。若从解锁表排除 ？，
-            // 会与 ？数量约束自相矛盾 ， 64 次重试全失败、回退缺省图（自检 ⑳ 抓到的真 bug）。
-            allowed.Add(NodeKind.Question);
-            int total = 0;
-            foreach (var kv in KindWeights) if (allowed.Contains(kv.kind)) total += kv.weight;
-            int roll = rng.NextInt(0, total);
-            foreach (var kv in KindWeights)
-            {
-                if (!allowed.Contains(kv.kind)) continue;
-                if (roll < kv.weight) return kv.kind;
-                roll -= kv.weight;
-            }
-            return NodeKind.Encounter;   // 兜底（理论不可达）
+            return MapRules.Pick(rng, act);
         }
 
         /// <summary>

@@ -213,6 +213,47 @@ namespace WanXiang.Battle.Core
 
         public static IReadOnlyList<BossDef> All => AllBosses;
 
+        /// <summary>已从外置表（Resources/Data/boss.csv）覆盖的条数；0 = 用内置值。</summary>
+        public static int InstalledFromTable { get; private set; }
+
+        /// <summary>
+        /// 用外置表覆盖首领数值（按 Id 原地写入，不新增/删除首领 —— 首领池与钩子都按 id 绑定）。
+        /// ⛔ 只覆盖面板与文案：<see cref="BaseHp"/>/<see cref="BaseAtk"/> 等的**缩放**仍由
+        ///   EnemyBudget.BossUnitMul(act) 负责，别在表里把幕系数也乘进去。
+        /// </summary>
+        public static bool Install(BossDef patch)
+        {
+            if (patch == null || string.IsNullOrEmpty(patch.Id)) return false;
+            for (int i = 0; i < AllBosses.Length; i++)
+            {
+                var d = AllBosses[i];
+                if (d.Id != patch.Id) continue;
+                d.DisplayName = patch.DisplayName;
+                d.Element = patch.Element;
+                d.Role = patch.Role;
+                d.Rarity = patch.Rarity;
+                d.BaseHp = patch.BaseHp;
+                d.BaseAtk = patch.BaseAtk;
+                d.BaseDef = patch.BaseDef;
+                d.BaseSpeed = patch.BaseSpeed;
+                d.CritRate = patch.CritRate;
+                d.CritDamage = patch.CritDamage;
+                d.FlavorStatus = patch.FlavorStatus;
+                InstalledFromTable++;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>按 id 找首领（表解析校验用）。</summary>
+        public static BossDef Find(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            for (int i = 0; i < AllBosses.Length; i++)
+                if (AllBosses[i].Id == id) return AllBosses[i];
+            return null;
+        }
+
         public static bool IsBoss(string id) => id != null && id.StartsWith("b_");
 
         /// <summary>
