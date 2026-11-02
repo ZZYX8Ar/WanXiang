@@ -46,6 +46,21 @@ namespace WanXiang.Modules.UI
             }
 
             if (list.Count == 0) { Debug.LogWarning("[SkillOverride] CSV 没有有效行"); return; }
+            // ★ 2026-11-02 自检：重复 (id,slot)、槽位越界、空名字/空描述 —— 改表后立刻能看出问题
+            {
+                var seen = new HashSet<string>();
+                int bad = 0;
+                foreach (var o in list)
+                {
+                    string key = o.BeastId + ":" + o.Slot;
+                    if (!seen.Add(key)) { Debug.LogError("[SkillOverride] 重复条目 " + key); bad++; }
+                    if (o.Slot < 0 || o.Slot > 2) { Debug.LogError("[SkillOverride] 槽位越界 " + key); bad++; }
+                    if (string.IsNullOrEmpty(o.Name)) { Debug.LogError("[SkillOverride] 缺技能名 " + key); bad++; }
+                    if (string.IsNullOrEmpty(o.Desc)) { Debug.LogError("[SkillOverride] 缺技能描述 " + key); bad++; }
+                }
+                Debug.Log("[SkillOverride] 校验完成：异常 " + bad + " 条");
+            }
+
             SkillOverrideCatalog.Install(list.ToArray());
             Debug.Log("[SkillOverride] 已从 CSV 载入 " + list.Count + " 条技能覆盖");
         }
