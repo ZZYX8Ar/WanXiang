@@ -1201,8 +1201,8 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     {
                         var cm = new Material(corruptSh) { hideFlags = HideFlags.HideAndDontSave };
                         cm.SetFloat("_Amount", 0.85f);
-                        cm.SetFloat("_CrackScale", 7f);
-                        cm.SetFloat("_CrackWidth", 0.06f);
+                        cm.SetFloat("_CrackScale", 4f);
+                        cm.SetFloat("_CrackWidth", 0.16f);
                         cm.SetFloat("_Dirt", 0.45f);
                         cm.SetFloat("_Pulse", 0.35f);
                         bodySr.sharedMaterial = cm;

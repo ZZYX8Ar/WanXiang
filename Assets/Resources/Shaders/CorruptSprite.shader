@@ -9,9 +9,9 @@ Shader "WanXiang/CorruptSprite"
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
         _Color      ("Tint", Color) = (1,1,1,1)
         _Amount     ("Corrupt Amount", Range(0,1)) = 0.85
-        _CrackColor ("Crack Color", Color) = (0.55, 0.18, 0.85, 1)
-        _CrackScale ("Crack Scale", Range(2,16)) = 7.0
-        _CrackWidth ("Crack Width", Range(0.01,0.25)) = 0.06
+        _CrackColor ("Crack Color", Color) = (0.95, 0.35, 1.0, 1)
+        _CrackScale ("Crack Scale", Range(2,16)) = 4.0
+        _CrackWidth ("Crack Width", Range(0.01,0.35)) = 0.16
         _Dirt       ("Dirt", Range(0,1)) = 0.45
         _Pulse      ("Pulse", Range(0,1)) = 0.35
     }
@@ -88,13 +88,13 @@ Shader "WanXiang/CorruptSprite"
                 // ② 裂痕（Voronoi 边界，宽度可调）
                 float e = voronoiEdge(i.uv);
                 float crack = 1.0 - smoothstep(0.0, _CrackWidth, e);
-                // 让裂痕断续：用 fbm 做遮罩，避免"整张网"
-                float mask = smoothstep(0.35, 0.75, fbm(i.uv * 5.0));
+                // 断续：0.55 基础强度 + 少量噪声扰动，保证"看得见但不糊满"
+                float mask = 0.55 + 0.45 * smoothstep(0.30, 0.80, fbm(i.uv * 3.0));
                 crack *= mask;
 
                 // ④ 裂痕脉动（呼吸）
                 float pulse = 1.0 - _Pulse * 0.5 * (1.0 - sin(_Time.y * 2.2));
-                col = lerp(col, _CrackColor.rgb, crack * _Amount * pulse);
+                col = lerp(col, _CrackColor.rgb, saturate(crack * _Amount * pulse * 1.6));
 
                 // ③ 脏污：低频噪点压暗（只在大片区域，不糊脸）
                 float dirt = smoothstep(0.55, 0.85, fbm(i.uv * 12.0));
