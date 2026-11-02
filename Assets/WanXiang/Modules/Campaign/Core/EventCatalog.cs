@@ -42,7 +42,15 @@ namespace WanXiang.Campaign
 
     public static class EventCatalog
     {
-        public static readonly EventDef[] All = Build();
+        private static EventDef[] _table = Build();
+
+        /// <summary>外部（CSV）注入事件表；传 null 恢复内置。</summary>
+        public static void Install(EventDef[] table)
+        {
+            if (table != null && table.Length > 0) _table = table;
+        }
+
+        public static EventDef[] All => _table;
 
         public static EventDef Get(string id)
         {
