@@ -198,10 +198,8 @@ namespace WanXiang.Modules.UI
             //   ， 玩家看不懂（用户实测报障）。改用战力：与上方我方数字同一把尺，可比。
             if (_tmpEnemyPower != null)
             {
-                var enc = BattleRequestFactory.LastEncounter;
                 _tmpEnemyPower.text = "敌方总战力 " + WanXiang.Battle.Core.BattlePower.Sum(enemies, req.EnemyMul)
-                                    + "（" + enemies.Count + " 只）"
-                                    + (enc != null ? "\n" + enc.Name + "｜破局：" + enc.Synergy : "");
+                                    + "（" + enemies.Count + " 只）";
             }
         }
 
@@ -921,9 +919,10 @@ namespace WanXiang.Modules.UI
             else
             {
                 sb.Append("\n\n【技能】");
-                AppendSkillLine(sb, "普攻", d.Basic);
-                AppendSkillLine(sb, "战技", d.Active);
-                AppendSkillLine(sb, "绝技", d.Ultimate);
+                bool enemySide2 = !string.IsNullOrEmpty(d.Id) && d.Id.StartsWith("b_");
+                AppendSkillLineWithOverride(sb, "普攻", d.Basic, d.Id, 0, enemySide2);
+                AppendSkillLineWithOverride(sb, "战技", d.Active, d.Id, 1, enemySide2);
+                AppendSkillLineWithOverride(sb, "绝技", d.Ultimate, d.Id, 2, enemySide2);
                 AppendSkillLine(sb, "觉醒", d.Awaken);
             }
 
@@ -932,6 +931,25 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>把一条技能的"名称 + 目标 + 效果"写进说明文本（目标优先取效果的目标，与战斗口径一致）。</summary>
+
+        /// <summary>
+        /// 详情面板的技能行：**优先读 CSV 覆盖表**（我方 Override / 敌方 GetEnemy），
+        /// 否则退回内容表里的旧技能。⛔ 不读覆盖表时，玩家看到的是"没改过"的旧描述（用户实锤）。
+        /// </summary>
+        private static void AppendSkillLineWithOverride(System.Text.StringBuilder sb, string slotName,
+            WanXiang.Battle.Core.SkillDef sk, string beastId, int slot, bool enemy)
+        {
+            var ov = enemy
+                ? WanXiang.Campaign.SkillOverrideCatalog.GetEnemy(beastId, slot)
+                : WanXiang.Campaign.SkillOverrideCatalog.Get(beastId, slot);
+            if (ov != null)
+            {
+                sb.Append("\n· ").Append(slotName).Append(' ').Append(ov.Name).Append('：').Append(ov.Desc);
+                return;
+            }
+            AppendSkillLine(sb, slotName, sk);
+        }
+
         private static void AppendSkillLine(System.Text.StringBuilder sb, string slotName, WanXiang.Battle.Core.SkillDef sk)
         {
             if (sk == null) return;
@@ -1031,9 +1049,10 @@ namespace WanXiang.Modules.UI
                 if (!string.IsNullOrEmpty(d.Trait.Description)) sb.Append('：').Append(d.Trait.Description);
             }
             sb.Append("\n【技能】");
-            AppendSkillLine(sb, "普攻", d.Basic);
-            AppendSkillLine(sb, "战技", d.Active);
-            AppendSkillLine(sb, "绝技", d.Ultimate);
+            bool enemySide1 = !string.IsNullOrEmpty(d.Id) && d.Id.StartsWith("b_");
+            AppendSkillLineWithOverride(sb, "普攻", d.Basic, d.Id, 0, enemySide1);
+            AppendSkillLineWithOverride(sb, "战技", d.Active, d.Id, 1, enemySide1);
+            AppendSkillLineWithOverride(sb, "绝技", d.Ultimate, d.Id, 2, enemySide1);
             AppendSkillLine(sb, "觉醒", d.Awaken);
             _detailText.text = sb.ToString();
             _detailPanel.gameObject.SetActive(true);

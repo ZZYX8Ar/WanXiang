@@ -648,12 +648,14 @@ namespace WanXiang.Campaign
         public static List<RelicDef> Roll(int count, int act, bool bossLike, DeterministicRandom rng,
                                           ICollection<string> owned = null,
                                           ICollection<string> teamScopes = null,
-                                          int teamWeight = 4)
+                                          int teamWeight = 4, bool allowBossRarity = false)
         {
             var pool = new List<RelicDef>();
             foreach (var d in All)
             {
                 if (owned != null && owned.Contains(d.Id)) continue;   // 不重复给已持有
+                // ★ 2026-11-02 用户："首领遗物怎么能在普通这里获得" ⇒ 非首领战不投放 Boss 稀有度
+                if (!allowBossRarity && d.Rarity == RelicRarity.Boss) continue;
                 pool.Add(d);
             }
             if (pool.Count == 0) pool.AddRange(All);   // 全收集完 → 允许重复

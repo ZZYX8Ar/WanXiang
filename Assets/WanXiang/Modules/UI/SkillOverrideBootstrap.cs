@@ -52,7 +52,7 @@ namespace WanXiang.Modules.UI
                 int bad = 0;
                 foreach (var o in list)
                 {
-                    string key = o.BeastId + ":" + o.Slot;
+                    string key = (o.Enemy ? "E:" : "P:") + o.BeastId + ":" + o.Slot;
                     if (!seen.Add(key)) { Debug.LogError("[SkillOverride] 重复条目 " + key); bad++; }
                     if (o.Slot < 0 || o.Slot > 2) { Debug.LogError("[SkillOverride] 槽位越界 " + key); bad++; }
                     if (string.IsNullOrEmpty(o.Name)) { Debug.LogError("[SkillOverride] 缺技能名 " + key); bad++; }

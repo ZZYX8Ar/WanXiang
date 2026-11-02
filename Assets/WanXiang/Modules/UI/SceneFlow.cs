@@ -87,6 +87,8 @@ namespace WanXiang.Modules.UI
 
         /// <summary>刚打完那场的节点类型（结算面板据此决定遗物掉落权重：精英/Boss 更高稀有度）。</summary>
         public static WanXiang.Campaign.NodeKind LastBattleKind = WanXiang.Campaign.NodeKind.Encounter;
+        /// <summary>这一场是否**幕末首领**（决定遗物能不能出「首领遗物」）。</summary>
+        public static bool LastBattleWasBoss;
 
         /// <summary>开始游戏：进主城。</summary>
         public static void EnterMain()

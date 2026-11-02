@@ -413,6 +413,7 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
             //   敌方弱化% 折进每个 EnemyEntries.StatMul；复活/开局灵力置开关。
             //   纯映射现有管线，不引入战斗核心改动。
             WanXiang.Modules.UI.SceneFlow.LastBattleKind = kind;   // 结算面板据此定遗物权重
+            WanXiang.Modules.UI.SceneFlow.LastBattleWasBoss = boss; // ★ 首领遗物只在首领战掉
             if (run.Relics != null && run.Relics.Count > 0)
             {
                 int teamCount = req.Player.Count;

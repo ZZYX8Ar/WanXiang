@@ -3641,7 +3641,7 @@ if (life < 0.2f) life = 0.2f;
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = sp;
             sr.sortingOrder = v.Body.sortingOrder + 2;
-            sr.color = new Color(1f, 1f, 1f, 0.95f);
+            sr.color = new Color(1f, 1f, 1f, 0.55f);
 
             // 尺寸：按立绘**世界**尺寸 ×1.15（⛔ 必须用 lossyScale：单位根节点有 0.1 缩放，
             //   直接拿 sprite.bounds 会算成世界尺寸，膜会大得离谱或小到看不见）
@@ -3653,13 +3653,13 @@ if (life < 0.2f) life = 0.2f;
             // 父级是 Body（可能带缩放），localScale = 目标世界尺寸 / 父级世界缩放 / 贴图原始尺寸
             float pw = Mathf.Abs(v.Body.transform.lossyScale.x) > 0.0001f ? Mathf.Abs(v.Body.transform.lossyScale.x) : 1f;
             float ph = Mathf.Abs(v.Body.transform.lossyScale.y) > 0.0001f ? Mathf.Abs(v.Body.transform.lossyScale.y) : 1f;
-            go.transform.localScale = new Vector3(worldW * 1.35f / pw / Mathf.Max(0.001f, sp.bounds.size.x),
-                                                  worldH * 1.35f / ph / Mathf.Max(0.001f, sp.bounds.size.y), 1f);
+            go.transform.localScale = new Vector3(worldW * 1.02f / pw / Mathf.Max(0.001f, sp.bounds.size.x),
+                                                  worldH * 1.02f / ph / Mathf.Max(0.001f, sp.bounds.size.y), 1f);
 
             var mat = new Material(sh);
             mat.SetFloat("_Strength", 0.8f);
             mat.SetFloat("_ScrollSpeed", 0.06f);
-            mat.SetFloat("_BaseAlpha", 1.0f);   // ⛔ 0.30 时只有 6% 实显，肉眼等于没有
+            mat.SetFloat("_BaseAlpha", 0.6f);
             mat.SetFloat("_RimPower", 1.6f);
             mat.SetFloat("_HitPhase", 0f);
             mat.SetFloat("_BaseAlpha", 1f);

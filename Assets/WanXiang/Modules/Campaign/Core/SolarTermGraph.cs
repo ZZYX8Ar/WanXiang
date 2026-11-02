@@ -143,11 +143,11 @@ namespace WanXiang.Campaign
         {
             switch (k)
             {
-                case NodeKind.Encounter: return "遭遇";
+                case NodeKind.Encounter: return "作战";
                 case NodeKind.Elite: return "精英";
-                case NodeKind.Shop: return "灵市";
-                case NodeKind.Nest: return "孵穴";
-                case NodeKind.Tale: return "不期而遇";   // 2026-11-01：异闻改为事件节点
+                case NodeKind.Shop: return "市集";
+                case NodeKind.Nest: return "休整";
+                case NodeKind.Tale: return "奇遇";   // 2026-11-01：异闻改为事件节点
                 case NodeKind.Forge: return "铸魂台";
                 case NodeKind.Omen: return "天象";
                 case NodeKind.Question: return "？";
@@ -435,11 +435,11 @@ namespace WanXiang.Campaign
                 //   枚举值保留只为兼容老存档（存档里存的是 int）。
                 case 1: return new System.Collections.Generic.HashSet<NodeKind>
                     { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop,
-                      NodeKind.Nest, NodeKind.Tale, NodeKind.Spring };
+                      NodeKind.Nest, NodeKind.Tale };
                 default:
                     var set = new System.Collections.Generic.HashSet<NodeKind>
                     { NodeKind.Encounter, NodeKind.Elite, NodeKind.Shop, NodeKind.Nest,
-                      NodeKind.Tale, NodeKind.Forge, NodeKind.Spring };
+                      NodeKind.Tale, NodeKind.Forge };
                     // ★ 秘境第 2 幕起解禁（第 1 幕玩家还没学会格挡，进秘境是纯挫败）
                     if (act >= 2) set.Add(NodeKind.Realm);
                     return set;
@@ -453,7 +453,6 @@ namespace WanXiang.Campaign
             (NodeKind.Encounter, 34), (NodeKind.Elite, 11), (NodeKind.Shop, 9),
             (NodeKind.Nest, 10), (NodeKind.Tale, 12), (NodeKind.Forge, 9),
             (NodeKind.Question, 15),
-            (NodeKind.Spring, 8),
             // ★ 秘境权重 5（约 4%）：一条支线 = 一整张秘境图 + 2 次进场，
             //   满地图都是秘境会变成日常而不是"选择"（设计文档 1.4硬约束 ③）。
             (NodeKind.Realm, 5),

@@ -146,7 +146,9 @@ namespace WanXiang.Modules.UI
             if (win && look != null)
             {
                 int actR = look.Act;
-                bool bossLike = SceneFlow.LastBattleKind == NodeKind.Elite;
+                bool eliteFight = SceneFlow.LastBattleKind == NodeKind.Elite;
+                bool isBossFight = SceneFlow.LastBattleWasBoss;
+                bool bossLike = eliteFight;
                 // ★ 优先消费"胜利时已落盘"的三选一（见 RunState.PendingRelicDraft）——
                 //   玩家中途退出/重开也不会丢这次选择。
                 if (look.PendingRelicDraft != null && look.PendingRelicDraft.Count > 0)
@@ -158,10 +160,16 @@ namespace WanXiang.Modules.UI
                         if (d != null) _offered.Add(d);
                     }
                 }
-                if (_offered == null || _offered.Count == 0)
+                // ★ 2026-11-02 用户："战斗胜利不一定获得遗物，精英才有可能" ⇒ 普通战不给。
+                if (!eliteFight)
+                {
+                    _offered = new System.Collections.Generic.List<RelicDef>();
+                }
+                else if (_offered == null || _offered.Count == 0)
                 {
                     var rng = new DeterministicRandom((ulong)System.DateTime.Now.Ticks ^ (uint)(actR * 2654435761));
-                    _offered = RelicCatalog.Roll(3, actR, bossLike, rng, look.Relics);
+                    _offered = RelicCatalog.Roll(3, actR, bossLike, rng, look.Relics,
+                                                 allowBossRarity: isBossFight);
                 }
                 Debug.Log("[ResultPanel] 抽出遗物 " + _offered.Count + " 个（act=" + actR +
                           " bossLike=" + bossLike + "）");

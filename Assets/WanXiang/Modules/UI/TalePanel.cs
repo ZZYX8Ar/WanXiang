@@ -114,7 +114,7 @@ namespace WanXiang.Modules.UI
             if (_event != null)
             {
                 _picked = -1;
-                if (_tmpTitle != null) _tmpTitle.text = "不期而遇 · " + _event.Title;
+                if (_tmpTitle != null) _tmpTitle.text = "奇遇 · " + _event.Title;
                 if (_tmpQuote != null) _tmpQuote.text = "";
                 if (_tmpStory != null) _tmpStory.text = _event.Story;
                 for (int i = 0; i < _tmpOpts.Length; i++)
@@ -217,7 +217,7 @@ namespace WanXiang.Modules.UI
                 if (_tmpStory != null) _tmpStory.text = result;
                 var cb = _eventCallback; _eventCallback = null; _event = null;
                 cb?.Invoke(index);
-                BackToMap(true);   // ★ 事件也走"完成即推进节点"（与异闻一致），不要只 CloseSelf
+                BackToMapAfterDelay();   // ★ 先让玩家看清结果，再推进节点（原来瞬间跳过）
                 return;
             }
             var run = WanXiang.Run.RunSave.Current;
@@ -231,6 +231,12 @@ namespace WanXiang.Modules.UI
             Apply(index);
             DropFragment(_current.FragmentBeast);   // ★ v6：做完异闻掉落相关异兽的剧情碎片
             BackToMap(true);   // ★ 做出选择 = 异闻完成 ， 保留 PendingCommit 让节点推进
+        }
+
+        private async void BackToMapAfterDelay()
+        {
+            await UniTask.Delay(1200);
+            BackToMap(true);
         }
 
         private async void CloseSoon()
