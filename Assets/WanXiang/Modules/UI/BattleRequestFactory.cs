@@ -14,7 +14,10 @@ namespace WanXiang.Modules.UI
 {
     public static class BattleRequestFactory
     {
-        public static bool TryBuild(ContentCatalogSO catalog, string title, string weather,
+        
+        /// <summary>最近一次命中的遭遇编队（编队界面用来显示"这队是谁 + 破局点"）。</summary>
+        public static WanXiang.Campaign.EncounterDef LastEncounter;
+public static bool TryBuild(ContentCatalogSO catalog, string title, string weather,
                                     ulong seed, out BattleRequest req)
         {
             req = null;
@@ -330,6 +333,7 @@ namespace WanXiang.Modules.UI
                     if (list.Count > 0)
                     {
                         entries = list.ToArray();
+                        LastEncounter = row;
                         UnityEngine.Debug.Log("[BattleRequestFactory] 遭遇表命中：" + row.Name +
                                               "（" + kindName + "·第" + act + "幕）" + list.Count + " 只，" +
                                               "强度×" + row.Scale.ToString("0.00") + "｜" + row.Synergy);

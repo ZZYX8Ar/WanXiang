@@ -197,8 +197,12 @@ namespace WanXiang.Modules.UI
             // ⚠ 原来是 "敌方强度 BP 7.01"（EnemyBudget 的计价口径，是个"预算价格"不是战力）
             //   ， 玩家看不懂（用户实测报障）。改用战力：与上方我方数字同一把尺，可比。
             if (_tmpEnemyPower != null)
+            {
+                var enc = BattleRequestFactory.LastEncounter;
                 _tmpEnemyPower.text = "敌方总战力 " + WanXiang.Battle.Core.BattlePower.Sum(enemies, req.EnemyMul)
-                                    + "（" + enemies.Count + " 只）";
+                                    + "（" + enemies.Count + " 只）"
+                                    + (enc != null ? "\n" + enc.Name + "｜破局：" + enc.Synergy : "");
+            }
         }
 
         // ================================================================
