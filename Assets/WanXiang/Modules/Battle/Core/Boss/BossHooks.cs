@@ -311,10 +311,12 @@ namespace WanXiang.Battle.Core
         private readonly float _threshold;
         private readonly Action<BattleState, BattleUnit> _onCross;
         private readonly bool _once;
+        private readonly string _label;
         private bool _fired;
-        public PhaseHook(BattleUnit boss, float threshold, Action<BattleState, BattleUnit> onCross, bool once = true)
+        public PhaseHook(BattleUnit boss, float threshold, Action<BattleState, BattleUnit> onCross,
+                         bool once = true, string label = null)
         {
-            _boss = boss; _threshold = threshold; _onCross = onCross; _once = once;
+            _boss = boss; _threshold = threshold; _onCross = onCross; _once = once; _label = label;
         }
         public override void OnTurnStart(BattleState st)
         {
@@ -322,6 +324,10 @@ namespace WanXiang.Battle.Core
             if (_boss == null || !_boss.IsAlive) return;
             if (_boss.HpPercent > _threshold) return;
             _fired = true;
+            // ★ 2026-11-02：阶段切换必须让玩家看见（原来只有数值变化，玩家不知道"它变招了"）
+            BossHint.SetOnBoss(st, string.IsNullOrEmpty(_label)
+                ? "首领进入下一阶段（" + Mathf.RoundToInt(_threshold * 100f) + "%）"
+                : _label);
             _onCross(st, _boss);
         }
     }
