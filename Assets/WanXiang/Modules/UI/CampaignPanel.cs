@@ -3053,7 +3053,7 @@ if (_tmpActTitle != null)
                             },
                             new WanXiang.Campaign.EventChoice
                             {
-                                Text = "化形（随机一只未进化的异兽进化，路线随机）",
+                                Text = "化形（消耗 1 进化素材，随机一只未进化的异兽进化）",
                                 Effect = WanXiang.Campaign.EventEffect.Evolve, Value = 0,
                             },
                             new WanXiang.Campaign.EventChoice

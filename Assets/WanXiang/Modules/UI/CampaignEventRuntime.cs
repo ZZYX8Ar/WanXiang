@@ -76,12 +76,15 @@ namespace WanXiang.Modules.UI
 
                 case EventEffect.Evolve:
                 {
+                    // ★ 2026-11-02 进化要花素材：背包里没有就明说，不静默失败
+                    if (run.Materials < 1) return "缺少进化素材（需 1 个，现有 " + run.Materials + "）";
                     var id = PickTeamBeast(run, wantEvolved: false, preferMasteryRoom: false);
                     if (string.IsNullOrEmpty(id)) return "队伍里没有可进化的异兽";
                     int route = (c.Value == 1 || c.Value == 2) ? c.Value
                                 : (UnityEngine.Random.value < 0.5f ? 1 : 2);
+                    run.Materials -= 1;
                     run.Evolve(id, route);
-                    return id + " 进化（路线 " + (route == 1 ? "A·消耗化" : "B·引爆化") + "）";
+                    return id + " 进化（路线 " + (route == 1 ? "A·消耗化" : "B·引爆化") + "，余素材 " + run.Materials + "）";
                 }
 
                 case EventEffect.TurnLimit:
@@ -93,9 +96,20 @@ namespace WanXiang.Modules.UI
                     return "本幕回合上限 " + (c.Value >= 0 ? "+" : "") + c.Value + "（待接战斗参数）";
 
                 case EventEffect.GrantMaterial:
-                    // TODO: 进化素材系统未落地，先折算灵卵
-                    run.Eggs += Mathf.Max(0, c.Value) * 40;
-                    return "+" + (Mathf.Max(0, c.Value) * 40) + " 灵卵（素材系统待接）";
+                    if (c.Value >= 0)
+                    {
+                        run.Materials += c.Value;
+                        return "+" + c.Value + " 进化素材（现有 " + run.Materials + "）";
+                    }
+                    // 负值 = 消耗素材（不够就换灵卵补偿）
+                    if (run.Materials + c.Value < 0)
+                    {
+                        int pay = (1 + c.Value) * 40;      // 缺 1 个折 40 灵卵
+                        run.Eggs = Mathf.Max(0, run.Eggs - pay);
+                        return "素材不足，改扣 " + pay + " 灵卵";
+                    }
+                    run.Materials += c.Value;
+                    return "消耗 " + (-c.Value) + " 素材（余 " + run.Materials + "）";
             }
             return "（未处理的效果）";
         }
