@@ -3710,7 +3710,7 @@ if (life < 0.2f) life = 0.2f;
             float ph = Mathf.Abs(v.Body.transform.lossyScale.y) > 0.0001f ? Mathf.Abs(v.Body.transform.lossyScale.y) : 1f;
             // ★ 2026-11-02：**统一直径**（格子边长 ×1.02）—— 大小一致才不像"随机泡泡"。
             //   长边方案会让大立绘的圈特别大、小立绘特别小（用户截图实锤）。
-            float dia = Cell * 0.78f;   // ★ 用户：太大 ⇒ 缩到 0.78 格
+            float dia = Cell * 0.68f;   // ★ 再缩：0.78 → 0.68
             float spSize = Mathf.Max(0.001f, sp.bounds.size.x);
             go.transform.localScale = new Vector3(dia / pw / spSize, dia / ph / spSize, 1f);
 

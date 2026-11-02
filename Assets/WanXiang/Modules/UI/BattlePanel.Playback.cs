@@ -178,6 +178,10 @@ namespace WanXiang.Modules.UI
                     var k2 = _play.Current.Kind;
                     float w2 = IntervalOf(k2) / Mathf.Max(1f, _speed);
                     if (MustSee(k2)) w2 = Mathf.Max(w2, 0.36f / Mathf.Max(1f, _speed));
+                    // ★ 2026-11-02：回合开始先让横幅亮 1.1s（真实时间，不吃倍速），
+                    //   "第 N 回合 · 我方/敌方"看完了异兽才开始动 —— 顺序感才对。
+                    if (k2 == WanXiang.Battle.Core.BattleEventKind.TurnStart)
+                        w2 = Mathf.Max(w2, 1.1f);
                     await UniTask.Delay(TimeSpan.FromSeconds(w2), cancellationToken: ct);
                     continue;
                 }
