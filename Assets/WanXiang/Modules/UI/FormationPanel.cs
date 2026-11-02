@@ -566,7 +566,11 @@ namespace WanXiang.Modules.UI
                     lv.fontSize = 16f;
                     lv.alignment = TextAlignmentOptions.TopRight;
                     lv.raycastTarget = false;
-                    lv.text = "Lv" + runNow.PlayerLevel;
+                    // 进化标记 + 专精概览（设计稿 §6）
+                    bool evo = runNow.IsEvolved(_all[idx].Id);
+                    int mSum = 0;
+                    for (int ms = 0; ms < 3; ms++) mSum += runNow.MasteryOf(_all[idx].Id, ms);
+                    lv.text = "Lv" + runNow.PlayerLevel + (evo ? " · 觉" : "") + (mSum > 0 ? " · 专精" + mSum : "");
                     lv.color = new Color(0.16f, 0.13f, 0.09f, 0.9f);
 
                     int hp = 100;
