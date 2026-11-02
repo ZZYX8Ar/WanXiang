@@ -202,6 +202,7 @@ namespace WanXiang.Modules.UI
                 run.EnsureMetaSnapshot();
 
                 WanXiang.Modules.UI.SkillOverrideBootstrap.EnsureInstalled();   // ★ 技能表只加载一次
+                WanXiang.Modules.UI.EncounterBootstrap.EnsureInstalled();      // ★ 遭遇表 + 引用校验
 
                 foreach (var id in run.Team)
                 {

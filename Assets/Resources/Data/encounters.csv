@@ -1,0 +1,7 @@
+act,nodeKind,comp,scale
+1,Encounter,b_fuman:3,1.00
+1,Elite,"b_manman:1,b_fuman:2",1.15
+1,Boss,"b_fuman:1,b_manman:1",1.20
+2,Encounter,"b_jiaozhi:2,b_chiba:1",1.05
+2,Elite,"b_chiba:1,b_jinjiao:1",1.25
+2,Boss,"b_manman:1,b_chiba:1,b_jinjiao:1",1.30
