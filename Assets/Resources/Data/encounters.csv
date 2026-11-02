@@ -1,20 +1,20 @@
 act,nodeKind,name,synergy,comp,scale
 1,Encounter,林地游猎,坦在前顶、输出压中、奶在后；破局点=先杀后排灌灌,zhuhuai@6;mengji@8;guanguan@2,1.00
-1,Encounter,藤影伏击,迷榖挡路、鹿蜀突进、絜钩后排上易伤；破局点=先拆迷榖 ,migu@6;lushu@8;xiegou@2,1.00
+1,Encounter,藤影伏击,迷榖挡路、鹿蜀突进、絜钩后排上易伤；破局点=先拆迷榖,migu@6;lushu@8;xiegou@2,1.00
 1,Elite,群兽首领,诸怀坦+双输出+灌灌奶；不杀奶就会一直回血,zhuhuai@6;mengji@8;lushu@3;guanguan@2,1.15
-1,Boss,藤海之主,蝮魇居中召唤，坦顶前排，奶在后排；破局点=先杀灌灌 ,b_manman@4;zhuhuai@6;mengji@8;guanguan@2;xiegou@0,1.20
+1,Boss,藤海之主,蝮魇居中召唤，坦顶前排，奶在后排；破局点=先杀灌灌,b_manman@4;zhuhuai@6;mengji@8;guanguan@2;xiegou@0,1.20
 2,Encounter,焦原游猎,肥遗坦在前，火鼠压中，鸩后排上毒；破局点=先杀鸩,feiyi@6;huoshu@8;zhen@2,1.05
 2,Encounter,焰羽伏击,肥遗+毕方前排双压，重明鸟后排解控；破局点=断奶,feiyi@6;bifang@8;chongming@2,1.05
 2,Elite,赤羽群首,肥遗坦、九婴+火鼠双输出、重明鸟奶；拖久必崩,feiyi@6;jiuying@8;huoshu@3;chongming@2,1.25
-2,Boss,赤地炎君,赤魃居中，肥遗顶前，重明鸟后排奶；破局点=切后排 ,b_chiba@4;feiyi@6;jiuying@8;chongming@2;zhen@0,1.30
+2,Boss,赤地炎君,赤魃居中，肥遗顶前，重明鸟后排奶；破局点=切后排,b_chiba@4;feiyi@6;jiuying@8;chongming@2;zhen@0,1.30
 3,Encounter,金戈游猎,豪彘坦+白猿输出+当康奶；破局点=先杀当康,haozhi@6;baiyuan@8;dangkang@2,1.10
-3,Encounter,山石截击,土蝼反伤顶前，山膏群伤压中，当康后排 ,tulou@6;shangao@8;dangkang@2,1.10
+3,Encounter,山石截击,土蝼反伤顶前，山膏群伤压中，当康后排,tulou@6;shangao@8;dangkang@2,1.10
 3,Elite,铁壁群首,狻猊坦、貔貅+白猿双输出、当康奶；久战不利,tulou@6;pixiu@8;baiyuan@3;dangkang@2,1.30
-3,Boss,鸣金之阵,归墟居中，土蝼顶前，当康后排；破局点=先断奶 ,b_guixu@4;tulou@6;pixiu@8;dangkang@2;baiyuan@0,1.35
+3,Boss,鸣金之阵,归墟居中，土蝼顶前，当康后排；破局点=先断奶,b_guixu@4;tulou@6;pixiu@8;dangkang@2;baiyuan@0,1.35
 4,Encounter,幽都游猎,旋龟坦+巴蛇输出+鲛人奶；破局点=先杀鲛人,xuangui@6;bashe@8;jiaoren@2,1.15
 4,Encounter,深潜截击,陵鲤挡路、相柳群伤、夫诸回血,lingli@6;xiangliu@8;fuzhu@2,1.15
 4,Elite,寒潭群首,陵鲤坦、相柳+巴蛇双输出、夫诸奶+xuangui@6;xiangliu@8;bashe@3;jiaoren@2,1.35
-4,Boss,玄冥之潮,溟鲲居中控场，陵鲤顶前，鲛人后排奶；破局点=切后排 ,b_mingkun@4;lingli@6;xiangliu@8;jiaoren@2;fuzhu@0,1.40
+4,Boss,玄冥之潮,溟鲲居中控场，陵鲤顶前，鲛人后排奶；破局点=切后排,b_mingkun@4;lingli@6;xiangliu@8;jiaoren@2;fuzhu@0,1.40
 5,Encounter,长夏游猎,豪彘坦+火鼠输出+当康奶；破局点=先断奶,haozhi@6;huoshu@8;dangkang@2,1.20
 5,Elite,终焉双煞,双核心分列中宫，豪彘顶前，貔貅压迫,jiuying@3;suanni@5;haozhi@6;pixiu@8,1.40
-5,Boss,天阙之主,溟鲲与赤魃双核心，豪彘+鲛人前后呼应；先断奶再集火 ,b_mingkun@3;b_chiba@5;haozhi@6;jiaoren@2;huoshu@8,1.50
+5,Boss,天阙之主,溟鲲与赤魃双核心，豪彘+鲛人前后呼应；先断奶再集火,b_mingkun@3;b_chiba@5;haozhi@6;jiaoren@2;huoshu@8,1.50
