@@ -328,6 +328,7 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                         // 精英/首领单独调 HP（不改攻击）：表里 hpMul 列，默认 1
                         if (row.HpMul > 0f && row.HpMul != 1f)
                             def.BaseHp = UnityEngine.Mathf.RoundToInt(def.BaseHp * row.HpMul);
+                        StripLegacyOnPlayerBeast(def);        // 敌方同样：CD 归零 + 清旧状态（用户：全部删掉）
                         ApplyEnemySkillOverrides(def);       // 敌方技能（配合向）
                         list.Add(WanXiang.Battle.Core.DeployEntry.Enemy(def, en.Slot).WithMul(mul));
                     }
@@ -500,6 +501,33 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
         }
     
         /// <summary>按技能 id 在全部异兽的技能里找（觉醒技池来源：90 个技能）。</summary>
+        /// <summary>
+        /// 我方异兽净化：①所有技能 CD = 0（用户：带 CD 的机制全部删掉）
+        /// ②移除效果里所有 ApplyStatus（旧状态：湿/冰蚀/裂甲/斩标/霜…，先清空，之后按新反应重加）
+        /// ③清掉 Trait（劫象是**敌方**词条，不该长在我方兽身上）
+        /// </summary>
+        private static void StripLegacyOnPlayerBeast(WanXiang.Battle.Core.BeastDef d)
+        {
+            if (d == null) return;
+            d.Trait = default;
+            var slots = new[] { d.Basic, d.Active, d.Ultimate, d.Awaken };
+            for (int i = 0; i < slots.Length; i++)
+            {
+                var sk = slots[i];
+                if (sk == null) continue;
+                sk.Cd = 0;
+                if (sk.Effects == null) continue;
+                var keep = new System.Collections.Generic.List<WanXiang.Battle.Core.EffectAtom>(sk.Effects.Length);
+                for (int e = 0; e < sk.Effects.Length; e++)
+                {
+                    var a = sk.Effects[e];
+                    if (a.Kind == WanXiang.Battle.Core.EffectAtomKind.ApplyStatus) continue;
+                    keep.Add(a);
+                }
+                sk.Effects = keep.ToArray();
+            }
+        }
+
         /// <summary>敌方专用技能覆盖（如"嘲讽挡路""全队回春"），让敌人之间有分工。</summary>
         private static void ApplyEnemySkillOverrides(WanXiang.Battle.Core.BeastDef d)
         {

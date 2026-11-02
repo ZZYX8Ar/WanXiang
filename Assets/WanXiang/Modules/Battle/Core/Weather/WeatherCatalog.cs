@@ -135,7 +135,7 @@ namespace WanXiang.Battle.Core
                 },
             },
 
-            // 08 小满：我方技能 CD 推进速度 +30%（确定性累积器，见 BattleUnit.CdProgressExtra）
+            // 08 小满（2026-11-02 改）：**取消 CD 机制** ⇒ 改为我方暴伤 +30%
             new TermEntry
             {
                 SolarIndex = 8,
@@ -143,7 +143,7 @@ namespace WanXiang.Battle.Core
                 {
                     Id = "solar_xiaoman", NodeName = "小满", BuffName = "麦气至",
                     Element = Element.Fire,
-                    CdAdvanceMulPlayer = 1.3f,
+                    CritDamageBonusPlayer = 0.30f,
                 },
             },
 
