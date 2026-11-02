@@ -947,7 +947,13 @@ namespace WanXiang.Modules.UI
                 : WanXiang.Campaign.SkillOverrideCatalog.Get(beastId, slot);
             if (ov != null)
             {
-                sb.Append("\n· ").Append(slotName).Append(' ').Append(ov.Name).Append('：').Append(ov.Desc);
+                string t = ov.Target switch
+                {
+                    "front" => "｜打最前排", "back" => "｜打最后排",
+                    "mid" => "｜打中排", "lowest" => "｜打残血", "highest" => "｜打最肉", _ => ""
+                };
+                sb.Append("\n· ").Append(slotName).Append(' ').Append(ov.Name)
+                  .Append(t).Append('：').Append(ov.Desc);
                 return;
             }
             AppendSkillLine(sb, slotName, sk);

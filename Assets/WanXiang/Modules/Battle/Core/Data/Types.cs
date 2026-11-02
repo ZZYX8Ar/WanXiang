@@ -111,6 +111,7 @@ namespace WanXiang.Battle.Core
         //  SingleFrontMost = 离施法者最近的那一排；SingleBackMost = 最远的那一排。
         SingleFrontMost = 10, // 最前排（离施法者最近）
         SingleBackMost = 11,  // 最后排（离施法者最远）
+        SingleMidRow = 12,    // ★ 2026-11-02：中排（三列的中间列；没有就退回最前排）
     }
 
     /// <summary>

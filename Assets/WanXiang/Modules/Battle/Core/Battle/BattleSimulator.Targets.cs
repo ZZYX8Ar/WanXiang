@@ -156,6 +156,19 @@ namespace WanXiang.Battle.Core
                     PickByRank(st, pool, into, src, false);
                     break;
 
+                case TargetSelector.SingleMidRow:
+                {
+                    // 中排 = FrontRankFor == 1 的那只；没有就退回最前排
+                    st.CollectAlive(BattleState.Opponent(src.Side), into);
+                    var mid = new List<BattleUnit>();
+                    for (int i = 0; i < into.Count; i++)
+                        if (into[i].Pos.IsValid && into[i].Pos.FrontRankFor(into[i].Side) == 1) mid.Add(into[i]);
+                    into.Clear();
+                    if (mid.Count > 0) into.Add(mid[0]);
+                    else PickByRank(st, pool, into, src, true);
+                    break;
+                }
+
                 case TargetSelector.RandomEnemy:
                 case TargetSelector.RandomEnemyMultiHit:
                 {

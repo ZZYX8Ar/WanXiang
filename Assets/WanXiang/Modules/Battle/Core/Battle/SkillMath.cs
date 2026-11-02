@@ -114,7 +114,8 @@ namespace WanXiang.Battle.Core
                 case TargetSelector.RandomEnemyMultiHit: return "（随机敌方·多段）";
                 case TargetSelector.AdjacentToSelf: return "（自身相邻）";
                 case TargetSelector.AllOthers: return "（除自己外全场）";
-                case TargetSelector.SingleFrontMost: return "（最前排）";
+                case TargetSelector.SingleFrontMost: return "（打最前排）";
+                case TargetSelector.SingleMidRow: return "（打中排）";
                 case TargetSelector.SingleBackMost: return "（最后排）";
                 default: return "";
             }

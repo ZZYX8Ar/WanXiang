@@ -546,6 +546,7 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                     {
                         case "front":   ts = WanXiang.Battle.Core.TargetSelector.SingleFrontMost; break;
                         case "back":    ts = WanXiang.Battle.Core.TargetSelector.SingleBackMost; break;
+                        case "mid":     ts = WanXiang.Battle.Core.TargetSelector.SingleMidRow; break;
                         case "lowest":  ts = WanXiang.Battle.Core.TargetSelector.SingleLowestHp; break;
                         case "highest": ts = WanXiang.Battle.Core.TargetSelector.SingleHighestHp; break;
                         default:        ts = sk.PrimaryTarget; break;
