@@ -1881,6 +1881,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 SetShield2D(v, s.Shield);
                 SetAura2D(v, s);
+                ApplyCorruptTint(v);
                 // ---- 破绽/失衡条：随帧流更新（死亡清空）----
                 SetFlawBar2D(v,
                              s.Alive ? (s.FlawText ?? "") : "",
@@ -3179,6 +3180,20 @@ if (life < 0.2f) life = 0.2f;
                 case Element.Earth: return new Color(0.95f, 0.62f, 0.18f);   // 土：琥珀
                 default:            return Color.white;
             }
+        }
+
+        /// <summary>
+        /// 魇化表现（2026-11-02）：敌方**普通/精英异兽**立绘压成暗紫，
+        /// 与守关首领本体（保留原色）一眼区分。
+        /// ⛔ 必须从 BaseColor 每帧重算，直接乘当前 color 会逐帧叠黑。
+        /// </summary>
+        private static void ApplyCorruptTint(UnitView2D v)
+        {
+            if (v == null || v.Body == null || v.PlayerSide) return;
+            bool boss = !string.IsNullOrEmpty(v.DefId) && v.DefId.StartsWith("b_");
+            if (boss) return;
+            var b = v.BaseColor;
+            v.Body.color = new Color(b.r * 0.62f, b.g * 0.52f, b.b * 0.92f, b.a);
         }
 
         /// <summary>元素附着：脚下圈 = 元素色（恒定亮度）；血条右侧 4 段小圈 = 层数。</summary>
