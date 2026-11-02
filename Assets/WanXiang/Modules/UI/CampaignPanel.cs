@@ -1177,22 +1177,22 @@ if (injected != null && !injected.IsEmpty)
             }
 
 
+int lvHud = run != null ? run.PlayerLevel : 1;
 if (_tmpActTitle != null)
 {
    // ★ 秘境模式：标题写场域名，别写"第零幕"（Act=0 会渲染成"第零幕"，玩家一脸问号）。
        _tmpActTitle.text = _realmMode
         ? "秘境 · " + _graph.SeasonCn + "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚"
-            : "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn + " · 守关 " + _graph.BossName;
+            : "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn + " · 守关 " + _graph.BossName + "　｜　Lv " + lvHud + "　｜　素材 " + (run != null ? run.Materials : 0);
         if (!_realmMode) _tmpActTitle.text += "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
+        else _tmpActTitle.text += "　｜　Lv " + lvHud;
         // ★ 2026-10-21 用户："选了天象/孵穴之后，哪里有说明？" —— 顶栏直接写出挂起效果。
         if (!_realmMode && run != null)
         {
             var eff = new System.Text.StringBuilder();
-            if (run.GrowthPct != 0) eff.Append("成长 +").Append(run.GrowthPct).Append("%");
             int nextBuff = run.PlayerBuffPct + run.HealPending;
             if (nextBuff != 0) { if (eff.Length > 0) eff.Append(" · "); eff.Append("下场我方 ").Append(nextBuff > 0 ? "+" : "").Append(nextBuff).Append("%"); }
             if (run.EnemyBuffPct != 0) { if (eff.Length > 0) eff.Append(" · "); eff.Append("下场敌方 ").Append(run.EnemyBuffPct > 0 ? "+" : "").Append(run.EnemyBuffPct).Append("%"); }
-            if (run.EggHatchIn > 0) { if (eff.Length > 0) eff.Append(" · "); eff.Append("灵兽蛋 ").Append(run.EggHatchIn).Append(" 格后出壳"); }
             if (eff.Length > 0) _tmpActTitle.text += "　｜　" + eff;
         }
         }

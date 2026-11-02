@@ -2356,10 +2356,21 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             switch (e.Kind)
             {
                 case BattleEventKind.ActionBegin:
+                {
                     _actingId = e.ActorId;
+                    // ★ 2026-11-02：谁在行动 —— 回合横幅补上"我方/敌方"
+                    string sideCn = "我方行动";
+                    if (_views.TryGetValue(e.ActorId, out var actView) && !actView.PlayerSide) sideCn = "敌方行动";
+                    ShowTurnBanner(_turnNo > 0 ? ("第 " + _turnNo + " 回合 · " + sideCn) : sideCn);
                     break;
+                }
 
                 case BattleEventKind.TurnStart:
+                    _actingId = null;
+                    _turnNo = e.Turn;                       // ★ 回合数：每次开始都显示
+                    ShowTurnBanner("第 " + e.Turn + " 回合");
+                    break;
+
                 case BattleEventKind.BattleEnd:
                     _actingId = null;   // 回合结算 / 战斗结束期间不显示行动箭头
                     break;
@@ -2633,6 +2644,15 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
         public void Step(float dt, float fxDt = -1f)
         {
+            // 回合横幅淡出（0.55s 渐隐）
+            if (_turnBannerT > 0f && _turnBanner != null)
+            {
+                _turnBannerT -= dt;
+                float a = Mathf.Clamp01(_turnBannerT / 0.55f);
+                var c = _turnBanner.color; c.a = a; _turnBanner.color = c;
+                if (_turnBannerT <= 0f) _turnBanner.gameObject.SetActive(false);
+            }
+
             PollInspectClick();
 
             // 冲锋到位 → 补飘伤害数字（见 PlaySkillFx 的 OnImpact）
@@ -3670,6 +3690,38 @@ if (life < 0.2f) life = 0.2f;
 
             v.ShieldField = sr;
             v.ShieldMat = mat;
+        }
+
+        private TextMesh _turnBanner;
+        private float _turnBannerT;
+        private int _turnNo;
+
+        /// <summary>
+        /// 战斗回合横幅（屏幕上方居中）：每回合开始显示"第 N 回合"，每次行动补"我方/敌方行动"。
+        /// 用 TextMesh + 内置字体，不依赖任何 UI prefab。
+        /// </summary>
+        private void ShowTurnBanner(string msg)
+        {
+            if (_turnBanner == null)
+            {
+                var go = new GameObject("TurnBanner");
+                go.transform.SetParent(transform, false);
+                go.transform.position = new Vector3((PlayerX + EnemyX) * 0.5f, BoardY + 4.6f, -3f);
+                _turnBanner = go.AddComponent<TextMesh>();
+                var f = LegacyFont();
+                if (f != null) { _turnBanner.font = f; go.GetComponent<MeshRenderer>().sharedMaterial = f.material; }
+                _turnBanner.fontSize = 72;
+                _turnBanner.characterSize = 0.09f;
+                _turnBanner.anchor = TextAnchor.MiddleCenter;
+                _turnBanner.alignment = TextAlignment.Center;
+                _turnBanner.color = Color.white;
+                var mr = go.GetComponent<MeshRenderer>();
+                mr.sortingOrder = 60;
+            }
+            _turnBanner.text = msg;
+            _turnBanner.color = new Color(1f, 0.96f, 0.86f, 1f);
+            _turnBannerT = 1.1f;
+            _turnBanner.gameObject.SetActive(true);
         }
 
         private static Sprite _shieldCircle;
