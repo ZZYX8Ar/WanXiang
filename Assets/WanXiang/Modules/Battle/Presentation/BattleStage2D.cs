@@ -3692,8 +3692,10 @@ if (life < 0.2f) life = 0.2f;
             // 父级是 Body（可能带缩放），localScale = 目标世界尺寸 / 父级世界缩放 / 贴图原始尺寸
             float pw = Mathf.Abs(v.Body.transform.lossyScale.x) > 0.0001f ? Mathf.Abs(v.Body.transform.lossyScale.x) : 1f;
             float ph = Mathf.Abs(v.Body.transform.lossyScale.y) > 0.0001f ? Mathf.Abs(v.Body.transform.lossyScale.y) : 1f;
-            go.transform.localScale = new Vector3(worldW * 1.02f / pw / Mathf.Max(0.001f, sp.bounds.size.x),
-                                                  worldH * 1.02f / ph / Mathf.Max(0.001f, sp.bounds.size.y), 1f);
+            // ★ 取长边当直径、宽高用同一个值 ⇒ 永远是**正圆**（之前分别按宽高算，宽立绘就成了椭圆）
+            float dia = Mathf.Max(worldW, worldH) * 1.12f;
+            float spSize = Mathf.Max(0.001f, sp.bounds.size.x);
+            go.transform.localScale = new Vector3(dia / pw / spSize, dia / ph / spSize, 1f);
 
             var mat = new Material(sh);
             mat.SetFloat("_Strength", 0.8f);
@@ -3780,8 +3782,10 @@ if (life < 0.2f) life = 0.2f;
                 {
                     float dx = x - N * 0.5f + 0.5f, dy = y - N * 0.5f + 0.5f;
                     float d = Mathf.Sqrt(dx * dx + dy * dy);
-                    float a = Mathf.Clamp01((r - d) / 2f);
-                    px[y * N + x] = new Color(1f, 1f, 1f, a);
+                    // 只画**环**：外圈实、内侧 7px 渐隐到透明（中心全透，不盖立绘）
+                    float outer = Mathf.Clamp01((r - d) / 2f);
+                    float inner = Mathf.Clamp01((d - (r - 7f)) / 5f);
+                    px[y * N + x] = new Color(1f, 1f, 1f, Mathf.Min(outer, inner));
                 }
             tex.SetPixels(px); tex.Apply(); tex.wrapMode = TextureWrapMode.Clamp;
             _shieldCircle = Sprite.Create(tex, new Rect(0, 0, N, N), new Vector2(0.5f, 0.5f), 100f);
@@ -3793,10 +3797,8 @@ if (life < 0.2f) life = 0.2f;
         {
             bool on = shield > 0;
 
-            // ⛔ 2026-11-02 用户连续两次反馈"护盾形状不对" ⇒ **不再套任何膜**，
-            //   只保留血条旁的蓝色护盾牌与数字（信息足够，且不会出现奇怪的圈）。
-            if (on && v.ShieldField != null && v.ShieldField.gameObject.activeSelf)
-                v.ShieldField.gameObject.SetActive(false);
+            // ★ 2026-11-02：要的是**正圆环**，不是删掉（用户原话）。
+            if (on) EnsureShieldField(v);
             if (v.ShieldField != null)
             {
                 if (!on)
