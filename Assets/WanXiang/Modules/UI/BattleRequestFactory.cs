@@ -294,6 +294,32 @@ namespace WanXiang.Modules.UI
             var entries = (boss || champion)
                 ? provider.BossSquadFor(act, seed)
                 : provider.EnemiesFor(act, term, kind, seed);
+
+            // ★★ 2026-11-02 表驱动编队：命中 encounters.csv 就**按表**部署（含站位），否则回退 provider。
+            //   表的 nodeKind 只有 Encounter / Elite / Boss 三种；其余节点（事件/商店）不会进战斗。
+            {
+                EncounterBootstrap.EnsureInstalled();
+                string kindName = (boss || champion) ? "Boss"
+                                : (kind == WanXiang.Campaign.NodeKind.Elite) ? "Elite" : "Encounter";
+                var row = WanXiang.Campaign.EncounterTable.Pick(act, kindName, seed);
+                if (row != null && row.Entries != null && row.Entries.Length > 0)
+                {
+                    var list = new System.Collections.Generic.List<WanXiang.Battle.Core.DeployEntry>();
+                    foreach (var en in row.Entries)
+                    {
+                        var def = WanXiang.Battle.Core.BossCatalog.BuildBoss(en.Id);
+                        if (def == null) continue;
+                        list.Add(WanXiang.Battle.Core.DeployEntry.Enemy(def, en.Slot).WithMul(row.Scale));
+                    }
+                    if (list.Count > 0)
+                    {
+                        entries = list.ToArray();
+                        UnityEngine.Debug.Log("[BattleRequestFactory] 遭遇表命中：" + row.Name +
+                                              "（" + kindName + "·第" + act + "幕）" + list.Count + " 只，" +
+                                              "强度×" + row.Scale.ToString("0.00") + "｜" + row.Synergy);
+                    }
+                }
+            }
             if (boss)
             {
                 string bossId = entries.Length > 0 && entries[0].Def != null ? entries[0].Def.Id : "(无)";
