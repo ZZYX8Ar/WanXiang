@@ -524,6 +524,11 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                     if (a.Kind == WanXiang.Battle.Core.EffectAtomKind.ApplyStatus) continue;
                     keep.Add(a);
                 }
+                // ⛔ 全被清空 ⇒ 技能变成"空技能"，AI/玩家都没东西可放 ⇒ **回合卡死**（用户实测）。
+                //   兜底：补一个 1.0× 单体伤害，保证每条技能永远有动作。
+                if (keep.Count == 0)
+                    keep.Add(WanXiang.Battle.Core.EffectAtom.Damage(
+                        WanXiang.Battle.Core.TargetSelector.SingleFrontMost, 1.0f));
                 sk.Effects = keep.ToArray();
             }
         }
