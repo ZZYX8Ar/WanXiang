@@ -3018,8 +3018,36 @@ if (_tmpActTitle != null)
                     return;
                 }
                 case WanXiang.Campaign.NodeKind.Forge:
-                    OpenPanelAsync<ForgePanel>().Forget();
+                {
+                    // ★ 2026-11-02 工坊改为「专精 / 进化」三选一：复用事件面板，不新建 prefab。
+                    //   （旧 ForgePanel 是"融合两只异兽"，与新的局内养成不是一回事。）
+                    var forge = new WanXiang.Campaign.EventDef
+                    {
+                        Id = "ev_forge_node",
+                        Title = "铸工坊",
+                        Story = "炉火正旺。老匠人问：你想让谁变强一点？",
+                        Choices = new[]
+                        {
+                            new WanXiang.Campaign.EventChoice
+                            {
+                                Text = "淬炼（随机一只上阵异兽的随机技能 专精 +1）",
+                                Effect = WanXiang.Campaign.EventEffect.GrantMastery, Value = 1,
+                            },
+                            new WanXiang.Campaign.EventChoice
+                            {
+                                Text = "化形（随机一只未进化的异兽进化，路线随机）",
+                                Effect = WanXiang.Campaign.EventEffect.Evolve, Value = 0,
+                            },
+                            new WanXiang.Campaign.EventChoice
+                            {
+                                Text = "只取炉灰（+40 灵卵）",
+                                Effect = WanXiang.Campaign.EventEffect.GainEggs, Value = 40,
+                            },
+                        },
+                    };
+                    TalePanel.OpenEvent(forge, null);
                     return;
+                }
                 case WanXiang.Campaign.NodeKind.Omen:
                     OpenPanelAsync<OmenPanel>().Forget();
                     return;
