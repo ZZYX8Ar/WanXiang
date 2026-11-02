@@ -226,6 +226,7 @@ namespace WanXiang.Modules.UI
                     //   （等级上限/专精上限/觉醒技的解锁在各自系统里读 run.IsEvolved）。
                     if (run.IsEvolved(id))
                     {
+                        WanXiang.Battle.Presentation.BattleStage2D.AwakenedDefIds.Add(d.Id);
                         d.BaseAtk = UnityEngine.Mathf.RoundToInt(d.BaseAtk * 1.10f);
                         d.BaseHp = UnityEngine.Mathf.RoundToInt(d.BaseHp * 1.10f);
                     }
@@ -500,6 +501,26 @@ namespace WanXiang.Modules.UI
                 var sk = slots[slot];
                 if (ov == null || sk == null) continue;
                 if (!string.IsNullOrEmpty(ov.Name)) sk.Name = ov.Name;
+                if (!string.IsNullOrEmpty(ov.Target))
+                {
+                    WanXiang.Battle.Core.TargetSelector ts;
+                    switch (ov.Target.ToLowerInvariant())
+                    {
+                        case "front":   ts = WanXiang.Battle.Core.TargetSelector.SingleFrontMost; break;
+                        case "back":    ts = WanXiang.Battle.Core.TargetSelector.SingleBackMost; break;
+                        case "lowest":  ts = WanXiang.Battle.Core.TargetSelector.SingleLowestHp; break;
+                        case "highest": ts = WanXiang.Battle.Core.TargetSelector.SingleHighestHp; break;
+                        default:        ts = sk.PrimaryTarget; break;
+                    }
+                    sk.PrimaryTarget = ts;
+                    if (sk.Effects != null)
+                        for (int e2 = 0; e2 < sk.Effects.Length; e2++)
+                        {
+                            var at2 = sk.Effects[e2];
+                            if (at2.Target != WanXiang.Battle.Core.TargetSelector.Self) at2.Target = ts;
+                            sk.Effects[e2] = at2;
+                        }
+                }
                 if (!string.IsNullOrEmpty(ov.Desc)) sk.Description = ov.Desc;
                 if (sk.Effects != null && ov.PowerMul != 1f)
                     for (int e = 0; e < sk.Effects.Length; e++)

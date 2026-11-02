@@ -131,6 +131,10 @@ namespace WanXiang.Battle.Presentation
 
     public sealed class BattleStage2D : MonoBehaviour
     {
+        /// <summary>已进化的异兽 DefId 集合（组队侧写入，舞台据此换觉醒材质）。</summary>
+        public static readonly System.Collections.Generic.HashSet<string> AwakenedDefIds
+            = new System.Collections.Generic.HashSet<string>();
+
         private const float Cell = 1.75f;        // 格子边长（横向）
         /// <summary>行间距 = Cell × 本值。⛔ BuildBoard 的格子尺寸与 CellPos 的落位**共用**它。</summary>
         public const float BoardRowGap = 0.72f;
@@ -1192,6 +1196,20 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
                 // 立绘：SpriteCatalog 按 BeastDef.Id 查；查不到回退五行色块
                 var bodySr = root.AddComponent<SpriteRenderer>();
+                // ★ 2026-11-02 觉醒立绘：已进化的我方异兽换金色描边/流光材质
+                if (player && u.Def != null && AwakenedDefIds.Contains(u.Def.Id))
+                {
+                    var awSh = Shader.Find("WanXiang/AwakenSprite");
+                    if (awSh != null)
+                    {
+                        var am = new Material(awSh) { hideFlags = HideFlags.HideAndDontSave };
+                        am.SetFloat("_Amount", 1f);
+                        am.SetFloat("_Rim", 0.004f);
+                        am.SetFloat("_Inner", 0.22f);
+                        bodySr.sharedMaterial = am;
+                    }
+                }
+
                 // ★ 2026-11-02 魇化立绘：敌方普通/精英的**本体材质**换成 CorruptSprite
                 //   （裂痕 + 脏污 + 紫染 + 脉动都在 shader 里，同 mesh 同 uv 不会错位）。
                 // ⛔ 2026-11-02 紧急回退：换材质后敌方立绘**整个不显示**（shader 未通过验证），

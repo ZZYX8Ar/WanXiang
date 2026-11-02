@@ -19,6 +19,7 @@ namespace WanXiang.Campaign
         public string Desc;           // 写清【挂】【消耗】【引爆】与层数
         public float PowerMul = 1f;   // 相对原技能的倍率
         public int HitsDelta;         // 段数变化
+        public string Target;         // 目标选择覆盖：Front / Back / Lowest / Highest（空=保持原样）
     }
 
     public static class SkillOverrideCatalog

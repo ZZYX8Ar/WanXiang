@@ -31,6 +31,7 @@ namespace WanXiang.Modules.UI
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 var c = SplitCsv(line);
                 if (c.Count < 7 || string.IsNullOrEmpty(c[1])) continue;
+                while (c.Count < 8) c.Add("");
                 list.Add(new SkillOverride
                 {
                     Enemy = c[0].Trim().Equals("Enemy", System.StringComparison.OrdinalIgnoreCase),
@@ -40,6 +41,7 @@ namespace WanXiang.Modules.UI
                     Desc = c[4].Trim(),
                     PowerMul = ParseFloat(c[5], 1f),
                     HitsDelta = ParseInt(c[6]),
+                    Target = c[7].Trim(),
                 });
             }
 
