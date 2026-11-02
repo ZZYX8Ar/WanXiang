@@ -41,6 +41,7 @@ namespace WanXiang.Battle.Presentation
         /// <summary>元素附着指示（2026-10-31）：头顶一颗元素色圆点 + 层数。</summary>
         public SpriteRenderer AuraDot;      // 附着徽章底板
         public SpriteRenderer[] AuraPips;   // 4 格层数刻度
+        public Material CorruptMat;             // 魇化材质（敌方普通/精英专用）
         public SpriteRenderer AuraCorrupt;      // 魇化紫雾（敌方普通/精英）
         public SpriteRenderer AuraStacksRing;   // 血条右侧 4 段层数小圈
         public GameObject AuraLabelRoot;    // 附着大字标签根（已停用）
@@ -1191,6 +1192,24 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
                 // 立绘：SpriteCatalog 按 BeastDef.Id 查；查不到回退五行色块
                 var bodySr = root.AddComponent<SpriteRenderer>();
+                // ★ 2026-11-02 魇化立绘：敌方普通/精英的**本体材质**换成 CorruptSprite
+                //   （裂痕 + 脏污 + 紫染 + 脉动都在 shader 里，同 mesh 同 uv 不会错位）。
+                if (!player && u.Def != null && !u.Def.Id.StartsWith("b_"))
+                {
+                    var corruptSh = Shader.Find("WanXiang/CorruptSprite");
+                    if (corruptSh != null)
+                    {
+                        var cm = new Material(corruptSh) { hideFlags = HideFlags.HideAndDontSave };
+                        cm.SetFloat("_Amount", 0.85f);
+                        cm.SetFloat("_CrackScale", 7f);
+                        cm.SetFloat("_CrackWidth", 0.06f);
+                        cm.SetFloat("_Dirt", 0.45f);
+                        cm.SetFloat("_Pulse", 0.35f);
+                        bodySr.sharedMaterial = cm;
+                        view.CorruptMat = cm;
+                    }
+                }
+
                 var sprite = catalog != null ? catalog.Get(u.Def.Id) : null;
                 // ★ 秘境首领：这些 id 不在 SpriteCatalog 里，靠外部注册的覆盖图
                 if (PortraitOverrides.TryGetValue(u.Def.Id, out var ov) && ov != null) sprite = ov;
@@ -1882,7 +1901,6 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 SetHpBar2D(v, s.Hp, s.MaxHp);
                 SetShield2D(v, s.Shield);
                 SetAura2D(v, s);
-                ApplyCorruptTint(v);
                 SetCorruptAura(v, s.Alive && !(v.DefId != null && v.DefId.StartsWith("b_")));
                 // ---- 破绽/失衡条：随帧流更新（死亡清空）----
                 SetFlawBar2D(v,
@@ -2390,7 +2408,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         // ★ 元素反应（2026-10-17）：认 BattleEvent.Reaction 标记，**不解析 Note**
                         //   （解析文案是错的做法，改一句措辞就会让演出失效）。
                         bool reaction = e.Reaction != ReactionKind.None;
-                        if (!hit.PlayerSide) SpawnCorruptPs(hit);      // ★ 魇化：紫雾（ParticleSystem）
+                        if (!hit.PlayerSide) SpawnCorruptBurst(hit);   // 魇化：紫碎片（Sprite）
 
                         if (reaction)
                         {
