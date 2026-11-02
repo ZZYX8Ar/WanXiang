@@ -1,15 +1,20 @@
 act,nodeKind,name,synergy,comp,scale
-1,Encounter,藤奴斥候,两只藤奴分列两翼包抄，逼你先清侧翼, b_fuman@1;b_fuman@7,1.00
-1,Encounter,蚀骨伏击,白刃正面压上，藤奴绕后补刀,b_bairen@3;b_fuman@5,1.00
-1,Elite,双生藤缚,蝮魇居中召唤，两只藤奴卡住左右两路,b_manman@4;b_fuman@2;b_fuman@6,1.15
-1,Boss,藤海之主,蝮魇本体居中，随从占角形成十字包围,b_manman@4;b_fuman@0;b_fuman@8,1.20
-2,Encounter,焦土前锋,双焦螭并列前排，靠灼烧磨血,b_jiaozhi@1;b_jiaozhi@7,1.05
-2,Encounter,火线压制,赤魃后排压阵，焦螭顶在前线,b_jiaozhi@3;b_chiba@5,1.05
-2,Elite,焚风双煞,赤魃中军放大招，双烬蛟分列侧翼收割,b_chiba@4;b_jinjiao@2;b_jinjiao@6,1.25
-2,Boss,赤地炎君,赤魃居中，烬蛟护左，焦螭扰右,b_chiba@4;b_jinjiao@1;b_jiaozhi@7,1.30
-3,Encounter,金戈守望,双白刃前后夹击，考验格挡节奏,b_bairen@1;b_bairen@5,1.10
-3,Elite,铁壁合击,归墟顶前排抗伤，双白刃从后方切入,b_guixu@4;b_bairen@2;b_bairen@6,1.30
-3,Boss,鸣金之阵,归墟镇中，双白刃护两翼，越拖越难打,b_guixu@4;b_bairen@0;b_bairen@8,1.35
-4,Encounter,幽都行者,鸿蒙游走，藤奴远程骚扰,b_hongmeng@3;b_fuman@7,1.15
-4,Elite,双生幽影,鸿蒙居中，双溟鲲分列两侧轮流控场,b_hongmeng@4;b_mingkun@2;b_mingkun@6,1.35
-4,Boss,玄冥之潮,溟鲲居中控场，鸿蒙护左，幽影绕右,b_mingkun@4;b_hongmeng@1;b_hongmeng@7,1.40
+1,Encounter,藤奴斥候,三路收缩：左右两翼先动，中路压上,b_fuman@1;b_fuman@5;b_fuman@7,1.00
+1,Encounter,蚀骨伏击,双白刃前后夹击，藤奴远程补刀,b_bairen@3;b_bairen@5;b_fuman@1,1.00
+1,Elite,双生藤缚,蝮魇中宫召唤，三只藤奴分列三角围杀,b_manman@4;b_fuman@0;b_fuman@2;b_fuman@6,1.15
+1,Boss,藤海之主,蝮魇居中，四只藤奴占四角成十字包围,b_manman@4;b_fuman@0;b_fuman@2;b_fuman@6;b_fuman@8,1.20
+2,Encounter,焦土前锋,三只焦螭三路灼烧，靠 DoT 磨血,b_jiaozhi@1;b_jiaozhi@5;b_jiaozhi@7,1.05
+2,Encounter,火线压制,赤魃后排压阵，焦螭顶前线,b_jiaozhi@3;b_chiba@5;b_jiaozhi@7,1.05
+2,Elite,焚风双煞,赤魃中军放大招，双烬蛟侧翼收割+焦螭骚扰,b_chiba@4;b_jinjiao@2;b_jinjiao@6;b_jiaozhi@0,1.25
+2,Boss,赤地炎君,赤魃居中，烬蛟护两翼，焦螭占角持续灼烧,b_chiba@4;b_jinjiao@1;b_jinjiao@7;b_jiaozhi@0;b_jiaozhi@8,1.30
+3,Encounter,金戈守望,三只白刃轮流格挡压制，考验 QTE 节奏,b_bairen@1;b_bairen@5;b_bairen@7,1.10
+3,Encounter,铁壁前压,归墟顶正面，白刃从两侧切入,b_guixu@4;b_bairen@2;b_bairen@6,1.10
+3,Elite,铁壁合击,归墟抗伤护主，三白刃从三个方向切入,b_guixu@4;b_bairen@0;b_bairen@2;b_bairen@6,1.30
+3,Boss,鸣金之阵,归墟镇中，四白刃护四角，越拖越难打,b_guixu@4;b_bairen@0;b_bairen@2;b_bairen@6;b_bairen@8,1.35
+4,Encounter,幽都行者,鸿蒙游走，两只藤奴远程骚扰,b_hongmeng@3;b_fuman@1;b_fuman@7,1.15
+4,Encounter,深潜伏击,溟鲲居中控场，鸿蒙两侧包抄,b_mingkun@4;b_hongmeng@2;b_hongmeng@6,1.15
+4,Elite,双生幽影,鸿蒙居中，三只溟鲲轮流控场,b_hongmeng@4;b_mingkun@0;b_mingkun@2;b_mingkun@6,1.35
+4,Boss,玄冥之潮,溟鲲控场，四只鸿蒙占角轮转,b_mingkun@4;b_hongmeng@0;b_hongmeng@1;b_hongmeng@7;b_hongmeng@8,1.40
+5,Encounter,长夏守卫,三只焦螭压前线，逼你速清,b_jiaozhi@1;b_jiaozhi@5;b_jiaozhi@7,1.20
+5,Elite,终焉双煞,两首领并列：归墟护左、赤魃压右,b_guixu@2;b_chiba@6;b_bairen@1;b_bairen@7,1.40
+5,Boss,天阙之主,双首领居中犄角，四随从占角,b_mingkun@2;b_chiba@6;b_fuman@0;b_fuman@8;b_bairen@4,1.50
