@@ -41,6 +41,8 @@ namespace WanXiang.Battle.Presentation
         /// <summary>元素附着指示（2026-10-31）：头顶一颗元素色圆点 + 层数。</summary>
         public SpriteRenderer AuraDot;      // 附着徽章底板
         public SpriteRenderer[] AuraPips;   // 4 格层数刻度
+        public float SpawnT;                    // >0 = 入场动画剩余时间（缩放弹出）
+        public float BaseScale = 1f;            // 入场缩放要乘回的原始 scale
         public Material CorruptMat;             // 魇化材质（敌方普通/精英专用）
         public SpriteRenderer AuraCorrupt;      // 魇化紫雾（敌方普通/精英）
         public SpriteRenderer AuraStacksRing;   // 血条右侧 4 段层数小圈
@@ -2359,9 +2361,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 {
                     _actingId = e.ActorId;
                     // ★ 2026-11-02：谁在行动 —— 回合横幅补上"我方/敌方"
-                    string sideCn = "我方行动";
-                    if (_views.TryGetValue(e.ActorId, out var actView) && !actView.PlayerSide) sideCn = "敌方行动";
-                    ShowTurnBanner(_turnNo > 0 ? ("第 " + _turnNo + " 回合 · " + sideCn) : sideCn);
+                    // ★ 2026-11-02 用户："敌人每动一下都显示没必要" ⇒ 只在回合开始显示一次
                     break;
                 }
 
@@ -2644,6 +2644,23 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
 
         public void Step(float dt, float fxDt = -1f)
         {
+            // 入场：0.85 → 1.0 缩放弹出（缓出），落地瞬间撒一圈尘
+            foreach (var kv in _views)
+            {
+                var uv = kv.Value;
+                if (uv == null || uv.Root == null || uv.SpawnT == null) continue;
+                if (uv.SpawnT <= 0f) continue;
+                uv.SpawnT -= dt;
+                float k = Mathf.Clamp01(1f - Mathf.Max(0f, uv.SpawnT) / 0.28f);
+                float sc = Mathf.Lerp(0.82f, 1f, Mathf.SmoothStep(0f, 1f, k));
+                uv.Root.transform.localScale = new Vector3(sc, sc, 1f) * uv.BaseScale;
+                if (uv.SpawnT <= 0f)
+                {
+                    uv.Root.transform.localScale = Vector3.one * uv.BaseScale;
+                    SpawnDust(uv);
+                }
+            }
+
             // 回合横幅淡出（0.55s 渐隐）
             if (_turnBannerT > 0f && _turnBanner != null)
             {
@@ -3700,6 +3717,31 @@ if (life < 0.2f) life = 0.2f;
         /// 战斗回合横幅（屏幕上方居中）：每回合开始显示"第 N 回合"，每次行动补"我方/敌方行动"。
         /// 用 TextMesh + 内置字体，不依赖任何 UI prefab。
         /// </summary>
+        /// <summary>入场落地尘：6 片小方块向外弹开（复用 _bursts，不用粒子系统）。</summary>
+        private void SpawnDust(UnitView2D v)
+        {
+            if (v == null || v.Root == null) return;
+            Vector3 c = v.Root.transform.position + new Vector3(0f, 0.12f, -1.05f);
+            for (int i = 0; i < 6; i++)
+            {
+                float a = Mathf.PI * 2f * i / 6f;
+                var go = new GameObject("Dust");
+                go.transform.SetParent(transform, false);
+                var col = new Color(0.78f, 0.72f, 0.60f, 0.55f);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = SolidSprite(col, 10, 10, 0, col);
+                sr.sortingOrder = 30;
+                go.transform.position = c;
+                go.transform.localScale = Vector3.one * 0.12f;
+                _bursts.Add(new Burst
+                {
+                    T = go.transform, Sr = sr,
+                    Vel = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.35f) * 1.2f,
+                    Life = 0.32f, Max = 0.32f,
+                });
+            }
+        }
+
         private void ShowTurnBanner(string msg)
         {
             if (_turnBanner == null)
@@ -3751,8 +3793,10 @@ if (life < 0.2f) life = 0.2f;
         {
             bool on = shield > 0;
 
-            // ★ T5 护盾膜：有护盾就套一层六边形能量膜，破了就收掉
-            if (on) EnsureShieldField(v);
+            // ⛔ 2026-11-02 用户连续两次反馈"护盾形状不对" ⇒ **不再套任何膜**，
+            //   只保留血条旁的蓝色护盾牌与数字（信息足够，且不会出现奇怪的圈）。
+            if (on && v.ShieldField != null && v.ShieldField.gameObject.activeSelf)
+                v.ShieldField.gameObject.SetActive(false);
             if (v.ShieldField != null)
             {
                 if (!on)
