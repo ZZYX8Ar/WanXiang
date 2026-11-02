@@ -334,6 +334,7 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                     {
                         entries = list.ToArray();
                         LastEncounter = row;
+                        req.Title = row.Name;      // 战斗标题直接用编队名（"藤影伏击"），比"遭遇战"有信息量
                         UnityEngine.Debug.Log("[BattleRequestFactory] 遭遇表命中：" + row.Name +
                                               "（" + kindName + "·第" + act + "幕）" + list.Count + " 只，" +
                                               "强度×" + row.Scale.ToString("0.00") + "｜" + row.Synergy);
