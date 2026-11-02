@@ -274,6 +274,73 @@ BuildNodeMap();
             Debug.Log("[Campaign] 恢复战场待落地通过：节点 " + PendingCommit);
         }
 
+        private static bool _eventsCsvLoaded;
+
+        /// <summary>读取 Resources/Data/events.csv（放在本类内，避免新增顶层类型导致 Unity 解析不到）。</summary>
+        private static void EnsureEventsLoadedFromCsv()
+        {
+            if (_eventsCsvLoaded) return;
+            _eventsCsvLoaded = true;
+            var ta = UnityEngine.Resources.Load<UnityEngine.TextAsset>("Data/events");
+            if (ta == null) { Debug.LogWarning("[Campaign] 找不到 events.csv，用内置事件"); return; }
+
+            var order = new System.Collections.Generic.List<string>();
+            var choices = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<WanXiang.Campaign.EventChoice>>();
+            var meta = new System.Collections.Generic.Dictionary<string, WanXiang.Campaign.EventDef>();
+            var lines = ta.text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            int bad = 0;
+            for (int i = 1; i < lines.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                var c = SplitCsvLine(lines[i]);
+                if (c.Count < 7) { bad++; continue; }
+                string id = c[0].Trim();
+                if (!choices.ContainsKey(id))
+                {
+                    order.Add(id);
+                    choices[id] = new System.Collections.Generic.List<WanXiang.Campaign.EventChoice>();
+                    meta[id] = new WanXiang.Campaign.EventDef { Id = id, Title = c[1].Trim(), Story = c[2].Trim() };
+                }
+                WanXiang.Campaign.EventEffect eff;
+                if (!System.Enum.TryParse(c[5].Trim(), out eff))
+                {
+                    Debug.LogError("[Campaign] events.csv 第 " + (i + 1) + " 行未知效果：" + c[5]);
+                    eff = WanXiang.Campaign.EventEffect.Nothing;
+                }
+                choices[id].Add(new WanXiang.Campaign.EventChoice
+                {
+                    Text = c[4].Trim(), Effect = eff,
+                    Value = int.TryParse(c[6].Trim(), out int v) ? v : 0,
+                    ScopeId = c.Count > 7 ? c[7].Trim() : null,
+                });
+            }
+            if (order.Count == 0) { Debug.LogWarning("[Campaign] events.csv 无有效行"); return; }
+            var list = new System.Collections.Generic.List<WanXiang.Campaign.EventDef>(order.Count);
+            foreach (var id in order) { var d = meta[id]; d.Choices = choices[id].ToArray(); list.Add(d); }
+            WanXiang.Campaign.EventCatalog.Install(list.ToArray());
+            Debug.Log("[Campaign] events.csv 载入 " + list.Count + " 个事件" + (bad > 0 ? "（异常 " + bad + " 行）" : ""));
+        }
+
+        private static System.Collections.Generic.List<string> SplitCsvLine(string line)
+        {
+            var outp = new System.Collections.Generic.List<string>(10);
+            var sb = new System.Text.StringBuilder();
+            bool quote = false;
+            for (int i = 0; i < line.Length; i++)
+            {
+                char ch = line[i];
+                if (ch == '"')
+                {
+                    if (quote && i + 1 < line.Length && line[i + 1] == '"') { sb.Append('"'); i++; }
+                    else quote = !quote;
+                }
+                else if (ch == ',' && !quote) { outp.Add(sb.ToString()); sb.Length = 0; }
+                else sb.Append(ch);
+            }
+            outp.Add(sb.ToString());
+            return outp;
+        }
+
         private bool LandPendingCommit()
         {
             // ★★ 2026-10-20：出征/战斗期间**禁止**落地通过。
@@ -2932,6 +2999,7 @@ if (_tmpActTitle != null)
                 {
                     // ★ 2026-11-01「不期而遇」：Tale 节点改为**事件节点**（复用 Panel_Tale）。
                     //   事件按 seed+offset 固定抽取，同一局同一格永远是同一个事件（可复盘）。
+                    EnsureEventsLoadedFromCsv();
                     var prun2 = WanXiang.Run.RunSave.Current;
                     ulong evSeed = WanXiang.Battle.Core.CoreMath.Fnv1a(
                         "evt:" + (prun2 != null ? prun2.RunSeed : 0) + ":" + (prun2 != null ? prun2.NodeOffset : 0));
