@@ -3004,8 +3004,26 @@ if (_tmpActTitle != null)
                     ulong evSeed = WanXiang.Battle.Core.CoreMath.Fnv1a(
                         "evt:" + (prun2 != null ? prun2.RunSeed : 0) + ":" + (prun2 != null ? prun2.NodeOffset : 0));
                     var pool = WanXiang.Campaign.EventCatalog.All;
-                    var ev = (pool != null && pool.Length > 0)
-                             ? pool[(int)(evSeed % (ulong)pool.Length)] : null;
+                    WanXiang.Campaign.EventDef ev = null;
+                    if (pool != null && pool.Length > 0)
+                    {
+                        // ★ 2026-11-02：同一局不重复 —— 从种子位置往后找第一个没出现过的
+                        int start = (int)(evSeed % (ulong)pool.Length);
+                        for (int k = 0; k < pool.Length; k++)
+                        {
+                            var cand = pool[(start + k) % pool.Length];
+                            if (cand == null) continue;
+                            if (prun2 != null && prun2.SeenEvents != null && prun2.SeenEvents.Contains(cand.Id)) continue;
+                            ev = cand;
+                            break;
+                        }
+                        if (ev == null) ev = pool[start];      // 全见过了就允许重复
+                        if (prun2 != null && ev != null)
+                        {
+                            if (prun2.SeenEvents == null) prun2.SeenEvents = new System.Collections.Generic.List<string>();
+                            prun2.SeenEvents.Add(ev.Id);
+                        }
+                    }
                     if (ev != null)
                     {
                         Debug.Log("[Campaign] 不期而遇 → " + ev.Title);

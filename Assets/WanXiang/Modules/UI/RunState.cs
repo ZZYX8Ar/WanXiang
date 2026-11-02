@@ -88,6 +88,10 @@ namespace WanXiang.Run
             return next;
         }
 
+        /// <summary>本局已出现过的事件 id（避免同一局反复遇到同一个不期而遇）。</summary>
+        public System.Collections.Generic.List<string> SeenEvents
+            = new System.Collections.Generic.List<string>();
+
         /// <summary>事件给的"限时"：下一场必须在该回合数内通过（0 = 不限制）；打完即清。</summary>
         public int EventTurnLimit;
         /// <summary>每只兽的"战后血量百分比"（0~100）：阵亡记 50，编队界面据此显示重伤。</summary>
