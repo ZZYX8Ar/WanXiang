@@ -305,11 +305,15 @@ namespace WanXiang.Modules.UI
                 if (row != null && row.Entries != null && row.Entries.Length > 0)
                 {
                     var list = new System.Collections.Generic.List<WanXiang.Battle.Core.DeployEntry>();
-                    foreach (var en in row.Entries)
+                    for (int ei = 0; ei < row.Entries.Length; ei++)
                     {
+                        var en = row.Entries[ei];
                         var def = WanXiang.Battle.Core.BossCatalog.BuildBoss(en.Id);
                         if (def == null) continue;
-                        list.Add(WanXiang.Battle.Core.DeployEntry.Enemy(def, en.Slot).WithMul(row.Scale));
+                        // 首领战：第一条是本体吃满 scale，其余随从按旧的 BossSidekickMul(0.55) 打折
+                        float mul = row.Scale;
+                        if (kindName == "Boss" && ei > 0) mul *= WanXiang.Campaign.SeededEnemyProvider.BossSidekickMul;
+                        list.Add(WanXiang.Battle.Core.DeployEntry.Enemy(def, en.Slot).WithMul(mul));
                     }
                     if (list.Count > 0)
                     {
