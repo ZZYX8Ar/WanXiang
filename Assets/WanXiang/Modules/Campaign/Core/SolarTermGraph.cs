@@ -287,7 +287,7 @@ namespace WanXiang.Campaign
         /// 校验 MeetsV12Constraints 与 CampaignPanel 布局、CampaignSelfTest 都用它，别再各处写死 12。</summary>
         // ★ 2026-11-02 设计稿 v3：每幕 14 → **32 层**（战斗类约 15 场，其余为养成/事件节点）。
         //   ⚠ 生成器带约束重试，若某 seed 32 层无法满足会回退兜底图；自检里能看到层数不符。
-        public const int DefaultLayers = 26;
+        public const int DefaultLayers = 18;
 
         /// <summary>
         /// v1.2 路线图：每幕 <paramref name="layers"/> 层（默认 <see cref="DefaultLayers"/>），层内 2~3 个候选，
