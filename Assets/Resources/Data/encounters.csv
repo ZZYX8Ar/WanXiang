@@ -14,7 +14,7 @@ act,nodeKind,name,synergy,comp,scale,hpMul
 4,Encounter,幽都游猎,旋龟前排挡，巴蛇中排输出，鲛人后排奶,xuangui@2;bashe@4;jiaoren@6,0.80,1,1
 4,Encounter,深潜截击,陵鲤前排顶，相柳中排群伤，夫诸后排回血,lingli@2;xiangliu@4;fuzhu@6,0.80,1,1
 4,Elite,寒潭群首,陵鲤前排抗，相柳+巴蛇中排双输出，鲛人后排奶,lingli@2;xiangliu@4;bashe@1;jiaoren@6,0.85,0.82,0.72
-4,Boss,玄冥之潮,溟鲲居中控场，陵鲤前排，鲛人后排奶，夫诸中排,b_mingkun@4;lingli@2;xiangliu@5;jiaoren@6;fuzhu@7,0.85,1,1
+4,Boss,玄冥之潮,溟鲲居中控场，陵鲤前排，鲛人后排奶，夫诸中排,b_mingkun@4;lingli@2;xiangliu@5;jiaoren@6;fuzhu@7,0.85,1,0.85
 5,Encounter,长夏游猎,豪彘前排抗，火鼠中排输出，当康后排奶,haozhi@2;huoshu@4;dangkang@6,0.80,1,1
 5,Elite,终焉双煞,双核心分列中排两翼，豪彘前排，貔貅中排,jiuying@5;suanni@3;haozhi@2;pixiu@7,0.85,0.82,0.72
-5,Boss,天阙之主,溟鲲+赤魃占中排两翼(3/5)，豪彘前排，鲛人后排,b_mingkun@5;b_chiba@3;haozhi@2;jiaoren@6;huoshu@7,0.85,1,1
+5,Boss,天阙之主,溟鲲+赤魃占中排两翼(3/5)，豪彘前排，鲛人后排,b_mingkun@5;b_chiba@3;haozhi@2;jiaoren@6;huoshu@7,0.85,1,0.85
