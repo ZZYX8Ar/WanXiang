@@ -326,7 +326,7 @@ namespace WanXiang.Battle.Core
             _fired = true;
             // ★ 2026-11-02：阶段切换必须让玩家看见（原来只有数值变化，玩家不知道"它变招了"）
             BossHint.SetOnBoss(st, string.IsNullOrEmpty(_label)
-                ? "首领进入下一阶段（" + Mathf.RoundToInt(_threshold * 100f) + "%）"
+                ? "首领进入下一阶段（" + (int)System.Math.Round(_threshold * 100f) + "%）"
                 : _label);
             _onCross(st, _boss);
         }
