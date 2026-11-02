@@ -308,7 +308,14 @@ namespace WanXiang.Modules.UI
                     for (int ei = 0; ei < row.Entries.Length; ei++)
                     {
                         var en = row.Entries[ei];
+                        // ⛔ id 先查首领表（b_ 前缀），查不到按**异兽图鉴**解析 ——
+                        //   普通/精英战斗里的"怪"用的是同一批异兽，不再是 Boss 立绘。
                         var def = WanXiang.Battle.Core.BossCatalog.BuildBoss(en.Id);
+                        if (def == null && all != null)
+                        {
+                            for (int bi = 0; bi < all.Length; bi++)
+                                if (all[bi] != null && all[bi].Id == en.Id) { def = all[bi].Clone(); break; }
+                        }
                         if (def == null) continue;
                         // 首领战：第一条是本体吃满 scale，其余随从按旧的 BossSidekickMul(0.55) 打折
                         float mul = row.Scale;

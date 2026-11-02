@@ -48,8 +48,8 @@ namespace WanXiang.Modules.UI
                 }
                 for (int e = 0; e < def.Entries.Length; e++)
                 {
-                    if (WanXiang.Battle.Core.BossCatalog.BuildBoss(def.Entries[e].Id) == null)
-                        Debug.LogError("[Encounter] 第 " + (i + 1) + " 行敌人 id 不存在：" + def.Entries[e].Id);
+                    // ⚠ id 可能是 b_* 首领，也可能是**异兽图鉴 id**（普通/精英用异兽）——
+                    //   权威校验放在组队时（那里同时拿得到 BossCatalog 与 ContentCatalog）。
                     if (def.Entries[e].Slot < 0 || def.Entries[e].Slot > 8)
                         Debug.LogError("[Encounter] 第 " + (i + 1) + " 行站位越界：" + def.Entries[e].Slot);
                 }
