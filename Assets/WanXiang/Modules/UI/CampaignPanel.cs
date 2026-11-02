@@ -2402,7 +2402,7 @@ if (_tmpActTitle != null)
             {
                 case WanXiang.Campaign.NodeKind.Elite: return "精英：敌方规模 +1，旗舰携劫象";
                 case WanXiang.Campaign.NodeKind.Shop: return "灵市：用灵卵换异兽 / 灵魂 / 重铸";
-                case WanXiang.Campaign.NodeKind.Nest: return "孵穴：回复全队 40% 生命 或 取 2 枚灵卵";
+                case WanXiang.Campaign.NodeKind.Nest: return "休整：回血 / +1 进化素材 / 拾一枚灵兽蛋";
                 case WanXiang.Campaign.NodeKind.Tale: return "异闻：典籍轶事，三选一（可拒绝换灵卵）";
                 case WanXiang.Campaign.NodeKind.Forge: return "铸魂台：免费融合一次（灵魂需在灵市购买）";
                 case WanXiang.Campaign.NodeKind.Omen: return "天象：三选一，增益都配一条明确代价";
@@ -2707,60 +2707,56 @@ if (_tmpActTitle != null)
         }
 
         /// <summary>
-        /// 孵穴二选一（GDD §4.3）：回复全队 40% 生命 ／ 取 2 枚灵卵。
-        /// 「回复」在每场满血开局的架构下的表现 = 下一场战斗我方全体 ×1.4（用后清零）；
-        /// 等 HP 跨场持续化后再改回真·回复。
+        /// 休整节点（NodeKind.Nest）—— ★ 2026-11-02 改为「事件面板三选一」。
+        /// ⛔ 为什么改：旧实现是「孵穴」拾蛋弹窗；蛋正在孵化时只弹一句"这里只有一枚暖着的蛋，先走吧"，
+        ///   这个节点就白给了（用户截图反馈）。现在固定三选一：
+        ///   生火回血 / 拾掇行囊（+1 进化素材） / 拾一枚灵兽蛋（2 个节点后出壳）。
+        /// ⭐ 回血比例吃天时地图修正（木令 +15%、润泽 +10%、小雪禁疗 -100 ⇒ 选项直接失效）——
+        ///   这个字段以前**没有任何消费点**，等于天时对休整毫无影响。
         /// </summary>
-        private async Cysharp.Threading.Tasks.UniTaskVoid NestChoose(WanXiang.Run.RunState run)
+        private void NestChoose(WanXiang.Run.RunState run)
         {
             if (run == null) return;
-            // ★★ 2026-10-21 重做（用户："孵穴应该拿到蛋，过几个节点才孵化出异兽"）
-            //   捡蛋时就抽好异兽，2 个节点后自动出壳入队（见 LandPendingCommit 的蛋孵化段）。
-            if (run.EggHatchIn > 0)
-            {
-                await Dialog.Tip("孵穴", "这里只有一枚暖着的蛋 —— 你手上的蛋还没孵化，先走吧。");
-                return;
-            }
-            var all = WanXiang.Fusion.ContentLibrary.BuildBeasts(
-                UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>()[0]);
-            var pool = new System.Collections.Generic.List<WanXiang.Battle.Core.BeastDef>();
-            if (all != null)
-                foreach (var b in all)
-                {
-                    if (b == null) continue;
-                    bool owned = (run.Collection != null && run.Collection.Contains(b.Id))
-                              || (run.Team != null && run.Team.Contains(b.Id));
-                    if (!owned) pool.Add(b);
-                }
-            if (pool.Count == 0)
-            {
-                await Dialog.Tip("孵穴", "巢是空的 —— 世间的异兽都被你收过了。");
-                return;
-            }
-            var egg = pool[UnityEngine.Random.Range(0, pool.Count)];
-            int pick = await Dialog.Choose("孵穴",
-                "巢中还暖着一枚蛋，蛋壳上有淡淡的纹路。\n\n" +
-                "拾起后**再过 2 个节点**就会孵化（孵化时才知道是哪只异兽）。",
-                "拾起这枚蛋（2 个节点后孵化）", "不打扰它（离开）");
-            if (pick != 0) return;
-            run.EggHatchIn = 2;
-            run.EggBeastId = egg.Id;
+            int heal = 35 + WanXiang.Campaign.WeatherMapEffects.Current.HealBonusPct;
+            TalePanel.OpenEvent(BuildRestEvent(heal, run.EggHatchIn > 0), null);
+        }
 
-            // 二选一完成 ， 这时才把节点记为通过（未完成前不推进）
-            // ★ 同上：孵穴也只记"已处理"，推进交给 OnOpenAsync 的落地（PendingCommit）。
-            if (run.VisitedNodes != null && !run.VisitedNodes.Contains(_selected))
-                run.VisitedNodes.Add(_selected);
-            WanXiang.Run.RunSave.SaveCurrent();
-            await Dialog.Tip("孵穴", "你拾起那枚蛋，贴身收好。\n\n再过 2 个节点，它就会出壳。");
-
-            // ★ 处理完回节点地图继续探索（之前什么都不做 ， 玩家以为被踢回主城界面）
-            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
-            if (ui != null)
-                Cysharp.Threading.Tasks.UniTask.Void(async () =>
+        /// <summary>
+        /// 休整事件的数据。拆成静态方法是为了能在编辑器里直接验文案/选项数，
+        /// 不用真的在节点图上走到一个「休整」（地图是种子生成的，很难点中）。
+        /// </summary>
+        internal static WanXiang.Campaign.EventDef BuildRestEvent(int healPct, bool eggIncubating)
+        {
+            string healText = healPct > 0
+                ? "生火休整（全队回复 " + healPct + "% 生命）"
+                : "生火休整（当前禁疗，回复无效）";
+            string eggText = eggIncubating
+                ? "拾起巢中的蛋（你已有一枚在孵化 —— 这次只能空手）"
+                : "拾起巢中的蛋（2 个节点后出壳，孵化时才知道是谁）";
+            return new WanXiang.Campaign.EventDef
+            {
+                Id = "ev_node_rest",
+                Title = "扎营",
+                Story = "风停了，队伍在火堆边坐下。\n这一晚只够做一件事。",
+                Choices = new[]
                 {
-                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);   // 等弹窗淡出结束
-                    await ui.OpenAsync<CampaignPanel>();
-                });
+                    new WanXiang.Campaign.EventChoice
+                    {
+                        Text = healText,
+                        Effect = WanXiang.Campaign.EventEffect.HealTeamPct, Value = healPct,
+                    },
+                    new WanXiang.Campaign.EventChoice
+                    {
+                        Text = "拾掇行囊（+1 进化素材）",
+                        Effect = WanXiang.Campaign.EventEffect.GrantMaterial, Value = 1,
+                    },
+                    new WanXiang.Campaign.EventChoice
+                    {
+                        Text = eggText,
+                        Effect = WanXiang.Campaign.EventEffect.PickEgg,
+                    },
+                },
+            };
         }
 
         private static string CnNum(int n)
@@ -3066,7 +3062,7 @@ if (_tmpActTitle != null)
                     int _mat = _runM != null ? _runM.Materials : 0;
                     var forge = new WanXiang.Campaign.EventDef
                     {
-                        Id = "ev_forge_node",
+                        Id = "ev_node_forge",
                         Title = "铸工坊",
                         Story = "炉火正旺。老匠人问：你想让谁变强一点？",
                         Choices = new[]
@@ -3101,7 +3097,7 @@ if (_tmpActTitle != null)
                     OpenPanelAsync<RelicPanel>(_current).Forget();
                     return;
                 case WanXiang.Campaign.NodeKind.Nest:
-                    NestChoose(run).Forget();
+                    NestChoose(run);
                     return;
                 // ★ 2026-10-20 新增养成节点
                 case WanXiang.Campaign.NodeKind.Spring:

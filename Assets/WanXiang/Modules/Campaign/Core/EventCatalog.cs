@@ -24,6 +24,7 @@ namespace WanXiang.Campaign
         Evolve,           // 随机一只未进化的上阵异兽 进化（路线随机）
         TurnDelta,        // Value = 回合上限变化（正/负）
         TurnLimit,        // Value = 本场"必须在 N 回合内通过"（写成限时，而不是减回合）
+        PickEgg,          // 拾一枚灵兽蛋（Value 不用；2 个节点后出壳，见 RunState.EggHatchIn）
     }
 
     public sealed class EventChoice

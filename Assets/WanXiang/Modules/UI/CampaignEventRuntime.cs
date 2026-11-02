@@ -97,6 +97,33 @@ namespace WanXiang.Modules.UI
                     // TODO: 回合上限改写在 BattleRequestFactory 读取 run 的字段，等该字段落地
                     return "本幕回合上限 " + (c.Value >= 0 ? "+" : "") + c.Value + "（待接战斗参数）";
 
+                case EventEffect.PickEgg:
+                {
+                    // ★ 2026-11-02：把「孵穴」的拾蛋从死面板搬进事件选项。
+                    //   ⛔ 原来蛋正在孵化时点休整只会弹「先走吧」，等于这个节点白给 ——
+                    //      现在改成：已有一枚在孵化就明说，没有就真给一枚。
+                    if (run.EggHatchIn > 0)
+                        return "巢里只剩空壳 —— 你手上那枚蛋还要 " + run.EggHatchIn + " 个节点才出壳。";
+
+                    var all = Contents();
+                    if (all == null) return "（没有内容目录，拾蛋失败）";
+                    var pool = new System.Collections.Generic.List<WanXiang.Battle.Core.BeastDef>();
+                    for (int i = 0; i < all.Length; i++)
+                    {
+                        var b = all[i];
+                        if (b == null) continue;
+                        bool owned = (run.Collection != null && run.Collection.Contains(b.Id))
+                                  || (run.Team != null && run.Team.Contains(b.Id));
+                        if (!owned) pool.Add(b);
+                    }
+                    if (pool.Count == 0) return "巢是空的 —— 世间的异兽都被你收过了。";
+
+                    var egg = pool[UnityEngine.Random.Range(0, pool.Count)];
+                    run.EggHatchIn = 2;
+                    run.EggBeastId = egg.Id;
+                    return "拾起一枚蛋（蛋壳上有淡淡的纹路）—— 再过 2 个节点就出壳。";
+                }
+
                 case EventEffect.GrantMaterial:
                     if (c.Value >= 0)
                     {
@@ -172,6 +199,14 @@ namespace WanXiang.Modules.UI
                 n++;
             }
             return n;
+        }
+
+        /// <summary>当前内容目录里的全部异兽（懒查一次；编辑器里目录可能存在多个实例）。</summary>
+        private static WanXiang.Battle.Core.BeastDef[] Contents()
+        {
+            var all = UnityEngine.Resources.FindObjectsOfTypeAll<WanXiang.Fusion.ContentCatalogSO>();
+            if (all == null || all.Length == 0) return null;
+            return WanXiang.Fusion.ContentLibrary.BuildBeasts(all[0]);
         }
     }
 }
