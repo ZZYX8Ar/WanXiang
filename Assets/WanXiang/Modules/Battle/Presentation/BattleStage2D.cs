@@ -41,6 +41,7 @@ namespace WanXiang.Battle.Presentation
         /// <summary>元素附着指示（2026-10-31）：头顶一颗元素色圆点 + 层数。</summary>
         public SpriteRenderer AuraDot;      // 附着徽章底板
         public SpriteRenderer[] AuraPips;   // 4 格层数刻度
+        public SpriteRenderer AuraCorrupt;      // 魇化紫雾（敌方普通/精英）
         public SpriteRenderer AuraStacksRing;   // 血条右侧 4 段层数小圈
         public GameObject AuraLabelRoot;    // 附着大字标签根（已停用）
         public TextMesh AuraShadow;         // 描影层
@@ -1882,6 +1883,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 SetShield2D(v, s.Shield);
                 SetAura2D(v, s);
                 ApplyCorruptTint(v);
+                SetCorruptAura(v, s.Alive && !(v.DefId != null && v.DefId.StartsWith("b_")));
                 // ---- 破绽/失衡条：随帧流更新（死亡清空）----
                 SetFlawBar2D(v,
                              s.Alive ? (s.FlawText ?? "") : "",
@@ -2388,6 +2390,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         // ★ 元素反应（2026-10-17）：认 BattleEvent.Reaction 标记，**不解析 Note**
                         //   （解析文案是错的做法，改一句措辞就会让演出失效）。
                         bool reaction = e.Reaction != ReactionKind.None;
+                        if (!hit.PlayerSide) SpawnCorruptBurst(hit);   // ★ 魇化：敌方受击冒紫雾
                         if (reaction)
                         {
                             SpawnReactionFx(hit, e.Reaction);
@@ -2901,6 +2904,65 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 case ReactionKind.Bastion:  name = "坚 壁"; color = new Color(0.86f, 0.78f, 0.52f); tag = "金×土"; break;
                 case ReactionKind.Consume:  name = "消 耗"; color = new Color(0.95f, 0.85f, 0.55f); tag = "同元素"; break;
                 default:                    name = "反 应"; color = Color.white; tag = ""; break;
+            }
+        }
+
+        /// <summary>
+        /// 魇化受击：敌方身上炸一小圈紫黑碎片（复用 <see cref="_bursts"/> 手写抛物线）。
+        /// <para>⛔ 不用 ParticleSystem：本工程里 PS 会丢材质变洋红（踩过）。</para>
+        /// </summary>
+        private void SpawnCorruptBurst(UnitView2D v)
+        {
+            if (v == null || v.Root == null) return;
+            Vector3 c = v.Root.transform.position + new Vector3(0f, 0.85f, -1.1f);
+            for (int i = 0; i < 5; i++)
+            {
+                float a = Mathf.PI * 2f * i / 5f + 0.4f;
+                var go = new GameObject("CorruptSpark");
+                go.transform.SetParent(transform, false);
+                var col = new Color(0.62f, 0.32f, 0.95f, 0.9f);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = SolidSprite(col, 12, 12, 0, col);
+                sr.sortingOrder = 38;
+                go.transform.position = c;
+                go.transform.localScale = Vector3.one * 0.18f;
+                _bursts.Add(new Burst
+                {
+                    T = go.transform, Sr = sr,
+                    Vel = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.8f + 0.6f) * 1.6f,
+                    Life = 0.55f, Max = 0.55f,
+                });
+            }
+            while (_bursts.Count > 96)
+            {
+                if (_bursts[0].T != null) Destroy(_bursts[0].T.gameObject);
+                _bursts.RemoveAt(0);
+            }
+        }
+
+        /// <summary>
+        /// 魇化氛围：敌方**普通/精英**脚下加一团缓慢呼吸的暗紫雾（与脚下元素圈叠加）。
+        /// </summary>
+        private void SetCorruptAura(UnitView2D v, bool on)
+        {
+            if (v == null || v.Root == null || v.PlayerSide) return;
+            if (v.AuraCorrupt == null)
+            {
+                var go = new GameObject("CorruptAura");
+                go.transform.SetParent(v.Root.transform, false);
+                go.transform.localPosition = new Vector3(0f, 0.10f, 0.01f);
+                float k = Mathf.Max(0.0001f, Mathf.Abs(v.Root.transform.lossyScale.y));
+                go.transform.localScale = new Vector3(1.5f / k, 0.8f / k, 1f);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = Resources.Load<Sprite>("Battle/FX_motion_fog");
+                sr.sortingOrder = 1;
+                v.AuraCorrupt = sr;
+            }
+            v.AuraCorrupt.gameObject.SetActive(on);
+            if (on)
+            {
+                float a = 0.20f + 0.08f * Mathf.Sin(Time.time * 1.6f);
+                v.AuraCorrupt.color = new Color(0.55f, 0.30f, 0.85f, a);
             }
         }
 
