@@ -2932,7 +2932,6 @@ if (_tmpActTitle != null)
                 {
                     // ★ 2026-11-01「不期而遇」：Tale 节点改为**事件节点**（复用 Panel_Tale）。
                     //   事件按 seed+offset 固定抽取，同一局同一格永远是同一个事件（可复盘）。
-                    EventBootstrap.EnsureInstalled();
                     var prun2 = WanXiang.Run.RunSave.Current;
                     ulong evSeed = WanXiang.Battle.Core.CoreMath.Fnv1a(
                         "evt:" + (prun2 != null ? prun2.RunSeed : 0) + ":" + (prun2 != null ? prun2.NodeOffset : 0));
