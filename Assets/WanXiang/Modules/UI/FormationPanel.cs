@@ -939,8 +939,10 @@ namespace WanXiang.Modules.UI
         private static void AppendSkillLineWithOverride(System.Text.StringBuilder sb, string slotName,
             WanXiang.Battle.Core.SkillDef sk, string beastId, int slot, bool enemy)
         {
+            // 敌方没有专属覆盖时，退回**同 id 的我方覆盖**（否则敌人在详情里永远是旧技能）
             var ov = enemy
-                ? WanXiang.Campaign.SkillOverrideCatalog.GetEnemy(beastId, slot)
+                ? (WanXiang.Campaign.SkillOverrideCatalog.GetEnemy(beastId, slot)
+                   ?? WanXiang.Campaign.SkillOverrideCatalog.Get(beastId, slot))
                 : WanXiang.Campaign.SkillOverrideCatalog.Get(beastId, slot);
             if (ov != null)
             {
