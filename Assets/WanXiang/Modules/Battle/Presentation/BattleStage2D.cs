@@ -3706,7 +3706,7 @@ if (life < 0.2f) life = 0.2f;
             {
                 var go = new GameObject("TurnBanner");
                 go.transform.SetParent(transform, false);
-                go.transform.position = new Vector3((PlayerX + EnemyX) * 0.5f, BoardY + 4.6f, -3f);
+                go.transform.position = new Vector3((PlayerX + EnemyX) * 0.5f, BoardY + 2.55f, -3f);  // 压在天时条下方，避免被挡
                 _turnBanner = go.AddComponent<TextMesh>();
                 var f = LegacyFont();
                 if (f != null) { _turnBanner.font = f; go.GetComponent<MeshRenderer>().sharedMaterial = f.material; }

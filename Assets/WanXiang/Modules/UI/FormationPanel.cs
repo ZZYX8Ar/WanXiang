@@ -688,7 +688,8 @@ namespace WanXiang.Modules.UI
                     elems.Add((int)_all[idx2].Element);
                 }
                 bool five = elems.Count >= 5;
-                _tmpPower.text = "我方总战力 " + power
+                var runLv = WanXiang.Run.RunSave.Current;
+                _tmpPower.text = "Lv " + (runLv != null ? runLv.PlayerLevel : 1) + "　我方总战力 " + power
                                + (Mathf.Abs(_relicPlayerMul - 1f) > 0.005f ? "（含遗物/加成）" : "")
                                + (five ? "　五行俱全 +10%" : "")
                                + "　素材 " + (runNowMat != null ? runNowMat.Materials : 0);
