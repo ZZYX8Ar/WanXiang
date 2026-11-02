@@ -58,7 +58,7 @@ namespace WanXiang.Run
 
         /// <summary>
         /// 按 key 写一个值（parser 逐行调用）。返回 false = 未知 key（由调用方报行号）。
-        /// ⛔ 加减字段时必须同步 DataTableExporter.ExportProgression 与 万相_数据表_说明.md。
+        /// ⛔ 加减字段时必须同步 DataTableExporter.ExportProgression 与 文档/02_数据与配置/万相_数据表_说明.md。
         /// </summary>
         public static bool TrySet(string key, float v)
         {

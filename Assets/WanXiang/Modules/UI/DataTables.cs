@@ -511,7 +511,7 @@ namespace WanXiang.Modules.UI
                 if (float.IsNaN(v)) { r.Fail("value 不是数字"); continue; }
                 if (!WanXiang.Run.ProgressionTuning.TrySet(key, v))
                 {
-                    r.Fail("未知 key：" + key + "（见 万相_数据表_说明.md）");
+                    r.Fail("未知 key：" + key + "（见 文档/02_数据与配置/万相_数据表_说明.md）");
                     continue;
                 }
                 ok++;
@@ -564,7 +564,7 @@ namespace WanXiang.Modules.UI
                 if (float.IsNaN(v)) { r.Fail("value 不是数字"); continue; }
                 if (!WanXiang.Run.MarketPricing.TrySet(key, v))
                 {
-                    r.Fail("未知 key：" + key + "（见 万相_数据表_说明.md）");
+                    r.Fail("未知 key：" + key + "（见 文档/02_数据与配置/万相_数据表_说明.md）");
                     continue;
                 }
                 ok++;
