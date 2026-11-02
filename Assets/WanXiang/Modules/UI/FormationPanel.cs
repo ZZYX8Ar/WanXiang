@@ -680,8 +680,18 @@ namespace WanXiang.Modules.UI
                     // ★ 再乘本场总倍率（遗物 + 加成）， 与实战/敌方同一把尺（用户 2026-10-12 报障）
                     power += WanXiang.Battle.Core.BattlePower.Of(_all[idx], _relicPlayerMul);
                 }
+                // 五行俱全：上阵 5 只且 5 种不同元素 ⇒ 全队 ×1.10（与组队逻辑同一判据）
+                var elems = new System.Collections.Generic.HashSet<int>();
+                for (int i = 0; i < _deployed.Length; i++)
+                {
+                    int idx2 = _deployed[i];
+                    if (_all == null || idx2 < 0 || idx2 >= _all.Length) continue;
+                    elems.Add((int)_all[idx2].Element);
+                }
+                bool five = elems.Count >= 5;
                 _tmpPower.text = "我方总战力 " + power
-                               + (Mathf.Abs(_relicPlayerMul - 1f) > 0.005f ? "（含遗物/加成）" : "");
+                               + (Mathf.Abs(_relicPlayerMul - 1f) > 0.005f ? "（含遗物/加成）" : "")
+                               + (five ? "　五行俱全 +10%" : "");
             }
         }
 
