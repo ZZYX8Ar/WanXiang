@@ -285,7 +285,9 @@ namespace WanXiang.Campaign
     {
         /// <summary>路线图层数（每幕节点深度）。改这个数 = 改每幕节点总数与单局场次；
         /// 校验 MeetsV12Constraints 与 CampaignPanel 布局、CampaignSelfTest 都用它，别再各处写死 12。</summary>
-        public const int DefaultLayers = 14;
+        // ★ 2026-11-02 设计稿 v3：每幕 14 → **32 层**（战斗类约 15 场，其余为养成/事件节点）。
+        //   ⚠ 生成器带约束重试，若某 seed 32 层无法满足会回退兜底图；自检里能看到层数不符。
+        public const int DefaultLayers = 32;
 
         /// <summary>
         /// v1.2 路线图：每幕 <paramref name="layers"/> 层（默认 <see cref="DefaultLayers"/>），层内 2~3 个候选，
