@@ -542,7 +542,7 @@ namespace WanXiang.Campaign
             L.Add(new RelicDef("r_trait_thickwall", "磐石印", "全队获得【厚壁】劫象：防御 +25%，但【无法被治疗】（高风险，慎选）", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantThickwall));
             L.Add(new RelicDef("r_trait_devour", "饕餮纹", "全队获得【吞噬】劫象：行动时剥离目标 1 个增益，但自身每回合损失 4% 生命", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.GrantDevour));
 
-            L.Add(new RelicDef("r_rule_turns_plus", "延时符", "本场回合上限 +4（更从容，但也不是纯赚）", RelicRarity.Common, RelicEffect.None, 0f, 4f, null, RelicMechanic.TurnsPlus));
+            L.Add(new RelicDef("r_rule_turns_plus", "延时符", "本局每一场回合上限 +4（更从容，但也不是纯赚）", RelicRarity.Common, RelicEffect.None, 0f, 4f, null, RelicMechanic.TurnsPlus));
             L.Add(new RelicDef("r_rule_turns_minus", "速决符", "全队 生命/攻击/防御 +25%，但本场回合上限 -4（打不完就输）", RelicRarity.Rare, RelicEffect.PlayerStatPct, 25f, 4f, null, RelicMechanic.TurnsMinus));
             L.Add(new RelicDef("r_rule_no_rage", "无相", "全队奥义【不再需要元气】", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.UltimateNoRage));
             L.Add(new RelicDef("r_rule_no_hit", "澄明", "本场关闭命中率判定 —— 全队必定命中", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.NoHitChance));
