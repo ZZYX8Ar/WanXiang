@@ -2908,67 +2908,54 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             }
         }
 
-        private static Material _corruptPsMat;
+        private static GameObject _corruptPsPrefab;
 
         /// <summary>
-        /// 魇化受击：**ParticleSystem** 版紫雾（2026-11-02 起改用正式粒子管线）。
-        /// ⛔ 洋红的唯一成因是"没给材质"：这里显式用 `Sprites/Default` + 雾贴图，
-        ///   并把 renderer 的 sortingOrder 设到立绘之上，材质永远不会丢。
+        /// 魇化受击：**预制 ParticleSystem**（2026-11-02 改为资产管线）。
+        /// 资产：`Assets/Resources/FX/Particle_CorruptHit.prefab`（配 URP 粒子材质 M_CorruptHit）。
+        /// <para>⭐ 为什么改成预制：策划/美术能在 Inspector 里直接调色、调寿命、加 Noise，
+        /// 不用改代码 —— 这是商业项目的常用做法。</para>
+        /// <para>⛔ 若资产缺失则退回运行时建 PS（老逻辑），保证不会没特效。</para>
         /// </summary>
         private void SpawnCorruptPs(UnitView2D v)
         {
             if (v == null || v.Root == null) return;
+            Vector3 pos = v.Root.transform.position + new Vector3(0f, 0.8f, -1.2f);
+
+            if (_corruptPsPrefab == null) _corruptPsPrefab = Resources.Load<GameObject>("FX/Particle_CorruptHit");
+            if (_corruptPsPrefab != null)
+            {
+                var inst = Instantiate(_corruptPsPrefab, pos, Quaternion.identity, transform);
+                inst.SetActive(true);
+                var instPs = inst.GetComponent<ParticleSystem>();
+                if (instPs != null) instPs.Play();
+                Destroy(inst, 1.4f);
+                return;
+            }
+
+            SpawnCorruptPsRuntime(v, pos);
+        }
+
+        /// <summary>兜底：资产缺失时运行时建一个（旧实现）。</summary>
+        private void SpawnCorruptPsRuntime(UnitView2D v, Vector3 pos)
+        {
             var go = new GameObject("CorruptPS");
             go.transform.SetParent(transform, false);
-            go.transform.position = v.Root.transform.position + new Vector3(0f, 0.8f, -1.2f);
+            go.transform.position = pos;
 
             var ps = go.AddComponent<ParticleSystem>();
             var main = ps.main;
-            main.duration = 0.35f;
-            main.loop = false;
-            main.playOnAwake = false;
-            main.startLifetime = 0.65f;
-            main.startSpeed = 1.5f;
-            main.startSize = 0.42f;
-            main.startRotation = 0f;
-            main.gravityModifier = -0.25f;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.duration = 0.35f; main.loop = false; main.playOnAwake = false;
+            main.startLifetime = 0.65f; main.startSpeed = 1.5f; main.startSize = 0.42f;
+            main.gravityModifier = -0.25f; main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.startColor = new Color(0.62f, 0.32f, 0.95f, 0.85f);
-
-            var em = ps.emission;
-            em.enabled = true;
-            em.rateOverTime = 0f;
+            var em = ps.emission; em.rateOverTime = 0f;
             em.SetBursts(new[] { new ParticleSystem.Burst(0f, 10) });
-
-            var sh = ps.shape;
-            sh.enabled = true;
-            sh.shapeType = ParticleSystemShapeType.Sphere;
-            sh.radius = 0.28f;
-
-            // 淡出 + 缩小（紫雾扩散后消失）
-            var col = ps.colorOverLifetime;
-            col.enabled = true;
-            var g = new Gradient();
-            g.SetKeys(
-                new[] { new GradientColorKey(new Color(0.72f, 0.42f, 1f), 0f), new GradientColorKey(new Color(0.35f, 0.18f, 0.6f), 1f) },
-                new[] { new GradientAlphaKey(0.9f, 0f), new GradientAlphaKey(0.25f, 0.6f), new GradientAlphaKey(0f, 1f) });
-            col.color = new ParticleSystem.MinMaxGradient(g);
-
-            var sz = ps.sizeOverLifetime;
-            sz.enabled = true;
-            sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.6f, 1f, 1.6f));
-
+            var shp = ps.shape; shp.shapeType = ParticleSystemShapeType.Sphere; shp.radius = 0.28f;
             var r = go.GetComponent<ParticleSystemRenderer>();
-            if (_corruptPsMat == null)
-            {
-                var fog = Resources.Load<Sprite>("Battle/FX_motion_fog");
-                _corruptPsMat = new Material(Shader.Find("Sprites/Default")) { hideFlags = HideFlags.HideAndDontSave };
-                if (fog != null) _corruptPsMat.mainTexture = fog.texture;
-            }
-            r.material = _corruptPsMat;
-            r.renderMode = ParticleSystemRenderMode.Billboard;
+            var m = Resources.Load<Material>("FX/M_CorruptHit");
+            if (m != null) r.material = m;
             r.sortingOrder = 39;
-
             ps.Play();
             Destroy(go, 1.4f);
         }
