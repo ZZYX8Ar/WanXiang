@@ -2361,7 +2361,17 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 {
                     _actingId = e.ActorId;
                     // ★ 2026-11-02：谁在行动 —— 回合横幅补上"我方/敌方"
-                    // ★ 2026-11-02 用户："敌人每动一下都显示没必要" ⇒ 只在回合开始显示一次
+                    // ★ 2026-11-02：行动时只**补字**（我方/敌方）不重新弹出；颜色随阵营变
+                    string sideCn = "我方行动";
+                    var sideCol = new Color(0.55f, 0.95f, 0.75f);
+                    if (_views.TryGetValue(e.ActorId, out var actView) && !actView.PlayerSide)
+                    { sideCn = "敌方行动"; sideCol = new Color(0.95f, 0.55f, 0.85f); }
+                    if (_turnBanner != null && _turnBannerT > 0f)
+                    {
+                        _turnBanner.text = _turnNo > 0 ? ("第 " + _turnNo + " 回合 · " + sideCn) : sideCn;
+                        _turnBanner.color = new Color(sideCol.r, sideCol.g, sideCol.b, _turnBanner.color.a);
+                        _turnBannerT = Mathf.Max(_turnBannerT, 0.9f);
+                    }
                     break;
                 }
 
@@ -2661,12 +2671,14 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 }
             }
 
-            // 回合横幅淡出（0.55s 渐隐）
+            // 回合横幅：尾部 0.8s 渐隐 + 缩放回弹 1.08→1
             if (_turnBannerT > 0f && _turnBanner != null)
             {
                 _turnBannerT -= dt;
-                float a = Mathf.Clamp01(_turnBannerT / 0.55f);
+                float a = Mathf.Clamp01(_turnBannerT / 0.8f);
                 var c = _turnBanner.color; c.a = a; _turnBanner.color = c;
+                float sc = Mathf.MoveTowards(_turnBanner.transform.localScale.x, 1f, dt * 0.4f);
+                _turnBanner.transform.localScale = Vector3.one * sc;
                 if (_turnBannerT <= 0f) _turnBanner.gameObject.SetActive(false);
             }
 
@@ -3677,10 +3689,19 @@ if (life < 0.2f) life = 0.2f;
             go.transform.localPosition = Vector3.zero;
             go.transform.localRotation = Quaternion.identity;
 
+            // 两层：里层"淡填充膜"（能看到立绘）+ 外层"环"（轮廓清晰）
             var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = sp;
+            sr.sprite = ShieldFillSprite();
             sr.sortingOrder = v.Body.sortingOrder + 2;
-            sr.color = new Color(1f, 1f, 1f, 0.55f);
+            sr.color = new Color(0.62f, 0.90f, 1f, 0.16f);   // 膜：极淡的青蓝填充
+
+            var ringGo = new GameObject("ShieldRing");
+            ringGo.transform.SetParent(go.transform, false);
+            var ringSr = ringGo.AddComponent<SpriteRenderer>();
+            ringSr.sprite = sp;
+            ringSr.sortingOrder = v.Body.sortingOrder + 3;
+            ringSr.color = new Color(0.62f, 0.92f, 1f, 0.85f);   // 环：亮青蓝
+            ringGo.GetComponent<MeshRenderer>().sortingOrder = v.Body.sortingOrder + 3;
 
             // 尺寸：按立绘**世界**尺寸 ×1.15（⛔ 必须用 lossyScale：单位根节点有 0.1 缩放，
             //   直接拿 sprite.bounds 会算成世界尺寸，膜会大得离谱或小到看不见）
@@ -3692,8 +3713,9 @@ if (life < 0.2f) life = 0.2f;
             // 父级是 Body（可能带缩放），localScale = 目标世界尺寸 / 父级世界缩放 / 贴图原始尺寸
             float pw = Mathf.Abs(v.Body.transform.lossyScale.x) > 0.0001f ? Mathf.Abs(v.Body.transform.lossyScale.x) : 1f;
             float ph = Mathf.Abs(v.Body.transform.lossyScale.y) > 0.0001f ? Mathf.Abs(v.Body.transform.lossyScale.y) : 1f;
-            // ★ 取长边当直径、宽高用同一个值 ⇒ 永远是**正圆**（之前分别按宽高算，宽立绘就成了椭圆）
-            float dia = Mathf.Max(worldW, worldH) * 1.12f;
+            // ★ 2026-11-02：**统一直径**（格子边长 ×1.02）—— 大小一致才不像"随机泡泡"。
+            //   长边方案会让大立绘的圈特别大、小立绘特别小（用户截图实锤）。
+            float dia = Cell * 1.02f;
             float spSize = Mathf.Max(0.001f, sp.bounds.size.x);
             go.transform.localScale = new Vector3(dia / pw / spSize, dia / ph / spSize, 1f);
 
@@ -3763,9 +3785,11 @@ if (life < 0.2f) life = 0.2f;
                 mr.sortingOrder = 60;
             }
             _turnBanner.text = msg;
-            _turnBanner.color = new Color(1f, 0.96f, 0.86f, 1f);
-            _turnBannerT = 1.1f;
+            _turnBanner.color = new Color(0.95f, 0.93f, 0.82f, 1f);
+            _turnBannerT = 1.8f;                 // ★ 更慢：看清"第几回合"，尾部 0.8s 渐隐
             _turnBanner.gameObject.SetActive(true);
+            // 轻微放大回弹（1.08 → 1，0.25s），比纯文字出现有仪式感
+            _turnBanner.transform.localScale = Vector3.one * 1.08f;
         }
 
         private static Sprite _shieldCircle;
@@ -3791,6 +3815,28 @@ if (life < 0.2f) life = 0.2f;
             _shieldCircle = Sprite.Create(tex, new Rect(0, 0, N, N), new Vector2(0.5f, 0.5f), 100f);
             _shieldCircle.name = "ShieldCircle";
             return _shieldCircle;
+        }
+
+        private static Sprite _shieldFill;
+        /// <summary>全圆填充贴图（软边 4px）——护盾膜的"里面"。</summary>
+        private static Sprite ShieldFillSprite()
+        {
+            if (_shieldFill != null) return _shieldFill;
+            const int N = 128;
+            var tex = new Texture2D(N, N, TextureFormat.RGBA32, false);
+            var px = new Color[N * N];
+            float r = N * 0.5f - 1f;
+            for (int y = 0; y < N; y++)
+                for (int x = 0; x < N; x++)
+                {
+                    float dx = x - N * 0.5f + 0.5f, dy = y - N * 0.5f + 0.5f;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    px[y * N + x] = new Color(1f, 1f, 1f, Mathf.Clamp01((r - d) / 4f));
+                }
+            tex.SetPixels(px); tex.Apply(); tex.wrapMode = TextureWrapMode.Clamp;
+            _shieldFill = Sprite.Create(tex, new Rect(0, 0, N, N), new Vector2(0.5f, 0.5f), 100f);
+            _shieldFill.name = "ShieldFill";
+            return _shieldFill;
         }
 
         private void SetShield2D(UnitView2D v, int shield)
