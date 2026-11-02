@@ -41,6 +41,8 @@ namespace WanXiang.Modules.UI
                     Entries = ParseComp(c[4]),
                     Scale = float.TryParse(c[5].Trim(), System.Globalization.NumberStyles.Float,
                                            System.Globalization.CultureInfo.InvariantCulture, out float s) ? s : 1f,
+                    HpMul = (c.Count > 7 && float.TryParse(c[7].Trim(), System.Globalization.NumberStyles.Float,
+                                           System.Globalization.CultureInfo.InvariantCulture, out float h)) ? h : 1f,
                 };
                 if (def.Act <= 0 || def.Entries.Length == 0)
                 {

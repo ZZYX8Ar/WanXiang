@@ -321,6 +321,9 @@ namespace WanXiang.Modules.UI
                         // 首领战：第一条是本体吃满 scale，其余随从按旧的 BossSidekickMul(0.55) 打折
                         float mul = row.Scale;
                         if (kindName == "Boss" && ei > 0) mul *= WanXiang.Campaign.SeededEnemyProvider.BossSidekickMul;
+                        // 精英/首领单独调 HP（不改攻击）：表里 hpMul 列，默认 1
+                        if (row.HpMul > 0f && row.HpMul != 1f)
+                            def.BaseHp = UnityEngine.Mathf.RoundToInt(def.BaseHp * row.HpMul);
                         ApplyEnemySkillOverrides(def);       // 敌方技能（配合向）
                         list.Add(WanXiang.Battle.Core.DeployEntry.Enemy(def, en.Slot).WithMul(mul));
                     }

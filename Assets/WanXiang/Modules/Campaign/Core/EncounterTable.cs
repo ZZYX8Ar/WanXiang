@@ -24,6 +24,7 @@ namespace WanXiang.Campaign
         public string Synergy;       // 这组敌人怎么配合（设计用，进 Console/图鉴）
         public EncounterEntry[] Entries;
         public float Scale = 1f;
+        public float HpMul = 1f;      // 只作用于血量（精英/首领单独调肉度）
     }
 
     public static class EncounterTable
