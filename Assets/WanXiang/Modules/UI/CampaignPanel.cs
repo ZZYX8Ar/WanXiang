@@ -3039,6 +3039,8 @@ if (_tmpActTitle != null)
                 {
                     // ★ 2026-11-02 工坊改为「专精 / 进化」三选一：复用事件面板，不新建 prefab。
                     //   （旧 ForgePanel 是"融合两只异兽"，与新的局内养成不是一回事。）
+                    var _runM = WanXiang.Run.RunSave.Current;
+                    int _mat = _runM != null ? _runM.Materials : 0;
                     var forge = new WanXiang.Campaign.EventDef
                     {
                         Id = "ev_forge_node",
@@ -3053,7 +3055,7 @@ if (_tmpActTitle != null)
                             },
                             new WanXiang.Campaign.EventChoice
                             {
-                                Text = "化形（消耗 1 进化素材，随机一只未进化的异兽进化）",
+                                Text = "化形（消耗 1 进化素材，现有 " + _mat + "；随机一只未进化的异兽进化）",
                                 Effect = WanXiang.Campaign.EventEffect.Evolve, Value = 0,
                             },
                             new WanXiang.Campaign.EventChoice
