@@ -48,6 +48,13 @@ namespace WanXiang.Modules.UI
 
         /// <summary>与 Player 一一对应的【九宫格格号】(0..8)。为空则回退到默认 Cells。</summary>
         public List<int> PlayerCells = new List<int>();
+
+        /// <summary>
+        /// 与 Player 一一对应的**生命倍率**（1 = 满血，0.5 = 半血进场）。
+        /// 来源：RunState.TeamHpPct（战后 = 本场剩余 +50%，阵亡即 50%）。
+        /// ⛔ 不能改 BeastDef.BaseHp：部署时 ApplyPlaceholderStats 会按职业基准重算，改了就丢。
+        /// </summary>
+        public List<float> PlayerHpMulPer = new List<float>();
         /// <summary>我方全体属性倍率（孵穴「回复」的载体：下一场战斗 ×1.4）。遗物也折进这里。</summary>
         public float PlayerMul = 1f;
 
@@ -195,6 +202,10 @@ namespace WanXiang.Modules.UI
                 float perMul = (req.PlayerMulPer != null && i < req.PlayerMulPer.Count)
                     ? req.PlayerMulPer[i] : 1f;
                 var pe = DeployEntry.Player(req.Player[i], cell).WithMul(req.PlayerMul * perMul);
+                // ★ 残血进场：TeamHpPct < 100 的按比例缩生命（只缩血，不改攻防）
+                if (req.PlayerHpMulPer != null && i < req.PlayerHpMulPer.Count &&
+                    req.PlayerHpMulPer[i] < 1f)
+                    pe = pe.WithHpMul(req.PlayerHpMulPer[i]);
                 // ★ 遗物劫象：该单位被授予的劫象优先（只有一个槽 ， 就不再挂「复苏」）；
                 //   否则吃全局的「复活 1 次」（BattleFactory.Deploy 会据此设虫卵复活）。
                 string granted = (req.PlayerTrait != null && i < req.PlayerTrait.Count) ? req.PlayerTrait[i] : null;

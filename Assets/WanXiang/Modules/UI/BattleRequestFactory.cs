@@ -245,14 +245,13 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                         d.BaseHp = UnityEngine.Mathf.RoundToInt(d.BaseHp * run.LevelHpMul);
                     }
 
-                    // ★ 2026-11-02 残血进场：上一场结束时的血量百分比（阵亡 = 50%）在这里落到生命上限上。
-                    //   ⛔ 必须放在等级/进化之后：那两步算的是"满血上限"，这里才是"当前还剩多少"。
-                    //   没有记录（新招募/老存档）按满血算。
-                    if (run.TeamHpPct != null && run.TeamHpPct.TryGetValue(id, out int hpPct) && hpPct < 100)
-                    {
-                        int clamped = UnityEngine.Mathf.Clamp(hpPct, 1, 100);
-                        d.BaseHp = UnityEngine.Mathf.Max(1, UnityEngine.Mathf.RoundToInt(d.BaseHp * (clamped / 100f)));
-                    }
+                    // ★ 2026-11-02 残血进场：上一场结束时的血量百分比（阵亡 = 50%）。
+                    //   ⛔ 这里**不能直接改 d.BaseHp** —— 战斗部署时 ApplyPlaceholderStats 会按
+                    //      职业基准重算 BaseHp，请求里改的值会被丢掉（本条是踩过坑之后改的）。
+                    //      正确通道是 BattleRequest.PlayerHpMulPer → DeployEntry.HpMul（部署最后一步生效）。
+                    float hpMul = 1f;
+                    if (run.TeamHpPct != null && run.TeamHpPct.TryGetValue(id, out int hpPct))
+                        hpMul = UnityEngine.Mathf.Clamp(hpPct, 1, 100) / 100f;
 
                     // 觉醒技：取**快照**，不再读现档
                     string aid = run.SnapAwakenOf(id);
@@ -273,6 +272,7 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                     }
 
                     req.Player.Add(d);
+                    req.PlayerHpMulPer.Add(hpMul);
                     // 每只**各自**的战力倍率 = 等级（+1.6%/级）× 进化（+15%），同样取快照。
                     // ⚠ 与面板显示同一套公式（MetaDefaults.CombatBonusMul），别在两处各推一份。
                     req.PlayerMulPer.Add(WanXiang.Meta.MetaDefaults.CombatBonusMul(
@@ -286,6 +286,7 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                 {
                     req.Player.Add(all[i]);
                     req.PlayerMulPer.Add(1f);
+                    req.PlayerHpMulPer.Add(1f);
                 }
             }
 

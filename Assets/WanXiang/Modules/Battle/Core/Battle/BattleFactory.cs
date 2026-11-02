@@ -39,15 +39,28 @@ namespace WanXiang.Battle.Core
         /// <summary>劫象 / 额外特性 id（见 <see cref="BattleTraits"/>；null = 无）。</summary>
         public string TraitId;
 
+        /// <summary>
+        /// 生命倍率（1 = 满血）。**只缩生命，不动攻防** —— 用于"战后残血带进下一场"。
+        /// ⛔ 必须在这里而不是在 BeastDef 上：<see cref="BattleConfig.ApplyPlaceholderStats"/>
+        ///   会在部署时把 BaseHp 按职业基准**重算一遍**，请求里改的 BaseHp 会被冲掉（踩过）。
+        /// </summary>
+        public float HpMul;
+
         public DeployEntry(BeastDef def, TeamSide side, int posIndex)
         {
             Def = def; Side = side; PosIndex = posIndex;
-            StatMul = 1f; TraitId = null;
+            StatMul = 1f; TraitId = null; HpMul = 1f;
         }
 
         public DeployEntry WithMul(float mul)
         {
             var e = this; e.StatMul = mul; return e;
+        }
+
+        /// <summary>残血进场：生命 ×mul（0.5 = 半血），攻防不变。</summary>
+        public DeployEntry WithHpMul(float mul)
+        {
+            var e = this; e.HpMul = mul; return e;
         }
 
         public DeployEntry WithTrait(string traitId)
@@ -164,6 +177,10 @@ namespace WanXiang.Battle.Core
                 st.Config.ApplyPlaceholderStats(copy);
                 if (System.Math.Abs(entries[i].StatMul - 1f) > 0.0001f)
                     ApplyStatMul(copy, entries[i].StatMul);
+                // ★ 2026-11-02：残血进场（战后血量继承）。放在占位面板与 StatMul **之后** ——
+                //   前面两步定的是"这只兽的满血上限"，这里才是"现在还剩多少"。
+                if (System.Math.Abs(entries[i].HpMul - 1f) > 0.0001f)
+                    copy.BaseHp = CoreMath.Max(1, CoreMath.RoundDamage(copy.BaseHp * entries[i].HpMul));
                 if (!string.IsNullOrEmpty(entries[i].TraitId))
                     BattleTraits.Apply(copy, entries[i].TraitId);
 
