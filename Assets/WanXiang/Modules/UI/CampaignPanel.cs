@@ -2064,7 +2064,9 @@ if (_tmpActTitle != null)
                 //     继续叫"第12波"会和"本秘境 3 场硬仗"自相矛盾）。
                 string prefix = _realmMode
                     ? "第" + RealmLayerOf(offset) + "层"
-                    : (offset + 1) + "." + TermName(_graph.Terms[offset]);
+                    // ★ 2026-11-02 用户："第一层是 123，应该是 111" ——
+                    //   编号 = **层号**（同层所有候选共用同一个数字），不是全局节点序号。
+                    : (_graph.LayerOf(offset) + 1) + "." + TermName(_graph.Terms[offset]);
             // ⛔ 2026-10-22 用户两次报障后**取消同层互斥**：
             //   "明明能去下一层的两个节点，怎么只能去一个""点一下节点就直接确定，不给点其他的"。
             //   互斥在**点击时**就写 ChosenNodes ⇒ 本层其余节点立刻变灰，像"一点就锁死"。
