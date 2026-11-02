@@ -1194,7 +1194,10 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 var bodySr = root.AddComponent<SpriteRenderer>();
                 // ★ 2026-11-02 魇化立绘：敌方普通/精英的**本体材质**换成 CorruptSprite
                 //   （裂痕 + 脏污 + 紫染 + 脉动都在 shader 里，同 mesh 同 uv 不会错位）。
-                if (!player && u.Def != null && !u.Def.Id.StartsWith("b_"))
+                // ⛔ 2026-11-02 紧急回退：换材质后敌方立绘**整个不显示**（shader 未通过验证），
+                //   先把开关关掉，恢复用顶点色染色保证可见；shader 验证通过后再打开。
+                const bool UseCorruptShader = false;
+                if (UseCorruptShader && !player && u.Def != null && !u.Def.Id.StartsWith("b_"))
                 {
                     var corruptSh = Shader.Find("WanXiang/CorruptSprite");
                     if (corruptSh != null)
