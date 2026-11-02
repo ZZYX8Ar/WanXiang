@@ -196,7 +196,8 @@ namespace WanXiang.Campaign
                     d.Id.StartsWith("r_mech_") ||
                     d.Id.StartsWith("r_trait_") ||
                     d.Id.StartsWith("r_rule_") ||
-                    d.Id.StartsWith("r_trade_")));
+                    // 赌命契只留 3 档（小/中/绝），避免同类改名刷屏
+                    (d.Id == "r_trade_1" || d.Id == "r_trade_5" || d.Id == "r_trade_10")));
             foreach (var d in All) _byId[d.Id] = d;
         }
 
