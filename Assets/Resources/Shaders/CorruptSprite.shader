@@ -62,6 +62,13 @@ Shader "WanXiang/CorruptSprite"
                 return sqrt(d2) - sqrt(d1);
             }
 
+            float fbm(float2 uv)
+            {
+                float s = 0, a = 0.5;
+                for (int i = 0; i < 3; i++) { s += hash21(uv) * a; uv *= 2.03; a *= 0.5; }
+                return s;
+            }
+
             // 主裂纹：沿纵向 2~3 条扭曲线（像从伤口裂开的主缝），0~1
             float mainCracks(float2 uv)
             {
@@ -71,19 +78,12 @@ Shader "WanXiang/CorruptSprite"
                     float base = 0.28 + 0.22 * i + 0.06 * sin(_Seed + i * 2.1);
                     float wob = 0.05 * sin(uv.y * (5.0 + i * 1.7) + _Seed * 3.1 + i);
                     float d = abs(uv.x - base - wob);
-                    float line = 1.0 - smoothstep(0.0, _CrackWidth * 1.2, d);
+                    float ln = 1.0 - smoothstep(0.0, _CrackWidth * 1.2, d);
                     // 纵向断续：让裂缝有断口
                     float gap = 0.55 + 0.45 * smoothstep(0.25, 0.8, fbm(float2(uv.y * 4.0 + i, _Seed)));
-                    total = max(total, line * gap);
+                    total = max(total, ln * gap);
                 }
                 return total;
-            }
-
-            float fbm(float2 uv)
-            {
-                float s = 0, a = 0.5;
-                for (int i = 0; i < 3; i++) { s += hash21(uv) * a; uv *= 2.03; a *= 0.5; }
-                return s;
             }
 
             v2f vert (appdata v)
