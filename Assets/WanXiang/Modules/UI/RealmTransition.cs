@@ -80,14 +80,37 @@ namespace WanXiang.Modules.UI
         /// </summary>
         public static float DebugSlowMul = 1f;
 
+        /// <summary>
+        /// 设置遮罩：「墨从四边洇入」的推进量 + 回退用的纯色 alpha。
+        /// <para>⚠ 两套通道必须同时给：有 shader 时走 `_Progress`（alpha 固定 1），
+        ///   没有 shader 时走老的 `Image.color.a`。只写一个会导致"其中一种情况完全不显示"。</para>
+        /// </summary>
+        private void SetCover(float progress01, float fallbackAlpha)
+        {
+            if (_cover == null) return;
+            if (_coverMat != null)
+            {
+                _coverMat.SetFloat(InkCoverProgressId, Mathf.Clamp01(progress01));
+                var c = _cover.color;
+                if (c.a < 1f) { c.a = 1f; _cover.color = c; }   // shader 自己控透明，顶点 alpha 别掺和
+            }
+            else
+            {
+                _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, Mathf.Clamp01(fallbackAlpha));
+            }
+        }
+
         /// <summary>把设计时轴换算成实际等待时长。</summary>
         private static float D(float seconds) => seconds / Mathf.Max(0.01f, DebugSlowMul);
 
         private Canvas _canvas;
         private RectTransform _root;
         private Image _cover;              // 纸色底（吃点击 + 盖旧画面）
+        private Material _coverMat;        // 「墨从四边洇入」（WanXiang/UI/InkCover；拿不到 shader 时为 null ⇒ 回退纯色淡入）
         private Image _title;              // 艺术字（RealmTitleReveal 材质）
         private Material _titleMat;
+
+        private static readonly int InkCoverProgressId = Shader.PropertyToID("_Progress");
         private RectTransform _particleRoot;
 
         private readonly List<RectTransform> _parts = new List<RectTransform>(48);
@@ -154,7 +177,7 @@ namespace WanXiang.Modules.UI
             inst.Build();
             if (inst._cover != null)
             {
-                inst._cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, 0f);
+                inst.SetCover(0f, 0f);
                 inst._cover.raycastTarget = false;
             }
             if (inst._title != null) inst._title.enabled = false;
@@ -223,7 +246,22 @@ namespace WanXiang.Modules.UI
             _cover = NewImage("Cover", 0);
             FullStretch(_cover.rectTransform);
 
-            _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, 0f);
+            // ★ 2026-11-04（T2）：遮罩从"纯色 alpha 渐变"换成"墨从四边洇入"。
+            //   找不到 shader（例如被剔除出包）就**保持旧行为** —— 纯色淡入照样能盖屏，不能因此黑屏/卡死。
+            var inkShader = Shader.Find("WanXiang/UI/InkCover");
+            if (inkShader != null)
+            {
+                _coverMat = new Material(inkShader) { hideFlags = HideFlags.HideAndDontSave };
+                _coverMat.SetColor("_CoverColor", CoverColor);
+                _coverMat.SetFloat(InkCoverProgressId, 0f);
+                _cover.material = _coverMat;
+                _cover.color = Color.white;      // 透明度全交给 shader 的 _Progress
+            }
+            else
+            {
+                Debug.LogWarning("[RealmTransition] 找不到 WanXiang/UI/InkCover，回退纯色遮罩");
+                _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, 0f);
+            }
             _cover.raycastTarget = true;
 
             // ---- 粒子层 ----
@@ -288,17 +326,18 @@ namespace WanXiang.Modules.UI
             //   底下主界面露出来，而纸底还在淡入（0→1），那几帧就把主界面看到了。
             //   instantCover：纸底**一开始就是满的**，只让粒子做闭拢动画。
             float a0 = _instantCover ? COVER_A : 0f;
-            _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, a0);
+            // instantCover：纸底一开始就是满的（出征时先露主界面那个 bug 的修法），墨也是满的
+            SetCover(_instantCover ? 1f : 0f, a0);
             SetParticlePhase(0f);
             for (float t = 0f; t < dClose; t += Time.unscaledDeltaTime)
             {
                 float k = Mathf.Clamp01(t / dClose);
                 SetParticlePhase(EaseOut(k));
-                _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, Mathf.Lerp(a0, COVER_A, k));
+                SetCover(_instantCover ? 1f : k, Mathf.Lerp(a0, COVER_A, k));
                 yield return null;
             }
             SetParticlePhase(1f);
-            _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, COVER_A);
+            SetCover(1f, COVER_A);
 
             // ---- ② 换场（屏幕已盖满）----
             try { onSwitch?.Invoke(); }
@@ -341,8 +380,10 @@ namespace WanXiang.Modules.UI
                 SetParticleOpen(e);
                 tc = _title.color; tc.a = Mathf.Clamp01(1f - k * 1.6f);
                 _title.color = tc;
-                // 纸底同步退掉，露出下面的秘境地图
-                _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, Mathf.Lerp(COVER_A, 0f, Mathf.Clamp01(k * 1.3f)));
+                // 墨同步退掉，露出下面的新画面。
+                // ★ T3（2026-11-04）：推进量直接用粒子的 e（EaseIn(k)），不再各自算 ——
+                //   原来遮罩用 k*1.3 提前 30% 消失，实机就是"纸先没了、粒子还在"。
+                SetCover(1f - e, Mathf.Lerp(COVER_A, 0f, Mathf.Clamp01(k * 1.3f)));
                 yield return null;
             }
 
@@ -351,7 +392,7 @@ namespace WanXiang.Modules.UI
                 yield return ImpactBeat(_impactWordRes);
 
             // ---- 收尾：务必把状态清干净（常驻对象，下一次演出不能带着上次的残留）----
-            _cover.color = new Color(CoverColor.r, CoverColor.g, CoverColor.b, 0f);
+            SetCover(0f, 0f);
             _cover.raycastTarget = false;      // ⛔ 必须放行点击，否则整个游戏点不动
             _title.enabled = false;
             _title.color = new Color(1f, 1f, 1f, 0f);
