@@ -356,7 +356,8 @@ namespace WanXiang.Modules.UI
             {
                 float k = Mathf.Clamp01(t / dClose);
                 SetParticlePhase(EaseOut(k));
-                SetCover(_instantCover ? 1f : k, Mathf.Lerp(a0, COVER_A, k));
+                // 墨的推进用 smoothstep（起手慢、收笔稳）；纯色回退通道仍是线性 alpha
+                SetCover(_instantCover ? 1f : Mathf.SmoothStep(0f, 1f, k), Mathf.Lerp(a0, COVER_A, k));
                 yield return null;
             }
             SetParticlePhase(1f);

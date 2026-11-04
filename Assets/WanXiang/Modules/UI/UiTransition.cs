@@ -420,6 +420,13 @@ namespace WanXiang.Modules.UI
             FinishRun(tg, kind, onDone);
         }
 
+        /// <summary>easeInOutCubic：起手慢、中段快、收笔稳（线性推进最像 PPT）。</summary>
+        private static float EaseInOutCubic(float x)
+        {
+            x = Mathf.Clamp01(x);
+            return x < 0.5f ? 4f * x * x * x : 1f - Mathf.Pow(-2f * x + 2f, 3f) * 0.5f;
+        }
+
         /// <summary>转场收尾（唯一出口）：清临时元素、放行点击、清标志。</summary>
         private void FinishRun(string tg, Kind kind, System.Action onDone)
         {
@@ -462,12 +469,12 @@ namespace WanXiang.Modules.UI
             _inkCoverMat.SetColor("_CoverColor", Color.black);
             _inkCoverMat.SetFloat(InkProgressId, 0f);
 
-            // ① 墨从四边吃进来
+            // ① 墨从四边吃进来（★ 2026-11-04：走 easeInOut 曲线 —— 线性推进一眼就"机械"）
             float t = 0f;
             while (t < tIn && Time.realtimeSinceStartup < _deadline)
             {
                 t += Time.unscaledDeltaTime;
-                _inkCoverMat.SetFloat(InkProgressId, Mathf.Clamp01(t / Mathf.Max(0.01f, tIn)));
+                _inkCoverMat.SetFloat(InkProgressId, EaseInOutCubic(Mathf.Clamp01(t / Mathf.Max(0.01f, tIn))));
                 yield return null;
             }
             _inkCoverMat.SetFloat(InkProgressId, 1f);
@@ -486,12 +493,12 @@ namespace WanXiang.Modules.UI
             float h = 0f;
             while (h < tHold) { h += Time.unscaledDeltaTime; yield return null; }
 
-            // ④ 墨退回四边
+            // ④ 墨退回四边（同一条曲线，退得比进略"利落"：曲线右移）
             t = 0f;
             while (t < tOut && Time.realtimeSinceStartup < _deadline + 2f)
             {
                 t += Time.unscaledDeltaTime;
-                _inkCoverMat.SetFloat(InkProgressId, 1f - Mathf.Clamp01(t / Mathf.Max(0.01f, tOut)));
+                _inkCoverMat.SetFloat(InkProgressId, 1f - EaseInOutCubic(Mathf.Clamp01(t / Mathf.Max(0.01f, tOut))));
                 yield return null;
             }
             _inkCoverMat.SetFloat(InkProgressId, 0f);

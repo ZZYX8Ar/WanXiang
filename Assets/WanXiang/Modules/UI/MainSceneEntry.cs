@@ -170,7 +170,8 @@ namespace WanXiang.Modules.Boot
                 {
                     ui.Close<StartPanel>();
                     _ = ui.OpenAsync<HomePanel>();
-                }, null, 2.4f, "Start2Home", PrewarmFirstMapPanels);   // ⚠ 独立标识：与 Home→Map 链路区分
+                }, null, 2.0f, "Start2Home", PrewarmFirstMapPanels);   // ⚠ 独立标识：与 Home→Map 链路区分
+                // ★ 2026-11-04：2.4 → 2.0。"丝滑"靠曲线和质感，不靠把时间拉长（拖越久越显钝）。
             }
             Debug.Log("[MainSceneEntry] 已进入主界面（带水墨转场，开始界面已关闭）。");
         }
