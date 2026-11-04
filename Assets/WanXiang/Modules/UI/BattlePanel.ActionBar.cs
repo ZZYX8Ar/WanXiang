@@ -168,9 +168,20 @@ namespace WanXiang.Modules.UI
 
             var u = _play.PendingUnit;
 
-            // 行动箭头：等待下令期间 ActionBegin 还没发，主动把舞台"当前行动者"指向待令单位，
-            // 否则箭头停在上一个行动者头上（用户 2026-10-14：要一眼看出现在轮到谁）。
-            if (_stage != null && u != null) _stage.SetTurnActor(u.RuntimeId);
+            // 行动箭头（2026-11-04 重写）：以前直接指向 PendingUnit —— 而玩家一按「终结技」，
+            //   PendingUnit 立刻变成下一只，可这一发奥义还在演出（多段伤害/镜头/特效都没打完），
+            //   于是箭头提前跳到下一只（用户："都还没有攻击完呢"）。
+            // ⇒ 规则：
+            //   · 演出中（有事件待播）→ 钉在**本回合 ActionBegin 记下的 _orderActorId**（正在打的那只）
+            //   · 回到「等我方下令 + 事件播完」→ 才切到 PendingUnit
+            //   ⚠ 别用"每条事件的 actorId"当来源：回合末一堆 Damage/Heal 会来回跳（见 OrderList 注释）。
+            if (_stage != null)
+            {
+                string turnActor = null;
+                if (!HasPendingEvent() && _play.AwaitingCommand && u != null) turnActor = u.RuntimeId;
+                else if (!string.IsNullOrEmpty(_orderActorId)) turnActor = _orderActorId;
+                if (!string.IsNullOrEmpty(turnActor)) _stage.SetTurnActor(turnActor);
+            }
 
             if (_autoBattle && u == null)
             {

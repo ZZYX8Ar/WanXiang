@@ -2221,24 +2221,35 @@ if (_tmpActTitle != null)
         private readonly System.Collections.Generic.Dictionary<int, Color> _dotColorCache
             = new System.Collections.Generic.Dictionary<int, Color>();
 
+        /// <summary>
+        /// 节点选中反馈（**主线与秘境共用这一份**）。
+        /// 2026-10-22 用户："金黄色太丑了，直接把左边这个图标亮起来就行" ⇒ 圆点放大 1.35 + 提亮；
+        /// 2026-11-04 用户："秘境里面节点选中的时候没有变大，还有选中的反馈" ⇒ 补上整卡 ×1.06。
+        /// <para>⛔ 以前这里只做圆点、而 SelectNode 末尾又有一份"整卡 1.06 + 改圆点颜色"的旧循环，
+        ///   两份互相覆盖；且秘境分支在中途 return，根本走不到末尾那份 ⇒ 秘境完全没反馈。
+        ///   现在只保留这一个实现，SelectNode 里那份已删。</para>
+        /// </summary>
         private void ApplySelectionVisual(int offset)
         {
-            // ★ 2026-10-22 用户："金黄色太丑了，直接把左边这个图标亮起来就行"
-            //   ⇒ 不染底板、不放大整卡；只把节点左侧那个圆点图标放大 1.35 并提亮。
             for (int i = 0; i < _nodeItems.Count; i++)
             {
                 var it = _nodeItems[i];
                 if (it == null) continue;
                 int off = OffsetOfName(it.name);
+                bool sel = off == offset;
+
+                // 整卡轻微放大：不染底色，避免又变成"金黄色卡"
+                it.localScale = sel ? new Vector3(1.06f, 1.06f, 1f) : Vector3.one;
+
                 var dotT = it.Find("Img_Dot") as RectTransform;
                 if (dotT == null) continue;
                 var dot = dotT.GetComponent<Image>();
                 if (dot == null) continue;
 
                 if (!_dotColorCache.ContainsKey(off)) _dotColorCache[off] = dot.color;
-                bool sel = off == offset;
                 dotT.localScale = sel ? Vector3.one * 1.35f : Vector3.one;
                 if (sel) dot.color = new Color(1f, 0.99f, 0.92f, 1f);
+                else if (IsReachable(off)) dot.color = NodeReachable;     // 可前往 = 木绿
                 else dot.color = _dotColorCache.TryGetValue(off, out var c0) ? c0 : Color.white;
             }
         }
@@ -2334,19 +2345,7 @@ if (_tmpActTitle != null)
             //   每节点限一次（写存档：换节点/进出编队/重启都不重置）；未出发可撤销；灵卵不足置灰。
             RefreshXingyiUI();
 
-            // 选中反馈：节点本身要有变化 —— 只看右侧信息卡不够明显（玩家会以为没点到）
-            for (int i = 0; i < _nodeItems.Count; i++)
-            {
-                var it = _nodeItems[i];
-                if (it == null) continue;
-                bool on = it.name == "Item_Node_" + offset;
-                it.localScale = on ? new Vector3(1.06f, 1.06f, 1f) : Vector3.one;
-                var d = it.Find("Img_Dot") != null ? it.Find("Img_Dot").GetComponent<Image>() : null;
-                if (d != null && on) d.color = NodeVisited;
-                else if (d != null && IsReachable(int.Parse(it.name.Substring("Item_Node_".Length))))
-                    d.color = NodeReachable;
-            }
-
+            // 选中反馈已统一到 ApplySelectionVisual（主线/秘境都走那一份）。
         }
 
         /// <summary>右下角「出征 / 前往 · X」按钮的文案。主线与秘境**共用**这一份。

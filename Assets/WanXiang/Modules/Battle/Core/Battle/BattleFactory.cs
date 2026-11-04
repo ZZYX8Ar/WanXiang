@@ -46,15 +46,24 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public float HpMul;
 
+        /// <summary>这只单位放奥义免元气（遗物「无相」）。只给玩家条目置位，敌人不受影响。</summary>
+        public bool UltRageFree;
+
         public DeployEntry(BeastDef def, TeamSide side, int posIndex)
         {
             Def = def; Side = side; PosIndex = posIndex;
-            StatMul = 1f; TraitId = null; HpMul = 1f;
+            StatMul = 1f; TraitId = null; HpMul = 1f; UltRageFree = false;
         }
 
         public DeployEntry WithMul(float mul)
         {
             var e = this; e.StatMul = mul; return e;
+        }
+
+        /// <summary>奥义免元气（「无相」遗物）。</summary>
+        public DeployEntry WithUltRageFree()
+        {
+            var e = this; e.UltRageFree = true; return e;
         }
 
         /// <summary>残血进场：生命 ×mul（0.5 = 半血），攻防不变。</summary>
@@ -187,6 +196,8 @@ namespace WanXiang.Battle.Core
                 // idPrefix 为空 = 中途增员：走"全战场唯一"的序号，避免与开场 P0../E0.. 撞号。
                 string runtimeId = string.IsNullOrEmpty(idPrefix) ? st.NextRuntimeId() : idPrefix + counter;
                 var unit = new BattleUnit(entries[i].Side, copy, runtimeId);
+                // ★ 2026-11-04：奥义免元气只对**被标记的条目**生效（玩家侧遗物），敌人不跟着免。
+                if (entries[i].UltRageFree) unit.IgnoreUltRage = true;
                 // ★ 敌方招式库（2026-10-16 FoeKit）：把弱点 / 破绽 / 谱系挂到单位上。
                 //⛔ 没配 FoeKit 的单位三个字段留默认值 ⇒ 结算逐位不变（天气自检基准局指纹红线）。
                 //   只对**敌方**生效：我方的兽即使配了同名 id 也不会拿到弱点（玩家不该被"弱点"标记）。

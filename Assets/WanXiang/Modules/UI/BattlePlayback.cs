@@ -188,7 +188,8 @@ namespace WanXiang.Modules.UI
             cfg.AutoCastUltimate = true;
             cfg.MaxTurns = 48 + req.MaxTurnsDelta;   // ★ 单场回合上限（用户要求 48；遗物「延时/速决符」可修正）
             // ★ 遗物机制（v1.2）：改规则而不改数值
-            cfg.UltimateNeedsRage = !req.UltimateNoRage;   // 「无相」：奥义免元气
+            // ⛔ 2026-11-04：「无相」**不能**改全局 cfg.UltimateNeedsRage —— 那是敌我共用的配置，
+            //   一改敌人也免元气，于是双方每回合互放奥义（用户报障）。改为逐条目标记玩家单位。
             cfg.EnableHitChance = !req.NoHitChance;        // 「澄明」：关闭命中率（必中）
 
             var p = new DeployEntry[req.Player.Count];
@@ -206,6 +207,8 @@ namespace WanXiang.Modules.UI
                 if (req.PlayerHpMulPer != null && i < req.PlayerHpMulPer.Count &&
                     req.PlayerHpMulPer[i] < 1f)
                     pe = pe.WithHpMul(req.PlayerHpMulPer[i]);
+                // ★ 「无相」（首领遗物）：**只给我方**这几个单位免元气。
+                if (req.UltimateNoRage) pe = pe.WithUltRageFree();
                 // ★ 遗物劫象：该单位被授予的劫象优先（只有一个槽 ， 就不再挂「复苏」）；
                 //   否则吃全局的「复活 1 次」（BattleFactory.Deploy 会据此设虫卵复活）。
                 string granted = (req.PlayerTrait != null && i < req.PlayerTrait.Count) ? req.PlayerTrait[i] : null;

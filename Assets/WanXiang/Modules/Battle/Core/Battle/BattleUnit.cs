@@ -651,6 +651,13 @@ namespace WanXiang.Battle.Core
             Rage = CoreMath.Clamp(Rage - amount, 0f, RageCap);
         }
 
+        /// <summary>
+        /// 这只单位放奥义**不消耗元气**（遗物「无相」）。
+        /// ⛔ 必须是**单位级**标志：遗物只加在玩家身上，写在 <see cref="BattleConfig.UltimateNeedsRage"/>
+        ///   会连敌人一起免元气 —— 敌人会变成每回合放大招（2026-11-04 用户报障）。
+        /// </summary>
+        public bool IgnoreUltRage;
+
         /// <summary>是否满足释放条件（资源为主；CD 由 cfg.UseCooldown 决定是否参与）。</summary>
         public bool CanCast(SkillType type, BattleConfig cfg)
         {
@@ -658,7 +665,7 @@ namespace WanXiang.Battle.Core
             // ★ CD 改为可开关：默认关（资源本身即限制）。见 BattleConfig.UseCooldown 的说明。
             if (cfg.UseCooldown && Cooldowns[idx] > 0) return false;
             if ((type == SkillType.Ultimate || type == SkillType.Awaken)
-                && cfg.UltimateNeedsRage && Rage < cfg.RageMax) return false;
+                && cfg.UltimateNeedsRage && !IgnoreUltRage && Rage < cfg.RageMax) return false;
             return true;
         }
 

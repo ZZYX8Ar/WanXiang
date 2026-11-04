@@ -113,8 +113,8 @@ namespace WanXiang.Battle.Core
             //  ① 灵力：每存活 1 只 1 点
             if (host.Side == TeamSide.Player) st.TeamMp -= mpCost;
             else st.EnemyMp -= mpCost;
-            //  ② 主兽大招能量：整份（「无相」遗物关掉元气需求时不扣）
-            if (cfg.UltimateNeedsRage) host.SpendRage(cfg.UltimateRageCost);
+            //  ② 主兽大招能量：整份（「无相」遗物对**该单位**关掉元气需求时不扣）
+            if (cfg.UltimateNeedsRage && !host.IgnoreUltRage) host.SpendRage(cfg.UltimateRageCost);
             st.UsedCombos.Add(comboId);
 
             st.Log.Add(st.Turn, BattleEventKind.SkillCast, actorId: host.RuntimeId,
@@ -353,8 +353,8 @@ namespace WanXiang.Battle.Core
             else
                 st.EnemyMp = st.EnemyMp > 1 ? st.EnemyMp - 1 : 0;
 
-            // ② 主兽大招能量 -50%（「无相」关掉元气需求时不扣）
-            if (cfg.UltimateNeedsRage) host.SpendRage(cfg.UltimateRageCost * 0.5f);
+            // ② 主兽大招能量 -50%（「无相」对该单位关掉元气需求时不扣）
+            if (cfg.UltimateNeedsRage && !host.IgnoreUltRage) host.SpendRage(cfg.UltimateRageCost * 0.5f);
 
             // ③ 记一条"触发失败"（UI 直接显示 Note；结构化字段保持最小）
             st.Log.Add(st.Turn, BattleEventKind.ParryResult, actorId: host.RuntimeId,
