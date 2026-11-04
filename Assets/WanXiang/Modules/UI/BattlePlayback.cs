@@ -85,8 +85,8 @@ namespace WanXiang.Modules.UI
         /// <summary>遗物对「本场回合上限」的修正（正=更从容，负=更紧张）。BattlePlayback 用 cfg.MaxTurns + 本值。</summary>
         public int MaxTurnsDelta = 0;
 
-        /// <summary>遗物「无相」：奥义不再需要元气。</summary>
-        public bool UltimateNoRage = false;
+        /// <summary>遗物「无相」：奥义元气成本倍率（0.5 = 半价）。</summary>
+        public float UltRageCostMul = 1f;
 
         /// <summary>遗物「澄明」：本场关闭命中率判定（全队必中）。</summary>
         public bool NoHitChance = false;
@@ -208,7 +208,7 @@ namespace WanXiang.Modules.UI
                     req.PlayerHpMulPer[i] < 1f)
                     pe = pe.WithHpMul(req.PlayerHpMulPer[i]);
                 // ★ 「无相」（首领遗物）：**只给我方**这几个单位免元气。
-                if (req.UltimateNoRage) pe = pe.WithUltRageFree();
+                if (req.UltRageCostMul < 1f) pe = pe.WithUltRageCostMul(req.UltRageCostMul);
                 // ★ 遗物劫象：该单位被授予的劫象优先（只有一个槽 ， 就不再挂「复苏」）；
                 //   否则吃全局的「复活 1 次」（BattleFactory.Deploy 会据此设虫卵复活）。
                 string granted = (req.PlayerTrait != null && i < req.PlayerTrait.Count) ? req.PlayerTrait[i] : null;

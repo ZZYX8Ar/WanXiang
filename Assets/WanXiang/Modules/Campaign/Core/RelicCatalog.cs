@@ -87,7 +87,7 @@ namespace WanXiang.Campaign
         // ---- 规则改写（全场）----
         TurnsPlus,         // 回合上限 +Value
         TurnsMinus,        // 回合上限 -Value（高风险高回报）
-        UltimateNoRage,    // 奥义不需要元气
+        UltimateHalfRage,  // 奥义元气需求减半（原「免元气」太强，2026-11-04 削弱）
         NoHitChance,       // 关闭命中率（全队必中）
         EnemyCautious,     // 敌方 AI 变保守
     }
@@ -586,7 +586,7 @@ namespace WanXiang.Campaign
 
             L.Add(new RelicDef("r_rule_turns_plus", "延时符", "本局每一场回合上限 +4（更从容，但也不是纯赚）", RelicRarity.Common, RelicEffect.None, 0f, 4f, null, RelicMechanic.TurnsPlus));
             L.Add(new RelicDef("r_rule_turns_minus", "速决符", "全队 生命/攻击/防御 +25%，但本场回合上限 -4（打不完就输）", RelicRarity.Rare, RelicEffect.PlayerStatPct, 25f, 4f, null, RelicMechanic.TurnsMinus));
-            L.Add(new RelicDef("r_rule_no_rage", "无相", "全队奥义【不再需要元气】", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.UltimateNoRage));
+            L.Add(new RelicDef("r_rule_no_rage", "无相", "全队奥义【元气需求减半】（50 点）", RelicRarity.Boss, RelicEffect.None, 0f, 0f, null, RelicMechanic.UltimateHalfRage));
             L.Add(new RelicDef("r_rule_no_hit", "澄明", "本场关闭命中率判定 —— 全队必定命中", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.NoHitChance));
             L.Add(new RelicDef("r_rule_enemy_cautious", "乱其心", "敌方打法变为【保守】（不抢放奥义、不激进）", RelicRarity.Rare, RelicEffect.None, 0f, 0f, null, RelicMechanic.EnemyCautious));
 

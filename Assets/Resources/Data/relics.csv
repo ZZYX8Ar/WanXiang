@@ -13,7 +13,7 @@ r_trait_thickwall,磐石印,全队获得【厚壁】劫象：防御 +25%，但�
 r_trait_devour,饕餮纹,全队获得【吞噬】劫象：行动时剥离目标 1 个增益，但自身每回合损失 4% 生命,Boss,None,0,0,,GrantDevour
 r_rule_turns_plus,延时符,本局每一场回合上限 +4（更从容，但也不是纯赚）,Common,None,0,4,,TurnsPlus
 r_rule_turns_minus,速决符,全队 生命/攻击/防御 +25%，但本场回合上限 -4（打不完就输）,Rare,PlayerStatPct,25,4,,TurnsMinus
-r_rule_no_rage,无相,全队奥义【不再需要元气】,Boss,None,0,0,,UltimateNoRage
+r_rule_no_rage,无相,全队奥义【元气需求减半】（50 点）,Boss,None,0,0,,UltimateHalfRage
 r_rule_no_hit,澄明,本场关闭命中率判定 —— 全队必定命中,Rare,None,0,0,,NoHitChance
 r_rule_enemy_cautious,乱其心,敌方打法变为【保守】（不抢放奥义、不激进）,Rare,None,0,0,,EnemyCautious
 r_trade_1,赌命契·小,全队 生命/攻击/防御 +12%，但战斗开局灵力 -1,Common,TradeStatPct,12,1,,None

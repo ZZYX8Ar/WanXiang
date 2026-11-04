@@ -486,8 +486,9 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                     UnityEngine.Debug.Log("[BattleRequestFactory] 事件限时：" + run.EventTurnLimit + " 回合（MaxTurnsDelta=" + req.MaxTurnsDelta + "）");
                     run.EventTurnLimit = 0;
                 }
-                if (WanXiang.Campaign.RelicCatalog.HasMechanic(run.Relics, WanXiang.Campaign.RelicMechanic.UltimateNoRage))
-                    req.UltimateNoRage = true;
+                // ★ 2026-11-04：「无相」从"免元气"削弱为"元气减半"。只给我方条目打折（单位级）。
+                if (WanXiang.Campaign.RelicCatalog.HasMechanic(run.Relics, WanXiang.Campaign.RelicMechanic.UltimateHalfRage))
+                    req.UltRageCostMul = 0.5f;
                 if (WanXiang.Campaign.RelicCatalog.HasMechanic(run.Relics, WanXiang.Campaign.RelicMechanic.NoHitChance))
                     req.NoHitChance = true;
                 if (WanXiang.Campaign.RelicCatalog.HasMechanic(run.Relics, WanXiang.Campaign.RelicMechanic.EnemyCautious))

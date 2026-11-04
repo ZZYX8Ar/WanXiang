@@ -652,11 +652,12 @@ namespace WanXiang.Battle.Core
         }
 
         /// <summary>
-        /// 这只单位放奥义**不消耗元气**（遗物「无相」）。
-        /// ⛔ 必须是**单位级**标志：遗物只加在玩家身上，写在 <see cref="BattleConfig.UltimateNeedsRage"/>
-        ///   会连敌人一起免元气 —— 敌人会变成每回合放大招（2026-11-04 用户报障）。
+        /// 放奥义的元气成本倍率（1 = 正常，0.5 = 半价，0 = 免费）。
+        /// 遗物「无相」给 0.5（2026-11-04 由"免元气"削弱而来：免元气等于每回合放大招，太离谱）。
+        /// ⛔ 必须是**单位级**字段：遗物只加在玩家身上；写进 <see cref="BattleConfig"/>
+        ///   会连敌人一起打折 —— 敌我互放奥义（2026-11-04 用户报障）。
         /// </summary>
-        public bool IgnoreUltRage;
+        public float UltRageCostMul = 1f;
 
         /// <summary>是否满足释放条件（资源为主；CD 由 cfg.UseCooldown 决定是否参与）。</summary>
         public bool CanCast(SkillType type, BattleConfig cfg)
@@ -664,8 +665,12 @@ namespace WanXiang.Battle.Core
             int idx = (int)type;
             // ★ CD 改为可开关：默认关（资源本身即限制）。见 BattleConfig.UseCooldown 的说明。
             if (cfg.UseCooldown && Cooldowns[idx] > 0) return false;
-            if ((type == SkillType.Ultimate || type == SkillType.Awaken)
-                && cfg.UltimateNeedsRage && !IgnoreUltRage && Rage < cfg.RageMax) return false;
+            if ((type == SkillType.Ultimate || type == SkillType.Awaken) && cfg.UltimateNeedsRage)
+            {
+                // 门槛跟着成本倍率走：「无相」半价时，元气到 50 就能放（正常要 100）。
+                float need = cfg.UltimateRageCost * UltRageCostMul;
+                if (Rage < need) return false;
+            }
             return true;
         }
 
