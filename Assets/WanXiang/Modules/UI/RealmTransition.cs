@@ -184,6 +184,29 @@ namespace WanXiang.Modules.UI
             Debug.Log("[RealmTransition] 已预热（首次转场不再闪旧画面）");
         }
 
+        /// <summary>
+        /// 兜底复位（2026-11-04 用户："进战斗的时候卡了一下，这些墨水停留在周围了"）。
+        /// <para>转场协程可能被外部打断：宿主被 SetActive(false)（协程直接停，恢复后也不续）、
+        ///   场景切换销毁、或者协程里抛异常（Unity 会静默吞掉并结束迭代器）。</para>
+        /// <para>一旦断了，就没人把 `_Progress` 推回 0 ⇒ 战斗里永久挂着四角残墨。
+        ///   这里只在 **不在演出中** 时检查，发现残墨立刻复位，并打一条日志方便定位是谁打断的。</para>
+        /// </summary>
+        private void Update()
+        {
+            if (_busy || _cover == null) return;
+            float p = _coverMat != null ? _coverMat.GetFloat(InkCoverProgressId) : 0f;
+            // 只按"看得见的东西"判脏：Build 里默认 raycastTarget=true 但完全透明，不该算残留
+            bool dirty = p > 0.001f || (_coverMat == null && _cover.color.a > 0.001f);
+            if (!dirty) return;
+
+            Debug.LogWarning("[RealmTransition] 检测到转场被中断（Progress=" + p.ToString("F3") +
+                             "，raycast=" + _cover.raycastTarget + "），强制复位遮罩");
+            SetCover(0f, 0f);
+            _cover.raycastTarget = false;
+            if (_title != null) { _title.enabled = false; }
+            if (_titleMat != null) _titleMat.SetFloat(ProgressId, 1f);
+        }
+
         private static RealmTransition Ensure()
         {
             if (_inst != null) return _inst;

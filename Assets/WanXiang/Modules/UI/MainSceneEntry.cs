@@ -163,7 +163,10 @@ namespace WanXiang.Modules.Boot
                 // ⚠ 不传 coverSprite ， 用按幕的纯色纸底（用户 2026-10-12：
                 //   "从开始界面到主界面保留之前的黑色就行"）。
                 //   背景贯穿只留给「主界面→节点地图」那条（那里两张底图才需要接）。
-                await UiTransition.PlayAsync(UiTransition.Kind.Ink, act0, () =>
+                // ★ 2026-11-04（用户："从存档进入主界面这个转场就用一滴水墨，看着 low"）：
+                //   换成 Kind.InkCover —— 同一套「墨从四边洇入」（InkCover shader），
+                //   预热 preSequence 仍落在墨铺满之后，不会露出来。
+                await UiTransition.PlayAsync(UiTransition.Kind.InkCover, act0, () =>
                 {
                     ui.Close<StartPanel>();
                     _ = ui.OpenAsync<HomePanel>();

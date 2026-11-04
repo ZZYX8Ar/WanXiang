@@ -35,6 +35,7 @@ namespace WanXiang.Modules.UI
                       // 2026-10-20 用户："把滑动改为拨开"，滑动只在历史里保留
             Split,    // 双帘拨开（两幅墨帘从两侧合拢，再从中缝向两侧拨开）
             Cloud,    // 云过（几朵云从右往左飘过）
+            InkCover, // 墨从四边洇入（复用 WanXiang/UI/InkCover 材质；2026-11-04，存档→主界面用）
         }
 
         private static UiTransition _inst;
@@ -49,6 +50,8 @@ namespace WanXiang.Modules.UI
         private bool _exitStarted;
         private readonly List<Streak> _streaks = new List<Streak>();   // 横扫转场的粒子尾迹
         private static Shader _streakShader;                            // WanXiang/UI/Streak（拖尾）
+        private Material _inkCoverMat;                                  // WanXiang/UI/InkCover（四边洇入）
+        private static readonly int InkProgressId = Shader.PropertyToID("_Progress");
 
 
         /// <summary>粒子尾迹：一个 Image（材质用 UIStreak shader）。</summary>
@@ -376,6 +379,17 @@ namespace WanXiang.Modules.UI
                 yield return pre.ToCoroutine();
             }
 
+            // ★ Kind.InkCover（2026-11-04）：墨从四边洇入。
+            //   它自己负责「遮盖 → 切界面 → 预热 → 拨开」整条时间轴，所以**跳过**上面那段
+            //   0.12s 纯色垫底与 preSequence —— 否则预热会在墨还没铺满时就跑（会从缝里露出来）。
+            if (kind == Kind.InkCover)
+            {
+                yield return InkCoverSequence(act, onSwitch, tIn, tHold, tOut, preSequence);
+                RebuildAfterSceneSwitch(act);
+                FinishRun(tg, kind, onDone);
+                yield break;
+            }
+
             switch (kind)
             {
                 case Kind.Ink: yield return InkSequence(act, onSwitch, tIn, tHold, tOut); break;
@@ -403,12 +417,89 @@ namespace WanXiang.Modules.UI
                 _cover.color = new Color(cc.r, cc.g, cc.b, 0f);
             }
 
+            FinishRun(tg, kind, onDone);
+        }
+
+        /// <summary>转场收尾（唯一出口）：清临时元素、放行点击、清标志。</summary>
+        private void FinishRun(string tg, Kind kind, System.Action onDone)
+        {
             ClearExtra();
-            _blocker.raycastTarget = false;
+            if (_blocker != null) _blocker.raycastTarget = false;
             _busy = false;
             _exitStarted = false;
             Debug.Log("[UiTransition]" + tg + " 转场结束 " + kind);
             if (onDone != null) onDone();
+        }
+
+        /// <summary>
+        /// 「墨从四边洇入」序列（2026-11-04）。
+        /// 用 `_cover` 挂 `WanXiang/UI/InkCover` 材质，推 `_Progress`：0（透明）→1（满屏墨）→0。
+        /// <para>⛔ 结束时必须把 `_cover.material` 摘回 null：否则后续 Ink/Split 那些
+        ///   "靠 image alpha 淡入"的转场会被 `_Progress=0` 弄成完全隐形。</para>
+        /// <para>⛔ 找不回 shader 时直接切界面（宁可没有转场，也不能卡在半黑）。</para>
+        /// </summary>
+        private IEnumerator InkCoverSequence(int act, System.Action onSwitch, float tIn, float tHold, float tOut,
+                                             System.Func<UniTask> preSequence)
+        {
+            if (_cover == null) { onSwitch?.Invoke(); yield break; }
+
+            if (_inkCoverMat == null)
+            {
+                var sh = Shader.Find("WanXiang/UI/InkCover");
+                if (sh != null) _inkCoverMat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+            }
+            if (_inkCoverMat == null)
+            {
+                Debug.LogWarning("[UiTransition] 找不到 WanXiang/UI/InkCover，直接切界面（跳过转场）");
+                onSwitch?.Invoke();
+                yield break;
+            }
+
+            _cover.sprite = null;
+            _cover.material = _inkCoverMat;
+            _cover.color = Color.white;           // 透明度交给 shader
+            _cover.raycastTarget = true;
+            _inkCoverMat.SetColor("_CoverColor", Color.black);
+            _inkCoverMat.SetFloat(InkProgressId, 0f);
+
+            // ① 墨从四边吃进来
+            float t = 0f;
+            while (t < tIn && Time.realtimeSinceStartup < _deadline)
+            {
+                t += Time.unscaledDeltaTime;
+                _inkCoverMat.SetFloat(InkProgressId, Mathf.Clamp01(t / Mathf.Max(0.01f, tIn)));
+                yield return null;
+            }
+            _inkCoverMat.SetFloat(InkProgressId, 1f);
+
+            // ② 换界面 + 预热（全在满屏墨之下，看不见）
+            try { onSwitch?.Invoke(); }
+            catch (System.Exception ex) { Debug.LogError("[UiTransition] onSwitch 异常：" + ex); }
+            yield return null;
+            if (preSequence != null)
+            {
+                var pre = preSequence();
+                yield return pre.ToCoroutine();
+            }
+
+            // ③ 停一下
+            float h = 0f;
+            while (h < tHold) { h += Time.unscaledDeltaTime; yield return null; }
+
+            // ④ 墨退回四边
+            t = 0f;
+            while (t < tOut && Time.realtimeSinceStartup < _deadline + 2f)
+            {
+                t += Time.unscaledDeltaTime;
+                _inkCoverMat.SetFloat(InkProgressId, 1f - Mathf.Clamp01(t / Mathf.Max(0.01f, tOut)));
+                yield return null;
+            }
+            _inkCoverMat.SetFloat(InkProgressId, 0f);
+
+            // ⑤ 摘材质（见上面的 ⛔）
+            _cover.material = null;
+            _cover.color = new Color(1f, 1f, 1f, 0f);
+            _cover.raycastTarget = false;
         }
 
         /// <summary>
@@ -598,6 +689,10 @@ namespace WanXiang.Modules.UI
         private void ResetCover()
         {
             if (_cover == null) return;
+            // ★ 2026-11-04：上一次 InkCover 被打断时材质还挂在 _cover 上，不摘会让后面的
+            //   Ink/Split 转场（靠 alpha 淡入）被 _Progress=0 弄成"完全不显示"。
+            if (_cover.material != null && _inkCoverMat != null && _cover.material == _inkCoverMat)
+                _cover.material = null;
             _cover.sprite = null;
             _cover.type = Image.Type.Simple;
             _cover.preserveAspect = false;
