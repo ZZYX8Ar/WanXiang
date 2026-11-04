@@ -162,10 +162,19 @@ namespace WanXiang.Modules.UI
             RefreshSpeedLabel();          // ★ 必须同步刷新按钮文案，否则仍显示上一场的 ×4（用户实测）
 
             // 遗物 HUD（左上角一排小牌，悬浮看说明）
+            // ⛔ 2026-11-04 用户："boss挑战和pvp对战怎么能看到遗物呢" ——
+            //   首领试炼与好友对战是**独立玩法**，不吃本局遗物；但这里原来无条件读
+            //   `RunSave.Current.Relics`，只要存档里还留着一局没结束，这两种战斗左上角
+            //   就会挂出一排**根本不起作用**的遗物（越看越像 bug）。
+            //   判定用 SceneFlow 的两个标记：LastWasBossRush（回主城时复位）、LastWasPvp（每场按 req 置位）。
+            bool independentMode = WanXiang.Modules.UI.SceneFlow.LastWasBossRush
+                                || WanXiang.Modules.UI.SceneFlow.LastWasPvp;
             var hudRun = WanXiang.Run.RunSave.Current;
-            RelicHud.Populate(_rootRelics, _relicTemplate, hudRun != null ? hudRun.Relics : null,
+            RelicHud.Populate(_rootRelics, _relicTemplate,
+                independentMode ? null : (hudRun != null ? hudRun.Relics : null),
                 def => RelicHud.ShowTip(_relicTipRoot, _relicTipText, def),
                 () => RelicHud.HideTip(_relicTipRoot));
+            if (_rootRelics != null) _rootRelics.gameObject.SetActive(!independentMode);
 
             // 两条路径：战斗场景（单位交给 BattleStage2D，本面板只当 HUD）/
             // 主城内直接打（本面板自己画单位视图）

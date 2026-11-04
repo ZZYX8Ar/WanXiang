@@ -46,6 +46,8 @@ namespace WanXiang.Modules.UI
         private Image _cover;                // 前置遮盖层（进场先盖住旧界面）
         private readonly List<Image> _pool = new List<Image>();
         private bool _busy;
+        private float _busySince;      // 本场开始时间（unscaled），用于识别"协程死了但 _busy 还挂着"
+        private const float STALL_SECONDS = 12f;
         private float _deadline;
         private bool _exitStarted;
         private readonly List<Streak> _streaks = new List<Streak>();   // 横扫转场的粒子尾迹
@@ -321,6 +323,7 @@ namespace WanXiang.Modules.UI
         {
             string tg = string.IsNullOrEmpty(tag) ? "" : ("[" + tag + "]");
             _busy = true;
+            _busySince = Time.unscaledTime;
             _blocker.raycastTarget = true;
             ClearExtra();          // 清掉上一场的临时元素
             ResetCover();          // ⛔ 清掉上一场的遮盖层状态（sprite/transform）
@@ -425,6 +428,38 @@ namespace WanXiang.Modules.UI
         {
             x = Mathf.Clamp01(x);
             return x < 0.5f ? 4f * x * x * x : 1f - Mathf.Pow(-2f * x + 2f, 3f) * 0.5f;
+        }
+
+        /// <summary>
+        /// 兜底：协程被外部打断（宿主失活 / 异常）后 `_busy` 会**永远停在 true**，
+        /// 于是遮罩（尤其 InkCover 材质那层）留在屏幕上不动，后续转场也全被"重入"挡掉。
+        /// 这里超过 STALL_SECONDS 判定卡死，强制收尾。
+        /// </summary>
+        private void Update()
+        {
+            if (!_busy) return;
+            if (Time.unscaledTime - _busySince < STALL_SECONDS) return;
+
+            Debug.LogWarning("[UiTransition] 转场卡死超过 " + STALL_SECONDS + "s，强制收尾");
+            AbortRun();
+        }
+
+        /// <summary>宿主失活 ⇒ 协程被停，立刻回到干净状态。</summary>
+        private void OnDisable() => AbortRun();
+
+        /// <summary>强制收尾：清遮罩材质/alpha、放行点击、复位标志。</summary>
+        private void AbortRun()
+        {
+            if (_cover != null)
+            {
+                if (_inkCoverMat != null && _cover.material == _inkCoverMat) _cover.material = null;
+                _cover.color = new Color(1f, 1f, 1f, 0f);
+                _cover.raycastTarget = false;
+            }
+            if (_blocker != null) _blocker.raycastTarget = false;
+            ClearExtra();
+            _busy = false;
+            _exitStarted = false;
         }
 
         /// <summary>转场收尾（唯一出口）：清临时元素、放行点击、清标志。</summary>

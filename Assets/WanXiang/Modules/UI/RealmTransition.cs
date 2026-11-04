@@ -121,6 +121,8 @@ namespace WanXiang.Modules.UI
 
         private bool _busy;
         private bool _built;
+        /// <summary>本场演出开始的时间（unscaled）。用于识别"协程已死但 _busy 还挂着"。</summary>
+        private float _busySince;
 
         // =====================================================================
         //  对外入口
@@ -144,6 +146,11 @@ namespace WanXiang.Modules.UI
             // ⛔ 2026-10-24：重入时**不能立刻 onSwitch** —— 上一次转场还没盖满屏幕，
             //   这时切面板 = 玩家直接看到新地图（"离开秘境提前看到节点地图"的成因之一）。
             //   改成等它播完再开始自己这一场。
+            if (inst.IsStalled)
+            {
+                Debug.LogWarning("[RealmTransition] 上一场转场已卡死，先复位再开新的");
+                inst.ForceReset();
+            }
             if (inst._busy)
             {
                 float waited = 0f;
@@ -185,27 +192,57 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>
-        /// 兜底复位（2026-11-04 用户："进战斗的时候卡了一下，这些墨水停留在周围了"）。
-        /// <para>转场协程可能被外部打断：宿主被 SetActive(false)（协程直接停，恢复后也不续）、
-        ///   场景切换销毁、或者协程里抛异常（Unity 会静默吞掉并结束迭代器）。</para>
-        /// <para>一旦断了，就没人把 `_Progress` 推回 0 ⇒ 战斗里永久挂着四角残墨。
-        ///   这里只在 **不在演出中** 时检查，发现残墨立刻复位，并打一条日志方便定位是谁打断的。</para>
+        /// 兜底复位（2026-11-04 用户："进战斗卡了一下，这些墨水停留在周围了"）。
+        /// <para>⛔ 第一次修的时候踩了坑：只在 `!_busy` 时查残墨 —— 可协程一被打断
+        ///   （宿主失活 / 场景切换 / 协程里抛异常），`_busy` 就**永远停在 true**，
+        ///   于是既没人清遮罩、也没人复位 `_busy`，后面每次转场都直接走"重入等待"然后跳过。
+        ///   表现就是战斗画面四边一圈黑永远不动（用户第二次报障）。</para>
+        /// <para>现在两层：① `_busy` 超过 STALL_SECONDS 就判定卡死，强制复位；
+        ///   ② 不在演出中却还有残墨 → 复位。</para>
         /// </summary>
+        private const float STALL_SECONDS = 12f;
+
+        private bool IsStalled
+            => _busy && Time.unscaledTime - _busySince > STALL_SECONDS / Mathf.Max(0.01f, DebugSlowMul);
+
         private void Update()
         {
-            if (_busy || _cover == null) return;
+            if (_cover == null) return;
+
+            if (IsStalled)
+            {
+                Debug.LogWarning("[RealmTransition] 转场卡死超过 " + STALL_SECONDS + "s（Progress=" +
+                                 (_coverMat != null ? _coverMat.GetFloat(InkCoverProgressId).ToString("F3") : "-") +
+                                 "），强制复位");
+                ForceReset();
+                return;
+            }
+            if (_busy) return;
+
             float p = _coverMat != null ? _coverMat.GetFloat(InkCoverProgressId) : 0f;
-            // 只按"看得见的东西"判脏：Build 里默认 raycastTarget=true 但完全透明，不该算残留
             bool dirty = p > 0.001f || (_coverMat == null && _cover.color.a > 0.001f);
             if (!dirty) return;
 
-            Debug.LogWarning("[RealmTransition] 检测到转场被中断（Progress=" + p.ToString("F3") +
-                             "，raycast=" + _cover.raycastTarget + "），强制复位遮罩");
-            SetCover(0f, 0f);
-            _cover.raycastTarget = false;
-            if (_title != null) { _title.enabled = false; }
-            if (_titleMat != null) _titleMat.SetFloat(ProgressId, 1f);
+            Debug.LogWarning("[RealmTransition] 检测到转场被中断（Progress=" + p.ToString("F3") + "），强制复位遮罩");
+            ForceReset();
         }
+
+        /// <summary>把转场相关的一切回到"什么都没演"的状态（可重复调用）。</summary>
+        private void ForceReset()
+        {
+            _busy = false;
+            SetCover(0f, 0f);
+            if (_cover != null) _cover.raycastTarget = false;
+            if (_title != null) _title.enabled = false;
+            if (_titleMat != null) _titleMat.SetFloat(ProgressId, 1f);
+            try { ClearParticles(); } catch { /* 已销毁 */ }
+        }
+
+        /// <summary>
+        /// 宿主被失活 ⇒ 协程被 Unity 直接停掉（恢复激活也不会续），正好是"卡死"的源头。
+        /// 在这里立刻复位，下一次激活就是干净状态。
+        /// </summary>
+        private void OnDisable() => ForceReset();
 
         private static RealmTransition Ensure()
         {
@@ -330,6 +367,7 @@ namespace WanXiang.Modules.UI
         private IEnumerator Run(string realmId, Action onSwitch, Action onDone, string titleText)
         {
             _busy = true;
+            _busySince = Time.unscaledTime;
             Build();
             _cover.raycastTarget = true;      // 演出期间吃掉所有点击
 
