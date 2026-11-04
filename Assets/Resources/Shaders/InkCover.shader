@@ -7,6 +7,9 @@
 //  本版做法（与 Resources/Shaders 其它 UI shader 一致：内置管线 CGPROGRAM）：
 //   ① 四边同时向内推进：边缘距离 = min(u, 1-u, v, 1-v)，等值线是"一圈圈方框"，
 //      而不是从中心扩散的圆 —— 这是"四面洇入"与"中心涟漪"的根本区别；
+//   ①b **域扭曲（domain warp）**：先用低频 fbm 把采样坐标推开，再算距离场。
+//      这是 2026-11-04 第二版新增的关键一步 —— 只推阈值不扭坐标，边界永远是
+//      "规则波浪"（用户："还不如之前那个"），扭了坐标才会拐弯、分叉、有墨渍的形状；
 //   ② 双频噪声打碎边界：低频做大块墨渍起伏、高频做纸纤维毛边；
 //   ③ 撕裂线：一层低频 sin 让某些位置"窜得更快"，避免四条边整齐得像贴纸；
 //   ④ 湿边：墨前沿向内一小段**偏冷、更实**（_RimTint / _RimStrength）；
@@ -29,23 +32,20 @@ Shader "WanXiang/UI/InkCover"
         _Progress      ("Progress (0=透明 1=全墨)", Range(0,1)) = 0
 
         [Header(Edge)]
-        _NoiseScale    ("Noise Scale", Range(1,60)) = 7
-        _NoiseStrength ("Edge Noise", Range(0,0.5)) = 0.11
-        _Tear          ("Tear", Range(0,0.2)) = 0.04
-        _Soft          ("Edge Softness", Range(0.002,0.2)) = 0.010
+        _NoiseScale    ("Noise Scale", Range(1,60)) = 5
+        _NoiseStrength ("Edge Noise", Range(0,0.5)) = 0.16
+        _Warp          ("Domain Warp", Range(0,0.2)) = 0.045
+        _Fray          ("Edge Fray (fine tendrils)", Range(0,0.2)) = 0.06
+        _Soft          ("Edge Softness", Range(0.002,0.2)) = 0.008
+        _EdgeWeight    ("Edge Weights (L,R,B,T)", Vector) = (1.08,0.94,1.03,0.97)
 
         [Header(Bleed)]
-        _Bleed         ("Bleed Ahead", Range(0,0.2)) = 0.022
-        _BleedAlpha    ("Bleed Alpha", Range(0,1)) = 0.10
+        _Bleed         ("Bleed Ahead", Range(0,0.2)) = 0.020
+        _BleedAlpha    ("Bleed Alpha", Range(0,1)) = 0.09
         _RimWet        ("Wet Rim Width", Range(0,0.2)) = 0.020
-        _RimTint       ("Wet Rim Tint", Color) = (0.22,0.24,0.28,1)
-        _RimStrength   ("Wet Rim Strength", Range(0,1)) = 0.35
-
-        [Header(LifeAndTexture)]
-        _FlowSpeed     ("Noise Flow Speed", Range(0,0.6)) = 0.05
-        _EdgeWeight    ("Edge Weights (L,R,B,T)", Vector) = (1.10,0.92,1.04,0.96)
-        _InkDensity    ("Ink Density Var", Range(0,0.25)) = 0.0
-        _DryBrush      ("Dry Brush", Range(0,1)) = 0.0
+        _RimTint       ("Wet Rim Tint", Color) = (0.22,0.23,0.26,1)
+        _RimStrength   ("Wet Rim Strength", Range(0,1)) = 0.30
+        _FlowSpeed     ("Noise Flow Speed", Range(0,0.6)) = 0.06
     }
 
     SubShader
@@ -87,8 +87,10 @@ Shader "WanXiang/UI/InkCover"
 
             float  _NoiseScale;
             float  _NoiseStrength;
-            float  _Tear;
+            float  _Warp;
+            float  _Fray;
             float  _Soft;
+            float4 _EdgeWeight;
 
             float  _Bleed;
             float  _BleedAlpha;
@@ -96,9 +98,6 @@ Shader "WanXiang/UI/InkCover"
             fixed4 _RimTint;
             float  _RimStrength;
             float  _FlowSpeed;
-            float4 _EdgeWeight;
-            float  _InkDensity;
-            float  _DryBrush;
 
             // ---- 程序化噪声（不用贴图：遮罩是全屏的，采样省一次 texture fetch 也不占资源位）----
             float hash21(float2 p)
@@ -120,6 +119,19 @@ Shader "WanXiang/UI/InkCover"
                 return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
             }
 
+            // 3 倍频 fbm：单层 vnoise 只有"一团团圆斑"，叠加三倍频才有墨渍的层次
+            float fbm(float2 p)
+            {
+                float v = 0.0, a = 0.5;
+                for (int k = 0; k < 3; k++)
+                {
+                    v += a * vnoise(p);
+                    p = p * 2.07 + 13.7;
+                    a *= 0.5;
+                }
+                return v / 0.875;      // 0.5+0.25+0.125 归一化到 0..1
+            }
+
             v2f vert(appdata_t v)
             {
                 v2f o;
@@ -132,54 +144,38 @@ Shader "WanXiang/UI/InkCover"
             fixed4 frag(v2f i) : SV_Target
             {
                 float2 uv = i.uv;
-                float flow = _Time.y * _FlowSpeed;      // 噪声随时间缓慢漂移 ⇒ 墨缘"活着"
+                float flow = _Time.y * _FlowSpeed;
 
-                // ① 到最近边的距离，但**四边权重不同**（0.94~1.06）：
-                //    完全对称的推进一眼就假；让下边快一点、左边慢一点，像被纸纤维牵着走。
-                float eL = uv.x        * _EdgeWeight.x;
-                float eR = (1.0 - uv.x) * _EdgeWeight.y;
-                float eB = uv.y        * _EdgeWeight.z;
-                float eT = (1.0 - uv.y) * _EdgeWeight.w;
+                // ① ★ 域扭曲（domain warp）：先用**低频 fbm** 把采样坐标推开。
+                //    这是"墨在纸纤维里拐弯、分叉"的关键；只推阈值不扭坐标 ⇒ 边界永远是规则波浪（上一版的问题）。
+                float wx = fbm(uv * 1.9 + flow * 0.35) - 0.5;
+                float wy = fbm(uv * 1.9 + 3.7 - flow * 0.28) - 0.5;
+                float2 wuv = uv + float2(wx, wy) * _Warp;
+
+                // ② 四边异速：在**扭曲后**的坐标上算距离 ⇒ 边界形状跟着一起扭
+                float eL = wuv.x        * _EdgeWeight.x;
+                float eR = (1.0 - wuv.x) * _EdgeWeight.y;
+                float eB = wuv.y        * _EdgeWeight.z;
+                float eT = (1.0 - wuv.y) * _EdgeWeight.w;
                 float edge = min(min(eL, eR), min(eB, eT));
 
-                // ② 双频噪声：低频大墨渍 + 高频纸纤维（都带 flow，边界持续微动）
-                float n1 = vnoise(uv * _NoiseScale + flow);
-                float n2 = vnoise(uv * _NoiseScale * 3.7 + 11.3 - flow * 0.7);
-                float n  = n1 * 0.70 + n2 * 0.30;
-                float wobble = (n - 0.5) * _NoiseStrength;
+                // ③ 主形噪声（fbm）+ 细碎裂（高频单层，模拟水渍碎边）
+                float n     = fbm(wuv * _NoiseScale + flow);
+                float fine  = vnoise(wuv * _NoiseScale * 5.5 - flow * 1.4);
+                float wobble = (n - 0.5) * _NoiseStrength + (fine - 0.5) * _Fray;
 
-                // ③ 大块不对称：两个**低频** sin 分别给 X/Y 方向一个大起伏（墨在一侧积得厚）。
-                //   ⛔ 不要用高频 sin 做"撕裂"：周期太短会在墨里切出细白条（实测像噪点/裂纹）。
-                float tear = (sin(uv.x * 6.1 + flow * 1.3) + sin(uv.y * 4.7 - flow * 0.9)) * 0.5 * _Tear;
-
-                // ④ 前沿：pow 让"起手慢、中段冲、收笔稳"，别用线性（线性最像 PPT）
                 float on = step(0.0001, _Progress);
-                float front = pow(saturate(_Progress), 1.15) * 0.62;
-                float d = front - (edge + wobble + tear);     // d>0 = 已被墨吃掉
+                float front = pow(saturate(_Progress), 1.15) * 0.62;   // 起手慢、中段冲、收笔稳
+                float d = front - (edge + wobble);                     // d>0 = 已被墨吃掉
 
-                // ⑤ 主体：边缘 _Soft 内柔化
                 float cover = smoothstep(-_Soft, _Soft, d) * on;
 
-                // ⑥ 墨色分层：低频浓淡（0.93~1.0），避免整片死黑 —— 这是"高级感"的关键
-                float dens = vnoise(uv * 2.1 + flow * 0.4);
-                cover *= 1.0 - _InkDensity * (1.0 - dens);
-
-                // ⑦ 前渗：前沿外侧一层半透明墨痕（宣纸先吸水）
-                float bleed = saturate(1.0 - abs(d) / max(_Bleed, 1e-4));
-                bleed *= step(d, 0.0001) * on;
+                // ④ 前渗：前沿外侧一层半透明（宣纸先吸水，墨后到）
+                float bleed = saturate(1.0 - abs(d) / max(_Bleed, 1e-4)) * step(d, 0.0001) * on;
                 float a = saturate(cover + bleed * _BleedAlpha * (1.0 - cover));
 
-                // ⑧ 飞白：只有**前沿内侧一条窄带**才挖半透小洞，像干笔擦过纸面。
-                //    ⛔ Progress 接近 1 时必须收掉，否则整屏会留一圈"筛子"。
-                float brushBand = saturate(1.0 - abs(d - 0.028) / 0.030);
-                brushBand *= on * (1.0 - smoothstep(0.86, 0.98, _Progress));
-                float dry = step(0.60, vnoise(uv * 26.0 + flow * 2.0));
-                a *= 1.0 - dry * brushBand * _DryBrush * 0.55;
-
-                // ⑨ 湿边：前沿向内一小段更冷更实
-                float rim = saturate(1.0 - abs(d) / max(_RimWet, 1e-4));
-                rim *= on * (1.0 - step(0.999, _Progress));
-
+                // ⑤ 湿边：前沿向内一小段偏冷（墨没干透的湿线），Progress 到 1 收掉
+                float rim = saturate(1.0 - abs(d) / max(_RimWet, 1e-4)) * on * (1.0 - step(0.999, _Progress));
                 float3 col = lerp(_CoverColor.rgb, _RimTint.rgb, saturate(rim * _RimStrength));
                 col *= i.color.rgb;
 
