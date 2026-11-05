@@ -82,7 +82,8 @@ namespace WanXiang.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
 
             string path = Dir + "/Panel_UnitInspect.prefab";
-            PrefabUtility.SaveAsPrefabAsset(root.gameObject, path);
+            // ★ 2026-11-05：从零重建型，覆盖前先备份（见 PrefabGuard 说明）。
+            PrefabGuard.SaveWithBackup(root.gameObject, path);
             Object.DestroyImmediate(root.gameObject);
             AssetDatabase.Refresh();
             Debug.Log("[BuildUnitInspect] 已生成 " + path);

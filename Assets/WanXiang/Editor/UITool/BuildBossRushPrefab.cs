@@ -246,7 +246,8 @@ namespace WanXiang.EditorTools
             item.gameObject.SetActive(false);
 
             if (!AssetDatabase.IsValidFolder(Dir)) AssetDatabase.CreateFolder("Assets/Resources", "UI");
-            PrefabUtility.SaveAsPrefabAsset(root.gameObject, Dir + "/Panel_BossRush.prefab");
+            // ★ 2026-11-05：这是**从零重建**型生成器，直接覆盖会丢手改 —— 先备份到工程外再存。
+            PrefabGuard.SaveWithBackup(root.gameObject, Dir + "/Panel_BossRush.prefab");
             Object.DestroyImmediate(root.gameObject);
 
             AssetDatabase.SaveAssets();
