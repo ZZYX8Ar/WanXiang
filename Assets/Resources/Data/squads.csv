@@ -1,0 +1,9 @@
+﻿id,name,element,starter,eggs,relic,passive,unlock,desc
+sq_wander,行旅,None,random:3,0,,none,default,无被动的三人小队；用它通关来解锁其余分队；适合第一次摸清规则
+sq_wood,回春,Wood,jumang|guanguan|jiuweihu,2,r_mech_heal,regen_all,act1_clear,每回合全体回复2%生命；相生相邻额外+1灵力；主打拖回合与续航
+sq_fire,燎原,Fire,bifang|hanba|feiyi,0,r_mech_burn,burn_cap2,act1_clear,灼烧层数上限+2；敌方每层灼烧受到伤害+3%；靠铺燃烧后期爆发
+sq_earth,磐石,Earth,houtu|dijiang|dangkang,1,r_trait_thickwall,center_guard,act3_clear,中宫减伤8%提升到15%；护盾破碎时反弹10%；站位最值钱的流派
+sq_metal,断金,Metal,baiyuan|pixiu|qiongqi,0,r_mech_pierce,armor_break,act3_clear,破甲效率+30%；对护盾目标伤害+15%；专治高防精英与首领
+sq_water,沧流,Water,jiaoren|lingli|bashe,1,r_trait_tenacity,attach_cap4,clear,附着上限3提升到4；侵蚀与易伤多1回合；反应流的主场
+sq_pure,无相,Same,random_same_element:5,0,r_mech_true,consume_x15,end_mortal,全队同元素；消耗伤害×1.5；纯色队唯一归宿；条件是不带遗物通关
+sq_hunt,游猎,None,random:4,3,r_rule_turns_plus,capture_discount,end_hunt,捕获消耗-1灵卵且失败必返；起手多1灵卵；靠野外捕获滚雪球
