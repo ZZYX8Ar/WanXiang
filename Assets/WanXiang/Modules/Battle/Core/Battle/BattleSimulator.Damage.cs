@@ -222,7 +222,9 @@ namespace WanXiang.Battle.Core
         {
             if (!dst.IsAlive) return;
 
-            bool crit = st.Random.Chance(src.Def.CritRate);
+            // B1：天性「全队暴击」按阵营加成；无表时为 0，Chance 调用次数不变 ⇒ 指纹不变。
+            bool crit = st.Random.Chance(src.Def.CritRate
+                + TraitRuntime.Sum(st, src.Side, TraitKind.CritRateTeam));
             int dmg = ComputeDamage(st, src, dst, el, atom.Power, atom.TrueDamage, crit,
                                     IsAoeTarget(atom.Target));
 
@@ -260,7 +262,9 @@ namespace WanXiang.Battle.Core
                        elementCounter: !atom.TrueDamage && ElementMatrix.Counters(el, dst.Element),
                        note: BuildDamageNote(st, src, dst, el, crit, atom.TrueDamage, dealt));
 
-            dst.AddRage(st.Config.RageWhenHit);
+            // B1：性情「刚烈」受击额外 +5 元气（更早出奥义）。
+            dst.AddRage(st.Config.RageWhenHit
+                + (dst.Def != null && dst.Def.Temperament == Temperament.Fierce ? 5f : 0f));
 
             if (dealt > 0 && !dst.IsAlive)
             {
@@ -613,6 +617,10 @@ namespace WanXiang.Battle.Core
             float mitigation = defense / (defense + cfg.DefenseConstant);
             v *= (1f - mitigation);
             v *= dst.DamageTakenMultiplier;
+
+            // B1：天性「残血处决」——目标生命 <40% 时，按攻击方阵营的天性数值加成。
+            if (dst.HpPercent < 0.4f)
+                v *= 1f + TraitRuntime.Sum(st, src.Side, TraitKind.ExecuteLowHp);
 
             // ---- 天时修正（GDD 3.1/3.4）。st.Weather 为 null 时零改动 ， 指纹不变 ----
             if (st.Weather != null)

@@ -193,6 +193,23 @@ namespace WanXiang.Battle.Core
                 if (!string.IsNullOrEmpty(entries[i].TraitId))
                     BattleTraits.Apply(copy, entries[i].TraitId);
 
+                // ★ B1（2026-11-07）：把身份卡（beasts.csv）接到这只兽上。
+                //   ⚠ 只覆写"机制字段"，保留代码里原有的 Name/Description（不丢文案）；
+                //   ⚠ 表未装或 id 不在表里 ⇒ 完全不动 ⇒ 旧玩法/自检指纹零变化。
+                BeastProfile bp;
+                if (BeastTable.TryGet(copy.Id, out bp))
+                {
+                    copy.Temperament = bp.Temperament;
+                    copy.TierScore = bp.TierScore;
+                    var tr = copy.Trait;                       // struct：取出来改再放回
+                    tr.Id = bp.TraitId;
+                    tr.Kind = bp.TraitKind;
+                    tr.Value = bp.TraitValue;
+                    tr.Value2 = bp.TraitValue2;
+                    if (!string.IsNullOrEmpty(bp.TraitName)) tr.Name = bp.TraitName;
+                    copy.Trait = tr;
+                }
+
                 // idPrefix 为空 = 中途增员：走"全战场唯一"的序号，避免与开场 P0../E0.. 撞号。
                 string runtimeId = string.IsNullOrEmpty(idPrefix) ? st.NextRuntimeId() : idPrefix + counter;
                 var unit = new BattleUnit(entries[i].Side, copy, runtimeId);

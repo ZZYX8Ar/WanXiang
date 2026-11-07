@@ -138,6 +138,22 @@ namespace WanXiang.Battle.Core
             }
         }
 
+        /// <summary>按阵营求和（挂点用）。敌我不混算，避免"敌方天性帮我方加暴击"。</summary>
+        public static float Sum(BattleState st, TeamSide side, TraitKind kind) => SumSide(st, side, kind);
+
+        /// <summary>按阵营统计某性情的数量。</summary>
+        public static int Count(BattleState st, TeamSide side, Temperament t)
+        {
+            if (st == null || t == Temperament.None) return 0;
+            var units = st.UnitsOf(side);
+            if (units == null) return 0;
+            int n = 0;
+            for (int i = 0; i < units.Count; i++)
+                if (units[i] != null && units[i].IsAlive && units[i].Def != null
+                    && units[i].Def.Temperament == t) n++;
+            return n;
+        }
+
         /// <summary>查询型：把全场某类天性的 Value 求和（不改状态）。</summary>
         public static float Sum(BattleState st, TraitKind kind)
         {

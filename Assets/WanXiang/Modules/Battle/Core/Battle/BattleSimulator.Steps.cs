@@ -54,7 +54,14 @@ namespace WanXiang.Battle.Core
                 if (turn > 1)
                 {
                     if (st.TeamMp < st.TeamMpMax)
-                        st.TeamMp = System.Math.Min(st.TeamMpMax, st.TeamMp + BattleState.MpRegenPerTurn);
+                    {
+                        // B1：天性「相生灵力」+ 性情「沉静」（每只 +1）。
+                        //   表未装 / 单位不在表里 ⇒ 两者都是 0，回归原值，指纹不变。
+                        int bonus = (int)TraitRuntime.Sum(st, TeamSide.Player, TraitKind.AdjacentMpBonus);
+                        bonus += TraitRuntime.Count(st, TeamSide.Player, Temperament.Calm);
+                        st.TeamMp = System.Math.Min(st.TeamMpMax,
+                            st.TeamMp + BattleState.MpRegenPerTurn + bonus);
+                    }
                     // 敌方独立池同节奏回复（双方的灵力互相不干扰）
                     if (st.EnemyMp < st.EnemyMpMax)
                         st.EnemyMp = System.Math.Min(st.EnemyMpMax, st.EnemyMp + BattleState.MpRegenPerTurn);
