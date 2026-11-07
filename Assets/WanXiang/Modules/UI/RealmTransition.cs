@@ -129,6 +129,8 @@ namespace WanXiang.Modules.UI
         private float _hardDeadline;
         /// <summary>心跳：协程每写一次遮罩/粒子就盖一次时间戳。超过 2 秒没更新 = 协程已死。</summary>
         private float _lastBeat;
+        private Coroutine _runCo;           // Run 协程句柄：收尾时必须**停掉它**，否则它会继续往遮罩写
+        private static int _runSeq;         // 诊断：第几场（出现两次黑幕时看日志就能确认）
         private float _forcedFade;          // >0 表示正在"强制淡出收尾"，值 = 剩余秒数
         private float _forcedFadeFrom;      // 淡出起点（当前 _Progress）
         /// <summary>本场演出开始的时间（unscaled）。用于识别"协程已死但 _busy 还挂着"。</summary>
@@ -170,12 +172,16 @@ namespace WanXiang.Modules.UI
                     await UniTask.Yield(PlayerLoopTiming.Update);
                 }
                 if (inst == null) { onSwitch?.Invoke(); return; }
-                // ⛔ 等了 4 秒还没结束 = 上一场已经卡住。**必须先复位**再开新的，
-                //   否则两个 Run 协程会同时推同一个 _Progress（旧的那个还在写，遮罩被来回拽）。
+                // ⛔⛔ 等了 4 秒还没结束 = 上一场已经卡住。
+                //   **不要再叠第二场**（2026-11-07 用户："黑幕转场出现了两次"）：
+                //   第二场会从 0 重新铺一次墨，屏幕上就是连续两遍黑幕。
+                //   这里停掉旧的、直接切界面（没有转场，但绝不会双播）。
                 if (inst._busy)
                 {
-                    Debug.LogWarning("[RealmTransition] 上一场超时未结束，强制复位后重开");
+                    Debug.LogWarning("[RealmTransition] 上一场超时未结束：停掉它并直接切界面（不叠第二场）");
                     inst.ForceReset();
+                    onSwitch?.Invoke();
+                    return;
                 }
             }
 
@@ -185,7 +191,7 @@ namespace WanXiang.Modules.UI
             inst._revealDelay = revealDelay;
             inst._impactWordRes = impactWordRes;
             inst._instantCover = instantCover;
-            inst.StartCoroutine(inst.Run(realmId, onSwitch, () => done = true, titleText));
+            inst._runCo = inst.StartCoroutine(inst.Run(realmId, onSwitch, () => done = true, titleText));
             await UniTask.WaitUntil(() => done);
         }
 
@@ -248,7 +254,10 @@ namespace WanXiang.Modules.UI
             }
 
             // ---- 心跳：协程每帧都会写遮罩/粒子；2 秒没动静 = 它已经死在半路了 ----
-            if (_busy && Time.unscaledTime - _lastBeat > 0.6f)
+            // ⚠ 阈值必须 > 切场景的长帧（实测进战斗时主线程会卡 0.5~1.5s，心跳会假死）；
+            //   而且只在**还有墨**时才收尾 —— 冲击字阶段 Progress 已是 0，收尾会把它连带清掉。
+            float curP = _coverMat != null ? _coverMat.GetFloat(InkCoverProgressId) : _cover.color.a;
+            if (_busy && curP > 0.02f && Time.unscaledTime - _lastBeat > 1.5f)
             {
                 Debug.LogWarning("[RealmTransition] 转场协程已停止（心跳超时 0.6s，Progress=" +
                                  (_coverMat != null ? _coverMat.GetFloat(InkCoverProgressId).ToString("F3") : "-") +
@@ -275,6 +284,18 @@ namespace WanXiang.Modules.UI
             ForceReset();
         }
 
+        /// <summary>清掉冲击字阶段创建的临时节点（协程被中途停掉时它们会留在屏幕上）。</summary>
+        private void CleanupImpactNodes()
+        {
+            if (_root == null) return;
+            for (int i = _root.childCount - 1; i >= 0; i--)
+            {
+                var ch = _root.GetChild(i);
+                if (ch != null && ch.name.StartsWith("Impact"))
+                    Destroy(ch.gameObject);
+            }
+        }
+
         /// <summary>强制收尾：不清屏，先把墨 0.25 秒淡出去（避免"啪"地跳变）。</summary>
         private void BeginForcedFade()
         {
@@ -289,6 +310,9 @@ namespace WanXiang.Modules.UI
         {
             _busy = false;
             _forcedFade = 0f;
+            // ⛔ 必须停协程：不停的话它会在下一帧继续把 Progress 推上去 —— 屏幕上就"又黑一次"
+            if (_runCo != null) { try { StopCoroutine(_runCo); } catch { } _runCo = null; }
+            CleanupImpactNodes();
             SetCover(0f, 0f);
             if (_cover != null) _cover.raycastTarget = false;
             if (_title != null) _title.enabled = false;
@@ -427,6 +451,8 @@ namespace WanXiang.Modules.UI
             _busy = true;
             _busySince = Time.unscaledTime;
             _lastBeat = Time.unscaledTime;      // 心跳起点（否则第一帧就可能被判"没动静"）
+            Debug.Log("[RealmTransition] Run 开始 #" + (++_runSeq) + " realm=" + (realmId ?? "-") +
+                      (string.IsNullOrEmpty(titleText) ? "" : " title=" + titleText));
             Build();
             _cover.raycastTarget = true;      // 演出期间吃掉所有点击
 
