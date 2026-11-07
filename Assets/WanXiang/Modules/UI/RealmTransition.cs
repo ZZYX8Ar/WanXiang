@@ -85,9 +85,13 @@ namespace WanXiang.Modules.UI
         /// <para>⚠ 两套通道必须同时给：有 shader 时走 `_Progress`（alpha 固定 1），
         ///   没有 shader 时走老的 `Image.color.a`。只写一个会导致"其中一种情况完全不显示"。</para>
         /// </summary>
+        /// <summary>协程心跳（每帧都会被 SetCover / SetParticle* 调到）。</summary>
+        private void Beat() => _lastBeat = Time.unscaledTime;
+
         private void SetCover(float progress01, float fallbackAlpha)
         {
             if (_cover == null) return;
+            Beat();
             if (_coverMat != null)
             {
                 _coverMat.SetFloat(InkCoverProgressId, Mathf.Clamp01(progress01));
@@ -121,6 +125,12 @@ namespace WanXiang.Modules.UI
 
         private bool _busy;
         private bool _built;
+        /// <summary>本场演出的**硬截止时间**（unscaled）。超了必清屏 —— 按本场时长算，不再写死 12 秒。</summary>
+        private float _hardDeadline;
+        /// <summary>心跳：协程每写一次遮罩/粒子就盖一次时间戳。超过 2 秒没更新 = 协程已死。</summary>
+        private float _lastBeat;
+        private float _forcedFade;          // >0 表示正在"强制淡出收尾"，值 = 剩余秒数
+        private float _forcedFadeFrom;      // 淡出起点（当前 _Progress）
         /// <summary>本场演出开始的时间（unscaled）。用于识别"协程已死但 _busy 还挂着"。</summary>
         private float _busySince;
 
@@ -160,6 +170,13 @@ namespace WanXiang.Modules.UI
                     await UniTask.Yield(PlayerLoopTiming.Update);
                 }
                 if (inst == null) { onSwitch?.Invoke(); return; }
+                // ⛔ 等了 4 秒还没结束 = 上一场已经卡住。**必须先复位**再开新的，
+                //   否则两个 Run 协程会同时推同一个 _Progress（旧的那个还在写，遮罩被来回拽）。
+                if (inst._busy)
+                {
+                    Debug.LogWarning("[RealmTransition] 上一场超时未结束，强制复位后重开");
+                    inst.ForceReset();
+                }
             }
 
             bool done = false;
@@ -200,18 +217,49 @@ namespace WanXiang.Modules.UI
         /// <para>现在两层：① `_busy` 超过 STALL_SECONDS 就判定卡死，强制复位；
         ///   ② 不在演出中却还有残墨 → 复位。</para>
         /// </summary>
-        private const float STALL_SECONDS = 12f;
-
         private bool IsStalled
-            => _busy && Time.unscaledTime - _busySince > STALL_SECONDS / Mathf.Max(0.01f, DebugSlowMul);
+        {
+            get
+            {
+                if (!_busy) return false;
+                // 有硬截止就用它（约"本场时长×1.5+4s"）；没有（异常路径）退回 12 秒
+                float limit = _hardDeadline > 0f ? _hardDeadline
+                                                 : _busySince + 12f / Mathf.Max(0.01f, DebugSlowMul);
+                return Time.unscaledTime > limit;
+            }
+        }
 
         private void Update()
         {
             if (_cover == null) return;
 
+            // ---- 强制淡出收尾（比"啪一下消失"体面，0.25 秒）----
+            if (_forcedFade > 0f)
+            {
+                _forcedFade -= Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(_forcedFade / 0.25f);
+                SetCover(_forcedFadeFrom * k, 0f);
+                if (_forcedFade <= 0f)
+                {
+                    _forcedFade = 0f;
+                    ForceReset();
+                }
+                return;
+            }
+
+            // ---- 心跳：协程每帧都会写遮罩/粒子；2 秒没动静 = 它已经死在半路了 ----
+            if (_busy && Time.unscaledTime - _lastBeat > 0.6f)
+            {
+                Debug.LogWarning("[RealmTransition] 转场协程已停止（心跳超时 0.6s，Progress=" +
+                                 (_coverMat != null ? _coverMat.GetFloat(InkCoverProgressId).ToString("F3") : "-") +
+                                 "），淡出收尾");
+                BeginForcedFade();
+                return;
+            }
+
             if (IsStalled)
             {
-                Debug.LogWarning("[RealmTransition] 转场卡死超过 " + STALL_SECONDS + "s（Progress=" +
+                Debug.LogWarning("[RealmTransition] 转场超过硬截止仍未结束（Progress=" +
                                  (_coverMat != null ? _coverMat.GetFloat(InkCoverProgressId).ToString("F3") : "-") +
                                  "），强制复位");
                 ForceReset();
@@ -227,10 +275,20 @@ namespace WanXiang.Modules.UI
             ForceReset();
         }
 
+        /// <summary>强制收尾：不清屏，先把墨 0.25 秒淡出去（避免"啪"地跳变）。</summary>
+        private void BeginForcedFade()
+        {
+            _busy = false;      // 立刻放开 busy，后续转场不用再等
+            _forcedFadeFrom = _coverMat != null ? _coverMat.GetFloat(InkCoverProgressId) : 0f;
+            _forcedFade = _forcedFadeFrom > 0.002f ? 0.25f : 0f;
+            if (_forcedFade <= 0f) ForceReset();
+        }
+
         /// <summary>把转场相关的一切回到"什么都没演"的状态（可重复调用）。</summary>
         private void ForceReset()
         {
             _busy = false;
+            _forcedFade = 0f;
             SetCover(0f, 0f);
             if (_cover != null) _cover.raycastTarget = false;
             if (_title != null) _title.enabled = false;
@@ -368,6 +426,7 @@ namespace WanXiang.Modules.UI
         {
             _busy = true;
             _busySince = Time.unscaledTime;
+            _lastBeat = Time.unscaledTime;      // 心跳起点（否则第一帧就可能被判"没动静"）
             Build();
             _cover.raycastTarget = true;      // 演出期间吃掉所有点击
 
@@ -378,6 +437,11 @@ namespace WanXiang.Modules.UI
             // ★ 实际时长（受 DebugSlowMul 影响）。⚠ 循环的**边界与除数必须是同一个值**，
             //   否则 k 走不到 1 —— 慢放时会变成"演到一半就切下一拍"。
             float dClose = D(T_CLOSE), dTitle = D(T_TITLE), dHold = D(T_HOLD), dOpen = D(T_OPEN);
+            // 正常演完 ≈ dClose+dTitle+dHold+dOpen（+revealDelay）。给 1.5 倍 + 4 秒余量当"硬截止"：
+            // 一旦超过它还在 busy，说明协程死了（被失活停掉 / 抛异常），必须立刻清屏。
+            _hardDeadline = Time.unscaledTime
+                          + (dClose + dTitle + dHold + dOpen) * 1.5f
+                          + Mathf.Max(0f, _revealDelay) * 1.5f + 4f;
 
             BuildParticles(realmId, W, H);
             PrepareTitle(titleText);
@@ -412,7 +476,10 @@ namespace WanXiang.Modules.UI
             if (_revealDelay > 0f)
             {
                 for (float t = 0f; t < _revealDelay; t += Time.unscaledDeltaTime)
+                {
+                    Beat();                 // 这段在等新界面就绪，也不能算"协程死了"
                     yield return null;
+                }
             }
 
             // ---- ③ 字现（噪声径向揭示）----
@@ -423,6 +490,7 @@ namespace WanXiang.Modules.UI
             _title.color = tc;
             for (float t = 0f; t < dTitle; t += Time.unscaledDeltaTime)
             {
+                Beat();
                 float k = Mathf.Clamp01(t / dTitle);
                 if (_titleMat != null) _titleMat.SetFloat(ProgressId, k);
                 tc = _title.color; tc.a = Mathf.Clamp01(k * 3f);   // 字图整体淡入更快
@@ -432,16 +500,24 @@ namespace WanXiang.Modules.UI
             if (_titleMat != null) _titleMat.SetFloat(ProgressId, 1f);
 
             // ---- 停留 ----
-            for (float t = 0f; t < dHold; t += Time.unscaledDeltaTime) yield return null;
+            for (float t = 0f; t < dHold; t += Time.unscaledDeltaTime) { Beat(); yield return null; }
 
             // ---- ④ 拨开 ----
             for (float t = 0f; t < dOpen; t += Time.unscaledDeltaTime)
             {
                 float k = Mathf.Clamp01(t / dOpen);
                 float e = EaseIn(k);
-                SetParticleOpen(e);
-                tc = _title.color; tc.a = Mathf.Clamp01(1f - k * 1.6f);
-                _title.color = tc;
+                // 单帧异常（场景切换后某个视图/粒子被销毁）不能让整个协程死在这里 ——
+                // 死了就没人把 _Progress 推回 0，屏幕上就永远挂着四边残墨（用户实测）。
+                try
+                {
+                    SetParticleOpen(e);
+                    if (_title != null) { tc = _title.color; tc.a = Mathf.Clamp01(1f - k * 1.6f); _title.color = tc; }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning("[RealmTransition] 拨开阶段单帧异常（已跳过）：" + ex.Message);
+                }
                 // 墨同步退掉，露出下面的新画面。
                 // ★ T3（2026-11-04）：推进量直接用粒子的 e（EaseIn(k)），不再各自算 ——
                 //   原来遮罩用 k*1.3 提前 30% 消失，实机就是"纸先没了、粒子还在"。
@@ -539,6 +615,7 @@ namespace WanXiang.Modules.UI
         /// <summary>phase 0→1：从"屏幕外一圈"飞到"墙上的位置"（合拢）。</summary>
         private void SetParticlePhase(float phase)
         {
+            Beat();
             // ⛔⛔ 起点必须落在**刚出屏的一圈**上，不能是"目标点再往外推固定 1400px"。
             //   初版就是后者：屏幕对角半径才 ~1100，推 1400 意味着**中途连屏都还没进**
             //   —— 实测 phase=0.55 时一个粒子都看不见，整场"合拢"看起来什么都没发生。
@@ -579,6 +656,7 @@ namespace WanXiang.Modules.UI
         /// <summary>open 0→1：粒子从中缝**向两侧退开**（"拨开"的观感）。</summary>
         private void SetParticleOpen(float open)
         {
+            Beat();
             for (int i = 0; i < _parts.Count; i++)
             {
                 var rt = _parts[i];
