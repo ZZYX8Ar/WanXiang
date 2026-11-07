@@ -48,6 +48,8 @@ namespace WanXiang.Modules.UI
         public static bool MapInstalled { get; private set; }
         public static int WeightRows { get; private set; }
         public static int RelicCount { get; private set; }
+        public static int BeastCount { get; private set; }      // B0：beasts.csv 生效行数
+        public static int LabelCount { get; private set; }      // B0：labels.csv 生效行数
         public static int ComboCount { get; private set; }
         public static int ProgressionKeys { get; private set; }
         public static int TrialLawCount { get; private set; }
@@ -78,6 +80,8 @@ namespace WanXiang.Modules.UI
             LoadProgression();
             LoadTrialLaws();
             LoadMarket();
+            LoadBeasts();
+            LoadLabels();
 
             if (Problems.Count > 0)
                 Debug.LogError("[DataTables] 共 " + Problems.Count + " 处问题：\n" + string.Join("\n", Problems.ToArray()));
@@ -85,7 +89,8 @@ namespace WanXiang.Modules.UI
                       "／天时 " + WeatherCount + "／预算 " + BudgetKeys + " 项／规模 " + SquadActs +
                       " 幕／地图 " + (MapInstalled ? "已装" : "内置") + "／节点权重 " + WeightRows + " 行" +
                       "／遗物 " + RelicCount + "／阵形 " + ComboCount + "／曲线 " + ProgressionKeys + " 键" +
-                      "／劫律 " + TrialLawCount + "／灵市 " + MarketKeys + " 键");
+                      "／劫律 " + TrialLawCount + "／灵市 " + MarketKeys + " 键" +
+                      "／异兽 " + BeastCount + " 只／标签 " + LabelCount + " 条");
         }
 
         /// <summary>
@@ -97,6 +102,7 @@ namespace WanXiang.Modules.UI
             _done = false;
             StatusCount = BossCount = WeatherCount = BudgetKeys = SquadActs = WeightRows = 0;
             RelicCount = ComboCount = ProgressionKeys = TrialLawCount = MarketKeys = 0;
+            BeastCount = LabelCount = 0;
             MapInstalled = false;
             EnsureInstalled();
         }
@@ -104,6 +110,61 @@ namespace WanXiang.Modules.UI
         // ================================================================
         //  status.csv
         // ================================================================
+
+        // ================================================================
+        //  B0 · beasts.csv / labels.csv（异兽身份卡 + 通用显示名）
+        //  ⚠ 表不存在 / 行为空 ⇒ 保持内置默认，绝不报错（骨架期不影响旧玩法）
+        // ================================================================
+        private static void LoadBeasts()
+        {
+            var rows = Read("beasts", out var header);
+            if (rows == null) return;
+            var list = new List<WanXiang.Battle.Core.BeastProfile>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "beasts.csv", i + 2, Problems);
+                string id = r.Str("id");
+                if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                var bp = new WanXiang.Battle.Core.BeastProfile
+                {
+                    Id = id,
+                    Name = r.Str("name", id),
+                    Element = r.Enum("element", Element.Wood),
+                    Role = r.Enum("role", RoleType.None),
+                    Rarity = r.Enum("rarity", Rarity.None),
+                    Temperament = r.Enum("temperament", Temperament.None),
+                    TierScore = r.Int("tier_score", 0),
+                    Hp = r.Int("hp", 0), Atk = r.Int("atk", 0),
+                    Def = r.Int("def", 0), Spd = r.Int("spd", 0),
+                    TraitId = r.Str("trait_id"),
+                    TraitKind = r.Enum("trait_kind", TraitKind.None),
+                    TraitName = r.Str("trait_name"),
+                    TraitValue = r.Float("value", 0f),
+                    TraitValue2 = r.Float("value2", 0f),
+                    Ultimate = r.Str("ultimate"),
+                };
+                list.Add(bp);
+            }
+            if (list.Count == 0) return;                       // 空表 ⇒ 回退内置
+            WanXiang.Battle.Core.BeastTable.Install(list);
+            BeastCount = list.Count;
+        }
+
+        private static void LoadLabels()
+        {
+            var rows = Read("labels", out var header);
+            if (rows == null) return;
+            int n = 0;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "labels.csv", i + 2, Problems);
+                string g = r.Str("group"), id = r.Str("id"), name = r.Str("name");
+                if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(name)) continue;
+                WanXiang.Battle.Core.LabelTable.Install(g, id, name);
+                n++;
+            }
+            LabelCount = n;
+        }
 
         private static void LoadStatus()
         {

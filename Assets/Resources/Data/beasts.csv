@@ -1,0 +1,11 @@
+﻿id,name,element,role,rarity,tier_score,temperament,hp,atk,def,spd,trait_id,trait_kind,trait_name,value,value2,ultimate
+jumang,句芒,Wood,Support,Legend,6,Kind,900,210,110,100,t_chunsheng,AdjacentMpBonus,春生,1,0,万木朝春
+jiuweihu,九尾狐,Wood,Striker,Legend,5,Cunning,780,300,80,105,t_meiying,RageDownOnCrit,媚影,20,0,九尾焚心
+guanguan,灌灌,Wood,Support,Epic,4,Kind,900,210,110,100,t_mingchun,CritRateTeam,鸣春,0.08,0,百鸟鸣春
+migu,迷榖,Wood,Guard,Epic,4,Calm,1100,180,150,80,t_muzhang,ShieldOnHurt,木障,0.25,1,藤甲蔽日
+lushu,鹿蜀,Wood,Support,Rare,2,Kind,900,210,110,100,t_xingge,AdjacentMpBonus,行歌,0.5,0,呦呦鹿鸣
+xingxing,狌狌,Wood,Swift,Epic,4,Cunning,800,250,90,130,t_shanzou,DodgeWhenAdjacentFoe,善走,0.1,0,援木而击
+mengji,孟极,Wood,Swift,Rare,2,Aloof,800,250,90,130,t_qianxing,ExecuteLowHp,潜形,0.2,0,潜形一击
+zhuhuai,诸怀,Wood,Striker,Epic,4,Fierce,780,300,80,105,t_jiaodi,DamageToGuardUp,角抵,0.2,0,角抵山河
+tianma,天马,Wood,Support,Rare,4,Aloof,900,210,110,100,t_tayun,CritRateTeam,踏云,0.05,0,踏云逐风
+xiegou,絜钩,Wood,Caster,Rare,2,Cunning,820,270,90,95,t_yiyu,PoisonOnCrit,疫羽,2,0,疫羽漫天

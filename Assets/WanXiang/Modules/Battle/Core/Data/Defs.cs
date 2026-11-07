@@ -62,6 +62,14 @@ namespace WanXiang.Battle.Core
     {
         public string Name;
         public string Description;
+
+        // ---- B0（2026-11-07）：从"纯文案"升级为"可注册机制" ----
+        //  默认值全部安全：老代码 new TraitDef{Name=...,Description=...} 依旧成立，
+        //  Kind=None ⇒ TraitRuntime 自动忽略，行为零变化。
+        public string Id;
+        public TraitKind Kind;
+        public float Value;
+        public float Value2;
     }
 
     /// <summary>
@@ -224,6 +232,11 @@ namespace WanXiang.Battle.Core
         public RoleType Role;
         public Rarity Rarity;
 
+        /// <summary>B0：性情（不可换，见 TraitRuntime.Temperament）。None = 旧数据兼容。</summary>
+        public Temperament Temperament;
+        /// <summary>B0：品级考据得分，仅图鉴/校验用，不参与战斗。</summary>
+        public int TierScore;
+
         public string Source;          // 典籍出处
         public string Quote;           // 典籍原文
         public string Lore;            // 设定描述
@@ -268,6 +281,7 @@ namespace WanXiang.Battle.Core
             {
                 Id = Id, DisplayName = DisplayName, Element = Element,
                 Role = Role, Rarity = Rarity,
+                Temperament = Temperament, TierScore = TierScore,
                 Source = Source, Quote = Quote, Lore = Lore, Codex = Codex, Trait = Trait,
                 TacticName = TacticName, TacticNote = TacticNote,
                 Basic = Basic?.Clone(), Active = Active?.Clone(), Ultimate = Ultimate?.Clone(), Awaken = Awaken?.Clone(),
