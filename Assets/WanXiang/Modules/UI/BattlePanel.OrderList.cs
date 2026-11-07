@@ -104,10 +104,12 @@ namespace WanXiang.Modules.UI
             _lastOrderStamp = stamp;
             _lastActorId = curId;
 
-            // ★ 标题带回合数（用户 2026-10-13："行动面板加一行字显示第几回合"）
+            // ★ 2026-11-07：回合数已统一到 Tmp_Round（"第 N/48 回合 · 我方/敌方回合"）。
+            //   这个面板标题以前也写"第 N 回合 · 行动顺序" ⇒ 同屏两处回合数（用户报障"还是两遍"）。
+            //   标题固定为"行动顺序"，回合数只在 Tmp_Round 一处。
             if (_orderTitle != null)
             {
-                string title = "第 " + stt.Turn + " 回合 · 行动顺序";
+                const string title = "行动顺序";
                 if (title != _lastOrderTitle) { _lastOrderTitle = title; _orderTitle.text = title; }
             }
 
