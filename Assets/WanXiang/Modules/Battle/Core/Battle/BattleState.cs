@@ -70,6 +70,13 @@ namespace WanXiang.Battle.Core
         /// <summary>等待下令的单位（AdvanceToNextDecision 返回 true 时非空）。</summary>
         public BattleUnit PendingUnit;
 
+        /// <summary>
+        /// 阶段制·换人（2026-11-07）：我方阶段里，玩家按 1~5（或后续点选）把"下一个行动的
+        /// 我方单位"换成任意**未行动**的存活同伴。UI 写入 RuntimeId；
+        /// 回合循环在 NeedDecision 恢复时把它换到队首并清空。
+        /// </summary>
+        public string PendingActorSelect;
+
         /// <summary>玩家最近一次下发的指令（由 ApplyPlayerCommand 写入）。</summary>
         public PlayerCommand PendingCommand;
 

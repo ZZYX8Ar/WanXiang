@@ -65,6 +65,11 @@ namespace WanXiang.Battle.Core
 
         /// <summary>吞噬（枯荣）：首领吃掉自己的召唤物回血。TargetId = 首领，Amount = 回血量。</summary>
         Devour = 20,
+
+        /// <summary>阶段制（2026-11-07）：我方阶段开始 —— 本回合所有存活我方单位在此阶段内自由顺序行动。</summary>
+        PlayerPhaseStart = 21,
+        /// <summary>阶段制：敌方阶段开始 —— 敌方按速度依次行动（此前我方已全部行动完毕）。</summary>
+        EnemyPhaseStart = 22,
     }
 
     /// <summary>

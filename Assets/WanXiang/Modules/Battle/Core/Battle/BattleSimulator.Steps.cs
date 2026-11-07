@@ -97,18 +97,49 @@ namespace WanXiang.Battle.Core
                 TickStatuses(st);
                 if (st.CheckOutcome()) break;
 
-                // ---- 2) 出手序列 ----
+                // ---- 2) 出手序列：**阶段制**（2026-11-07）—— 我方阶段在前，敌方阶段在后 ----
                 st.BuildActionOrderInto(buf.Order);
+                {
+                    // 重排：我方全部排前、敌方全部排后（各自内部仍按速度）
+                    var players = new List<BattleUnit>(buf.Order.Count);
+                    var enemies = new List<BattleUnit>(buf.Order.Count);
+                    for (int oi = 0; oi < buf.Order.Count; oi++)
+                    {
+                        if (buf.Order[oi].Side == TeamSide.Player) players.Add(buf.Order[oi]);
+                        else enemies.Add(buf.Order[oi]);
+                    }
+                    buf.Order.Clear();
+                    buf.Order.AddRange(players);
+                    buf.Order.AddRange(enemies);
+                }
 
-                // 同步给 UI：行动条显示"本回合实际会发生的顺序"，而不是自己重排
+                // 同步给 UI：行动条显示"本回合实际会发生的顺序"（我方在前、敌方在后）
                 st.TurnOrder.Clear();
                 st.TurnOrder.AddRange(buf.Order);
                 st.Log.Add(turn, BattleEventKind.RoundResolve, note: "出手序列 " + DescribeOrder(buf.Order));
+                bool playerPhaseAnnounced = false;
+                bool enemyPhaseAnnounced = false;
 
-                // ---- 3) 逐个行动 ----
+                // ---- 3) 逐个行动（我方阶段：顺序由玩家决定，默认按速度）----
                 for (int i = 0; i < buf.Order.Count; i++)
                 {
                     var u = buf.Order[i];
+
+                    // 阶段横幅：进入我方/敌方段时各记一条（UI 据此显示"我方回合/敌方回合"）
+                    if (u.Side == TeamSide.Player)
+                    {
+                        if (!playerPhaseAnnounced)
+                        {
+                            playerPhaseAnnounced = true;
+                            st.Log.Add(turn, BattleEventKind.PlayerPhaseStart, note: "我方阶段");
+                        }
+                    }
+                    else if (!enemyPhaseAnnounced)
+                    {
+                        enemyPhaseAnnounced = true;
+                        st.Log.Add(turn, BattleEventKind.EnemyPhaseStart, note: "敌方阶段");
+                    }
+
                     if (!u.IsAlive) continue;          // 可能在别人回合里被打死
                     // 回合制断点：我方单位行动前把控制权交回调用方（手动模式等玩家下令）。
                     // ⛔ **必须判 `CanAct`**：被冻结/根缚/混乱的单位这回合动不了，
@@ -117,7 +148,33 @@ namespace WanXiang.Battle.Core
                     //   —— 用户实测："已经被冻结了为什么还能行动，玩起来很奇怪"。
                     //   不停 ， 直接走 ExecuteAction 记一条「无法行动」，流程自然跳过。
                     if (st.PlayerControlled && u.Side == TeamSide.Player && u.CanAct)
+                    {
+                        st.PendingUnit = u;
                         yield return new BattleStep { Kind = BattleStepKind.NeedDecision, Unit = u };
+
+                        // ★ 阶段制·换人：玩家在等令时按 1~5 选了别的未行动同伴 ⇒ 换到当前位置执行。
+                        //   ⛔ 必须在恢复后立刻换，否则 ExecuteAction 执行的还是旧 head
+                        //     （ApplyPlayerCommand 已按 PendingActorSelect 填 ActorId，两边必须一致）。
+                        if (!string.IsNullOrEmpty(st.PendingActorSelect))
+                        {
+                            for (int j = i + 1; j < buf.Order.Count; j++)
+                            {
+                                var cand = buf.Order[j];
+                                if (cand != null && cand.Side == TeamSide.Player && cand.IsAlive
+                                    && cand.RuntimeId == st.PendingActorSelect)
+                                {
+                                    var tmp = buf.Order[i]; buf.Order[i] = buf.Order[j]; buf.Order[j] = tmp;
+                                    u = buf.Order[i];
+                                    st.PendingUnit = u;
+                                    // 同步行动顺序面板（我方段内顺序变了）
+                                    st.TurnOrder.Clear();
+                                    st.TurnOrder.AddRange(buf.Order);
+                                    break;
+                                }
+                            }
+                            st.PendingActorSelect = null;
+                        }
+                    }
 
                     // ★★ 阵形连携 QTE（2026-10-16 重构，用户口径）：
                     //   "消耗中间异兽（主兽）的大招能量；根据阵容存活的异兽提升威力；
@@ -464,12 +521,16 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public static void ApplyPlayerCommand(BattleState st, int skillIndex, int targetIndex)
         {
+            // ★ 阶段制·换人：UI 按 1~5 选人后 PendingActorSelect 非空 ⇒ 指令归属那只
+            string actorId = !string.IsNullOrEmpty(st.PendingActorSelect)
+                ? st.PendingActorSelect
+                : (st.PendingUnit != null ? st.PendingUnit.RuntimeId : null);
             st.PendingCommand = new PlayerCommand
             {
-                ActorId = st.PendingUnit != null ? st.PendingUnit.RuntimeId : null,
+                ActorId = actorId,
                 SkillIndex = skillIndex,
                 TargetIndex = targetIndex,
-                Valid = st.PendingUnit != null,
+                Valid = !string.IsNullOrEmpty(actorId),
             };
         }
         private static void Accumulate(ref BoardRoundReport acc, in BoardRoundReport d)

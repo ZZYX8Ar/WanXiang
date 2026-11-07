@@ -86,7 +86,7 @@ namespace WanXiang.Modules.UI
         ///   没有 shader 时走老的 `Image.color.a`。只写一个会导致"其中一种情况完全不显示"。</para>
         /// </summary>
         /// <summary>协程心跳（每帧都会被 SetCover / SetParticle* 调到）。</summary>
-        private void Beat() => _lastBeat = Time.unscaledTime;
+        private void Beat() => _staleAccum = 0f;
 
         private void SetCover(float progress01, float fallbackAlpha)
         {
@@ -127,8 +127,8 @@ namespace WanXiang.Modules.UI
         private bool _built;
         /// <summary>本场演出的**硬截止时间**（unscaled）。超了必清屏 —— 按本场时长算，不再写死 12 秒。</summary>
         private float _hardDeadline;
-        /// <summary>心跳：协程每写一次遮罩/粒子就盖一次时间戳。超过 2 秒没更新 = 协程已死。</summary>
-        private float _lastBeat;
+        /// <summary>"无心跳"累计时长：只累计**正常帧**（<=0.35s）——切场景的长帧是"暂停"不是"死亡"，不能计入。</summary>
+        private float _staleAccum;
         private Coroutine _runCo;           // Run 协程句柄：收尾时必须**停掉它**，否则它会继续往遮罩写
         private static int _runSeq;         // 诊断：第几场（出现两次黑幕时看日志就能确认）
         private float _forcedFade;          // >0 表示正在"强制淡出收尾"，值 = 剩余秒数
@@ -257,13 +257,19 @@ namespace WanXiang.Modules.UI
             // ⚠ 阈值必须 > 切场景的长帧（实测进战斗时主线程会卡 0.5~1.5s，心跳会假死）；
             //   而且只在**还有墨**时才收尾 —— 冲击字阶段 Progress 已是 0，收尾会把它连带清掉。
             float curP = _coverMat != null ? _coverMat.GetFloat(InkCoverProgressId) : _cover.color.a;
-            if (_busy && curP > 0.02f && Time.unscaledTime - _lastBeat > 1.5f)
+            // ⛔ 长帧不计入：切场景卡顿时协程是"暂停"而非"死亡"——按挂钟判会把加载误当死亡，
+            //   收尾后协程复活又写遮罩 ⇒ 屏幕上"又黑一次"（2026-11-07 用户复测实锤）。
+            if (_busy && curP > 0.02f)
             {
-                Debug.LogWarning("[RealmTransition] 转场协程已停止（心跳超时 0.6s，Progress=" +
+                if (Time.unscaledDeltaTime <= 0.35f) _staleAccum += Time.unscaledDeltaTime;
+                if (_staleAccum > 1.2f)
+                {
+                    Debug.LogWarning("[RealmTransition] 转场协程已停止（无心跳 1.2s，Progress=" +
                                  (_coverMat != null ? _coverMat.GetFloat(InkCoverProgressId).ToString("F3") : "-") +
                                  "），淡出收尾");
-                BeginForcedFade();
-                return;
+                    BeginForcedFade();
+                    return;
+                }
             }
 
             if (IsStalled)
@@ -450,7 +456,7 @@ namespace WanXiang.Modules.UI
         {
             _busy = true;
             _busySince = Time.unscaledTime;
-            _lastBeat = Time.unscaledTime;      // 心跳起点（否则第一帧就可能被判"没动静"）
+            _staleAccum = 0f;                   // 心跳起点
             Debug.Log("[RealmTransition] Run 开始 #" + (++_runSeq) + " realm=" + (realmId ?? "-") +
                       (string.IsNullOrEmpty(titleText) ? "" : " title=" + titleText));
             Build();

@@ -66,6 +66,9 @@ namespace WanXiang.Modules.UI
                 case BattleEventKind.RoundResolve:  return 0.28f;
                 case BattleEventKind.BattleEnd:     return 0.40f;
                 case BattleEventKind.BattleStart:   return 0.45f;
+                // 阶段横幅要被看清（2026-11-07 用户："敌方显示完，敌人才开始行动"）
+                case BattleEventKind.PlayerPhaseStart: return 0.70f;
+                case BattleEventKind.EnemyPhaseStart:  return 0.70f;
                 default:                            return 0.10f;   // 状态/怒气等琐碎
             }
         }
@@ -182,6 +185,10 @@ namespace WanXiang.Modules.UI
                     //   "第 N 回合 · 我方/敌方"看完了异兽才开始动 —— 顺序感才对。
                     if (k2 == WanXiang.Battle.Core.BattleEventKind.TurnStart)
                         w2 = Mathf.Max(w2, 1.1f);
+                    // 阶段横幅：显示完才开始动（用户 2026-11-07）
+                    else if (k2 == WanXiang.Battle.Core.BattleEventKind.PlayerPhaseStart
+                          || k2 == WanXiang.Battle.Core.BattleEventKind.EnemyPhaseStart)
+                        w2 = Mathf.Max(w2, 0.8f);
                     await UniTask.Delay(TimeSpan.FromSeconds(w2), cancellationToken: ct);
                     continue;
                 }
@@ -191,6 +198,7 @@ namespace WanXiang.Modules.UI
                 //  （"亮出操作区"已提到循环开头，见上方注释：要立刻亮、但事件继续播）
                 if (_play.AwaitingCommand)
                 {
+                    PollActorHotkeys();                       // ★ 阶段制：1~5 换"下一个行动的我方单位"
                     if (_autoBattle)
                     {
                         _play.SubmitCommand(-1, -1);          // 自动战斗：AI 代下令
@@ -283,7 +291,9 @@ namespace WanXiang.Modules.UI
                 || kind == WanXiang.Battle.Core.BattleEventKind.Damage
                 || kind == WanXiang.Battle.Core.BattleEventKind.Heal
                 || kind == WanXiang.Battle.Core.BattleEventKind.Death
-                || kind == WanXiang.Battle.Core.BattleEventKind.Shield;
+                || kind == WanXiang.Battle.Core.BattleEventKind.Shield
+                || kind == WanXiang.Battle.Core.BattleEventKind.PlayerPhaseStart
+                || kind == WanXiang.Battle.Core.BattleEventKind.EnemyPhaseStart;
         }
 
         /// <summary>推进一个事件：HUD + 舞台同步刷新。返回 false 表示已播完。</summary>
@@ -352,7 +362,7 @@ namespace WanXiang.Modules.UI
                     if (view.Body != null && !snap.Alive)
                         view.Body.color = new Color(0.45f, 0.45f, 0.45f, 0.35f);
                 }
-            if (_tmpRound != null && f.Turn > 0) _tmpRound.text = RoundLabel();
+            if (_tmpRound != null && f.Turn > 0 && !string.IsNullOrEmpty(_roundLabel)) _tmpRound.text = _roundLabel;
         }
     }
 
@@ -367,7 +377,14 @@ namespace WanXiang.Modules.UI
                 // ★ 2026-11-07：回合数只由 Tmp_Round 显示（RoundLabel，含我方/敌方）。
                 //   这里以前也写一次"第 N 回合" ⇒ 屏幕上出现两遍（用户报障）。日志行保持上一条内容。
                 case BattleEventKind.TurnStart:
-                    if (_tmpRound != null) _tmpRound.text = RoundLabel();
+                    SetRoundLabel(null);                       // 先写"第 N/48 回合"
+                    break;
+                // ★ 阶段制（2026-11-07）：标签先亮、单位后动 —— 用户"敌方显示完，敌人才开始行动"
+                case BattleEventKind.PlayerPhaseStart:
+                    SetRoundLabel("我方回合");
+                    break;
+                case BattleEventKind.EnemyPhaseStart:
+                    SetRoundLabel("敌方回合");
                     break;
                 // ★ 只在"某单位开始行动"时记录当前行动者（供行动顺序面板高亮）——
                 //   不用每条事件的 actorId，否则回合末一堆伤害/结算事件会让面板疯狂刷新（用户 2026-10-13）。
@@ -404,29 +421,38 @@ namespace WanXiang.Modules.UI
         /// <para>我方/敌方取自**本回合的出手序列第一人** —— 之前"轮到我方"只在
         /// `PendingUnit` 出现时才写，若本回合敌人先手，玩家要等它打完才看到提示（用户报障）。</para>
         /// </summary>
-        private int _roundSideTurn = -1;
-        private string _roundSide = "";
+        private string _roundLabel = "";
 
-        private string RoundLabel()
+        /// <summary>阶段制（2026-11-07）：回合标签由 **TurnStart / 阶段事件** 写入，
+        /// ApplyFrame 只负责套用 —— 事件顺序即显示顺序，"我方回合"先于我方出手出现。</summary>
+        private void SetRoundLabel(string side)
         {
             var st = _play != null ? _play.State : null;
-            if (st == null) return "";
-
-            // ⚠ 不能读 st.TurnOrder：它是在回合**开始之后**（RunSteps 第 104 行）才填的，
-            //   在 TurnStart 事件播放时读到的还是**上一回合**的顺序（首回合甚至是空的）。
-            //   这里用公开的 BuildActionOrder() 现算一次，并按回合缓存（ApplyFrame 逐帧会调）。
-            if (_roundSideTurn != st.Turn)
-            {
-                _roundSideTurn = st.Turn;
-                _roundSide = "";
-                var order = st.BuildActionOrder();
-                if (order != null && order.Count > 0 && order[0] != null)
-                    _roundSide = order[0].Side == WanXiang.Battle.Core.TeamSide.Player ? " · 我方回合" : " · 敌方回合";
-            }
-
-            // 带上限：48 回合打满会判平局（2026-09-28 用户要求必须有进度提示），所以写成 N/48
+            if (st == null) return;
             int max = st.Config != null ? st.Config.MaxTurns : 48;
-            return "第 " + st.Turn + "/" + max + " 回合" + _roundSide;
+            _roundLabel = "第 " + st.Turn + "/" + max + " 回合" + (string.IsNullOrEmpty(side) ? "" : " · " + side);
+            if (_tmpRound != null) _tmpRound.text = _roundLabel;
+        }
+
+        private string RoundLabel() => _roundLabel;
+
+        /// <summary>阶段制·换人：数字键 1~5 选择"下一个行动的我方单位"（按上阵位次）。</summary>
+        private void PollActorHotkeys()
+        {
+            var st = _play != null ? _play.State : null;
+            if (st == null) return;
+            var mine = st.UnitsOf(WanXiang.Battle.Core.TeamSide.Player);
+            for (int i = 0; i < mine.Count && i < 5; i++)
+            {
+                var u = mine[i];
+                if (u == null || !u.IsAlive) continue;
+                var key = UnityEngine.KeyCode.Alpha1 + i;
+                if (UnityEngine.Input.GetKeyDown(key) && u.RuntimeId != st.PendingActorSelect)
+                {
+                    _play.SelectActor(u.RuntimeId);
+                    RefreshActionBar();
+                }
+            }
         }
 
         /// <summary>手动推进 n 个事件（不依赖帧循环）。返回是否还没播完。</summary>
@@ -438,7 +464,7 @@ namespace WanXiang.Modules.UI
                 if (!StepOnce()) break;
             }
             if (_stage != null) _stage.Step(0.05f * n);
-            if (_tmpRound != null) _tmpRound.text = RoundLabel();
+            if (_tmpRound != null && !string.IsNullOrEmpty(_roundLabel)) _tmpRound.text = _roundLabel;
             return !_play.Finished;
         }
 
@@ -454,7 +480,7 @@ namespace WanXiang.Modules.UI
         /// <summary>战斗收尾：刷终局状态 → 交接给结算（场景模式则回主城）。</summary>
         private void FinishAndLeave(float delay, CancellationToken ct)
         {
-            if (_tmpRound != null) _tmpRound.text = RoundLabel();
+            if (_tmpRound != null && !string.IsNullOrEmpty(_roundLabel)) _tmpRound.text = _roundLabel;
             if (_tmpLog != null) _tmpLog.text = _play.Summary();
 
             // ★★ 结算前兜底判定胜负：Outcome 只在 BattleSimulator 的循环里由 CheckOutcome 赋值，

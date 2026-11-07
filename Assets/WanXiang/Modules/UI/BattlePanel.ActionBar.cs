@@ -167,6 +167,18 @@ namespace WanXiang.Modules.UI
             bool canAct = CanCommandNow();
 
             var u = _play.PendingUnit;
+            // ★ 阶段制·换人（2026-11-07）：玩家按 1~5 选人后，按钮/文案/箭头都跟随被选中的那只
+            {
+                var stSel = _play.State;
+                var selId = stSel != null ? stSel.PendingActorSelect : null;
+                if (!string.IsNullOrEmpty(selId) && (_play.PendingUnit == null || _play.PendingUnit.RuntimeId != selId))
+                {
+                    var mineSel = stSel.UnitsOf(WanXiang.Battle.Core.TeamSide.Player);
+                    for (int si = 0; si < mineSel.Count; si++)
+                        if (mineSel[si] != null && mineSel[si].RuntimeId == selId)
+                        { u = mineSel[si]; break; }
+                }
+            }
 
             // 行动箭头（2026-11-04 重写）：以前直接指向 PendingUnit —— 而玩家一按「终结技」，
             //   PendingUnit 立刻变成下一只，可这一发奥义还在演出（多段伤害/镜头/特效都没打完），

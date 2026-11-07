@@ -23,6 +23,8 @@ namespace WanXiang.Modules.UI
         /// <summary>本场是否为守关首领战（图里最后一格靠 BattleRequestFactory 的 isBoss 标志区分）。
         /// 用途：战斗面板据此切专属首领 BGM；日后做首领专属演出/UI 也可读它。</summary>
         public bool IsBoss;
+        /// <summary>本场是否为精英战（非守关）。战斗面板据此用精英战 BGM。</summary>
+        public bool IsElite;
         /// <summary>好友对战（AI 自动）—— 结算时【不推历程】（不是"局"，编队来自分享码）。</summary>
         public bool IsPvpMatch;
         /// <summary>这队敌人的 AI 打法（v2.1 P4：节点/遭遇决定，精英更凶）。</summary>
@@ -318,6 +320,19 @@ namespace WanXiang.Modules.UI
                 if (!Step()) break;
             }
         }
+
+        /// <summary>
+        /// 阶段制·换人（2026-11-07）：我方阶段里把"下一个行动的单位"换成
+        /// <paramref name="runtimeId"/>（必须是**未行动**的存活我方单位）。
+        /// 回合循环在 NeedDecision 恢复时应用换位。
+        /// </summary>
+        public void SelectActor(string runtimeId)
+        {
+            if (State != null) State.PendingActorSelect = runtimeId;
+        }
+
+        /// <summary>当前被选为"下一个行动"的我方单位 id（null = 默认队首）。</summary>
+        public string SelectedActorId => State?.PendingActorSelect;
 
         /// <summary>
         /// 提交玩家指令：skillIndex 用 SkillType 枚举值（Basic/Active/Ultimate），-1 = 交给 AI；
