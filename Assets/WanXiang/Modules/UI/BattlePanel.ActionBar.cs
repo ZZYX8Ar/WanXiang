@@ -187,9 +187,8 @@ namespace WanXiang.Modules.UI
             {
                 // 自动推进中（不是在等某个单位）：给一句可回退的提示
                 // ★ 带回合数（用户 2026-09-28：30 回合上限打满会平局，必须让玩家看见进度）
-                var stAuto = _play.State;
-                if (_tmpActor != null) _tmpActor.text = "自动战斗中…… 第 " + (stAuto != null ? stAuto.Turn : 0) + "/" +
-                    (stAuto != null && stAuto.Config != null ? stAuto.Config.MaxTurns : 48) + " 回合（点任意战记即可接管）";
+                // 回合数交给 Tmp_Round 显示，这里只说状态（避免同一屏出现两遍回合数）
+                if (_tmpActor != null) _tmpActor.text = "自动战斗中……（点任意战记即可接管）";
                 SetSkillButtonsInteractable(false);   // 自动推进中技能/连携不可点（要接管先关自动或等我方回合）
                 return;
             }
@@ -204,8 +203,9 @@ namespace WanXiang.Modules.UI
             {
                 // ★ 回合数常驻显示（用户 2026-09-28）：打到 MaxTurns(48) 上限会判平局，
                 //   之前界面完全没提示，玩家"没人死却输了"一头雾水。
-                string line = "第 " + (stt != null ? stt.Turn : 0) + "/" +
-                              (cfg != null ? cfg.MaxTurns : 48) + " 回合　轮到「" + u.DisplayName + "」　灵力 " + mp + "/" + mpMax +
+                // ★ 2026-11-07：回合数已统一到 Tmp_Round（RoundLabel，含"我方/敌方回合"），
+                //   这行不再重复写"第 X/48 回合"——否则屏幕上会出现两遍（用户报障）。
+                string line = "轮到「" + u.DisplayName + "」　灵力 " + mp + "/" + mpMax +
                               "（战记 " + WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active) + " 点）";
                 if (u.GetSkill(SkillType.Ultimate) != null)
                     line += "　元气 " + (int)u.Rage + "/" + (int)u.RageCap;

@@ -352,7 +352,7 @@ namespace WanXiang.Modules.UI
                     if (view.Body != null && !snap.Alive)
                         view.Body.color = new Color(0.45f, 0.45f, 0.45f, 0.35f);
                 }
-            if (_tmpRound != null && f.Turn > 0) _tmpRound.text = "第 " + f.Turn + " 回合";
+            if (_tmpRound != null && f.Turn > 0) _tmpRound.text = RoundLabel();
         }
     }
 
@@ -364,7 +364,11 @@ namespace WanXiang.Modules.UI
             switch (e.Kind)
             {
                 case BattleEventKind.BattleStart: _tmpLog.text = "战斗开始"; break;
-                case BattleEventKind.TurnStart: _tmpLog.text = "第 " + e.Turn + " 回合"; break;
+                // ★ 2026-11-07：回合数只由 Tmp_Round 显示（RoundLabel，含我方/敌方）。
+                //   这里以前也写一次"第 N 回合" ⇒ 屏幕上出现两遍（用户报障）。日志行保持上一条内容。
+                case BattleEventKind.TurnStart:
+                    if (_tmpRound != null) _tmpRound.text = RoundLabel();
+                    break;
                 // ★ 只在"某单位开始行动"时记录当前行动者（供行动顺序面板高亮）——
                 //   不用每条事件的 actorId，否则回合末一堆伤害/结算事件会让面板疯狂刷新（用户 2026-10-13）。
                 case BattleEventKind.ActionBegin: _orderActorId = e.ActorId; break;
@@ -395,6 +399,36 @@ namespace WanXiang.Modules.UI
         //  真机上帧循环正常，走 PlayLoop 即可；这里给自动化与逐帧验收留一条路。
         // ================================================================
 
+        /// <summary>
+        /// 回合标签：**唯一**显示回合数的地方（2026-11-07 用户："别显示第二回合又显示第二回合我方回合"）。
+        /// <para>我方/敌方取自**本回合的出手序列第一人** —— 之前"轮到我方"只在
+        /// `PendingUnit` 出现时才写，若本回合敌人先手，玩家要等它打完才看到提示（用户报障）。</para>
+        /// </summary>
+        private int _roundSideTurn = -1;
+        private string _roundSide = "";
+
+        private string RoundLabel()
+        {
+            var st = _play != null ? _play.State : null;
+            if (st == null) return "";
+
+            // ⚠ 不能读 st.TurnOrder：它是在回合**开始之后**（RunSteps 第 104 行）才填的，
+            //   在 TurnStart 事件播放时读到的还是**上一回合**的顺序（首回合甚至是空的）。
+            //   这里用公开的 BuildActionOrder() 现算一次，并按回合缓存（ApplyFrame 逐帧会调）。
+            if (_roundSideTurn != st.Turn)
+            {
+                _roundSideTurn = st.Turn;
+                _roundSide = "";
+                var order = st.BuildActionOrder();
+                if (order != null && order.Count > 0 && order[0] != null)
+                    _roundSide = order[0].Side == WanXiang.Battle.Core.TeamSide.Player ? " · 我方回合" : " · 敌方回合";
+            }
+
+            // 带上限：48 回合打满会判平局（2026-09-28 用户要求必须有进度提示），所以写成 N/48
+            int max = st.Config != null ? st.Config.MaxTurns : 48;
+            return "第 " + st.Turn + "/" + max + " 回合" + _roundSide;
+        }
+
         /// <summary>手动推进 n 个事件（不依赖帧循环）。返回是否还没播完。</summary>
         public bool AdvanceEvents(int n)
         {
@@ -404,7 +438,7 @@ namespace WanXiang.Modules.UI
                 if (!StepOnce()) break;
             }
             if (_stage != null) _stage.Step(0.05f * n);
-            if (_tmpRound != null) _tmpRound.text = "第 " + _play.State.Turn + " 回合";
+            if (_tmpRound != null) _tmpRound.text = RoundLabel();
             return !_play.Finished;
         }
 
@@ -420,7 +454,7 @@ namespace WanXiang.Modules.UI
         /// <summary>战斗收尾：刷终局状态 → 交接给结算（场景模式则回主城）。</summary>
         private void FinishAndLeave(float delay, CancellationToken ct)
         {
-            if (_tmpRound != null) _tmpRound.text = "第 " + _play.State.Turn + " 回合";
+            if (_tmpRound != null) _tmpRound.text = RoundLabel();
             if (_tmpLog != null) _tmpLog.text = _play.Summary();
 
             // ★★ 结算前兜底判定胜负：Outcome 只在 BattleSimulator 的循环里由 CheckOutcome 赋值，
