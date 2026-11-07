@@ -362,7 +362,8 @@ namespace WanXiang.Modules.UI
                     if (view.Body != null && !snap.Alive)
                         view.Body.color = new Color(0.45f, 0.45f, 0.45f, 0.35f);
                 }
-            if (_tmpRound != null && f.Turn > 0 && !string.IsNullOrEmpty(_roundLabel)) _tmpRound.text = _roundLabel;
+            if (_tmpRound != null && f.Turn > 0 && !string.IsNullOrEmpty(_roundLabel)
+                && _tmpRound.text != _roundLabel) _tmpRound.text = _roundLabel;
         }
     }
 
@@ -376,12 +377,17 @@ namespace WanXiang.Modules.UI
                 case BattleEventKind.BattleStart: _tmpLog.text = "战斗开始"; break;
                 // ★ 2026-11-07：回合数只由 Tmp_Round 显示（RoundLabel，含我方/敌方）。
                 //   这里以前也写一次"第 N 回合" ⇒ 屏幕上出现两遍（用户报障）。日志行保持上一条内容。
+                // ★★ 2026-11-07 根因（用户第 4 次报障）：同一个中间上方横幅被写了两遍 ——
+                //    TurnStart 写光秃秃的"第 N 回合"，PlayerPhaseStart 又写"第 N 回合 · 我方回合"
+                //    ⇒ 看起来像"先弹一次、又弹一次"。
+                //    现在回合开始**只写一次完整标签**（我方阶段固定在前），
+                //    PlayerPhaseStart 再写同样的文字（值不变 ⇒ TMP 不会重建 ⇒ 视觉上只有一次）。
                 case BattleEventKind.TurnStart:
-                    SetRoundLabel(null);                       // 先写"第 N/48 回合"
-                    break;
-                // ★ 阶段制（2026-11-07）：标签先亮、单位后动 —— 用户"敌方显示完，敌人才开始行动"
-                case BattleEventKind.PlayerPhaseStart:
                     SetRoundLabel("我方回合");
+                    break;
+                // 阶段制：标签先亮、单位后动 —— 用户"敌方显示完，敌人才开始行动"
+                case BattleEventKind.PlayerPhaseStart:
+                    SetRoundLabel("我方回合");                 // 同值，不产生第二次弹出
                     break;
                 case BattleEventKind.EnemyPhaseStart:
                     SetRoundLabel("敌方回合");
@@ -431,7 +437,7 @@ namespace WanXiang.Modules.UI
             if (st == null) return;
             int max = st.Config != null ? st.Config.MaxTurns : 48;
             _roundLabel = "第 " + st.Turn + "/" + max + " 回合" + (string.IsNullOrEmpty(side) ? "" : " · " + side);
-            if (_tmpRound != null) _tmpRound.text = _roundLabel;
+            if (_tmpRound != null && _tmpRound.text != _roundLabel) _tmpRound.text = _roundLabel;
         }
 
         private string RoundLabel() => _roundLabel;
@@ -464,7 +470,8 @@ namespace WanXiang.Modules.UI
                 if (!StepOnce()) break;
             }
             if (_stage != null) _stage.Step(0.05f * n);
-            if (_tmpRound != null && !string.IsNullOrEmpty(_roundLabel)) _tmpRound.text = _roundLabel;
+            if (_tmpRound != null && !string.IsNullOrEmpty(_roundLabel) && _tmpRound.text != _roundLabel)
+                _tmpRound.text = _roundLabel;
             return !_play.Finished;
         }
 
@@ -480,7 +487,8 @@ namespace WanXiang.Modules.UI
         /// <summary>战斗收尾：刷终局状态 → 交接给结算（场景模式则回主城）。</summary>
         private void FinishAndLeave(float delay, CancellationToken ct)
         {
-            if (_tmpRound != null && !string.IsNullOrEmpty(_roundLabel)) _tmpRound.text = _roundLabel;
+            if (_tmpRound != null && !string.IsNullOrEmpty(_roundLabel) && _tmpRound.text != _roundLabel)
+                _tmpRound.text = _roundLabel;
             if (_tmpLog != null) _tmpLog.text = _play.Summary();
 
             // ★★ 结算前兜底判定胜负：Outcome 只在 BattleSimulator 的循环里由 CheckOutcome 赋值，

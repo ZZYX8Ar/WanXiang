@@ -557,6 +557,14 @@ namespace WanXiang.Modules.UI
                 yield return null;
             }
 
+            // ★★ 2026-11-07 根因（用户第 4 次报障）：拨开循环的最后一帧 k<1，
+            //    `1-EaseIn(k)` 仍 >0 ⇒ 四边还挂着一圈薄墨。
+            //    原来把 SetCover(0,0) 放在「开始」冲击字**之后** ⇒ 那圈墨一直挂到
+            //    「开始」播完才消失（用户："停在边缘，要开始消失才消失"）。
+            //    ⛔ 必须在冲击字之前就收干净。
+            SetCover(0f, 0f);
+            _cover.raycastTarget = false;      // 顺手放行点击（冲击字不需要吃掉输入）
+
             // ---- ⑤ 冲击字（可选）：粒子散开、字消去之后，砸出「开始」 ----
             if (!string.IsNullOrEmpty(_impactWordRes))
                 yield return ImpactBeat(_impactWordRes);
