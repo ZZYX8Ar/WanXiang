@@ -2145,6 +2145,21 @@ if (_tmpActTitle != null)
         private WanXiang.Campaign.NodeKind RevealedKind(int offset)
         {
             var run = WanXiang.Run.RunSave.Current;
+            // ⚠ 旧存档兼容（2026-11-07）：历史档里可能有「？揭晓成天象」的记录，
+            //   天象已并入异闻 ⇒ 读出来时统一改成 Tale，避免旧档卡在已废弃的节点上。
+            if (run != null && run.QuestionRevealed != null)
+                for (int qi = 0; qi < run.QuestionRevealed.Count; qi++)
+                {
+                    var rec0 = run.QuestionRevealed[qi];
+                    if (string.IsNullOrEmpty(rec0)) continue;
+                    int cpos = rec0.LastIndexOf(':');
+                    if (cpos < 0) continue;
+                    int rk;
+                    if (!int.TryParse(rec0.Substring(cpos + 1), out rk)) continue;
+                    if (rk == (int)WanXiang.Campaign.NodeKind.Omen)
+                        run.QuestionRevealed[qi] = rec0.Substring(0, cpos) + ":" + (int)WanXiang.Campaign.NodeKind.Tale;
+                }
+
             if (run != null && run.QuestionRevealed != null)
                 foreach (var rec in run.QuestionRevealed)
                     if (rec != null && rec.StartsWith(offset + ":"))
@@ -2397,7 +2412,9 @@ if (_tmpActTitle != null)
                 //   文案必须对得上实现，否则玩家按文案做决策会吃亏。
                 case WanXiang.Campaign.NodeKind.Tale: return "奇遇：三选一，每个选项都带代价";
                 case WanXiang.Campaign.NodeKind.Forge: return "工坊：淬炼专精 / 化形进化 / 只取炉灰换灵卵";
-                case WanXiang.Campaign.NodeKind.Omen: return "天象：接受一条预兆（收益配代价），或直接拒绝";
+                // ⚠ 已废弃（2026-11-07）：天象并入「异闻」，新图不再产出；
+                //   保留分支只为旧存档里已揭晓成 Omen 的节点不报错。
+                case WanXiang.Campaign.NodeKind.Omen: return "异闻：接受一条预兆（收益配代价），或直接拒绝";
                 case WanXiang.Campaign.NodeKind.Recruit: return "招募：免费挑选异兽入队（每属性随机 2 选，可刷新）";
                 case WanXiang.Campaign.NodeKind.Relic: return "遗物：从遗物池随机 3 选 1，局内变强";
                 // ★ 越境（2026-10-18）：续劫专属 —— 直入下一幕，代价是本幕剩余节点全放弃
@@ -2948,13 +2965,14 @@ if (_tmpActTitle != null)
                 var weighted = new System.Collections.Generic.List<WanXiang.Campaign.NodeKind>();
                 System.Action<WanXiang.Campaign.NodeKind, int> addW = (k, w) =>
                     { for (int i = 0; i < w; i++) weighted.Add(k); };
-                addW(WanXiang.Campaign.NodeKind.Shop, 2);
-                addW(WanXiang.Campaign.NodeKind.Nest, 2);
-                addW(WanXiang.Campaign.NodeKind.Tale, 2);
-                addW(WanXiang.Campaign.NodeKind.Omen, 2);
-                addW(WanXiang.Campaign.NodeKind.Forge, 1);
-                addW(WanXiang.Campaign.NodeKind.Encounter, 2);
-                addW(WanXiang.Campaign.NodeKind.Elite, 1);
+                // ★ 2026-11-07：**移除「天象（Omen）」**（设计 v2 §5.1：与异闻语义重叠，已并入异闻）。
+                //   问号池现在只出新 8 种（作战/精英/休整/工坊/市集/异闻/秘境 + 后面的固定位）。
+                addW(WanXiang.Campaign.NodeKind.Shop, 2);      // 市集
+                addW(WanXiang.Campaign.NodeKind.Nest, 3);      // 休整（惊喜为主）
+                addW(WanXiang.Campaign.NodeKind.Tale, 3);      // 异闻（原天象的权重并到这里）
+                addW(WanXiang.Campaign.NodeKind.Forge, 2);     // 工坊
+                addW(WanXiang.Campaign.NodeKind.Encounter, 2); // 作战
+                addW(WanXiang.Campaign.NodeKind.Elite, 1);     // 精英（惩罚为辅）
                 // ★ 秘境（2026-10-16）：问号也能开出秘境，但**低频**（权重 1）——
                 //   路线图上本来就有专门的【秘境】节点（NodeKind.Realm），问号只是另一条路。
                 //   第 1 幕不投（玩家没学会格挡，进秘境是纯挫败 —— 设计文档 5.3）。
