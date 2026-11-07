@@ -66,6 +66,8 @@ namespace WanXiang.Battle.Core
 
         public Element AuraEl = Element.None;
         public int AuraStacks;
+        /// <summary>B1：天性「灼烧上限」带来的附着层数上限加成（默认 0 ⇒ 旧行为不变）。</summary>
+        public int AuraCapBonus;
 
         public int Shield { get; private set; }
         /// <summary>护盾是**第几回合**获得的（用户 2026-10-13：护盾改为一个回合后自动消失）。

@@ -228,9 +228,16 @@ namespace WanXiang.Modules.UI
             if (_stage != null) _stage.SetQteHint(keyText, segTotal, segIndex);
             Sfx("sfx_bt_cmd_select");   // 提示音（没有专用素材，先复用指令音）
 
+            // B1：性情「狡黠」——队里任一只即可让 QTE 判定窗口 +15%（无表时 ×1）。
+            float temperMul = 1f;
+            if (_play != null && _play.State != null
+                && WanXiang.Battle.Core.TraitRuntime.Count(_play.State,
+                       WanXiang.Battle.Core.TeamSide.Player,
+                       WanXiang.Battle.Core.Temperament.Cunning) > 0)
+                temperMul = 1.15f;
             float window = (comboQte ? ComboWindowSeconds
                           : finisher ? FinisherWindowSeconds
-                          : ParryWindowSeconds) * segMul;
+                          : ParryWindowSeconds) * segMul * temperMul;
             // 进攻向（终结技/连携）：容错放宽一档（抢拍也认，别让玩家白丢大招/连携）
             float perfectHalf = offensive ? ParryPerfectHalf * 2f : ParryPerfectHalf;
             float normalHalf = offensive ? ParryNormalHalf * 1.6f : ParryNormalHalf;
@@ -318,9 +325,10 @@ namespace WanXiang.Modules.UI
                 // ⛔ 连击时**不要**在这里清提示条 —— 下一段紧接着就弹，淡出会闪一下。
                 //   统一由主循环在整段播完后调 ClearQteHint 收口。
             }
-if (grade == WanXiang.Battle.Core.ParryGrade.Perfect) Sfx("sfx_bt_guard");
-      else if (grade == WanXiang.Battle.Core.ParryGrade.Normal) Sfx("sfx_bt_cmd_confirm");
-    else Sfx("sfx_bt_cmd_cancel");   // 未挡/失谐：给一声"取消"音，别让失败是无声的
+                if (grade == WanXiang.Battle.Core.ParryGrade.Perfect) Sfx("sfx_bt_parry_perfect");
+                else if (grade == WanXiang.Battle.Core.ParryGrade.Normal) Sfx("sfx_bt_parry_normal");
+                else Sfx("sfx_bt_parry_miss");   // 未挡/失谐：给一声"走调"音，别让失败是无声的
+                                                 // （三条专音 2026-11-07 合成到位，替换此前的指令音复用）
 
     // ⚠ 只在"还是我在等"时提交：若期间已被外部提交（自动化测试注入），不覆盖、也不打日志
          //   （否则日志会打出本地超时值，与真实生效值不一致 —— 排查时踩过）。

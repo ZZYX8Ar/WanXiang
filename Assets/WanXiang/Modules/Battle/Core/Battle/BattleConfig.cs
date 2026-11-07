@@ -238,9 +238,11 @@ namespace WanXiang.Battle.Core
         // ---- 稀有度倍率（§3.4：灵/玄/神 = 1.00 / 1.15 / 1.30）----
         // v1.1 把它们从 switch 常量提成数据 —— §3.7 的立场是"调整平衡只改这几行"，
         // 且测试里模拟"局内成长后的队伍"（神品 ×1.9）也要动它。
+        // ★ 2026-11-07 v2 §18.2a C 路线：面板差 ≤8% 且可被灵品满星追平。
+        //   原 1.00/1.15/1.30 会被 遗物×道痕×N倍率 乘算放大成 60~90% 差距 ⇒ 灵品失业。
         public float RareMultiplier = 1.00f;
-        public float EpicMultiplier = 1.15f;
-        public float LegendMultiplier = 1.30f;
+        public float EpicMultiplier = 1.04f;
+        public float LegendMultiplier = 1.08f;
 
         public float RarityMultiplier(Rarity r)
         {

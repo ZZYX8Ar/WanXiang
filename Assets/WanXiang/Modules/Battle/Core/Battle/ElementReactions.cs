@@ -21,6 +21,8 @@ namespace WanXiang.Battle.Core
     {
         /// <summary>附着层数上限（2026-10-31 用户："最高 4 层行不行" ⇒ 3 → 4）。</summary>
         public const int MaxStacks = 4;
+        /// <summary>该单位的实际附着上限 = 基础上限 + 天性加成（无表时恒为 4）。</summary>
+        private static int CapOf(BattleUnit u) => MaxStacks + (u != null ? u.AuraCapBonus : 0);
         /// <summary>对 (target, incoming) 结算一次附着/反应。返回触发的反应（None = 只附着）。</summary>
         public static ReactionKind Resolve(BattleState st, BattleUnit src, BattleUnit dst, Element incoming)
         {
@@ -34,7 +36,7 @@ namespace WanXiang.Battle.Core
             if (src != null && src.Side == TeamSide.Player)
             {
                 if (src.ChargeStacks <= 0) return ReactionKind.None;
-                applyStacks = Math.Min(MaxStacks, src.ChargeStacks);
+                applyStacks = Math.Min(CapOf(src), src.ChargeStacks);
                 src.ChargeStacks = 0;                 // 一次出手耗尽
             }
 
@@ -52,7 +54,7 @@ namespace WanXiang.Battle.Core
             {
                 if (dst.AuraStacks >= 2)
                 {
-                    int use = Math.Min(dst.AuraStacks, MaxStacks);
+                    int use = Math.Min(dst.AuraStacks, CapOf(dst));
                     SetAura(dst, incoming, dst.AuraStacks - use);
                     int cstacks = use;
                     int cdmg = dst.TakeDamage(CoreMath.RoundDamage(atkSrc(src) * 0.35f * cstacks));
@@ -65,7 +67,7 @@ namespace WanXiang.Battle.Core
                                    note: dst.DisplayName + " 阵亡（消耗）");
                     return ReactionKind.Consume;
                 }
-                SetAura(dst, incoming, Math.Min(MaxStacks, dst.AuraStacks + applyStacks));
+                SetAura(dst, incoming, Math.Min(CapOf(dst), dst.AuraStacks + applyStacks));
                 return ReactionKind.None;
             }
 
@@ -85,7 +87,7 @@ namespace WanXiang.Battle.Core
         private static void SetAura(BattleUnit u, Element el, int stacks)
         {
             u.AuraEl = el;
-            u.AuraStacks = Math.Max(0, Math.Min(MaxStacks, stacks));
+            u.AuraStacks = Math.Max(0, Math.Min(CapOf(u), stacks));
         }
 
         /// <summary>两元素 → 反应种类（顺序无关）。⛔ 用**枚举名**判断，不要用 int 值

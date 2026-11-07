@@ -265,6 +265,12 @@ namespace WanXiang.Battle.Core
             // B1：性情「刚烈」受击额外 +5 元气（更早出奥义）。
             dst.AddRage(st.Config.RageWhenHit
                 + (dst.Def != null && dst.Def.Temperament == Temperament.Fierce ? 5f : 0f));
+            // B1：天性「媚影」——暴击时削目标怒气（按攻击方阵营求和，无表为 0）。
+            if (crit)
+            {
+                float rageDown = TraitRuntime.Sum(st, src.Side, TraitKind.RageDownOnCrit);
+                if (rageDown > 0f) dst.AddRage(-rageDown);
+            }
 
             if (dealt > 0 && !dst.IsAlive)
             {
@@ -621,6 +627,9 @@ namespace WanXiang.Battle.Core
             // B1：天性「残血处决」——目标生命 <40% 时，按攻击方阵营的天性数值加成。
             if (dst.HpPercent < 0.4f)
                 v *= 1f + TraitRuntime.Sum(st, src.Side, TraitKind.ExecuteLowHp);
+            // B1：天性「破御」——对御职/带盾目标加成。
+            if (dst.Def != null && (dst.Def.Role == RoleType.Guard || dst.Shield > 0))
+                v *= 1f + TraitRuntime.Sum(st, src.Side, TraitKind.DamageToGuardUp);
 
             // ---- 天时修正（GDD 3.1/3.4）。st.Weather 为 null 时零改动 ， 指纹不变 ----
             if (st.Weather != null)

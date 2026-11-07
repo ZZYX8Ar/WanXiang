@@ -108,6 +108,17 @@ namespace WanXiang.Battle.Core
                 (ref TraitContext c) => { c.Value += 0.25f; });                 // +25% 伤害
             Register(TraitKind.BurnCapUp, TraitHook.BattleStart,
                 (ref TraitContext c) => { c.Value += 2f; });                    // 灼烧上限 +2
+            // B1 第二批：CSV 里已写入的 5 种，先注册（未接挂点的 Kind 不会自己生效，但不会报错）
+            Register(TraitKind.RageDownOnCrit, TraitHook.OnCrit,
+                (ref TraitContext c) => { c.Value += 20f; });
+            Register(TraitKind.DamageToGuardUp, TraitHook.BeforeDamage,
+                (ref TraitContext c) => { c.Value += 0.2f; });
+            Register(TraitKind.ShieldOnHurt, TraitHook.OnHurt,
+                (ref TraitContext c) => { c.Value += 1f; });
+            Register(TraitKind.DodgeWhenAdjacentFoe, TraitHook.TurnStart,
+                (ref TraitContext c) => { c.Value += 0.1f; });
+            Register(TraitKind.PoisonOnCrit, TraitHook.OnCrit,
+                (ref TraitContext c) => { c.Value += 2f; });
         }
 
         /// <summary>

@@ -19,7 +19,11 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 CSV = os.path.join(ROOT, 'Assets', 'Resources', 'Data', 'beasts.csv')
 
 # B0 阶段 TraitRuntime.ResetToDefaults() 注册的 4 个处理器
-REGISTERED = {'AdjacentMpBonus', 'CritRateTeam', 'ExecuteLowHp', 'BurnCapUp'}
+REGISTERED = {
+    'AdjacentMpBonus', 'CritRateTeam', 'ExecuteLowHp', 'BurnCapUp',
+    'RageDownOnCrit', 'DamageToGuardUp', 'ShieldOnHurt',
+    'DodgeWhenAdjacentFoe', 'PoisonOnCrit',
+}
 NUM_FIELDS = ('hp', 'atk', 'def', 'spd')
 REQUIRED = ('id', 'name', 'element', 'role', 'rarity', 'temperament',
             'trait_kind', 'ultimate') + NUM_FIELDS
