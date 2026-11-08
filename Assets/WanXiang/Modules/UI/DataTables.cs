@@ -53,6 +53,8 @@ namespace WanXiang.Modules.UI
         public static int TemperamentCount { get; private set; } // 通道化：temperaments.csv 生效行数
         public static int SkillPoolCount { get; private set; }   // B2：skill_pool.csv 生效行数
         public static int DaoMarkCount { get; private set; }     // B2：dao_marks.csv 生效行数
+        public static int SquadPresetCount { get; private set; } // B3：squads.csv（分队）生效行数
+        public static int DifficultyCount { get; private set; }  // B3：difficulty_mods.csv 生效行数
         public static int ComboCount { get; private set; }
         public static int ProgressionKeys { get; private set; }
         public static int TrialLawCount { get; private set; }
@@ -88,6 +90,8 @@ namespace WanXiang.Modules.UI
             LoadTemperaments();
             LoadSkillPool();
             LoadDaoMarks();
+            LoadSquadPresets();
+            LoadDifficulty();
 
             if (Problems.Count > 0)
                 Debug.LogError("[DataTables] 共 " + Problems.Count + " 处问题：\n" + string.Join("\n", Problems.ToArray()));
@@ -98,7 +102,8 @@ namespace WanXiang.Modules.UI
                       "／劫律 " + TrialLawCount + "／灵市 " + MarketKeys + " 键" +
                       "／异兽 " + BeastCount + " 只／标签 " + LabelCount + " 条" +
                       "／性情通道 " + TemperamentCount + " 条／技能池 " + SkillPoolCount + " 条" +
-                      "／道痕 " + DaoMarkCount + " 条");
+                      "／道痕 " + DaoMarkCount + " 条／分队 " + SquadPresetCount + " 个" +
+                      "／难度 " + DifficultyCount + " 档");
         }
 
         /// <summary>
@@ -111,6 +116,7 @@ namespace WanXiang.Modules.UI
             StatusCount = BossCount = WeatherCount = BudgetKeys = SquadActs = WeightRows = 0;
             RelicCount = ComboCount = ProgressionKeys = TrialLawCount = MarketKeys = 0;
             BeastCount = LabelCount = TemperamentCount = SkillPoolCount = DaoMarkCount = 0;
+            SquadPresetCount = DifficultyCount = 0;
             MapInstalled = false;
             EnsureInstalled();
         }
@@ -250,11 +256,81 @@ namespace WanXiang.Modules.UI
                     Source = r.Enum("source", WanXiang.Battle.Core.DaoMarkSource.None),
                     T1 = r.Int("t1", 0), T2 = r.Int("t2", 0), T3 = r.Int("t3", 0),
                     EffectDesc = r.Str("effect_desc"),
+                    Channel = r.Str("channel"),
+                    V1 = r.Float("v1", 0f), V2 = r.Float("v2", 0f), V3 = r.Float("v3", 0f),
                 });
             }
             if (list.Count == 0) return;
             WanXiang.Battle.Core.DaoMarkRules.Install(list);
             DaoMarkCount = list.Count;
+        }
+
+        // ================================================================
+        //  B3 · squads.csv（分队：起手模板）  ⚠ 注意与 squad.csv（敌人规模）不是同一张表
+        // ================================================================
+        private static void LoadSquadPresets()
+        {
+            var rows = Read("squads", out var header);
+            if (rows == null) return;
+            var list = new List<WanXiang.Battle.Core.SquadDef>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "squads.csv", i + 2, Problems);
+                string id = r.Str("id");
+                if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                var d = new WanXiang.Battle.Core.SquadDef
+                {
+                    Id = id,
+                    Name = r.Str("name", id),
+                    Element = r.Enum("element", Element.None),
+                    StarterExpr = r.Str("starter"),
+                    Eggs = r.Int("eggs", 0),
+                    Relic = r.Str("relic"),
+                    Unlock = r.Str("unlock"),
+                    Desc = r.Str("desc"),
+                };
+                // starter 两种写法：`id|id|id` 或 `random:3` / `random_same_element:5`
+                if (!string.IsNullOrEmpty(d.StarterExpr) && !d.StarterExpr.StartsWith("random"))
+                {
+                    var ids = d.StarterExpr.Split('|');
+                    for (int k = 0; k < ids.Length; k++)
+                        if (!string.IsNullOrEmpty(ids[k])) d.Starters.Add(ids[k]);
+                }
+                list.Add(d);
+            }
+            if (list.Count == 0) return;
+            WanXiang.Battle.Core.SquadTable.Install(list);
+            SquadPresetCount = list.Count;
+        }
+
+        // ================================================================
+        //  B3 · difficulty_mods.csv（N1~N18）
+        // ================================================================
+        private static void LoadDifficulty()
+        {
+            var rows = Read("difficulty_mods", out var header);
+            if (rows == null) return;
+            var list = new List<WanXiang.Battle.Core.DifficultyDef>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "difficulty_mods.csv", i + 2, Problems);
+                int lv = r.Int("level", 0);
+                if (lv <= 0) { r.Fail("level 非法"); continue; }
+                list.Add(new WanXiang.Battle.Core.DifficultyDef
+                {
+                    Level = lv,
+                    HpMul = r.Float("hp_mul", 1f),
+                    AtkMul = r.Float("atk_mul", 1f),
+                    DefMul = r.Float("def_mul", 1f),
+                    ExtraTraits = r.Int("extra_traits", 0),
+                    EggMul = r.Float("egg_mul", 1f),
+                    NewRule = r.Str("new_rule"),
+                    Desc = r.Str("desc"),
+                });
+            }
+            if (list.Count == 0) return;
+            WanXiang.Battle.Core.DifficultyTable.Install(list);
+            DifficultyCount = list.Count;
         }
 
         private static void LoadStatus()
