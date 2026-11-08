@@ -836,11 +836,8 @@ private void ShowVerdict(string text, Color c) => _verdictBanner.Show(text, c, t
 
         private void StepVerdict(float dt) => _verdictBanner.Step(dt);
 
-        private TextMesh _qteHint;              // 屏幕中央的按键提示文字
-        private MeshRenderer _qteHintMr;       // 提示文字的渲染器（显隐开关；TextMesh 本身没有 enabled）
-        private SpriteRenderer _qteHintBg;     // 提示条的深色底衬（白字压在浅背景上看不清）
-        private float _qteHintAlpha;            // 淡入淡出用（窗口期常亮）
-        private string _qteHintText = "";
+        /// <summary>R3-b：QTE 提示条（窗口期常亮 + 底衬自适应）整体抽出。</summary>
+        private readonly QtePrompt _qtePrompt = new QtePrompt();
 
         /// <summary>
         /// 设置 QTE 提示条文案。
@@ -866,51 +863,12 @@ private void ShowVerdict(string text, Color c) => _verdictBanner.Show(text, c, t
         }
 
         public void SetQteHint(string text, int hitsTotal = 0, int hitsDone = 0)
-        {
-            _qteHintText = hitsTotal > 1
-          ? text + "　（连击 " + (hitsDone + 1) + "/" + hitsTotal + "）"
-    : text;
-      EnsureQteHint();
-    if (_qteHint != null) _qteHint.text = _qteHintText;
-        }
+            => _qtePrompt.Set(text, hitsTotal, hitsDone, transform);
 
-        private void EnsureQteHint()
-        {
-      if (_qteHint != null) return;
+        /// <summary>清空 QTE 提示（连击段间调用；文字置空 → 下一帧淡出）。</summary>
+        public void ClearQteHint() => _qtePrompt.ClearCurrent();
 
-     // ---- 底衬：半透明深色圆角条（白字压在浅色背景上几乎看不见，实测踩过）----
-    if (_qteHintBg == null)
-       {
-      if (_qteBgSprite == null) _qteBgSprite = BuildSolidSprite(64);   // 实心方块（不是圆环）
- var bgGo = new GameObject("QteHintBg");
-      bgGo.transform.SetParent(transform, false);
-         bgGo.transform.localPosition = new Vector3(0f, 2.42f, -3f);   // 比文字再靠后
-       _qteHintBg = bgGo.AddComponent<SpriteRenderer>();
-         _qteHintBg.sprite = _qteBgSprite;
-    _qteHintBg.sortingOrder = 39;
-   _qteHintBg.color = new Color(0.06f, 0.05f, 0.07f, 0.72f);
-    }
 
-       var go = new GameObject("QteHint");
-  go.transform.SetParent(transform, false);
-            go.transform.localPosition = new Vector3(0f, 2.42f, -2f);   // 屏幕中央偏上（别压棋盘格子）
-            var f = LegacyFont();
-         _qteHint = go.AddComponent<TextMesh>();
- _qteHintMr = go.GetComponent<MeshRenderer>();
-        if (f != null)
-   {
-     _qteHint.font = f;
-      if (_qteHintMr != null) { _qteHintMr.sharedMaterial = f.material; _qteHintMr.sortingOrder = 40; }
-            }
-            _qteHint.anchor = TextAnchor.MiddleCenter;
-            _qteHint.alignment = TextAlignment.Center;
-    _qteHint.characterSize = 0.10f;
-            _qteHint.fontSize = 64;
-    _qteHint.color = new Color(0.16f, 0.13f, 0.09f, 0f);   // 米底 ⇒ 墨字（用户 2026-10-18）
-        }
-
-        /// <summary>淡出并收起提示条。</summary>
-        public void ClearQteHint() { _qteHintText = ""; }
 
         private void EnsureParryRings()
         {
@@ -980,11 +938,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             _parryRing = null;      // 提示圈子物体已被上面销毁；标记清空等下次重建
             _parryTarget = null;
             _parryActorId = null;
-            _qteHint = null;    // 提示条同理由上面统一销毁
-            _qteHintMr = null;
-            _qteHintBg = null;
-            _qteHintAlpha = 0f;
-            _qteHintText = "";
+            _qtePrompt.ClearRefs();
             _state = null;
             _cam = null;
             _fgDecor = null;
@@ -2461,7 +2415,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         {
             if (_cam == null) return;
             // ⛔ QTE 窗口期不响应双击（用户 2026-10-26）：格挡要连点，别被"查看"抢走
-            if (!string.IsNullOrEmpty(_qteHintText)) return;
+            if (_qtePrompt.Visible) return;
             if (!Input.GetMouseButtonDown(0)) return;
             if (Time.unscaledTime - _lastClickAt < 0.30f) { _lastClickAt = -1f; TryInspectUnderMouse(); }
             else _lastClickAt = Time.unscaledTime;
@@ -2607,38 +2561,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
    StepVerdict(dt);    // 判定横幅（弹入/停留/淡出）——用 fxDt 之外的 dt，让它不被倍速带没
 
       // QTE 提示条淡入淡出（有文案就淡入保持，清掉就淡出隐藏）
-            if (_qteHint != null)
-            {
-         float targetA = string.IsNullOrEmpty(_qteHintText) ? 0f : 1f;
-   _qteHintAlpha = Mathf.MoveTowards(_qteHintAlpha, targetA, dt * 6f);
-    var c = _qteHint.color;
- _qteHint.color = new Color(c.r, c.g, c.b, _qteHintAlpha);
-// ⚠ TextMesh 没有 enabled（它不是 Renderer）—— 显隐走 MeshRenderer。
-     if (_qteHintMr != null) _qteHintMr.enabled = _qteHintAlpha > 0.01f;
-     // 底衬同步淡入淡出 + 每帧跟随文字实际宽度
-     if (_qteHintBg != null)
-     {
-      var bc = _qteHintBg.color;
-      _qteHintBg.color = new Color(bc.r, bc.g, bc.b, 0.72f * _qteHintAlpha);
-    _qteHintBg.enabled = _qteHintAlpha > 0.01f;
-      // ⚠ 宽度按 **实际渲染宽度** 算，不能按字数估 ——
-      //   估出来会短一截（实测盖到"格挡"就断了）。
-      //   用 MeshRenderer.bounds（世界 AABB）÷ 父级缩放换算回本地单位。
-      //   ⚠ 原生 TextMesh.textBounds / GetPixelSize 在本工程不可用（CS1061），
-      //     GetPixelSize 是 TextMeshPro 的 API，别再试。
-      //   每帧算：设 text 的当帧网格当帧还没更新。
-      if (_qteHintMr != null && _qteHintAlpha > 0.01f)
-      {
-        float w = 1.2f;
-        float tw = _qteHintMr.bounds.size.x;
-        float ps = _qteHintBg.transform.parent != null ? _qteHintBg.transform.parent.lossyScale.x : 1f;
-        if (ps > 0.0001f) tw /= ps;
-        if (tw > 0.01f) w = tw + 0.30f;
-        w = Mathf.Clamp(w, 1.2f, 8.0f);
-        _qteHintBg.transform.localScale = new Vector3(w, 0.46f, 1f);
-      }
-        }
-}
+            _qtePrompt.Step(dt);
 
             foreach (var v in _views.Values)
             {
