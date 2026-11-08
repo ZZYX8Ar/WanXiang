@@ -144,6 +144,8 @@ BuildNodeMap();
         [SerializeField] private SpriteCatalog _sprites;
 
         private readonly NodeRequest _current = new NodeRequest();
+        /// <summary>R5-b：实例级节点路由表（简单节点注册在这里，可随时增删）。</summary>
+        private readonly NodeRouter _nodeRouter = new NodeRouter();
 
         protected override void OnCreate()
         {
@@ -2409,6 +2411,26 @@ if (_tmpActTitle != null)
                 "遭遇：常规战斗，敌方按幕数规模成队");
         }
 
+        /// <summary>
+        /// R5-b：把"一行调用"型节点注册到路由表。只注册一次（Count 为 0 时初始化）。
+        /// ⚠ 委托捕获 this（实例级 router），面板销毁后自然释放。
+        /// </summary>
+        private void EnsureNodeRoutes()
+        {
+            if (_nodeRouter.Count > 0) return;
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Realm, _ => OpenRealmPanel());
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.RealmVault, _ => OpenRealmVault());
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.ActSkip, _ => ConfirmActSkip());
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Shop, _ => OpenPanelAsync<MarketPanel>().Forget());
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Omen, _ => OpenPanelAsync<OmenPanel>().Forget());
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Recruit, _ => OpenPanelAsync<RecruitPanel>(_current).Forget());
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Relic, _ => OpenPanelAsync<RelicPanel>(_current).Forget());
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Nest, r => NestChoose(r));
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Spring, r => SpringNode(r).Forget());
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Training, r => TrainingNode(r).Forget());
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Ruins, r => RuinsNode(r).Forget());
+        }
+
         /// <summary>五行 → 中文（用于天时标题里标注属性）。</summary>
         private static string ElementCn(WanXiang.Battle.Core.Element e)
         {
@@ -2991,24 +3013,11 @@ if (_tmpActTitle != null)
             if (_battleKind) CloseSelf();
 
             // 非战斗节点直接路由到已有面板 —— 面板本身承担该节点的玩法
+            // ★ R5-b（2026-11-08）：简单节点交给注册表；只有含业务逻辑的 Tale/Forge 还走 switch。
+            EnsureNodeRoutes();
+            if (_nodeRouter.TryRoute(kind, run)) return;
             switch (kind)
             {
-                // ★ 秘境（2026-10-16）：它是**独立的节点类型**，直接路由，
-                //   不再借任何别的节点当载体。
-                case WanXiang.Campaign.NodeKind.Realm:
-                    OpenRealmPanel();
-                    return;
-                // ★★ 秘境专属节点（2026-10-16）：只在秘境内部图里出现，主线图不会生成它们。
-                case WanXiang.Campaign.NodeKind.RealmVault:
-                    OpenRealmVault();
-                    return;
-                // ★ 越境（2026-10-18）：续劫专属，直接进下一幕
-                case WanXiang.Campaign.NodeKind.ActSkip:
-                    ConfirmActSkip();
-                    return;
-                case WanXiang.Campaign.NodeKind.Shop:
-                    OpenPanelAsync<MarketPanel>().Forget();
-                    return;
                 case WanXiang.Campaign.NodeKind.Tale:
                 {
                     // ★ 2026-11-01「不期而遇」：Tale 节点改为**事件节点**（复用 Panel_Tale）。
@@ -3082,28 +3091,6 @@ if (_tmpActTitle != null)
                     TalePanel.OpenEvent(forge, null);
                     return;
                 }
-                case WanXiang.Campaign.NodeKind.Omen:
-                    OpenPanelAsync<OmenPanel>().Forget();
-                    return;
-                case WanXiang.Campaign.NodeKind.Recruit:
-                    OpenPanelAsync<RecruitPanel>(_current).Forget();
-                    return;
-                case WanXiang.Campaign.NodeKind.Relic:
-                    OpenPanelAsync<RelicPanel>(_current).Forget();
-                    return;
-                case WanXiang.Campaign.NodeKind.Nest:
-                    NestChoose(run);
-                    return;
-                // ★ 2026-10-20 新增养成节点
-                case WanXiang.Campaign.NodeKind.Spring:
-                    SpringNode(run).Forget();
-                    return;
-                case WanXiang.Campaign.NodeKind.Training:
-                    TrainingNode(run).Forget();
-                    return;
-                case WanXiang.Campaign.NodeKind.Ruins:
-                    RuinsNode(run).Forget();
-                    return;
             }
 
             // 战斗节点 → 布阵
