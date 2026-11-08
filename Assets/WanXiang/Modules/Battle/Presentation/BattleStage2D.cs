@@ -1379,17 +1379,15 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 {
                     var ag = new GameObject("AuraFoot");
                     ag.transform.SetParent(bodySr.transform, false);
-                    ag.transform.localPosition = new Vector3(0f, -(bodySr.sprite.bounds.size.y * 0.52f), 0.02f);
                     var asr = ag.AddComponent<SpriteRenderer>();
                     asr.sprite = auraHex;
                     asr.sortingOrder = bodySr.sortingOrder - 2;   // 比状态光环再靠后一点
 
-                    var lsA = bodySr.transform.lossyScale;
-                    var bsA = bodySr.sprite.bounds.size;
-                    float worldWA = Mathf.Abs(bsA.x * lsA.x);
-                    ag.transform.localScale = new Vector3(
-                        worldWA * 1.55f / Mathf.Max(0.0001f, auraHex.bounds.size.x * Mathf.Abs(lsA.x)),
-                        worldWA * 0.95f / Mathf.Max(0.0001f, auraHex.bounds.size.y * Mathf.Abs(lsA.y)), 1f);
+                    // R2：布局计算收口到纯函数（宽度/高度倍率是这两类光环唯一的差异）
+                    var auraLayout = StageAuraLayout.Compute(bodySr.sprite,
+                        bodySr.transform.lossyScale, auraHex, 1.55f, 0.95f);
+                    ag.transform.localPosition = auraLayout.LocalPosition;
+                    ag.transform.localScale = auraLayout.LocalScale;
 
                     var amat = StageMaterialFactory.Create(StageMaterialKind.Aura,
                         new StageMaterialContext {
@@ -2156,20 +2154,16 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 go.transform.SetParent(v.Body.transform, false);
                 // ⛔ localPosition 在 Body 本地空间（单位=贴图 bounds），-0.42 会缩到没有；
                 //   用 sprite 高度的一半再往下挪，才是"脚底"。
-                go.transform.localPosition = new Vector3(0f, -(v.Body.sprite != null ? v.Body.sprite.bounds.size.y * 0.52f : 0.5f), 0.02f);
-
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = sp;
                 sr.sortingOrder = v.Body.sortingOrder - 1;
 
-                var ls = v.Body.transform.lossyScale;
-                var bs = v.Body.sprite != null ? v.Body.sprite.bounds.size : new Vector3(1f, 1f, 0f);
-                float worldW = Mathf.Abs(bs.x * ls.x);
-                // ⛔ 必须再除以**父级 lossyScale**（Body 在 Root 0.1 缩放之下），否则光环小到看不见
-                var pLossy = v.Body.transform.lossyScale;
-                go.transform.localScale = new Vector3(
-                    worldW * 1.5f / Mathf.Max(0.0001f, sp.bounds.size.x * Mathf.Abs(pLossy.x)),
-                    worldW * 0.75f / Mathf.Max(0.0001f, sp.bounds.size.y * Mathf.Abs(pLossy.y)), 1f);
+                // R2：与 AuraFoot 共用同一套布局公式（只换宽高倍率）。
+                // ⛔ 内部已除以父级 lossyScale —— Body 在 Root 0.1 缩放之下，漏了会小到看不见。
+                var auraLayout = StageAuraLayout.Compute(v.Body.sprite,
+                    v.Body.transform.lossyScale, sp, 1.5f, 0.75f);
+                go.transform.localPosition = auraLayout.LocalPosition;
+                go.transform.localScale = auraLayout.LocalScale;
 
                 var mat = StageMaterialFactory.Create(StageMaterialKind.StatusAura,
                     new StageMaterialContext {
