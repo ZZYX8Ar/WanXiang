@@ -102,14 +102,62 @@ namespace WanXiang.Modules.UI
             return GrantAll(parsed);
         }
 
+        // ---- 装备 2 槽（键：wx.dao_marks.equipped，格式 id,id）----
+        private const string EquipKey = "wx.dao_marks.equipped";
+        private static string[] _equipped;
+
+        private static void EnsureEquipped()
+        {
+            if (_equipped != null) return;
+            _equipped = new[] { "", "" };
+            var raw = PlayerPrefs.GetString(EquipKey, "");
+            if (string.IsNullOrEmpty(raw)) return;
+            var parts = raw.Split(',');
+            for (int i = 0; i < parts.Length && i < 2; i++) _equipped[i] = parts[i] ?? "";
+        }
+
+        /// <summary>装备位（最多 2）：返回 [(id, 当前星级)]，空位/仓库没有的自动剔除。</summary>
+        public static List<KeyValuePair<string, int>> EquippedMarks()
+        {
+            EnsureEquipped();
+            var list = new List<KeyValuePair<string, int>>(2);
+            for (int i = 0; i < _equipped.Length; i++)
+            {
+                string id = _equipped[i];
+                if (string.IsNullOrEmpty(id)) continue;
+                int star = StarOf(id);
+                if (star <= 0) continue;                       // 仓库里没有 ⇒ 不算
+                list.Add(new KeyValuePair<string, int>(id, star));
+            }
+            return list;
+        }
+
+        public static string EquippedAt(int slot)
+        {
+            EnsureEquipped();
+            return slot >= 0 && slot < _equipped.Length ? _equipped[slot] : "";
+        }
+
+        /// <summary>设置装备位；id 为空 = 卸下。必须在仓库里已有才算数（调用方负责校验）。</summary>
+        public static void SetEquipped(int slot, string id)
+        {
+            EnsureEquipped();
+            if (slot < 0 || slot >= _equipped.Length) return;
+            _equipped[slot] = id ?? "";
+            PlayerPrefs.SetString(EquipKey, _equipped[0] + "," + _equipped[1]);
+            PlayerPrefs.Save();
+        }
+
         public static void Clear()
         {
+            _equipped = null;
+            PlayerPrefs.DeleteKey(EquipKey);
             _map = new Dictionary<string, int>();
             PlayerPrefs.DeleteKey(Key);
             PlayerPrefs.Save();
         }
 
-        public static void Reload() { _map = null; }
+        public static void Reload() { _map = null; _equipped = null; }
 
         private static void Flush()
         {

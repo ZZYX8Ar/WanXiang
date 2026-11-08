@@ -238,6 +238,23 @@ namespace WanXiang.Modules.UI
 
             State = BattleFactory.Create(cfg, req.Seed, p, e, req.Weather, req.RealmSpeedMulPlayer);
 
+            // B2：把"已装备的道痕"折算成通道加成写入本局状态。
+            //   通道列表从 DaoMarkRules.All 自动收集 ⇒ 以后加道痕/通道不用改这里。
+            var equippedMarks = DaoMarkPrefs.EquippedMarks();
+            if (equippedMarks.Count > 0)
+            {
+                var seen = new System.Collections.Generic.HashSet<string>();
+                var defs = WanXiang.Battle.Core.DaoMarkRules.All;
+                for (int i = 0; i < defs.Count; i++)
+                {
+                    string ch = defs[i].Channel;
+                    if (string.IsNullOrEmpty(ch) || !seen.Add(ch)) continue;
+                    float v = WanXiang.Battle.Core.DaoMarkRules.EquippedBonus(equippedMarks, ch);
+                    if (v != 0f) State.SetDaoBonus(ch, v);
+                }
+                UnityEngine.Debug.Log("[Battle] 道痕生效：" + equippedMarks.Count + " 条（通道加成已写入本局）");
+            }
+
             // ★★ 镇守专属机制（2026-10-17）：常规战斗体现不了的打法，只在镇守战出现。
             //   ⚠ 在 Create 之后挂 —— 与 BossCatalog.AttachAllBossHooks 同一时机。
             if (!string.IsNullOrEmpty(req.RealmChampionHookId))

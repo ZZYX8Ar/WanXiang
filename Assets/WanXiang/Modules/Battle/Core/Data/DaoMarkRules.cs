@@ -34,6 +34,16 @@ namespace WanXiang.Battle.Core
         public DaoMarkSource Source = DaoMarkSource.None;
         public int T1, T2, T3;          // 三段星级阈值（达到 T1=★1，T2=★2，T3=★3）
         public string EffectDesc;
+        /// <summary>生效通道（与 TraitChannels 同一套语义，便于战斗挂点统一取）。</summary>
+        public string Channel;
+        /// <summary>★1/★2/★3 的数值（比例或位次，由通道决定）。</summary>
+        public float V1, V2, V3;
+
+        /// <summary>按星级取数值；★0 返回 0。</summary>
+        public float ValueOf(int star)
+            => star >= 3 ? (V3 > 0f ? V3 : V2 > 0f ? V2 : V1)
+             : star == 2 ? (V2 > 0f ? V2 : V1)
+             : star == 1 ? V1 : 0f;
     }
 
     /// <summary>一局结束时的原始统计（由调用方填，规则层不认识 RunState）。</summary>
@@ -73,6 +83,23 @@ namespace WanXiang.Battle.Core
             if (string.IsNullOrEmpty(id)) return null;
             for (int i = 0; i < _all.Count; i++) if (_all[i].Id == id) return _all[i];
             return null;
+        }
+
+        /// <summary>
+        /// 纯函数：把"已装备的道痕（id + 星级）"折算成某通道的总加成。
+        /// ⚠ 同通道多条相加；未知 id / ★0 自动跳过。
+        /// </summary>
+        public static float EquippedBonus(IReadOnlyList<KeyValuePair<string, int>> equipped, string channel)
+        {
+            if (equipped == null || string.IsNullOrEmpty(channel)) return 0f;
+            float total = 0f;
+            for (int i = 0; i < equipped.Count; i++)
+            {
+                var d = For(equipped[i].Key);
+                if (d == null || d.Channel != channel) continue;
+                total += d.ValueOf(equipped[i].Value);
+            }
+            return total;
         }
 
         /// <summary>纯函数：数值 → 星级（0 = 不达标）。</summary>

@@ -678,12 +678,17 @@ namespace WanXiang.Battle.Core
             // 攻防双方都不吃五行加成。判定放在系数之后、暴击之前，只动这一项。
             if (dst.IgnoreElementCounter || (src != null && src.IgnoreElementCounter))
                 v = raw;
-            if (crit) v *= (1f + src.Def.CritDamage);
+            // B2：暴击伤害 += 道痕「裂石」（通道 crit_damage）；无道痕时为 0，行为不变。
+            if (crit) v *= (1f + src.Def.CritDamage + st.DaoBonus("crit_damage"));
 
             float defense = dst.Defense;      // B1：含每回合临时修正（孤高等）；无修正时 == BaseDef
             float mitigation = defense / (defense + cfg.DefenseConstant);
             v *= (1f - mitigation);
             v *= dst.DamageTakenMultiplier;
+
+            // B2：道痕「镇岳」——对首领伤害加成（目标 id 以 b_ 开头）。
+            if (dst.Def != null && BossCatalog.IsBoss(dst.Def.Id))
+                v *= 1f + st.DaoBonus("boss_damage");
 
             // B1：天性「残血处决」——目标生命 <40% 时，按攻击方阵营的天性数值加成。
             if (dst.HpPercent < 0.4f)

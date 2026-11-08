@@ -145,6 +145,23 @@ namespace WanXiang.Battle.Core
         /// <summary>灵力上限。超出部分丢失 —— 这是"必须花掉"的节奏压力来源。</summary>
         public int TeamMpMax = 12;
 
+        /// <summary>B2：本局生效的道痕加成（通道 → 加值）。由 UI 层在建场后写入。</summary>
+        private readonly System.Collections.Generic.Dictionary<string, float> _daoBonuses =
+            new System.Collections.Generic.Dictionary<string, float>();
+
+        public void SetDaoBonus(string channel, float value)
+        {
+            if (string.IsNullOrEmpty(channel)) return;
+            _daoBonuses[channel] = value;
+        }
+
+        public float DaoBonus(string channel)
+        {
+            if (string.IsNullOrEmpty(channel)) return 0f;
+            float v;
+            return _daoBonuses.TryGetValue(channel, out v) ? v : 0f;
+        }
+
         /// <summary>
         /// 敌方灵力池（2026-09-25 起与玩家**分开**）。
         /// ⚠ 曾经双方共用 <see cref="TeamMp"/> ， 敌方 AI 放战记花的是玩家的灵力，
