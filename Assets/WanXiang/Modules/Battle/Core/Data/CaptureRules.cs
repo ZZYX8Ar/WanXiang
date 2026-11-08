@@ -69,5 +69,38 @@ namespace WanXiang.Battle.Core
         /// <summary>是否判定成功（调用方给随机数 0~1）。</summary>
         public static bool Roll(int chancePercent, float roll01)
             => roll01 * 100f < chancePercent;
+
+        /// <summary>一次捕获尝试的结算结果。</summary>
+        public struct Attempt
+        {
+            public bool Allowed;        // 该目标是否允许捕获（首领/召唤 = false）
+            public int ChancePercent;   // 本次成功率（百分点）
+            public int EggCost;         // 本次消耗的灵卵
+            public bool Success;
+            public int Refund;          // 失败返还的灵卵（成功 = 0）
+        }
+
+        /// <summary>
+        /// 一次性结算：把"能不能抓 + 概率 + 消耗 + 失败返还"收在一个函数里，
+        /// 调用方只需要给随机数（可注入 ⇒ 可单测）。
+        /// <paramref name="roll01"/>：0~1 的随机数。
+        /// </summary>
+        public static Attempt Resolve(BeastDef target, int hpPct, int eggs, float daoBonus, float roll01)
+        {
+            var a = new Attempt { EggCost = eggs };
+            if (!IsCapturable(target))
+            {
+                a.Allowed = false;
+                a.ChancePercent = 0;
+                a.Success = false;
+                a.Refund = eggs;                  // 不可捕：原样退还，不让玩家吃亏
+                return a;
+            }
+            a.Allowed = true;
+            a.ChancePercent = ChancePercent(hpPct, eggs, daoBonus);
+            a.Success = Roll(a.ChancePercent, roll01);
+            a.Refund = a.Success ? 0 : Refund(eggs);
+            return a;
+        }
     }
 }
