@@ -463,14 +463,9 @@ namespace WanXiang.Battle.Presentation
         //   之前只有头顶一个小飘字（0.7s 寿命、characterSize 0.13），在棋盘上又小又短，
         //   玩家基本扫一眼就没了。现在加一条**屏幕中央的大横幅**：弹入 + 停留 + 淡出，
         //   成功（金/青白）与失败（暗红）颜色对立，一眼能分清。
-        private TextMesh _verdict;         // 横幅文字
-        private MeshRenderer _verdictMr;
-        private SpriteRenderer _verdictBg; // 横幅底衬（白字压浅背景会看不见）
-        private float _verdictT;           // 横幅已播放时长
-        private float _verdictAlpha;
-        private bool _verdictActive;
+        /// <summary>R3-a：判定横幅（弹入/停留/淡出 + 底衬自适应）整体抽出。</summary>
+        private readonly VerdictBanner _verdictBanner = new VerdictBanner();
         /// <summary>横幅停留时长（弹入 0.12s + 停留 + 淡出 0.35s 的总账）。</summary>
-        private const float VerdictHold = 0.62f;
         private Camera _cam;
         /// <summary>舞台动画时钟（Step 里按 dt 累加）。表现层所有周期动画都用它，别用 Time.time。</summary>
         private float _animT;
@@ -837,100 +832,10 @@ namespace WanXiang.Battle.Presentation
       /// 屏幕中央判定横幅。成功/失败各一套颜色，由 <see cref="ParryFeedback"/> 调。
         /// ⛔ 纯表现层，不读战斗状态（帧流纪律）。
         /// </summary>
-private void ShowVerdict(string text, Color c)
-    {
-   EnsureVerdict();
-    if (_verdict == null) return;
- _verdict.text = text;
-     _verdict.color = c;
-        // 底衬 = 判定色的**暗版**（不是纯黑）：暗红底衬配"未挡"、暗金配"强化"，
-            // 颜色本身就在传递成败，不只是一块黑底。
-  if (_verdictBg != null) _verdictBg.color = new Color(c.r * 0.22f, c.g * 0.22f, c.b * 0.22f, 0.86f);
-   _verdictT = 0f;
-            _verdictActive = true;
-   }
+private void ShowVerdict(string text, Color c) => _verdictBanner.Show(text, c, transform);
 
-   private void EnsureVerdict()
-        {
-            if (_verdict != null) return;
-            if (_qteBgSprite == null) _qteBgSprite = BuildSolidSprite(64);
-    if (_verdictBg == null)
-            {
-       var bgGo = new GameObject("VerdictBg");
-        bgGo.transform.SetParent(transform, false);
-          bgGo.transform.localPosition = new Vector3(0f, 2.05f, -3f);
-        _verdictBg = bgGo.AddComponent<SpriteRenderer>();
-      _verdictBg.sprite = _qteBgSprite;
-                _verdictBg.sortingOrder = 41;
-            }
-    var go = new GameObject("Verdict");
-            go.transform.SetParent(transform, false);
- go.transform.localPosition = new Vector3(0f, 2.05f, -2f);
-    var f = LegacyFont();
-      _verdict = go.AddComponent<TextMesh>();
-    _verdictMr = go.GetComponent<MeshRenderer>();
-         if (f != null)
-   {
-            _verdict.font = f;
-       if (_verdictMr != null) { _verdictMr.sharedMaterial = f.material; _verdictMr.sortingOrder = 42; }
-       }
-         _verdict.anchor = TextAnchor.MiddleCenter;
-            _verdict.alignment = TextAlignment.Center;
-    _verdict.characterSize = 0.17f;    // 比 QTE 提示条大一倍：这是"结果"，不是"操作提示"
-            _verdict.fontSize = 64;
-  }
+        private void StepVerdict(float dt) => _verdictBanner.Step(dt);
 
-  /// <summary>横幅推进：弹入（easeOutBack）→ 停留 → 淡出。</summary>
-        private void StepVerdict(float dt)
-  {
-        if (_verdict == null) return;
-if (!_verdictActive)
-       {
-       if (_verdictAlpha <= 0.01f) return;
-       _verdictAlpha = Mathf.MoveTowards(_verdictAlpha, 0f, dt * 6f);
-       }
-         else
-            {
-         _verdictT += dt;
-     if (_verdictT >= VerdictHold)
-       {
-         _verdictActive = false;
-           _verdictAlpha = Mathf.MoveTowards(_verdictAlpha, 0f, dt * 4.5f);
-   }
-      else _verdictAlpha = Mathf.MoveTowards(_verdictAlpha, 1f, dt * 12f);
-      }
-      var vc = _verdict.color;
-            _verdict.color = new Color(vc.r, vc.g, vc.b, _verdictAlpha);
-if (_verdictMr != null) _verdictMr.enabled = _verdictAlpha > 0.01f;
-     // 弹入：0.16s 内从 1.55× 收到 1.0×（easeOutBack）
-            float scale = 1f;
-    if (_verdictActive && _verdictT < 0.16f)
-            {
-       float k = Mathf.Clamp01(_verdictT / 0.16f);
-    float c1 = 1.70158f, c3 = c1 + 1f;
-      float e = 1f + c3 * (k - 1f) * (k - 1f) * (k - 1f) + c1 * (k - 1f) * (k - 1f);
-       scale = Mathf.Lerp(1.55f, 1f, Mathf.Clamp01(e));
-     }
-   _verdict.transform.localScale = new Vector3(scale, scale, 1f);
-if (_verdictBg != null)
-     {
-      var bc = _verdictBg.color;
-   _verdictBg.color = new Color(bc.r, bc.g, bc.b, 0.86f * _verdictAlpha);
-     _verdictBg.enabled = _verdictAlpha > 0.01f;
-    if (_verdictMr != null && _verdictAlpha > 0.01f)
-   {
-      float tw = _verdictMr.bounds.size.x;
-       float ps = _verdictBg.transform.parent != null ? _verdictBg.transform.parent.lossyScale.x : 1f;
-   if (ps > 0.0001f) tw /= ps;
-   float w = Mathf.Clamp(tw > 0.01f ? tw + 0.55f : 2.4f, 1.6f, 9.0f);
-         _verdictBg.transform.localScale = new Vector3(w, 0.72f, 1f);
-            }
-    }
-     }
-
-        // ================================================================
-        //  QTE 提示条（2026-10-14，用户："这个 qte 是按什么按键的啊，都没有提示"）
-        // ================================================================
         private TextMesh _qteHint;              // 屏幕中央的按键提示文字
         private MeshRenderer _qteHintMr;       // 提示文字的渲染器（显隐开关；TextMesh 本身没有 enabled）
         private SpriteRenderer _qteHintBg;     // 提示条的深色底衬（白字压在浅背景上看不清）
@@ -1069,8 +974,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 DestroyImmediate(transform.GetChild(i).gameObject);
             _views.Clear();
             _floaters.Clear();
-        _verdict = null; _verdictMr = null; _verdictBg = null;
-      _verdictActive = false; _verdictT = 0f; _verdictAlpha = 0f;
+            _verdictBanner.ClearRefs();
     _pendingDmg.Clear();
             _pendingCritFloat = null;
             _parryRing = null;      // 提示圈子物体已被上面销毁；标记清空等下次重建
