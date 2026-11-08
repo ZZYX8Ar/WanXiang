@@ -54,6 +54,7 @@ namespace WanXiang.Modules.UI
         public static int SkillPoolCount { get; private set; }   // B2：skill_pool.csv 生效行数
         public static int DaoMarkCount { get; private set; }     // B2：dao_marks.csv 生效行数
         public static int EndingCount { get; private set; }      // B4：endings.csv 生效行数
+        public static int InspirationCount { get; private set; } // B5：inspirations.csv 生效行数
         public static int SquadPresetCount { get; private set; } // B3：squads.csv（分队）生效行数
         public static int DifficultyCount { get; private set; }  // B3：difficulty_mods.csv 生效行数
         public static int ComboCount { get; private set; }
@@ -92,6 +93,7 @@ namespace WanXiang.Modules.UI
             LoadSkillPool();
             LoadDaoMarks();
             LoadEndings();
+            LoadInspirations();
             LoadSquadPresets();
             LoadDifficulty();
 
@@ -105,7 +107,7 @@ namespace WanXiang.Modules.UI
                       "／异兽 " + BeastCount + " 只／标签 " + LabelCount + " 条" +
                       "／性情通道 " + TemperamentCount + " 条／技能池 " + SkillPoolCount + " 条" +
                       "／道痕 " + DaoMarkCount + " 条／分队 " + SquadPresetCount + " 个" +
-                      "／难度 " + DifficultyCount + " 档／结局 " + EndingCount + " 条");
+                      "／难度 " + DifficultyCount + " 档／结局 " + EndingCount + " 条／灵感 " + InspirationCount + " 节点");
         }
 
         /// <summary>
@@ -295,6 +297,36 @@ namespace WanXiang.Modules.UI
             if (list.Count == 0) return;
             WanXiang.Battle.Core.EndingsRules.Install(list);
             EndingCount = list.Count;
+        }
+
+        // ================================================================
+        //  B5 · inspirations.csv（灵感树：三支 ×5，节点只改规则不加数值）
+        // ================================================================
+        private static void LoadInspirations()
+        {
+            var rows = Read("inspirations", out var header);
+            if (rows == null) return;
+            var list = new List<WanXiang.Battle.Core.InspirationDef>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "inspirations.csv", i + 2, Problems);
+                string id = r.Str("id");
+                if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                list.Add(new WanXiang.Battle.Core.InspirationDef
+                {
+                    Id = id,
+                    Name = r.Str("name", id),
+                    Branch = r.Str("branch", "travel"),
+                    Tier = r.Int("tier", 1),
+                    Cost = r.Int("cost", 1),
+                    Desc = r.Str("desc", ""),
+                    EffectKey = r.Str("effect_key", ""),
+                    EffectValue = r.Int("effect_value", 0),
+                });
+            }
+            if (list.Count == 0) return;
+            WanXiang.Battle.Core.InspirationRules.Install(list);
+            InspirationCount = list.Count;
         }
 
         // ================================================================

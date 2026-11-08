@@ -288,6 +288,12 @@ namespace WanXiang.Meta
         /// <summary>距上次异色的累计捕获数（200 保底计数）。</summary>
         public int ShinyPity;
 
+        // ---- B5-3：灵感树（三支 ×5；节点只改规则不加数值）----
+        /// <summary>已解锁的灵感节点 id。</summary>
+        public readonly List<string> InspirationIds = new List<string>(16);
+        /// <summary>悟道点余额（局末发放：N×2 + 通关 10 + 首通幕 ×5）。</summary>
+        public int WudaoPoints;
+
         public bool IsShiny(string id) => ShinyIds.IndexOf(id) >= 0;
 
         public string ShinyAltTraitOf(string id)

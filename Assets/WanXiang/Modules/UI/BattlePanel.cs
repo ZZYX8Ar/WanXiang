@@ -720,6 +720,23 @@ namespace WanXiang.Modules.UI
                     // B2：战斗后即评估道痕（幂等——Grant 取最高星，重复授予无害）
                     foreach (var kv in WanXiang.Battle.Core.DaoMarkRules.Evaluate(runEnd.Stats))
                         WanXiang.Modules.UI.DaoMarkPrefs.Grant(kv.Key, kv.Value);
+                    // B5-3：悟道点发放（局末口径：N×2 + 通关 +10；首通幕 ×5 = 幕胜利时按 BestAct 差值）
+                    if (result != null && result.Win && runEnd.ChallengeLevel > 0)
+                    {
+                        int firstActs = 0;
+                        var metaI = WanXiang.Meta.MetaStore.Ensure();
+                        if (metaI != null && runEnd.Act > metaI.BestActReached)
+                        {
+                            firstActs = runEnd.Act - metaI.BestActReached;
+                            metaI.BestActReached = runEnd.Act;
+                        }
+                        int gain = WanXiang.Battle.Core.InspirationRules.WudaoGain(
+                            runEnd.ChallengeLevel, runEnd.EndingId == "end_houtu" || runEnd.Act >= 5, firstActs);
+                        metaI.WudaoPoints += gain;
+                        WanXiang.Meta.MetaStore.Save();
+                        Debug.Log("[BattlePanel] 悟道点 +" + gain + "（余额 " + metaI.WudaoPoints + "）");
+                    }
+
                     // B4-3：终局判定——幕 5 胜利即终局（结局互斥顺序见 endings.csv）
                     if (result != null && result.Win && runEnd.Act >= 5 && string.IsNullOrEmpty(runEnd.EndingId))
                     {

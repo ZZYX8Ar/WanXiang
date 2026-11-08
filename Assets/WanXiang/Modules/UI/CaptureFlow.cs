@@ -37,6 +37,11 @@ namespace WanXiang.Modules.UI
 
             // ---- 消耗：不足则按现有卵数（0 直接跳过，不弹框） ----
             int cost = CaptureRules.EggCost(target.Rarity);
+            {   // B5-3：灵感「炉火·俭捕」——捕获消耗 −1（最低保 1）
+                var mI = WanXiang.Meta.MetaStore.Ensure();
+                int off = WanXiang.Battle.Core.InspirationRules.EffectValue(mI.InspirationIds, "capture_cost_off");
+                if (off > 0) cost = System.Math.Max(1, cost - off);
+            }
             if (run.Eggs <= 0) return false;
             if (cost > run.Eggs) cost = run.Eggs;
 

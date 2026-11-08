@@ -31,7 +31,7 @@ namespace WanXiang.Meta
 {
     public static class MetaSaveCode
     {
-        public const byte CurrentVersion = 9;   // v9：新增异色（ShinyIds/ShinyAltTraits/ShinyPity）；读档兼容 v8/v7/v6
+        public const byte CurrentVersion = 10;  // v10：新增灵感树（InspirationIds + WudaoPoints）；读档兼容 v9 及更早
         public const int MaxIndex = 254;        // 下标用 1 字节，255 留作哨兵
         public const int MaxEggs = 65535;
 
@@ -132,9 +132,20 @@ namespace WanXiang.Meta
             }
             // v9：异色段体积（count + Σ[idLen+id+altLen+alt] + pity 2）——与实际写入严格一致
             int shinySegBytes = 1 + shinyBytes + 2;
+            // v10：灵感段体积（count + Σ[idLen+id] + wudao 2）——计算提前到此处
+            var inspRaw0 = new System.Collections.Generic.List<byte[]>(st.InspirationIds.Count);
+            int inspBytes = 0;
+            for (int i = 0; i < st.InspirationIds.Count; i++)
+            {
+                var raw0 = Encoding.UTF8.GetBytes(st.InspirationIds[i] ?? "");
+                if (raw0.Length > 250) return null;
+                inspRaw0.Add(raw0);
+                inspBytes += 1 + raw0.Length;
+            }
+            int inspSegBytes = 1 + inspBytes + 2;
             int size = 25 + awakenBytes + fragBytes + soulBytes + liveBytes + homeBytes
                      + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count
-                     + shinySegBytes;
+                     + shinySegBytes + inspSegBytes;
             var b = new byte[size];
             b[0] = CurrentVersion;
             WriteU64(b, 1, st.Seed);
@@ -220,6 +231,16 @@ namespace WanXiang.Meta
             b[p++] = (byte)(st.ShinyPity / 256);
             b[p++] = (byte)(st.ShinyPity % 256);
 
+            // v10：灵感段（inspCount + [idLen+id]… + wudao 2 字节）
+            b[p++] = (byte)st.InspirationIds.Count;
+            for (int i = 0; i < inspRaw0.Count; i++)
+            {
+                b[p++] = (byte)inspRaw0[i].Length;
+                Array.Copy(inspRaw0[i], 0, b, p, inspRaw0[i].Length); p += inspRaw0[i].Length;
+            }
+            b[p++] = (byte)(st.WudaoPoints / 256);
+            b[p++] = (byte)(st.WudaoPoints % 256);
+
             // ★ 自检：写满即正确（size 靠手数很容易差 1~2 字节，这里兜底并把错误暴露出来）
             if (p != size) return null;
 
@@ -236,7 +257,7 @@ namespace WanXiang.Meta
             catch (FormatException) { return false; }
             if (b == null || b.Length < 22) return false;   // v4 头部 22 字节
             int ver = b[0];
-            if (ver != 6 && ver != 7 && ver != 8 && ver != 9) return false;   // ★ v9 起兼容读 v8/v7/v6
+            if (ver != 6 && ver != 7 && ver != 8 && ver != 9 && ver != 10) return false;   // ★ v10 起兼容读更早
 
             var st = new MetaState(ReadU64(b, 1));
             st.Eggs = ReadU16(b, 9);
@@ -374,6 +395,21 @@ namespace WanXiang.Meta
                 }
                 if (p + 2 > b.Length) return false;
                 st.ShinyPity = b[p] * 256 + b[p + 1]; p += 2;
+
+            if (ver >= 10)
+            {
+                if (p >= b.Length) return false;
+                int inspCount = b[p++];
+                for (int i = 0; i < inspCount; i++)
+                {
+                    if (p >= b.Length) return false;
+                    int idLen = b[p++];
+                    if (p + idLen > b.Length) return false;
+                    st.InspirationIds.Add(Encoding.UTF8.GetString(b, p, idLen)); p += idLen;
+                }
+                if (p + 2 > b.Length) return false;
+                st.WudaoPoints = b[p] * 256 + b[p + 1]; p += 2;
+            }
             }
 
             // 解码侧再把"自洽性"过一遍：长度必须正好用完（多出来的字节 = 被塞过东西）

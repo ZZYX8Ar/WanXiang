@@ -1,0 +1,16 @@
+﻿id,name,branch,tier,cost,desc,effect_key,effect_value
+x1_lx1,行旅·广陌,travel,1,2,节点图每幕多 1 个候选,map_extra_candidate,1
+x1_lx2,行旅·问津,travel,2,3,灵泉/事件节点的印记选项不再隐去,event_mark_visible,1
+x1_lx3,行旅·稀客,travel,3,4,事件节点出现稀有选项（金边）,event_rare_option,1
+x1_lx4,行旅·轻装,travel,4,5,撤退不掉灵卵,retire_keep_eggs,1
+x1_lx5,行旅·坦途,travel,5,6,秘境第一波不再受天时影响,realm_no_weather,1
+z1_zz1,战阵·蓄势,battle,1,2,开局全体自带 1 层随机附着,battle_start_status,1
+z1_zz2,战阵·明察,battle,2,3,QTE 完美判定窗口 +10%,qte_window_bonus,10
+z1_zz3,战阵·先手,battle,3,4,我方阶段首个技能耗灵 −1,first_skill_mp_off,1
+z1_zz4,战阵·同袍,battle,4,5,相邻同伴受击时你获得 1 点护盾,ally_guard,1
+z1_zz5,战阵·破阵,battle,5,6,对首领的完美格挡反震 ×1.5,parry_counter_bonus,50
+h1_lh1,炉火·俭捕,forge,1,2,捕获消耗 −1 灵卵,capture_cost_off,1
+h1_lh2,炉火·节流,forge,2,3,局内升级费用 −20%,level_cost_off,20
+h1_lh3,炉火·开蒙,forge,3,4,战记槽学习免费 1 次,skill_learn_free,1
+h1_lh4,炉火·余烬,forge,4,5,失败返还灵卵由 50% 提至 75%,fail_refund_up,75
+h1_lh5,炉火·大灶,forge,5,6,孵化灵卵必出进化素材 ×2,hatch_material_double,2
