@@ -36,6 +36,23 @@ namespace WanXiang.Modules.UI
         private int _tab;                                       // 0 = 全部，1..5 = 五行
         [SerializeField] private Button _btnBack;                // Btn_Back（兜底创建）
 
+        /// <summary>详情页当前异兽的主题曲 id（beast_<id>）。关闭详情时清空。</summary>
+        private string _detailThemeId;
+
+        /// <summary>
+        /// 详情页打开时播该异兽主题曲；否则走 PanelBgmTable 的图鉴曲。
+        /// ★ 覆写 BgmId 是为了让框架的 InternalResume/ApplyPanelBgm 不会把主题曲抢回默认曲
+        ///   （详情页是本面板内的 GameObject，不是独立 UIPanel，进不去 PanelBgmTable）。
+        /// </summary>
+        public override string BgmId
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(_detailThemeId)) return _detailThemeId;
+                return base.BgmId;
+            }
+        }
+
         protected override void OnCreate()
         {
             if (_rootDetail != null) _rootDetail.SetActive(false);
@@ -103,6 +120,9 @@ namespace WanXiang.Modules.UI
         private void OnCloseDetailClicked()
         {
             if (_rootDetail != null) _rootDetail.SetActive(false);
+            // ★ 关详情 → 恢复图鉴默认曲（base.BgmId 取自 PanelBgmTable，不硬编码）
+            _detailThemeId = null;
+            BeastTheme.Restore(base.BgmId);
         }
 
         /// <summary>
@@ -197,7 +217,18 @@ namespace WanXiang.Modules.UI
 
             // 五行气场音：按异兽属性播对应的一档（木火土金水各有专属音色）。
             // ⚠ 只在**已解锁**时播 —— 未解锁显示的是剪影，配个气场音等于把它的五行剧透了。
-            if (unlocked) SfxThrottled(ElementAuraSfx(b.Element));
+            if (unlocked)
+            {
+                SfxThrottled(ElementAuraSfx(b.Element));
+                // ★ 异兽主题曲（详情页展示曲，进入即循环铺底）。同样只在已解锁时播：
+                //   未解锁连五行都不剧透，更不该把整首角色曲放出来。
+                _detailThemeId = BeastTheme.IdOf(b.Id);
+                BeastTheme.Play(b.Id);
+            }
+            else
+            {
+                _detailThemeId = null;
+            }
         }
 
         /// <summary>五行 → 气场音 id。None / 未知返回 null（静默，不硬塞一个别的属性音误导玩家）。</summary>

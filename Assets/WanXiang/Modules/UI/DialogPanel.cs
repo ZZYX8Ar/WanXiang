@@ -38,6 +38,10 @@ namespace WanXiang.Modules.UI
     {
         [SerializeField] private TMP_Text _title;
         [SerializeField] private TMP_Text _body;
+
+        // ---- 正文逐字显示（配"人声 blip"，2026-11-07 用户要求）----
+        private Coroutine _typing;
+        private string _fullBody = "";
         [SerializeField] private Button _btnCloseX;   // 右上角关闭（代码兜底创建）
         [SerializeField] private Button _left;       // 取消 / 选项一
         [SerializeField] private Button _right;      // 确定 / 选项二
@@ -164,7 +168,7 @@ namespace WanXiang.Modules.UI
             BuildUi();
 
             if (_title != null) _title.text = title ?? "";
-            if (_body != null) _body.text = body ?? "";
+            StartBodyTyping(body);
 
             switch (kind)
             {
@@ -197,6 +201,71 @@ namespace WanXiang.Modules.UI
                     _right.onClick.RemoveAllListeners();
                     _right.onClick.AddListener(() => { _chooseTcs?.TrySetResult(1); Finish(); });
                     break;
+            }
+        }
+
+        // ================================================================
+        //  正文逐字显示（配"人声 blip"）
+        // ================================================================
+
+        /// <summary>
+        /// 正文逐字出现，每个字一声短短的"人声"（共振峰合成的元音 blip），
+        /// 标点不发声但停顿更久，全部打完后补一声盖印 —— 表示这段话落定了。
+        /// （用户 2026-11-07 要求：加人说话的声音，和字同步；最后加一个盖印声）
+        /// </summary>
+        private void StartBodyTyping(string body)
+        {
+            _fullBody = body ?? "";
+            if (_typing != null) { StopCoroutine(_typing); _typing = null; }
+            if (_body == null) return;
+
+            if (_fullBody.Length == 0) { _body.text = ""; return; }
+
+            _body.text = "";
+            if (isActiveAndEnabled) _typing = StartCoroutine(TypeBody());
+            else _body.text = _fullBody;      // 面板没启用就直接全显示，别把字吞了
+        }
+
+        private System.Collections.IEnumerator TypeBody()
+        {
+            const float CharInterval = 0.026f;    // ≈ 38 字/秒
+            var sb = new System.Text.StringBuilder();
+
+            for (int i = 0; i < _fullBody.Length; i++)
+            {
+                char c = _fullBody[i];
+                sb.Append(c);
+                if (_body != null) _body.text = sb.ToString();
+
+                bool punct = IsBodyPunctuation(c);
+                if (!punct && !char.IsWhiteSpace(c))
+                {
+                    // 三个音高变体随机取一个 —— 每字同一个音高会听着像机器人
+                    int v = UnityEngine.Random.Range(1, 4);
+                    WanXiang.Framework.Audio.AudioSystem.PlaySfx("sfx_ui_voice_blip_" + v, 0.42f);
+                }
+
+                float wait = punct ? CharInterval * 4.5f : CharInterval;
+                float t0 = Time.unscaledTime;
+                while (Time.unscaledTime - t0 < wait) yield return null;
+            }
+
+            _typing = null;
+            WanXiang.Framework.Audio.AudioSystem.PlaySfx("sfx_ui_stamp", 0.65f);   // 说完落印
+        }
+
+        /// <summary>标点 / 换行：不发声，但停顿更久（像说话的换气）。</summary>
+        private static bool IsBodyPunctuation(char c)
+        {
+            switch (c)
+            {
+                case '，': case '。': case '、': case '；': case '：':
+                case '？': case '！': case '…': case '—': case '·':
+                case ',': case '.': case ';': case ':': case '?': case '!':
+                case '\n': case '\r':
+                    return true;
+                default:
+                    return false;
             }
         }
 

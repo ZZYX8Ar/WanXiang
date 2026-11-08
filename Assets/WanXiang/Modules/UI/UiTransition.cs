@@ -124,6 +124,11 @@ namespace WanXiang.Modules.UI
             DontDestroyOnLoad(go);
             _inst = go.AddComponent<UiTransition>();
             _inst.Build();
+
+            // 把「是否在转场」告诉框架层：转场期间 UI 面板不播开合音
+            // （否则"关旧面板 + 开新面板"会连响两声，用户 2026-11-07 反馈转场音效很怪）。
+            WanXiang.Framework.UI.UIPanelBase.TransitionProbe = () => IsPlaying;
+
             return _inst;
         }
 

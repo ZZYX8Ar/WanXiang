@@ -104,10 +104,60 @@ namespace WanXiang.Framework.Audio
         {
             AudioClip c;
             if (cache.TryGetValue(id, out c) && c != null) return c;
-            c = Resources.Load<AudioClip>("Audio/" + kind + "/" + id);
+            c = Resources.Load<AudioClip>(ResolvePath(kind, id));
             // ⛔ 不缓存 null：图/音频还没放进去时查过一次，不该被记一辈子（本工程踩过这个坑）
             if (c != null) cache[id] = c;
             return c;
+        }
+
+        // ==================================================================
+        //  音频路径解析（配置驱动）
+        //  -------------------------------------------------------------------
+        //  音频已按用途拆进子目录（BGM/Act、SFX/Battle…），路径不能再靠
+        //  "Audio/{kind}/{id}" 硬拼。统一由 Resources/Data/audio.csv 描述 id → 相对路径：
+        //      id,kind,category,file,volume,loop
+        //      bgm_act1_spring,bgm,Act,BGM/Act/bgm_act1_spring,0.55,1
+        //
+        //  ⭐ 以后加音乐 / 换分类 / 挪目录：**只改这张表 + 文件本身**，不用动任何代码。
+        //  ⚠ 表里查不到 id 时回退老路径（保证旧调用不至于突然哑掉）。
+        // ==================================================================
+        private static Dictionary<string, string> _pathById;
+
+        /// <summary>某个 id 是否真能加载到音频（自检用）。</summary>
+        public static bool HasAudio(string kind, string id)
+        {
+            if (string.IsNullOrEmpty(id)) return false;
+            return Resources.Load<AudioClip>(ResolvePath(kind, id)) != null;
+        }
+
+        private static string ResolvePath(string kind, string id)
+        {
+            EnsureAudioTable();
+            string p;
+            if (_pathById != null && _pathById.TryGetValue(id, out p) && !string.IsNullOrEmpty(p))
+                return "Audio/" + p;
+            return "Audio/" + kind + "/" + id;   // 兜底：老结构（平铺在 BGM/ 或 SFX/ 下）
+        }
+
+        private static void EnsureAudioTable()
+        {
+            if (_pathById != null) return;
+            _pathById = new Dictionary<string, string>();
+
+            var ta = Resources.Load<TextAsset>("Data/audio");
+            if (ta == null) return;   // 表缺失：全部走兜底路径
+
+            var lines = ta.text.Replace("\r", "").Split('\n');
+            for (int i = 1; i < lines.Length; i++)   // 第 0 行是表头
+            {
+                if (string.IsNullOrEmpty(lines[i])) continue;
+                var cols = lines[i].Split(',');
+                if (cols.Length < 4) continue;
+                var id = cols[0].Trim();
+                var rel = cols[3].Trim();
+                if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(rel))
+                    _pathById[id] = rel;
+            }
         }
 
         private static void EnsureLoaded()
@@ -193,13 +243,26 @@ namespace WanXiang.Framework.Audio
             pick.PlayOneShot(clip, Mathf.Clamp01(scale));
         }
 
+        // 每首音乐上次播到哪儿 —— 界面来回切时接着放，而不是从头开始。
+        // 用户 2026-11-07：从编队回节点地图，音乐从头播很难受。
+        private readonly Dictionary<AudioClip, float> _musicPos = new Dictionary<AudioClip, float>();
+
         public void PlayMusic(AudioClip clip, bool loop)
         {
             if (clip == null || _music == null) return;
             if (_music.clip == clip && _music.isPlaying) return;   // 同一首不重启
+
+            // 切走之前，把当前这首播到哪儿记下来
+            if (_music.clip != null) _musicPos[_music.clip] = _music.time;
+
             _music.clip = clip;
             _music.loop = loop;
             _music.Play();
+
+            // 切回来时从上次的位置继续（太靠近开头/结尾就不接，免得听着像卡了一下）
+            float pos;
+            if (_musicPos.TryGetValue(clip, out pos) && pos > 0.5f && pos < clip.length - 1.0f)
+                _music.time = pos;
         }
 
         public void StopMusic() { if (_music != null) _music.Stop(); }

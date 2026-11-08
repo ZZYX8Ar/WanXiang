@@ -126,6 +126,7 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                 Seed = seed,
                 AiProfile = profile,
                 IsBoss = boss,
+                IsElite = elite,
             };
 
             // ★ 真机验证用：本场实际带入战斗的天时。id 由 WeatherComposer.BuildId 拼出，

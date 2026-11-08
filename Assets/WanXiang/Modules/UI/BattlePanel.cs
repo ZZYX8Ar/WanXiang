@@ -62,9 +62,14 @@ namespace WanXiang.Modules.UI
                     if (ctx != null) req = ctx.Request;
                 }
                 if (req == null) return base.BgmId;
-                if (req.IsPvpMatch) return "bgm_km_mountain_emperor";
-                if (req.IsBoss) return "bgm_km_goblin_king";
-                return base.BgmId;   // 普通 / 精英 → 表里的 bgm_km_clash_defiant
+                if (req.IsPvpMatch) return "bgm_battle_pvp";
+
+                // 按幕取曲：五幕各有一首战斗曲 / 首领曲（ACE-Step 定制那套正好按幕做的）。
+                var run = WanXiang.Run.RunSave.Current;
+                int act = Mathf.Clamp(run != null ? run.Act : 1, 1, 5);
+                if (req.IsBoss)  return "bgm_boss_act" + act;    // 守关首领
+                if (req.IsElite) return "bgm_battle_elite";      // 精英战
+                return "bgm_battle_act" + act;                   // 普通战
             }
         }
 

@@ -24,6 +24,23 @@ namespace WanXiang.Modules.UI
         ///  返回输入会穿透到这里，把主城关掉，屏幕只剩背景色（用户实测空白）。</summary>
         public override bool AllowBackClose => false;
 
+        /// <summary>看板模式当前异兽的主题曲 id（beast_<id>）。退出看板时清空。</summary>
+        private string _portraitThemeId;
+
+        /// <summary>
+        /// 看板模式播当前异兽主题曲；其余时候走 PanelBgmTable 的主界面曲。
+        /// ★ 必须覆写 BgmId 而不是只在换片时 PlayMusic —— 框架在被上层弹层遮挡后
+        ///   （InternalResume）会重新 ApplyPanelBgm()，不覆写就会把主题曲抢回默认曲。
+        /// </summary>
+        public override string BgmId
+        {
+            get
+            {
+                if (_portraitMode && !string.IsNullOrEmpty(_portraitThemeId)) return _portraitThemeId;
+                return base.BgmId;
+            }
+        }
+
         [SerializeField] private Image   _imgHero;         // Img_HeroSprite 主战异兽立绘
         [SerializeField] private Button  _btnDeploy;       // Hot_Deploy    出征
         [SerializeField] private Button  _btnCodex;        // Btn_Codex     图鉴
@@ -291,6 +308,7 @@ namespace WanXiang.Modules.UI
             // 立绘模式一并停播（视频播放器挂在 Canvas 内，但状态必须复位）
             if (_portraitStage != null) _portraitStage.Leave();
             _portraitMode = false;
+            _portraitThemeId = null;             // 主题曲状态一并复位，别让 BgmId 残留
             if (_buttonsHidden) ShowButtons();   // 回到主界面按钮必须是可见的
         }
 
@@ -405,13 +423,16 @@ namespace WanXiang.Modules.UI
             _portraitStage.NameResolver = BeastLabelOf;
             _portraitStage.ShownChanged -= OnPortraitShown;
             _portraitStage.ShownChanged += OnPortraitShown;
-            _portraitStage.Enter(rot, rot[0]);
+            _portraitStage.Enter(rot, rot[0]);   // Enter → PlayCurrent → ShownChanged → 起播主题曲
         }
 
         private void ExitPortrait()
         {
             if (!_portraitMode) return;   // 未进入时是幂等空操作（OnOpenAsync 复位也调它）
             _portraitMode = false;
+            // ★ 退出看板：清主题曲并恢复主界面曲（base.BgmId 取自 PanelBgmTable，不硬编码）
+            _portraitThemeId = null;
+            BeastTheme.Restore(base.BgmId);
             if (_portraitStage != null) _portraitStage.Leave();
             if (_portraitRoot != null) _portraitRoot.SetActive(false);
             if (_btnPortrait != null) _btnPortrait.gameObject.SetActive(true);
@@ -419,9 +440,14 @@ namespace WanXiang.Modules.UI
             if (_scene3D != null) _scene3D.Running = true;    // 与 OnDisable 成对恢复
         }
 
-        /// <summary>换片回调：手动切换才落盘记忆看板兽（自动轮换不写档，30s 一次太吵）。</summary>
+        /// <summary>换片回调：每次换片都换主题曲；手动切换才额外落盘记忆看板兽。</summary>
         private void OnPortraitShown(string beastId, bool manual)
         {
+            // ★ 主题曲切换必须放在「手动才落盘」的早退之前 —— 自动轮换也要换曲。
+            //   同时只记 id、由 BgmId 对外声明，框架 Resume 时才会播回同一首。
+            _portraitThemeId = BeastTheme.IdOf(beastId);
+            BeastTheme.Play(beastId);
+
             if (!manual) return;
             var meta = WanXiang.Meta.MetaStore.Ensure();
             if (meta == null || meta.HomePortraitId == beastId) return;

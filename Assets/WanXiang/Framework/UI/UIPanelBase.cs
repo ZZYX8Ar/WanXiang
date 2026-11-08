@@ -265,7 +265,11 @@ OpenSequence = openSequence;
             if (!GhostSilent) ApplyPanelBgm();
 
             // 界面音效：全屏面板才播开合音；按钮点击音统一挂上（见文件末尾「界面音效」注释）
-            if (FullScreen && !GhostSilent) AudioSystem.PlaySfx("sfx_ui_panel_open");
+            // 转场中不播开合音：Home → Campaign 这种切换会连着响"关一声 + 开一声"，
+            // 叠在一起听感很怪（用户 2026-11-07 反馈"转场音效很奇怪"）。
+            if (FullScreen && !GhostSilent && _panelSoundStarted && !InTransitionNow)
+                AudioSystem.PlaySfx("sfx_ui_panel_open");
+            _panelSoundStarted = true;
             HookButtonSfx();
 
             State = UIPanelState.Opening;
@@ -507,47 +511,47 @@ OpenSequence = openSequence;
             get
             {
                 if (string.IsNullOrEmpty(Key)) return null;
+                EnsurePanelBgmTable();
                 string id;
-                return PanelBgmTable.TryGetValue(Key, out id) ? id : null;
+                return _panelBgm != null && _panelBgm.TryGetValue(Key, out id) ? id : null;
             }
         }
 
-        /// <summary>
-        /// 面板 → 背景音乐 映射表。
-        ///
-        /// ⚠ id 必须与 <c>Assets/Resources/Audio/BGM/</c> 下的文件名完全一致。
-        /// 写错**不会报错**（AudioSystem 取不到资源会静默跳过），但那个界面就是没声音 ——
-        /// 所以改完表建议调一次 <see cref="ValidatePanelBgm"/> 核对。
-        /// </summary>
-        private static readonly Dictionary<string, string> PanelBgmTable =
-            new Dictionary<string, string>(StringComparer.Ordinal)
+        // ==================================================================
+        //  面板 → BGM 映射：数据在 Resources/Data/panel_bgm.csv
+        //  -------------------------------------------------------------------
+        //      panel_key,bgm_id
+        //      Panel_Home,bgm_home
+        //
+        //  ⭐ 换某个界面的音乐只改这张表 —— 不用动代码、不用重新编译。
+        //  ⚠ 表读不到 = 所有面板都没配音乐（不崩，只是安静）；改完跑一次 ValidatePanelBgm 核对。
+        // ==================================================================
+        private static Dictionary<string, string> _panelBgm;
+
+        private static void EnsurePanelBgmTable()
+        {
+            if (_panelBgm != null) return;
+            _panelBgm = new Dictionary<string, string>();
+
+            var ta = Resources.Load<TextAsset>("Data/panel_bgm");
+            if (ta == null)
             {
-                // ---- 标题 / 主界面 / 旅途 ----
-                { "Panel_Start",     "bgm_km_ripples" },         // 古筝冥想 · 标题
-                { "Panel_Home",      "bgm_km_guzheng_city" },    // 古筝明亮 · 主界面
-                { "Panel_Campaign",  "bgm_km_shenyang" },        // 二胡民俗 · 幕选择
-                { "Panel_Tale",      "bgm_km_shenyang" },        // 节点地图 / 残卷
-                { "Panel_ActIntro",  "bgm_km_snow_queen" },      // 神秘 · 幕间开场
-                // ---- 战斗 ----
-                { "Panel_Battle",    "bgm_km_clash_defiant" },   // 普通战（首领由 BattlePanel 覆写分流）
-                { "Panel_Pvp",       "bgm_km_mountain_emperor" },// 太鼓 · 好友对战
-                { "Panel_Trial",     "bgm_km_frost_waltz" },     // 冰霜 · 试炼
-                // ---- 功能面板 ----
-                { "Panel_Market",    "bgm_cc0_chinese_chip" },   // 轻快中国风 · 灵市
-                { "Panel_Formation", "bgm_ccby_calm" },          // 安静 · 编队
-                { "Panel_Codex",     "bgm_km_zen_moment" },      // 禅意 · 图鉴
-                { "Panel_Archive",   "bgm_km_zen_moment" },      // 禅意 · 档案
-                { "Panel_History",   "bgm_km_zen_moment" },      // 禅意 · 战记
-                { "Panel_Forge",     "bgm_km_wizardtorium" },    // 诡异 · 锻造 / 觉醒
-                { "Panel_Recruit",   "bgm_cc0_oriental1" },      // 东方 · 招募
-                { "Panel_Relic",     "bgm_ccby_arukas" },        // 神秘 · 遗物
-                { "Panel_Realm",     "bgm_km_shenyang" },        // 神秘 · 秘境
-                { "Panel_Meta",      "bgm_km_temple_manes" },    // 暗黑 · 局外养成
-                { "Panel_Omen",      "bgm_km_wizardtorium" },    // 诡异 · 天时 / 征兆
-                { "Panel_Settings",  "bgm_km_zen_moment" },      // 禅意 · 设置
-                { "Panel_Dialog",    "bgm_km_senbazuru" },       // 温暖 · 对话
-                // 未列出的面板（面板_Result / Panel_Save 等）保持当前音乐不切换。
-            };
+                Debug.LogWarning("[UI] 缺少 Resources/Data/panel_bgm.csv —— 面板背景音乐全部不生效。");
+                return;
+            }
+
+            var lines = ta.text.Replace("\r", "").Split('\n');
+            for (int i = 1; i < lines.Length; i++)   // 第 0 行是表头
+            {
+                if (string.IsNullOrEmpty(lines[i])) continue;
+                var cols = lines[i].Split(',');
+                if (cols.Length < 2) continue;
+                var key = cols[0].Trim();
+                var bgm = cols[1].Trim();
+                if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(bgm))
+                    _panelBgm[key] = bgm;
+            }
+        }
 
         /// <summary>播放本面板的背景音乐。取不到资源会静默跳过（这是 AudioSystem 的既定行为）。</summary>
         private void ApplyPanelBgm()
@@ -560,20 +564,22 @@ OpenSequence = openSequence;
         }
 
         /// <summary>
-        /// 自检：核对映射表里的每个 id 是否真的存在于 <c>Resources/Audio/BGM/</c>。
+        /// 自检：核对 panel_bgm.csv 里的每个 bgm_id 是否真能加载到音频。
         /// 返回问题列表（空 = 全部正常）。排查"某个界面没声音"时先调它 ——
-        /// 能立刻区分"id 写错"和"音乐没导入"这两种完全不同的原因。
+        /// 能立刻区分"表里 id 写错"和"音频没导入"这两种完全不同的原因。
         /// </summary>
         public static List<string> ValidatePanelBgm()
         {
             var problems = new List<string>();
-            foreach (var kv in PanelBgmTable)
+            EnsurePanelBgmTable();
+            if (_panelBgm == null) return problems;
+
+            foreach (var kv in _panelBgm)
             {
                 if (string.IsNullOrEmpty(kv.Value)) continue;
-                if (Resources.Load<AudioClip>("Audio/BGM/" + kv.Value) == null)
+                if (!AudioSystem.HasAudio("BGM", kv.Value))
                 {
-                    problems.Add($"{kv.Key} → 找不到音乐 \"{kv.Value}\"" +
-                                 $"（期望文件：Assets/Resources/Audio/BGM/{kv.Value}.mp3 或 .ogg）");
+                    problems.Add($"{kv.Key} → 找不到音乐 \"{kv.Value}\"（查 Resources/Data/audio.csv 里有没有这条 id）");
                 }
             }
             return problems;
@@ -619,6 +625,21 @@ OpenSequence = openSequence;
         // ---- 业务面板通用的节流播放 ----
         private string _lastSfxId;
         private float _lastSfxTime = -99f;
+
+        /// <summary>是否已经打开过至少一个面板。用于"启动首个界面不播开合音"。</summary>
+        private static bool _panelSoundStarted;
+
+        /// <summary>
+        /// 由上层（转场组件）注入的「当前是否在转场」探针。
+        /// 框架层不认识业务层的 <c>UiTransition</c>，所以用委托反向询问 —— 注入一次，长期有效。
+        /// 转场期间不播面板开合音，否则"关旧面板 + 开新面板"会连响两声，听着很怪。
+        /// </summary>
+        public static System.Func<bool> TransitionProbe;
+
+        private static bool InTransitionNow
+        {
+            get { return TransitionProbe != null && TransitionProbe(); }
+        }
 
         /// <summary>
         /// 播一条音效，带「同 id 最小间隔」节流。
