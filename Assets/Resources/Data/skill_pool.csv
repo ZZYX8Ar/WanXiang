@@ -1,0 +1,10 @@
+id,name,element,type,tag,powerMul,hitsDelta,target,desc
+sk_g_guard,守势,None,Active,common,0.9,0,self,通用：给自身 1 层护盾（占位示例）
+sk_g_focus,凝神,None,Active,common,1.1,0,single,通用：本回合暴击率 +10%（占位示例）
+sk_g_probe,试探,None,Active,common,0.8,0,single,通用：命中后给目标 1 层易伤（占位示例）
+sk_g_cleanse,清心,None,Active,common,0.0,0,self,通用：移除自身 1 个减益（占位示例）
+sk_wood_thorn,缠藤,Wood,Active,wood,1.0,0,single,木：命中挂木附着 1 层（占位示例）
+sk_fire_ignite,引燃,Fire,Active,fire,1.0,0,single,火：命中挂火附着 1 层（占位示例）
+sk_earth_bulwark,厚土,Earth,Active,earth,0.8,0,self,土：护盾 +6% 最大生命（占位示例）
+sk_metal_rend,裂甲,Metal,Active,metal,1.05,0,single,金：命中挂裂甲 1 层（占位示例）
+sk_water_soak,浸骨,Water,Active,water,0.95,0,single,水：命中挂湿 1 层（占位示例）
