@@ -707,12 +707,38 @@ namespace WanXiang.Modules.UI
                 var runEnd = WanXiang.Run.RunSave.Current;
                 if (stEnd != null && runEnd != null)
                 {
+                    // B4-3：后土试炼胜利 → ClearedHoutu（真结局前置）
+                    if (result != null && result.Win && runEnd.PendingHoutuTrial)
+                    {
+                        runEnd.PendingHoutuTrial = false;
+                        runEnd.ClearedHoutu = true;
+                        Debug.Log("[BattlePanel] ★后土试炼通过——真结局前置达成");
+                    }
                     runEnd.AddBattleStats(stEnd.StatReactions, stEnd.StatMaxHit,
                                           stEnd.StatBossKills, stEnd.StatDeaths,
                                           stEnd.StatFastWins);
                     // B2：战斗后即评估道痕（幂等——Grant 取最高星，重复授予无害）
                     foreach (var kv in WanXiang.Battle.Core.DaoMarkRules.Evaluate(runEnd.Stats))
                         WanXiang.Modules.UI.DaoMarkPrefs.Grant(kv.Key, kv.Value);
+                    // B4-3：终局判定——幕 5 胜利即终局（结局互斥顺序见 endings.csv）
+                    if (result != null && result.Win && runEnd.Act >= 5 && string.IsNullOrEmpty(runEnd.EndingId))
+                    {
+                        var ectx = new WanXiang.Battle.Core.EndingsRules.Ctx
+                        {
+                            MarkCount = runEnd.TuMarkCount(),
+                            HoutuCleared = runEnd.ClearedHoutu,
+                            N = runEnd.ChallengeLevel,
+                            Captures = runEnd.Stats.Captures,
+                            RelicCount = runEnd.Relics != null ? runEnd.Relics.Count : 0,
+                            Realm = runEnd.Realm,
+                        };
+                        var ed = WanXiang.Battle.Core.EndingsRules.Evaluate(ectx);
+                        if (ed != null)
+                        {
+                            runEnd.EndingId = ed.Id;
+                            Debug.Log("[BattlePanel] ★终局判定：" + ed.Id + "「" + ed.Name + "」" + (ed.IsTrue ? "（真结局）" : ""));
+                        }
+                    }
                     WanXiang.Run.RunSave.Save(runEnd);
                     Debug.Log("[BattlePanel] 本局统计回传：反应 " + stEnd.StatReactions
                               + "｜最大伤害 " + stEnd.StatMaxHit

@@ -142,6 +142,13 @@ namespace WanXiang.Modules.UI
   if (!run.RealmCleared.Contains(offset)) run.RealmCleared.Add(offset);
             run.RealmCursor = offset;
       run.RealmWave = run.RealmCleared.Count;
+            // B4-3：秘藏三印——持二印的玩家通关秘境，获得土之印·三（高风险区回报）
+            if (run.RealmCleared.Count >= 3 && run.GrantedItems.Contains("item_tu_2")
+                && !run.GrantedItems.Contains("item_tu_3"))
+            {
+                run.GrantedItems.Add("item_tu_3");
+                UnityEngine.Debug.Log("[Realm] ★秘藏开启 → 土之印·三（印记 " + run.TuMarkCount() + "/3）");
+            }
     }
 
         /// <summary>

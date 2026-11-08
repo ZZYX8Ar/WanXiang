@@ -389,6 +389,20 @@ BuildNodeMap();
                                 }
                             }
 
+                            // B4-3：精英「残碑」——持一印时 60%（种子确定性）发现残碑 → 土之印·二
+                            if (kindVal == (int)WanXiang.Campaign.NodeKind.Elite
+                                && prun.GrantedItems.Contains("item_tu_1")
+                                && !prun.GrantedItems.Contains("item_tu_2"))
+                            {
+                                var srng = new WanXiang.Battle.Core.DeterministicRandom(
+                                    WanXiang.Battle.Core.CoreMath.Fnv1a("stele:" + prun.RunSeed + ":" + prun.Act));
+                                if (srng.NextFloat() < 0.60f)
+                                {
+                                    prun.GrantedItems.Add("item_tu_2");
+                                    Debug.Log("[Campaign] ★残碑现世 → 土之印·二（印记 " + prun.TuMarkCount() + "/3）");
+                                }
+                            }
+
                             int ups = prun.AddExp(gain);
                             if (ups > 0)
                                 Debug.Log("[Campaign] 主等级提升 → Lv" + prun.PlayerLevel + "（经验 +" + gain + "）");
@@ -3123,16 +3137,34 @@ if (_tmpActTitle != null)
         //  统一用 DialogPanel 二选一，不用新面板 —— 文案即规则，零新 UI。
         // ================================================================
 
-        /// <summary>灵泉：饮泉（本局永久 +5% 全属性）／汲水（灵卵 +3）。</summary>
+        /// <summary>灵泉：饮泉（本局永久 +5% 全属性）／汲水（灵卵 +3）。
+        ///  B4-3：幕 1 且未持一印时，首选项变为「饮下泉水」—— 印记一的授予点（用资源换结局线）。</summary>
         private async UniTaskVoid SpringNode(WanXiang.Run.RunState run)
         {
             if (run == null) return;
+            bool markOffer = run.Act == 1 && !run.GrantedItems.Contains("item_tu_1");
+            string firstLabel = markOffer
+                ? "饮下泉水（回血 20% + 印记，全属性 −3%）"
+                : "饮泉（本局全属性永久 +5%）";
             int pick = await DialogPanel.Choose(
                 "灵泉",
                 "泉眼温润，映着今岁的天光。\n\n饮下这口泉水，筋骨会长久受益；也可以汲一壶回去换些灵卵。",
-                "饮泉（本局全属性永久 +5%）", "汲水（灵卵 +3）");
+                firstLabel, "汲水（灵卵 +3）");
             if (pick < 0) return;
-            if (pick == 0) { run.GrowthPct += 5; Debug.Log("[Campaign] 灵泉：永久成长 +5%（累计 " + run.GrowthPct + "%）"); }
+            if (pick == 0)
+            {
+                if (markOffer)
+                {
+                    run.GrowthPct -= 3;                       // 代价：本局成长 −3%（等价"灵力上限 −1"的资源税）
+                    run.GrantedItems.Add("item_tu_1");        // 土之印·一
+                    Debug.Log("[Campaign] 灵泉：饮下泉水 → 土之印·一（全属性 −3%，印记 " + run.TuMarkCount() + "/3）");
+                }
+                else
+                {
+                    run.GrowthPct += 5;
+                    Debug.Log("[Campaign] 灵泉：永久成长 +5%（累计 " + run.GrowthPct + "%）");
+                }
+            }
             else { run.AddRewardEggs(3); }   // B3-d：灵泉汲水走难度 egg_mul
             WanXiang.Run.RunSave.SaveCurrent();
         }

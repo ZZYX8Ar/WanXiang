@@ -102,6 +102,12 @@ namespace WanXiang.Modules.UI
             //   旧写法 `all[0]` 取 Rarity 最高 ， 会挑到玩家侧的普通神品异兽（如后土/句芒），
             //   于是终局战没有首领感、立绘也不放大（用户实测"第五幕的 Boss 还是小异兽"）。
             //   后土/句芒这些是**玩家**用的异兽，不该出现在敌方终局位。
+            // B4-3：守关变形——3 印且幕 5 → 后土试炼（强化首领 ×1.3；胜利 → ClearedHoutu）
+            if (run.TuMarkCount() >= 3 && run.Act >= 5)
+            {
+                run.PendingHoutuTrial = true;
+                Debug.Log("[TrialPanel] ★后土试炼开启（三印俱齐）——守关首领强化 ×1.3");
+            }
             var finaleBoss = WanXiang.Battle.Core.BossCatalog.BossForBeastDef(5, (ulong)run.RunSeed, 2);
             if (finaleBoss == null)
             {
@@ -109,6 +115,14 @@ namespace WanXiang.Modules.UI
                 UnityEngine.Debug.LogWarning("[TrialPanel] BossForBeastDef(5) 为空，回退固定种子");
             }
             BeastDef boss = finaleBoss;
+            if (run.PendingHoutuTrial && boss != null)
+            {
+                boss = boss.Clone();   // 后土试炼：强化本体 ×1.3（不污染原 def）
+                boss.BaseHp = (int)(boss.BaseHp * 1.3f);
+                boss.BaseAtk = (int)(boss.BaseAtk * 1.3f);
+                boss.BaseDef = (int)(boss.BaseDef * 1.3f);
+                boss.DisplayName = "后土试炼·" + boss.DisplayName;
+            }
 
             var byId = new System.Collections.Generic.Dictionary<string, BeastDef>();
             foreach (var b in all) byId[b.Id] = b;

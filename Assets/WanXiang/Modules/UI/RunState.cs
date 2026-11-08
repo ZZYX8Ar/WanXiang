@@ -495,6 +495,26 @@ namespace WanXiang.Run
         public bool ClearedHoutu;
         /// <summary>终局判定结果（endings.csv 的 id；守关胜利后写）。</summary>
         public string EndingId = "";
+        /// <summary>本场守关是「后土试炼」（3 印且幕 5 的变形守关；胜利 → ClearedHoutu）。</summary>
+        public bool PendingHoutuTrial;
+
+        /// <summary>B4-3：授予印记/关键道具（去重 + 日志）。</summary>
+        public bool GrantItem(string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId) || GrantedItems.IndexOf(itemId) >= 0) return false;
+            GrantedItems.Add(itemId);
+            UnityEngine.Debug.Log("[RunState] 获得印记：" + itemId + "（累计 " + GrantedItems.Count + "）");
+            return true;
+        }
+
+        /// <summary>B4-3：已持后土印数（item_tu_1..3）。</summary>
+        public int TuMarkCount()
+        {
+            int n = 0;
+            for (int i = 0; i < GrantedItems.Count; i++)
+                if (GrantedItems[i].StartsWith("item_tu_")) n++;
+            return n;
+        }
 
         /// <summary>
         /// 进战斗用的强度系数：随【幕】缓涨，给敌人与奖励一个共同标尺。
