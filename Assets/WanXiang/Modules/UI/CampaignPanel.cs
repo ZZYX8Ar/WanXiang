@@ -2429,7 +2429,85 @@ if (_tmpActTitle != null)
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Spring, r => SpringNode(r).Forget());
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Training, r => TrainingNode(r).Forget());
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Ruins, r => RuinsNode(r).Forget());
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Tale, r => RunTaleNode(r));
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Forge, r => RunForgeNode(r));
         }
+
+        /// <summary>R5-c：异闻节点（事件按 seed 抽取 + 去重）。由 NodeRouter 注册调用。</summary>
+        private void RunTaleNode(WanXiang.Run.RunState run)
+        {
+                // ★ 2026-11-01「不期而遇」：Tale 节点改为**事件节点**（复用 Panel_Tale）。
+                //   事件按 seed+offset 固定抽取，同一局同一格永远是同一个事件（可复盘）。
+                EnsureEventsLoadedFromCsv();
+                var prun2 = WanXiang.Run.RunSave.Current;
+                ulong evSeed = WanXiang.Battle.Core.CoreMath.Fnv1a(
+                    "evt:" + (prun2 != null ? prun2.RunSeed : 0) + ":" + (prun2 != null ? prun2.NodeOffset : 0));
+                var pool = WanXiang.Campaign.EventCatalog.All;
+                WanXiang.Campaign.EventDef ev = null;
+                if (pool != null && pool.Length > 0)
+                {
+                    // ★ 2026-11-02：同一局不重复 —— 从种子位置往后找第一个没出现过的
+                    int start = (int)(evSeed % (ulong)pool.Length);
+                    for (int k = 0; k < pool.Length; k++)
+                    {
+                        var cand = pool[(start + k) % pool.Length];
+                        if (cand == null) continue;
+                        if (prun2 != null && prun2.SeenEvents != null && prun2.SeenEvents.Contains(cand.Id)) continue;
+                        ev = cand;
+                        break;
+                    }
+                    if (ev == null) ev = pool[start];      // 全见过了就允许重复
+                    if (prun2 != null && ev != null)
+                    {
+                        if (prun2.SeenEvents == null) prun2.SeenEvents = new System.Collections.Generic.List<string>();
+                        prun2.SeenEvents.Add(ev.Id);
+                    }
+                }
+                if (ev != null)
+                {
+                    Debug.Log("[Campaign] 不期而遇 → " + ev.Title);
+                    TalePanel.OpenEvent(ev, null);
+                }
+                else
+                {
+                    OpenPanelAsync<TalePanel>().Forget();   // 兜底：数据缺失时走旧异闻
+                }
+        }
+
+        /// <summary>R5-c：工坊节点（三选一事件构造）。由 NodeRouter 注册调用。</summary>
+        private void RunForgeNode(WanXiang.Run.RunState run)
+        {
+                // ★ 2026-11-02 工坊改为「专精 / 进化」三选一：复用事件面板，不新建 prefab。
+                //   （旧 ForgePanel 是"融合两只异兽"，与新的局内养成不是一回事。）
+                var _runM = WanXiang.Run.RunSave.Current;
+                int _mat = _runM != null ? _runM.Materials : 0;
+                var forge = new WanXiang.Campaign.EventDef
+                {
+                    Id = "ev_node_forge",
+                    Title = "铸工坊",
+                    Story = "炉火正旺。老匠人问：你想让谁变强一点？",
+                    Choices = new[]
+                    {
+                        new WanXiang.Campaign.EventChoice
+                        {
+                            Text = "淬炼（随机一只上阵异兽的随机技能 专精 +1）",
+                            Effect = WanXiang.Campaign.EventEffect.GrantMastery, Value = 1,
+                        },
+                        new WanXiang.Campaign.EventChoice
+                        {
+                            Text = "化形（消耗 1 进化素材，现有 " + _mat + "；随机一只未进化的异兽进化）",
+                            Effect = WanXiang.Campaign.EventEffect.Evolve, Value = 0,
+                        },
+                        new WanXiang.Campaign.EventChoice
+                        {
+                            Text = "只取炉灰（+40 灵卵）",
+                            Effect = WanXiang.Campaign.EventEffect.GainEggs, Value = 40,
+                        },
+                    },
+                };
+                TalePanel.OpenEvent(forge, null);
+        }
+
 
         /// <summary>五行 → 中文（用于天时标题里标注属性）。</summary>
         private static string ElementCn(WanXiang.Battle.Core.Element e)
@@ -3016,82 +3094,7 @@ if (_tmpActTitle != null)
             // ★ R5-b（2026-11-08）：简单节点交给注册表；只有含业务逻辑的 Tale/Forge 还走 switch。
             EnsureNodeRoutes();
             if (_nodeRouter.TryRoute(kind, run)) return;
-            switch (kind)
-            {
-                case WanXiang.Campaign.NodeKind.Tale:
-                {
-                    // ★ 2026-11-01「不期而遇」：Tale 节点改为**事件节点**（复用 Panel_Tale）。
-                    //   事件按 seed+offset 固定抽取，同一局同一格永远是同一个事件（可复盘）。
-                    EnsureEventsLoadedFromCsv();
-                    var prun2 = WanXiang.Run.RunSave.Current;
-                    ulong evSeed = WanXiang.Battle.Core.CoreMath.Fnv1a(
-                        "evt:" + (prun2 != null ? prun2.RunSeed : 0) + ":" + (prun2 != null ? prun2.NodeOffset : 0));
-                    var pool = WanXiang.Campaign.EventCatalog.All;
-                    WanXiang.Campaign.EventDef ev = null;
-                    if (pool != null && pool.Length > 0)
-                    {
-                        // ★ 2026-11-02：同一局不重复 —— 从种子位置往后找第一个没出现过的
-                        int start = (int)(evSeed % (ulong)pool.Length);
-                        for (int k = 0; k < pool.Length; k++)
-                        {
-                            var cand = pool[(start + k) % pool.Length];
-                            if (cand == null) continue;
-                            if (prun2 != null && prun2.SeenEvents != null && prun2.SeenEvents.Contains(cand.Id)) continue;
-                            ev = cand;
-                            break;
-                        }
-                        if (ev == null) ev = pool[start];      // 全见过了就允许重复
-                        if (prun2 != null && ev != null)
-                        {
-                            if (prun2.SeenEvents == null) prun2.SeenEvents = new System.Collections.Generic.List<string>();
-                            prun2.SeenEvents.Add(ev.Id);
-                        }
-                    }
-                    if (ev != null)
-                    {
-                        Debug.Log("[Campaign] 不期而遇 → " + ev.Title);
-                        TalePanel.OpenEvent(ev, null);
-                    }
-                    else
-                    {
-                        OpenPanelAsync<TalePanel>().Forget();   // 兜底：数据缺失时走旧异闻
-                    }
-                    return;
-                }
-                case WanXiang.Campaign.NodeKind.Forge:
-                {
-                    // ★ 2026-11-02 工坊改为「专精 / 进化」三选一：复用事件面板，不新建 prefab。
-                    //   （旧 ForgePanel 是"融合两只异兽"，与新的局内养成不是一回事。）
-                    var _runM = WanXiang.Run.RunSave.Current;
-                    int _mat = _runM != null ? _runM.Materials : 0;
-                    var forge = new WanXiang.Campaign.EventDef
-                    {
-                        Id = "ev_node_forge",
-                        Title = "铸工坊",
-                        Story = "炉火正旺。老匠人问：你想让谁变强一点？",
-                        Choices = new[]
-                        {
-                            new WanXiang.Campaign.EventChoice
-                            {
-                                Text = "淬炼（随机一只上阵异兽的随机技能 专精 +1）",
-                                Effect = WanXiang.Campaign.EventEffect.GrantMastery, Value = 1,
-                            },
-                            new WanXiang.Campaign.EventChoice
-                            {
-                                Text = "化形（消耗 1 进化素材，现有 " + _mat + "；随机一只未进化的异兽进化）",
-                                Effect = WanXiang.Campaign.EventEffect.Evolve, Value = 0,
-                            },
-                            new WanXiang.Campaign.EventChoice
-                            {
-                                Text = "只取炉灰（+40 灵卵）",
-                                Effect = WanXiang.Campaign.EventEffect.GainEggs, Value = 40,
-                            },
-                        },
-                    };
-                    TalePanel.OpenEvent(forge, null);
-                    return;
-                }
-            }
+            // R5-c：全部节点路由已收进 _nodeRouter；未注册的 kind 默认走战斗。
 
             // 战斗节点 → 布阵
             OpenPanelAsync<FormationPanel>(_current).Forget();
