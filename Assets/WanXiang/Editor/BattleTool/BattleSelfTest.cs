@@ -51,6 +51,7 @@ namespace WanXiang.Editor.BattleTool
                 CheckBoardRules(c);
                 CheckGrayBox(c);
                 CheckPresentation(c);
+                CheckTraitMechanics(c);
             }
             catch (Exception ex)
             {
@@ -94,7 +95,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckMatrix(Ctx c)
         {
-            c.Title("[1/6] 五行矩阵与相生/相克环");
+            c.Title("[1/7] 五行矩阵与相生/相克环");
 
             var coeff = ElementCoefficients.Default;
             string err = ElementMatrix.SelfCheck(coeff);
@@ -130,7 +131,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckDeterminism(Ctx c)
         {
-            c.Title("[2/6] 可复现性（GDD 验收①）");
+            c.Title("[2/7] 可复现性（GDD 验收①）");
 
             const ulong seed = 20260914UL;
             var r1 = BattleSimulator.Run(BuildStandard(seed, null));
@@ -226,7 +227,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckCoefficients(Ctx c)
         {
-            c.Title("[3/6] 四个系数可调且立刻可观察（GDD 验收③）");
+            c.Title("[3/7] 四个系数可调且立刻可观察（GDD 验收③）");
 
             // ---- 3a：直接对四种关系各算一次伤害，逐一改系数验证 ----
             var probe = BuildProbe(out var wood, out var earth, out var water);
@@ -321,7 +322,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckBoardRules(Ctx c)
         {
-            c.Title("[4/6] 棋盘四条规则（GDD 2.5）");
+            c.Title("[4/7] 棋盘四条规则（GDD 2.5）");
 
             // ---- 4a 相生相邻 ----
             {
@@ -462,7 +463,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckGrayBox(Ctx c)
         {
-            c.Title("[5/6] 灰盒看板（验收②是人的判断，这里只备料）");
+            c.Title("[5/7] 灰盒看板（验收②是人的判断，这里只备料）");
 
             // ---- 5a 木 vs 火：GDD 7.1 验证顺序的第 0 步 ----
             var one = BattleSampleContent.BuildScenario(0, 7UL, null);
@@ -675,7 +676,7 @@ namespace WanXiang.Editor.BattleTool
 
         private static void CheckPresentation(Ctx c)
         {
-            c.Title("[6/6] 表现层素材与文档对账");
+            c.Title("[6/7] 表现层素材与文档对账");
 
             // ---- ① 色板 vs palette.json ----
             string json = null;
@@ -784,6 +785,99 @@ namespace WanXiang.Editor.BattleTool
                 case BattleOutcome.EnemyWin: return "敌方胜";
                 case BattleOutcome.Draw: return "平局";
                 default: return "进行中";
+            }
+        }
+
+        /// <summary>
+        /// [7/7] B1 特性机制回归：受伤护盾 / 毒羽 / 闪避 / 灼烧上限 / 相生灵力。
+        /// ⚠ 全部用**自造 BeastDef**（id 不在 beasts.csv）⇒ 不依赖 CSV，纯核心验证。
+        /// ⚠ 孤高依赖性情表（temperaments.csv），这里不测，避免为了自检去改全局表。
+        /// </summary>
+        private static void CheckTraitMechanics(Ctx c)
+        {
+            var cfg = BattleConfig.Default;
+
+            BeastDef Mk(string id, RoleType role, Element el, TraitKind kind, float v, float v2)
+            {
+                var d = new BeastDef { Id = id, DisplayName = id, Element = el, Role = role, Rarity = Rarity.Rare };
+                d.Trait = new TraitDef { Kind = kind, Channel = TraitChannels.Of(kind), Value = v, Value2 = v2 };
+                return d;
+            }
+
+            BattleState One(BeastDef mine)
+            {
+                var foe = new BeastDef { Id = "t_foe", DisplayName = "敌", Element = Element.None,
+                                         Role = RoleType.Striker, Rarity = Rarity.Rare };
+                return BattleFactory.Create(cfg, 1,
+                    new[] { DeployEntry.Player(mine, 4) },
+                    new[] { DeployEntry.Enemy(foe, 0) });
+            }
+
+            // ---- ① 受伤护盾：10% 伤害不触发；50% 触发 8% 盾；同回合不叠加 ----
+            {
+                var st = One(Mk("t_shield", RoleType.Guard, Element.Earth, TraitKind.ShieldOnHurt, 0.08f, 0.25f));
+                var u = st.UnitsOf(TeamSide.Player)[0];
+                BattleSimulator.ApplyHurtShield(st, u, (int)(u.MaxHp * 0.10f));
+                bool low = u.Shield == 0;
+                BattleSimulator.ApplyHurtShield(st, u, (int)(u.MaxHp * 0.50f));
+                int want = CoreMath.RoundDamage(u.MaxHp * 0.08f);
+                bool hit = u.Shield == want;
+                BattleSimulator.ApplyHurtShield(st, u, (int)(u.MaxHp * 0.50f));
+                bool noStack = u.Shield == want;
+                if (low && hit && noStack) c.Ok("受伤护盾：10% 伤害不触发 / 50% 给 " + want + " 盾 / 同回合不叠加");
+                else c.Bad("受伤护盾异常：low=" + low + " hit=" + hit + " noStack=" + noStack);
+            }
+
+            // ---- ② 毒羽：通道层数 + 实际挂毒层数 ----
+            {
+                var st = One(Mk("t_poison", RoleType.Striker, Element.Wood, TraitKind.PoisonOnCrit, 2f, 0f));
+                var src = st.UnitsOf(TeamSide.Player)[0];
+                var dst = st.UnitsOf(TeamSide.Enemy)[0];
+                float stacks = TraitRuntime.Bonus(st, TeamSide.Player, TraitChannels.PoisonOnCrit);
+                dst.ApplyStatus(StatusCatalog.Poison, (int)stacks, 3, src.Attack * 0.12f);
+                int got = 0;
+                for (int i = 0; i < dst.Statuses.Count; i++)
+                    if (dst.Statuses[i].Id == StatusCatalog.Poison) got = dst.Statuses[i].Stacks;
+                if (stacks == 2f && got == 2) c.Ok("毒羽：通道 2 层 → 目标实际 2 层中毒");
+                else c.Bad("毒羽异常：通道=" + stacks + " 实际=" + got);
+            }
+
+            // ---- ③ 闪避：相邻同伴时 +10%，独自 0，上限 0.35 ----
+            {
+                var st = BattleFactory.Create(cfg, 1,
+                    new[] { DeployEntry.Player(Mk("t_dodge", RoleType.Swift, Element.Wood, TraitKind.DodgeWhenAdjacentFoe, 0.10f, 0f), 3),
+                            DeployEntry.Player(new BeastDef { Id = "t_ally", DisplayName = "伴", Element = Element.Wood,
+                                                             Role = RoleType.Support, Rarity = Rarity.Rare }, 4) },
+                    new[] { DeployEntry.Enemy(new BeastDef { Id = "t_foe", DisplayName = "敌", Element = Element.None,
+                                                             Role = RoleType.Striker, Rarity = Rarity.Rare }, 0) });
+                BoardRules.ResolveAdjacency(st);
+                var units = st.UnitsOf(TeamSide.Player);
+                float withAlly = 0f;
+                for (int i = 0; i < units.Count; i++) if (units[i].Def.Id == "t_dodge") withAlly = units[i].TempEvasion;
+
+                var solo = One(Mk("t_dodge2", RoleType.Swift, Element.Wood, TraitKind.DodgeWhenAdjacentFoe, 0.10f, 0f));
+                BoardRules.ResolveAdjacency(solo);
+                float alone = solo.UnitsOf(TeamSide.Player)[0].TempEvasion;
+
+                bool ok = Math.Abs(withAlly - 0.10f) < 0.001f && alone < 0.001f && BattleSimulator.MaxEvasion > 0.3f;
+                if (ok) c.Ok("闪避：相邻同伴 0.10 / 独自 0 / 上限 " + BattleSimulator.MaxEvasion);
+                else c.Bad("闪避异常：withAlly=" + withAlly + " alone=" + alone);
+            }
+
+            // ---- ④ 灼烧上限：通道 → 单位 AuraCapBonus ----
+            {
+                var st = One(Mk("t_burncap", RoleType.Caster, Element.Fire, TraitKind.BurnCapUp, 2f, 0f));
+                var u = st.UnitsOf(TeamSide.Player)[0];
+                if (u.AuraCapBonus == 2) c.Ok("灼烧上限：通道 2 → 单位 AuraCapBonus=2（基础上限 4→6）");
+                else c.Bad("灼烧上限异常：AuraCapBonus=" + u.AuraCapBonus);
+            }
+
+            // ---- ⑤ 相生灵力：通道值可查 ----
+            {
+                var st = One(Mk("t_mp", RoleType.Support, Element.Wood, TraitKind.AdjacentMpBonus, 1f, 0f));
+                float v = TraitRuntime.Bonus(st, TeamSide.Player, TraitChannels.MpRegen);
+                if (Math.Abs(v - 1f) < 0.001f) c.Ok("相生灵力：通道值 1（回合灵力 +1）");
+                else c.Bad("相生灵力异常：通道值=" + v);
             }
         }
 
