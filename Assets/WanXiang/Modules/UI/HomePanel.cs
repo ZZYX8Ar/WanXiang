@@ -196,7 +196,7 @@ namespace WanXiang.Modules.UI
 
             if (!hasProgress)
             {
-                { GoCampaign(); }
+                OpenPanelAsync<SquadSelectPanel>(new System.Action(GoCampaign)).Forget();
                 return;
             }
 
@@ -236,7 +236,7 @@ namespace WanXiang.Modules.UI
             WanXiang.Modules.UI.RealmSession.ClearPlayerHazards(run);  // 秘境给我方挂的临时状态一并清
 
             RefreshDeployLabel();
-            { GoCampaign(); }
+            OpenPanelAsync<SquadSelectPanel>(new System.Action(GoCampaign)).Forget();
         }
 
         /// <summary>

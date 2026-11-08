@@ -760,7 +760,6 @@ namespace WanXiang.Run
         public static RunState StartNew(int slot)
         {
             Current = new RunState { Slot = Mathf.Clamp(slot, 1, SlotCount), Eggs = 0 };
-            ApplyPendingChoice(Current);            // B3：把"选分队/选难度"落进本局
             Save(Current);
             Debug.Log("[RunSave] 新的旅程 → 槽位 " + Current.Slot);
             return Current;
@@ -773,6 +772,11 @@ namespace WanXiang.Run
         public static void ApplyPendingChoice(RunState run)
         {
             if (run == null) return;
+            // B3 修正：无选择时**不动**现有字段（选择在出征时才发生，
+            // StartNew 选槽时玩家还没选 —— 早应用会回退默认、覆盖玩家后续选择）。
+            bool hasPending = !string.IsNullOrEmpty(WanXiang.Modules.UI.SquadSelectPanel.PendingSquadId)
+                || WanXiang.Modules.UI.SquadSelectPanel.PendingDifficulty != 1;
+            if (!hasPending) return;
             string id = WanXiang.Modules.UI.SquadSelectPanel.PendingSquadId;
             var def = string.IsNullOrEmpty(id) ? null : WanXiang.Battle.Core.SquadTable.For(id);
             run.SquadId = def != null ? def.Id

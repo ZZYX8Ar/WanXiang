@@ -37,12 +37,15 @@ namespace WanXiang.Modules.UI
         private readonly List<GameObject> _rows = new List<GameObject>();
         private int _selected = -1;
         private int _level = 1;
+        /// <summary>继续出征回调（payload 注入，由 HomePanel 出征流程提供）。用完即清。</summary>
+        private System.Action _onStart;
 
         protected override void OnCreate() { }   // 控件在 OnOpenAsync 里按名字取；prefab 结构由编辑器工具生成
 
         protected override UniTask OnOpenAsync(object payload)
         {
             WanXiang.Modules.UI.DataTables.EnsureInstalled();   // 幂等：直接从主界面打开也不会空表
+            _onStart = payload as System.Action;
             Bind();
             BuildDifficulty();
             BuildList();
@@ -216,7 +219,9 @@ namespace WanXiang.Modules.UI
             }
             var d = _squads[_selected];
             Debug.Log("[SquadSelect] 开始远征：分队=" + d.Id + " 难度=N" + _level);
+            var start = _onStart; _onStart = null;   // 用完即清（依赖注入纪律）
             CloseSelf();
+            if (start != null) start();              // 回到 HomePanel 出征流程（转场 + 进图）
         }
 
         // ------------------------------------------------------------ 小工具
