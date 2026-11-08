@@ -234,9 +234,15 @@ namespace WanXiang.Modules.UI
                 temperMul += WanXiang.Battle.Core.TemperamentTable.Bonus(
                     _play.State, WanXiang.Battle.Core.TeamSide.Player,
                     WanXiang.Battle.Core.TraitChannels.QteWindow);
+            // B5-3：灵感「战阵·明察」—— QTE 完美窗口 +10%（effect_value=10）
+            float inspMul = 1f;
+            var metaQ = WanXiang.Meta.MetaStore.Ensure();
+            if (metaQ != null)
+                inspMul += WanXiang.Battle.Core.InspirationRules.EffectValue(
+                    metaQ.InspirationIds, "qte_window_bonus") / 100f;
             float window = (comboQte ? ComboWindowSeconds
                           : finisher ? FinisherWindowSeconds
-                          : ParryWindowSeconds) * segMul * temperMul;
+                          : ParryWindowSeconds) * segMul * temperMul * inspMul;
             // 进攻向（终结技/连携）：容错放宽一档（抢拍也认，别让玩家白丢大招/连携）
             float perfectHalf = offensive ? ParryPerfectHalf * 2f : ParryPerfectHalf;
             float normalHalf = offensive ? ParryNormalHalf * 1.6f : ParryNormalHalf;

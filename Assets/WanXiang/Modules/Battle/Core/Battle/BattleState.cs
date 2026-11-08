@@ -37,6 +37,9 @@ namespace WanXiang.Battle.Core
 
         public BattleOutcome Outcome = BattleOutcome.Ongoing;
 
+        // ---- B5-3：灵感「战阵·破阵」—— 对首领完美格挡反震倍率（工厂折算，默认 1）----
+        public float ParryCounterMul = 1f;
+
         // ---- B5-2：异色名单（工厂折算，表现层只读）----
         public readonly System.Collections.Generic.List<string> ShinyIds =
             new System.Collections.Generic.List<string>(4);

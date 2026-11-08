@@ -379,7 +379,9 @@ namespace WanXiang.Battle.Core
                             //   "格挡 N 次"的破绽 —— **防御行为本身就是进攻路线**。
                             //⛔ 只在配了 FoeKit 的敌人才进函数体（内部按 trigger 短路）。
                             FoeKitRuntime.OnParriedBy(st, u);
-                            int back = CoreMath.RoundDamage(u.MaxHp * ParryCounterMaxHpPercent);
+                            // B5-3：灵感「破阵」倍率 + 仅对首领生效（b_ 前缀）
+                            float pcMul = (u.Def != null && u.Def.Id.StartsWith("b_")) ? st.ParryCounterMul : 1f;
+                            int back = CoreMath.RoundDamage(u.MaxHp * ParryCounterMaxHpPercent * pcMul);
                             if (back > 0)
                             {
                                 int dealtBack = u.TakeTrueDamage(back);

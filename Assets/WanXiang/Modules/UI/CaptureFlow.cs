@@ -60,7 +60,16 @@ namespace WanXiang.Modules.UI
             // ---- 结算 ----
             var attempt = CaptureRules.Resolve(target, 0, cost, dao, UnityEngine.Random.value);
             run.Eggs -= cost;
-            if (attempt.Refund > 0) run.Eggs += attempt.Refund;
+            if (attempt.Refund > 0)
+            {
+                // B5-3：灵感「炉火·余烬」——失败返还 50% → 75%（effect_value=75 新百分比）
+                var mR = WanXiang.Meta.MetaStore.Ensure();
+                int refundPct = WanXiang.Battle.Core.InspirationRules.EffectValue(mR.InspirationIds, "fail_refund_up");
+                int refund = refundPct > 0
+                    ? System.Math.Max(1, cost * refundPct / 100)
+                    : attempt.Refund;
+                run.Eggs += refund;
+            }
 
             if (attempt.Success)
             {

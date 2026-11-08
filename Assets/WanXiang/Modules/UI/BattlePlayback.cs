@@ -276,6 +276,43 @@ namespace WanXiang.Modules.UI
                 UnityEngine.Debug.Log("[Battle] 道痕生效：" + equippedMarks.Count + " 条（通道加成已写入本局）");
             }
 
+            // B5-3：灵感「战阵·蓄势」—— 开局全体自带 1 层随机附着（灼烧/中毒/碎甲）
+            try
+            {
+                var mstS = WanXiang.Meta.MetaStore.Ensure();
+                if (mstS != null && WanXiang.Battle.Core.InspirationRules.EffectValue(
+                        mstS.InspirationIds, "battle_start_status") > 0 && State != null)
+                {
+                    string[] pool = { WanXiang.Battle.Core.StatusCatalog.Burn,
+                                      WanXiang.Battle.Core.StatusCatalog.Poison,
+                                      WanXiang.Battle.Core.StatusCatalog.ArmorBreak };
+                    var srng = new WanXiang.Battle.Core.DeterministicRandom(
+                        WanXiang.Battle.Core.CoreMath.Fnv1a("inspire-status:" + State.Random.Seed));
+                    var mine = State.UnitsOf(TeamSide.Player);
+                    for (int i = 0; mine != null && i < mine.Count; i++)
+                    {
+                        var u = mine[i];
+                        if (u == null || !u.IsAlive) continue;
+                        u.ApplyStatus(pool[srng.NextInt(0, pool.Length)], 1, 2);
+                    }
+                    UnityEngine.Debug.Log("[Battle] 灵感「蓄势」：全体开局 1 层随机附着");
+                }
+            }
+            catch { }
+
+            // B5-3：灵感「战阵·破阵」—— 对首领完美格挡反震 ×(1+50%)（State 就绪后折算）
+            try
+            {
+                var mstP = WanXiang.Meta.MetaStore.Ensure();
+                if (mstP != null)
+                {
+                    int pcb = WanXiang.Battle.Core.InspirationRules.EffectValue(
+                        mstP.InspirationIds, "parry_counter_bonus");
+                    if (pcb > 0) State.ParryCounterMul = 1f + pcb / 100f;
+                }
+            }
+            catch { }
+
             // B5-2：异色名单进战斗状态（表现层按此叠加 shader 参数）
             if (req.ShinyIds != null && req.ShinyIds.Count > 0)
                 State.ShinyIds.AddRange(req.ShinyIds);
