@@ -417,6 +417,16 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
             // B3-g：里程碑 ai_aggressive —— 敌方 AI 资源优先兑现（覆盖遭遇默认档）
             if (run != null && WanXiang.Battle.Core.DifficultyTable.HasRule(run.ChallengeLevel, "ai_aggressive"))
                 req.AiProfile = WanXiang.Battle.Core.AiProfile.Aggressive;
+
+            // B3-j：里程碑 enemy_calamity（N10+）—— 劫象压境：敌方全体再 +10%（常驻，不占用
+            //   run.EnemyBuffPct 的一次性通道；那是天时/事件的流程）
+            bool calamity = run != null
+                && WanXiang.Battle.Core.DifficultyTable.HasRule(run.ChallengeLevel, "enemy_calamity");
+            if (calamity)
+            {
+                diffMul *= 1.10f;
+                UnityEngine.Debug.Log("[BattleRequestFactory] 难度里程碑：劫象压境，敌方全体再 ×1.10");
+            }
             float enemyMul = ascMul * realmScale * diffMul;
             if (diffMul != 1f)
                 UnityEngine.Debug.Log("[BattleRequestFactory] 挑战难度 N" + run.ChallengeLevel +
