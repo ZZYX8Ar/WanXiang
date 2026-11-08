@@ -227,6 +227,7 @@ namespace WanXiang.Modules.UI
             //   之前手写清单漏了 Relics / Team / PassedNodes / ChosenNodes（同层互斥）/ 待领奖励 / 秘境，
             //   导致"重开后还带着上一局的遗物""节点整层点不动"。
             run.ResetForNewRun(UnityEngine.Random.Range(1, int.MaxValue));   // 重开 = 全新路线图
+            WanXiang.Run.RunSave.ApplyPendingChoice(run);   // B3：重开也应用"选分队/选难度"
             WanXiang.Campaign.LiveWeather.Reset();                     // 会话级星移余气一并清空，防跨局污染
             // 内存里的"待落地"也必须清：否则新局第一格会被上一局的待办劫持
             CampaignPanel.PendingCommit = -1;

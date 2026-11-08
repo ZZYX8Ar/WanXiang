@@ -36,6 +36,12 @@ namespace WanXiang.Run
         public int Realm = 1;                   // 境 1..3（旧）
         public int Jie = 1;                     // 劫 1..3（旧）
         public int Eggs = 0;                    // 灵卵（每局从 0 开始；局末结转 MetaState.Eggs）
+        /// <summary>B3：本局分队 id（空 = 默认「行旅」）。JsonUtility 序列化，老档自动为空。</summary>
+        public string SquadId = "";
+        /// <summary>B3：本局挑战难度（玩家选的 N1~N18）。老档自动为 1。
+        /// ⚠ 与上方只读属性 <see cref="Difficulty"/>（幕数系数 1+(Act-1)×0.35）是两个概念：
+        ///   前者是"玩家选的关卡难度"，后者是"幕数自带的强度系数"，战斗请求两者都要乘。</summary>
+        public int ChallengeLevel = 1;
 
         // ---- 2026-11-01 局内养成：共享主等级（设计稿 v3 §6.1）----
         /// <summary>主等级：战斗获得经验，<b>上阵 5 人共享</b>；只加基础攻击/生命。</summary>
@@ -733,9 +739,28 @@ namespace WanXiang.Run
         public static RunState StartNew(int slot)
         {
             Current = new RunState { Slot = Mathf.Clamp(slot, 1, SlotCount), Eggs = 0 };
+            ApplyPendingChoice(Current);            // B3：把"选分队/选难度"落进本局
             Save(Current);
             Debug.Log("[RunSave] 新的旅程 → 槽位 " + Current.Slot);
             return Current;
+        }
+
+        /// <summary>
+        /// B3：把 SquadSelectPanel 的选择写进本局（分队 id + 难度），然后读后清。
+        /// ⚠ 分队 id 不在表里 / 为空 → 回退默认分队（SquadTable.Default）。
+        /// </summary>
+        public static void ApplyPendingChoice(RunState run)
+        {
+            if (run == null) return;
+            string id = WanXiang.Modules.UI.SquadSelectPanel.PendingSquadId;
+            var def = string.IsNullOrEmpty(id) ? null : WanXiang.Battle.Core.SquadTable.For(id);
+            run.SquadId = def != null ? def.Id
+                        : (WanXiang.Battle.Core.SquadTable.Default() != null ? WanXiang.Battle.Core.SquadTable.Default().Id : "");
+            run.ChallengeLevel = Mathf.Clamp(WanXiang.Modules.UI.SquadSelectPanel.PendingDifficulty,
+                                         1, WanXiang.Battle.Core.DifficultyTable.MaxLevel > 0 ? WanXiang.Battle.Core.DifficultyTable.MaxLevel : 18);
+            WanXiang.Modules.UI.SquadSelectPanel.PendingSquadId = "";    // 读后清
+            WanXiang.Modules.UI.SquadSelectPanel.PendingDifficulty = 1;
+            Debug.Log("[RunSave] 开局配置：分队=" + run.SquadId + " 难度=N" + run.Difficulty);
         }
 
 
