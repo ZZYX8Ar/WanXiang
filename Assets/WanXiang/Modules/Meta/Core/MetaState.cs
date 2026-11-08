@@ -287,6 +287,36 @@ namespace WanXiang.Meta
             int i = BeastIds.IndexOf(id);
             return i >= 0 && i < BeastLevels.Count ? BeastLevels[i] : 0;
         }
+
+        // ---- B2-k：升星（数据层）----
+
+        /// <summary>某异兽的星级（0 = 未升；与 BeastIds 下标对齐，缺失补 0）。</summary>
+        public int BeastStarOf(string id)
+        {
+            int i = BeastIds.IndexOf(id);
+            if (i < 0) return 0;
+            while (BeastStars.Count <= i) BeastStars.Add(0);   // 老档补齐
+            return BeastStars[i];
+        }
+
+        /// <summary>写星级（下标对齐补齐）。成功 true；异兽不在名册 false。</summary>
+        public bool SetBeastStar(string id, int star)
+        {
+            int i = BeastIds.IndexOf(id);
+            if (i < 0) return false;
+            while (BeastStars.Count <= i) BeastStars.Add(0);
+            BeastStars[i] = star < 0 ? 0 : (star > MetaDefaults.StarMax ? MetaDefaults.StarMax : star);
+            return true;
+        }
+
+        /// <summary>扣灵卵。不足 false（不扣）。</summary>
+        public bool SpendEggs(int n)
+        {
+            if (n <= 0) return true;
+            if (Eggs < n) return false;
+            Eggs -= n;
+            return true;
+        }
         public int HatchCount;        // 已孵次数（进哈希 ， 每次孵化结果不同且可复现）
         public int RunsPlayed;
         public int RunsCompleted;

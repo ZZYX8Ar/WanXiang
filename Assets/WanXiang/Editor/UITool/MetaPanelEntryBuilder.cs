@@ -46,6 +46,14 @@ namespace WanXiang.EditorTools
                 added += EnsureEntry(top, font, "Btn_DaoMark", "道痕", -64f);
                 added += EnsureEntry(top, font, "Btn_Skills", "技能", -140f);
 
+                // B2-k：Root_Detail 加升星按钮 + 星级文本（只补缺）
+                var detail = root.transform.Find("Root_Detail");
+                if (detail != null)
+                {
+                    added += EnsureStarButton(detail, font);
+                    added += EnsureStarText(detail, font);
+                }
+
                 PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 report = "Panel_Meta 入口已补：新增 " + added + " 个（已存在则跳过）";
                 Debug.Log("[MetaPanelEntry] " + report);
@@ -91,6 +99,50 @@ namespace WanXiang.EditorTools
             t.alignment = TextAlignmentOptions.Center;
             t.color = Color.black;
             t.raycastTarget = false;
+            return 1;
+        }
+
+        /// <summary>B2-k：Root_Detail/Btn_StarUp（升级/进化按钮下方）。只补缺。</summary>
+        private static int EnsureStarButton(Transform detail, TMP_FontAsset font)
+        {
+            if (detail.Find("Btn_StarUp") != null) return 0;
+            var go = new GameObject("Btn_StarUp", typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(detail, false);
+            // 升级/进化按钮附近：与它们同列，向下排（锚点沿用顶右）
+            rt.anchorMin = new Vector2(1f, 0.5f);
+            rt.anchorMax = new Vector2(1f, 0.5f);
+            rt.anchoredPosition = new Vector2(-70f, -190f);
+            rt.sizeDelta = new Vector2(150f, 52f);
+            var img = go.AddComponent<Image>();
+            img.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(KitDir + "btn_secondary.png");
+            img.type = Image.Type.Sliced;
+            go.AddComponent<Button>();
+            var txt = new GameObject("Tmp_Label", typeof(RectTransform));
+            var trt = (RectTransform)txt.transform;
+            trt.SetParent(rt, false);
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+            var t = txt.AddComponent<TextMeshProUGUI>();
+            t.font = font; t.text = "升星"; t.fontSize = 24;
+            t.alignment = TextAlignmentOptions.Center; t.color = Color.black; t.raycastTarget = false;
+            return 1;
+        }
+
+        /// <summary>B2-k：Root_Detail/Tmp_Star（星级 ★☆ 显示）。只补缺。</summary>
+        private static int EnsureStarText(Transform detail, TMP_FontAsset font)
+        {
+            if (detail.Find("Tmp_Star") != null) return 0;
+            var go = new GameObject("Tmp_Star", typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(detail, false);
+            rt.anchorMin = new Vector2(1f, 0.5f);
+            rt.anchorMax = new Vector2(1f, 0.5f);
+            rt.anchoredPosition = new Vector2(-70f, -150f);
+            rt.sizeDelta = new Vector2(220f, 34f);
+            var t = go.AddComponent<TextMeshProUGUI>();
+            t.font = font; t.text = "星级 ☆☆☆☆☆"; t.fontSize = 22;
+            t.alignment = TextAlignmentOptions.Center; t.color = Color.black; t.raycastTarget = false;
             return 1;
         }
     }

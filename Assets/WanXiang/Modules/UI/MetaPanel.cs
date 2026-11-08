@@ -100,6 +100,8 @@ namespace WanXiang.Modules.UI
             // S6：道痕 / 技能 入口（按钮由 MetaPanelEntryBuilder 增量加进 prefab 顶栏）
             HookEntry("Root_TopBar/Btn_DaoMark", () => OpenPanelAsync<DaoMarkPanel>().Forget());
             HookEntry("Root_TopBar/Btn_Skills", () => OpenPanelAsync<SkillLoadoutPanel>().Forget());
+            // B2-k：升星入口（按钮由 MetaPanelEntryBuilder 增量加进 Root_Detail）
+            HookEntry("Root_Detail/Btn_StarUp", OnStarUpClicked);
             if (_awakenPicker != null) _awakenPicker.SetActive(false);
             if (_awakenItemTemplate != null) _awakenItemTemplate.gameObject.SetActive(false);
             if (_btnAwakenPick != null) _btnAwakenPick.onClick.AddListener(ShowAwakenPicker);
@@ -296,9 +298,77 @@ namespace WanXiang.Modules.UI
                               + (soulOk ? "✓" : (fc + "/" + WanXiang.Meta.MetaState.FragmentTotal)));
                 }
             }
+
+            // B2-k：升星按钮 + 星级显示（按钮由 MetaPanelEntryBuilder 增量加进 prefab，缺失则跳过）
+            var starBtn = transform.Find("Root_Detail/Btn_StarUp");
+            var starTxt = transform.Find("Root_Detail/Tmp_Star");
+            if (starTxt != null)
+            {
+                var st = starTxt.GetComponent<TMP_Text>();
+                int cur = meta != null ? meta.BeastStarOf(b.Id) : 0;
+                st.text = "星级 " + new string('★', cur) + new string('☆', WanXiang.Meta.MetaDefaults.StarMax - cur);
+            }
+            if (starBtn != null)
+            {
+                var btn = starBtn.GetComponent<Button>();
+                var l = starBtn.Find("Tmp_Label") != null
+                        ? starBtn.Find("Tmp_Label").GetComponent<TMP_Text>() : null;
+                int cur = meta != null ? meta.BeastStarOf(b.Id) : 0;
+                if (btn != null) btn.interactable = cur < WanXiang.Meta.MetaDefaults.StarMax;
+                if (l != null)
+                    l.text = cur >= WanXiang.Meta.MetaDefaults.StarMax ? "已满星"
+                           : ("升星 · " + StarUpCost(b.Id, cur) + " 灵卵");
+            }
         }
 
         // ---------------------------------------------------------------- 交互
+
+        /// <summary>B2-k：升星消耗（灵卵）= (当前星+1)×10 × 品级系数（灵 0.7/玄 1.0/神 1.6）。
+        ///  数值口径暂为常量（表驱动待调）。</summary>
+        private int StarUpCost(string id, int curStar)
+        {
+            float coef = 1.0f;
+            BeastProfile bp;
+            if (BeastTable.TryGet(id, out bp) && bp != null)
+            {
+                if (bp.Rarity == Rarity.Rare) coef = 0.7f;
+                else if (bp.Rarity == Rarity.Legend) coef = 1.6f;
+            }
+            return Mathf.CeilToInt((curStar + 1) * 10f * coef);
+        }
+
+        private void OnStarUpClicked()
+        {
+            if (_selected < 0 || _selected >= _shown.Count) return;
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            var b = _shown[_selected];
+            if (meta == null) return;
+
+            int cur = meta.BeastStarOf(b.Id);
+            if (cur >= WanXiang.Meta.MetaDefaults.StarMax)
+            {
+                Dialog.Tip("已经满星",
+                    "「" + b.DisplayName + "」已经是 " + WanXiang.Meta.MetaDefaults.StarMax + " 星，无法再升。").Forget();
+                return;
+            }
+            int cost = StarUpCost(b.Id, cur);
+            if (!meta.SpendEggs(cost))
+            {
+                SfxThrottled("sfx_ui_currency_lack");
+                Dialog.Tip("灵卵不足",
+                    "升星「" + b.DisplayName + "」需要 " + cost + " 灵卵，你现在只有 " + meta.Eggs + "。").Forget();
+                return;
+            }
+            meta.SetBeastStar(b.Id, cur + 1);
+            WanXiang.Meta.MetaStore.Save();
+            SfxThrottled("sfx_ui_confirm");
+            Dialog.Tip("升星成功",
+                "「" + b.DisplayName + "」升至 " + (cur + 1) + " 星！\n"
+                + (cur + 1 >= WanXiang.Meta.MetaDefaults.StarMax && b.Rarity == Rarity.Rare
+                    ? "灵品满星专有 +8% 面板已生效！" : "面板乘数已提升。")).Forget();
+            Debug.Log("[MetaPanel] 升星：" + b.Id + " → " + (cur + 1) + " 星（消耗 " + cost + " 灵卵）");
+            Refresh();
+        }
 
         private void OnUpgradeClicked()
         {
