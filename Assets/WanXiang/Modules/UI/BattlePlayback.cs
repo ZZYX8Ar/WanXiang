@@ -282,6 +282,26 @@ namespace WanXiang.Modules.UI
                 UnityEngine.Debug.Log("[Battle] 难度里程碑：回合上限 −6（=" + State.EffectiveMaxTurns + "）");
             }
 
+            // B3-g：里程碑 boss_shield_all —— 首领战敌方全体开场护盾（最大生命 10%，1 回合）
+            //   数值暂为常量（表驱动待 difficulty_mods 加列时一并做）。
+            if (WanXiang.Run.RunSave.Current != null
+                && WanXiang.Battle.Core.DifficultyTable.HasRule(
+                    WanXiang.Run.RunSave.Current.ChallengeLevel, "boss_shield_all"))
+            {
+                int shielded = 0;
+                var foes = State.UnitsOf(TeamSide.Enemy);
+                for (int i = 0; foes != null && i < foes.Count; i++)
+                {
+                    var f = foes[i];
+                    if (f == null || !f.IsAlive || f.Def == null) continue;
+                    if (!WanXiang.Battle.Core.BossCatalog.IsBoss(f.Def.Id)) continue;
+                    if (f.AddShield(WanXiang.Battle.Core.CoreMath.RoundDamage(f.MaxHp * 0.10f), 1) > 0)
+                        shielded++;
+                }
+                if (shielded > 0)
+                    UnityEngine.Debug.Log("[Battle] 难度里程碑：首领战敌方全体护盾（" + shielded + " 只 ×10% 最大生命）");
+            }
+
             // ★★ 镇守专属机制（2026-10-17）：常规战斗体现不了的打法，只在镇守战出现。
             //   ⚠ 在 Create 之后挂 —— 与 BossCatalog.AttachAllBossHooks 同一时机。
             if (!string.IsNullOrEmpty(req.RealmChampionHookId))
