@@ -155,6 +155,9 @@ namespace WanXiang.Battle.Core
             _daoBonuses[channel] = value;
         }
 
+        /// <summary>B2：我方是否全员同元素（纯色队）。由 UI 层建场时判定，用于「一色」道痕。</summary>
+        public bool SameElementTeam;
+
         public float DaoBonus(string channel)
         {
             if (string.IsNullOrEmpty(channel)) return 0f;

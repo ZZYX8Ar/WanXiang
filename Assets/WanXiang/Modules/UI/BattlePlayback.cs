@@ -252,6 +252,24 @@ namespace WanXiang.Modules.UI
                     float v = WanXiang.Battle.Core.DaoMarkRules.EquippedBonus(equippedMarks, ch);
                     if (v != 0f) State.SetDaoBonus(ch, v);
                 }
+                // 纯色队判定（「一色」用）：我方全员同元素（跳过 None）
+                var mine = State.UnitsOf(TeamSide.Player);
+                bool same = mine != null && mine.Count > 0;
+                Element firstEl = Element.None;
+                for (int i = 0; same && i < mine.Count; i++)
+                {
+                    var el = mine[i] != null && mine[i].Def != null ? mine[i].Def.Element : Element.None;
+                    if (el == Element.None) continue;
+                    if (firstEl == Element.None) firstEl = el;
+                    else if (el != firstEl) same = false;
+                }
+                State.SameElementTeam = same && firstEl != Element.None;
+
+                // 生命上限类道痕（「金石」）：建场时一次性提升
+                float hpPct = State.DaoBonus("team_hp");
+                if (hpPct > 0f)
+                    for (int i = 0; i < mine.Count; i++) mine[i]?.ApplyMaxHpBonus(hpPct);
+
                 UnityEngine.Debug.Log("[Battle] 道痕生效：" + equippedMarks.Count + " 条（通道加成已写入本局）");
             }
 

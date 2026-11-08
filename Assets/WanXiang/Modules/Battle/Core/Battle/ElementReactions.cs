@@ -57,7 +57,7 @@ namespace WanXiang.Battle.Core
                     int use = Math.Min(dst.AuraStacks, CapOf(dst));
                     SetAura(dst, incoming, dst.AuraStacks - use);
                     int cstacks = use;
-                    int cdmg = dst.TakeDamage(CoreMath.RoundDamage(atkSrc(src) * 0.35f * cstacks));
+                    int cdmg = dst.TakeDamage(ReactionDamage(st, atkSrc(src) * 0.35f * cstacks));
                     st.Log.Add(st.Turn, BattleEventKind.Damage,
                                actorId: src != null ? src.RuntimeId : null, targetId: dst.RuntimeId,
                                amount: cdmg, element: incoming,
@@ -129,14 +129,14 @@ namespace WanXiang.Battle.Core
                 {
                     // ⛔ 2026-10-31 用户："怎么这么多反应都是真伤" —— 只有蒸发保留真伤（招牌），
                     //   其余走普通伤害：能被护盾挡、被防御削，才有"选哪种反应"的意义。
-                    int dmg = dst.TakeDamage(CoreMath.RoundDamage(atk * 1.10f * stacks));
+                    int dmg = dst.TakeDamage(ReactionDamage(st, atk * 1.10f * stacks));
                     dst.ApplyStatus(StatusCatalog.ArmorBreak, 1, 2);
                     EmitDamage(st, src, dst, dmg, Element.Metal, "元素反应·锻击（裂甲）", kind);
                     break;
                 }
                 case ReactionKind.Erode:      // 侵蚀：普通伤害 + 易伤
                 {
-                    int dmg = dst.TakeDamage(CoreMath.RoundDamage(atk * 0.70f * stacks));
+                    int dmg = dst.TakeDamage(ReactionDamage(st, atk * 0.70f * stacks));
                     dst.ApplyStatus(StatusCatalog.Marked, 1, 2);
                     EmitDamage(st, src, dst, dmg, Element.Water, "元素反应·侵蚀（易伤）", kind);
                     break;
@@ -144,7 +144,7 @@ namespace WanXiang.Battle.Core
                 case ReactionKind.Execute:    // 肃杀：普通伤害，残血加成
                 {
                     float mul = 1.5f * stacks * (dst.HpPercent < 0.30f ? 1.5f : 1f);
-                    int dmg = dst.TakeDamage(CoreMath.RoundDamage(atk * mul));
+                    int dmg = dst.TakeDamage(ReactionDamage(st, atk * mul));
                     EmitDamage(st, src, dst, dmg, Element.Metal, "元素反应·肃杀", kind);
                     break;
                 }
@@ -181,7 +181,7 @@ namespace WanXiang.Battle.Core
                 {
                     // 用户 2026-10-31："有些反应和旧的一样，直接套旧名字不就行了" ——
                     // 金+水 就是旧的「感电」，效果对齐：普通伤害 + 挂「感电」2 回合。
-                    int dmg = dst.TakeDamage(CoreMath.RoundDamage(atk * 0.80f * stacks));
+                    int dmg = dst.TakeDamage(ReactionDamage(st, atk * 0.80f * stacks));
                     dst.ApplyStatus(StatusCatalog.Shock, 1, 2);
                     EmitDamage(st, src, dst, dmg, Element.Metal, "元素反应·感电（麻痹）", kind);
                     break;
@@ -241,6 +241,16 @@ namespace WanXiang.Battle.Core
             if (dealt > 0 && !dst.IsAlive)
                 st.Log.Add(st.Turn, BattleEventKind.Death, targetId: dst.RuntimeId,
                            note: dst.DisplayName + " 阵亡（" + note + "）");
+        }
+
+        /// <summary>
+        /// B2：反应伤害统一出口 —— 乘道痕「化生」（通道 reaction_damage）。
+        /// 五处反应伤害都走这里；未装备时为 ×1（行为不变）。
+        /// </summary>
+        private static int ReactionDamage(BattleState st, float raw)
+        {
+            float mul = 1f + (st != null ? st.DaoBonus("reaction_damage") : 0f);
+            return CoreMath.RoundDamage(raw * mul);
         }
 
         private static void EmitBuff(BattleState st, BattleUnit src, TeamSide side, string note, ReactionKind kind)

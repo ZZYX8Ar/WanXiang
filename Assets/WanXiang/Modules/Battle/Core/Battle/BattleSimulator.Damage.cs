@@ -686,6 +686,10 @@ namespace WanXiang.Battle.Core
             v *= (1f - mitigation);
             v *= dst.DamageTakenMultiplier;
 
+            // B2：道痕「一色」——纯色队时全队伤害加成（标记由建场时判定）。
+            if (st.SameElementTeam && src.Side == TeamSide.Player)
+                v *= 1f + st.DaoBonus("same_element_damage");
+
             // B2：道痕「镇岳」——对首领伤害加成（目标 id 以 b_ 开头）。
             if (dst.Def != null && BossCatalog.IsBoss(dst.Def.Id))
                 v *= 1f + st.DaoBonus("boss_damage");

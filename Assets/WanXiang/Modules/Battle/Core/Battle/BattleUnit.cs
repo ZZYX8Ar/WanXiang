@@ -308,6 +308,19 @@ namespace WanXiang.Battle.Core
             }
         }
 
+        /// <summary>
+        /// B2：道痕「金石」——按比例提升生命上限（当前血量同增，残血比例会略变）。
+        /// 只在建场时调用一次；pct<=0 直接返回（无道痕行为不变）。
+        /// </summary>
+        public void ApplyMaxHpBonus(float pct)
+        {
+            if (pct <= 0f) return;
+            int add = CoreMath.RoundDamage(MaxHp * pct);
+            if (add <= 0) return;
+            MaxHp += add;
+            Hp += add;
+        }
+
         /// <summary>防御（含每回合临时修正）。原来伤害公式直接读 Def.BaseDef，改为走这里。</summary>
         public float Defense => Def == null ? 0f : Def.BaseDef * (1f + TempStatPct);
 
