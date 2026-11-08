@@ -223,6 +223,7 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                     //   不加暴击/防御/技能 —— 数值成长只走这一条线（设计稿 §6.1）。
                     // ★ 2026-11-01 技能改写（设计稿 §8）：按覆盖表替换名字/说明/倍率
                     ApplySkillOverrides(id, d);
+                    ApplyLoadout(id, d);              // B2：玩家配置的战记槽（PlayerPrefs）
 
                     // ★ 2026-11-01 专精生效（设计稿 §6.2）：
                     //   Lv1 技能倍率 ×1.12；Lv2 段数 +1；Lv3 再 ×1.20（总 1.34）。无专精不动。
@@ -614,6 +615,32 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                         sk.Effects[e] = a;
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// B2：按 <see cref="LoadoutPrefs"/> 覆写玩家的战记槽（槽位 1 = Active）。
+        /// ⚠ 只覆写**名字/描述/倍率**，保留原兽的效果原子 —— 避免池条目没有效果导致"空技能"。
+        /// ⚠ 配置为空 / id 不在池里 / 五行不匹配 ⇒ 原样不动（零变化）。
+        /// </summary>
+        private static void ApplyLoadout(string beastId, WanXiang.Battle.Core.BeastDef d)
+        {
+            if (d == null || string.IsNullOrEmpty(beastId) || d.Active == null) return;
+            string skillId = LoadoutPrefs.SkillOf(beastId, 1);
+            if (string.IsNullOrEmpty(skillId)) return;
+            var entry = WanXiang.Battle.Core.SkillSlotRules.For(skillId);
+            if (entry == null) return;
+            if (!WanXiang.Battle.Core.SkillSlotRules.CanEquip(d.Element, entry)) return;
+
+            if (!string.IsNullOrEmpty(entry.Name)) d.Active.Name = entry.Name;
+            if (!string.IsNullOrEmpty(entry.Desc)) d.Active.Description = entry.Desc;
+            if (d.Active.Effects == null) return;
+            if (System.Math.Abs(entry.PowerMul - 1f) < 0.001f) return;
+            for (int i = 0; i < d.Active.Effects.Length; i++)
+            {
+                var a = d.Active.Effects[i];
+                if (a.Power > 0f) a.Power *= entry.PowerMul;
+                d.Active.Effects[i] = a;
             }
         }
 

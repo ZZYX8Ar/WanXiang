@@ -61,6 +61,14 @@ namespace WanXiang.Battle.Core
             return string.Equals(entry.Tag, "common", System.StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>按 id 取池条目（找不到返回 null）。</summary>
+        public static SkillPoolEntry For(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            for (int i = 0; i < _pool.Count; i++) if (_pool[i].Id == id) return _pool[i];
+            return null;
+        }
+
         /// <summary>某只兽的候选技能（用于 UI 列表；顺序稳定 = 表顺序）。</summary>
         public static List<SkillPoolEntry> Candidates(Element beastElement)
         {
