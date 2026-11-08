@@ -45,6 +45,29 @@ namespace WanXiang.Run
 
         [SerializeField] private float eggRemainder;   // B3-d：灵卵小数余额（老档默认 0）
 
+        // ---- B2 道痕骨架：本局统计（8 来源；战斗结束由 UI 回传累加）----
+        [System.Serializable]
+        public class RunStats
+        {
+            public int Reactions;        // 触发元素反应
+            public int ActsCleared;      // 通关幕数（待接：幕通过处）
+            public int Deaths;           // 阵亡
+            public int FastWins;         // 速通场次（≤6 回合）
+            public int BossKills;        // 击败首领
+            public int Captures;         // 捕获（待接：CaptureFlow）
+            public int MaxHit;           // 单次最大伤害
+            public int SameElementActs;  // 纯色队通关幕（待接）
+            public void AddBattle(int reactions, int maxHit, int bossKills, int deaths, int fastWin)
+            {
+                Reactions += reactions;
+                if (maxHit > MaxHit) MaxHit = maxHit;
+                BossKills += bossKills;
+                Deaths += deaths;
+                FastWins += fastWin;
+            }
+        }
+        public RunStats Stats = new RunStats();
+
         /// <summary>
         /// B3-d：**奖励性**灵卵统一入口 —— 乘「挑战难度」egg_mul（0.99~0.85）。
         /// 小数余额累计到下一次凑整（N18 ×0.85 → 2 卵收 1.7，不被四舍五入吞掉）。
@@ -520,6 +543,7 @@ namespace WanXiang.Run
             if (Relics != null) Relics.Clear();
             if (Collection != null) Collection.Clear();
             if (Team != null) Team.Clear();
+            Stats = new RunStats();   // B2：本局统计随局重置
 
             // 秘境状态（半个秘境残留会让新局所有进入被拒）
             InRealm = false;

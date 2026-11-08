@@ -37,6 +37,13 @@ namespace WanXiang.Battle.Core
 
         public BattleOutcome Outcome = BattleOutcome.Ongoing;
 
+        // ---- B2 局内统计（道痕来源）—— 战斗结束由 UI 回传 RunState.Stats ----
+        public int StatReactions;     // 触发元素反应次数
+        public int StatMaxHit;        // 我方单次最大伤害
+        public int StatBossKills;     // 击败首领数
+        public int StatDeaths;        // 我方阵亡数
+        public int StatFastWins;      // 速通标记（本战胜且回合 ≤ 快线 → 1）
+
         /// <summary>
         /// 本回合**已确定**的出手序列（回合开始时构建一次，模拟与 UI 共用同一份）。
         /// <para>
@@ -612,6 +619,7 @@ namespace WanXiang.Battle.Core
 
             if (!anyPlayer && !anyEnemy) Outcome = BattleOutcome.Draw;
             else Outcome = anyPlayer ? BattleOutcome.PlayerWin : BattleOutcome.EnemyWin;
+            if (Outcome == BattleOutcome.PlayerWin && Turn <= 6) StatFastWins = 1;   // B2 骨架：速通线暂定 6 回合
 
             Log.Add(Turn, BattleEventKind.BattleEnd, note: Cn.Of(Outcome));
             return true;

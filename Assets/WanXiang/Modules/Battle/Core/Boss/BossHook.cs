@@ -96,6 +96,10 @@ namespace WanXiang.Battle.Core
                 if (u == null || u.IsAlive || u.DeathReported) continue;
                 st.Log.Add(st.Turn, BattleEventKind.Death, targetId: u.RuntimeId,
                            note: $"{u.DisplayName} 阵亡");
+                // B2 骨架：道痕统计——我方阵亡 / 击败首领
+                if (u.Side == TeamSide.Player) st.StatDeaths++;
+                else if (u.Def != null && !string.IsNullOrEmpty(u.Def.Id)
+                         && u.Def.Id.StartsWith("b_")) st.StatBossKills++;
                 UnitKilled(st, null, u);   // 内部会置 DeathReported
             }
         }

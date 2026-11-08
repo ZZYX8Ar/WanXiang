@@ -702,6 +702,22 @@ namespace WanXiang.Modules.UI
             }
             if (_sceneMode)
             {
+                // B2 骨架：战斗统计回传本局（道痕来源：反应/最大伤害/首领/阵亡/速通）
+                var stEnd = _play != null ? _play.State : null;
+                var runEnd = WanXiang.Run.RunSave.Current;
+                if (stEnd != null && runEnd != null && runEnd.Stats != null)
+                {
+                    runEnd.Stats.AddBattle(stEnd.StatReactions, stEnd.StatMaxHit,
+                                           stEnd.StatBossKills, stEnd.StatDeaths,
+                                           stEnd.StatFastWins);
+                    WanXiang.Run.RunSave.Save(runEnd);
+                    Debug.Log("[BattlePanel] 本局统计回传：反应 " + stEnd.StatReactions
+                              + "｜最大伤害 " + stEnd.StatMaxHit
+                              + "｜首领 " + stEnd.StatBossKills
+                              + "｜阵亡 " + stEnd.StatDeaths
+                              + "｜速通 " + stEnd.StatFastWins);
+                }
+
                 // 先关自己再切场景：UI 根节点是 DontDestroyOnLoad 的，
                 // 不关的话战斗 HUD 会跟着到主城、压在结算面板后面。
                 CloseSelf();

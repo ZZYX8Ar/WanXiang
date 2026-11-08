@@ -298,6 +298,9 @@ namespace WanXiang.Battle.Core
             if (atom.TrueDamage) dealt = dst.TakeTrueDamage(dmg);
             else dealt = dst.TakeDamage(dmg, atom.IgnoreShield);
 
+            if (src.Side == TeamSide.Player && dealt > st.StatMaxHit)
+                st.StatMaxHit = dealt;   // B2 骨架：我方单次最大伤害
+
             if (crit) st.Log.Add(st.Turn, BattleEventKind.Crit, actorId: src.RuntimeId, targetId: dst.RuntimeId);
 
             st.Log.Add(st.Turn, BattleEventKind.Damage, actorId: src.RuntimeId, targetId: dst.RuntimeId,
@@ -542,7 +545,8 @@ namespace WanXiang.Battle.Core
         /// </summary>
         public static void ResolveElementReactions(BattleState st, BattleUnit src, BattleUnit dst, Element el)
         {
-            ElementReactions.Resolve(st, src, dst, el);
+            if (ElementReactions.Resolve(st, src, dst, el) != ReactionKind.None)
+                st.StatReactions++;   // B2 骨架：反应计数
         }
 
         /// <summary>
