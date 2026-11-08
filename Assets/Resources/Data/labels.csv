@@ -32,3 +32,13 @@ trait,PoisonOnCrit,毒羽
 trait,TeamShieldStart,烟护
 trait,ReactionDamageDown,坚鳞
 trait,RageDownOnCrit,媚影
+node_hint,Elite,精英：敌方规模 +1，旗舰携劫象
+node_hint,Shop,灵市：用灵卵换异兽 / 灵魂 / 重铸
+node_hint,Nest,休整：回血 / +1 进化素材 / 拾一枚灵兽蛋
+node_hint,Tale,奇遇：三选一，每个选项都带代价
+node_hint,Forge,工坊：淬炼专精 / 化形进化 / 只取炉灰换灵卵
+node_hint,Omen,异闻：接受一条预兆（收益配代价），或直接拒绝
+node_hint,Recruit,招募：免费挑选异兽入队（每属性随机 2 选，可刷新）
+node_hint,Relic,遗物：从遗物池随机 3 选 1，局内变强
+node_hint,ActSkip,越境：直接进入下一幕。**放弃本幕剩余节点**（含守关首领与它的奖励）——续劫（轮回）专属
+node_hint,Realm,秘境：独立场域，内有秘藏与镇守

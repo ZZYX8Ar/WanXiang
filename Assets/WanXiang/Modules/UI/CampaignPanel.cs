@@ -2402,26 +2402,11 @@ if (_tmpActTitle != null)
             // 守关优先：它与精英在图里同占位，但战斗内容完全不同（首领 + 随从，带 BossUnitMul）。
             if (isFinaleBoss) return "终局战：后土镇守中宫，敌方还有你队伍前几只的镜像";
             if (isSeasonBoss) return "守关：本幕首领亲自镇守（属性 ×1.35，另有随从）——硬仗";
-            switch (kind)
-            {
-                case WanXiang.Campaign.NodeKind.Elite: return "精英：敌方规模 +1，旗舰携劫象";
-                case WanXiang.Campaign.NodeKind.Shop: return "灵市：用灵卵换异兽 / 灵魂 / 重铸";
-                case WanXiang.Campaign.NodeKind.Nest: return "休整：回血 / +1 进化素材 / 拾一枚灵兽蛋";
-                // ★ 2026-11-02：这三条信息卡文案早就落后于实现了（工坊还写着"免费融合"、
-                //   奇遇还写着"可拒绝换灵卵"、天象写着"三选一"其实是接受/拒绝二选一）。
-                //   文案必须对得上实现，否则玩家按文案做决策会吃亏。
-                case WanXiang.Campaign.NodeKind.Tale: return "奇遇：三选一，每个选项都带代价";
-                case WanXiang.Campaign.NodeKind.Forge: return "工坊：淬炼专精 / 化形进化 / 只取炉灰换灵卵";
-                // ⚠ 已废弃（2026-11-07）：天象并入「异闻」，新图不再产出；
-                //   保留分支只为旧存档里已揭晓成 Omen 的节点不报错。
-                case WanXiang.Campaign.NodeKind.Omen: return "异闻：接受一条预兆（收益配代价），或直接拒绝";
-                case WanXiang.Campaign.NodeKind.Recruit: return "招募：免费挑选异兽入队（每属性随机 2 选，可刷新）";
-                case WanXiang.Campaign.NodeKind.Relic: return "遗物：从遗物池随机 3 选 1，局内变强";
-                // ★ 越境（2026-10-18）：续劫专属 —— 直入下一幕，代价是本幕剩余节点全放弃
-                case WanXiang.Campaign.NodeKind.ActSkip:
-                    return "越境：直接进入下一幕。**放弃本幕剩余节点**（含守关首领与它的奖励）——续劫（轮回）专属";
-                default: return "遭遇：常规战斗，敌方按幕数规模成队";
-            }
+            // ★ 2026-11-08 R5-a：节点说明改为**表驱动**（labels.csv 的 node_hint 组）。
+            //   改文案 = 改 CSV；删节点 = 删 CSV 行（自动回退 default，不留 case）；
+            //   加节点 = 加一行。`Omen` 只保留兼容文案（新图已不产出该节点）。
+            return WanXiang.Battle.Core.LabelTable.Of("node_hint", kind.ToString(),
+                "遭遇：常规战斗，敌方按幕数规模成队");
         }
 
         /// <summary>五行 → 中文（用于天时标题里标注属性）。</summary>
