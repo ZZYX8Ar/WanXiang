@@ -469,4 +469,29 @@ namespace WanXiang.Battle.Core
         }
     }
 
+    /// <summary>
+    /// B3-i：首领阶段二 —— 本体生命首次跌破阈值时攻击永久提升 + 头顶提示「阶段二」（一次性）。
+    /// 由 BattlePlayback 在难度里程碑 boss_phase2 命中时挂到敌方首领身上。
+    /// </summary>
+    public sealed class BossPhase2Hook : BattleHook
+    {
+        private readonly BattleUnit _boss;
+        private readonly float _pct;       // 触发血线（0.5 = 50%）
+        private readonly float _atkBonus;  // 攻击提升（0.15 = +15%）
+        private bool _fired;
+
+        public BossPhase2Hook(BattleUnit boss, float pct, float atkBonus)
+        {
+            _boss = boss; _pct = pct; _atkBonus = atkBonus;
+        }
+
+        public override void OnTurnStart(BattleState st)
+        {
+            if (_fired || _boss == null || !_boss.IsAlive) return;
+            if ((float)_boss.Hp / System.Math.Max(1, _boss.MaxHp) > _pct) return;
+            _fired = true;
+            _boss.PermanentAttackBonus += _atkBonus;
+            BossHint.Set(st, _boss, "阶段二");   // 头顶提示（含 CaptureFrame），Core 层不打 Unity 日志
+        }
+    }
 }

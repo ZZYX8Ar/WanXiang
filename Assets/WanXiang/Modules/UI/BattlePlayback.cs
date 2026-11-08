@@ -300,6 +300,21 @@ namespace WanXiang.Modules.UI
                 }
                 if (shielded > 0)
                     UnityEngine.Debug.Log("[Battle] 难度里程碑：首领战敌方全体护盾（" + shielded + " 只 ×10% 最大生命）");
+
+            // B3-i：里程碑 boss_phase2 —— 首领本体血量 <50% 进入阶段二（攻击 +15%，一次性）
+            if (WanXiang.Run.RunSave.Current != null
+                && WanXiang.Battle.Core.DifficultyTable.HasRule(
+                    WanXiang.Run.RunSave.Current.ChallengeLevel, "boss_phase2"))
+            {
+                var foes2 = State.UnitsOf(TeamSide.Enemy);
+                for (int i = 0; foes2 != null && i < foes2.Count; i++)
+                {
+                    var f = foes2[i];
+                    if (f == null || f.Def == null) continue;
+                    if (!WanXiang.Battle.Core.BossCatalog.IsBoss(f.Def.Id)) continue;
+                    State.Hooks.Add(new WanXiang.Battle.Core.BossPhase2Hook(f, 0.5f, 0.15f));
+                }
+            }
             }
 
             // ★★ 镇守专属机制（2026-10-17）：常规战斗体现不了的打法，只在镇守战出现。
