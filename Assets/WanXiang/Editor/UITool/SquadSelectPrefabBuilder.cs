@@ -175,6 +175,19 @@ namespace WanXiang.EditorTools
             var preview = Text("Tmp_TeamPreview", bottom, font, "起手：—", 24, TextAlignmentOptions.Left, InkSoft);
             Place(preview, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(48f, 10f), new Vector2(-260f, -10f));
 
+            // B5-1：挑战分享码（WX1C-）——复制我的开局 / 导入好友的挑战
+            var copy = Button("Btn_CopyCode", bottom, font, "复制挑战", 20);
+            Place((RectTransform)copy.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(48f, 52f), new Vector2(48f, 52f));
+            ((RectTransform)copy.transform).sizeDelta = new Vector2(150f, 40f);
+            copy.GetComponent<Image>().sprite = LoadSprite("btn_secondary");
+
+            var import = Button("Btn_ImportCode", bottom, font, "导入挑战", 20);
+            Place((RectTransform)import.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(48f, 6f), new Vector2(48f, 6f));
+            ((RectTransform)import.transform).sizeDelta = new Vector2(150f, 40f);
+            import.GetComponent<Image>().sprite = LoadSprite("btn_secondary");
+
             var start = Button("Btn_Start", bottom, font, "开始远征", 30);
             Place((RectTransform)start.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
                 new Vector2(-140f, 0f), new Vector2(-140f, 0f));

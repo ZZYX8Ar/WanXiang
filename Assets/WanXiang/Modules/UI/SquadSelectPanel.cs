@@ -46,6 +46,11 @@ namespace WanXiang.Modules.UI
         {
             WanXiang.Modules.UI.DataTables.EnsureInstalled();   // 幂等：直接从主界面打开也不会空表
             _onStart = payload as System.Action;
+            // B5-1：挑战分享码（按钮由 builder 增量生成，缺失则跳过）
+            var bCopy = transform.Find("Root_Bottom/Btn_CopyCode");
+            if (bCopy != null) { var bb = bCopy.GetComponent<Button>(); if (bb != null) bb.onClick.AddListener(OnCopyChallenge); }
+            var bImp = transform.Find("Root_Bottom/Btn_ImportCode");
+            if (bImp != null) { var bi = bImp.GetComponent<Button>(); if (bi != null) bi.onClick.AddListener(OnImportChallenge); }
             Bind();
             BuildDifficulty();
             BuildList();
@@ -208,6 +213,46 @@ namespace WanXiang.Modules.UI
                 string relic = string.IsNullOrEmpty(d.Relic) ? "无" : d.Relic;
                 _tmpPreview.text = "起手：" + StarterText(d) + "　灵卵 " + d.Eggs + "　遗物 " + relic;
             }
+        }
+
+        /// <summary>B5-1：把当前选中的分队+难度编成 WX1C- 挑战码进剪贴板。</summary>
+        private void OnCopyChallenge()
+        {
+            if (_selected < 0)
+            {
+                if (_tmpPreview != null) _tmpPreview.text = "先选一个分队，再复制挑战";
+                return;
+            }
+            string code = WanXiang.Battle.Core.ChallengeCode.Encode(_squads[_selected].Id, _level);
+            if (string.IsNullOrEmpty(code)) return;
+            GUIUtility.systemCopyBuffer = code;
+            if (_tmpPreview != null) _tmpPreview.text = "挑战码已复制：" + code;
+            Debug.Log("[SquadSelect] 挑战码已复制：" + code);
+        }
+
+        /// <summary>B5-1：从剪贴板读 WX1C- 挑战码，预填分队与难度。</summary>
+        private void OnImportChallenge()
+        {
+            string code = GUIUtility.systemCopyBuffer;
+            if (string.IsNullOrEmpty(code))
+            {
+                if (_tmpPreview != null) _tmpPreview.text = "剪贴板是空的——先复制一条挑战码。";
+                return;
+            }
+            string sid; int lv;
+            if (!WanXiang.Battle.Core.ChallengeCode.TryDecode(code, out sid, out lv))
+            {
+                if (_tmpPreview != null) _tmpPreview.text = "挑战码无效（格式不对或难度超出范围）。";
+                return;
+            }
+            WanXiang.Modules.UI.SquadSelectPanel.PendingSquadId = sid;
+            WanXiang.Modules.UI.SquadSelectPanel.PendingDifficulty = lv;
+            _level = lv;
+            BuildDifficulty();
+            int idx = _squads.FindIndex(x => x.Id == sid);
+            if (idx >= 0) Select(idx);   // 列表选中 + 预览刷新
+            if (_tmpPreview != null) _tmpPreview.text = "已导入好友挑战：" + sid + " · N" + lv;
+            Debug.Log("[SquadSelect] 挑战码导入：" + code + " → " + sid + " N" + lv);
         }
 
         private void StartRun()

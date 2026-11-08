@@ -35,6 +35,7 @@ namespace WanXiang.EditorTools
                     "Scroll_Grid/Viewport/Content/Row_Squad_Template",
                     "Scroll_Grid/Viewport/Content/Tmp_Empty",
                     "Root_Bottom/Tmp_TeamPreview", "Root_Bottom/Btn_Start",
+                    "Root_Bottom/Btn_CopyCode", "Root_Bottom/Btn_ImportCode",   // B5-1 挑战分享码
                 }),
             ["Assets/Resources/UI/Panel_DaoMark.prefab"] = (
                 "WanXiang.Modules.UI.DaoMarkPanel",
