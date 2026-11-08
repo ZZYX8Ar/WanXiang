@@ -76,6 +76,11 @@ namespace WanXiang.Battle.Core
         /// ⚠ 回合开始由 BoardRules 重置为 0，再按规则赋值 —— 不能累加，否则会越叠越高。
         /// </summary>
         public float TempStatPct;
+        /// <summary>
+        /// B1：**每回合重置**的临时闪避率（0~1）。由性情/天性通道赋值，回合开始清零。
+        /// 与 TempStatPct 同一套"临时"语义；判定在 DealDamage 开头（仅 &gt;0 时才消费随机数）。
+        /// </summary>
+        public float TempEvasion;
 
         public int Shield { get; private set; }
         /// <summary>护盾是**第几回合**获得的（用户 2026-10-13：护盾改为一个回合后自动消失）。

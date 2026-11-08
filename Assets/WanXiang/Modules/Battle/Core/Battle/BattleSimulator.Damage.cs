@@ -238,11 +238,34 @@ namespace WanXiang.Battle.Core
                 }
             }
         }
+        /// <summary>
+        /// B1：闪避判定。命中则记一条 Evade 事件并让本次伤害完全无效（含真伤）。
+        /// 上限 35%（防无敌）；<paramref name="dst"/>.TempEvasion 由回合开始的规则赋值。
+        /// </summary>
+        private static bool TryEvade(BattleState st, BattleUnit src, BattleUnit dst, SkillDef skill)
+        {
+            if (st == null || dst == null) return false;
+            float ev = dst.TempEvasion;
+            if (ev <= 0f) return false;                                   // 不闪 ⇒ 不消费随机数
+            if (ev > MaxEvasion) ev = MaxEvasion;
+            if (!st.Random.Chance(ev)) return false;
+            st.Log.Add(st.Turn, BattleEventKind.Evade, actorId: dst.RuntimeId, targetId: src != null ? src.RuntimeId : null,
+                       skillName: skill != null ? skill.Name : null, note: "闪避");
+            return true;
+        }
+
+        /// <summary>闪避硬上限（防 100% 无敌）。</summary>
+        public const float MaxEvasion = 0.35f;
+
         /// <summary>一段伤害的完整结算。多段技能每段独立判定暴击（GDD 未写，取独立）。</summary>
         private static void DealDamage(BattleState st, BattleUnit src, SkillDef skill,
                                        in EffectAtom atom, Element el, BattleUnit dst)
         {
             if (!dst.IsAlive) return;
+
+            // B1：闪避（每回合重置的 TempEvasion）。⚠ 只有 >0 才消费随机数，
+            //   普通单位（TempEvasion=0）随机序列与重构前完全一致。
+            if (TryEvade(st, src, dst, skill)) return;
 
             // B1：天性「全队暴击」按阵营加成；无表时为 0，Chance 调用次数不变 ⇒ 指纹不变。
             bool crit = st.Random.Chance(src.Def.CritRate

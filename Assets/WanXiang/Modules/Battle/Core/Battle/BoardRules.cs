@@ -148,6 +148,10 @@ namespace WanXiang.Battle.Core
                     var u = slots[i];
                     if (u == null) continue;
                     u.TempStatPct = 0f;                                   // 每回合清零
+                    u.TempEvasion = 0f;
+                    // 天性「善走」：与同伴相邻时闪避 +X（走通道，删 CSV 行自动失效）
+                    float dodge = TraitRuntime.BonusFor(u, TraitChannels.DodgeAdjacentFoe);
+                    if (dodge > 0f && HasAdjacentAlly(slots, i)) u.TempEvasion = dodge;
                     float up = TemperamentTable.BonusFor(u, TraitChannels.AdjacentPower);
                     if (up == 0f) continue;
                     float down = TemperamentTable.Bonus2For(u, TraitChannels.AdjacentPower);

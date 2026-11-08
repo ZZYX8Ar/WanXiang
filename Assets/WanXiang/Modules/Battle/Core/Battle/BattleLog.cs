@@ -70,6 +70,9 @@ namespace WanXiang.Battle.Core
         PlayerPhaseStart = 21,
         /// <summary>阶段制：敌方阶段开始 —— 敌方按速度依次行动（此前我方已全部行动完毕）。</summary>
         EnemyPhaseStart = 22,
+
+        /// <summary>B1：闪避成功（本次伤害完全无效）。表现层可据此飘「闪避」。</summary>
+        Evade = 23,
     }
 
     /// <summary>
