@@ -361,7 +361,9 @@ namespace WanXiang.Battle.Presentation
             if (OverlayMats.TryGetValue(d.Id, out m) && m != null) return m;
             var sh = OverlayShader();
             if (sh == null) return null;
-            m = new Material(sh);
+            m = StageMaterialFactory.Create(StageMaterialKind.StatusOverlay,
+                new StageMaterialContext { Shader = sh });
+            if (m == null) return null;
             m.SetColor("_Tint", Color.white);
             m.SetFloat("_WaveAmp", d.WaveAmp);
             m.SetFloat("_WaveFreq", d.WaveFreq);
@@ -1205,11 +1207,9 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     var awSh = Shader.Find("WanXiang/AwakenSprite");
                     if (awSh != null)
                     {
-                        var am = new Material(awSh) { hideFlags = HideFlags.HideAndDontSave };
-                        am.SetFloat("_Amount", 1f);
-                        am.SetFloat("_Rim", 0.004f);
-                        am.SetFloat("_Inner", 0.22f);
-                        bodySr.sharedMaterial = am;
+                        var am = StageMaterialFactory.Create(StageMaterialKind.Awaken,
+                            new StageMaterialContext { Shader = awSh });
+                        if (am != null) bodySr.sharedMaterial = am;
                     }
                 }
 
@@ -1223,18 +1223,13 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     var corruptSh = Shader.Find("WanXiang/CorruptSprite");
                     if (corruptSh != null)
                     {
-                        var cm = new Material(corruptSh) { hideFlags = HideFlags.HideAndDontSave };
-                        cm.SetFloat("_Amount", 0.85f);
-                        cm.SetFloat("_Dirt", 0.45f);
-                        cm.SetFloat("_Pulse", 0.35f);
-                        // ★ 裂纹随机化：每只敌人风格/密度/宽度/种子都不同，避免"一眼同款"
-                        bool mainStyle = UnityEngine.Random.value < 0.5f;
-                        cm.SetFloat("_Style", mainStyle ? 1f : 0f);
-                        cm.SetFloat("_CrackScale", UnityEngine.Random.Range(3.2f, 5.2f));
-                        cm.SetFloat("_CrackWidth", UnityEngine.Random.Range(0.12f, 0.20f));
-                        cm.SetFloat("_Seed", UnityEngine.Random.Range(0f, 10f));
-                        bodySr.sharedMaterial = cm;
-                        view.CorruptMat = cm;
+                        var cm = StageMaterialFactory.Create(StageMaterialKind.Corrupt,
+                            new StageMaterialContext { Shader = corruptSh });
+                        if (cm != null)
+                        {
+                            bodySr.sharedMaterial = cm;
+                            view.CorruptMat = cm;
+                        }
                     }
                 }
 
@@ -1396,13 +1391,17 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                         worldWA * 1.55f / Mathf.Max(0.0001f, auraHex.bounds.size.x * Mathf.Abs(lsA.x)),
                         worldWA * 0.95f / Mathf.Max(0.0001f, auraHex.bounds.size.y * Mathf.Abs(lsA.y)), 1f);
 
-                    var amat = new Material(auraSh2);
-                    if (auraNoise != null) amat.SetTexture("_NoiseTex", auraNoise.texture);
-                    amat.SetFloat("_Speed", 0.8f);
-                    asr.material = amat;
-                    ag.SetActive(false);
-                    view.AuraDot = asr;
-                    view.AuraMat = amat;
+                    var amat = StageMaterialFactory.Create(StageMaterialKind.Aura,
+                        new StageMaterialContext {
+                            Shader = auraSh2,
+                            NoiseTexture = auraNoise != null ? auraNoise.texture : null });
+                    if (amat != null)
+                    {
+                        asr.material = amat;
+                        ag.SetActive(false);
+                        view.AuraDot = asr;
+                        view.AuraMat = amat;
+                    }
                 }
 
                 // 4 段小圈：只负责"几层"（亮段数），放在血条右侧，尺寸固定 0.22 世界单位
@@ -2172,13 +2171,16 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     worldW * 1.5f / Mathf.Max(0.0001f, sp.bounds.size.x * Mathf.Abs(pLossy.x)),
                     worldW * 0.75f / Mathf.Max(0.0001f, sp.bounds.size.y * Mathf.Abs(pLossy.y)), 1f);
 
-                var mat = new Material(sh);
-                if (noise != null) mat.SetTexture("_NoiseTex", noise.texture);
-                mat.SetFloat("_Speed", 1.0f);
-                sr.material = mat;
-
-                v.StatusAura = sr;
-                v.StatusAuraMat = mat;
+                var mat = StageMaterialFactory.Create(StageMaterialKind.StatusAura,
+                    new StageMaterialContext {
+                        Shader = sh,
+                        NoiseTexture = noise != null ? noise.texture : null });
+                if (mat != null)
+                {
+                    sr.material = mat;
+                    v.StatusAura = sr;
+                    v.StatusAuraMat = mat;
+                }
             }
 
             // 颜色 / 强度（层数越高越亮）
@@ -3633,16 +3635,17 @@ if (life < 0.2f) life = 0.2f;
                 if (!_dissolveWarned) { _dissolveWarned = true; Debug.LogWarning("[Stage2D] 墨蚀溶解不可用（shader 缺失/不支持），退回淡出"); }
                 return false;
             }
-            var mat = new Material(sh);
-            if (v.Body.sprite != null) mat.SetTexture("_MainTex", v.Body.sprite.texture);
             var noise = Resources.Load<Sprite>("Battle/FX_motion_fog");
-            if (noise != null) mat.SetTexture("_NoiseTex", noise.texture);
-            mat.SetFloat("_NoiseScale", 3.5f);
-            mat.SetFloat("_EdgeWidth", 0.10f);
-            mat.SetFloat("_EdgeStrength", 0.55f);
-            mat.SetFloat("_Invert", 1f);
-            mat.SetColor("_EdgeColor", new Color(0.10f, 0.09f, 0.08f, 1f));
-            mat.SetFloat("_Progress", 0f);
+            var mat = StageMaterialFactory.Create(StageMaterialKind.InkDissolve,
+                new StageMaterialContext {
+                    Shader = sh,
+                    MainTexture = v.Body.sprite != null ? v.Body.sprite.texture : null,
+                    NoiseTexture = noise != null ? noise.texture : null });
+            if (mat == null)
+            {
+                if (!_dissolveWarned) { _dissolveWarned = true; Debug.LogWarning("[Stage2D] 墨蚀溶解材质创建失败，退回淡出"); }
+                return false;
+            }
 
             if (v.BodyMaterial == null) v.BodyMaterial = v.Body.sharedMaterial;
             v.Body.material = mat;
