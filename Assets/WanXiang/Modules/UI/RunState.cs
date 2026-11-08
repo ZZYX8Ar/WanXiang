@@ -43,6 +43,27 @@ namespace WanXiang.Run
         ///   前者是"玩家选的关卡难度"，后者是"幕数自带的强度系数"，战斗请求两者都要乘。</summary>
         public int ChallengeLevel = 1;
 
+        [SerializeField] private float eggRemainder;   // B3-d：灵卵小数余额（老档默认 0）
+
+        /// <summary>
+        /// B3-d：**奖励性**灵卵统一入口 —— 乘「挑战难度」egg_mul（0.99~0.85）。
+        /// 小数余额累计到下一次凑整（N18 ×0.85 → 2 卵收 1.7，不被四舍五入吞掉）。
+        /// ⚠ 只用于奖励（节点/休整/事件/灵泉/修行）；花费与返还不走这里。
+        /// </summary>
+        public void AddRewardEggs(int baseEggs)
+        {
+            float mul = 1f;
+            if (ChallengeLevel > 1)
+            {
+                var drow = WanXiang.Battle.Core.DifficultyTable.Row(ChallengeLevel);
+                if (drow != null && drow.EggMul > 0f) mul = drow.EggMul;
+            }
+            float v = baseEggs * mul + eggRemainder;
+            int whole = (int)v;
+            eggRemainder = v - whole;
+            Eggs += whole;
+        }
+
         // ---- 2026-11-01 局内养成：共享主等级（设计稿 v3 §6.1）----
         /// <summary>主等级：战斗获得经验，<b>上阵 5 人共享</b>；只加基础攻击/生命。</summary>
         public int PlayerLevel = 1;

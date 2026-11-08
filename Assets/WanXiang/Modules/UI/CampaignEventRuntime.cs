@@ -33,7 +33,7 @@ namespace WanXiang.Modules.UI
                 }
 
                 case EventEffect.GainEggs:
-                    run.Eggs += c.Value;
+                    run.AddRewardEggs(c.Value);   // B3-d：事件灵卵奖励走难度 egg_mul
                     return "+" + c.Value + " 灵卵";
 
                 case EventEffect.HealTeamPct:

@@ -3117,7 +3117,7 @@ if (_tmpActTitle != null)
                 "饮泉（本局全属性永久 +5%）", "汲水（灵卵 +3）");
             if (pick < 0) return;
             if (pick == 0) { run.GrowthPct += 5; Debug.Log("[Campaign] 灵泉：永久成长 +5%（累计 " + run.GrowthPct + "%）"); }
-            else { run.Eggs += 3; }
+            else { run.AddRewardEggs(3); }   // B3-d：灵泉汲水走难度 egg_mul
             WanXiang.Run.RunSave.SaveCurrent();
         }
 
@@ -3131,7 +3131,7 @@ if (_tmpActTitle != null)
                 "磨砺剑心（本局全属性永久 +8%）", "敛财（灵卵 +4）");
             if (pick < 0) return;
             if (pick == 0) { run.GrowthPct += 8; Debug.Log("[Campaign] 修行：永久成长 +8%（累计 " + run.GrowthPct + "%）"); }
-            else { run.Eggs += 4; }
+            else { run.AddRewardEggs(4); }   // B3-d：修行敛财走难度 egg_mul
             WanXiang.Run.RunSave.SaveCurrent();
         }
 
