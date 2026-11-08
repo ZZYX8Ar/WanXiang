@@ -194,8 +194,18 @@ _*备份*/
 /Assets/Resources/Audio/BGM/bgm_km_*.mp3
 /Assets/Resources/Audio/BGM/bgm_km_*.mp3.meta
 
+# 50 首异兽主题曲（AI 生成，合计约 303MB；源文件在仓库外 _归档_设计文档，
+# 用 _backups/_install_beast_bgm.py 复现）。id = beast_<BeastDef.Id>。
+# ⚠ .meta 一并忽略：这些曲子只按 id 由 AudioSystem.PlayMusic 动态加载，没有任何
+#   prefab / asset 引用它们的 GUID，clone 后让 Unity 自行生成 meta 是安全的。
+/Assets/Resources/Audio/BGM/beast_*.mp3
+/Assets/Resources/Audio/BGM/beast_*.mp3.meta
+
 # 动态立绘视频（大文件不入库，本地保留）
+# ⚠ 同样忽略 .meta：视频走 StreamingAssets 的 file:// URL 播放，prefab 只持有
+#   VideoPlayer 组件、不引用 mp4 资产的 GUID，GUID 变化无影响。
 Assets/StreamingAssets/LivePortraits/*.mp4
+Assets/StreamingAssets/LivePortraits/*.mp4.meta
 
 # 编辑器临时截图（验收用，不入库）
 Assets/Screenshots/
