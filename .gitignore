@@ -209,3 +209,15 @@ Assets/StreamingAssets/LivePortraits/*.mp4.meta
 
 # 编辑器临时截图（验收用，不入库）
 Assets/Screenshots/
+
+# ============================================================
+# 音频大资产不入主仓库（用户 2026-11-08 规范）
+#   已跟踪的 119 个音频（BGM 7 + SFX 112，547MB）已 git rm --cached 迁出，
+#   本地文件保留、运行不受影响。独立音频仓库 + 安装脚本另行管理。
+# ============================================================
+/Assets/Resources/Audio/**/*.mp3
+/Assets/Resources/Audio/**/*.ogg
+/Assets/Resources/Audio/**/*.wav
+/Assets/Resources/Audio/**/*.mp3.meta
+/Assets/Resources/Audio/**/*.ogg.meta
+/Assets/Resources/Audio/**/*.wav.meta
