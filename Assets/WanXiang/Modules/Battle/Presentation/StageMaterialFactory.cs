@@ -60,6 +60,21 @@ namespace WanXiang.Battle.Presentation
 
         public static void Clear() => _builders.Clear();
 
+        // ---- 程序化 sprite（与材质同属"舞台视觉资产"，收在这里便于复用）----
+        private static Sprite _solid;
+
+        /// <summary>白色实心方块（QTE 提示条底衬 / 判定横幅底衬共用，带缓存）。</summary>
+        public static Sprite Solid(int size)
+        {
+            if (_solid != null) return _solid;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var px = new Color[size * size];
+            for (int i = 0; i < px.Length; i++) px[i] = Color.white;
+            tex.SetPixels(px); tex.Apply();
+            _solid = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+            return _solid;
+        }
+
         static StageMaterialFactory() { ResetToDefaults(); }
 
         /// <summary>内置默认：参数与重构前 BattleStage2D 中的写法逐项一致。</summary>
