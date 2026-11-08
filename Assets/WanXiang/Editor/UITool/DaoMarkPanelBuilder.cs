@@ -162,6 +162,12 @@ namespace WanXiang.EditorTools
             ((RectTransform)copy.transform).sizeDelta = new Vector2(150f, 56f);
             copy.GetComponent<Image>().sprite = LoadSprite("btn_secondary");
 
+            var imp = Button("Btn_Import", share, font, "从剪贴板导入", 22);
+            Place((RectTransform)imp.transform, new Vector2(1f, 0f), new Vector2(1f, 0f),
+                new Vector2(-90f, 12f), new Vector2(-90f, 12f));
+            ((RectTransform)imp.transform).sizeDelta = new Vector2(190f, 52f);
+            imp.GetComponent<Image>().sprite = LoadSprite("btn_secondary");
+
             // ---------------- 存 prefab ----------------
             Directory.CreateDirectory(Path.GetDirectoryName(PrefabPath));
             PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);

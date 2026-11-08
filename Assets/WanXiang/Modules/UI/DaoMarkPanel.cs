@@ -62,6 +62,7 @@ namespace WanXiang.Modules.UI
             Hook("Root_TopBar/Btn_Close", CloseSelf);
             if (_btnEquip != null) _btnEquip.onClick.AddListener(OnEquipClicked);
             if (_btnCopy != null) _btnCopy.onClick.AddListener(OnCopyClicked);
+            Hook("Root_Share/Btn_Import", OnImportClicked);
         }
 
         private T Find<T>(string path) where T : Component
@@ -182,6 +183,26 @@ namespace WanXiang.Modules.UI
             }
             UpdateEquippedSlots();
             Select(_selected);      // 刷新按钮文案
+        }
+
+        /// <summary>S3：从剪贴板读取分享码导入（避免 prefab 里再摆 TMP_InputField）。</summary>
+        private void OnImportClicked()
+        {
+            string code = GUIUtility.systemCopyBuffer;
+            if (string.IsNullOrEmpty(code))
+            {
+                if (_tmpDetailDesc != null) _tmpDetailDesc.text = "剪贴板是空的——先复制一条分享码。";
+                return;
+            }
+            int n = DaoMarkPrefs.ImportCode(code);
+            if (n < 0)
+            {
+                if (_tmpDetailDesc != null) _tmpDetailDesc.text = "代码无效（格式不对或包含未知道痕）。";
+                return;
+            }
+            if (_tmpDetailDesc != null) _tmpDetailDesc.text = "导入成功：" + n + " 条（重复的取最高星）。";
+            Debug.Log("[DaoMark] 导入 " + n + " 条道痕：" + code);
+            Refresh();
         }
 
         private void OnCopyClicked()
