@@ -2,7 +2,7 @@ id,name,element,role,rarity,tier_score,temperament,hp,atk,def,spd,trait_id,trait
 jumang,句芒,Wood,Support,Legend,6,Kind,900,210,110,100,t_chunsheng,AdjacentMpBonus,mp_regen,春生,1,0,万木朝春
 jiuweihu,九尾狐,Wood,Striker,Legend,5,Cunning,780,300,80,105,t_meiying,RageDownOnCrit,rage_down_on_crit,媚影,20,0,九尾焚心
 guanguan,灌灌,Wood,Support,Epic,4,Kind,900,210,110,100,t_mingchun,CritRateTeam,crit_rate,鸣春,0.08,0,百鸟鸣春
-migu,迷榖,Wood,Guard,Epic,4,Calm,1100,180,150,80,t_muzhang,ShieldOnHurt,shield_on_hurt,木障,0.25,1,藤甲蔽日
+migu,迷榖,Wood,Guard,Epic,4,Calm,1100,180,150,80,t_muzhang,ShieldOnHurt,shield_on_hurt,木障,0.08,0.25,藤甲蔽日
 lushu,鹿蜀,Wood,Support,Rare,2,Kind,900,210,110,100,t_xingge,AdjacentMpBonus,mp_regen,行歌,0.5,0,呦呦鹿鸣
 xingxing,狌狌,Wood,Swift,Epic,4,Cunning,800,250,90,130,t_shanzou,DodgeWhenAdjacentFoe,dodge_adjacent_foe,善走,0.1,0,援木而击
 mengji,孟极,Wood,Swift,Rare,2,Aloof,800,250,90,130,t_qianxing,ExecuteLowHp,execute_damage,潜形,0.2,0,潜形一击

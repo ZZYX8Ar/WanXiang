@@ -11,6 +11,28 @@ namespace WanXiang.Battle.Core
     public static partial class BattleSimulator
     {
 
+        /// <summary>
+        /// B1：天性「受伤护盾」。
+        /// 数值口径：<c>Trait.Value</c> = 护盾量（占最大生命比例）；
+        ///           <c>Trait.Value2</c> = 触发阈值（单次伤害占最大生命比例，默认 0.25）。
+        /// 走 <see cref="TraitChannels.ShieldOnHurt"/> 通道 ⇒ 删 CSV 行即自动失效。
+        /// </summary>
+        public static void ApplyHurtShield(BattleState st, BattleUnit dst, int dealt)
+        {
+            if (st == null || dst == null || dst.Def == null || dealt <= 0) return;
+            float shieldRatio = TraitRuntime.BonusFor(dst, TraitChannels.ShieldOnHurt);
+            if (shieldRatio <= 0f) return;
+            if (dst.LastHurtShieldTurn == st.Turn) return;                    // 每回合 1 次
+            float threshold = dst.Def.Trait.Value2 > 0.001f ? dst.Def.Trait.Value2 : 0.25f;
+            if (dealt < CoreMath.RoundDamage(dst.MaxHp * threshold)) return;  // 未达阈值不触发
+            int amount = CoreMath.RoundDamage(dst.MaxHp * shieldRatio);
+            int got = dst.AddShield(amount, 1);
+            if (got <= 0) return;
+            dst.LastHurtShieldTurn = st.Turn;
+            st.Log.Add(st.Turn, BattleEventKind.Shield, actorId: dst.RuntimeId, targetId: dst.RuntimeId,
+                       amount: got, element: dst.Element, note: "天性·护盾");
+        }
+
         // ================================================================
         //  原子效果结算
         // ================================================================
@@ -265,6 +287,9 @@ namespace WanXiang.Battle.Core
             // B1：性情「刚烈」受击额外 +5 元气（更早出奥义）。
             dst.AddRage(st.Config.RageWhenHit
                 + TemperamentTable.BonusFor(dst, TraitChannels.RageOnHit));
+            // B1：天性「受伤护盾」——单次受伤达到阈值时给自身一层护盾（每回合 1 次）。
+            ApplyHurtShield(st, dst, dealt);
+
             // B1：天性「媚影」——暴击时削目标怒气（按攻击方阵营求和，无表为 0）。
             if (crit)
             {

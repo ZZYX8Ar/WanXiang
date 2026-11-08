@@ -68,6 +68,8 @@ namespace WanXiang.Battle.Core
         public int AuraStacks;
         /// <summary>B1：天性「灼烧上限」带来的附着层数上限加成（默认 0 ⇒ 旧行为不变）。</summary>
         public int AuraCapBonus;
+        /// <summary>B1：天性「受伤护盾」最近触发的回合（每回合最多 1 次）。-1 = 从未触发。</summary>
+        public int LastHurtShieldTurn = -1;
 
         public int Shield { get; private set; }
         /// <summary>护盾是**第几回合**获得的（用户 2026-10-13：护盾改为一个回合后自动消失）。
