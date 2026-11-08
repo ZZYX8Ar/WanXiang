@@ -21,12 +21,12 @@ namespace WanXiang.Battle.Core
             var buf = new Buffers();
             var total = new BoardRoundReport();
 
-            st.Log.Add(0, BattleEventKind.BattleStart, note: $"种子 {st.Random.Seed}｜回合上限 {cfg.MaxTurns}");
+            st.Log.Add(0, BattleEventKind.BattleStart, note: $"种子 {st.Random.Seed}｜回合上限 {st.EffectiveMaxTurns}");
             BoardRules.ApplyResonance(st);
             PassiveHooks.ApplyBattleStart(st);   // v2.1 P3b：开场被动（攻击加成 / 开场回复）
             BattleHooks.RunStart(st);            // 首领战：开场机制（免疫克制 / 双子部署等）// 开局先算一次，让"上阵即共鸣"在第一回合就成立
 
-            int limit = CoreMath.Max(1, cfg.MaxTurns);
+            int limit = CoreMath.Max(1, st.EffectiveMaxTurns);   // B3-g：难度里程碑可减回合
             int turn = 1;
             for (; turn <= limit; turn++)
             {

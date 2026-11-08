@@ -435,7 +435,7 @@ namespace WanXiang.Modules.UI
         {
             var st = _play != null ? _play.State : null;
             if (st == null) return;
-            int max = st.Config != null ? st.Config.MaxTurns : 48;
+            int max = st.EffectiveMaxTurns;   // B3-g：含难度里程碑覆盖
             _roundLabel = "第 " + st.Turn + "/" + max + " 回合" + (string.IsNullOrEmpty(side) ? "" : " · " + side);
             if (_tmpRound != null && _tmpRound.text != _roundLabel) _tmpRound.text = _roundLabel;
         }

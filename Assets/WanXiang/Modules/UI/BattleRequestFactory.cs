@@ -384,6 +384,9 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                 var drow = WanXiang.Battle.Core.DifficultyTable.Row(run.ChallengeLevel);
                 if (drow != null) diffMul = drow.HpMul;
             }
+            // B3-g：里程碑 ai_aggressive —— 敌方 AI 资源优先兑现（覆盖遭遇默认档）
+            if (run != null && WanXiang.Battle.Core.DifficultyTable.HasRule(run.ChallengeLevel, "ai_aggressive"))
+                req.AiProfile = WanXiang.Battle.Core.AiProfile.Aggressive;
             float enemyMul = ascMul * realmScale * diffMul;
             if (diffMul != 1f)
                 UnityEngine.Debug.Log("[BattleRequestFactory] 挑战难度 N" + run.ChallengeLevel +

@@ -273,6 +273,15 @@ namespace WanXiang.Modules.UI
                 UnityEngine.Debug.Log("[Battle] 道痕生效：" + equippedMarks.Count + " 条（通道加成已写入本局）");
             }
 
+            // B3-g：里程碑 turns_minus6 —— 回合上限 −6（难度越高节奏越紧）
+            if (WanXiang.Run.RunSave.Current != null
+                && WanXiang.Battle.Core.DifficultyTable.HasRule(
+                    WanXiang.Run.RunSave.Current.ChallengeLevel, "turns_minus6"))
+            {
+                State.MaxTurnsOverride = State.Config.MaxTurns - 6;
+                UnityEngine.Debug.Log("[Battle] 难度里程碑：回合上限 −6（=" + State.EffectiveMaxTurns + "）");
+            }
+
             // ★★ 镇守专属机制（2026-10-17）：常规战斗体现不了的打法，只在镇守战出现。
             //   ⚠ 在 Create 之后挂 —— 与 BossCatalog.AttachAllBossHooks 同一时机。
             if (!string.IsNullOrEmpty(req.RealmChampionHookId))

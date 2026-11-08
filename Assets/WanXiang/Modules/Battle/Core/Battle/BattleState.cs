@@ -149,6 +149,11 @@ namespace WanXiang.Battle.Core
         private readonly System.Collections.Generic.Dictionary<string, float> _daoBonuses =
             new System.Collections.Generic.Dictionary<string, float>();
 
+        /// <summary>B3-g：回合上限覆盖（-1 = 用 Config.MaxTurns）。难度「疾风改」等里程碑用。</summary>
+        public int MaxTurnsOverride = -1;
+
+        public int EffectiveMaxTurns => MaxTurnsOverride > 0 ? MaxTurnsOverride : Config.MaxTurns;
+
         public void SetDaoBonus(string channel, float value)
         {
             if (string.IsNullOrEmpty(channel)) return;
@@ -646,7 +651,7 @@ namespace WanXiang.Battle.Core
         public string Describe()
         {
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"回合 {Turn} / 上限 {Config.MaxTurns}　随机种子 {Random.Seed}");
+            sb.AppendLine($"回合 {Turn} / 上限 {EffectiveMaxTurns}　随机种子 {Random.Seed}");
             sb.Append(DescribeBoard(TeamSide.Player));
             sb.Append(DescribeBoard(TeamSide.Enemy));
             return sb.ToString();
