@@ -456,10 +456,8 @@ namespace WanXiang.Battle.Presentation
 
         private BattleState _state;
         private readonly Dictionary<string, UnitView2D> _views = new Dictionary<string, UnitView2D>(16);
-        private readonly List<GameObject> _tempTexts = new List<GameObject>(16);
-        private readonly List<float> _tempLife = new List<float>(16);
-        private readonly List<float> _tempBaseScale = new List<float>(16);   // 每个飘字的基准缩放（暴击更大）
-        private readonly List<float> _tempLifeMax = new List<float>(16);     // 每个飘字的**总寿命**（0.7f 是伤害数字的基准；判定飘字更长）
+        /// <summary>R4：飘字生命周期池（原来 4 个并行 List 靠下标对齐，易错位）。</summary>
+        private readonly FloatingTextPool _floaters = new FloatingTextPool();
         // ---- 判定横幅（2026-10-16，用户："判断成功和失败、加强和减弱能在醒目一点吗，
         //   还是说是太快了，导致看的不是很清楚"）——
         //   之前只有头顶一个小飘字（0.7s 寿命、characterSize 0.13），在棋盘上又小又短，
@@ -1070,10 +1068,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             for (int i = transform.childCount - 1; i >= 0; i--)
                 DestroyImmediate(transform.GetChild(i).gameObject);
             _views.Clear();
-            _tempTexts.Clear();
-            _tempLife.Clear();
-            _tempBaseScale.Clear();
-      _tempLifeMax.Clear();
+            _floaters.Clear();
         _verdict = null; _verdictMr = null; _verdictBg = null;
       _verdictActive = false; _verdictT = 0f; _verdictAlpha = 0f;
     _pendingDmg.Clear();
@@ -2920,44 +2915,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             //   读起来就是"又小又快、几乎看不见"。飘字是读数信息，应按真实时间走。
             float numDt = fxDt > 0f ? Mathf.Min(fxDt, dt > 0f ? dt * 4f : fxDt) : dt;
             if (numDt < 0.0001f) numDt = dt;
-            for (int i = _tempTexts.Count - 1; i >= 0; i--)
-            {
-                _tempLife[i] -= numDt;
-       var go = _tempTexts[i];
-         float lifeMax = i < _tempLifeMax.Count && _tempLifeMax[i] > 0.01f ? _tempLifeMax[i] : 0.7f;
-       if (go != null)
-            {
-          go.transform.localPosition += new Vector3(0f, numDt * 0.9f, 0f);
-            // 弹出：起手 1.5× 快速回落（easeOutBack 手感），暴击基准更大
-      float age = lifeMax - _tempLife[i];
-                    float pop = 1f;
-                    if (age < 0.18f)
-                    {
-                        float k = age / 0.18f;
-                        float c1 = 1.70158f, c3 = c1 + 1f;
-                        float e = 1f + c3 * (k - 1f) * (k - 1f) * (k - 1f) + c1 * (k - 1f) * (k - 1f);
-                        pop = Mathf.Lerp(1.5f, 1f, Mathf.Clamp01(e));
-                    }
-                    float bs = i < _tempBaseScale.Count ? _tempBaseScale[i] : 1f;
-                    go.transform.localScale = Vector3.one * (bs * pop);
-                    var tm = go.GetComponent<TextMesh>();
-                    if (tm != null)
-                    {
-                        var c = tm.color;
-                        tm.color = new Color(c.r, c.g, c.b, Mathf.Clamp01(_tempLife[i] / lifeMax));
-                    }
-                }
-                if (_tempLife[i] <= 0f)
-                {
-                    // ⚠⚠ 这里在 Step(dt) 里，是**每帧路径** —— 原来用 DestroyImmediate
-                    //   （强制同步销毁，Unity 运行时明令禁用）， 战斗越久触发次数越多、越来越卡，
-                    //   最后卡死（用户实测"战斗久一点就卡死"）。必须用 Destroy（延迟销毁）。
-                    if (go != null) Destroy(go);
-                    _tempTexts.RemoveAt(i); _tempLife.RemoveAt(i);
-                    if (i < _tempBaseScale.Count) _tempBaseScale.RemoveAt(i);
-      if (i < _tempLifeMax.Count) _tempLifeMax.RemoveAt(i);
-                }
-            }
+            _floaters.Step(numDt);
         }
 
         // ================================================================
@@ -3314,19 +3272,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             tm.alignment = TextAlignment.Center;
             tm.color = color;
 if (life < 0.2f) life = 0.2f;
-    _tempTexts.Add(go);
-  _tempLife.Add(life);
-            _tempLifeMax.Add(life);
-        _tempBaseScale.Add(baseScale);
-            // ⚠ 运行时不能用 DestroyImmediate（强制同步销毁，长战斗里反复触发会卡）；
-            //   改用 Destroy 并把上限放宽到 24，给延迟销毁留出缓冲。
-        while (_tempTexts.Count > 24)
-     {
-         if (_tempTexts[0] != null) Destroy(_tempTexts[0]);
-  _tempTexts.RemoveAt(0); _tempLife.RemoveAt(0);
-        if (_tempBaseScale.Count > 0) _tempBaseScale.RemoveAt(0);
-        if (_tempLifeMax.Count > 0) _tempLifeMax.RemoveAt(0);
-        }
+            _floaters.Add(go, life, baseScale);
     }
 
         /// <summary>附着圆环：4 段圆弧（终末地式），点亮 filled 段，段间留缺口。</summary>
