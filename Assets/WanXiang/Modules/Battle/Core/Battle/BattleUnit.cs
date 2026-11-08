@@ -70,6 +70,12 @@ namespace WanXiang.Battle.Core
         public int AuraCapBonus;
         /// <summary>B1：天性「受伤护盾」最近触发的回合（每回合最多 1 次）。-1 = 从未触发。</summary>
         public int LastHurtShieldTurn = -1;
+        /// <summary>
+        /// B1：**每回合重置**的临时属性修正（攻/防/速，不含生命）。
+        /// 用途：孤高（无相邻 +8% / 有相邻 -3%）；以后闪避等瞬时修正也挂这里。
+        /// ⚠ 回合开始由 BoardRules 重置为 0，再按规则赋值 —— 不能累加，否则会越叠越高。
+        /// </summary>
+        public float TempStatPct;
 
         public int Shield { get; private set; }
         /// <summary>护盾是**第几回合**获得的（用户 2026-10-13：护盾改为一个回合后自动消失）。
@@ -283,7 +289,8 @@ namespace WanXiang.Battle.Core
         {
             get
             {
-                float v = Def.BaseAtk * (1f + PermanentAttackBonus) * (1f + ResonanceAttackBonus);
+                float v = Def.BaseAtk * (1f + PermanentAttackBonus) * (1f + ResonanceAttackBonus)
+                        * (1f + TempStatPct);
                 for (int i = 0; i < Modifiers.Count; i++)
                     if (Modifiers[i].StatKey == StatKeys.Attack) v *= (1f + Modifiers[i].Delta);
                 for (int i = 0; i < Statuses.Count; i++)
@@ -296,11 +303,14 @@ namespace WanXiang.Battle.Core
             }
         }
 
+        /// <summary>防御（含每回合临时修正）。原来伤害公式直接读 Def.BaseDef，改为走这里。</summary>
+        public float Defense => Def == null ? 0f : Def.BaseDef * (1f + TempStatPct);
+
         public float Speed
         {
             get
             {
-                float v = Def.BaseSpeed;
+                float v = Def.BaseSpeed * (1f + TempStatPct);
                 for (int i = 0; i < Modifiers.Count; i++)
                     if (Modifiers[i].StatKey == StatKeys.Speed) v *= (1f + Modifiers[i].Delta);
                 for (int i = 0; i < Statuses.Count; i++)

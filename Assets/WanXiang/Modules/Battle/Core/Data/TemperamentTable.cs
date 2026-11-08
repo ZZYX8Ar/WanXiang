@@ -17,12 +17,16 @@ namespace WanXiang.Battle.Core
         public Temperament Temper;
         public string Channel;
         public float Value;
+        /// <summary>第二数值（如「孤高」的相邻惩罚 -0.03；0 = 无）。</summary>
+        public float Value2;
     }
 
     public static class TemperamentTable
     {
         // key = channel；value = (性情 -> 数值)
         private static readonly Dictionary<string, Dictionary<Temperament, float>> _byChannel =
+            new Dictionary<string, Dictionary<Temperament, float>>();
+        private static readonly Dictionary<string, Dictionary<Temperament, float>> _byChannel2 =
             new Dictionary<string, Dictionary<Temperament, float>>();
 
         public static bool Installed { get; private set; }
@@ -31,6 +35,7 @@ namespace WanXiang.Battle.Core
         public static void Install(IReadOnlyList<TemperamentProfile> rows)
         {
             _byChannel.Clear();
+            _byChannel2.Clear();
             RowCount = 0;
             if (rows == null) { Installed = false; return; }
             for (int i = 0; i < rows.Count; i++)
@@ -44,6 +49,13 @@ namespace WanXiang.Battle.Core
                     _byChannel[p.Channel] = map;
                 }
                 map[p.Temper] = p.Value;      // 同性情同通道重复 ⇒ 后者覆盖
+                Dictionary<Temperament, float> map2;
+                if (!_byChannel2.TryGetValue(p.Channel, out map2))
+                {
+                    map2 = new Dictionary<Temperament, float>();
+                    _byChannel2[p.Channel] = map2;
+                }
+                map2[p.Temper] = p.Value2;
                 RowCount++;
             }
             Installed = RowCount > 0;
@@ -78,6 +90,16 @@ namespace WanXiang.Battle.Core
             return map.TryGetValue(u.Def.Temperament, out v) ? v : 0f;
         }
 
-        public static void Clear() { _byChannel.Clear(); Installed = false; RowCount = 0; }
+        /// <summary>某通道的第二数值（如孤高的相邻惩罚）。表未装/无值 ⇒ 0。</summary>
+        public static float Bonus2For(BattleUnit u, string channel)
+        {
+            if (u == null || u.Def == null || string.IsNullOrEmpty(channel)) return 0f;
+            Dictionary<Temperament, float> map;
+            if (!_byChannel2.TryGetValue(channel, out map)) return 0f;
+            float v;
+            return map.TryGetValue(u.Def.Temperament, out v) ? v : 0f;
+        }
+
+        public static void Clear() { _byChannel.Clear(); _byChannel2.Clear(); Installed = false; RowCount = 0; }
     }
 }

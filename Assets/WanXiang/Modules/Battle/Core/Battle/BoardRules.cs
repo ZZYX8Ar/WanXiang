@@ -46,6 +46,9 @@ namespace WanXiang.Battle.Core
             var cfg = st.Config;
             var report = new BoardRoundReport();
 
+            // B1：每回合重置的临时属性（孤高等）——先清零再按规则赋值，绝不可累加
+            ApplyTemperamentAuras(st);
+
             // ---------------------------------------------------------------
             //  0) 怒气乘数每回合从零重算
             //  ---------------------------------------------------------------
@@ -127,6 +130,47 @@ namespace WanXiang.Battle.Core
             // 时不会有事件、也就不会触发自动抓帧。补一次，保证画面不会显示过期的共鸣标记。
             st.CaptureFrame();
             return report;
+        }
+
+        /// <summary>
+        /// B1：性情「孤高」——无相邻同伴时 +Value，有相邻时 +Value2（负值）。
+        /// 每回合先把 TempStatPct 清零再赋值（这是"临时"与 PermanentAttackBonus 的本质区别）。
+        /// </summary>
+        private static void ApplyTemperamentAuras(BattleState st)
+        {
+            if (st == null) return;
+            for (int s = 0; s < 2; s++)
+            {
+                var slots = st.SlotsOf((TeamSide)s);
+                if (slots == null) continue;
+                for (int i = 0; i < slots.Length; i++)
+                {
+                    var u = slots[i];
+                    if (u == null) continue;
+                    u.TempStatPct = 0f;                                   // 每回合清零
+                    float up = TemperamentTable.BonusFor(u, TraitChannels.AdjacentPower);
+                    if (up == 0f) continue;
+                    float down = TemperamentTable.Bonus2For(u, TraitChannels.AdjacentPower);
+                    u.TempStatPct = AloofPct(HasAdjacentAlly(slots, i), up, down);
+                }
+            }
+        }
+
+        /// <summary>纯函数：孤高的临时属性比例（便于单测）。</summary>
+        public static float AloofPct(bool hasAdjacentAlly, float up, float down)
+            => hasAdjacentAlly ? down : up;
+
+        /// <summary>该格是否有存活的相邻同伴。</summary>
+        private static bool HasAdjacentAlly(BattleUnit[] slots, int idx)
+        {
+            var pairs = BoardLayout.AdjacentPairs;
+            for (int k = 0; k < pairs.Length; k++)
+            {
+                int a = pairs[k][0], b = pairs[k][1];
+                if (a == idx) { if (slots[b] != null && slots[b].IsAlive) return true; }
+                else if (b == idx) { if (slots[a] != null && slots[a].IsAlive) return true; }
+            }
+            return false;
         }
 
         /// <summary>相生相邻的回复。3% 最大生命，取整走项目唯一的取整入口。</summary>

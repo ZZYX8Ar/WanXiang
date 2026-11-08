@@ -657,7 +657,7 @@ namespace WanXiang.Battle.Core
                 v = raw;
             if (crit) v *= (1f + src.Def.CritDamage);
 
-            float defense = dst.Def.BaseDef;
+            float defense = dst.Defense;      // B1：含每回合临时修正（孤高等）；无修正时 == BaseDef
             float mitigation = defense / (defense + cfg.DefenseConstant);
             v *= (1f - mitigation);
             v *= dst.DamageTakenMultiplier;

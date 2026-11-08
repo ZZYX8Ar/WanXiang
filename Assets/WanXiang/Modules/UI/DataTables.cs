@@ -183,6 +183,7 @@ namespace WanXiang.Modules.UI
                     Temper = r.Enum("temper", Temperament.None),
                     Channel = r.Str("channel"),
                     Value = r.Float("value", 0f),
+                    Value2 = r.Float("value2", 0f),
                 };
                 if (p.Temper == Temperament.None || string.IsNullOrEmpty(p.Channel)) continue;
                 list.Add(p);
