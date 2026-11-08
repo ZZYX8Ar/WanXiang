@@ -1,0 +1,6 @@
+temper,channel,value,note
+Fierce,rage_on_hit,5,刚烈：受击额外元气
+Calm,mp_regen,1,沉静：每回合额外灵力
+Cunning,qte_window,0.15,狡黠：QTE 判定窗口加值
+Kind,regen_mul,0.5,温厚：相生回复倍率加值
+Aloof,adjacent_power,0.08,孤高：相邻属性修正（挂点待接）

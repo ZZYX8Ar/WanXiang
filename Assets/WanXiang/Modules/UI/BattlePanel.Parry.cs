@@ -230,11 +230,10 @@ namespace WanXiang.Modules.UI
 
             // B1：性情「狡黠」——队里任一只即可让 QTE 判定窗口 +15%（无表时 ×1）。
             float temperMul = 1f;
-            if (_play != null && _play.State != null
-                && WanXiang.Battle.Core.TraitRuntime.Count(_play.State,
-                       WanXiang.Battle.Core.TeamSide.Player,
-                       WanXiang.Battle.Core.Temperament.Cunning) > 0)
-                temperMul = 1.15f;
+            if (_play != null && _play.State != null)
+                temperMul += WanXiang.Battle.Core.TemperamentTable.Bonus(
+                    _play.State, WanXiang.Battle.Core.TeamSide.Player,
+                    WanXiang.Battle.Core.TraitChannels.QteWindow);
             float window = (comboQte ? ComboWindowSeconds
                           : finisher ? FinisherWindowSeconds
                           : ParryWindowSeconds) * segMul * temperMul;

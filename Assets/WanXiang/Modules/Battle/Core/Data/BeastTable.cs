@@ -29,6 +29,7 @@ namespace WanXiang.Battle.Core
 
         public string TraitId;
         public TraitKind TraitKind;
+        public string Channel;                // 效果通道（新增天性绑到已有通道时无需改代码）
         public float TraitValue, TraitValue2;
         public string TraitName;
         public string Ultimate;

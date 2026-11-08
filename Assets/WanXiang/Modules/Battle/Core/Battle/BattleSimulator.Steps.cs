@@ -55,10 +55,10 @@ namespace WanXiang.Battle.Core
                 {
                     if (st.TeamMp < st.TeamMpMax)
                     {
-                        // B1：天性「相生灵力」+ 性情「沉静」（每只 +1）。
-                        //   表未装 / 单位不在表里 ⇒ 两者都是 0，回归原值，指纹不变。
-                        int bonus = (int)TraitRuntime.Sum(st, TeamSide.Player, TraitKind.AdjacentMpBonus);
-                        bonus += TraitRuntime.Count(st, TeamSide.Player, Temperament.Calm);
+                        // 通道化：天性与性情都往 mp_regen 通道贡献，挂点只认通道。
+                        //   删 CSV 行 ⇒ 自动归 0；加同类天性 ⇒ 无需改这里。
+                        int bonus = (int)(TraitRuntime.Bonus(st, TeamSide.Player, TraitChannels.MpRegen)
+                                        + TemperamentTable.Bonus(st, TeamSide.Player, TraitChannels.MpRegen));
                         st.TeamMp = System.Math.Min(st.TeamMpMax,
                             st.TeamMp + BattleState.MpRegenPerTurn + bonus);
                     }

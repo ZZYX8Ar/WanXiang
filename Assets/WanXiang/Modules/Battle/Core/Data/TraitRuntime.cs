@@ -149,8 +149,38 @@ namespace WanXiang.Battle.Core
             }
         }
 
-        /// <summary>按阵营求和（挂点用）。敌我不混算，避免"敌方天性帮我方加暴击"。</summary>
-        public static float Sum(BattleState st, TeamSide side, TraitKind kind) => SumSide(st, side, kind);
+        /// <summary>
+        /// ★ 通道查询：模拟层唯一该用的入口。
+        /// 遍历单位，凡是"天性绑到这个通道"的，把 Value 累加。
+        /// 删掉 CSV 里那一行 ⇒ 自动归 0，模拟层完全不用改。
+        /// </summary>
+        public static float Bonus(BattleState st, TeamSide side, string channel)
+        {
+            if (st == null || string.IsNullOrEmpty(channel)) return 0f;
+            var units = st.UnitsOf(side);
+            if (units == null) return 0f;
+            float total = 0f;
+            for (int i = 0; i < units.Count; i++)
+            {
+                var u = units[i];
+                if (u == null || !u.IsAlive || u.Def == null) continue;
+                total += BonusFor(u, channel);
+            }
+            return total;
+        }
+
+        /// <summary>单只单位在某通道上的天性加值。</summary>
+        public static float BonusFor(BattleUnit u, string channel)
+        {
+            if (u == null || u.Def == null || string.IsNullOrEmpty(channel)) return 0f;
+            var tr = u.Def.Trait;
+            string ch = string.IsNullOrEmpty(tr.Channel) ? TraitChannels.Of(tr.Kind) : tr.Channel;
+            return ch == channel ? tr.Value : 0f;
+        }
+
+        /// <summary>兼容旧 API：按 Kind 查询，内部转成通道。</summary>
+        public static float Sum(BattleState st, TeamSide side, TraitKind kind)
+            => Bonus(st, side, TraitChannels.Of(kind));
 
         /// <summary>按阵营统计某性情的数量。</summary>
         public static int Count(BattleState st, TeamSide side, Temperament t)
@@ -167,27 +197,8 @@ namespace WanXiang.Battle.Core
 
         /// <summary>查询型：把全场某类天性的 Value 求和（不改状态）。</summary>
         public static float Sum(BattleState st, TraitKind kind)
-        {
-            if (st == null) return 0f;
-            float total = 0f;
-            total += SumSide(st, TeamSide.Player, kind);
-            total += SumSide(st, TeamSide.Enemy, kind);
-            return total;
-        }
-
-        private static float SumSide(BattleState st, TeamSide side, TraitKind kind)
-        {
-            float v = 0f;
-            var units = st.UnitsOf(side);
-            if (units == null) return 0f;
-            for (int i = 0; i < units.Count; i++)
-            {
-                var u = units[i];
-                if (u == null || !u.IsAlive || u.Def == null) continue;
-                if (u.Def.Trait.Kind == kind) v += u.Def.Trait.Value;
-            }
-            return v;
-        }
+            => Bonus(st, TeamSide.Player, TraitChannels.Of(kind))
+             + Bonus(st, TeamSide.Enemy, TraitChannels.Of(kind));
 
         static TraitRuntime() { ResetToDefaults(); }
     }

@@ -132,8 +132,8 @@ namespace WanXiang.Battle.Core
         /// <summary>相生相邻的回复。3% 最大生命，取整走项目唯一的取整入口。</summary>
         private static int Regen(BattleState st, BattleUnit u, BattleConfig cfg)
         {
-            // B1：性情「温厚」相生回复 +50%（无表时 Temperament.None ⇒ ×1，指纹不变）。
-            float regenMul = u.Def != null && u.Def.Temperament == Temperament.Kind ? 1.5f : 1f;
+            // 通道化：regen_mul 通道上的加值（改数值/删性情只动 temperaments.csv）。
+            float regenMul = 1f + TemperamentTable.BonusFor(u, TraitChannels.RegenMul);
             int amount = CoreMath.RoundDamage(u.MaxHp * cfg.AdjacencyGenerateRegenPercent * regenMul);
             int healed = u.Heal(amount);
             st.Log.Add(st.Turn, BattleEventKind.Heal, actorId: u.RuntimeId, targetId: u.RuntimeId,

@@ -224,7 +224,7 @@ namespace WanXiang.Battle.Core
 
             // B1：天性「全队暴击」按阵营加成；无表时为 0，Chance 调用次数不变 ⇒ 指纹不变。
             bool crit = st.Random.Chance(src.Def.CritRate
-                + TraitRuntime.Sum(st, src.Side, TraitKind.CritRateTeam));
+                + TraitRuntime.Bonus(st, src.Side, TraitChannels.CritRate));
             int dmg = ComputeDamage(st, src, dst, el, atom.Power, atom.TrueDamage, crit,
                                     IsAoeTarget(atom.Target));
 
@@ -264,11 +264,11 @@ namespace WanXiang.Battle.Core
 
             // B1：性情「刚烈」受击额外 +5 元气（更早出奥义）。
             dst.AddRage(st.Config.RageWhenHit
-                + (dst.Def != null && dst.Def.Temperament == Temperament.Fierce ? 5f : 0f));
+                + TemperamentTable.BonusFor(dst, TraitChannels.RageOnHit));
             // B1：天性「媚影」——暴击时削目标怒气（按攻击方阵营求和，无表为 0）。
             if (crit)
             {
-                float rageDown = TraitRuntime.Sum(st, src.Side, TraitKind.RageDownOnCrit);
+                float rageDown = TraitRuntime.Bonus(st, src.Side, TraitChannels.RageDownOnCrit);
                 if (rageDown > 0f) dst.AddRage(-rageDown);
             }
 
@@ -626,10 +626,10 @@ namespace WanXiang.Battle.Core
 
             // B1：天性「残血处决」——目标生命 <40% 时，按攻击方阵营的天性数值加成。
             if (dst.HpPercent < 0.4f)
-                v *= 1f + TraitRuntime.Sum(st, src.Side, TraitKind.ExecuteLowHp);
+                v *= 1f + TraitRuntime.Bonus(st, src.Side, TraitChannels.ExecuteDamage);
             // B1：天性「破御」——对御职/带盾目标加成。
             if (dst.Def != null && (dst.Def.Role == RoleType.Guard || dst.Shield > 0))
-                v *= 1f + TraitRuntime.Sum(st, src.Side, TraitKind.DamageToGuardUp);
+                v *= 1f + TraitRuntime.Bonus(st, src.Side, TraitChannels.GuardDamage);
 
             // ---- 天时修正（GDD 3.1/3.4）。st.Weather 为 null 时零改动 ， 指纹不变 ----
             if (st.Weather != null)

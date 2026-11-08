@@ -68,6 +68,8 @@ namespace WanXiang.Battle.Core
         //  Kind=None ⇒ TraitRuntime 自动忽略，行为零变化。
         public string Id;
         public TraitKind Kind;
+        /// <summary>效果通道（CSV 优先）。空 ⇒ 用 TraitChannels.Of(Kind) 兜底。</summary>
+        public string Channel;
         public float Value;
         public float Value2;
     }

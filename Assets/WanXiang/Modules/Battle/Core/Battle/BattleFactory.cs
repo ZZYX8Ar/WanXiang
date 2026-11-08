@@ -204,6 +204,7 @@ namespace WanXiang.Battle.Core
                     var tr = copy.Trait;                       // struct：取出来改再放回
                     tr.Id = bp.TraitId;
                     tr.Kind = bp.TraitKind;
+                    tr.Channel = bp.Channel;                 // 通道优先（空则按 Kind 兜底）
                     tr.Value = bp.TraitValue;
                     tr.Value2 = bp.TraitValue2;
                     if (!string.IsNullOrEmpty(bp.TraitName)) tr.Name = bp.TraitName;
@@ -213,11 +214,9 @@ namespace WanXiang.Battle.Core
                 // idPrefix 为空 = 中途增员：走"全战场唯一"的序号，避免与开场 P0../E0.. 撞号。
                 string runtimeId = string.IsNullOrEmpty(idPrefix) ? st.NextRuntimeId() : idPrefix + counter;
                 var unit = new BattleUnit(entries[i].Side, copy, runtimeId);
-                // B1：天性「灼烧上限」→ 单位附着上限加成（表外 id ⇒ 0）。
-                BeastProfile bpCap;
-                if (BeastTable.TryGet(copy.Id, out bpCap)
-                    && bpCap.TraitKind == TraitKind.BurnCapUp)
-                    unit.AuraCapBonus = (int)bpCap.TraitValue;
+                // 通道化：任何绑到 aura_cap 通道的天性都会提高附着上限，
+                // 以后加同类天性不用改这里（删 CSV 行则自动为 0）。
+                unit.AuraCapBonus = (int)TraitRuntime.BonusFor(unit, TraitChannels.AuraCap);
                 // ★ 2026-11-04：奥义折扣只对**被标记的条目**生效（玩家侧遗物），敌人不跟着打折。
                 unit.UltRageCostMul = entries[i].UltRageCostMul;
                 // ★ 敌方招式库（2026-10-16 FoeKit）：把弱点 / 破绽 / 谱系挂到单位上。

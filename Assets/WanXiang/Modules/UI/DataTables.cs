@@ -50,6 +50,7 @@ namespace WanXiang.Modules.UI
         public static int RelicCount { get; private set; }
         public static int BeastCount { get; private set; }      // B0：beasts.csv 生效行数
         public static int LabelCount { get; private set; }      // B0：labels.csv 生效行数
+        public static int TemperamentCount { get; private set; } // 通道化：temperaments.csv 生效行数
         public static int ComboCount { get; private set; }
         public static int ProgressionKeys { get; private set; }
         public static int TrialLawCount { get; private set; }
@@ -82,6 +83,7 @@ namespace WanXiang.Modules.UI
             LoadMarket();
             LoadBeasts();
             LoadLabels();
+            LoadTemperaments();
 
             if (Problems.Count > 0)
                 Debug.LogError("[DataTables] 共 " + Problems.Count + " 处问题：\n" + string.Join("\n", Problems.ToArray()));
@@ -90,7 +92,8 @@ namespace WanXiang.Modules.UI
                       " 幕／地图 " + (MapInstalled ? "已装" : "内置") + "／节点权重 " + WeightRows + " 行" +
                       "／遗物 " + RelicCount + "／阵形 " + ComboCount + "／曲线 " + ProgressionKeys + " 键" +
                       "／劫律 " + TrialLawCount + "／灵市 " + MarketKeys + " 键" +
-                      "／异兽 " + BeastCount + " 只／标签 " + LabelCount + " 条");
+                      "／异兽 " + BeastCount + " 只／标签 " + LabelCount + " 条" +
+                      "／性情通道 " + TemperamentCount + " 条");
         }
 
         /// <summary>
@@ -102,7 +105,7 @@ namespace WanXiang.Modules.UI
             _done = false;
             StatusCount = BossCount = WeatherCount = BudgetKeys = SquadActs = WeightRows = 0;
             RelicCount = ComboCount = ProgressionKeys = TrialLawCount = MarketKeys = 0;
-            BeastCount = LabelCount = 0;
+            BeastCount = LabelCount = TemperamentCount = 0;
             MapInstalled = false;
             EnsureInstalled();
         }
@@ -138,6 +141,7 @@ namespace WanXiang.Modules.UI
                     Def = r.Int("def", 0), Spd = r.Int("spd", 0),
                     TraitId = r.Str("trait_id"),
                     TraitKind = r.Enum("trait_kind", TraitKind.None),
+                    Channel = r.Str("channel"),
                     TraitName = r.Str("trait_name"),
                     TraitValue = r.Float("value", 0f),
                     TraitValue2 = r.Float("value2", 0f),
@@ -164,6 +168,28 @@ namespace WanXiang.Modules.UI
                 n++;
             }
             LabelCount = n;
+        }
+
+        private static void LoadTemperaments()
+        {
+            var rows = Read("temperaments", out var header);
+            if (rows == null) return;
+            var list = new List<WanXiang.Battle.Core.TemperamentProfile>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "temperaments.csv", i + 2, Problems);
+                var p = new WanXiang.Battle.Core.TemperamentProfile
+                {
+                    Temper = r.Enum("temper", Temperament.None),
+                    Channel = r.Str("channel"),
+                    Value = r.Float("value", 0f),
+                };
+                if (p.Temper == Temperament.None || string.IsNullOrEmpty(p.Channel)) continue;
+                list.Add(p);
+            }
+            if (list.Count == 0) return;
+            WanXiang.Battle.Core.TemperamentTable.Install(list);
+            TemperamentCount = list.Count;
         }
 
         private static void LoadStatus()
