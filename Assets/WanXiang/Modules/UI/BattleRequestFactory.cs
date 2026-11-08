@@ -420,6 +420,15 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                 var drow = WanXiang.Battle.Core.DifficultyTable.Row(run.ChallengeLevel);
                 if (drow != null) diffMul = drow.HpMul;
             }
+            // B5-2：异色名单（MetaState → req → BattleState → 表现层）
+            try
+            {
+                var mst = WanXiang.Meta.MetaStore.Ensure();
+                if (mst != null && mst.ShinyIds != null && mst.ShinyIds.Count > 0)
+                    req.ShinyIds.AddRange(mst.ShinyIds);
+            }
+            catch { /* 无局外档时无异色 */ }
+
             // B3-g：里程碑 ai_aggressive —— 敌方 AI 资源优先兑现（覆盖遭遇默认档）
             if (run != null && WanXiang.Battle.Core.DifficultyTable.HasRule(run.ChallengeLevel, "ai_aggressive"))
                 req.AiProfile = WanXiang.Battle.Core.AiProfile.Aggressive;

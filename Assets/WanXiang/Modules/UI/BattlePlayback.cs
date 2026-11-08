@@ -77,6 +77,9 @@ namespace WanXiang.Modules.UI
         /// </summary>
         public List<float> PlayerMulPer = new List<float>();
 
+        /// <summary>B5-2：异色异兽 id 名单（工厂从 MetaState 折算；表现层按此叠加异色 shader 参数）。</summary>
+        public List<string> ShinyIds = new List<string>();
+
         /// <summary>
         /// 与 <see cref="Player"/> 一一对应的**每只异兽**的劫象 id（遗物「授予劫象」用）。
         /// 空串 / 列表比 Player 短 ， 该单位不额外挂劫象（仍可能吃 PlayerReviveOn 的「复苏」）。
@@ -272,6 +275,10 @@ namespace WanXiang.Modules.UI
 
                 UnityEngine.Debug.Log("[Battle] 道痕生效：" + equippedMarks.Count + " 条（通道加成已写入本局）");
             }
+
+            // B5-2：异色名单进战斗状态（表现层按此叠加 shader 参数）
+            if (req.ShinyIds != null && req.ShinyIds.Count > 0)
+                State.ShinyIds.AddRange(req.ShinyIds);
 
             // B3-g：里程碑 turns_minus6 —— 回合上限 −6（难度越高节奏越紧）
             if (WanXiang.Run.RunSave.Current != null

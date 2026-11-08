@@ -37,6 +37,10 @@ namespace WanXiang.Battle.Core
 
         public BattleOutcome Outcome = BattleOutcome.Ongoing;
 
+        // ---- B5-2：异色名单（工厂折算，表现层只读）----
+        public readonly System.Collections.Generic.List<string> ShinyIds =
+            new System.Collections.Generic.List<string>(4);
+
         // ---- B2 局内统计（道痕来源）—— 战斗结束由 UI 回传 RunState.Stats ----
         public int StatReactions;     // 触发元素反应次数
         public int StatMaxHit;        // 我方单次最大伤害

@@ -1016,14 +1016,23 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 var bodySr = root.AddComponent<SpriteRenderer>();
                 // ★ 2026-11-02 觉醒立绘：已进化的我方异兽换金色描边/流光材质
                 // ⛔ 不能用 RunSave（Battle 程序集不引用 Run）—— 集合由组队侧每场重建，见工厂 Clear()
-                if (player && u.Def != null && AwakenedDefIds.Contains(u.Def.Id))
+                // B5-2：异色名单走 BattleState.ShinyIds（工厂折算，Battle 程序集仍不引用 Meta）
+                bool isShiny = player && u.Def != null && _state != null && _state.ShinyIds != null && _state.ShinyIds.Contains(u.Def.Id);
+                if (player && u.Def != null && (AwakenedDefIds.Contains(u.Def.Id) || isShiny))
                 {
                     var awSh = Shader.Find("WanXiang/AwakenSprite");
                     if (awSh != null)
                     {
                         var am = StageMaterialFactory.Create(StageMaterialKind.Awaken,
                             new StageMaterialContext { Shader = awSh });
-                        if (am != null) bodySr.sharedMaterial = am;
+                        if (am != null)
+                        {
+                            bodySr.sharedMaterial = am;
+                            // B5-2：品级表现（描边色/呼吸/神品流光）—— 唯一收口 BeastVisual
+                            BeastVisual.ApplyTier(am, (int)u.Def.Rarity);
+                            // B5-2：异色叠加（hue ±18° + 周期扫光；非觉醒异色 _Amount=0 只走异色通道）
+                            if (isShiny) BeastVisual.ApplyShiny(am);
+                        }
                     }
                 }
 
