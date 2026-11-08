@@ -45,6 +45,7 @@ namespace WanXiang.EditorTools
                 int added = 0;
                 added += EnsureEntry(top, font, "Btn_DaoMark", "道痕", -64f);
                 added += EnsureEntry(top, font, "Btn_Skills", "技能", -140f);
+                added += EnsureEntry(top, font, "Btn_Inspiration", "灵感", -216f);   // B5-4
 
                 // B2-k：Root_Detail 加升星按钮 + 星级文本（只补缺）
                 var detail = root.transform.Find("Root_Detail");

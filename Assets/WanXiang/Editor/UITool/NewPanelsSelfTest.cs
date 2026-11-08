@@ -24,6 +24,15 @@ namespace WanXiang.EditorTools
         private static readonly Dictionary<string, (string rootType, string[] nodes)> Checklists
             = new Dictionary<string, (string, string[])>
         {
+            ["Assets/Resources/UI/Panel_Inspiration.prefab"] = (
+                "WanXiang.Modules.UI.InspirationPanel",
+                new[]
+                {
+                    "Root_TopBar/Tmp_Title", "Root_TopBar/Tmp_Points", "Root_TopBar/Btn_Close",
+                    "Branch_travel/Tmp_BranchName", "Branch_travel/Grid/Btn_T1", "Branch_travel/Grid/Btn_T5",
+                    "Branch_battle/Tmp_BranchName", "Branch_battle/Grid/Btn_T5",
+                    "Branch_forge/Tmp_BranchName", "Branch_forge/Grid/Btn_T5",
+                }),
             ["Assets/Resources/UI/Panel_SquadSelect.prefab"] = (
                 "WanXiang.Modules.UI.SquadSelectPanel",
                 new[]
