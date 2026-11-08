@@ -31,7 +31,7 @@ namespace WanXiang.Meta
 {
     public static class MetaSaveCode
     {
-        public const byte CurrentVersion = 8;   // v8：新增异兽星级（每兽 1 字节 0~5）；读档兼容 v7/v6（无此段=0 星）
+        public const byte CurrentVersion = 9;   // v9：新增异色（ShinyIds/ShinyAltTraits/ShinyPity）；读档兼容 v8/v7/v6
         public const int MaxIndex = 254;        // 下标用 1 字节，255 留作哨兵
         public const int MaxEggs = 65535;
 
@@ -117,8 +117,24 @@ namespace WanXiang.Meta
             if (homeRaw.Length > 250) homeRaw = new byte[0];
             int homeBytes = 1 + homeRaw.Length;
 
+            // v9：异色段（计算提前到 size 预算前）
+            var shinyIdRaw = new System.Collections.Generic.List<byte[]>(st.ShinyIds.Count);
+            var shinyAltRaw = new System.Collections.Generic.List<byte[]>(st.ShinyIds.Count);
+            int shinyBytes = 0;
+            for (int i = 0; i < st.ShinyIds.Count; i++)
+            {
+                var idRaw = Encoding.UTF8.GetBytes(st.ShinyIds[i] ?? "");
+                var altRaw = Encoding.UTF8.GetBytes(i < st.ShinyAltTraits.Count ? (st.ShinyAltTraits[i] ?? "") : "");
+                if (idRaw.Length > 250 || altRaw.Length > 250) return null;
+                shinyIdRaw.Add(idRaw);
+                shinyAltRaw.Add(altRaw);
+                shinyBytes += 1 + idRaw.Length + 1 + altRaw.Length;
+            }
+            // v9：异色段体积（count + Σ[idLen+id+altLen+alt] + pity 2）——与实际写入严格一致
+            int shinySegBytes = 1 + shinyBytes + 2;
             int size = 25 + awakenBytes + fragBytes + soulBytes + liveBytes + homeBytes
-                     + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count;
+                     + beastBytes + st.UnlockedHosts.Count + st.UnlockedSouls.Count
+                     + shinySegBytes;
             var b = new byte[size];
             b[0] = CurrentVersion;
             WriteU64(b, 1, st.Seed);
@@ -192,6 +208,18 @@ namespace WanXiang.Meta
             b[p++] = (byte)st.UnlockedSouls.Count;
             for (int i = 0; i < st.UnlockedSouls.Count; i++) b[p++] = (byte)st.UnlockedSouls[i];
 
+            // v9：异色段（shinyCount + [idLen+id+altLen+alt]… + pity 2 字节）
+            b[p++] = (byte)st.ShinyIds.Count;
+            for (int i = 0; i < shinyIdRaw.Count; i++)
+            {
+                b[p++] = (byte)shinyIdRaw[i].Length;
+                Array.Copy(shinyIdRaw[i], 0, b, p, shinyIdRaw[i].Length); p += shinyIdRaw[i].Length;
+                b[p++] = (byte)shinyAltRaw[i].Length;
+                Array.Copy(shinyAltRaw[i], 0, b, p, shinyAltRaw[i].Length); p += shinyAltRaw[i].Length;
+            }
+            b[p++] = (byte)(st.ShinyPity / 256);
+            b[p++] = (byte)(st.ShinyPity % 256);
+
             // ★ 自检：写满即正确（size 靠手数很容易差 1~2 字节，这里兜底并把错误暴露出来）
             if (p != size) return null;
 
@@ -208,7 +236,7 @@ namespace WanXiang.Meta
             catch (FormatException) { return false; }
             if (b == null || b.Length < 22) return false;   // v4 头部 22 字节
             int ver = b[0];
-            if (ver != 6 && ver != 7 && ver != 8) return false;   // ★ v8 起兼容读 v7/v6
+            if (ver != 6 && ver != 7 && ver != 8 && ver != 9) return false;   // ★ v9 起兼容读 v8/v7/v6
 
             var st = new MetaState(ReadU64(b, 1));
             st.Eggs = ReadU16(b, 9);
@@ -326,6 +354,27 @@ namespace WanXiang.Meta
             int soulCount = b[p++];
             if (p + soulCount > b.Length) return false;
             for (int i = 0; i < soulCount; i++) st.UnlockedSouls.Add(b[p++]);
+
+            if (ver >= 9)
+            {
+                if (p >= b.Length) return false;
+                int shinyCount = b[p++];
+                for (int i = 0; i < shinyCount; i++)
+                {
+                    if (p >= b.Length) return false;
+                    int idLen = b[p++];
+                    if (p + idLen > b.Length) return false;
+                    string sid = Encoding.UTF8.GetString(b, p, idLen); p += idLen;
+                    if (p >= b.Length) return false;
+                    int altLen = b[p++];
+                    if (p + altLen > b.Length) return false;
+                    string salt = Encoding.UTF8.GetString(b, p, altLen); p += altLen;
+                    st.ShinyIds.Add(sid);
+                    st.ShinyAltTraits.Add(salt);
+                }
+                if (p + 2 > b.Length) return false;
+                st.ShinyPity = b[p] * 256 + b[p + 1]; p += 2;
+            }
 
             // 解码侧再把"自洽性"过一遍：长度必须正好用完（多出来的字节 = 被塞过东西）
             if (p != b.Length) return false;

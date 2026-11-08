@@ -279,6 +279,34 @@ namespace WanXiang.Meta
         public readonly List<int> BeastLevels = new List<int>(32);
         /// <summary>B2：异兽星级（与 BeastIds 下标对齐，0~StarMax）。老档为空 ⇒ 读 0 星。</summary>
         public readonly List<int> BeastStars = new List<int>(32);
+
+        // ---- B4：异色（v2 §19.2 C′：异色 = 备选天性可二选一；不加面板）----
+        /// <summary>异色异兽 id（跨局永久）。</summary>
+        public readonly List<string> ShinyIds = new List<string>(8);
+        /// <summary>异色兽的**备选天性 id**（与 ShinyIds 下标对齐；生成时 3 选 1 定死）。</summary>
+        public readonly List<string> ShinyAltTraits = new List<string>(8);
+        /// <summary>距上次异色的累计捕获数（200 保底计数）。</summary>
+        public int ShinyPity;
+
+        public bool IsShiny(string id) => ShinyIds.IndexOf(id) >= 0;
+
+        public string ShinyAltTraitOf(string id)
+        {
+            int i = ShinyIds.IndexOf(id);
+            return i >= 0 && i < ShinyAltTraits.Count ? (ShinyAltTraits[i] ?? "") : "";
+        }
+
+        /// <summary>登记异色（幂等）。altTraitId = 生成时定死的备选天性。</summary>
+        public bool MarkShiny(string id, string altTraitId)
+        {
+            if (IsShiny(id)) return false;
+            ShinyIds.Add(id ?? "");
+            ShinyAltTraits.Add(altTraitId ?? "");
+            ShinyPity = 0;
+            return true;
+        }
+
+        public void CountCaptureForShiny() => ShinyPity++;
         public readonly List<bool> BeastEvolved = new List<bool>(32);
 
         /// <summary>某异兽的局外等级（0 = 未培养）。</summary>

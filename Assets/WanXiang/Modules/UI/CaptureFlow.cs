@@ -61,8 +61,47 @@ namespace WanXiang.Modules.UI
             {
                 run.Stats.Captures++;   // B2 骨架：捕获计数（道痕来源之一）
                 bool first = BeastCodexPrefs.MarkCaught(target.Id);
+
+                // B4：异色判定（v2 §19.2 C′）—— 1/256 ×(1+游猎)，ShinyPity≥200 必出；
+                //     异色 = 生成时定死 1 条备选天性（同职业池 3 选 1，种子确定性），图鉴二选一（B5 表现）
+                var meta = WanXiang.Meta.MetaStore.Ensure();
+                meta.CountCaptureForShiny();
+                if (!meta.IsShiny(target.Id))
+                {
+                    float shinyChance = (1f / 256f) * (1f + dao);
+                    bool byPity = meta.ShinyPity >= 200;
+                    var rng = new WanXiang.Battle.Core.DeterministicRandom(
+                        WanXiang.Battle.Core.CoreMath.Fnv1a("shiny:" + target.Id + ":" + meta.HatchCount + ":" + meta.ShinyPity));
+                    if (byPity || rng.NextFloat() < shinyChance)
+                    {
+                        // 备选天性：同职业（role）异兽的天性池，排除自身，3 选 1
+                        string alt = "";
+                        var pool = new System.Collections.Generic.List<string>();
+                        var allBeasts = BeastTable.All;
+                        for (int bi = 0; bi < allBeasts.Count; bi++)
+                        {
+                            var cand = allBeasts[bi];
+                            if (cand == null || cand.Role != target.Role) continue;
+                            string ct = cand.TraitId;
+                            string tt = target.Trait.Id;   // TraitDef 是 struct，直接取
+                            if (!string.IsNullOrEmpty(ct) && ct != tt && pool.IndexOf(ct) < 0) pool.Add(ct);
+                        }
+                        if (pool.Count > 0)
+                        {
+                            // 3 选 1（池内确定性取 3 个候选再随机——池小则全池）
+                            int take = System.Math.Min(3, pool.Count);
+                            alt = pool[rng.NextInt(0, take)];
+                            meta.MarkShiny(target.Id, alt);
+                            UnityEngine.Debug.Log("[Capture] ★异色！「" + target.DisplayName + "」备选天性=" + alt
+                                + (byPity ? "（保底 " + meta.ShinyPity + "）" : ""));
+                        }
+                    }
+                }
+                WanXiang.Meta.MetaStore.Save();
+
                 UnityEngine.Debug.Log("[Capture] 捕获成功：" + target.DisplayName +
-                                      (first ? "（图鉴新收录）" : "（图鉴已有）"));
+                                      (first ? "（图鉴新收录）" : "（图鉴已有）")
+                                      + (meta.IsShiny(target.Id) ? "（★异色）" : ""));
             }
             else
             {
