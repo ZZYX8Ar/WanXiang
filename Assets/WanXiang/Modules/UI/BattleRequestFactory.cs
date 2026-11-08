@@ -352,6 +352,36 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                         entries = list.ToArray();
                         LastEncounter = row;
                         req.Title = row.Name;      // 战斗标题直接用编队名（"藤影伏击"），比"遭遇战"有信息量
+
+                        // B3-h：里程碑 elite_extra_add —— 精英编队追加 1 个随机随从（随从打折，槽位取空）
+                        if (kindName == "Elite" && run != null
+                            && WanXiang.Battle.Core.DifficultyTable.HasRule(run.ChallengeLevel, "elite_extra_add")
+                            && list.Count > 0 && list.Count < 5)
+                        {
+                            var exRng = new WanXiang.Battle.Core.DeterministicRandom(
+                                WanXiang.Battle.Core.CoreMath.Fnv1a("eliteExtra:" + run.RunSeed + ":" + row.Name));
+                            var taken = new HashSet<int>();
+                            for (int ei2 = 0; ei2 < list.Count; ei2++) taken.Add(list[ei2].PosIndex);
+                            int slot = -1;
+                            for (int sc = 0; sc < 9 && slot < 0; sc++) if (!taken.Contains(sc)) slot = sc;
+                            if (slot >= 0)
+                            {
+                                for (int tries = 0; tries < 8; tries++)
+                                {
+                                    var pick = all[exRng.NextInt(0, all.Length)];
+                                    if (pick == null || string.IsNullOrEmpty(pick.Id)) continue;
+                                    if (pick.Id.StartsWith("b_") || pick.Id.StartsWith("summon_")) continue;
+                                    var extraDef = pick.Clone();
+                                    StripLegacyOnPlayerBeast(extraDef);
+                                    ApplyEnemySkillOverrides(extraDef);
+                                    list.Add(WanXiang.Battle.Core.DeployEntry.Enemy(extraDef, slot)
+                                        .WithMul(row.Scale * WanXiang.Campaign.SeededEnemyProvider.BossSidekickMul));
+                                    UnityEngine.Debug.Log("[BattleRequestFactory] 难度里程碑：精英追加随从 "
+                                        + pick.Id + "（槽 " + slot + "，强度 ×" + (row.Scale * WanXiang.Campaign.SeededEnemyProvider.BossSidekickMul).ToString("0.00") + "）");
+                                    break;
+                                }
+                            }
+                        }
                         UnityEngine.Debug.Log("[BattleRequestFactory] 遭遇表命中：" + row.Name +
                                               "（" + kindName + "·第" + act + "幕）" + list.Count + " 只，" +
                                               "强度×" + row.Scale.ToString("0.00") + "｜" + row.Synergy);
