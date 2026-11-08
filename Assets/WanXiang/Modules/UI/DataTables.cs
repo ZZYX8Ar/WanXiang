@@ -52,6 +52,7 @@ namespace WanXiang.Modules.UI
         public static int LabelCount { get; private set; }      // B0：labels.csv 生效行数
         public static int TemperamentCount { get; private set; } // 通道化：temperaments.csv 生效行数
         public static int SkillPoolCount { get; private set; }   // B2：skill_pool.csv 生效行数
+        public static int DaoMarkCount { get; private set; }     // B2：dao_marks.csv 生效行数
         public static int ComboCount { get; private set; }
         public static int ProgressionKeys { get; private set; }
         public static int TrialLawCount { get; private set; }
@@ -86,6 +87,7 @@ namespace WanXiang.Modules.UI
             LoadLabels();
             LoadTemperaments();
             LoadSkillPool();
+            LoadDaoMarks();
 
             if (Problems.Count > 0)
                 Debug.LogError("[DataTables] 共 " + Problems.Count + " 处问题：\n" + string.Join("\n", Problems.ToArray()));
@@ -95,7 +97,8 @@ namespace WanXiang.Modules.UI
                       "／遗物 " + RelicCount + "／阵形 " + ComboCount + "／曲线 " + ProgressionKeys + " 键" +
                       "／劫律 " + TrialLawCount + "／灵市 " + MarketKeys + " 键" +
                       "／异兽 " + BeastCount + " 只／标签 " + LabelCount + " 条" +
-                      "／性情通道 " + TemperamentCount + " 条／技能池 " + SkillPoolCount + " 条");
+                      "／性情通道 " + TemperamentCount + " 条／技能池 " + SkillPoolCount + " 条" +
+                      "／道痕 " + DaoMarkCount + " 条");
         }
 
         /// <summary>
@@ -107,7 +110,7 @@ namespace WanXiang.Modules.UI
             _done = false;
             StatusCount = BossCount = WeatherCount = BudgetKeys = SquadActs = WeightRows = 0;
             RelicCount = ComboCount = ProgressionKeys = TrialLawCount = MarketKeys = 0;
-            BeastCount = LabelCount = TemperamentCount = SkillPoolCount = 0;
+            BeastCount = LabelCount = TemperamentCount = SkillPoolCount = DaoMarkCount = 0;
             MapInstalled = false;
             EnsureInstalled();
         }
@@ -225,6 +228,33 @@ namespace WanXiang.Modules.UI
             if (list.Count == 0) return;
             WanXiang.Battle.Core.SkillSlotRules.Install(list);
             SkillPoolCount = list.Count;
+        }
+
+        // ================================================================
+        //  B2 · dao_marks.csv（道痕：来源 + 三段星级阈值）
+        // ================================================================
+        private static void LoadDaoMarks()
+        {
+            var rows = Read("dao_marks", out var header);
+            if (rows == null) return;
+            var list = new List<WanXiang.Battle.Core.DaoMarkDef>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "dao_marks.csv", i + 2, Problems);
+                string id = r.Str("id");
+                if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                list.Add(new WanXiang.Battle.Core.DaoMarkDef
+                {
+                    Id = id,
+                    Name = r.Str("name", id),
+                    Source = r.Enum("source", WanXiang.Battle.Core.DaoMarkSource.None),
+                    T1 = r.Int("t1", 0), T2 = r.Int("t2", 0), T3 = r.Int("t3", 0),
+                    EffectDesc = r.Str("effect_desc"),
+                });
+            }
+            if (list.Count == 0) return;
+            WanXiang.Battle.Core.DaoMarkRules.Install(list);
+            DaoMarkCount = list.Count;
         }
 
         private static void LoadStatus()

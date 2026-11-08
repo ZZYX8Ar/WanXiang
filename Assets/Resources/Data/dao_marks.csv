@@ -1,0 +1,8 @@
+id,name,source,t1,t2,t3,effect_desc
+huasheng,化生,Reactions,30,50,80,反应伤害 +4% / +7% / +10%
+yise,一色,SameElementActs,1,3,5,同元素伤害 +5% / +8% / +12%
+jinshi,金石,Deaths,1,0,0,全队生命 +5%（零阵亡）
+jifeng,疾风,FastWins,3,5,8,首回合先手 +1 / +2 / +3 位次
+zhenyue,镇岳,BossKills,3,5,7,对首领伤害 +6% / +10% / +15%
+youlie,游猎,Captures,3,5,8,捕获率 +8% / +12% / +18%
+lieshi,裂石,MaxHit,2000,4000,6000,暴击伤害 +8% / +12% / +18%
