@@ -376,7 +376,18 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
             //   幕数加成是"越往后越强"，秘境倍率是"这一局额外加压"。
             //   ⛔ 不在场域里时恒为 1.0 ⇒ 非秘境战斗逐位不变（指纹红线）。
             float realmScale = RealmSession.EnemyScaleFor(run);
-            float enemyMul = ascMul * realmScale;
+            // B3-d：玩家选的挑战难度（N1~N18）—— 敌方 hp/atk/def 统一倍率（表里三列一致）。
+            //   无表 / run 为空 / N1 ⇒ ×1（逐位不变，指纹红线）。
+            float diffMul = 1f;
+            if (run != null && run.ChallengeLevel > 1)
+            {
+                var drow = WanXiang.Battle.Core.DifficultyTable.Row(run.ChallengeLevel);
+                if (drow != null) diffMul = drow.HpMul;
+            }
+            float enemyMul = ascMul * realmScale * diffMul;
+            if (diffMul != 1f)
+                UnityEngine.Debug.Log("[BattleRequestFactory] 挑战难度 N" + run.ChallengeLevel +
+                                      "：敌方属性 ×" + diffMul.ToString("0.00"));
 
             // ★ 场域代价（我方减速）：只乘我方出手速度，与敌方强度倍率完全独立的两个轴。
             //   ⛔ 不在秘境时恒为 1 ⇒ 非秘境战斗逐位不变。
