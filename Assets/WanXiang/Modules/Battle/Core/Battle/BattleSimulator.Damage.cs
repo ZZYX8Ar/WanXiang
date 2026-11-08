@@ -686,6 +686,10 @@ namespace WanXiang.Battle.Core
             v *= (1f - mitigation);
             v *= dst.DamageTakenMultiplier;
 
+            // B2：道痕「疾风」——首回合我方伤害加成（阶段制下"位次"无落点，改为首回合爆发）。
+            if (st.Turn <= 1 && src.Side == TeamSide.Player)
+                v *= 1f + st.DaoBonus("first_strike");
+
             // B2：道痕「一色」——纯色队时全队伤害加成（标记由建场时判定）。
             if (st.SameElementTeam && src.Side == TeamSide.Player)
                 v *= 1f + st.DaoBonus("same_element_damage");
