@@ -760,7 +760,117 @@ namespace WanXiang.Run
                                          1, WanXiang.Battle.Core.DifficultyTable.MaxLevel > 0 ? WanXiang.Battle.Core.DifficultyTable.MaxLevel : 18);
             WanXiang.Modules.UI.SquadSelectPanel.PendingSquadId = "";    // 读后清
             WanXiang.Modules.UI.SquadSelectPanel.PendingDifficulty = 1;
-            Debug.Log("[RunSave] 开局配置：分队=" + run.SquadId + " 难度=N" + run.Difficulty);
+            Debug.Log("[RunSave] 开局配置：分队=" + run.SquadId + " 难度=N" + run.ChallengeLevel);
+            ApplySquadLoadout(run);                 // B3-c：起手异兽 / 灵卵 / 遗物
+        }
+
+        /// <summary>
+        /// B3-c：按分队发牌（起手异兽 + 初始灵卵 + 初始遗物）。
+        /// 只应在 ResetForNewRun / StartNew 之后调用一次（重复调用会重复发灵卵）。
+        /// 随机源 = 种子哈希 ⇒ 同一档位重开是同一批起手（与遗物抽取同口径）。
+        /// </summary>
+        public static void ApplySquadLoadout(RunState run)
+        {
+            if (run == null) return;
+            var squad = string.IsNullOrEmpty(run.SquadId)
+                ? WanXiang.Battle.Core.SquadTable.Default()
+                : WanXiang.Battle.Core.SquadTable.For(run.SquadId);
+            if (squad == null)
+            {
+                Debug.LogWarning("[RunSave] 分队表缺失/找不到 " + run.SquadId + "，跳过发牌");
+                return;
+            }
+
+            // 灵卵 / 初始遗物
+            run.Eggs = Mathf.Max(0, squad.Eggs);
+            if (!string.IsNullOrEmpty(squad.Relic) && run.Relics != null && !run.Relics.Contains(squad.Relic))
+                run.Relics.Add(squad.Relic);
+
+            // 起手异兽
+            var rng = new WanXiang.Battle.Core.DeterministicRandom(
+                WanXiang.Battle.Core.CoreMath.Fnv1a("squadLoadout:" + run.RunSeed));
+            var starters = ResolveStarters(squad, rng);
+            if (run.Collection == null) run.Collection = new List<string>();
+            if (run.Team == null) run.Team = new List<string>();
+            int added = 0;
+            foreach (var id in starters)
+            {
+                if (!run.Collection.Contains(id)) run.Collection.Add(id);
+                if (run.Team.Count < 5 && !run.Team.Contains(id)) run.Team.Add(id);
+                added++;
+            }
+            WanXiang.Run.RunSave.Save(run);
+            Debug.Log("[RunSave] 分队发牌：" + squad.Name + " → 起手 " + added + " 只 [" +
+                      string.Join(",", starters) + "] 灵卵 " + run.Eggs + " 遗物 " +
+                      (squad.Relic ?? "无"));
+        }
+
+        /// <summary>解析起手表达式：`id|id|id` / `random:N` / `random_same_element:N`。</summary>
+        public static List<string> ResolveStarters(WanXiang.Battle.Core.SquadDef squad,
+                                                   WanXiang.Battle.Core.DeterministicRandom rng)
+        {
+            var result = new List<string>();
+            string expr = squad.StarterExpr ?? "";
+            if (string.IsNullOrEmpty(expr)) return result;
+
+            if (!expr.StartsWith("random"))
+            {
+                var ids = expr.Split('|');
+                foreach (var id in ids)
+                    if (!string.IsNullOrEmpty(id)) result.Add(id);
+                return result;
+            }
+
+            // 候选池：排除首领（b_）与召唤物（summon_）
+            var pool = new List<string>();
+            var all = WanXiang.Battle.Core.BeastTable.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var p = all[i];
+                if (p == null || string.IsNullOrEmpty(p.Id)) continue;
+                if (WanXiang.Battle.Core.BossCatalog.IsBoss(p.Id)) continue;
+                if (p.Id.StartsWith("summon_")) continue;
+                pool.Add(p.Id);
+            }
+            if (pool.Count == 0) return result;
+
+            int count = 3;
+            int ci = expr.IndexOf(':');
+            if (ci >= 0) int.TryParse(expr.Substring(ci + 1), out count);
+            count = Mathf.Clamp(count, 1, 5);
+
+            bool sameElement = expr.StartsWith("random_same_element");
+            WanXiang.Battle.Core.Element element = WanXiang.Battle.Core.Element.None;
+            if (sameElement)
+            {
+                // 随机选一个"有候选"的元素，然后只从这个元素里挑
+                var byEl = new Dictionary<WanXiang.Battle.Core.Element, List<string>>();
+                foreach (var id in pool)
+                {
+                    WanXiang.Battle.Core.Element el = WanXiang.Battle.Core.Element.None;
+                    var allList = WanXiang.Battle.Core.BeastTable.All;
+                    for (int i = 0; i < allList.Count; i++)
+                        if (allList[i] != null && allList[i].Id == id) { el = allList[i].Element; break; }
+                    if (!byEl.TryGetValue(el, out var lst)) { lst = new List<string>(); byEl[el] = lst; }
+                    lst.Add(id);
+                }
+                var keys = new List<WanXiang.Battle.Core.Element>(byEl.Keys);
+                keys.Sort((a, b) => string.CompareOrdinal(a.ToString(), b.ToString()));   // 稳定
+                element = keys[rng.NextInt(0, keys.Count)];
+                pool = byEl[element];
+            }
+
+            // 不重复抽取
+            var picked = new HashSet<string>();
+            int guard = 0;
+            while (result.Count < count && pool.Count > 0 && guard++ < 200)
+            {
+                int idx = rng.NextInt(0, pool.Count);
+                var id = pool[idx];
+                if (picked.Add(id)) result.Add(id);
+                if (picked.Count >= pool.Count) break;
+            }
+            return result;
         }
 
 
