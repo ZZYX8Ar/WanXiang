@@ -275,10 +275,16 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
 
                     req.Player.Add(d);
                     req.PlayerHpMulPer.Add(hpMul);
-                    // 每只**各自**的战力倍率 = 等级（+1.6%/级）× 进化（+15%），同样取快照。
+                    // 每只**各自**的战力倍率 = 等级（+1.6%/级）× 进化（+15%）× 稀有度/星级（v2 §18.2a C），同样取快照。
                     // ⚠ 与面板显示同一套公式（MetaDefaults.CombatBonusMul），别在两处各推一份。
+                    int star = run.SnapStarOf(id);
+                    float rarityMul = WanXiang.Meta.MetaDefaults.RarityPanelMul(
+                        d != null ? (int)d.Rarity : 0, star);
                     req.PlayerMulPer.Add(WanXiang.Meta.MetaDefaults.CombatBonusMul(
-                        run.SnapLevelOf(id), run.SnapEvolvedOf(id)));
+                        run.SnapLevelOf(id), run.SnapEvolvedOf(id)) * rarityMul);
+                    if (rarityMul > 1.001f)
+                        UnityEngine.Debug.Log("[BattleRequestFactory] 稀有度/星级面板："
+                            + id + " rarity=" + d.Rarity + " star=" + star + " ×" + rarityMul.ToString("0.000"));
                 }
             }
 

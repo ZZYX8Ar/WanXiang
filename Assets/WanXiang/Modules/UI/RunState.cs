@@ -204,6 +204,7 @@ namespace WanXiang.Run
         public int SnapshotSeed = 0;
         public List<string> SnapBeastIds = new List<string>();
         public List<int>    SnapLevels   = new List<int>();
+        public List<int>    SnapStars    = new List<int>();   // B2：星级快照
         public List<bool>   SnapEvolved  = new List<bool>();
         public List<string> SnapAwaken   = new List<string>();   // 已装备的觉醒技 id（"" = 未装备）
 
@@ -241,7 +242,7 @@ namespace WanXiang.Run
 
             var m = WanXiang.Meta.MetaStore.Ensure();
             SnapshotSeed = RunSeed;
-            SnapBeastIds.Clear(); SnapLevels.Clear(); SnapEvolved.Clear(); SnapAwaken.Clear();
+            SnapBeastIds.Clear(); SnapLevels.Clear(); SnapStars.Clear(); SnapEvolved.Clear(); SnapAwaken.Clear();
             if (m == null) return;
 
             int n = System.Math.Min(m.BeastIds.Count, m.BeastLevels.Count);
@@ -251,6 +252,7 @@ namespace WanXiang.Run
                 if (string.IsNullOrEmpty(id)) continue;
                 SnapBeastIds.Add(id);
                 SnapLevels.Add(i < m.BeastLevels.Count ? m.BeastLevels[i] : 0);
+                SnapStars.Add(i < m.BeastStars.Count ? m.BeastStars[i] : 0);
                 SnapEvolved.Add(i < m.BeastEvolved.Count && m.BeastEvolved[i]);
                 SnapAwaken.Add(m.AwakenOf(id));
             }
@@ -270,6 +272,13 @@ namespace WanXiang.Run
         {
             int i = SnapBeastIds.IndexOf(id);
             return i >= 0 && i < SnapEvolved.Count && SnapEvolved[i];
+        }
+
+        /// <summary>B2：星级快照（未锁/不在名单 → 0）。</summary>
+        public int SnapStarOf(string id)
+        {
+            int i = SnapBeastIds.IndexOf(id);
+            return i >= 0 && i < SnapStars.Count ? SnapStars[i] : 0;
         }
 
         public string SnapAwakenOf(string id)

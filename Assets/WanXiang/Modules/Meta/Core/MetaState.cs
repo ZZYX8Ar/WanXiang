@@ -76,6 +76,23 @@ namespace WanXiang.Meta
         // ---- 异兽培养（2026-09-25 起为**唯一来源**，UI 与战斗都读这里）----
         /// <summary>异兽等级：每级 +1.6%（5 级封顶 = +8%），作用于生命/攻击/防御。</summary>
         public const float BeastLevelStep = 0.016f;
+
+        /// <summary>B2：星级上限（v2 §18.2a C 路线：5 星满，每星 +2%）。</summary>
+        public const int StarMax = 5;
+
+        /// <summary>
+        /// B2：稀有度面板乘数（v2 §18.2a C 路线）——
+        /// 基础 灵×1.00 / 玄×1.04 / 神×1.08，每星 +2%（全品级），
+        /// **灵品满星专有 +8%** ⇒ 满星灵品(1.18) = 满星神品(1.18)，玩家用投入换强度。
+        /// </summary>
+        public static float RarityPanelMul(int rarity, int star)
+        {
+            float baseMul = rarity == 2 ? 1.04f : rarity == 3 ? 1.08f : 1.00f;   // None/灵 不加
+            int st = star < 0 ? 0 : (star > StarMax ? StarMax : star);
+            float starMul = 1f + 0.02f * st;
+            float lingFullBonus = (rarity == 1 && st >= StarMax) ? 1.08f : 1f;   // 只对灵品
+            return baseMul * starMul * lingFullBonus;
+        }
         public const int BeastMaxLevel = 5;
         /// <summary>进化加成：生命/攻击/防御 +15%（剧情文档口径；占位，待策划给正式表）。</summary>
         public const float EvolveStatBonus = 0.15f;
@@ -260,6 +277,8 @@ namespace WanXiang.Meta
         //      这里原来那句"暂未写入存档（仍是 v2）"是过时注释，已纠正。
         public readonly List<string> BeastIds = new List<string>(32);
         public readonly List<int> BeastLevels = new List<int>(32);
+        /// <summary>B2：异兽星级（与 BeastIds 下标对齐，0~StarMax）。老档为空 ⇒ 读 0 星。</summary>
+        public readonly List<int> BeastStars = new List<int>(32);
         public readonly List<bool> BeastEvolved = new List<bool>(32);
 
         /// <summary>某异兽的局外等级（0 = 未培养）。</summary>
