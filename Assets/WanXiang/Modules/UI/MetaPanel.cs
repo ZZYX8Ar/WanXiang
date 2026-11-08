@@ -74,6 +74,15 @@ namespace WanXiang.Modules.UI
         private int _tab;            // 0=全部，1..5=五行
         private int _selected = -1;
 
+        private void HookEntry(string path, System.Action action)
+        {
+            var t = transform.Find(path);
+            var btn = t != null ? t.GetComponent<Button>() : null;
+            if (btn == null) return;     // prefab 还没补节点（S6 工具未跑）时静默跳过
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(() => action());
+        }
+
         protected override void OnCreate()
         {
             for (int i = 0; i < (_tabBtns != null ? _tabBtns.Length : 0); i++)
@@ -87,6 +96,10 @@ namespace WanXiang.Modules.UI
             if (_itemTemplate != null) _itemTemplate.gameObject.SetActive(false);
             if (_btnAwakenPick != null) _btnAwakenPick.onClick.AddListener(ShowAwakenPicker);
             if (_btnAwakenClose != null) _btnAwakenClose.onClick.AddListener(() => { if (_awakenPicker != null) _awakenPicker.SetActive(false); });
+
+            // S6：道痕 / 技能 入口（按钮由 MetaPanelEntryBuilder 增量加进 prefab 顶栏）
+            HookEntry("Root_TopBar/Btn_DaoMark", () => OpenPanelAsync<DaoMarkPanel>().Forget());
+            HookEntry("Root_TopBar/Btn_Skills", () => OpenPanelAsync<SkillLoadoutPanel>().Forget());
             if (_awakenPicker != null) _awakenPicker.SetActive(false);
             if (_awakenItemTemplate != null) _awakenItemTemplate.gameObject.SetActive(false);
             if (_btnAwakenPick != null) _btnAwakenPick.onClick.AddListener(ShowAwakenPicker);
