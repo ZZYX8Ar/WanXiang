@@ -90,6 +90,7 @@ namespace WanXiang.Battle.Core
         public const string Root        = "root";         // 根缚（不能行动）—— 蝮魇 / 蔓娘
         public const string Miasma      = "miasma";       // 瘴气（每层攻击 -3%）—— 魍魉
         public const string Shock       = "shock";        // 感电（金+水反应附带：伤害 +6%/层）
+        public const string Poison      = "poison";       // 中毒（毒羽/九毒：暴击或攻击附带，DoT）
 
         // ---- 增益 ----
         public const string Qi          = "qi";           // 同气（相生相邻产出，每层 +2% 技能效果）
@@ -101,6 +102,10 @@ namespace WanXiang.Battle.Core
         private static readonly System.Collections.Generic.List<StatusDef> _all =
             new System.Collections.Generic.List<StatusDef>
         {
+            new StatusDef { Id = Poison, Name = "中毒", IsDebuff = true, MaxStacks = 5,
+                DotFlatPerStack = 0f,
+                Description = "每层每回合造成伤害（施加时按施加者攻击力折算）；不参与元素反应" },
+
             new StatusDef { Id = Burn, Name = "灼烧", IsDebuff = true, MaxStacks = 10,
                 DotFlatPerStack = 0f,
                 Description = "每层每回合造成伤害（数值在施加时按施加者攻击力折算）。" +

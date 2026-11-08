@@ -287,6 +287,19 @@ namespace WanXiang.Battle.Core
             // B1：性情「刚烈」受击额外 +5 元气（更早出奥义）。
             dst.AddRage(st.Config.RageWhenHit
                 + TemperamentTable.BonusFor(dst, TraitChannels.RageOnHit));
+            // B1：天性「毒羽」——暴击时给目标挂中毒（层数=通道值；DoT 系数=Trait.Value2，默认 0.12）。
+            //   走 TraitChannels.PoisonOnCrit ⇒ 删 CSV 行自动失效。
+            if (crit)
+            {
+                float poisonStacks = TraitRuntime.Bonus(st, src.Side, TraitChannels.PoisonOnCrit);
+                if (poisonStacks > 0f)
+                {
+                    float dotMul = src.Def != null && src.Def.Trait.Value2 > 0.001f
+                                 ? src.Def.Trait.Value2 : 0.12f;
+                    dst.ApplyStatus(StatusCatalog.Poison, (int)poisonStacks, 3, src.Attack * dotMul);
+                }
+            }
+
             // B1：天性「受伤护盾」——单次受伤达到阈值时给自身一层护盾（每回合 1 次）。
             ApplyHurtShield(st, dst, dealt);
 
