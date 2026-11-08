@@ -59,6 +59,7 @@ namespace WanXiang.Modules.UI
 
             if (attempt.Success)
             {
+                run.Stats.Captures++;   // B2 骨架：捕获计数（道痕来源之一）
                 bool first = BeastCodexPrefs.MarkCaught(target.Id);
                 UnityEngine.Debug.Log("[Capture] 捕获成功：" + target.DisplayName +
                                       (first ? "（图鉴新收录）" : "（图鉴已有）"));

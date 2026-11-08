@@ -489,6 +489,19 @@ BuildNodeMap();
                 if (!_realmMode && lastCell >= 0 && PendingCommit == lastCell && prun.Act < 5)
            {
                             prun.Act++;
+                            prun.Stats.ActsCleared++;   // B2 骨架：通关幕数（道痕来源之一）
+                            // B2 骨架：纯色队判定——上阵异兽全同五行（有任一不在表/不足 1 只则不算）
+                            {
+                                string el = null; bool same = prun.Team != null && prun.Team.Count > 0;
+                                for (int ti = 0; same && ti < prun.Team.Count; ti++)
+                                {
+                                    BeastProfile tp;
+                                    if (!BeastTable.TryGet(prun.Team[ti], out tp) || tp == null) { same = false; break; }
+                                    var e = tp.Element.ToString();
+                                    if (el == null) el = e; else if (el != e) same = false;
+                                }
+                                if (same) prun.Stats.SameElementTeam = true;
+                            }
                             prun.NodeOffset = -1;
                             if (prun.VisitedNodes != null) prun.VisitedNodes.Clear();
                             if (prun.PassedNodes != null) prun.PassedNodes.Clear();       // 换幕：通过记录作废（offset 是"本幕"的）

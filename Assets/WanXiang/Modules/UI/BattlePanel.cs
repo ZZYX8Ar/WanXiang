@@ -705,11 +705,14 @@ namespace WanXiang.Modules.UI
                 // B2 骨架：战斗统计回传本局（道痕来源：反应/最大伤害/首领/阵亡/速通）
                 var stEnd = _play != null ? _play.State : null;
                 var runEnd = WanXiang.Run.RunSave.Current;
-                if (stEnd != null && runEnd != null && runEnd.Stats != null)
+                if (stEnd != null && runEnd != null)
                 {
-                    runEnd.Stats.AddBattle(stEnd.StatReactions, stEnd.StatMaxHit,
-                                           stEnd.StatBossKills, stEnd.StatDeaths,
-                                           stEnd.StatFastWins);
+                    runEnd.AddBattleStats(stEnd.StatReactions, stEnd.StatMaxHit,
+                                          stEnd.StatBossKills, stEnd.StatDeaths,
+                                          stEnd.StatFastWins);
+                    // B2：战斗后即评估道痕（幂等——Grant 取最高星，重复授予无害）
+                    foreach (var kv in WanXiang.Battle.Core.DaoMarkRules.Evaluate(runEnd.Stats))
+                        WanXiang.Modules.UI.DaoMarkPrefs.Grant(kv.Key, kv.Value);
                     WanXiang.Run.RunSave.Save(runEnd);
                     Debug.Log("[BattlePanel] 本局统计回传：反应 " + stEnd.StatReactions
                               + "｜最大伤害 " + stEnd.StatMaxHit
