@@ -1,0 +1,7 @@
+﻿id,name,condition,priority,reward_kind,reward_value,hint,is_true
+end_houtu,后土归藏,marks>=3&houtu,1,relic,item_tu_true,三印俱齐者，可叩地母之门,1
+end_n9,险路通天,n>=9,2,ink,80,于九重险峰之上行至尽头,0
+end_hunt,百猎之途,captures>=5,3,eggs,40,以罗网织就的归途,0
+end_mortal,凡人歌,no_relic,4,none,,不假外物，亦是一途,0
+end_ascend,登阶,realm>=2,5,ink,60,境界既至，何须凭依,0
+end_return,归返,default,6,none,,旅途未尽，来日方长,0

@@ -488,6 +488,14 @@ namespace WanXiang.Run
         /// </summary>
         public System.Collections.Generic.List<string> Relics = new System.Collections.Generic.List<string>();
 
+        // ---- B4：结局骨架（印记授予来源 B4-3 接；终局判定 = EndingsRules.Evaluate）----
+        /// <summary>已获印记/关键道具（item_tu_1..3 = 后土三印；事件 grant_item / 节点改造授予）。</summary>
+        public System.Collections.Generic.List<string> GrantedItems = new System.Collections.Generic.List<string>();
+        /// <summary>已通过「后土试炼」（真结局前置）。</summary>
+        public bool ClearedHoutu;
+        /// <summary>终局判定结果（endings.csv 的 id；守关胜利后写）。</summary>
+        public string EndingId = "";
+
         /// <summary>
         /// 进战斗用的强度系数：随【幕】缓涨，给敌人与奖励一个共同标尺。
         /// ⚠ 原实现用 Realm/Jie（旧"境/劫"体系）—— 那套在幕推进后已不再递增，

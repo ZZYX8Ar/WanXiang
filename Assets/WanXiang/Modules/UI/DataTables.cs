@@ -53,6 +53,7 @@ namespace WanXiang.Modules.UI
         public static int TemperamentCount { get; private set; } // 通道化：temperaments.csv 生效行数
         public static int SkillPoolCount { get; private set; }   // B2：skill_pool.csv 生效行数
         public static int DaoMarkCount { get; private set; }     // B2：dao_marks.csv 生效行数
+        public static int EndingCount { get; private set; }      // B4：endings.csv 生效行数
         public static int SquadPresetCount { get; private set; } // B3：squads.csv（分队）生效行数
         public static int DifficultyCount { get; private set; }  // B3：difficulty_mods.csv 生效行数
         public static int ComboCount { get; private set; }
@@ -90,6 +91,7 @@ namespace WanXiang.Modules.UI
             LoadTemperaments();
             LoadSkillPool();
             LoadDaoMarks();
+            LoadEndings();
             LoadSquadPresets();
             LoadDifficulty();
 
@@ -103,7 +105,7 @@ namespace WanXiang.Modules.UI
                       "／异兽 " + BeastCount + " 只／标签 " + LabelCount + " 条" +
                       "／性情通道 " + TemperamentCount + " 条／技能池 " + SkillPoolCount + " 条" +
                       "／道痕 " + DaoMarkCount + " 条／分队 " + SquadPresetCount + " 个" +
-                      "／难度 " + DifficultyCount + " 档");
+                      "／难度 " + DifficultyCount + " 档／结局 " + EndingCount + " 条");
         }
 
         /// <summary>
@@ -263,6 +265,36 @@ namespace WanXiang.Modules.UI
             if (list.Count == 0) return;
             WanXiang.Battle.Core.DaoMarkRules.Install(list);
             DaoMarkCount = list.Count;
+        }
+
+        // ================================================================
+        //  B4 · endings.csv（结局：条件表达式 + 优先级互斥判定）
+        // ================================================================
+        private static void LoadEndings()
+        {
+            var rows = Read("endings", out var header);
+            if (rows == null) return;
+            var list = new List<WanXiang.Battle.Core.EndingDef>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "endings.csv", i + 2, Problems);
+                string id = r.Str("id");
+                if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                list.Add(new WanXiang.Battle.Core.EndingDef
+                {
+                    Id = id,
+                    Name = r.Str("name", id),
+                    Condition = r.Str("condition", "default"),
+                    Priority = r.Int("priority", 99),
+                    RewardKind = r.Str("reward_kind", "none"),
+                    RewardValue = r.Str("reward_value", ""),
+                    Hint = r.Str("hint", ""),
+                    IsTrue = r.Str("is_true", "0") == "1",
+                });
+            }
+            if (list.Count == 0) return;
+            WanXiang.Battle.Core.EndingsRules.Install(list);
+            EndingCount = list.Count;
         }
 
         // ================================================================
