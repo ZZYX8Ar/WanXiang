@@ -175,10 +175,12 @@ namespace WanXiang.Campaign
 
         public RunDriver(BattleConfig cfg, ActGraph[] acts,
                          Func<int, WeatherDef> termWeather, ICampaignContent content,
-                         ulong seed, NodeChooser chooser = null, RunTuning tuning = null)
+                         ulong seed, NodeChooser chooser = null, RunTuning tuning = null,
+                         float eggMul = 1f)
         {
             _cfg = cfg ?? BattleConfig.Default;
             _seed = seed;
+            _eggMul = eggMul;
             _content = content;
             _chooser = chooser ?? RunChoosers.Seeded(seed);
             _tuning = tuning ?? new RunTuning();
@@ -217,6 +219,24 @@ namespace WanXiang.Campaign
 
         /// <summary>局内灵卵（遭遇 +1 / 精英 +2 / 孵穴 +2 / 异闻拒绝 +1；灵市消费待 P4）。</summary>
         public int RunEggs { get; private set; }
+        /// <summary>B3-d：灵卵小数余额（egg_mul 会产生小数，累计到下一次凑整，不被四舍五入吞掉）。</summary>
+        private float _eggRemainder;
+
+        /// <summary>
+        /// B3-d：奖励性灵卵统一入口 —— 乘「挑战难度」的 egg_mul（0.99~0.85，难度越高收益越低）。
+        /// ⚠ 只用于**奖励**（节点/休整/异闻）；花费（灵市/星移）与返还（捕获）不走这里。
+        /// ChallengeLevel=1（N1）时 mul=1 ⇒ 逐位不变（指纹红线）。
+        /// </summary>
+        private readonly float _eggMul;   // B3-d：难度灵卵收益（构造注入；默认 1 = 无惩罚）
+
+        private void AddRewardEggs(int baseEggs)
+        {
+            float mul = _eggMul > 0f ? _eggMul : 1f;
+            float v = baseEggs * mul + _eggRemainder;
+            int whole = (int)v;
+            _eggRemainder = v - whole;
+            RunEggs += whole;
+        }
 
         /// <summary>本步的随机种子：局种子 ^ hash(幕:节点:序号)。</summary>
         public ulong SeedFor(int act, int termIndex, int index)
@@ -323,7 +343,7 @@ namespace WanXiang.Campaign
             else
             {
                 // v1.1 §4.3：遭遇 +1 灵卵、精英 +2（守关/天阙的奖励走结算，不进局内钱包）
-                RunEggs += stepKind == RunStepKind.Elite ? 2 : 1;
+                AddRewardEggs(stepKind == RunStepKind.Elite ? 2 : 1);
             }
             return step;
         }
@@ -337,12 +357,12 @@ namespace WanXiang.Campaign
             switch (kind)
             {
                 case NodeKind.Nest:
-                    RunEggs += 2;      // 默认取灵卵（另一项"回血 40%"对"每场独立血量"的模型没意义）
+                    AddRewardEggs(2);  // 默认取灵卵（另一项"回血 40%"对"每场独立血量"的模型没意义）
                     return $"孵穴：取 2 枚灵卵（另一选项：回复全队 {_tuning.NestHealPercent:P0} 生命"
                          + " —— 与每场独立血量冲突，待策划定）";
 
                 case NodeKind.Tale:
-                    RunEggs += 1;      // 默认拒绝（异闻表 §4.7 待 P5 接入）
+                    AddRewardEggs(1);  // 默认拒绝（异闻表 §4.7 待 P5 接入）
                     return "异闻：拒绝，拿 1 枚灵卵（三选一待接 §4.7）";
 
                 case NodeKind.Shop:
