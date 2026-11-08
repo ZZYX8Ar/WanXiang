@@ -627,7 +627,30 @@ namespace WanXiang.Modules.UI
             else { _inspectOpen = false; _inspectPanel = null; _halted = false; }
         }
 
+        /// <summary>
+        /// 交接前的捕获询问（P3-c）：胜利 / 非平局 / 非 PvP / 非首领试炼才问。
+        /// 完成后继续原 HandOffCore —— 两个原有调用点不用改。
+        /// </summary>
         private void HandOff(ResultRequest result)
+        {
+            bool canOffer = result != null && result.Win && !result.Draw
+                            && !SceneFlow.LastWasPvp && !SceneFlow.LastWasBossRush;
+            if (canOffer)
+            {
+                OfferCaptureThenHandOff(result).Forget();
+                return;
+            }
+            HandOffCore(result);
+        }
+
+        private async Cysharp.Threading.Tasks.UniTaskVoid OfferCaptureThenHandOff(ResultRequest result)
+        {
+            try { await CaptureFlow.OfferAsync(_play != null ? _play.State : null, WanXiang.Run.RunSave.Current); }
+            catch (System.Exception ex) { Debug.LogWarning("[Capture] 捕获流程异常（跳过）：" + ex.Message); }
+            HandOffCore(result);
+        }
+
+        private void HandOffCore(ResultRequest result)
         {
             // ★ 首领试炼：不结算、不进节点图 ⇒ 直接播转场回试炼面板
             //   （用户 2026-10-25："战斗胜利怎么就回到节点地图，还弹出了面板"）
