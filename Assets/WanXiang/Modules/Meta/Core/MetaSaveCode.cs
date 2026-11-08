@@ -31,7 +31,7 @@ namespace WanXiang.Meta
 {
     public static class MetaSaveCode
     {
-        public const byte CurrentVersion = 7;   // v7：新增动态立绘（LivePortraits + HomePortraitId）；读档兼容 v6（无此段=空）
+        public const byte CurrentVersion = 8;   // v8：新增异兽星级（每兽 1 字节 0~5）；读档兼容 v7/v6（无此段=0 星）
         public const int MaxIndex = 254;        // 下标用 1 字节，255 留作哨兵
         public const int MaxEggs = 65535;
 
@@ -53,7 +53,7 @@ namespace WanXiang.Meta
                 var raw = Encoding.UTF8.GetBytes(st.BeastIds[i] ?? "");
                 if (raw.Length > 250) return null;          // id 过长 = 脏档
                 idBytes.Add(raw);
-                beastBytes += 1 + raw.Length + 1 + 1;       // idLen + id + level + evolved
+                beastBytes += 1 + raw.Length + 1 + 1 + 1;   // idLen + id + level + evolved + star（v8）
             }
 
             // ⚠ 必须算准：写入的是  BeastCount(1) + beastBytes + HostCount(1) + hosts + SoulCount(1) + souls
@@ -183,6 +183,8 @@ namespace WanXiang.Meta
                 for (int k = 0; k < raw.Length; k++) b[p++] = raw[k];
                 b[p++] = (byte)System.Math.Min(255, System.Math.Max(0, st.BeastLevels[i]));
                 b[p++] = (byte)(st.BeastEvolved[i] ? 1 : 0);
+                b[p++] = (byte)System.Math.Min((byte)MetaDefaults.StarMax,
+                           (byte)(i < st.BeastStars.Count ? System.Math.Max(0, st.BeastStars[i]) : 0));   // v8 星级
             }
 
             b[p++] = (byte)st.UnlockedHosts.Count;
@@ -206,7 +208,7 @@ namespace WanXiang.Meta
             catch (FormatException) { return false; }
             if (b == null || b.Length < 22) return false;   // v4 头部 22 字节
             int ver = b[0];
-            if (ver != 6 && ver != 7) return false;          // ★ v7 起兼容读 v6（无动态立绘段=空列表）
+            if (ver != 6 && ver != 7 && ver != 8) return false;   // ★ v8 起兼容读 v7/v6
 
             var st = new MetaState(ReadU64(b, 1));
             st.Eggs = ReadU16(b, 9);
@@ -305,9 +307,16 @@ namespace WanXiang.Meta
                 if (p + 1 >= b.Length) return false;        // 还需 level + evolved
                 int lv = b[p++];
                 bool ev = b[p++] != 0;
+                int star = 0;
+                if (ver >= 8)
+                {
+                    if (p >= b.Length) return false;
+                    star = b[p++];
+                }
                 st.BeastIds.Add(id);
                 st.BeastLevels.Add(lv);
                 st.BeastEvolved.Add(ev);
+                st.BeastStars.Add(System.Math.Min(star, MetaDefaults.StarMax));   // v8：老档自动 0
             }
 
             int hostCount = b[p++];
