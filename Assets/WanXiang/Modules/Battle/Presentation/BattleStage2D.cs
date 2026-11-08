@@ -689,13 +689,8 @@ namespace WanXiang.Battle.Presentation
         //    · 普通档：青白小环，快收
         //  ⚠ 由 Step(dt) 推进 —— dt=0（顿帧）时也会停住，那正是"顿"手感的一部分。
         // ================================================================
-        private sealed class ParryBurst
-        {
-            public SpriteRenderer Sr;
-            public float T, Dur, R0, R1;
-            public Color C;
-        }
-        private readonly List<ParryBurst> _parryBursts = new List<ParryBurst>(4);
+        /// <summary>R3-c：格挡爆闪池（Spawn/Step/ClearRefs，与 FloatingTextPool 同模式）。</summary>
+        private readonly BurstPool _burstPool = new BurstPool();
         private static Sprite _parryDiscSprite;   // 实心圆盘（中心闪光）
 
         /// <summary>
@@ -716,51 +711,17 @@ namespace WanXiang.Battle.Presentation
             if (perfect)
             {
                 // 完美：外圈金环（扩得大）+ 内圈白环（快）+ 中心闪光
-                SpawnBurst(p, _parryRingSprite, new Color(1f, 0.84f, 0.38f, 0.95f), 0.35f, 3.1f, 0.42f, 30);
-                SpawnBurst(p, _parryRingSprite, new Color(1f, 1f, 0.94f, 0.90f), 0.25f, 1.9f, 0.26f, 31);
-                SpawnBurst(p, _parryDiscSprite, new Color(1f, 0.96f, 0.80f, 0.75f), 0.30f, 1.35f, 0.20f, 29);
+                _burstPool.Spawn(transform, p, _parryRingSprite, new Color(1f, 0.84f, 0.38f, 0.95f), 0.35f, 3.1f, 0.42f, 30);
+                _burstPool.Spawn(transform, p, _parryRingSprite, new Color(1f, 1f, 0.94f, 0.90f), 0.25f, 1.9f, 0.26f, 31);
+                _burstPool.Spawn(transform, p, _parryDiscSprite, new Color(1f, 0.96f, 0.80f, 0.75f), 0.30f, 1.35f, 0.20f, 29);
             }
             else
             {
                 // 普通：一圈青白环
-                SpawnBurst(p, _parryRingSprite, new Color(0.72f, 0.92f, 1f, 0.85f), 0.25f, 1.7f, 0.28f, 30);
+                _burstPool.Spawn(transform, p, _parryRingSprite, new Color(0.72f, 0.92f, 1f, 0.85f), 0.25f, 1.7f, 0.28f, 30);
             }
         }
 
-        private void SpawnBurst(Vector3 pos, Sprite sp, Color c, float r0, float r1, float dur, int order)
-        {
-            var go = new GameObject("ParryBurst");
-            go.transform.SetParent(transform, false);
-            go.transform.position = pos;
-            sp.texture.wrapMode = TextureWrapMode.Repeat;   // 网格要平铺，不然边缘拉花
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = sp;
-            sr.sortingOrder = order;
-            sr.color = c;
-            _parryBursts.Add(new ParryBurst { Sr = sr, T = 0f, Dur = dur, R0 = r0, R1 = r1, C = c });
-        }
-
-        private void StepParryBursts(float dt)
-        {
-            for (int i = _parryBursts.Count - 1; i >= 0; i--)
-            {
-                var b = _parryBursts[i];
-                if (b.Sr == null) { _parryBursts.RemoveAt(i); continue; }
-                b.T += dt;
-                float k = Mathf.Clamp01(b.T / b.Dur);
-                // 半径：快出慢收（1-(1-k)^2）
-                float e = 1f - (1f - k) * (1f - k);
-                float r = Mathf.Lerp(b.R0, b.R1, e);
-                b.Sr.transform.localScale = new Vector3(r, r, 1f);
-                var c = b.C;
-                b.Sr.color = new Color(c.r, c.g, c.b, c.a * (1f - k));
-                if (k >= 1f)
-                {
-                    Destroy(b.Sr.gameObject);
-                    _parryBursts.RemoveAt(i);
-                }
-            }
-        }
 
         /// <summary>程序化**实心圆盘**贴图（中心亮、边缘衰减；格挡中心闪光用）。</summary>
         private static Sprite BuildDiscSprite(int size)
@@ -948,7 +909,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             _turnArrow = null; // 箭头子物体已被上面销毁；Build 里重建
             _shakeDur = 0f; _shakeAmp = 0f;
             _deferredDmg.Clear();
-            _parryBursts.Clear();   // 爆闪子物体已被上面统一销毁；只清列表（别对已毁对象操作）
+            _burstPool.ClearRefs();   // 爆闪子物体已被上面统一销毁；只清引用
         }
 
         // player=true 我方（左，不镜像）；player=false 敌方（右，列镜像 ， 与我方对称）
@@ -2557,7 +2518,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             if (_skillFx != null) _skillFx.Step(fxDt);
             StepShake(fxDt);
             StepZoom(fxDt);
-            StepParryBursts(dt);   // 格挡爆闪（跟舞台时钟，倍速下一起变快）
+            _burstPool.Step(dt);   // 格挡爆闪（跟舞台时钟，倍速下一起变快）
    StepVerdict(dt);    // 判定横幅（弹入/停留/淡出）——用 fxDt 之外的 dt，让它不被倍速带没
 
       // QTE 提示条淡入淡出（有文案就淡入保持，清掉就淡出隐藏）
