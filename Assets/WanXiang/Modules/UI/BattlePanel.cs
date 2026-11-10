@@ -882,6 +882,9 @@ namespace WanXiang.Modules.UI
         //  「自动战斗」= 反复下 -1 指令（= 交给 AI），与 v2.1 文档第 13 节一致。
         // ================================================================
         [SerializeField] private RectTransform _actionBar;    // Root_Action（生成器产物）
+        [SerializeField] private Button[] _actorBtns;         // B5 底栏：5 只异兽名按钮（点=选它为下一行动者）
+        [SerializeField] private TMP_Text[] _actorNameTmps;   // B5 底栏：异兽名显示
+        [SerializeField] private Button[] _actorSkillBtns;    // B5 底栏：5×3 技能按钮（点=该异兽立即用该技能）
         [SerializeField] private TMP_Text _tmpActor;          // Tmp_Actor 当前待令单位
         [SerializeField] private Button[] _skillBtns;         // Btn_Skill_0..2（下标 = SkillType）
         [SerializeField] private Button _btnAutoBattle;       // Btn_AutoBattle

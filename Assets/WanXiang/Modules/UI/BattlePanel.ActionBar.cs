@@ -60,6 +60,30 @@ namespace WanXiang.Modules.UI
             // prefab 已绑定（生成器产物）→ 只接线，不重复建控件
             if (_actionBar != null)
             {
+                // B5 底栏改版：5×3 技能按钮 + 5 异兽名按钮
+                if (_actorSkillBtns != null)
+                    for (int i = 0; i < _actorSkillBtns.Length; i++)
+                    {
+                        int idx = i;
+                        if (_actorSkillBtns[i] != null)
+                            _actorSkillBtns[i].onClick.AddListener(() => OnActorSkillClicked(idx / 3, idx % 3));
+                    }
+                if (_actorBtns != null)
+                    for (int i = 0; i < _actorBtns.Length; i++)
+                    {
+                        int idx = i;
+                        if (_actorBtns[i] != null)
+                            _actorBtns[i].onClick.AddListener(() => SelectNext(idx));
+                    }
+                var disabledCol2 = new Color(0.40f, 0.38f, 0.34f, 0.55f);
+                if (_actorSkillBtns != null)
+                    for (int i = 0; i < _actorSkillBtns.Length; i++)
+                        if (_actorSkillBtns[i] != null)
+                        {
+                            var cb = _actorSkillBtns[i].colors; cb.disabledColor = disabledCol2;
+                            _actorSkillBtns[i].colors = cb;
+                            _actorSkillBtns[i].transition = Selectable.Transition.ColorTint;
+                        }
                 if (_skillBtns != null)
                     for (int i = 0; i < _skillBtns.Length; i++)
                     {
@@ -165,6 +189,35 @@ namespace WanXiang.Modules.UI
 
             // 只有"等我方下令 + 结算事件已播完"才能行动；敌人行动/伤害结算/自动推进中一律置灰不可点。
             bool canAct = CanCommandNow();
+
+            // B5：5 列异兽名 + 15 技能按钮状态（死/不能动 → 置灰；当前可下令 → 高亮描边）
+            var stR = _play != null ? _play.State : null;
+            var mineR = stR != null ? stR.UnitsOf(WanXiang.Battle.Core.TeamSide.Player) : null;
+            var selIdB = _play != null ? _play.SelectedActorId : null;
+            for (int col = 0; col < 5; col++)
+            {
+                var uR = mineR != null && col < mineR.Count ? mineR[col] : null;
+                if (_actorNameTmps != null && col < _actorNameTmps.Length && _actorNameTmps[col] != null)
+                    _actorNameTmps[col].text = uR != null ? uR.DisplayName : "——";
+                bool alive = uR != null && uR.IsAlive;
+                bool selectable = alive && canAct;
+                bool isSelected = selIdB != null && uR != null && uR.RuntimeId == selIdB;
+                if (_actorBtns != null && col < _actorBtns.Length && _actorBtns[col] != null)
+                {
+                    _actorBtns[col].interactable = selectable;
+                    var imgC = _actorBtns[col].GetComponent<Image>();
+                    if (imgC != null)
+                        imgC.color = !alive ? new Color(0.5f, 0.5f, 0.5f, 0.6f)
+                                  : isSelected ? new Color(0.85f, 0.75f, 0.4f, 0.95f)
+                                  : Color.white;
+                }
+                for (int si = 0; si < 3; si++)
+                {
+                    int gi = col * 3 + si;
+                    if (_actorSkillBtns != null && gi < _actorSkillBtns.Length && _actorSkillBtns[gi] != null)
+                        _actorSkillBtns[gi].interactable = selectable && uR != null && uR.CanAct;
+                }
+            }
 
             var u = _play.PendingUnit;
             // ★ 阶段制·换人（2026-11-07）：玩家按 1~5 选人后，按钮/文案/箭头都跟随被选中的那只
@@ -278,6 +331,36 @@ namespace WanXiang.Modules.UI
                 if (_skillBtns[i] != null && _skillBtns[i].gameObject.activeSelf)
                     _skillBtns[i].interactable = on;
             if (_btnCombo != null) _btnCombo.interactable = on && _play != null && _play.AwaitingCommand && _play.AvailableCombos.Count > 0;
+        }
+
+        /// <summary>B5：点某异兽的技能 = 换人 + 立即出手（模拟层 PendingActorSelect 原子归属）。</summary>
+        private void OnActorSkillClicked(int actorIdx, int skillIdx)
+        {
+            if (_play == null || !_play.AwaitingCommand) return;
+            var st = _play.State;
+            var mine = st != null ? st.UnitsOf(WanXiang.Battle.Core.TeamSide.Player) : null;
+            if (mine == null || actorIdx >= mine.Count) return;
+            var u = mine[actorIdx];
+            if (u == null || !u.IsAlive || !u.CanAct) return;
+            if (_autoBattle) { _autoBattle = false; }
+            _play.SelectActor(u.RuntimeId);          // 换人（未轮到它时会自动换位）
+            _play.SubmitCommand(skillIdx, -1);       // 该技能立即出手（指令原子归属被选中者）
+            Sfx("sfx_bt_cmd_confirm");
+            RefreshActionBar();
+        }
+
+        /// <summary>B5：只选人不出手（下一个决策点轮到它）。</summary>
+        private void SelectNext(int actorIdx)
+        {
+            if (_play == null || !_play.AwaitingCommand) return;
+            var st = _play.State;
+            var mine = st != null ? st.UnitsOf(WanXiang.Battle.Core.TeamSide.Player) : null;
+            if (mine == null || actorIdx >= mine.Count) return;
+            var u = mine[actorIdx];
+            if (u == null || !u.IsAlive) return;
+            _play.SelectActor(u.RuntimeId);
+            Sfx("sfx_bt_cmd_select");
+            RefreshActionBar();
         }
 
         private void OnSkillClicked(int skillIndex)

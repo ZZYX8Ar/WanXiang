@@ -623,25 +623,47 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_btnLeave", bLeave.GetComponent<Button>());
             UIBuild.Bind(comp, "_tmpLog", tmpLog);
             // ---- 回合制 v2.1 P1-3：战记操作区（底部，默认隐藏，等下令时亮出）----
+            // B5-底栏改版（用户线框确认）：5 列异兽技能组并排——点谁的技能谁出手
             var actionBar = UIBuild.Fixed(rt, "Root_Action", new Vector2(0.5f, 0f),
-                new Vector2(1800, 150), new Vector2(0f, 95f));
+                new Vector2(1800, 240), new Vector2(0f, 40f));
             UIBuild.Img(actionBar, UIBuild.Night);
             var tmpActor = UIBuild.Tmp(UIBuild.Fixed(actionBar, "Tmp_Actor", new Vector2(0.5f, 1f),
-                new Vector2(1700, 40), new Vector2(0f, -8f)), "轮到我方行动", 26, UIBuild.Paper,
+                new Vector2(1700, 36), new Vector2(0f, -4f)), "轮到我方行动", 24, UIBuild.Paper,
                 TextAlignmentOptions.Center);
-            var skillBtns = new Button[3];
+            var actorBtns = new Button[5];
+            var actorNameTmps = new TMP_Text[5];
+            var actorSkillBtns = new Button[15];
             string[] skillNames = { "普攻", "战记", "终结技" };
-            for (int si = 0; si < 3; si++)
-                skillBtns[si] = UIBuild.MakeBtn(actionBar, "Btn_Skill_" + si, new Vector2(0f, 0f),
-                    new Vector2(190, 76), new Vector2(120f + si * 210f, 54f),
-                    skillNames[si], UIBuild.Gold, 26f).GetComponent<Button>();
+            for (int col = 0; col < 5; col++)
+            {
+                var colRoot = UIBuild.Fixed(actionBar, "ActorCol_" + col, new Vector2(0f, 0.5f),
+                    new Vector2(330, 180), new Vector2(24f + col * 344f, 0f));
+                var nameTmp = UIBuild.Tmp(UIBuild.Fixed(colRoot, "Tmp_ActorName", new Vector2(0.5f, 1f),
+                    new Vector2(320, 34), new Vector2(0f, -2f)), "——", 20, UIBuild.Paper,
+                    TextAlignmentOptions.Center);
+                actorNameTmps[col] = nameTmp;
+                var ab = UIBuild.MakeBtn(colRoot, "Btn_Actor_" + col, new Vector2(0f, 1f),
+                    new Vector2(320, 34), new Vector2(0f, -2f), "", UIBuild.Card, 18f)
+                    .GetComponent<Button>();
+                actorBtns[col] = ab;
+                for (int si = 0; si < 3; si++)
+                    actorSkillBtns[col * 3 + si] = UIBuild.MakeBtn(colRoot, "Btn_AS_" + col + "_" + si,
+                        new Vector2(0f, 1f), new Vector2(320, 44), new Vector2(0f, -42f - si * 46f),
+                        skillNames[si], UIBuild.Gold, 20f).GetComponent<Button>();
+            }
+            var bCombo = UIBuild.MakeBtn(actionBar, "Btn_Combo", new Vector2(1f, 0.5f),
+                new Vector2(140, 70), new Vector2(-80f, 20f), "连携", UIBuild.Card, 22f)
+                .GetComponent<Button>();
             var bAutoBattle = UIBuild.MakeBtn(actionBar, "Btn_AutoBattle", new Vector2(1f, 0f),
-                new Vector2(200, 76), new Vector2(-120f, 54f), "自动战斗", UIBuild.Card, 24f)
+                new Vector2(140, 70), new Vector2(-80f, -46f), "自动战斗", UIBuild.Card, 20f)
                 .GetComponent<Button>();
             actionBar.gameObject.SetActive(false);   // 等 AwaitingCommand 时由 BattlePanel 亮出
             UIBuild.Bind(comp, "_actionBar", actionBar);
             UIBuild.Bind(comp, "_tmpActor", tmpActor);
-            UIBuild.BindArr(comp, "_skillBtns", skillBtns);
+            UIBuild.Bind(comp, "_btnCombo", bCombo);
+            UIBuild.BindArr(comp, "_actorBtns", actorBtns);
+            UIBuild.BindArr(comp, "_actorNameTmps", actorNameTmps);
+            UIBuild.BindArr(comp, "_actorSkillBtns", actorSkillBtns);
             UIBuild.Bind(comp, "_btnAutoBattle", bAutoBattle);
 
             // ---- 自动战斗指示（默认隐藏）：一张图 + 代码旋转，不需要序列帧 ----
@@ -654,11 +676,6 @@ namespace WanXiang.EditorTools
 
 
             // ---- 连携按钮（主兽 + 对应元素伙伴在场时可用，v2.1 P4）----
-            var bCombo = UIBuild.MakeBtn(actionBar, "Btn_Combo", new Vector2(1f, 0f),
-                new Vector2(200, 76), new Vector2(-240f, 54f), "连携", UIBuild.Card, 24f)
-                .GetComponent<Button>();
-            bCombo.interactable = false;
-            UIBuild.Bind(comp, "_btnCombo", bCombo);
             // ---- 行动顺序（右上角）：标题 + 8 行（每行：头像 + 名字）----
             var orderPanel = UIBuild.Fixed(rt, "Root_OrderList", new Vector2(1f, 1f),
                 new Vector2(330, 380), new Vector2(-24f, -120f));
