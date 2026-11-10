@@ -117,7 +117,7 @@ namespace WanXiang.EditorTools
 
             // ---------------- 右：详情 + 装备 ----------------
             var right = Node("Root_Right", rootRt, new Vector2(0.5f, 0f), new Vector2(1f, 1f),
-                new Vector2(16f, 260f), new Vector2(-32f, -206f));
+                new Vector2(16f, 56f), new Vector2(-32f, -120f));   // 顶栏 120 对齐（首版 260 下边距→散装）
 
             var dname = Text("Tmp_DetailName", right, font, "—", 34, TextAlignmentOptions.Left, Ink);
             Place(dname, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -20f), new Vector2(-24f, -64f));
@@ -132,20 +132,21 @@ namespace WanXiang.EditorTools
             var dsrc = Text("Tmp_DetailSource", right, font, "—", 22, TextAlignmentOptions.Left, InkSoft);
             Place(dsrc, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -176f), new Vector2(-24f, -210f));
 
-            var equip = Button("Btn_Equip", right, font, "装备", 28);
+            var equip = Button("Btn_Equip", right, font, "装备", 24);
             Place((RectTransform)equip.transform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(24f, -224f), new Vector2(24f, -224f));
-            ((RectTransform)equip.transform).sizeDelta = new Vector2(200f, 64f);
+                new Vector2(24f, -232f), new Vector2(24f, -232f));
+            ((RectTransform)equip.transform).sizeDelta = new Vector2(150f, 56f);
             equip.GetComponent<Image>().sprite = LoadSprite("btn_primary");
+            // （卸下不需要独立按钮：Btn_Equip 是"装/卸二合一"——已装备时点它即卸下，文案随切）
 
             // ---------------- 右：装备槽 ----------------
             var slots = Node("Root_Equipped", right, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(24f, -300f), new Vector2(-24f, -428f));
+                new Vector2(24f, -310f), new Vector2(-24f, -392f));
             for (int i = 0; i < 2; i++)
             {
                 var slot = Node("Slot_" + i, slots,
                     new Vector2(i * 0.5f, 1f), new Vector2((i + 1) * 0.5f, 1f),
-                    new Vector2(i == 0 ? 0f : 6f, 0f), new Vector2(i == 0 ? -6f : 0f, -120f));
+                    new Vector2(i == 0 ? 0f : 6f, 0f), new Vector2(i == 0 ? -6f : 0f, -76f));
                 AddImage(slot, "card_solid", new Color(1f, 1f, 1f, 0.85f), Image.Type.Sliced);
                 var st = Text("Tmp_SlotName", slot, font, "空槽位", 22, TextAlignmentOptions.Center, InkSoft);
                 Place(st, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(12f, 0f), new Vector2(-12f, 0f));
@@ -153,18 +154,18 @@ namespace WanXiang.EditorTools
 
             // ---------------- 底：分享码 ----------------
             var share = Node("Root_Share", rootRt, new Vector2(0.5f, 0f), new Vector2(1f, 0f),
-                new Vector2(16f, 0f), new Vector2(-32f, 250f));
+                new Vector2(16f, 8f), new Vector2(-32f, 96f));   // 高 96（首版 250 高把导入按钮推出屏）
             var code = Text("Tmp_Code", share, font, "—", 20, TextAlignmentOptions.Left, InkSoft);
             Place(code, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(16f, 10f), new Vector2(-180f, -10f));
-            var copy = Button("Btn_Copy", share, font, "复制", 24);
-            Place((RectTransform)copy.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+            var copy = Button("Btn_Copy", share, font, "复制分享码", 22);
+            Place((RectTransform)copy.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
                 new Vector2(-90f, 0f), new Vector2(-90f, 0f));
             ((RectTransform)copy.transform).sizeDelta = new Vector2(150f, 56f);
             copy.GetComponent<Image>().sprite = LoadSprite("btn_secondary");
 
             var imp = Button("Btn_Import", share, font, "从剪贴板导入", 22);
-            Place((RectTransform)imp.transform, new Vector2(1f, 0f), new Vector2(1f, 0f),
-                new Vector2(-90f, 12f), new Vector2(-90f, 12f));
+            Place((RectTransform)imp.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                new Vector2(-14f, 0f), new Vector2(-14f, 0f));
             ((RectTransform)imp.transform).sizeDelta = new Vector2(190f, 52f);
             imp.GetComponent<Image>().sprite = LoadSprite("btn_secondary");
 

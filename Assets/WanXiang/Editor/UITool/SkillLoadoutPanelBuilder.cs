@@ -64,7 +64,7 @@ namespace WanXiang.EditorTools
 
             // ---------------- 左：兽列表 ----------------
             var scroll = Node("Scroll_Beasts", rootRt, new Vector2(0f, 0f), new Vector2(0.32f, 1f),
-                new Vector2(32f, 150f), new Vector2(-16f, -206f));
+                new Vector2(32f, 56f), new Vector2(-16f, -120f));   // 顶栏 120 对齐（首版 206 大空白）
             var sr = scroll.gameObject.AddComponent<ScrollRect>();
             var viewport = Node("Viewport", (RectTransform)scroll, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             viewport.gameObject.AddComponent<RectMask2D>();
@@ -101,16 +101,16 @@ namespace WanXiang.EditorTools
 
             // ---------------- 右：4 个技能槽 ----------------
             var right = Node("Root_Right", rootRt, new Vector2(0.32f, 0f), new Vector2(1f, 1f),
-                new Vector2(16f, 150f), new Vector2(-32f, -206f));
+                new Vector2(16f, 56f), new Vector2(-32f, -120f));
             var bn2 = Text("Tmp_BeastName", right, font, "—", 34, TextAlignmentOptions.Left, Ink);
             Place(bn2, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -18f), new Vector2(-24f, -60f));
 
-            string[] slotTypes = { "普攻", "战记", "奥义", "觉醒" };
+            string[] slotTypes = { "普攻", "战记", "终结技", "觉醒" };   // 统一口径（废"奥义"）
             for (int i = 0; i < 4; i++)
             {
                 var slot = Node("Slot_" + i, right,
                     new Vector2(0f, 1f), new Vector2(1f, 1f),
-                    new Vector2(24f, -70f - i * 96f), new Vector2(-24f, -70f - (i + 1) * 96f + 8f));
+                    new Vector2(24f, -84f - i * 110f), new Vector2(-24f, -84f - (i + 1) * 110f + 10f));
                 AddImage(slot, "card_solid", new Color(1f, 1f, 1f, 0.85f), Image.Type.Sliced);
 
                 var st = Text("Tmp_SlotType", slot, font, slotTypes[i], 22, TextAlignmentOptions.Left, InkSoft);
@@ -127,17 +127,34 @@ namespace WanXiang.EditorTools
 
                 if (i == 1)
                 {
-                    var ch = Button("Btn_Change", slot, font, "更换", 24);
+                    var ch = Button("Btn_Change", slot, font, "更换", 22);
                     Place((RectTransform)ch.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                        new Vector2(-100f, 0f), new Vector2(-100f, 0f));
-                    ((RectTransform)ch.transform).sizeDelta = new Vector2(130f, 56f);
+                        new Vector2(-14f, 0f), new Vector2(-14f, 0f));
+                    ((RectTransform)ch.transform).sizeDelta = new Vector2(110f, 52f);
                 }
             }
+
+            // B5-4+：空态引导卡（还没有异兽时的两步引导；SkillLoadoutPanel.Refresh 切显隐）
+            var guide = Node("Empty_Guide", right, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(24f, -84f), new Vector2(-24f, -84f));
+            var guideRt = (RectTransform)guide.transform;
+            guideRt.sizeDelta = new Vector2(0f, 220f); guideRt.pivot = new Vector2(0.5f, 1f);
+            AddImage(guide, "card_solid", new Color(1f, 1f, 1f, 0.85f), Image.Type.Sliced);
+            Text("Tmp_GuideTitle", guide, font, "还没有异兽", 26, TextAlignmentOptions.Center, Ink);
+            var g1 = guide.transform.Find("Tmp_GuideTitle") as RectTransform;
+            g1.anchorMin = new Vector2(0f, 1f); g1.anchorMax = new Vector2(1f, 1f);
+            g1.pivot = new Vector2(0.5f, 1f); g1.anchoredPosition = new Vector2(0f, -16f); g1.sizeDelta = new Vector2(0f, 36f);
+            Text("Tmp_GuideBody", guide, font,
+                "① 主界面「出征」选分队打一局\n② 战斗中击败并捕获异兽\n③ 捕获成功后回到这里学战记",
+                22, TextAlignmentOptions.Center, InkSoft);
+            var g2 = guide.transform.Find("Tmp_GuideBody") as RectTransform;
+            g2.anchorMin = new Vector2(0f, 1f); g2.anchorMax = new Vector2(1f, 1f);
+            g2.pivot = new Vector2(0.5f, 1f); g2.anchoredPosition = new Vector2(0f, -56f); g2.sizeDelta = new Vector2(0f, 140f);
 
             var hint = Text("Tmp_Hint", right, font,
                 "战记槽数量由品级决定：灵品 1 / 玄·神 2（第二战记槽暂未开放）", 20,
                 TextAlignmentOptions.Left, InkSoft);
-            Place(hint, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(24f, 10f), new Vector2(-24f, 6f));
+            Place(hint, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(24f, 18f), new Vector2(-24f, 14f));
 
             // ---------------- 候选弹层（默认隐藏）----------------
             var picker = Node("Root_Picker", rootRt, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);

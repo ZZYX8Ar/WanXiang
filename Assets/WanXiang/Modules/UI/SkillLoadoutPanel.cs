@@ -97,8 +97,21 @@ namespace WanXiang.Modules.UI
             if (_beastContent == null) return;
 
             for (int i = 0; i < _beasts.Count; i++) BuildBeastRow(i);
+            bool empty = _beasts.Count == 0;
+            // B5-4+：空态引导卡（builder 产物，缺失则退回旧文案）
+            var guide = transform.Find("Root_Right/Empty_Guide");
+            if (guide != null)
+            {
+                guide.gameObject.SetActive(empty);
+                var right = transform.Find("Root_Right");
+                for (int i = 0; i < 4; i++)
+                {
+                    var slotT = right != null ? right.Find("Slot_" + i) : null;
+                    if (slotT != null) slotT.gameObject.SetActive(!empty);
+                }
+            }
             if (_beasts.Count > 0) SelectBeast(0);
-            else if (_tmpBeastName != null) _tmpBeastName.text = "还没有异兽——先去打一局";
+            else if (_tmpBeastName != null) _tmpBeastName.text = "还没有异兽";
         }
 
         private void BuildBeastRow(int index)
