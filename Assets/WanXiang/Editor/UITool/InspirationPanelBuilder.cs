@@ -21,6 +21,7 @@ namespace WanXiang.EditorTools
         private static readonly Color Paper = new Color(0.93f, 0.90f, 0.84f, 0.98f);
         private static readonly Color Ink = Color.black;
 
+        [UnityEditor.MenuItem("万相/UI/重建灵感树面板", priority = 0)]
         public static void BuildFromMenu() => Build();
 
         public static string Build()
@@ -31,7 +32,7 @@ namespace WanXiang.EditorTools
 
             var root = new GameObject("Panel_Inspiration", typeof(RectTransform));
             var rootRt = (RectTransform)root.transform;
-            rootRt.sizeDelta = new Vector2(1080f, 1920f);
+            rootRt.sizeDelta = new Vector2(1920f, 1080f);   // 横屏（竖屏尺寸是首版排版事故根因）
             AddImage(root, "panel_bg", Paper, Image.Type.Sliced);
             root.AddComponent<WanXiang.Modules.UI.InspirationPanel>();   // 面板组件（自检核对根组件）
 
@@ -49,22 +50,31 @@ namespace WanXiang.EditorTools
             string[] titles = { "行旅", "战阵", "炉火" };
             for (int b = 0; b < 3; b++)
             {
-                var col = Node(branches[b], rootRt, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
-                    new Vector2(20f + b * 350f, -60f), new Vector2(340f, 60f));
+                // 定点 anchor + sizeDelta（横跨式 anchor 配 offset 极易写错——首版事故根因之二）
+                var col = Node(branches[b], rootRt,
+                    new Vector2(0.17f + b * 0.33f, 0.12f), new Vector2(0.17f + b * 0.33f, 0.12f),
+                    new Vector2(0f, 0f), new Vector2(0f, 0f));
+                var colRt = (RectTransform)col.transform;
+                colRt.sizeDelta = new Vector2(590f, 880f);
                 Text("Tmp_BranchName", col.gameObject, font, titles[b], 30, TextAlignmentOptions.Center, Ink);
+                var colHead = (RectTransform)col.transform.Find("Tmp_BranchName");
+                colHead.anchorMin = new Vector2(0f, 1f); colHead.anchorMax = new Vector2(1f, 1f);
+                colHead.pivot = new Vector2(0.5f, 1f);
+                colHead.anchoredPosition = new Vector2(0f, 0f); colHead.sizeDelta = new Vector2(0f, 46f);
 
-                var grid = Node("Grid", (RectTransform)col.transform, new Vector2(0f, 0f), new Vector2(1f, 1f),
-                    new Vector2(0f, -40f), new Vector2(0f, -40f));
-                for (int t = 1; t <= 5; t++)
+                var grid = Node("Grid", colRt, new Vector2(0f, 0f), new Vector2(1f, 1f),
+                    new Vector2(8f, 8f), new Vector2(-8f, -50f));
+                for (int t = 5; t >= 1; t--)   // T5 顶 → T1 底（树状从下往上点）
                 {
+                    int row = 5 - t;
                     var btn = Button("Btn_T" + t, grid, font, "T" + t, 20);
                     var rt = (RectTransform)btn.transform;
                     rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
-                    rt.anchoredPosition = new Vector2(0f, -60f - (t - 1) * 120f);
-                    rt.sizeDelta = new Vector2(-16f, 104f);
+                    rt.pivot = new Vector2(0.5f, 1f);
+                    rt.anchoredPosition = new Vector2(0f, -row * 158f);
+                    rt.sizeDelta = new Vector2(0f, 148f);
                     btn.GetComponent<Image>().sprite = LoadSprite("btn_secondary");
-                    // 名称与消耗两行文本（InspirationPanel 刷新）
-                    Text("Tmp_Name", btn, font, "——", 22, TextAlignmentOptions.Center, Ink);
+                    // 节点两行文本由 InspirationPanel.RefreshNode 写 Tmp_Label（名+消耗 / 描述）
                 }
             }
 
