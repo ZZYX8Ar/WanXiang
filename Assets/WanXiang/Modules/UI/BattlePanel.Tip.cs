@@ -167,29 +167,31 @@ namespace WanXiang.Modules.UI
         /// </summary>
         private void CheckTipHover()
         {
-            if (_skillBtns == null || _btnCombo == null) { if (_skillBtns == null) HideSkillTip(); return; }
-            if (RectTransformUtility.RectangleContainsScreenPoint(
+            if (_actorSkillBtns == null || _actorSkillBtns.Length == 0)
+            { HideSkillTip(); return; }
+            if (_btnCombo != null && RectTransformUtility.RectangleContainsScreenPoint(
                     _btnCombo.transform as RectTransform, Input.mousePosition, null))
                 return;      // 在连携按钮上
-            for (int i = 0; i < _skillBtns.Length; i++)
+            for (int i = 0; i < _actorSkillBtns.Length; i++)
             {
-                if (_skillBtns[i] == null) continue;
-                var rt = _skillBtns[i].transform as RectTransform;
+                if (_actorSkillBtns[i] == null) continue;
+                var rt = _actorSkillBtns[i].transform as RectTransform;
                 if (rt != null && RectTransformUtility.RectangleContainsScreenPoint(rt, Input.mousePosition, null))
-                    return;      // 还在某个战记按钮上
+                    return;      // 还在某个技能按钮上
             }
             HideSkillTip();
         }
 
         /// <summary>给按钮挂鼠标进出（用 EventTrigger，不改 prefab）。</summary>
-        private void HookTip(Button btn, int slot)
+        /// <summary>B5：15 按钮的 tooltip——按列取异兽（不再固定 PendingUnit）。</summary>
+        private void HookActorTip(Button btn, int actorCol, int slot)
         {
             if (btn == null) return;
             var trg = btn.gameObject.GetComponent<EventTrigger>();
             if (trg == null) trg = btn.gameObject.AddComponent<EventTrigger>();
 
             var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-            enter.callback.AddListener(_ => ShowSkillTip(slot));
+            enter.callback.AddListener(_ => ShowActorSkillTip(actorCol, slot));
             trg.triggers.Add(enter);
 
             var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
@@ -198,14 +200,23 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>填充并淡入提示：从左滑入 20px + 透明度 0→1。</summary>
-        private void ShowSkillTip(int slot)
+        private void ShowSkillTip(int slot) => ShowActorSkillTip(-1, slot);   // 兼容旧调用（PendingUnit）
+
+        /// <summary>B5：按列取异兽的技能提示（col<0 = 用 PendingUnit）。</summary>
+        private void ShowActorSkillTip(int actorCol, int slot)
         {
             if (_tipPanel == null || _play == null) return;
-            // ★ 防抖：同一槽位且面板已显示 → 直接返回。反复悬浮会疯狂创建 DOTween
+            // ★ 防抖：同列同槽位且面板已显示 → 直接返回。反复悬浮会疯狂创建 DOTween
             //   Sequence（每次 1 个容器 + 2 个 Tweener），编辑器实测直接卡死。
-            if (_tipShowingSlot == slot && _tipPanel.gameObject.activeSelf) return;
-            _tipShowingSlot = slot;
+            if (_tipShowingSlot == actorCol * 10 + slot && _tipPanel.gameObject.activeSelf) return;
+            _tipShowingSlot = actorCol * 10 + slot;
             var u = _play.PendingUnit;
+            if (actorCol >= 0)
+            {
+                var stA = _play.State;
+                var mineA = stA != null ? stA.UnitsOf(WanXiang.Battle.Core.TeamSide.Player) : null;
+                if (mineA != null && actorCol < mineA.Count) u = mineA[actorCol];
+            }
 
             string title, body;
             if (slot == 0) { title = "普攻"; body = CostLine(0); }

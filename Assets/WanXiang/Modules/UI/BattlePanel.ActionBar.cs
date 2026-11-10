@@ -66,7 +66,10 @@ namespace WanXiang.Modules.UI
                     {
                         int idx = i;
                         if (_actorSkillBtns[i] != null)
+                        {
                             _actorSkillBtns[i].onClick.AddListener(() => OnActorSkillClicked(idx / 3, idx % 3));
+                            HookActorTip(_actorSkillBtns[i], idx / 3, idx % 3);   // B5：tooltip 按列取兽
+                        }
                     }
                 if (_actorBtns != null)
                     for (int i = 0; i < _actorBtns.Length; i++)
@@ -84,12 +87,6 @@ namespace WanXiang.Modules.UI
                             _actorSkillBtns[i].colors = cb;
                             _actorSkillBtns[i].transition = Selectable.Transition.ColorTint;
                         }
-                if (_skillBtns != null)
-                    for (int i = 0; i < _skillBtns.Length; i++)
-                    {
-                        int idx = i;
-                        if (_skillBtns[i] != null) _skillBtns[i].onClick.AddListener(() => OnSkillClicked(idx));
-                    }
                 if (_btnAutoBattle != null) _btnAutoBattle.onClick.AddListener(OnAutoBattleClicked);
                 if (_btnCombo != null) _btnCombo.onClick.AddListener(OnComboClicked);
                 // ⚠ 这里**只能注册一次**！原来连着写了 3 行 AddListener(OnComboClicked)
@@ -98,14 +95,6 @@ namespace WanXiang.Modules.UI
                 //   且要有"能点/不能点"的颜色变化，不靠隐藏）。设 colorBlock.disabledColor，
                 //   interactable=false 时 Unity 自动应用。
                 var disabledCol = new Color(0.40f, 0.38f, 0.34f, 0.55f);
-                if (_skillBtns != null)
-                    for (int i = 0; i < _skillBtns.Length; i++)
-                        if (_skillBtns[i] != null)
-                        {
-                            var cb = _skillBtns[i].colors; cb.disabledColor = disabledCol;
-                            _skillBtns[i].colors = cb;
-                            _skillBtns[i].transition = Selectable.Transition.ColorTint;
-                        }
                 if (_btnCombo != null)
                 {
                     var cb = _btnCombo.colors; cb.disabledColor = disabledCol;
@@ -134,9 +123,6 @@ namespace WanXiang.Modules.UI
         private void ApplyPvpUiMode()
         {
             // 恢复手动操作区（技能 0..2 / 连携 / 自动战斗 + Root_Action 下的其它按钮）
-            if (_skillBtns != null)
-                for (int i = 0; i < _skillBtns.Length && i < 3; i++)
-                    if (_skillBtns[i] != null) _skillBtns[i].gameObject.SetActive(true);
             if (_btnCombo != null) _btnCombo.gameObject.SetActive(true);
             if (_btnAutoBattle != null) _btnAutoBattle.gameObject.SetActive(true);
             _autoBattle = false;   // 起局一律手动，等令分支不自动提交
@@ -191,6 +177,9 @@ namespace WanXiang.Modules.UI
             bool canAct = CanCommandNow();
 
             // B5：5 列异兽名 + 15 技能按钮状态（死/不能动 → 置灰；当前可下令 → 高亮描边）
+            var stt = _play != null ? _play.State : null;
+            int mp = stt != null ? stt.TeamMp : 0;
+            var cfg = stt != null ? stt.Config : null;
             var stR = _play != null ? _play.State : null;
             var mineR = stR != null ? stR.UnitsOf(WanXiang.Battle.Core.TeamSide.Player) : null;
             var selIdB = _play != null ? _play.SelectedActorId : null;
@@ -211,11 +200,19 @@ namespace WanXiang.Modules.UI
                                   : isSelected ? new Color(0.85f, 0.75f, 0.4f, 0.95f)
                                   : Color.white;
                 }
+                // 每技能可用性（迁移自旧 3 按钮规则）：普攻兜底 / 战记查沉默+灵力 / 终结技查次数。
+                //   沉默只封技能，普攻照常（2026-10-22 用户口径）。
+                bool silenced = uR != null && uR.HasStatus(WanXiang.Battle.Core.StatusCatalog.Silence);
                 for (int si = 0; si < 3; si++)
                 {
                     int gi = col * 3 + si;
-                    if (_actorSkillBtns != null && gi < _actorSkillBtns.Length && _actorSkillBtns[gi] != null)
-                        _actorSkillBtns[gi].interactable = selectable && uR != null && uR.CanAct;
+                    if (_actorSkillBtns == null || gi >= _actorSkillBtns.Length || _actorSkillBtns[gi] == null) continue;
+                    bool ok = selectable && uR != null && uR.CanAct;
+                    if (si == 1) ok = ok && !silenced && uR.GetSkill(SkillType.Active) != null
+                                        && mp >= WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active);
+                    if (si == 2) ok = ok && !silenced && uR.GetSkill(SkillType.Ultimate) != null
+                                        && cfg != null && uR.CanCast(SkillType.Ultimate, cfg);
+                    _actorSkillBtns[gi].interactable = ok;
                 }
             }
 
@@ -257,13 +254,10 @@ namespace WanXiang.Modules.UI
                 SetSkillButtonsInteractable(false);   // 自动推进中技能/连携不可点（要接管先关自动或等我方回合）
                 return;
             }
-            var stt = _play.State;
-            int mp = stt != null ? stt.TeamMp : 0;
-            int mpMax = stt != null ? stt.TeamMpMax : 0;
+            int mpMax = stt != null ? stt.TeamMpMax : 0;   // mp 已提前（B5 15 按钮循环用）
 
             RefreshOrderList();
 
-            var cfg = stt != null ? stt.Config : null;
             if (_tmpActor != null && u != null)
             {
                 // ★ 回合数常驻显示（用户 2026-09-28）：打到 MaxTurns(48) 上限会判平局，
@@ -292,44 +286,16 @@ namespace WanXiang.Modules.UI
                 }
             }
 
-            // ⛔ 觉醒技（第 4 槽）：**未觉醒 / 未装备就隐藏**（用户 2026-10-11 要求）。
-            bool hasAwaken = u != null && u.GetSkill(SkillType.Awaken) != null;
-            if (_skillBtns != null && _skillBtns.Length > 3 && _skillBtns[3] != null)
-            {
-                if (_skillBtns[3].gameObject.activeSelf != hasAwaken)
-                    _skillBtns[3].gameObject.SetActive(hasAwaken);
-            }
-
-            if (_skillBtns != null)
-            {
-                // ★ 不能行动（敌人回合/伤害结算）时全部置灰；能行动时按规则逐条判。
-                //   以前 u==null（非待令）时整段跳过 ⇒ 按钮停在上一个我方单位的可用态，
-                //   敌人回合还能点却没反应（用户 2026-10-13 报障）。
-                // ★ 2026-10-22 用户："说不能放技能（沉默）的时候，技能按钮应该直接置灰"
-                //   沉默只封技能，**普攻照常**（状态说明里也是这么写的）。
-                bool silenced = u != null && u.HasStatus(WanXiang.Battle.Core.StatusCatalog.Silence);
-                _skillBtns[0].interactable = canAct;      // 普攻：能行动即可用（0 耗兜底）
-                _skillBtns[1].interactable = canAct && !silenced && u != null
-                                              && u.GetSkill(SkillType.Active) != null
-                                              && mp >= WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active);
-                _skillBtns[2].interactable = canAct && !silenced && u != null
-                                              && u.GetSkill(SkillType.Ultimate) != null
-                                              && cfg != null
-                                              && u.CanCast(SkillType.Ultimate, cfg);
-                if (_skillBtns.Length > 3 && _skillBtns[3] != null)
-                    _skillBtns[3].interactable = hasAwaken && canAct && !silenced && cfg != null && u.CanCast(SkillType.Awaken, cfg);
-            }
-
             // 连携按钮不在每帧路径里刷新（见 RefreshComboButton，避免每帧 GC/查子节点）
         }
 
         /// <summary>批量置灰/恢复技能按钮（自动推进、敌人回合用）。</summary>
         private void SetSkillButtonsInteractable(bool on)
         {
-            if (_skillBtns == null) return;
-            for (int i = 0; i < _skillBtns.Length; i++)
-                if (_skillBtns[i] != null && _skillBtns[i].gameObject.activeSelf)
-                    _skillBtns[i].interactable = on;
+            if (_actorSkillBtns != null)
+                for (int i = 0; i < _actorSkillBtns.Length; i++)
+                    if (_actorSkillBtns[i] != null)
+                        _actorSkillBtns[i].interactable = on;
             if (_btnCombo != null) _btnCombo.interactable = on && _play != null && _play.AwaitingCommand && _play.AvailableCombos.Count > 0;
         }
 
@@ -360,26 +326,6 @@ namespace WanXiang.Modules.UI
             if (u == null || !u.IsAlive) return;
             _play.SelectActor(u.RuntimeId);
             Sfx("sfx_bt_cmd_select");
-            RefreshActionBar();
-        }
-
-        private void OnSkillClicked(int skillIndex)
-        {
-            if (_play == null) return;
-
-            // 自动推进中点战记 = 接管：先关自动（此刻不在"待令"状态，SubmitCommand 会无效）
-            if (_autoBattle && !_play.AwaitingCommand)
-            {
-                _autoBattle = false;
-                if (_tmpLog != null) _tmpLog.text = "已接管 —— 从下一个单位开始由你下令";
-                Sfx("sfx_bt_cmd_select");               // 接管是一次"选中/接管"动作
-                RefreshActionBar();
-                return;
-            }
-
-            _autoBattle = false;                        // 手动下令即视为关自动
-            _play.SubmitCommand(skillIndex, -1);        // 下标 = SkillType；目标暂交 AI
-            Sfx("sfx_bt_cmd_confirm");                  // 下令音（施法音随后由战斗事件流播）
             RefreshActionBar();
         }
 

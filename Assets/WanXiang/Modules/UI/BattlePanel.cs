@@ -117,9 +117,6 @@ namespace WanXiang.Modules.UI
             // ⚠ 必须在 BuildActionBar 之外挂：prefab 已绑定操作区时那个方法会提前 return，
             //    把挂载写在里面就永远挂不上（用户实测"悬浮面板没有"就是这个原因）。
             BuildSkillTip();
-            if (_skillBtns != null)
-                for (int i = 0; i < _skillBtns.Length; i++)
-                    HookTip(_skillBtns[i], i);
 
             BuildOrderList();   // 右上角"行动顺序"，让玩家看清轮到谁（v2.1 P4 前置）
             if (_rootWeather != null) _rootWeather.SetActive(false);
@@ -149,8 +146,6 @@ namespace WanXiang.Modules.UI
             //   根因：_tipPanel 只在 PointerExit 隐藏，面板关闭时没清；觉醒技槽在 prefab 默认显示。
             if (_tipPanel != null) _tipPanel.gameObject.SetActive(false);
             _tipShowingSlot = -1;
-            if (_skillBtns != null && _skillBtns.Length > 3 && _skillBtns[3] != null)
-                _skillBtns[3].gameObject.SetActive(false);   // 进场先收起，RefreshActionBar 按"是否装备"再放
             // ★ 每场战斗重置 自动/倍速：面板是 Cached 复用的，字段会带过来。
             //   放在 OnOpenAsync（每次打开必然经过）比放在 PlayLoop 更可靠（用户实测未生效）。
             // ★★ 2026-10-16 用户："局外好友对战我又想改回可以手动作战了，也可以自动作战，
@@ -433,8 +428,6 @@ namespace WanXiang.Modules.UI
                     {
                         SetSkillButtonsInteractable(false);
                         // 觉醒技槽一并收起：敌人回合/结算时不该露着（避免误悬浮弹出"没有装备觉醒技"）
-                        if (_skillBtns != null && _skillBtns.Length > 3 && _skillBtns[3] != null)
-                            _skillBtns[3].gameObject.SetActive(false);
                     }
                 }
             }
@@ -886,7 +879,6 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text[] _actorNameTmps;   // B5 底栏：异兽名显示
         [SerializeField] private Button[] _actorSkillBtns;    // B5 底栏：5×3 技能按钮（点=该异兽立即用该技能）
         [SerializeField] private TMP_Text _tmpActor;          // Tmp_Actor 当前待令单位
-        [SerializeField] private Button[] _skillBtns;         // Btn_Skill_0..2（下标 = SkillType）
         [SerializeField] private Button _btnAutoBattle;       // Btn_AutoBattle
         [SerializeField] private Button _btnCombo;            // Btn_Combo（连携）
         [SerializeField] private RectTransform _autoSpin;     // Tmp_AutoSpin（自动战斗转圈）
