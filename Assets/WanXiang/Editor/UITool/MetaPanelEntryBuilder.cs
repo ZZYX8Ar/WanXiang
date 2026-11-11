@@ -46,6 +46,7 @@ namespace WanXiang.EditorTools
                 added += EnsureEntry(top, font, "Btn_DaoMark", "道痕", -64f);
                 added += EnsureEntry(top, font, "Btn_Skills", "技能", -140f);
                 added += EnsureEntry(top, font, "Btn_Inspiration", "灵感", -216f);   // B5-4
+                added += EnsureEntry(top, font, "Btn_Close", "×", -316f);           // 关闭按钮（补缺）
 
                 // B2-k：Root_Detail 加升星按钮 + 星级文本（只补缺）
                 var detail = root.transform.Find("Root_Detail");
@@ -139,7 +140,8 @@ namespace WanXiang.EditorTools
             rt.SetParent(detail, false);
             rt.anchorMin = new Vector2(1f, 0.5f);
             rt.anchorMax = new Vector2(1f, 0.5f);
-            rt.anchoredPosition = new Vector2(-70f, -150f);
+            rt.pivot = new Vector2(1f, 0.5f);          // 右对齐（中心 pivot + -70 会让星级文字越出右边界）
+            rt.anchoredPosition = new Vector2(-24f, -150f);
             rt.sizeDelta = new Vector2(220f, 34f);
             var t = go.AddComponent<TextMeshProUGUI>();
             t.font = font; t.text = "星级 ☆☆☆☆☆"; t.fontSize = 22;

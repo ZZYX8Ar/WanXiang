@@ -1607,31 +1607,15 @@ namespace WanXiang.Modules.UI
         /// <summary>返回地图按钮兜底（进编阵后必须能退出去看节点）。</summary>
         private void EnsureBackButton()
         {
-            if (_btnBack != null) return;
-
-            var go = new GameObject("Btn_Back", typeof(RectTransform));
-            go.transform.SetParent(transform, false);
-            var img = go.AddComponent<Image>();
-            img.color = new Color(0.94f, 0.92f, 0.88f, 1f);
-            var btn = go.AddComponent<Button>();
-            btn.targetGraphic = img;
-            var r = (RectTransform)go.transform;
-            r.anchorMin = r.anchorMax = new Vector2(0f, 1f);
-            r.anchoredPosition = new Vector2(96f, -52f);
-            r.sizeDelta = new Vector2(152f, 64f);
-
-            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
-            tgo.transform.SetParent(go.transform, false);
-            var tmp = tgo.AddComponent<TextMeshProUGUI>();
-            tmp.text = "返回地图";
-            tmp.fontSize = 26;
-            tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
-            tmp.alignment = TextAlignmentOptions.Center;
-            var tr = (RectTransform)tgo.transform;
-            tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.sizeDelta = Vector2.zero;
-
-            _btnBack = btn;
-            btn.onClick.AddListener(() =>
+            // ⛔ 禁止运行时建 UI（用户硬规矩）：Btn_Back 由 Panel_Formation.prefab 提供并绑定；
+            //    这里只负责挂点击。缺按钮时报警，不再 new GameObject 兜底。
+            if (_btnBack == null)
+            {
+                Debug.LogWarning("[Formation] prefab 缺 Btn_Back —— 请在 prefab 里补并绑定 _btnBack");
+                return;
+            }
+            _btnBack.onClick.RemoveAllListeners();
+            _btnBack.onClick.AddListener(() =>
             {
                 // ★ 返回 = 取消这次出征：节点不该被算作通过（用户实测"返回也直接过了"）
                 CampaignPanel.PendingCommit = -1;

@@ -101,6 +101,7 @@ namespace WanXiang.Modules.UI
             HookEntry("Root_TopBar/Btn_DaoMark", () => OpenPanelAsync<DaoMarkPanel>().Forget());
             HookEntry("Root_TopBar/Btn_Skills", () => OpenPanelAsync<SkillLoadoutPanel>().Forget());
             HookEntry("Root_TopBar/Btn_Inspiration", () => OpenPanelAsync<InspirationPanel>().Forget());   // B5-4
+            HookEntry("Root_TopBar/Btn_Close", CloseSelf);                                              // 补关闭按钮
             // B2-k：升星入口（按钮由 MetaPanelEntryBuilder 增量加进 Root_Detail）
             HookEntry("Root_Detail/Btn_StarUp", OnStarUpClicked);
             if (_awakenPicker != null) _awakenPicker.SetActive(false);

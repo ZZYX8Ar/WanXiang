@@ -135,10 +135,12 @@ namespace WanXiang.EditorTools
             }
 
             // B5-4+：空态引导卡（还没有异兽时的两步引导；SkillLoadoutPanel.Refresh 切显隐）
-            var guide = Node("Empty_Guide", right, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(24f, -84f), new Vector2(-24f, -84f));
+            var guide = Node("Empty_Guide", right, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                Vector2.zero, Vector2.zero);
             var guideRt = (RectTransform)guide.transform;
-            guideRt.sizeDelta = new Vector2(0f, 220f); guideRt.pivot = new Vector2(0.5f, 1f);
+            guideRt.pivot = new Vector2(0f, 1f);
+            guideRt.sizeDelta = new Vector2(700f, 220f);
+            guideRt.anchoredPosition = new Vector2(24f, -84f);
             AddImage(guide, "card_solid", new Color(1f, 1f, 1f, 0.85f), Image.Type.Sliced);
             Text("Tmp_GuideTitle", guide, font, "还没有异兽", 26, TextAlignmentOptions.Center, Ink);
             var g1 = guide.transform.Find("Tmp_GuideTitle") as RectTransform;

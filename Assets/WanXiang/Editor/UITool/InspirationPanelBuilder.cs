@@ -38,12 +38,18 @@ namespace WanXiang.EditorTools
 
             // 顶栏：标题 + 悟道点余额 + 关闭
             var top = Node("Root_TopBar", rootRt, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, 0f), new Vector2(0f, 120f));
+                new Vector2(0f, -120f), new Vector2(0f, 0f));   // 顶栏在顶部**下方** 120（首版写反→跑到屏外）
             AddImage(top, "panel_strip", new Color(1f, 1f, 1f, 0.55f), Image.Type.Sliced);
-            Text("Tmp_Title", top, font, "灵感树", 34, TextAlignmentOptions.Left, Ink);
-            Text("Tmp_Points", top, font, "悟道点 0", 28, TextAlignmentOptions.Center, Ink);
-            var close = Button("Btn_Close", top, font, "×", 34);
-            ((RectTransform)close.transform).sizeDelta = new Vector2(64f, 64f);
+            // 三个控件各自定位（首版全拉满顶栏 → 互相重叠、关闭按钮居中）
+            var titleBox = PlaceBox("Slot_Title", top.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(420f, 64f), new Vector2(40f, 0f));
+            Text("Tmp_Title", titleBox, font, "灵感树", 34, TextAlignmentOptions.Left, Ink);
+            var pointsBox = PlaceBox("Slot_Points", top.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(360f, 64f), Vector2.zero);
+            Text("Tmp_Points", pointsBox, font, "悟道点 0", 28, TextAlignmentOptions.Center, Ink);
+            var closeBox = PlaceBox("Slot_Close", top.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                new Vector2(72f, 64f), new Vector2(-40f, 0f));
+            var close = Button("Btn_Close", closeBox, font, "×", 34);
 
             // 三列 × 5 层：branch 列容器（InspirationPanel 在运行时按 tier 填按钮文本/状态）
             string[] branches = { "Branch_travel", "Branch_battle", "Branch_forge" };
@@ -52,10 +58,12 @@ namespace WanXiang.EditorTools
             {
                 // 定点 anchor + sizeDelta（横跨式 anchor 配 offset 极易写错——首版事故根因之二）
                 var col = Node(branches[b], rootRt,
-                    new Vector2(0.17f + b * 0.33f, 0.12f), new Vector2(0.17f + b * 0.33f, 0.12f),
-                    new Vector2(0f, 0f), new Vector2(0f, 0f));
+                    new Vector2(0f, 1f), new Vector2(0f, 1f),
+                    Vector2.zero, Vector2.zero);
                 var colRt = (RectTransform)col.transform;
-                colRt.sizeDelta = new Vector2(590f, 880f);
+                colRt.pivot = new Vector2(0f, 1f);          // 左上定点（首版中心 pivot + 底部锚 → 列掉出屏底）
+                colRt.sizeDelta = new Vector2(590f, 860f);
+                colRt.anchoredPosition = new Vector2(60f + b * 620f, -150f);
                 Text("Tmp_BranchName", col.gameObject, font, titles[b], 30, TextAlignmentOptions.Center, Ink);
                 var colHead = (RectTransform)col.transform.Find("Tmp_BranchName");
                 colHead.anchorMin = new Vector2(0f, 1f); colHead.anchorMax = new Vector2(1f, 1f);
@@ -93,6 +101,18 @@ namespace WanXiang.EditorTools
             var sp = AssetDatabase.LoadAssetAtPath<Sprite>(KitDir + spriteName + ".png");
             if (sp != null) { img.sprite = sp; img.type = type; }
             img.color = color;
+            return go;
+        }
+
+        /// <summary>单点 anchor + 左上/中心/右上 pivot 的精确定位盒（子控件可拉满此盒）。</summary>
+        private static GameObject PlaceBox(string name, Transform parent, Vector2 anchor,
+            Vector2 pivot, Vector2 size, Vector2 pos)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(parent, false);
+            rt.anchorMin = anchor; rt.anchorMax = anchor;
+            rt.pivot = pivot; rt.sizeDelta = size; rt.anchoredPosition = pos;
             return go;
         }
 

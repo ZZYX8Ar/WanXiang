@@ -123,6 +123,7 @@ namespace WanXiang.Battle.Core
                 // 同步给 UI：行动条显示"本回合实际会发生的顺序"（我方在前、敌方在后）
                 st.TurnOrder.Clear();
                 st.TurnOrder.AddRange(buf.Order);
+                st.ActedPlayerIds.Clear();   // B5：每回合重置"已行动"（底栏置灰依据）
                 st.Log.Add(turn, BattleEventKind.RoundResolve, note: "出手序列 " + DescribeOrder(buf.Order));
                 bool playerPhaseAnnounced = false;
                 bool enemyPhaseAnnounced = false;
@@ -181,6 +182,9 @@ namespace WanXiang.Battle.Core
                             }
                             st.PendingActorSelect = null;
                         }
+                        // B5：玩家下令（含换位）后 = 该兽本次行动完成，本回合不再可点
+                        if (u != null && st.ActedPlayerIds.IndexOf(u.RuntimeId) < 0)
+                            st.ActedPlayerIds.Add(u.RuntimeId);
                     }
 
                     // ★★ 阵形连携 QTE（2026-10-16 重构，用户口径）：

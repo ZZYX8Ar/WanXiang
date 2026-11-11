@@ -70,6 +70,10 @@ namespace WanXiang.Battle.Core
         public readonly System.Collections.Generic.List<BattleHook> Hooks =
             new System.Collections.Generic.List<BattleHook>(4);
 
+        // B5 底栏：本回合**已行动过**的我方单位 id（UI 据此把该列技能置灰；每人一次）。
+        public readonly System.Collections.Generic.List<string> ActedPlayerIds =
+            new System.Collections.Generic.List<string>(8);
+
         public readonly System.Collections.Generic.List<BattleUnit> TurnOrder =
             new System.Collections.Generic.List<BattleUnit>(16);
 

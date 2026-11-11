@@ -626,37 +626,48 @@ namespace WanXiang.EditorTools
             // B5-底栏改版（用户线框确认）：5 列异兽技能组并排——点谁的技能谁出手
             var actionBar = UIBuild.Fixed(rt, "Root_Action", new Vector2(0.5f, 0f),
                 new Vector2(1800, 240), new Vector2(0f, 40f));
+            actionBar.pivot = new Vector2(0.5f, 0f);   // 底部对齐锚点（中心 pivot 会让底栏沉出屏底 80px）
             UIBuild.Img(actionBar, UIBuild.Night);
-            var tmpActor = UIBuild.Tmp(UIBuild.Fixed(actionBar, "Tmp_Actor", new Vector2(0.5f, 1f),
-                new Vector2(1700, 36), new Vector2(0f, -4f)), "轮到我方行动", 24, UIBuild.Paper,
+            var tmpActorRt = UIBuild.Fixed(actionBar, "Tmp_Actor", new Vector2(0.5f, 1f),
+                new Vector2(1700, 36), new Vector2(0f, -4f));
+            tmpActorRt.pivot = new Vector2(0.5f, 1f);
+            var tmpActor = UIBuild.Tmp(tmpActorRt, "轮到我方行动", 24, UIBuild.Paper,
                 TextAlignmentOptions.Center);
             var actorBtns = new Button[5];
             var actorNameTmps = new TMP_Text[5];
             var actorSkillBtns = new Button[15];
             string[] skillNames = { "普攻", "战记", "终结技" };
+            // ⛔ 全部左上定点（pivot=0,1）：UIBuild.Fixed 默认 pivot 中心，按左上坐标写会整体偏半个控件
             for (int col = 0; col < 5; col++)
             {
-                var colRoot = UIBuild.Fixed(actionBar, "ActorCol_" + col, new Vector2(0f, 0.5f),
-                    new Vector2(330, 180), new Vector2(24f + col * 344f, 0f));
-                var nameTmp = UIBuild.Tmp(UIBuild.Fixed(colRoot, "Tmp_ActorName", new Vector2(0.5f, 1f),
-                    new Vector2(320, 34), new Vector2(0f, -2f)), "——", 20, UIBuild.Paper,
-                    TextAlignmentOptions.Center);
-                actorNameTmps[col] = nameTmp;
-                var ab = UIBuild.MakeBtn(colRoot, "Btn_Actor_" + col, new Vector2(0f, 1f),
-                    new Vector2(320, 34), new Vector2(0f, -2f), "", UIBuild.Card, 18f)
-                    .GetComponent<Button>();
+                var colRoot = UIBuild.Fixed(actionBar, "ActorCol_" + col, new Vector2(0f, 1f),
+                    new Vector2(310, 180), new Vector2(20f + col * 322f, -46f));
+                colRoot.pivot = new Vector2(0f, 1f);
+                // 兽名按钮自带 Tmp_Label 承载名字（删掉重叠的独立 Tmp_ActorName——空文本根因）
+                var abGo = UIBuild.MakeBtn(colRoot, "Btn_Actor_" + col, new Vector2(0f, 1f),
+                    new Vector2(294, 34), new Vector2(8f, -4f), "异兽", UIBuild.Card, 18f);
+                var abRt = (RectTransform)abGo.transform; abRt.pivot = new Vector2(0f, 1f);
+                var ab = abGo.GetComponent<Button>();
                 actorBtns[col] = ab;
+                var lbl = abRt.Find("Tmp_Label");
+                actorNameTmps[col] = lbl != null ? lbl.GetComponent<TMP_Text>() : null;
                 for (int si = 0; si < 3; si++)
-                    actorSkillBtns[col * 3 + si] = UIBuild.MakeBtn(colRoot, "Btn_AS_" + col + "_" + si,
-                        new Vector2(0f, 1f), new Vector2(320, 44), new Vector2(0f, -42f - si * 46f),
-                        skillNames[si], UIBuild.Gold, 20f).GetComponent<Button>();
+                {
+                    var skGo = UIBuild.MakeBtn(colRoot, "Btn_AS_" + col + "_" + si,
+                        new Vector2(0f, 1f), new Vector2(294, 44), new Vector2(8f, -44f - si * 46f),
+                        skillNames[si], UIBuild.Gold, 20f);
+                    var skRt = (RectTransform)skGo.transform; skRt.pivot = new Vector2(0f, 1f);
+                    actorSkillBtns[col * 3 + si] = skGo.GetComponent<Button>();
+                }
             }
-            var bCombo = UIBuild.MakeBtn(actionBar, "Btn_Combo", new Vector2(1f, 0.5f),
-                new Vector2(140, 70), new Vector2(-80f, 20f), "连携", UIBuild.Card, 22f)
-                .GetComponent<Button>();
-            var bAutoBattle = UIBuild.MakeBtn(actionBar, "Btn_AutoBattle", new Vector2(1f, 0f),
-                new Vector2(140, 70), new Vector2(-80f, -46f), "自动战斗", UIBuild.Card, 20f)
-                .GetComponent<Button>();
+            var comboGo = UIBuild.MakeBtn(actionBar, "Btn_Combo", new Vector2(1f, 1f),
+                new Vector2(144, 70), new Vector2(-16f, -46f), "连携", UIBuild.Card, 22f);
+            ((RectTransform)comboGo.transform).pivot = new Vector2(1f, 1f);
+            var bCombo = comboGo.GetComponent<Button>();
+            var autoGo = UIBuild.MakeBtn(actionBar, "Btn_AutoBattle", new Vector2(1f, 1f),
+                new Vector2(144, 70), new Vector2(-16f, -126f), "自动战斗", UIBuild.Card, 20f);
+            ((RectTransform)autoGo.transform).pivot = new Vector2(1f, 1f);
+            var bAutoBattle = autoGo.GetComponent<Button>();
             actionBar.gameObject.SetActive(false);   // 等 AwaitingCommand 时由 BattlePanel 亮出
             UIBuild.Bind(comp, "_actionBar", actionBar);
             UIBuild.Bind(comp, "_tmpActor", tmpActor);

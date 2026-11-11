@@ -186,17 +186,28 @@ namespace WanXiang.Modules.UI
             for (int col = 0; col < 5; col++)
             {
                 var uR = mineR != null && col < mineR.Count ? mineR[col] : null;
-                if (_actorNameTmps != null && col < _actorNameTmps.Length && _actorNameTmps[col] != null)
-                    _actorNameTmps[col].text = uR != null ? uR.DisplayName : "——";
                 bool alive = uR != null && uR.IsAlive;
-                bool selectable = alive && canAct;
-                bool isSelected = selIdB != null && uR != null && uR.RuntimeId == selIdB;
+                // ★ 已行动（用户 2026-11-11 反馈）：本回合行动过的兽整列置灰，不能再点
+                bool acted = uR != null && stR != null && stR.ActedPlayerIds.IndexOf(uR.RuntimeId) >= 0;
+                bool selectable = alive && canAct && !acted;
+                bool isSelected = selIdB != null && uR != null && uR.RuntimeId == selIdB && !acted;
+                // 名字写进兽名按钮自带的 Tmp_Label（不再用重叠的 Tmp_ActorName）
+                var nameTmp = _actorBtns != null && col < _actorBtns.Length && _actorBtns[col] != null
+                    ? _actorBtns[col].transform.Find("Tmp_Label") : null;
+                if (nameTmp != null)
+                {
+                    var nt = nameTmp.GetComponent<TMPro.TMP_Text>();
+                    if (nt != null) nt.text = uR == null ? "——" : uR.DisplayName + (acted ? "（已行动）" : "");
+                }
+                if (_actorNameTmps != null && col < _actorNameTmps.Length && _actorNameTmps[col] != null)
+                    _actorNameTmps[col].text = uR != null ? uR.DisplayName + (acted ? "（已行动）" : "") : "——";
                 if (_actorBtns != null && col < _actorBtns.Length && _actorBtns[col] != null)
                 {
                     _actorBtns[col].interactable = selectable;
                     var imgC = _actorBtns[col].GetComponent<Image>();
                     if (imgC != null)
-                        imgC.color = !alive ? new Color(0.5f, 0.5f, 0.5f, 0.6f)
+                        imgC.color = acted ? new Color(0.62f, 0.60f, 0.58f, 0.75f)
+                                  : !alive ? new Color(0.5f, 0.5f, 0.5f, 0.6f)
                                   : isSelected ? new Color(0.85f, 0.75f, 0.4f, 0.95f)
                                   : Color.white;
                 }
@@ -308,6 +319,7 @@ namespace WanXiang.Modules.UI
             if (mine == null || actorIdx >= mine.Count) return;
             var u = mine[actorIdx];
             if (u == null || !u.IsAlive || !u.CanAct) return;
+            if (st.ActedPlayerIds.IndexOf(u.RuntimeId) >= 0) return;   // 已行动：本回合不可再点
             if (_autoBattle) { _autoBattle = false; }
             _play.SelectActor(u.RuntimeId);          // 换人（未轮到它时会自动换位）
             _play.SubmitCommand(skillIdx, -1);       // 该技能立即出手（指令原子归属被选中者）
@@ -324,6 +336,7 @@ namespace WanXiang.Modules.UI
             if (mine == null || actorIdx >= mine.Count) return;
             var u = mine[actorIdx];
             if (u == null || !u.IsAlive) return;
+            if (st.ActedPlayerIds.IndexOf(u.RuntimeId) >= 0) return;   // 已行动：不可再选
             _play.SelectActor(u.RuntimeId);
             Sfx("sfx_bt_cmd_select");
             RefreshActionBar();
