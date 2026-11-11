@@ -78,7 +78,7 @@ namespace WanXiang.Modules.UI
                         if (_actorBtns[i] != null)
                             _actorBtns[i].onClick.AddListener(() => SelectNext(idx));
                     }
-                var disabledCol2 = new Color(0.40f, 0.38f, 0.34f, 0.55f);
+                var disabledCol2 = new Color(0.82f, 0.80f, 0.76f, 0.88f);   // kit 米白浅灰（深棕会把墨字吞掉）
                 if (_actorSkillBtns != null)
                     for (int i = 0; i < _actorSkillBtns.Length; i++)
                         if (_actorSkillBtns[i] != null)
@@ -206,8 +206,8 @@ namespace WanXiang.Modules.UI
                     _actorBtns[col].interactable = selectable;
                     var imgC = _actorBtns[col].GetComponent<Image>();
                     if (imgC != null)
-                        imgC.color = acted ? new Color(0.62f, 0.60f, 0.58f, 0.75f)
-                                  : !alive ? new Color(0.5f, 0.5f, 0.5f, 0.6f)
+                        imgC.color = acted ? new Color(0.80f, 0.78f, 0.74f, 0.88f)
+                                  : !alive ? new Color(0.78f, 0.76f, 0.72f, 0.8f)
                                   : isSelected ? new Color(0.85f, 0.75f, 0.4f, 0.95f)
                                   : Color.white;
                 }

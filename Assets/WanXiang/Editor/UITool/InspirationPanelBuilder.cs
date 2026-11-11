@@ -16,7 +16,7 @@ namespace WanXiang.EditorTools
     public static class InspirationPanelBuilder
     {
         private const string PrefabPath = "Assets/Resources/UI/Panel_Inspiration.prefab";
-        private const string KitDir = "Assets/ArtRes/UI/Kit/";
+        private const string KitDir = "Assets/Resources/UI/Kit/";   // 真实 kit 目录（首版指错→LoadSprite 全 null→纯色）
 
         private static readonly Color Paper = new Color(0.93f, 0.90f, 0.84f, 0.98f);
         private static readonly Color Ink = Color.black;
@@ -33,13 +33,13 @@ namespace WanXiang.EditorTools
             var root = new GameObject("Panel_Inspiration", typeof(RectTransform));
             var rootRt = (RectTransform)root.transform;
             rootRt.sizeDelta = new Vector2(1920f, 1080f);   // 横屏（竖屏尺寸是首版排版事故根因）
-            AddImage(root, "panel_bg", Paper, Image.Type.Sliced);
+            AddImage(root, "panel_dialog", Color.white, Image.Type.Sliced);
             root.AddComponent<WanXiang.Modules.UI.InspirationPanel>();   // 面板组件（自检核对根组件）
 
             // 顶栏：标题 + 悟道点余额 + 关闭
             var top = Node("Root_TopBar", rootRt, new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0f, -120f), new Vector2(0f, 0f));   // 顶栏在顶部**下方** 120（首版写反→跑到屏外）
-            AddImage(top, "panel_strip", new Color(1f, 1f, 1f, 0.55f), Image.Type.Sliced);
+            AddImage(top, "panel_strip", Color.white, Image.Type.Sliced);
             // 三个控件各自定位（首版全拉满顶栏 → 互相重叠、关闭按钮居中）
             var titleBox = PlaceBox("Slot_Title", top.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
                 new Vector2(420f, 64f), new Vector2(40f, 0f));
@@ -81,7 +81,7 @@ namespace WanXiang.EditorTools
                     rt.pivot = new Vector2(0.5f, 1f);
                     rt.anchoredPosition = new Vector2(0f, -row * 158f);
                     rt.sizeDelta = new Vector2(0f, 148f);
-                    btn.GetComponent<Image>().sprite = LoadSprite("btn_secondary");
+                    btn.GetComponent<Image>().sprite = LoadSprite("card_solid");
                     // 节点两行文本由 InspirationPanel.RefreshNode 写 Tmp_Label（名+消耗 / 描述）
                 }
             }
