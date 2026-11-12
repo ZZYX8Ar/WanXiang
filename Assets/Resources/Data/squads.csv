@@ -1,9 +1,9 @@
 id,name,element,starter,eggs,relic,unlock,desc,recommend
-sq_wander,行旅,None,random:3,0,,default,无被动的三人小队；用它通关来解锁其余分队；适合第一次摸清规则,推荐：先熟悉规则，任意搭配均可
-sq_wood,回春,Wood,jumang|guanguan|jiuweihu,2,r_mech_heal,act1_clear,每回合全体回复2%生命；相生相邻额外+1灵力；主打拖回合与续航,推荐：木系续航 ｜ 句芒/关关 ｜ 回复·护盾战记
-sq_fire,燎原,Fire,bifang|hanba|feiyi,0,r_mech_burn,act1_clear,灼烧层数上限+2；敌方每层灼烧受到伤害+3%；靠铺燃烧后期爆发,推荐：火系铺燃烧 ｜ 毕方/旱魃 ｜ 附着·灼烧战记
-sq_earth,磐石,Earth,houtu|dijiang|dangkang,1,r_trait_thickwall,act3_clear,中宫减伤8%提升到15%；护盾破碎时反弹10%；站位最值钱的流派,推荐：土系站位 ｜ 后土/帝江 ｜ 护盾·减伤战记
-sq_metal,断金,Metal,baiyuan|pixiu|qiongqi,0,r_mech_pierce,act3_clear,破甲效率+30%；对护盾目标伤害+15%；专治高防精英与首领,推荐：金系破甲 ｜ 白猿/貔貅 ｜ 破甲·单体爆发
-sq_water,沧流,Water,jiaoren|lingli|bashe,1,r_trait_tenacity,clear,附着上限3提升到4；侵蚀与易伤多1回合；反应流的主场,推荐：水系反应 ｜ 鲛人/陵鲤 ｜ 附着·侵蚀战记
-sq_pure,无相,Same,random_same_element:5,0,r_mech_true,end_mortal,全队同元素；消耗伤害×1.5；纯色队唯一归宿；条件是不带遗物通关,推荐：同元素纯色队 ｜ 同系异兽 ｜ 消耗反应战记
-sq_hunt,游猎,None,random:4,3,r_rule_turns_plus,end_hunt,捕获消耗-1灵卵且失败必返；起手多1灵卵；靠野外捕获滚雪球,推荐：捕获滚雪球 ｜ 高攻速异兽 ｜ 捕获相关战记
+sq_wander,行旅,None,jumang|jiuweihu|guanguan|migu|lushu,0,,default,无被动的五人小队；用它通关来解锁其余分队；适合第一次摸清规则,推荐：先熟悉规则，任意搭配均可
+sq_wood,回春,Wood,jumang|guanguan|migu|lushu|tianma,2,r_mech_heal,act1_clear,每回合全体回复2%生命；相生相邻额外+1灵力；主打拖回合与续航,推荐：木系续航 ｜ 句芒/关关 ｜ 回复·护盾战记
+sq_fire,燎原,Fire,jiuweihu|xingxing|mengji|zhuhuai|xiegou,0,r_mech_burn,act1_clear,灼烧层数上限+2；敌方每层灼烧受到伤害+3%；靠铺燃烧后期爆发,推荐：火系铺燃烧 ｜ 毕方/旱魃 ｜ 附着·灼烧战记
+sq_earth,磐石,Earth,migu|lushu|tianma|guanguan|jumang,1,r_trait_thickwall,act3_clear,中宫减伤8%提升到15%；护盾破碎时反弹10%；站位最值钱的流派,推荐：土系站位 ｜ 后土/帝江 ｜ 护盾·减伤战记
+sq_metal,断金,Metal,zhuhuai|xingxing|jiuweihu|mengji|xiegou,0,r_mech_pierce,act3_clear,破甲效率+30%；对护盾目标伤害+15%；专治高防精英与首领,推荐：金系破甲 ｜ 白猿/貔貅 ｜ 破甲·单体爆发
+sq_water,沧流,Water,xiegou|jiuweihu|guanguan|lushu|tianma,1,r_trait_tenacity,clear,附着上限3提升到4；侵蚀与易伤多1回合；反应流的主场,推荐：水系反应 ｜ 鲛人/陵鲤 ｜ 附着·侵蚀战记
+sq_pure,无相,Same,jumang|guanguan|migu|lushu|tianma,0,r_mech_true,end_mortal,全队同元素；消耗伤害×1.5；纯色队唯一归宿；条件是不带遗物通关,推荐：同元素纯色队 ｜ 同系异兽 ｜ 消耗反应战记
+sq_hunt,游猎,None,xingxing|mengji|jiuweihu|zhuhuai|xiegou,3,r_rule_turns_plus,end_hunt,捕获消耗-1灵卵且失败必返；起手多1灵卵；靠野外捕获滚雪球,推荐：捕获滚雪球 ｜ 高攻速异兽 ｜ 捕获相关战记

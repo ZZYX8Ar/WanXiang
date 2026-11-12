@@ -78,7 +78,7 @@ namespace WanXiang.EditorTools
 
             // ---------------- 难度条 ----------------
             var diff = Node("Root_Difficulty", rootRt, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, -190f), new Vector2(0f, -120f));
+                new Vector2(0f, -272f), new Vector2(0f, -120f));   // 加高：逐档数值预览卡
             var minus = Button("Btn_Minus", diff, font, "-", 36);   // Deng SDF 无 U+2212，必须用 ASCII 减号
             Place((RectTransform)minus.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
                 new Vector2(40f, 0f), new Vector2(40f, 0f));
@@ -94,12 +94,16 @@ namespace WanXiang.EditorTools
                 new Vector2(200f, 0f), new Vector2(200f, 0f));
             ((RectTransform)plus.transform).sizeDelta = new Vector2(56f, 56f);
 
-            var rule = Text("Tmp_Rule", diff, font, "—", 24, TextAlignmentOptions.Left, InkSoft);
-            Place(rule, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(280f, 6f), new Vector2(-24f, -6f));
+            var rule = Text("Tmp_Rule", diff, font, "—", 18, TextAlignmentOptions.Left, InkSoft);
+            Place(rule, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(280f, -100f), new Vector2(-24f, -6f));
+            var miles = Text("Tmp_Milestones", diff, font,
+                "里程碑：N6 首领二阶段 ｜ N9 敌方激进 ｜ N12 回合上限−6 ｜ N15 敌方劫象 ｜ N18 首领护盾",
+                14, TextAlignmentOptions.Left, InkSoft);
+            Place(miles, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(40f, 6f), new Vector2(-24f, 42f));
 
             // ---------------- 列表 ----------------
             var scroll = Node("Scroll_Grid", rootRt, new Vector2(0f, 0f), new Vector2(1f, 1f),
-                new Vector2(32f, 150f), new Vector2(-32f, -206f));
+                new Vector2(32f, 150f), new Vector2(-32f, -288f));
             var sr = scroll.gameObject.AddComponent<ScrollRect>();
             var viewport = Node("Viewport", (RectTransform)scroll, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             viewport.gameObject.AddComponent<RectMask2D>();

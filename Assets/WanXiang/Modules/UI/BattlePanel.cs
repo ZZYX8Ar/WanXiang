@@ -746,6 +746,7 @@ namespace WanXiang.Modules.UI
                         if (ed != null)
                         {
                             runEnd.EndingId = ed.Id;
+                            WanXiang.Modules.UI.EndingUnlocks.Mark(ed.Id);
                             Debug.Log("[BattlePanel] ★终局判定：" + ed.Id + "「" + ed.Name + "」" + (ed.IsTrue ? "（真结局）" : ""));
                         }
                     }

@@ -1973,11 +1973,10 @@ if (_tmpActTitle != null)
             run.RerolledKinds = recs;
         }
 
-        /// <summary>结构位节点（不参与重掷）：招募(首层) / 遗物(次层) / 精英(含守关占位)。</summary>
+        /// <summary>结构位节点（不参与重掷）：遗物(次层) / 精英(含守关占位)。招募已删除。</summary>
         private static bool IsStructuralKind(WanXiang.Campaign.NodeKind k)
         {
-            return k == WanXiang.Campaign.NodeKind.Recruit
-                || k == WanXiang.Campaign.NodeKind.Relic
+            return k == WanXiang.Campaign.NodeKind.Relic
                 || k == WanXiang.Campaign.NodeKind.Elite;
         }
 
@@ -2450,7 +2449,7 @@ if (_tmpActTitle != null)
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.ActSkip, _ => ConfirmActSkip());
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Shop, _ => OpenPanelAsync<MarketPanel>().Forget());
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Omen, _ => OpenPanelAsync<OmenPanel>().Forget());
-            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Recruit, _ => OpenPanelAsync<RecruitPanel>(_current).Forget());
+            // 招募节点已删除（2026-11-12）：不再注册路由；老存档遇到该枚举按普通节点处理
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Relic, _ => OpenPanelAsync<RelicPanel>(_current).Forget());
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Nest, r => NestChoose(r));
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Spring, r => SpringNode(r).Forget());

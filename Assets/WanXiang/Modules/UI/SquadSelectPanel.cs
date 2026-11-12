@@ -89,24 +89,65 @@ namespace WanXiang.Modules.UI
         }
 
         // ------------------------------------------------------------ 难度
+        /// <summary>难度解锁：每通关一次解锁下一档（N1 恒可用）。</summary>
+        private static int MaxUnlockedChallenge()
+        {
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            int done = meta != null ? meta.RunsCompleted : 0;
+            int cap = DifficultyTable.MaxLevel > 0 ? DifficultyTable.MaxLevel : 18;
+            return Mathf.Clamp(1 + done, 1, cap);
+        }
+
         private void BuildDifficulty()
         {
-            int max = DifficultyTable.MaxLevel > 0 ? DifficultyTable.MaxLevel : 18;
+            int cap = DifficultyTable.MaxLevel > 0 ? DifficultyTable.MaxLevel : 18;
+            int unlocked = MaxUnlockedChallenge();
             if (_level < 1) _level = 1;
-            if (_level > max) _level = max;
+            if (_level > unlocked) _level = unlocked;
             if (_tmpLevel != null) _tmpLevel.text = "N" + _level;
 
+            // ★ 用户 11-12：每档都写清数值，不再只显示里程碑规则（空档显示"—"）
             var row = DifficultyTable.Row(_level);
-            string rule = row == null ? "难度表缺失" : HumanRule(row.NewRule);
-            if (_tmpRule != null) _tmpRule.text = rule;
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            int done = meta != null ? meta.RunsCompleted : 0;
+            if (_tmpRule != null)
+            {
+                if (row == null) _tmpRule.text = "难度表缺失";
+                else
+                {
+                    string rule = string.IsNullOrEmpty(row.NewRule)
+                        ? "无新规则（本档仅数值提升）" : HumanRule(row.NewRule);
+                    _tmpRule.text =
+                        "N" + row.Level + " · " + (string.IsNullOrEmpty(row.Desc) ? "数值提升" : row.Desc)
+                        + "　｜　已解锁至 N" + unlocked + "（通关 " + done + " 次）\n"
+                        + "敌方生命 ×" + row.HpMul.ToString("0.00") + "　攻击 ×" + row.AtkMul.ToString("0.00")
+                        + "　防御 ×" + row.DefMul.ToString("0.00") + "\n"
+                        + "敌方额外词条 " + row.ExtraTraits + " 条　灵卵获取 ×" + row.EggMul.ToString("0.00") + "\n"
+                        + "新规则：" + rule
+                        + (unlocked < cap ? "\n（再通关 1 次解锁 N" + (unlocked + 1) + "）" : "");
+                }
+            }
+            // 里程碑摘要（所有带新规则的档）
+            var milestones = Find<TMP_Text>("Root_Difficulty/Tmp_Milestones");
+            if (milestones != null)
+            {
+                var sb = new System.Text.StringBuilder("里程碑规则：");
+                foreach (var d in DifficultyTable.All)
+                    if (!string.IsNullOrEmpty(d.NewRule)) sb.Append(" N").Append(d.Level).Append(" ").Append(HumanRule(d.NewRule)).Append(" ｜");
+                milestones.text = sb.ToString().TrimEnd('｜');
+            }
+            var plus = Find<Button>("Root_Difficulty/Btn_Plus");
+            if (plus != null) plus.interactable = _level < unlocked;
+            var minus = Find<Button>("Root_Difficulty/Btn_Minus");
+            if (minus != null) minus.interactable = _level > 1;
 
             PendingDifficulty = _level;
         }
 
         private void ChangeLevel(int delta)
         {
-            int max = DifficultyTable.MaxLevel > 0 ? DifficultyTable.MaxLevel : 18;
-            int next = Mathf.Clamp(_level + delta, 1, max);
+            int unlocked = MaxUnlockedChallenge();
+            int next = Mathf.Clamp(_level + delta, 1, unlocked);
             if (next == _level) return;
             _level = next;
             BuildDifficulty();
@@ -147,7 +188,9 @@ namespace WanXiang.Modules.UI
                 if (meta.RunsCompleted > 0 || meta.BestActReached >= 2) _unlocked.Add("act1_clear");
                 if (meta.BestActReached >= 4) _unlocked.Add("act3_clear");
                 if (meta.RunsCompleted > 0) _unlocked.Add("clear");
-                // 结局类（end_mortal / end_hunt）：MetaState 暂无"已达成结局"记录 → 保持锁定并显示条件
+                // 结局类：按 EndingUnlocks（PlayerPrefs）判定，达成对应结局才解锁
+                foreach (var key in new[] { "end_mortal", "end_hunt", "end_houtu" })
+                    if (WanXiang.Modules.UI.EndingUnlocks.Has(key)) _unlocked.Add(key);
             }
             var list = new List<SquadDef>(SquadTable.All);   // 全量展示，锁定态由 IsLocked 决定
             if (list == null || list.Count == 0)
@@ -293,11 +336,19 @@ namespace WanXiang.Modules.UI
         private static string StarterText(SquadDef d)
         {
             if (d.Starters != null && d.Starters.Count > 0)
-                return string.Join(" / ", d.Starters);
+            {
+                var names = new List<string>();
+                foreach (var id in d.Starters)
+                {
+                    string nm = id;
+                    foreach (var b in WanXiang.Battle.Core.BeastTable.All)
+                        if (b.Id == id) { nm = b.Name; break; }
+                    names.Add(nm);
+                }
+                return "固定 " + d.Starters.Count + " 人：" + string.Join(" / ", names);
+            }
             if (!string.IsNullOrEmpty(d.StarterExpr) && d.StarterExpr.StartsWith("random"))
-                return d.StarterExpr.StartsWith("random_same_element")
-                    ? "同元素随机 " + d.StarterExpr.Substring(d.StarterExpr.IndexOf(':') + 1) + " 只"
-                    : "随机 " + d.StarterExpr.Substring(d.StarterExpr.IndexOf(':') + 1) + " 只";
+                return "固定 5 人（老存档兼容）";
             return "—";
         }
 

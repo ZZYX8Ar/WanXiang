@@ -26,7 +26,7 @@ namespace WanXiang.Framework.UI
             new System.Collections.Generic.HashSet<string>
             {
                 "CodexPanel", "MetaPanel", "ArchivePanel", "HistoryPanel", "SettingsPanel",
-                "PortraitBoardPanel", "RelicPanel", "RecruitPanel", "MarketPanel",
+                "PortraitBoardPanel", "RelicPanel", "MarketPanel",
                 "ForgePanel", "OmenPanel", "SavePanel",
             };
 

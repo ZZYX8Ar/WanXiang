@@ -531,8 +531,8 @@ namespace WanXiang.Modules.UI
                     Desc = r.Str("desc"),
                     Recommend = r.Str("recommend"),
                 };
-                // starter 两种写法：`id|id|id` 或 `random:3` / `random_same_element:5`
-                if (!string.IsNullOrEmpty(d.StarterExpr) && !d.StarterExpr.StartsWith("random"))
+                // 固定 5 人起手（2026-11-12 用户定案）：starter 一律 `id|id|id|id|id`，无随机
+                if (!string.IsNullOrEmpty(d.StarterExpr))
                 {
                     var ids = d.StarterExpr.Split('|');
                     for (int k = 0; k < ids.Length; k++)

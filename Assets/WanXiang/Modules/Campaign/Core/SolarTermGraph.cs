@@ -59,8 +59,8 @@ namespace WanXiang.Campaign
         /// </summary>
         Question = 7,
 
-        /// <summary>招募：每幕**首层固定节点**（用户 2026-09-29 重设计）。免费挑选异兽入队，
-        /// 每属性随机 2 选、免费刷新 1 次、再刷新费灵卵；第一幕选 3、二~四幕选 1。非战斗。</summary>
+        /// <summary>【已废弃】招募节点 2026-11-12 删除（固定 5 人起手替代）。
+        /// 枚举值保留仅为老存档兼容，新地图不再生成。</summary>
         Recruit = 8,
 
         /// <summary>遗物：每幕**第二层固定节点**（用户 2026-09-29 重设计，参考杀戮尖塔）。
@@ -151,7 +151,7 @@ namespace WanXiang.Campaign
                 case NodeKind.Forge: return "工坊";
                 case NodeKind.Omen: return "天象";
                 case NodeKind.Question: return "？";
-                case NodeKind.Recruit: return "招募";
+                case NodeKind.Recruit: return "招募";   // 老存档残留时的显示名；新图不产生
                 case NodeKind.Relic: return "遗物";
                 case NodeKind.Realm: return "秘境";
                 case NodeKind.RealmVault: return "秘藏";
@@ -352,11 +352,10 @@ namespace WanXiang.Campaign
                     //   之前写 (layer*2+k)%24 会让第一幕冒出"大暑/霜降"，四季节气混在一起（用户抓到）。
                     int termStart = (act - 1) * 6 + 1;
                     terms.Add(termStart + ((layer + k) % 6));
-                    // ★★ 每幕首层固定「招募」、第二层固定「遗物」（用户 2026-09-29 重设计）：
-                    //   Recruit/Relic 不参与随机池与解锁配额（见 UnlockKinds / KindWeights），
-                    //   由这里强制落位，保证每幕开局都有"补异兽 + 变强"两个关键节点。
+                    // ★ 每幕第二层固定「遗物」（招募已删，见上方注释）。
+                    // ★ 招募节点已删除（用户 2026-11-12）：改由固定 5 人起手承担开局队伍，
+                    //   首层不再强制 Recruit，按普通池随机；次层仍固定遗物。
                     NodeKind kind = isBoss ? NodeKind.Elite
-                                : isFirst ? NodeKind.Recruit
                                 : (layer == 1) ? NodeKind.Relic
                                 : PickKind(rng, false, act);
                     kinds.Add(kind);
