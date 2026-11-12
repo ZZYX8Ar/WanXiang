@@ -34,6 +34,7 @@ namespace WanXiang.Modules.UI
         private TMP_Text _tmpLevel, _tmpRule, _tmpPreview, _tmpEmpty;
 
         private readonly List<SquadDef> _squads = new List<SquadDef>();
+        private readonly HashSet<string> _unlocked = new HashSet<string>();   // 本局已满足的解锁键
         private readonly List<GameObject> _rows = new List<GameObject>();
         private int _selected = -1;
         private int _level = 1;
@@ -137,9 +138,18 @@ namespace WanXiang.Modules.UI
             if (_rowTemplate != null) _rowTemplate.SetActive(false);
             if (_content == null) { Debug.LogError("[SquadSelect] 找不到 Content"); return; }
 
-            // 解锁键：目前只有默认分队（后续由通关进度补充）
-            var satisfied = new HashSet<string>();
-            var list = SquadTable.Available(satisfied);
+            // ★ 用户 11-12：未解锁分队也要**能看到**（灰 + 锁 + 条件），只是不能选。
+            //   旧版给 Available 传空集合 → 8 队只显示 1 队，锁定渲染逻辑全白写了。
+            _unlocked.Clear();
+            var meta = WanXiang.Meta.MetaStore.Ensure();
+            if (meta != null)
+            {
+                if (meta.RunsCompleted > 0 || meta.BestActReached >= 2) _unlocked.Add("act1_clear");
+                if (meta.BestActReached >= 4) _unlocked.Add("act3_clear");
+                if (meta.RunsCompleted > 0) _unlocked.Add("clear");
+                // 结局类（end_mortal / end_hunt）：MetaState 暂无"已达成结局"记录 → 保持锁定并显示条件
+            }
+            var list = new List<SquadDef>(SquadTable.All);   // 全量展示，锁定态由 IsLocked 决定
             if (list == null || list.Count == 0)
             {
                 if (_tmpEmpty != null) _tmpEmpty.gameObject.SetActive(true);
@@ -169,15 +179,18 @@ namespace WanXiang.Modules.UI
             SetText(go, "Tmp_Name", d.Name);
             SetText(go, "Tmp_Starter", StarterText(d));
             SetText(go, "Tmp_Desc", d.Desc);
+            if (!string.IsNullOrEmpty(d.Recommend)) SetText(go, "Tmp_Recommend", d.Recommend);
 
             bool locked = IsLocked(d);
+            // 锁定行整体灰化（行底 + 名字），让"看得见但不能选"一眼可辨
+            var rowImg = go.GetComponent<Image>();
+            if (rowImg != null) rowImg.color = locked ? new Color(0.78f, 0.77f, 0.74f, 0.85f) : Color.white;
+            var nameTmp = go.transform.Find("Tmp_Name")?.GetComponent<TMP_Text>();
+            if (nameTmp != null) nameTmp.color = locked ? new Color(0.45f, 0.43f, 0.40f, 1f) : Color.black;
             var unlock = go.transform.Find("Tmp_Unlock");
-            if (unlock != null)
-            {
-                unlock.gameObject.SetActive(locked);
-                var t = unlock.GetComponent<TMP_Text>();
-                if (t != null) t.text = UnlockText(d.Unlock);
-            }
+            if (unlock != null) unlock.gameObject.SetActive(false);   // 双列下会压描述 → 条件写按钮文案
+            var pickLabel = go.transform.Find("Btn_Pick/Tmp_Label")?.GetComponent<TMP_Text>();
+            if (pickLabel != null) pickLabel.text = locked ? "锁·" + ShortUnlockText(d.Unlock) : "用这个";
 
             var btn = go.transform.Find("Btn_Pick")?.GetComponent<Button>();
             if (btn != null)
@@ -195,6 +208,7 @@ namespace WanXiang.Modules.UI
         private void Select(int index)
         {
             if (index < 0 || index >= _squads.Count) return;
+            if (IsLocked(_squads[index])) return;   // 锁定分队不可选（防御）
             _selected = index;
             var d = _squads[index];
             PendingSquadId = d.Id;
@@ -287,9 +301,21 @@ namespace WanXiang.Modules.UI
             return "—";
         }
 
-        private static bool IsLocked(SquadDef d)
+        private bool IsLocked(SquadDef d)
             => !string.IsNullOrEmpty(d.Unlock)
-               && !string.Equals(d.Unlock, "default", System.StringComparison.OrdinalIgnoreCase);
+               && !string.Equals(d.Unlock, "default", System.StringComparison.OrdinalIgnoreCase)
+               && !_unlocked.Contains(d.Unlock);
+
+        private static string ShortUnlockText(string key)
+        {
+            switch (key)
+            {
+                case "act1_clear": return "通关1幕";
+                case "act3_clear": return "通关3幕";
+                case "clear": return "通关";
+                default: return key.StartsWith("end_") ? "结局" : "未解锁";
+            }
+        }
 
         private static string UnlockText(string key)
         {

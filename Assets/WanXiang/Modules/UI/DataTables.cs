@@ -31,6 +31,7 @@ using System.Text;
 using UnityEngine;
 using WanXiang.Battle.Core;
 using WanXiang.Campaign;
+using WanXiang.Modules.UI.Dialogue;
 
 namespace WanXiang.Modules.UI
 {
@@ -55,12 +56,18 @@ namespace WanXiang.Modules.UI
         public static int DaoMarkCount { get; private set; }     // B2：dao_marks.csv 生效行数
         public static int EndingCount { get; private set; }      // B4：endings.csv 生效行数
         public static int InspirationCount { get; private set; } // B5：inspirations.csv 生效行数
+        public static int CosmeticsPartCount { get; private set; }   // C2：beast_parts.csv 装饰挂点
+        public static int CosmeticsOutfitCount { get; private set; } // C3：outfits.csv 换装颜色
+        public static int CosmeticsFaceCount { get; private set; }   // C4：facebody.csv 捏脸参数
+        public static int CosmeticsPresetCount { get; private set; } // C3：outfit_presets.csv 整套配色
+        public static int CosmeticsSetCount { get; private set; }    // C3：beast_outfitsets.csv 整套造型（VRM）
         public static int SquadPresetCount { get; private set; } // B3：squads.csv（分队）生效行数
         public static int DifficultyCount { get; private set; }  // B3：difficulty_mods.csv 生效行数
         public static int ComboCount { get; private set; }
         public static int ProgressionKeys { get; private set; }
         public static int TrialLawCount { get; private set; }
         public static int MarketKeys { get; private set; }
+        public static int LlmCount { get; private set; }           // P0b：llm.csv 生效配置项
 
         /// <summary>解析期收集到的全部问题（行号 + 原因）。空 = 全部正常。</summary>
         public static readonly List<string> Problems = new List<string>();
@@ -96,6 +103,8 @@ namespace WanXiang.Modules.UI
             LoadInspirations();
             LoadSquadPresets();
             LoadDifficulty();
+            LoadLlm();
+            LoadBeastCosmetics();
 
             if (Problems.Count > 0)
                 Debug.LogError("[DataTables] 共 " + Problems.Count + " 处问题：\n" + string.Join("\n", Problems.ToArray()));
@@ -107,7 +116,9 @@ namespace WanXiang.Modules.UI
                       "／异兽 " + BeastCount + " 只／标签 " + LabelCount + " 条" +
                       "／性情通道 " + TemperamentCount + " 条／技能池 " + SkillPoolCount + " 条" +
                       "／道痕 " + DaoMarkCount + " 条／分队 " + SquadPresetCount + " 个" +
-                      "／难度 " + DifficultyCount + " 档／结局 " + EndingCount + " 条／灵感 " + InspirationCount + " 节点");
+                      "／难度 " + DifficultyCount + " 档／结局 " + EndingCount + " 条／灵感 " + InspirationCount + " 节点" +
+                      "／LLM " + LlmCount + " 项" +
+                      "／装饰挂点 " + CosmeticsPartCount + "／换装 " + CosmeticsOutfitCount + "／捏脸 " + CosmeticsFaceCount);
         }
 
         /// <summary>
@@ -121,7 +132,9 @@ namespace WanXiang.Modules.UI
             RelicCount = ComboCount = ProgressionKeys = TrialLawCount = MarketKeys = 0;
             BeastCount = LabelCount = TemperamentCount = SkillPoolCount = DaoMarkCount = 0;
             SquadPresetCount = DifficultyCount = 0;
+            CosmeticsPartCount = CosmeticsOutfitCount = CosmeticsFaceCount = CosmeticsPresetCount = CosmeticsSetCount = 0;
             MapInstalled = false;
+            LlmCount = 0;
             EnsureInstalled();
         }
 
@@ -206,6 +219,170 @@ namespace WanXiang.Modules.UI
             if (list.Count == 0) return;
             WanXiang.Battle.Core.TemperamentTable.Install(list);
             TemperamentCount = list.Count;
+        }
+
+        // ================================================================
+        //  P0b · llm.csv（OpenAI 兼容配置；缺表 = 离线回显，绝不报错）
+        //  ⚠ API key 不进表，只读环境变量（见 LlmConfig.ApiKeyEnv）
+        // ================================================================
+        private static void LoadLlm()
+        {
+            var rows = Read("llm", out var header);
+            var cfg = new LlmConfig();
+            if (rows == null) { LlmConfigTable.Install(cfg); return; }
+
+            int n = 0;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "llm.csv", i + 2, Problems);
+                string key = r.Str("key"), val = r.Str("value");
+                if (string.IsNullOrEmpty(key)) { r.Fail("key 为空"); continue; }
+
+                switch (key)
+                {
+                    case "endpoint": cfg.Endpoint = val; break;
+                    case "model": cfg.Model = val; break;
+                    case "api_key_env": cfg.ApiKeyEnv = val; break;
+                    case "temperature":
+                        if (float.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out var t)) cfg.Temperature = t;
+                        else r.Fail("temperature 不是数值");
+                        break;
+                    case "max_tokens":
+                        if (int.TryParse(val, out var m)) cfg.MaxTokens = m;
+                        else r.Fail("max_tokens 不是整数");
+                        break;
+                    case "offline":
+                        cfg.Offline = val == "1" || string.Equals(val, "true", StringComparison.OrdinalIgnoreCase);
+                        break;
+                    case "stream":
+                        cfg.Stream = val == "1" || string.Equals(val, "true", StringComparison.OrdinalIgnoreCase);
+                        break;
+                    default:
+                        Debug.LogWarning("[DataTables] llm.csv 未知配置项（已忽略）：" + key);
+                        break;
+                }
+                n++;
+            }
+
+            LlmConfigTable.Install(cfg);
+            LlmCount = n;
+        }
+
+        // ================================================================
+        //  C2/C3/C4 · beast_parts.csv / outfits.csv / facebody.csv（兽娘外观定制）
+        //  装饰挂点（prefab 挂骨骼）/ 换装颜色（材质名关键字）/ 捏脸（骨骼缩放 + BlendShape）
+        //  ⚠ 表缺失 / 空表 ⇒ Registry 为空，应用层全部跳过（零副作用）
+        // ================================================================
+        private static void LoadBeastCosmetics()
+        {
+            var parts = new List<WanXiang.Modules.UI.Cosmetics.BeastPartDef>();
+            var outfits = new List<WanXiang.Modules.UI.Cosmetics.BeastOutfitDef>();
+            var face = new List<WanXiang.Modules.UI.Cosmetics.BeastFaceDef>();
+
+            var rows1 = Read("beast_parts", out var h1);
+            if (rows1 != null)
+                for (int i = 0; i < rows1.Count; i++)
+                {
+                    var r = new Row(h1, rows1[i], "beast_parts.csv", i + 2, Problems);
+                    string id = r.Str("id");
+                    if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                    parts.Add(new WanXiang.Modules.UI.Cosmetics.BeastPartDef
+                    {
+                        Id = id,
+                        BeastId = r.Str("beast_id", id),
+                        Slot = r.Str("slot", "head"),
+                        Bone = r.Str("bone", "Head"),
+                        PrefabPath = r.Str("prefab"),
+                        Offset = new Vector3(r.Float("pos_x", 0f), r.Float("pos_y", 0f), r.Float("pos_z", 0f)),
+                        Scale = r.Float("scale", 1f),
+                    });
+                }
+
+            var rows2 = Read("outfits", out var h2);
+            if (rows2 != null)
+                for (int i = 0; i < rows2.Count; i++)
+                {
+                    var r = new Row(h2, rows2[i], "outfits.csv", i + 2, Problems);
+                    string id = r.Str("id");
+                    if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                    outfits.Add(new WanXiang.Modules.UI.Cosmetics.BeastOutfitDef
+                    {
+                        Id = id,
+                        BeastId = r.Str("beast_id", id),
+                        Material = r.Str("material"),
+                        Color = new Color(r.Float("color_r", 1f), r.Float("color_g", 1f), r.Float("color_b", 1f)),
+                    });
+                }
+
+            var rows3 = Read("facebody", out var h3);
+            if (rows3 != null)
+                for (int i = 0; i < rows3.Count; i++)
+                {
+                    var r = new Row(h3, rows3[i], "facebody.csv", i + 2, Problems);
+                    string id = r.Str("id");
+                    if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                    face.Add(new WanXiang.Modules.UI.Cosmetics.BeastFaceDef
+                    {
+                        Id = id,
+                        BeastId = r.Str("beast_id", id),
+                        Kind = r.Str("kind", "bonescale"),
+                        Target = r.Str("target"),
+                        Value = r.Float("value", 1f),
+                    });
+                }
+
+            // 整套配色预设：列名 = material+"_r/g/b"，material 集合取自 outfits（新增部位自动支持）
+            var presets = new List<WanXiang.Modules.UI.Cosmetics.BeastOutfitPresetDef>();
+            var matKeys = new List<string>();
+            foreach (var o in outfits)
+                if (!matKeys.Contains(o.Material)) matKeys.Add(o.Material);
+
+            var rows4 = Read("outfit_presets", out var h4);
+            if (rows4 != null)
+                for (int i = 0; i < rows4.Count; i++)
+                {
+                    var r = new Row(h4, rows4[i], "outfit_presets.csv", i + 2, Problems);
+                    string id = r.Str("id");
+                    if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                    var preset = new WanXiang.Modules.UI.Cosmetics.BeastOutfitPresetDef
+                    {
+                        Id = id,
+                        BeastId = r.Str("beast_id", id),
+                        Colors = new Dictionary<string, Color>(),
+                    };
+                    foreach (var mk in matKeys)
+                    {
+                        preset.Colors[mk] = new Color(
+                            r.Float(mk + "_r", 1f), r.Float(mk + "_g", 1f), r.Float(mk + "_b", 1f));
+                    }
+                    presets.Add(preset);
+                }
+
+            // 整套造型（套装）：一套 = 一个完整 VRM 文件；用户加行 + 丢文件即生效
+            var sets = new List<WanXiang.Modules.UI.Cosmetics.BeastOutfitSetDef>();
+            var rows5 = Read("beast_outfitsets", out var h5);
+            if (rows5 != null)
+                for (int i = 0; i < rows5.Count; i++)
+                {
+                    var r = new Row(h5, rows5[i], "beast_outfitsets.csv", i + 2, Problems);
+                    string id = r.Str("id");
+                    if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                    sets.Add(new WanXiang.Modules.UI.Cosmetics.BeastOutfitSetDef
+                    {
+                        Id = id,
+                        BeastId = r.Str("beast_id", id),
+                        Name = r.Str("name", id),
+                        VrmPath = r.Str("vrm_path"),
+                        Unlocked = r.Str("unlocked", "1") != "0",
+                    });
+                }
+
+            WanXiang.Modules.UI.Cosmetics.BeastCosmeticsRegistry.Install(parts, outfits, face, presets, sets);
+            CosmeticsPartCount = parts.Count;
+            CosmeticsOutfitCount = outfits.Count;
+            CosmeticsFaceCount = face.Count;
+            CosmeticsPresetCount = presets.Count;
+            CosmeticsSetCount = sets.Count;
         }
 
         // ================================================================
@@ -352,6 +529,7 @@ namespace WanXiang.Modules.UI
                     Relic = r.Str("relic"),
                     Unlock = r.Str("unlock"),
                     Desc = r.Str("desc"),
+                    Recommend = r.Str("recommend"),
                 };
                 // starter 两种写法：`id|id|id` 或 `random:3` / `random_same_element:5`
                 if (!string.IsNullOrEmpty(d.StarterExpr) && !d.StarterExpr.StartsWith("random"))

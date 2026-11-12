@@ -65,7 +65,7 @@ namespace WanXiang.EditorTools
 
             var title = Text("Tmp_Title", top, font, "选择分队", 46, TextAlignmentOptions.Left, Ink);
             Place(title, new Vector2(0f, 0f), new Vector2(0.5f, 1f), new Vector2(48f, 18f), new Vector2(0f, -14f));
-            var sub = Text("Tmp_SubTitle", top, font, "起手 5 只决定这局的流派；难度在开始前可调", 22,
+            var sub = Text("Tmp_SubTitle", top, font, "起手异兽与遗物决定这局的流派；难度在开始前可调（各队起手 3~5 只不等）", 22,
                 TextAlignmentOptions.Left, InkSoft);
             Place(sub, new Vector2(0f, 0f), new Vector2(0.7f, 0f), new Vector2(50f, 8f), new Vector2(0f, 46f));
 
@@ -108,12 +108,13 @@ namespace WanXiang.EditorTools
             var content = Node("Content", viewport, new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0f, 0f), new Vector2(0f, 0f));
             content.pivot = new Vector2(0.5f, 1f);
-            var vlg = content.gameObject.AddComponent<VerticalLayoutGroup>();
-            vlg.spacing = 12f;
-            vlg.childControlHeight = false;
-            vlg.childControlWidth = true;
-            vlg.childForceExpandHeight = false;
-            vlg.childForceExpandWidth = true;
+            // 双列网格：8 队一屏可见（单列时一屏只有 4 行，用户"都能看到"的诉求不满足）
+            var grid = content.gameObject.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(860f, 150f);
+            grid.spacing = new Vector2(12f, 12f);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 2;
+            grid.childAlignment = TextAnchor.UpperLeft;
             var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             sr.viewport = viewport;
@@ -124,9 +125,8 @@ namespace WanXiang.EditorTools
 
             // ---- 行模板（运行时克隆；prefab 里 SetActive(false)）----
             var row = Node("Row_Squad_Template", content, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, 0f), new Vector2(0f, 140f));
-            var rowLe = row.gameObject.AddComponent<LayoutElement>();
-            rowLe.preferredHeight = 140f;
+                new Vector2(0f, 0f), new Vector2(0f, 150f));
+            // Grid 布局自己定 cellSize；不需要 LayoutElement
             AddImage(row, "card_solid", new Color(1f, 1f, 1f, 0.92f), Image.Type.Sliced);
 
             var accent = Node("Img_Accent", row, new Vector2(0f, 0f), new Vector2(0f, 1f),
@@ -135,29 +135,34 @@ namespace WanXiang.EditorTools
             accentImg.color = new Color(0.55f, 0.68f, 0.48f, 1f);
 
             // 三行垂直堆叠：名字 / 起手 / 描述 —— 统一从 x=170 起排，完全避开 9-slice 左边框
-            var rn = Text("Tmp_Name", row, font, "回春", 30, TextAlignmentOptions.Left, Ink);
-            Place(rn, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(170f, -34f), new Vector2(170f, -34f));
+            var rn = Text("Tmp_Name", row, font, "回春", 24, TextAlignmentOptions.Left, Ink);
+            Place(rn, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(100f, -28f), new Vector2(100f, -28f));
             var rnRt = (RectTransform)rn.transform;
-            rnRt.pivot = new Vector2(0f, 0.5f);                 // pivot 靠左 ⇒ x 表示左边缘，不会有一半跑出卡片
-            rnRt.sizeDelta = new Vector2(360f, 44f);
+            rnRt.pivot = new Vector2(0f, 0.5f);
+            rnRt.sizeDelta = new Vector2(360f, 34f);
             rn.enableWordWrapping = false;
 
-            var rs = Text("Tmp_Starter", row, font, "句芒 / 灌灌 / 九尾狐", 22, TextAlignmentOptions.Left, InkSoft);
-            Place(rs, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(170f, -80f), new Vector2(-220f, -50f));
+            var rs = Text("Tmp_Starter", row, font, "起手 3 只", 18, TextAlignmentOptions.Left, InkSoft);
+            Place(rs, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -56f), new Vector2(-150f, -34f));
 
-            var rd = Text("Tmp_Desc", row, font, "每回合回复…", 22, TextAlignmentOptions.Left, InkSoft);
-            Place(rd, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(170f, -126f), new Vector2(-220f, -84f));
+            var rd = Text("Tmp_Desc", row, font, "每回合回复…", 16, TextAlignmentOptions.Left, InkSoft);
+            Place(rd, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -100f), new Vector2(-150f, -58f));
+            var rr = Text("Tmp_Recommend", row, font, "推荐：按流派搭配", 16, TextAlignmentOptions.Left, InkSoft);
+            Place(rr, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(100f, -142f), new Vector2(-150f, -102f));
 
             var ru = Text("Tmp_Unlock", row, font, "通关第 1 幕解锁", 20, TextAlignmentOptions.Right,
                 new Color(0.65f, 0.25f, 0.20f, 1f));
             Place(ru, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-270f, 0f), new Vector2(-270f, 0f));
             ((RectTransform)ru.transform).sizeDelta = new Vector2(220f, 40f);
             ru.enableWordWrapping = false;
+            ru.gameObject.SetActive(false);   // 双列下会压住描述 → 解锁条件写进 Btn_Pick 文案
 
-            var pick = Button("Btn_Pick", row, font, "用这个", 26);
-            Place((RectTransform)pick.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(-176f, 0f), new Vector2(-176f, 0f));
-            ((RectTransform)pick.transform).sizeDelta = new Vector2(152f, 60f);
+            var pick = Button("Btn_Pick", row, font, "用这个", 20);
+            var pkRt = (RectTransform)pick.transform;
+            pkRt.anchorMin = pkRt.anchorMax = new Vector2(1f, 0.5f);
+            pkRt.pivot = new Vector2(1f, 0.5f);
+            pkRt.anchoredPosition = new Vector2(-16f, 0f);
+            pkRt.sizeDelta = new Vector2(134f, 44f);
             pick.GetComponent<Image>().sprite = LoadSprite("btn_secondary");
 
             row.gameObject.SetActive(false);
@@ -172,21 +177,28 @@ namespace WanXiang.EditorTools
                 new Vector2(0f, 0f), new Vector2(0f, 140f));
             AddImage(bottom, "panel_strip", new Color(1f, 1f, 1f, 0.55f), Image.Type.Sliced);
 
-            var preview = Text("Tmp_TeamPreview", bottom, font, "起手：—", 24, TextAlignmentOptions.Left, InkSoft);
-            Place(preview, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(48f, 10f), new Vector2(-260f, -10f));
+            var preview = Text("Tmp_TeamPreview", bottom, font, "起手：—", 22, TextAlignmentOptions.Left, InkSoft);
+            Place(preview, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(48f, -50f), new Vector2(-260f, -8f));   // 顶部，避开按钮
 
             // B5-1：挑战分享码（WX1C-）——复制我的开局 / 导入好友的挑战
             var copy = Button("Btn_CopyCode", bottom, font, "复制挑战", 20);
-            Place((RectTransform)copy.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                new Vector2(48f, 52f), new Vector2(48f, 52f));
-            ((RectTransform)copy.transform).sizeDelta = new Vector2(150f, 40f);
+            var cRt = (RectTransform)copy.transform;
+            cRt.anchorMin = cRt.anchorMax = new Vector2(0f, 0f); cRt.pivot = new Vector2(0f, 0f);
+            cRt.anchoredPosition = new Vector2(48f, 14f); cRt.sizeDelta = new Vector2(150f, 40f);
             copy.GetComponent<Image>().sprite = LoadSprite("btn_secondary");
 
             var import = Button("Btn_ImportCode", bottom, font, "导入挑战", 20);
-            Place((RectTransform)import.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                new Vector2(48f, 6f), new Vector2(48f, 6f));
-            ((RectTransform)import.transform).sizeDelta = new Vector2(150f, 40f);
+            var iRt = (RectTransform)import.transform;
+            iRt.anchorMin = iRt.anchorMax = new Vector2(0f, 0f); iRt.pivot = new Vector2(0f, 0f);
+            iRt.anchoredPosition = new Vector2(210f, 14f); iRt.sizeDelta = new Vector2(150f, 40f);
             import.GetComponent<Image>().sprite = LoadSprite("btn_secondary");
+
+            var shareHint = Text("Tmp_ShareHint", bottom, font,
+                "复制 = 把当前分队+难度生成 WX1C- 码发给好友\n导入 = 从剪贴板读好友的码，自动预填分队与难度",
+                18, TextAlignmentOptions.Left, InkSoft);
+            var shRt = (RectTransform)shareHint.transform;
+            shRt.anchorMin = shRt.anchorMax = new Vector2(0f, 0f); shRt.pivot = new Vector2(0f, 0f);
+            shRt.anchoredPosition = new Vector2(380f, 8f); shRt.sizeDelta = new Vector2(560f, 54f);
 
             var start = Button("Btn_Start", bottom, font, "开始远征", 30);
             Place((RectTransform)start.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),

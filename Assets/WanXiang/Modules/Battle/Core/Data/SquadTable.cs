@@ -26,6 +26,7 @@ namespace WanXiang.Battle.Core
         public string Relic;
         public string Unlock;           // default / act1_clear / act3_clear / clear / end_xxx
         public string Desc;
+        public string Recommend;        // B5：推荐搭配（只提示不强求；表驱动）
     }
 
     public static class SquadTable
