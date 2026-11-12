@@ -323,16 +323,25 @@ namespace WanXiang.Modules.UI
         {
             var parentRt = _statusTip.parent as RectTransform;
             if (parentRt == null) return;
-            Vector3 sp = cam.WorldToScreenPoint(anchorWorld);
-            if (sp.z < 0f) return;   // 在相机背后
-            Vector2 screen = new Vector2(Mathf.Clamp(sp.x, 10f, Screen.width - 10f),
-                                         Mathf.Clamp(sp.y + 24f, 10f, Screen.height - 10f));
+            // ★ 用户 11-12：以**鼠标**为基准，面板放左侧 16px（不挡鼠标）；左边不够翻右侧。
+            Vector2 screen = Input.mousePosition;
+            if (screen.x < 1f && screen.y < 1f)
+            {
+                Vector3 sp = cam.WorldToScreenPoint(anchorWorld);
+                if (sp.z < 0f) return;
+                screen = sp;
+            }
             Vector2 local;
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRt, screen, null, out local)) return;
             // 面板锚点/轴心都是右上 (1,1) ， anchoredPosition 是相对**父矩形右上角**的偏移
-            _statusTip.anchoredPosition = new Vector2(
-                local.x - parentRt.rect.width * 0.5f,
-                local.y - parentRt.rect.height * 0.5f);
+            float w = _statusTip.rect.width;
+            float h = _statusTip.rect.height;
+            float px = local.x - w - 16f;                      // pivot 左中 ⇒ px 即面板左边缘
+            if (px < -parentRt.rect.width * 0.5f + 8f) px = local.x + 16f;   // 左边没空间 → 右侧
+            float py = Mathf.Clamp(local.y - h * 0.5f,
+                                   -parentRt.rect.height * 0.5f + 8f,
+                                   parentRt.rect.height * 0.5f - h - 8f);
+            _statusTip.anchoredPosition = new Vector2(px, py);
         }
 
         // 行排版常量：名称一行高度 / 行间距 / 描述最小高度

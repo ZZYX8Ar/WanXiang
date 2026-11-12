@@ -125,12 +125,16 @@ namespace WanXiang.Modules.UI
             PendingDifficulty = _level;
         }
 
-        /// <summary>打开难度选择弹窗（参考明日方舟肉鸽）；关闭后回填选择。</summary>
-        private async void OpenDifficultyPicker()
+        /// <summary>打开难度选择弹窗（参考明日方舟肉鸽）。选择结果由 OnResume 回填。</summary>
+        private void OpenDifficultyPicker()
         {
             DifficultyPanel.PendingLevel = -1;
-            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
-            await ui.OpenAsync<DifficultyPanel>(_level);
+            WanXiang.Framework.Boot.UIBootstrap.UI.OpenAsync<DifficultyPanel>(_level).Forget();
+        }
+
+        /// <summary>弹窗关闭、本面板恢复时回填难度选择（OpenAsync 在打开时即完成，等不到选择）。</summary>
+        protected override void OnResume()
+        {
             if (DifficultyPanel.PendingLevel > 0)
             {
                 _level = Mathf.Clamp(DifficultyPanel.PendingLevel, 1, ProgressionRules.MaxUnlockedChallenge());

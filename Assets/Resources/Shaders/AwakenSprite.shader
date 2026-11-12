@@ -49,7 +49,7 @@ Shader "WanXiang/AwakenSprite"
             // rgb → hue 平移（YIQ 空间近似旋转，够异色用且不引入完整 HSV 转换）
             fixed3 HueShift(fixed3 c, float shift)
             {
-                const fixed3 k = fixed3(0.57735);       // 1/sqrt(3) 灰轴
+                fixed3 k = fixed3(0.57735, 0.57735, 0.57735);   // 1/sqrt(3) 灰轴（const 不接受单参构造）
                 float cosA = cos(shift * 6.2831853);
                 return c * cosA + cross(k, c) * sin(shift * 6.2831853) + k * dot(k, c) * (1.0 - cosA);
             }
