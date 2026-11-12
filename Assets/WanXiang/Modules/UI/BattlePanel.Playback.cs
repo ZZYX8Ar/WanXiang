@@ -33,7 +33,6 @@ namespace WanXiang.Modules.UI
         [SerializeField] private RectTransform _hpBarTemplate;  // Item_HpBar（模板，默认隐藏）
         [SerializeField] private Button _btnSpeed;              // Btn_Speed
         [SerializeField] private Button _btnLeave;              // Btn_Leave（重新挑战）
-        [SerializeField] private TMP_Text _tmpLog;              // Tmp_LogLine
 
         [Header("数据引用（由生成器自动绑定）")]
         [SerializeField] private ContentCatalogSO _contentCatalog;
@@ -82,7 +81,6 @@ namespace WanXiang.Modules.UI
         private async UniTask PlayLoop(CancellationToken ct)
         {
             ApplyFrames();
-            if (_tmpLog != null) _tmpLog.text = "战斗开始";
             _playing = true;
             _orderActorId = null;          // 面板是 Cached 复用的：清掉上一场的"当前行动者"，别串场
             _lastOrderStamp = -1;          // 强制行动顺序面板重建一次
@@ -111,7 +109,6 @@ namespace WanXiang.Modules.UI
                 float bossDur = _stage.PlayBossEntrance();
                 if (bossDur > 0f)
                 {
-                    _tmpLog.text = "首领登场";
                     await UniTask.Delay(System.TimeSpan.FromSeconds(bossDur), cancellationToken: ct);
                 }
             }
@@ -369,13 +366,11 @@ namespace WanXiang.Modules.UI
 
         private void ApplyEvent(BattleEvent e)
         {
-            if (_tmpLog == null) return;
             string actor = e.ActorId ?? "";
             string target = e.TargetId ?? "";
             switch (e.Kind)
             {
-                case BattleEventKind.BattleStart: _tmpLog.text = "战斗开始"; break;
-                // ★ 2026-11-07：回合数只由 Tmp_Round 显示（RoundLabel，含我方/敌方）。
+                                // ★ 2026-11-07：回合数只由 Tmp_Round 显示（RoundLabel，含我方/敌方）。
                 //   这里以前也写一次"第 N 回合" ⇒ 屏幕上出现两遍（用户报障）。日志行保持上一条内容。
                 // ★★ 2026-11-07 根因（用户第 4 次报障）：同一个中间上方横幅被写了两遍 ——
                 //    TurnStart 写光秃秃的"第 N 回合"，PlayerPhaseStart 又写"第 N 回合 · 我方回合"
@@ -395,22 +390,14 @@ namespace WanXiang.Modules.UI
                 // ★ 只在"某单位开始行动"时记录当前行动者（供行动顺序面板高亮）——
                 //   不用每条事件的 actorId，否则回合末一堆伤害/结算事件会让面板疯狂刷新（用户 2026-10-13）。
                 case BattleEventKind.ActionBegin: _orderActorId = e.ActorId; break;
-                case BattleEventKind.SkillCast: _tmpLog.text = actor + " 施放 " + (e.SkillName ?? "技能"); break;
-                case BattleEventKind.Damage: _tmpLog.text = actor + " → " + target + " 伤害 " + e.Amount; break;
-                case BattleEventKind.Heal: _tmpLog.text = target + " 回复 " + e.Amount; break;
-                case BattleEventKind.Shield: _tmpLog.text = target + " 护盾 " + e.Amount; break;
-                case BattleEventKind.Death: _tmpLog.text = target + " 阵亡"; break;
-                // ★ 2026-10-12：补 RoundResolve 分支 —— 所有 Boss 机制提示（双子同命倒下/双杀/复活、
+                                                                                                // ★ 2026-10-12：补 RoundResolve 分支 —— 所有 Boss 机制提示（双子同命倒下/双杀/复活、
                 //   破壳、引爆、余烬…）都是走这个事件类型写 note 的。以前 switch 里没有这一支
                 //   ， 机制照常生效，但玩家在日志行**一个字都看不到**（用户报障：'双子复活我怎么没看到'）。
                 case BattleEventKind.RoundResolve:
-                    if (!string.IsNullOrEmpty(e.Note)) _tmpLog.text = e.Note;
                     break;
                 case BattleEventKind.Revive:
-                    if (!string.IsNullOrEmpty(e.Note)) _tmpLog.text = e.Note;
                     break;
-                case BattleEventKind.BattleEnd: _tmpLog.text = _play.Summary(); break;
-            }
+                            }
         }
 
         // ================================================================
@@ -489,7 +476,6 @@ namespace WanXiang.Modules.UI
         {
             if (_tmpRound != null && !string.IsNullOrEmpty(_roundLabel) && _tmpRound.text != _roundLabel)
                 _tmpRound.text = _roundLabel;
-            if (_tmpLog != null) _tmpLog.text = _play.Summary();
 
             // ★★ 结算前兜底判定胜负：Outcome 只在 BattleSimulator 的循环里由 CheckOutcome 赋值，
             //    手动操作路径若没跑到判负点，Outcome 会停在 Ongoing

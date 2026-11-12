@@ -77,7 +77,6 @@ namespace WanXiang.EditorTools
             { "Root_Video", "panel_dialog" },
             { "Root_Keybinds", "panel_dialog" },
             // 原 Root_Share / Root_SaveLoad 已删（分享码归 Panel_Pvp、存取档归 Panel_Save）， 映射一并去掉
-            { "Root_Log", "toast" },
             { "Root_Tracks", "panel_dialog" },
             { "Img_TrackLine", "divider" },
             { "Img_BondRow", "divider" },

@@ -42,10 +42,8 @@ namespace WanXiang.Modules.UI
             // ★ 左上角锚定（pivot 也左上）：高度随内容自动向下生长，文字永远从左上角起排
             //   （用户 2026-10-12："悬浮面板的字位置会动来动去，从左上角对齐，多的往下加不就行了"）。
             //   之前固定 260 高 + 左中 pivot ， 长文本溢出、短文本留白，内容一变视觉就乱跳。
-            _tipPanel.anchorMin = _tipPanel.anchorMax = new Vector2(0f, 1f);
-            _tipPanel.pivot = new Vector2(0f, 1f);
             _tipPanel.sizeDelta = new Vector2(430f, 100f);   // 宽度固定；高度由 ContentSizeFitter 撑开
-            _tipPanel.anchoredPosition = new Vector2(30f, -40f);   // 屏幕左上，向下偏移 40
+            PlaceTipNearMouse();
             // 代码建的提示框挂 kit toast 底（深色半透明 + 青细线）
             var tipImg = go.GetComponent<Image>() ?? go.AddComponent<Image>();
             var toastSp = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/toast");
@@ -155,16 +153,32 @@ namespace WanXiang.Modules.UI
             _tipPanel.gameObject.SetActive(true);
             _tipTween?.Kill();
             _tipGroup.alpha = 0f;
-            _tipPanel.anchoredPosition = new Vector2(30f, -40f);
-            _tipTween = DOTween.Sequence()
-                .Join(_tipPanel.DOAnchorPos(new Vector2(52f, -40f), 0.18f).SetEase(Ease.OutQuad))
-                .Join(_tipGroup.DOFade(1f, 0.18f));
+            PlaceTipNearMouse();
+            _tipTween = DOTween.Sequence().Join(_tipGroup.DOFade(1f, 0.14f));
         }
 
         /// <summary>
         /// 鼠标是否已离开所有战记按钮 → 是则收起提示。
         /// Overlay 画布用 null 相机（RectTransformUtility 对 ScreenSpaceOverlay 要求 cam = null）。
         /// </summary>
+        /// <summary>技能说明：贴在鼠标**左侧**、向上展开；下/上都不超出屏幕（用户 11-12）。</summary>
+        private void PlaceTipNearMouse()
+        {
+            if (_tipPanel == null) return;
+            var parent = _tipPanel.parent as RectTransform;
+            if (parent == null) return;
+            Vector2 local;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    parent, Input.mousePosition, null, out local)) return;
+            _tipPanel.anchorMin = _tipPanel.anchorMax = new Vector2(0f, 0f);
+            _tipPanel.pivot = new Vector2(1f, 1f);      // 右对齐 + 向上展开
+            float w = _tipPanel.rect.width;
+            float h = _tipPanel.rect.height;
+            float x = Mathf.Clamp(local.x - 16f, parent.rect.xMin + 8f + w, parent.rect.xMax - 8f);
+            float y = Mathf.Clamp(local.y + 16f, parent.rect.yMin + 8f + h, parent.rect.yMax - 8f);
+            _tipPanel.anchoredPosition = new Vector2(x, y);
+        }
+
         private void CheckTipHover()
         {
             if (_actorSkillBtns == null || _actorSkillBtns.Length == 0)
@@ -297,10 +311,8 @@ namespace WanXiang.Modules.UI
             _tipPanel.gameObject.SetActive(true);
             _tipTween?.Kill();
             _tipGroup.alpha = 0f;
-            _tipPanel.anchoredPosition = new Vector2(30f, -40f);          // 起点：左上、略靠左（滑入）
-            _tipTween = DOTween.Sequence()
-                .Join(_tipPanel.DOAnchorPos(new Vector2(52f, -40f), 0.18f).SetEase(Ease.OutQuad))
-                .Join(_tipGroup.DOFade(1f, 0.18f));
+            PlaceTipNearMouse();
+            _tipTween = DOTween.Sequence().Join(_tipGroup.DOFade(1f, 0.14f));
         }
 
         /// <summary>

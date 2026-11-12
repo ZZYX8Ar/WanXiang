@@ -288,7 +288,7 @@ namespace WanXiang.Modules.UI
                 //   之前界面完全没提示，玩家"没人死却输了"一头雾水。
                 // ★ 2026-11-07：回合数已统一到 Tmp_Round（RoundLabel，含"我方/敌方回合"），
                 //   这行不再重复写"第 X/48 回合"——否则屏幕上会出现两遍（用户报障）。
-                string line = "轮到「" + u.DisplayName + "」　灵力 " + mp + "/" + mpMax +
+                string line = "第 " + (stt != null ? stt.Turn : 1) + " 回合　轮到「" + u.DisplayName + "」　灵力 " + mp + "/" + mpMax +
                               "（战记 " + WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active) + " 点）";
                 if (u.GetSkill(SkillType.Ultimate) != null)
                     line += "　元气 " + (int)u.Rage + "/" + (int)u.RageCap;
@@ -373,7 +373,6 @@ namespace WanXiang.Modules.UI
             if (_autoBattle) _play.SubmitCommand(-1, -1);   // -1 = 交给 AI（自动战斗）
             // ★ 格挡 QTE（2026-10-14）：自动战斗关格挡（AI 不会替玩家按时机圈）
             if (_play.State != null) _play.State.ParryEnabled = !_autoBattle;
-            if (_tmpLog != null) _tmpLog.text = _autoBattle ? "自动战斗：开" : "自动战斗：关（等你下令）";
             Sfx("sfx_bt_auto_toggle");
             RefreshActionBar();
         }

@@ -128,7 +128,7 @@ namespace WanXiang.Modules.UI
         {
             // ★ 米色横幅上的文字改墨色（代码兜底：即使用户 prefab 是旧色也生效）
             var _ink = new Color(0.16f, 0.13f, 0.09f, 1f);
-            foreach (var _t in new[] { "_tmpLog", "_tmpActor" })
+            foreach (var _t in new[] { "_tmpActor" })
             {
                 var _f = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
                 var _fi = GetType().GetField(_t, _f);
@@ -399,6 +399,13 @@ namespace WanXiang.Modules.UI
                 if (show) _autoSpin.Rotate(0f, 0f, -360f * Time.deltaTime / 1.4f);
             }
 
+            // ★ 用户 11-12：回合横幅必须先于行动出现 —— 每次 Turn 变化立刻刷新数字
+            if (_play != null && _play.State != null && _play.State.Turn != _lastShownTurn)
+            {
+                _lastShownTurn = _play.State.Turn;
+                SetRoundLabel(null);   // 只刷数字，阶段名由事件补
+            }
+
             if (_tipPanel != null && _tipPanel.gameObject.activeSelf) CheckTipHover();
 
             // ★ 悬停棋盘上的异兽 → 状态列表（用户定案：触发走世界空间，鼠标直接指单位）
@@ -563,6 +570,7 @@ namespace WanXiang.Modules.UI
 
         private bool _inspectOpen;
         private UnitInspectPanel _inspectPanel;   // 实例（看门狗要判它是否真的还开着）
+        private int _lastShownTurn = -1;          // 横幅数字上次刷新的回合
 
         /// <summary>双击单位：暂停战斗，弹出正式查看面板（崩铁式）。</summary>
         private void ShowUnitInspect(string name, string stats, string status, string skills,
@@ -791,7 +799,6 @@ namespace WanXiang.Modules.UI
         private void OnSpeedClicked()
         {
             _speed = _speed >= 3.9f ? 1f : (_speed >= 1.9f ? 4f : 2f);
-            if (_tmpLog != null) _tmpLog.text = "速度 ×" + _speed;
             var label = _btnSpeed != null ? _btnSpeed.transform.Find("Tmp_Label") : null;
             if (label != null)
             {
@@ -830,7 +837,6 @@ namespace WanXiang.Modules.UI
 
       // ★ 重新挑战（用户 2026-09-29 要求）：放弃本场，回编队界面重新布阵重新打。
  //   不结算、不记败、不处理阵亡（RunState.Team 本就未被本场修改，死兽仍在队伍里）。
-    if (_tmpLog != null) _tmpLog.text = "重新挑战";
 
             // ★★ 2026-10-25：PvP 重战**必须先分支**，不能先 CloseSelf ——
             //   上一版先 CloseSelf 再用 BattleRequest 重开，面板走了"非场景模式"，

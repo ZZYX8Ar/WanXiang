@@ -606,12 +606,8 @@ namespace WanXiang.EditorTools
             // ★ Btn_Auto（"自动布阵"）是遗留/重复的无效按钮，已从面板与代码清理（2026-09-29）。
             //   真正的自动战斗按钮是操作区的 Btn_AutoBattle（绑定 _btnAutoBattle）。
             var bLeave = UIBuild.MakeBtn(ctl, "Btn_Leave", new Vector2(0f, 0.5f),
-                new Vector2(180, 90), new Vector2(510, 0), "重新挑战", UIBuild.Card, 28f);
+                new Vector2(180, 90), new Vector2(310, 0), "重新挑战", UIBuild.Card, 28f);
 
-            var log = UIBuild.Bottom(rt, "Root_Log", 110, 500, 24, 24);
-            UIBuild.Img(log, UIBuild.Night);
-            var tmpLog = UIBuild.Tmp(UIBuild.Stretch(log, "Tmp_LogLine", 16, 8, 16, 8),
-                "战斗日志", 22, UIBuild.Paper, TextAlignmentOptions.BottomLeft);
 
             UIBuild.Bind(comp, "_tmpRound", tmpRound);
             UIBuild.Bind(comp, "_rootWeather", banner.gameObject);
@@ -621,11 +617,10 @@ namespace WanXiang.EditorTools
             UIBuild.Bind(comp, "_hpBarTemplate", hpTpl);
             UIBuild.Bind(comp, "_btnSpeed", bSpeed.GetComponent<Button>());
             UIBuild.Bind(comp, "_btnLeave", bLeave.GetComponent<Button>());
-            UIBuild.Bind(comp, "_tmpLog", tmpLog);
             // ---- 回合制 v2.1 P1-3：战记操作区（底部，默认隐藏，等下令时亮出）----
             // B5-底栏改版（用户线框确认）：5 列异兽技能组并排——点谁的技能谁出手
             var actionBar = UIBuild.Fixed(rt, "Root_Action", new Vector2(0.5f, 0f),
-                new Vector2(1800, 240), new Vector2(0f, 40f));
+                new Vector2(1800, 240), new Vector2(0f, 12f));   // 整体下移到贴近底部
             actionBar.pivot = new Vector2(0.5f, 0f);   // 底部对齐锚点（中心 pivot 会让底栏沉出屏底 80px）
             UIBuild.Img(actionBar, UIBuild.Night);
             var tmpActorRt = UIBuild.Fixed(actionBar, "Tmp_Actor", new Vector2(0.5f, 1f),
@@ -679,8 +674,8 @@ namespace WanXiang.EditorTools
 
             // ---- 自动战斗指示（默认隐藏）：一张图 + 代码旋转，不需要序列帧 ----
             //   占位是纯色方块；美术到位后把 sprite 换成圆环/序列帧即可，控制逻辑不用动。
-            var autoSpin = UIBuild.Fixed(rt, "Img_AutoSpin", new Vector2(0.5f, 1f),
-                new Vector2(72, 72), new Vector2(0, -46));
+            var autoSpin = UIBuild.Fixed(rt, "Img_AutoSpin", new Vector2(0.5f, 0f),
+                new Vector2(72, 72), new Vector2(0, 300));   // 底栏上方（原来在顶部压天时横幅）
             UIBuild.Img(autoSpin, UIBuild.Gold);
             autoSpin.gameObject.SetActive(false);
             UIBuild.Bind(comp, "_autoSpin", autoSpin);
