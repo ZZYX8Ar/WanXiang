@@ -146,11 +146,11 @@ namespace WanXiang.Modules.UI
             // ★ 修复（用户 2026-09-28 报障："连携可以释放时悬浮提示就没了"）：
             //   原来填字+显示+淡入这段被缩进了 else 分支 ， 可发动分支只赋值 title/body 就结束，
             //   面板根本没显示。两个分支都必须走到这里。
+            // ⚠ 顺序：先激活再强制布局，最后定位（未激活时 ForceRebuild 无效 → 高度旧值 → 算出屏外）
             _tipText.text = "<size=26><b>" + title + "</b></size>\n" + body;
             // 内容变了 ， 立即按新文本重算面板高度（左上锚定下向下生长），避免当帧还是旧尺寸
-            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(_tipPanel);
-
             _tipPanel.gameObject.SetActive(true);
+            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(_tipPanel);
             _tipTween?.Kill();
             _tipGroup.alpha = 0f;
             PlaceTipNearMouse();

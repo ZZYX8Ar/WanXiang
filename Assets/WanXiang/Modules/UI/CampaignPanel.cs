@@ -2452,9 +2452,6 @@ if (_tmpActTitle != null)
             // 招募节点已删除（2026-11-12）：不再注册路由；老存档遇到该枚举按普通节点处理
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Relic, _ => OpenPanelAsync<RelicPanel>(_current).Forget());
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Nest, r => NestChoose(r));
-            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Spring, r => SpringNode(r).Forget());
-            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Training, r => TrainingNode(r).Forget());
-            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Ruins, r => RuinsNode(r).Forget());
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Tale, r => RunTaleNode(r));
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Forge, r => RunForgeNode(r));
         }
@@ -3138,63 +3135,10 @@ if (_tmpActTitle != null)
 
         /// <summary>灵泉：饮泉（本局永久 +5% 全属性）／汲水（灵卵 +3）。
         ///  B4-3：幕 1 且未持一印时，首选项变为「饮下泉水」—— 印记一的授予点（用资源换结局线）。</summary>
-        private async UniTaskVoid SpringNode(WanXiang.Run.RunState run)
-        {
-            if (run == null) return;
-            bool markOffer = run.Act == 1 && !run.GrantedItems.Contains("item_tu_1");
-            string firstLabel = markOffer
-                ? "饮下泉水（回血 20% + 印记，全属性 −3%）"
-                : "饮泉（本局全属性永久 +5%）";
-            int pick = await DialogPanel.Choose(
-                "灵泉",
-                "泉眼温润，映着今岁的天光。\n\n饮下这口泉水，筋骨会长久受益；也可以汲一壶回去换些灵卵。",
-                firstLabel, "汲水（灵卵 +3）");
-            if (pick < 0) return;
-            if (pick == 0)
-            {
-                if (markOffer)
-                {
-                    run.GrowthPct -= 3;                       // 代价：本局成长 −3%（等价"灵力上限 −1"的资源税）
-                    run.GrantedItems.Add("item_tu_1");        // 土之印·一
-                    Debug.Log("[Campaign] 灵泉：饮下泉水 → 土之印·一（全属性 −3%，印记 " + run.TuMarkCount() + "/3）");
-                }
-                else
-                {
-                    run.GrowthPct += 5;
-                    Debug.Log("[Campaign] 灵泉：永久成长 +5%（累计 " + run.GrowthPct + "%）");
-                }
-            }
-            else { run.AddRewardEggs(3); }   // B3-d：灵泉汲水走难度 egg_mul
-            WanXiang.Run.RunSave.SaveCurrent();
-        }
 
         /// <summary>修行：磨砺剑心（本局永久 +8% 全属性）／敛财（灵卵 +4）。</summary>
-        private async UniTaskVoid TrainingNode(WanXiang.Run.RunState run)
-        {
-            if (run == null) return;
-            int pick = await DialogPanel.Choose(
-                "修行",
-                "山中有位无名道友在此静坐多年。\n\n他说：'路有两条，你选哪条？'",
-                "磨砺剑心（本局全属性永久 +8%）", "敛财（灵卵 +4）");
-            if (pick < 0) return;
-            if (pick == 0) { run.GrowthPct += 8; Debug.Log("[Campaign] 修行：永久成长 +8%（累计 " + run.GrowthPct + "%）"); }
-            else { run.AddRewardEggs(4); }   // B3-d：修行敛财走难度 egg_mul
-            WanXiang.Run.RunSave.SaveCurrent();
-        }
 
         /// <summary>古战场：三选一遗物，代价是下一场敌人 +15%。</summary>
-        private async UniTaskVoid RuinsNode(WanXiang.Run.RunState run)
-        {
-            if (run == null) return;
-            int pick = await DialogPanel.Choose(
-                "古战场",
-                "断戟与碎甲散在荒草间，还有几件没被时光磨尽的东西。\n\n拾取会惊动此地的怨气 —— 下一场敌人更强。",
-                "拾取（三选一遗物，代价：下场敌人 +15%）", "离开");
-            if (pick != 0) return;
-            run.EnemyBuffPct += 15;
-            WanXiang.Run.RunSave.SaveCurrent();
-            OpenPanelAsync<RelicPanel>(_current).Forget();
-        }
 
         private void OpenRealmPanel()
         {

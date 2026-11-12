@@ -183,6 +183,8 @@ namespace WanXiang.Modules.UI
             //   与异兽同一套 货架→详情卡→购买→售罄印 流程；同一次摇货不重复同一来源。
             float soulMul = WanXiang.Campaign.WeatherMapEffects.Current.PriceMul;
             int soulGuard = 0;
+            // ★ 魂商品已删除（2026-11-12 用户："市集还有旧的东西"）：现在没有"魂"这个玩法，
+            //   货架只卖异兽，不足 6 格用异兽补满。
             var soulUsed = new HashSet<string>();
             while (_goods.Count < _goodsBtns.Length && soulGuard++ < 40)
             {
@@ -193,8 +195,8 @@ namespace WanXiang.Modules.UI
                 {
                     Beast = b,
                     Price = WanXiang.Run.MarketPricing.FinalPrice(
-                                WanXiang.Run.MarketPricing.PriceSoul, run.Act, soulMul),
-                    IsSoul = true,
+                                WanXiang.Run.MarketPricing.PriceRare, run.Act, soulMul),
+                    IsSoul = false,
                     SoulOrdinal = System.Array.IndexOf(all, b),
                 });
             }
