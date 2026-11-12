@@ -211,6 +211,19 @@ namespace WanXiang.Modules.UI
                                   : isSelected ? new Color(0.85f, 0.75f, 0.4f, 0.95f)
                                   : Color.white;
                 }
+                // ★ 按钮文案 = 该兽的真实技能名（用户 11-12："显示异兽技能的名字，而不是普攻战记终结技"）
+                for (int si = 0; si < 3; si++)
+                {
+                    int gi = col * 3 + si;
+                    if (_actorSkillBtns == null || gi >= _actorSkillBtns.Length || _actorSkillBtns[gi] == null) continue;
+                    var lblT = _actorSkillBtns[gi].transform.Find("Tmp_Label")?.GetComponent<TMPro.TMP_Text>();
+                    if (lblT == null) continue;
+                    SkillType st2 = si == 0 ? SkillType.Basic : si == 1 ? SkillType.Active : SkillType.Ultimate;
+                    var sk = uR != null ? uR.GetSkill(st2) : null;
+                    lblT.text = sk != null && !string.IsNullOrEmpty(sk.Name)
+                        ? sk.Name : (si == 0 ? "普攻" : si == 1 ? "战记" : "终结技");
+                }
+
                 // 每技能可用性（迁移自旧 3 按钮规则）：普攻兜底 / 战记查沉默+灵力 / 终结技查次数。
                 //   沉默只封技能，普攻照常（2026-10-22 用户口径）。
                 bool silenced = uR != null && uR.HasStatus(WanXiang.Battle.Core.StatusCatalog.Silence);

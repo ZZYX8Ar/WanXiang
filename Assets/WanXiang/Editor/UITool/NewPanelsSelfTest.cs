@@ -24,6 +24,16 @@ namespace WanXiang.EditorTools
         private static readonly Dictionary<string, (string rootType, string[] nodes)> Checklists
             = new Dictionary<string, (string, string[])>
         {
+            ["Assets/Resources/UI/Panel_Difficulty.prefab"] = (
+                "WanXiang.Modules.UI.DifficultyPanel",
+                new[]
+                {
+                    "Root_TopBar/Tmp_Title", "Root_TopBar/Btn_Close", "Tmp_UnlockHint",
+                    "Scroll_List/Viewport/Content", "Scroll_List/Viewport/Content/Row_Diff_Template",
+                    "Scroll_List/Viewport/Content/Row_Diff_Template/Tmp_Level",
+                    "Scroll_List/Viewport/Content/Row_Diff_Template/Tmp_Nums",
+                    "Scroll_List/Viewport/Content/Row_Diff_Template/Tmp_State",
+                }),
             ["Assets/Resources/UI/Panel_Inspiration.prefab"] = (
                 "WanXiang.Modules.UI.InspirationPanel",
                 new[]

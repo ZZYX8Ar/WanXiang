@@ -32,6 +32,7 @@ namespace WanXiang.Modules.UI
         private RectTransform _content;
         private GameObject _rowTemplate;
         private TMP_Text _tmpLevel, _tmpRule, _tmpPreview, _tmpEmpty;
+        private Button _btnAllDiff;
 
         private readonly List<SquadDef> _squads = new List<SquadDef>();
         private readonly HashSet<string> _unlocked = new HashSet<string>();   // 本局已满足的解锁键
@@ -71,6 +72,8 @@ namespace WanXiang.Modules.UI
             Hook("Root_TopBar/Btn_Close", CloseSelf);
             Hook("Root_Difficulty/Btn_Minus", () => ChangeLevel(-1));
             Hook("Root_Difficulty/Btn_Plus", () => ChangeLevel(+1));
+            _btnAllDiff = Find<Button>("Root_Difficulty/Btn_AllDiff");
+            if (_btnAllDiff != null) _btnAllDiff.onClick.AddListener(OpenDifficultyPicker);
             Hook("Root_Bottom/Btn_Start", StartRun);
         }
 
@@ -98,44 +101,22 @@ namespace WanXiang.Modules.UI
             return Mathf.Clamp(1 + done, 1, cap);
         }
 
+        /// <summary>难度区只留一行摘要（用户 11-12：详细数值弹窗看，别全写在面板上）。</summary>
         private void BuildDifficulty()
         {
-            int cap = DifficultyTable.MaxLevel > 0 ? DifficultyTable.MaxLevel : 18;
-            int unlocked = MaxUnlockedChallenge();
+            int unlocked = ProgressionRules.MaxUnlockedChallenge();
             if (_level < 1) _level = 1;
             if (_level > unlocked) _level = unlocked;
             if (_tmpLevel != null) _tmpLevel.text = "N" + _level;
 
-            // ★ 用户 11-12：每档都写清数值，不再只显示里程碑规则（空档显示"—"）
             var row = DifficultyTable.Row(_level);
-            var meta = WanXiang.Meta.MetaStore.Ensure();
-            int done = meta != null ? meta.RunsCompleted : 0;
             if (_tmpRule != null)
             {
-                if (row == null) _tmpRule.text = "难度表缺失";
-                else
-                {
-                    string rule = string.IsNullOrEmpty(row.NewRule)
-                        ? "无新规则（本档仅数值提升）" : HumanRule(row.NewRule);
-                    _tmpRule.text =
-                        "N" + row.Level + " · " + (string.IsNullOrEmpty(row.Desc) ? "数值提升" : row.Desc)
-                        + "　｜　已解锁至 N" + unlocked + "（通关 " + done + " 次）\n"
-                        + "敌方生命 ×" + row.HpMul.ToString("0.00") + "　攻击 ×" + row.AtkMul.ToString("0.00")
-                        + "　防御 ×" + row.DefMul.ToString("0.00") + "\n"
-                        + "敌方额外词条 " + row.ExtraTraits + " 条　灵卵获取 ×" + row.EggMul.ToString("0.00") + "\n"
-                        + "新规则：" + rule
-                        + (unlocked < cap ? "\n（再通关 1 次解锁 N" + (unlocked + 1) + "）" : "");
-                }
+                string rule = row == null ? "难度表缺失"
+                    : (string.IsNullOrEmpty(row.NewRule) ? "仅数值提升" : HumanRule(row.NewRule));
+                _tmpRule.text = "N" + _level + " · " + rule + "　｜　已解锁至 N" + unlocked;
             }
-            // 里程碑摘要（所有带新规则的档）
-            var milestones = Find<TMP_Text>("Root_Difficulty/Tmp_Milestones");
-            if (milestones != null)
-            {
-                var sb = new System.Text.StringBuilder("里程碑规则：");
-                foreach (var d in DifficultyTable.All)
-                    if (!string.IsNullOrEmpty(d.NewRule)) sb.Append(" N").Append(d.Level).Append(" ").Append(HumanRule(d.NewRule)).Append(" ｜");
-                milestones.text = sb.ToString().TrimEnd('｜');
-            }
+            if (_btnAllDiff != null) _btnAllDiff.interactable = true;
             var plus = Find<Button>("Root_Difficulty/Btn_Plus");
             if (plus != null) plus.interactable = _level < unlocked;
             var minus = Find<Button>("Root_Difficulty/Btn_Minus");
@@ -143,6 +124,21 @@ namespace WanXiang.Modules.UI
 
             PendingDifficulty = _level;
         }
+
+        /// <summary>打开难度选择弹窗（参考明日方舟肉鸽）；关闭后回填选择。</summary>
+        private async void OpenDifficultyPicker()
+        {
+            DifficultyPanel.PendingLevel = -1;
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            await ui.OpenAsync<DifficultyPanel>(_level);
+            if (DifficultyPanel.PendingLevel > 0)
+            {
+                _level = Mathf.Clamp(DifficultyPanel.PendingLevel, 1, ProgressionRules.MaxUnlockedChallenge());
+                DifficultyPanel.PendingLevel = -1;
+                BuildDifficulty();
+            }
+        }
+
 
         private void ChangeLevel(int delta)
         {
