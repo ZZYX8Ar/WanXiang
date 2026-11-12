@@ -111,7 +111,7 @@ namespace WanXiang.Modules.UI
                 }
             }
             if (_beasts.Count > 0) SelectBeast(0);
-            else if (_tmpBeastName != null) _tmpBeastName.text = "还没有异兽";
+            else if (_tmpBeastName != null) _tmpBeastName.text = "技能槽";   // 空态标签，不重复标题
         }
 
         private void BuildBeastRow(int index)

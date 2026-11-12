@@ -51,6 +51,13 @@ namespace WanXiang.EditorTools
                 new Vector2(72f, 64f), new Vector2(-40f, 0f));
             var close = Button("Btn_Close", closeBox, font, "×", 34);
 
+            // 机制说明条（用户 11-12："不知道干嘛的"）
+            var hintBox = Node("Root_Hint", rootRt, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(60f, -152f), new Vector2(-60f, -126f));
+            var hint = Text("Tmp_Hint", hintBox.gameObject, font,
+                "悟道点 = 难度×2 + 通关+10 + 首通幕×5 ｜ 节点只改规则、不加数值 ｜ 每支从下层往上逐级解锁",
+                20, TextAlignmentOptions.Center, Ink);
+
             // 三列 × 5 层：branch 列容器（InspirationPanel 在运行时按 tier 填按钮文本/状态）
             string[] branches = { "Branch_travel", "Branch_battle", "Branch_forge" };
             string[] titles = { "行旅", "战阵", "炉火" };
@@ -62,8 +69,8 @@ namespace WanXiang.EditorTools
                     Vector2.zero, Vector2.zero);
                 var colRt = (RectTransform)col.transform;
                 colRt.pivot = new Vector2(0f, 1f);          // 左上定点（首版中心 pivot + 底部锚 → 列掉出屏底）
-                colRt.sizeDelta = new Vector2(590f, 860f);
-                colRt.anchoredPosition = new Vector2(60f + b * 620f, -150f);
+                colRt.sizeDelta = new Vector2(590f, 812f);
+                colRt.anchoredPosition = new Vector2(60f + b * 620f, -166f);
                 Text("Tmp_BranchName", col.gameObject, font, titles[b], 30, TextAlignmentOptions.Center, Ink);
                 var colHead = (RectTransform)col.transform.Find("Tmp_BranchName");
                 colHead.anchorMin = new Vector2(0f, 1f); colHead.anchorMax = new Vector2(1f, 1f);
@@ -75,12 +82,12 @@ namespace WanXiang.EditorTools
                 for (int t = 5; t >= 1; t--)   // T5 顶 → T1 底（树状从下往上点）
                 {
                     int row = 5 - t;
-                    var btn = Button("Btn_T" + t, grid, font, "T" + t, 20);
+                    var btn = Button("Btn_T" + t, grid, font, "T" + t, 24);
                     var rt = (RectTransform)btn.transform;
                     rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
                     rt.pivot = new Vector2(0.5f, 1f);
-                    rt.anchoredPosition = new Vector2(0f, -row * 158f);
-                    rt.sizeDelta = new Vector2(0f, 148f);
+                    rt.anchoredPosition = new Vector2(0f, -row * 148f);
+                    rt.sizeDelta = new Vector2(0f, 138f);
                     btn.GetComponent<Image>().sprite = LoadSprite("card_solid");
                     // 节点两行文本由 InspirationPanel.RefreshNode 写 Tmp_Label（名+消耗 / 描述）
                 }

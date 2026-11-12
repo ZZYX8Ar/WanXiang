@@ -87,7 +87,7 @@ namespace WanXiang.Modules.UI
                 label.text = unlocked
                     ? def.Name + "（已解锁）\n" + def.Desc
                     : (canBuy || tierOk(meta, def)) ? def.Name + " · " + def.Cost + " 点\n" + def.Desc
-                    : "？？？";
+                    : def.Name + "\n需先解锁上一层";   // 显示名称与解锁条件，不再"？？？"
             }
             btn.onClick.RemoveAllListeners();
             var id = def.Id;                       // 闭包捕获

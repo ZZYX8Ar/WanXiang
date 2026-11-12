@@ -135,23 +135,24 @@ namespace WanXiang.EditorTools
             }
 
             // B5-4+：空态引导卡（还没有异兽时的两步引导；SkillLoadoutPanel.Refresh 切显隐）
-            var guide = Node("Empty_Guide", right, new Vector2(0f, 1f), new Vector2(0f, 1f),
+            // 空态信息板：右栏**居中的整块 kit 板**（首版 700×220 小白框浮在中上，孤立又奇怪）
+            var guide = Node("Empty_Guide", right, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 Vector2.zero, Vector2.zero);
             var guideRt = (RectTransform)guide.transform;
-            guideRt.pivot = new Vector2(0f, 1f);
-            guideRt.sizeDelta = new Vector2(700f, 220f);
-            guideRt.anchoredPosition = new Vector2(24f, -84f);
-            AddImage(guide, "card_solid", new Color(1f, 1f, 1f, 0.85f), Image.Type.Sliced);
-            Text("Tmp_GuideTitle", guide, font, "还没有异兽", 26, TextAlignmentOptions.Center, Ink);
+            guideRt.pivot = new Vector2(0.5f, 0.5f);
+            guideRt.sizeDelta = new Vector2(1000f, 380f);
+            guideRt.anchoredPosition = Vector2.zero;
+            AddImage(guide, "panel_dialog", Color.white, Image.Type.Sliced);
+            Text("Tmp_GuideTitle", guide, font, "还没有异兽", 34, TextAlignmentOptions.Center, Ink);
             var g1 = guide.transform.Find("Tmp_GuideTitle") as RectTransform;
             g1.anchorMin = new Vector2(0f, 1f); g1.anchorMax = new Vector2(1f, 1f);
-            g1.pivot = new Vector2(0.5f, 1f); g1.anchoredPosition = new Vector2(0f, -16f); g1.sizeDelta = new Vector2(0f, 36f);
+            g1.pivot = new Vector2(0.5f, 1f); g1.anchoredPosition = new Vector2(0f, -46f); g1.sizeDelta = new Vector2(0f, 52f);
             Text("Tmp_GuideBody", guide, font,
-                "① 主界面「出征」选分队打一局\n② 战斗中击败并捕获异兽\n③ 捕获成功后回到这里学战记",
-                22, TextAlignmentOptions.Center, InkSoft);
+                "这里查看异兽的四个技能槽（普攻 / 战记 / 终结技 / 觉醒），并可更换战记。\n\n① 主界面「出征」选分队打一局\n② 战斗中击败并捕获异兽\n③ 回到这里查看技能、更换战记",
+                24, TextAlignmentOptions.Center, InkSoft);
             var g2 = guide.transform.Find("Tmp_GuideBody") as RectTransform;
             g2.anchorMin = new Vector2(0f, 1f); g2.anchorMax = new Vector2(1f, 1f);
-            g2.pivot = new Vector2(0.5f, 1f); g2.anchoredPosition = new Vector2(0f, -56f); g2.sizeDelta = new Vector2(0f, 140f);
+            g2.pivot = new Vector2(0.5f, 1f); g2.anchoredPosition = new Vector2(0f, -110f); g2.sizeDelta = new Vector2(0f, 230f);
 
             var hint = Text("Tmp_Hint", right, font,
                 "战记槽数量由品级决定：灵品 1 / 玄·神 2（第二战记槽暂未开放）", 20,

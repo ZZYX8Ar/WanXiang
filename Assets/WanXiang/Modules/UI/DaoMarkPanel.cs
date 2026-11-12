@@ -130,10 +130,12 @@ namespace WanXiang.Modules.UI
             _selected = index;
             if (index < 0 || index >= _marks.Count)
             {
-                if (_tmpDetailName != null) _tmpDetailName.text = "—";
+                if (_tmpDetailName != null) _tmpDetailName.text = "道痕说明";
                 if (_tmpDetailStar != null) _tmpDetailStar.text = "—";
-                if (_tmpDetailDesc != null) _tmpDetailDesc.text = "选择左侧道痕查看详情";
-                if (_tmpDetailSource != null) _tmpDetailSource.text = "—";
+                if (_tmpDetailDesc != null) _tmpDetailDesc.text =
+                    "道痕 = 局末结算获得的永久印记；最多装备 2 枚";
+                if (_tmpDetailSource != null) _tmpDetailSource.text =
+                    "重复获得升星 ★→★★★；点左侧任一条查看效果与来源";
                 if (_btnEquip != null) _btnEquip.interactable = false;
                 return;
             }

@@ -113,6 +113,16 @@ namespace WanXiang.EditorTools
             Place(locked, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-150f, 0f), new Vector2(-24f, 0f));
             ((RectTransform)locked.transform).sizeDelta = new Vector2(126f, 40f);
 
+            // ⛔ 每行必须有可点区域：DaoMarkPanel.BuildRow 只找 Btn_Pick 绑点击，
+            //    首版模板没放 → 用户点左侧列表完全没反应（2026-11-12 反馈）。
+            var pick = Node("Btn_Pick", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var pickRt = (RectTransform)pick.transform;
+            pickRt.SetAsLastSibling();
+            var pickImg = pick.gameObject.AddComponent<Image>();
+            pickImg.color = new Color(1f, 1f, 1f, 0f); pickImg.raycastTarget = true;
+            var pickBtn = pick.gameObject.AddComponent<Button>();
+            pickBtn.targetGraphic = pickImg; pickBtn.transition = Selectable.Transition.None;
+
             row.gameObject.SetActive(false);
 
             // ---------------- 右：详情 + 装备 ----------------
@@ -125,11 +135,12 @@ namespace WanXiang.EditorTools
             var dstar = Text("Tmp_DetailStar", right, font, "—", 26, TextAlignmentOptions.Left, InkSoft);
             Place(dstar, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -70f), new Vector2(-24f, -104f));
 
-            var ddesc = Text("Tmp_DetailDesc", right, font, "选择左侧道痕查看详情", 24,
+            var ddesc = Text("Tmp_DetailDesc", right, font, "道痕 = 局末结算获得的永久印记；最多装备 2 枚", 22,
                 TextAlignmentOptions.Left, InkSoft);
             Place(ddesc, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -110f), new Vector2(-24f, -170f));
 
-            var dsrc = Text("Tmp_DetailSource", right, font, "—", 22, TextAlignmentOptions.Left, InkSoft);
+            var dsrc = Text("Tmp_DetailSource", right, font,
+                "重复获得升星 ★→★★★；点左侧任一条查看效果与来源", 20, TextAlignmentOptions.Left, InkSoft);
             Place(dsrc, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -176f), new Vector2(-24f, -210f));
 
             var equip = Button("Btn_Equip", right, font, "装备", 24);
