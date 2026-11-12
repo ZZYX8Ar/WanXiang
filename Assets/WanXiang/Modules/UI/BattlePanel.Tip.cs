@@ -148,13 +148,16 @@ namespace WanXiang.Modules.UI
             //   面板根本没显示。两个分支都必须走到这里。
             // ⚠ 顺序：先激活再强制布局，最后定位（未激活时 ForceRebuild 无效 → 高度旧值 → 算出屏外）
             _tipText.text = "<size=26><b>" + title + "</b></size>\n" + body;
+            _tipPanel.sizeDelta = new Vector2(430f, _tipPanel.sizeDelta.y);   // 宽度锁 430（高度由 Fitter 撑）
             // 内容变了 ， 立即按新文本重算面板高度（左上锚定下向下生长），避免当帧还是旧尺寸
+            if (_stage != null) _stage.HighlightCells(null, null);   // 先清旧高亮再按本次技能重算
             _tipPanel.gameObject.SetActive(true);
+            _tipPanel.SetAsLastSibling();                            // 防被底栏/其它节点盖住
+            _tipPanel.localScale = Vector3.one;                      // 防缩放为 0
             UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(_tipPanel);
             _tipTween?.Kill();
-            _tipGroup.alpha = 0f;
+            if (_tipGroup != null) _tipGroup.alpha = 1f;              // 直接可见，不依赖动画
             PlaceTipNearMouse();
-            _tipTween = DOTween.Sequence().Join(_tipGroup.DOFade(1f, 0.14f));
         }
 
         /// <summary>
@@ -432,8 +435,8 @@ namespace WanXiang.Modules.UI
         {
             // 收起提示 = 同时取消九宫格高亮
             if (_stage != null) _stage.HighlightCells(null, null);
+            _tipShowingSlot = -1;                                   // 必须放在 return 之前复位
             if (_tipPanel == null || !_tipPanel.gameObject.activeSelf) return;
-            _tipShowingSlot = -1;
             _tipTween?.Kill();
             _tipTween = _tipGroup.DOFade(0f, 0.12f).OnComplete(() =>
             {
