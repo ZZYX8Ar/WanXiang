@@ -173,7 +173,9 @@ namespace WanXiang.Modules.UI
             Vector2 local;
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
                     parent, Input.mousePosition, null, out local)) return;
-            _tipPanel.anchorMin = _tipPanel.anchorMax = new Vector2(0f, 0f);
+            // ⚠ anchor 必须是**父中心**：ScreenPointToLocalPointInRectangle 返回的是相对父 pivot 的坐标
+            //   （≈ -w/2..w/2）。之前误设 (0,0) 左下锚点 → 这个坐标被当成 0..w 用 → 面板飞出画布（用户截图）。
+            _tipPanel.anchorMin = _tipPanel.anchorMax = new Vector2(0.5f, 0.5f);
             _tipPanel.pivot = new Vector2(1f, 1f);      // 右对齐 + 向上展开
             float w = _tipPanel.rect.width;
             float h = _tipPanel.rect.height;
