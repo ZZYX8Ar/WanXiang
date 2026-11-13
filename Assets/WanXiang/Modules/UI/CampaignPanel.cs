@@ -242,29 +242,6 @@ BuildNodeMap();
         private static string _rewardPromptedKey;
 
         /// <summary>胜利奖励未领 → 拉起 RelicPanel 让玩家补选（同一批遗物，种子已落盘）。</summary>
-        private async UniTaskVoid PromptPendingRewardDeferred()
-        {
-            await UniTask.DelayFrame(2);
-            PromptPendingReward();
-        }
-
-        private void PromptPendingReward()
-        {
-            var run = WanXiang.Run.RunSave.Current;
-            if (run == null || run.PendingRelicDraft == null || run.PendingRelicDraft.Count == 0) return;
-            // ★ 有未消费的战斗结算时**不要弹**：结算面板确认后会自己交棒给 RelicPanel，
-            //   否则两个三选一会叠在一起（用户 2026-10-21 实测：点都点不了）。
-            if (SceneFlow.PendingResult != null) return;
-            if (SceneFlow.SuppressRewardPrompt) return;
-            // 结算面板正在打开时也不要抢（Overlay 会压住，玩家点不到）
-            foreach (var pnl in UnityEngine.Object.FindObjectsOfType<ResultPanel>(true))
-                if (pnl != null && pnl.gameObject.activeInHierarchy) return;
-            string key = string.Join(",", run.PendingRelicDraft) + "#" + run.Act;
-            if (_rewardPromptedKey == key) return;
-            _rewardPromptedKey = key;
-            Debug.Log("[Campaign] 有未领取的战斗奖励三选一，拉起补选：" + key);
-            OpenPanelAsync<RelicPanel>(null).Forget();
-        }
 
         private static void RestorePendingBattlePass()
         {
@@ -682,7 +659,6 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             SelectNode(node != null ? node.Offset : -1, silent: true);
 
             // ★ 有未领的胜利奖励 → 下一帧补一次三选一（不能在"本面板还在开"的同一帧叠面板）
-            PromptPendingRewardDeferred().Forget();
             return UniTask.CompletedTask;
         }
 

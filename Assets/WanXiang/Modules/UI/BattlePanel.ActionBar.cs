@@ -163,6 +163,15 @@ namespace WanXiang.Modules.UI
             return _play != null && _play.AwaitingCommand && !_play.Finished && !HasPendingEvent();
         }
 
+        /// <summary>底栏回合标签：第 N/Max 回合 · 我方/敌方回合（青色富文本）。</summary>
+        private static string RoundPrefix(WanXiang.Battle.Core.BattleState st, bool playerTurn)
+        {
+            int turn = st != null ? st.Turn : 1;
+            int max = st != null ? st.EffectiveMaxTurns : 48;
+            return "<color=#1E6F8C>第 " + turn + "/" + max + " 回合 · "
+                   + (playerTurn ? "我方回合" : "敌方回合") + "</color>";
+        }
+
         private void RefreshActionBar()
         {
             if (_actionBar == null || _play == null) return;
@@ -288,9 +297,8 @@ namespace WanXiang.Modules.UI
                 //   之前界面完全没提示，玩家"没人死却输了"一头雾水。
                 // ★ 2026-11-07：回合数已统一到 Tmp_Round（RoundLabel，含"我方/敌方回合"），
                 //   这行不再重复写"第 X/48 回合"——否则屏幕上会出现两遍（用户报障）。
-                string line = "第 " + (stt != null ? stt.Turn : 1) + "/"
-                              + (stt != null ? stt.EffectiveMaxTurns : 48)
-                              + " 回合　轮到「" + u.DisplayName + "」　灵力 " + mp + "/" + mpMax +
+                string line = RoundPrefix(stt, true)
+                              + "　轮到「" + u.DisplayName + "」　灵力 " + mp + "/" + mpMax +
                               "（战记 " + WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active) + " 点）";
                 if (u.GetSkill(SkillType.Ultimate) != null)
                     line += "　元气 " + (int)u.Rage + "/" + (int)u.RageCap;
@@ -305,10 +313,11 @@ namespace WanXiang.Modules.UI
             }
             else if (_tmpActor != null)
             {
-                if (_lastActorLine != "轮到我方行动")
+                string lbl = RoundPrefix(stt, false) + "　轮到我方行动";
+                if (_lastActorLine != lbl)
                 {
-                    _lastActorLine = "轮到我方行动";
-                    _tmpActor.text = _lastActorLine;
+                    _lastActorLine = lbl;
+                    _tmpActor.text = lbl;
                 }
             }
 

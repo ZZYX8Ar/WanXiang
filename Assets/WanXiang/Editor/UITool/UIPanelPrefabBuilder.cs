@@ -574,8 +574,6 @@ namespace WanXiang.EditorTools
             var rt = (RectTransform)root.transform;
 
             var top = UIBuild.Top(rt, "Root_TopBar", 100);
-            var tmpRound = UIBuild.Tmp(UIBuild.Fixed(top, "Tmp_Round", new Vector2(0.5f, 0.5f),
-                new Vector2(300, 52), Vector2.zero), "第 1 回合", 34, UIBuild.Ink, TextAlignmentOptions.Center);
             var banner = UIBuild.Stretch(top, "Root_WeatherBanner", 480, 2, 480, 2);
             UIBuild.Img(banner, UIBuild.Night);
             var tmpWeatherName = UIBuild.Tmp(UIBuild.Stretch(banner, "Tmp_WeatherName", 20, 8, 20, 8),
@@ -609,7 +607,6 @@ namespace WanXiang.EditorTools
                 new Vector2(180, 90), new Vector2(310, 0), "重新挑战", UIBuild.Card, 28f);
 
 
-            UIBuild.Bind(comp, "_tmpRound", tmpRound);
             UIBuild.Bind(comp, "_rootWeather", banner.gameObject);
             UIBuild.Bind(comp, "_tmpWeatherName", tmpWeatherName);
             UIBuild.Bind(comp, "_rootStage", stage);
@@ -671,6 +668,30 @@ namespace WanXiang.EditorTools
             UIBuild.BindArr(comp, "_actorNameTmps", actorNameTmps);
             UIBuild.BindArr(comp, "_actorSkillBtns", actorSkillBtns);
             UIBuild.Bind(comp, "_btnAutoBattle", bAutoBattle);
+
+            // ---- 战斗内捕获（2026-11-13）：精灵球按钮 + 投球动画节点（默认隐藏）----
+            var capGo = UIBuild.MakeBtn(actionBar, "Btn_Capture", new Vector2(1f, 1f),
+                new Vector2(144, 40), new Vector2(-16f, -196f), "捕获", UIBuild.Gold, 18f);   // 不超出底栏
+            ((RectTransform)capGo.transform).pivot = new Vector2(1f, 1f);
+            capGo.GetComponent<Image>().sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/UI/Kit/btn_secondary.png");
+
+            var ball = UIBuild.Fixed(rt, "Img_CaptureBall", new Vector2(0.5f, 0.5f),
+                new Vector2(72, 72), Vector2.zero);
+            var ballImg = UIBuild.Img(ball, UIBuild.Paper);
+            ballImg.sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/UI/Kit/round_btn.png");
+            ballImg.type = Image.Type.Simple;
+            ball.gameObject.SetActive(false);
+
+            var glow = UIBuild.Fixed(rt, "Img_CaptureGlow", new Vector2(0.5f, 0.5f),
+                new Vector2(200, 200), Vector2.zero);
+            var glowImg = UIBuild.Img(glow, new Color(1f, 0.84f, 0.35f, 0.9f));
+            glowImg.sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/UI/Kit/round_btn.png");
+            glow.gameObject.SetActive(false);
+
+            var capText = UIBuild.Tmp(UIBuild.Fixed(rt, "Tmp_CaptureResult", new Vector2(0.5f, 0.5f),
+                new Vector2(760, 120), new Vector2(0f, 180f)), "", 28, UIBuild.Ink,
+                TextAlignmentOptions.Center);
+            capText.gameObject.SetActive(false);
 
             // ---- 自动战斗指示（默认隐藏）：一张图 + 代码旋转，不需要序列帧 ----
             //   占位是纯色方块；美术到位后把 sprite 换成圆环/序列帧即可，控制逻辑不用动。

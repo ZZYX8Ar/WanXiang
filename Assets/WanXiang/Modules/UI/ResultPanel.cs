@@ -141,55 +141,14 @@ namespace WanXiang.Modules.UI
 
             // 三选一奖励（重设计 v2026-09-29）：胜利时从遗物池**随机抽 3 个**让玩家挑 1 个，
             // 精英/Boss 节点提高稀有/传说权重。遗物是局内「变强」载体（参考杀戮尖塔）。
-            // 写死的三选一（灵卵+2/疗愈/威慑）已废弃 —— 见 OfferedRelics 与 ApplyDraft。
+            // ★ 2026-11-13 用户：遗物获取途径未定，战斗胜利不再发遗物/弹遗物面板。
+            //   结算面板里的三选一卡片整组隐藏，确认按钮直接可点。
+            var draftsRoot = transform.Find("Root_Drafts") ?? transform.Find("Root_Detail/Root_Drafts");
+            if (draftsRoot != null) draftsRoot.gameObject.SetActive(false);
             _offered = null;
-            if (win && look != null)
-            {
-                int actR = look.Act;
-                bool eliteFight = SceneFlow.LastBattleKind == NodeKind.Elite;
-                bool isBossFight = SceneFlow.LastBattleWasBoss;
-                bool bossLike = eliteFight;
-                // ★ 优先消费"胜利时已落盘"的三选一（见 RunState.PendingRelicDraft）——
-                //   玩家中途退出/重开也不会丢这次选择。
-                if (look.PendingRelicDraft != null && look.PendingRelicDraft.Count > 0)
-                {
-                    _offered = new System.Collections.Generic.List<RelicDef>();
-                    for (int i = 0; i < look.PendingRelicDraft.Count; i++)
-                    {
-                        var d = RelicCatalog.Get(look.PendingRelicDraft[i]);
-                        if (d != null) _offered.Add(d);
-                    }
-                }
-                // ★ 2026-11-02 用户："战斗胜利不一定获得遗物，精英才有可能" ⇒ 普通战不给。
-                if (!eliteFight)
-                {
-                    _offered = new System.Collections.Generic.List<RelicDef>();
-                }
-                else if (_offered == null || _offered.Count == 0)
-                {
-                    var rng = new DeterministicRandom((ulong)System.DateTime.Now.Ticks ^ (uint)(actR * 2654435761));
-                    _offered = RelicCatalog.Roll(3, actR, bossLike, rng, look.Relics,
-                                                 allowBossRarity: isBossFight);
-                }
-                Debug.Log("[ResultPanel] 抽出遗物 " + _offered.Count + " 个（act=" + actR +
-                          " bossLike=" + bossLike + "）");
-            }
+            if (_btnConfirm != null) _btnConfirm.interactable = true;
+            if (_btnSkip != null) _btnSkip.interactable = false;
 
-            for (int i = 0; i < _tmpDraftNames.Length; i++)
-                if (_tmpDraftNames[i] != null) _tmpDraftNames[i].text = DraftTitle(i);
-            for (int i = 0; i < _tmpDraftDescs.Length; i++)
-                if (_tmpDraftDescs[i] != null) _tmpDraftDescs[i].text = DraftDesc(i);
-
-            // ★ 按胜负决定确认按钮是否可点（原来无条件设 false，把"失败可直接确认"覆盖掉了）：
-            //   胜利 → 必须先选一张奖励才可确认；失败 → 没有奖励，直接可确认。
-            // ★ 2026-10-21 最终：三选一回到结算面板内 —— 有卡时必须先选一张才能确认
-            bool needPick = _win && _offered != null && _offered.Count > 0;
-            if (_btnConfirm != null) _btnConfirm.interactable = !needPick;
-            if (_btnSkip != null) _btnSkip.interactable = true;
-
-            // ★ 2026-10-19 用户："把遗物三选一的效果做到战斗结果面板这里"
-            //   与 RelicPanel 同一套语言：横排三卡 + 从上落下 + 悬浮金框上浮。
-            ApplyThreeChoiceLayout();
 
             // ★ 结算面板本身没有全屏底图 ⇒ 地图会透过来，观感像"半透明幽灵面板"。
             //   加一层压暗底（Linear 空间：纯黑 + 高 alpha 才真的暗，见项目约定）。
@@ -531,28 +490,11 @@ namespace WanXiang.Modules.UI
             }
 
             // ★ 兜底：0.8s（unscaled）后把所有卡片强制归位并置为可见
-            ForceSettleDrafts().Forget();
-        }
-
-        private async Cysharp.Threading.Tasks.UniTaskVoid ForceSettleDrafts()
-        {
-            await Cysharp.Threading.Tasks.UniTask.Delay(System.TimeSpan.FromSeconds(0.8f),
-                Cysharp.Threading.Tasks.DelayType.UnscaledDeltaTime);
-            if (_draftBtns == null) return;
-            for (int i = 0; i < _draftBtns.Length; i++)
-            {
-                if (_draftBtns[i] == null) continue;
-                var rt = (RectTransform)_draftBtns[i].transform;
-                var cg = _draftBtns[i].GetComponent<CanvasGroup>();
-                if (cg != null) cg.alpha = 1f;
-                rt.localScale = Vector3.one;
-                Debug.Log("[ResultPanel] 卡片归位 " + i + " world=" + rt.position.ToString("0") + " size=" + rt.rect.size.ToString("0"));
-            }
         }
 
         private void RefreshConfirmInteractable()
         {
-            if (_btnConfirm != null) _btnConfirm.interactable = _selectedDraft >= 0 || !_win;
+            if (_btnConfirm != null) _btnConfirm.interactable = true;   // 遗物三选一已停用
         }
 
         private void OnDraftClicked(int index)
@@ -570,37 +512,9 @@ namespace WanXiang.Modules.UI
 
         /// <summary>消费掉"待选奖励"（确认或跳过都算用过了）。</summary>
         /// <summary>结算确认后补开遗物三选一：必须等地图开完，否则会被当"正在关闭"忽略。</summary>
-        private async Cysharp.Threading.Tasks.UniTaskVoid OpenRewardDraftAfterMap()
-        {
-            var run = WanXiang.Run.RunSave.Current;
-            if (run == null || run.PendingRelicDraft == null || run.PendingRelicDraft.Count == 0) return;
-
-            // 等地图进入 Opened（最多 2 秒，按 unscaled 时间计）
-            float waited = 0f;
-            while (waited < 2f)
-            {
-                var map = UnityEngine.Object.FindObjectOfType<CampaignPanel>();
-                if (map != null && map.State == WanXiang.Framework.UI.UIPanelState.Opened) break;
-                await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
-                waited += Time.unscaledDeltaTime;
-            }
-            await Cysharp.Threading.Tasks.UniTask.DelayFrame(2);
-            OpenPanelAsync<RelicPanel>(null).Forget();
-            Debug.Log("[ResultPanel] 结算确认 → 补开遗物三选一（PendingRelicDraft=" + run.PendingRelicDraft.Count + "）");
-        }
-
-        private static void ClearPendingDraft()
-        {
-            var run = WanXiang.Run.RunSave.Current;
-            if (run == null || run.PendingRelicDraft == null) return;
-            if (run.PendingRelicDraft.Count == 0) return;
-            run.PendingRelicDraft.Clear();
-            WanXiang.Run.RunSave.SaveCurrent();
-        }
 
         private void OnSkipClicked()
         {
-            ClearPendingDraft();
             BackToCampaign();
         }
 
@@ -610,7 +524,6 @@ namespace WanXiang.Modules.UI
             if (_selectedDraft >= 0)
             {
                 ApplyDraft(_selectedDraft);
-                ClearPendingDraft();          // ★ 已在面板内选过 → 消费掉，别再弹遗物面板
                 Debug.Log("[ResultPanel] 已选择奖励 " + (_selectedDraft + 1) + "：" + DraftTitle(_selectedDraft));
             }
             // ★ 每场战斗结算后刷新历程（一局一条，同局覆盖）。
@@ -625,7 +538,6 @@ namespace WanXiang.Modules.UI
             // ★ 结算确认后：还有未领的战斗奖励 → 等**节点地图真正打开**再叠遗物面板。
             //   ⛔ 之前是紧接着 BackToCampaign 就 Open —— 此刻本面板还在 Closing，
             //     UISystem 会忽略这次打开（项目已知坑）⇒ 遗物三选一"又消失了"（用户实测）。
-            OpenRewardDraftAfterMap().Forget();
         }
 
         /// <summary>

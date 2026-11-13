@@ -23,7 +23,6 @@ namespace WanXiang.Modules.UI
     public sealed partial class BattlePanel : UIPanelBase
     {
 
-        [SerializeField] private TMP_Text _tmpRound;            // Tmp_Round
         /// <summary>回合制手动模式：开启后我方行动前等玩家下令（需操作区就绪）。</summary>
         [SerializeField] private bool _manualBattle = true;   // 回合制手动（操作区已就位；关掉即全自动）
         [SerializeField] private GameObject _rootWeather;       // Root_WeatherBanner
@@ -359,8 +358,6 @@ namespace WanXiang.Modules.UI
                     if (view.Body != null && !snap.Alive)
                         view.Body.color = new Color(0.45f, 0.45f, 0.45f, 0.35f);
                 }
-            if (_tmpRound != null && f.Turn > 0 && !string.IsNullOrEmpty(_roundLabel)
-                && _tmpRound.text != _roundLabel) _tmpRound.text = _roundLabel;
         }
     }
 
@@ -370,24 +367,7 @@ namespace WanXiang.Modules.UI
             string target = e.TargetId ?? "";
             switch (e.Kind)
             {
-                                // ★ 2026-11-07：回合数只由 Tmp_Round 显示（RoundLabel，含我方/敌方）。
-                //   这里以前也写一次"第 N 回合" ⇒ 屏幕上出现两遍（用户报障）。日志行保持上一条内容。
-                // ★★ 2026-11-07 根因（用户第 4 次报障）：同一个中间上方横幅被写了两遍 ——
-                //    TurnStart 写光秃秃的"第 N 回合"，PlayerPhaseStart 又写"第 N 回合 · 我方回合"
-                //    ⇒ 看起来像"先弹一次、又弹一次"。
-                //    现在回合开始**只写一次完整标签**（我方阶段固定在前），
-                //    PlayerPhaseStart 再写同样的文字（值不变 ⇒ TMP 不会重建 ⇒ 视觉上只有一次）。
-                case BattleEventKind.TurnStart:
-                    SetRoundLabel("我方回合");
-                    break;
-                // 阶段制：标签先亮、单位后动 —— 用户"敌方显示完，敌人才开始行动"
-                case BattleEventKind.PlayerPhaseStart:
-                    SetRoundLabel("我方回合");                 // 同值，不产生第二次弹出
-                    break;
-                case BattleEventKind.EnemyPhaseStart:
-                    SetRoundLabel("敌方回合");
-                    break;
-                // ★ 只在"某单位开始行动"时记录当前行动者（供行动顺序面板高亮）——
+                                // ★ 只在"某单位开始行动"时记录当前行动者（供行动顺序面板高亮）——
                 //   不用每条事件的 actorId，否则回合末一堆伤害/结算事件会让面板疯狂刷新（用户 2026-10-13）。
                 case BattleEventKind.ActionBegin: _orderActorId = e.ActorId; break;
                                                                                                 // ★ 2026-10-12：补 RoundResolve 分支 —— 所有 Boss 机制提示（双子同命倒下/双杀/复活、
@@ -414,20 +394,11 @@ namespace WanXiang.Modules.UI
         /// <para>我方/敌方取自**本回合的出手序列第一人** —— 之前"轮到我方"只在
         /// `PendingUnit` 出现时才写，若本回合敌人先手，玩家要等它打完才看到提示（用户报障）。</para>
         /// </summary>
-        private string _roundLabel = "";
 
         /// <summary>阶段制（2026-11-07）：回合标签由 **TurnStart / 阶段事件** 写入，
         /// ApplyFrame 只负责套用 —— 事件顺序即显示顺序，"我方回合"先于我方出手出现。</summary>
-        private void SetRoundLabel(string side)
-        {
-            var st = _play != null ? _play.State : null;
-            if (st == null) return;
-            int max = st.EffectiveMaxTurns;   // B3-g：含难度里程碑覆盖
-            _roundLabel = "第 " + st.Turn + "/" + max + " 回合" + (string.IsNullOrEmpty(side) ? "" : " · " + side);
-            if (_tmpRound != null && _tmpRound.text != _roundLabel) _tmpRound.text = _roundLabel;
-        }
 
-        private string RoundLabel() => _roundLabel;
+
 
         /// <summary>阶段制·换人：数字键 1~5 选择"下一个行动的我方单位"（按上阵位次）。</summary>
         private void PollActorHotkeys()
@@ -457,8 +428,6 @@ namespace WanXiang.Modules.UI
                 if (!StepOnce()) break;
             }
             if (_stage != null) _stage.Step(0.05f * n);
-            if (_tmpRound != null && !string.IsNullOrEmpty(_roundLabel) && _tmpRound.text != _roundLabel)
-                _tmpRound.text = _roundLabel;
             return !_play.Finished;
         }
 
@@ -474,8 +443,6 @@ namespace WanXiang.Modules.UI
         /// <summary>战斗收尾：刷终局状态 → 交接给结算（场景模式则回主城）。</summary>
         private void FinishAndLeave(float delay, CancellationToken ct)
         {
-            if (_tmpRound != null && !string.IsNullOrEmpty(_roundLabel) && _tmpRound.text != _roundLabel)
-                _tmpRound.text = _roundLabel;
 
             // ★★ 结算前兜底判定胜负：Outcome 只在 BattleSimulator 的循环里由 CheckOutcome 赋值，
             //    手动操作路径若没跑到判负点，Outcome 会停在 Ongoing

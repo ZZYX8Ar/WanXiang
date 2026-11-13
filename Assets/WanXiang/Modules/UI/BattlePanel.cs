@@ -135,8 +135,7 @@ namespace WanXiang.Modules.UI
                 var _tx = _fi != null ? _fi.GetValue(this) as TMP_Text : null;
                 if (_tx != null) _tx.color = _ink;
             }
-            var _roundT = GameObject.Find("Tmp_Round");
-            if (_roundT != null) _roundT.GetComponent<TMP_Text>().color = _ink;
+            InitCapture();
             var _orderT = GameObject.Find("Tmp_OrderTitle");
             if (_orderT != null) _orderT.GetComponent<TMP_Text>().color = _ink;
 
@@ -399,17 +398,11 @@ namespace WanXiang.Modules.UI
                 if (show) _autoSpin.Rotate(0f, 0f, -360f * Time.deltaTime / 1.4f);
             }
 
-            // ★ 用户 11-12：回合横幅必须先于行动出现 —— 每次 Turn 变化立刻刷新数字
-            if (_play != null && _play.State != null && _play.State.Turn != _lastShownTurn)
-            {
-                _lastShownTurn = _play.State.Turn;
-                SetRoundLabel(null);   // 只刷数字，阶段名由事件补
-            }
-
             if (_tipPanel != null && _tipPanel.gameObject.activeSelf) CheckTipHover();
 
             // ★ 悬停棋盘上的异兽 → 状态列表（用户定案：触发走世界空间，鼠标直接指单位）
             UpdateUnitStatusHover();
+            PollCaptureClick();
 
             if (!_playing) return;
             // ★ 回放闸：冻结期间也不推进舞台动画/按钮刷新（战场要真的"停住"，用户 2026-10-15）。
@@ -570,7 +563,6 @@ namespace WanXiang.Modules.UI
 
         private bool _inspectOpen;
         private UnitInspectPanel _inspectPanel;   // 实例（看门狗要判它是否真的还开着）
-        private int _lastShownTurn = -1;          // 横幅数字上次刷新的回合
 
         /// <summary>双击单位：暂停战斗，弹出正式查看面板（崩铁式）。</summary>
         private void ShowUnitInspect(string name, string stats, string status, string skills,
@@ -629,25 +621,9 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>
-        /// 交接前的捕获询问（P3-c）：胜利 / 非平局 / 非 PvP / 非首领试炼才问。
-        /// 完成后继续原 HandOffCore —— 两个原有调用点不用改。
-        /// </summary>
         private void HandOff(ResultRequest result)
         {
-            bool canOffer = result != null && result.Win && !result.Draw
-                            && !SceneFlow.LastWasPvp && !SceneFlow.LastWasBossRush;
-            if (canOffer)
-            {
-                OfferCaptureThenHandOff(result).Forget();
-                return;
-            }
-            HandOffCore(result);
-        }
-
-        private async Cysharp.Threading.Tasks.UniTaskVoid OfferCaptureThenHandOff(ResultRequest result)
-        {
-            try { await CaptureFlow.OfferAsync(_play != null ? _play.State : null, WanXiang.Run.RunSave.Current); }
-            catch (System.Exception ex) { Debug.LogWarning("[Capture] 捕获流程异常（跳过）：" + ex.Message); }
+            // ★ 捕获已移入战斗内（Btn_Capture + 精灵球动画），胜利交接不再弹捕获询问。
             HandOffCore(result);
         }
 
@@ -677,21 +653,6 @@ namespace WanXiang.Modules.UI
                     if (CampaignPanel.PendingCommit >= 0)
                         runW.PendingBattlePass = CampaignPanel.PendingCommit;
 
-                    // ★ 奖励三选一也在这里**先抽好并落盘**（用户："这样是不是就丢失了一次选择奖励的机会"）。
-                    //   种子由（RunSeed, Act, 节点）确定 ⇒ 重开也是同一批。
-                    if (runW.PendingRelicDraft == null)
-                        runW.PendingRelicDraft = new System.Collections.Generic.List<string>();
-                    if (runW.PendingRelicDraft.Count == 0)
-                    {
-                        int nodeKey = CampaignPanel.PendingCommit >= 0 ? CampaignPanel.PendingCommit : runW.NodeOffset;
-                        bool bossLike = SceneFlow.LastBattleKind == WanXiang.Campaign.NodeKind.Elite;
-                        var rngR = new WanXiang.Battle.Core.DeterministicRandom(
-                            WanXiang.Battle.Core.CoreMath.Fnv1a(
-                                "battleReward:" + runW.RunSeed + ":" + runW.Act + ":" + nodeKey));
-                        var rolled = WanXiang.Campaign.RelicCatalog.Roll(3, runW.Act, bossLike, rngR, runW.Relics);
-                        for (int i = 0; i < rolled.Count; i++)
-                            if (rolled[i] != null) runW.PendingRelicDraft.Add(rolled[i].Id);
-                    }
                     WanXiang.Run.RunSave.SaveCurrent();
 
                     // ★ 2026-10-20 用户："历程应该是实时记录的，每一把都是一个历程，

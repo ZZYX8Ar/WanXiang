@@ -1,0 +1,107 @@
+// ============================================================================
+//  万相 · 战斗内捕获接线（BattlePanel 分部，2026-11-13）
+//  点精灵球 → 进入选目标 → 点敌方格 → CaptureFlow 判定 → Presenter 播动画/结果。
+// ============================================================================
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+using WanXiang.Battle.Core;
+
+namespace WanXiang.Modules.UI
+{
+    public sealed partial class BattlePanel
+    {
+        private T FindNode<T>(string path) where T : Component
+        {
+            var t = transform.Find(path);
+            return t != null ? t.GetComponent<T>() : null;
+        }
+
+        private Button _btnCapture;
+        private RectTransform _captureBall;
+        private Image _captureGlow;
+        private TMP_Text _captureResult;
+        private BattleCapturePresenter _capturePresenter;
+        private bool _captureAiming;
+
+        private void InitCapture()
+        {
+            _btnCapture = FindNode<Button>("Root_Action/Btn_Capture");
+            _captureBall = FindNode<RectTransform>("Img_CaptureBall");
+            _captureGlow = FindNode<Image>("Img_CaptureGlow");
+            _captureResult = FindNode<TMP_Text>("Tmp_CaptureResult");
+            if (_btnCapture == null) { Debug.LogWarning("[Capture] prefab 缺 Btn_Capture"); return; }
+            if (_captureBall == null || _captureGlow == null || _captureResult == null)
+            { Debug.LogWarning("[Capture] prefab 缺球/光环/结果节点"); return; }
+
+            _capturePresenter = new BattleCapturePresenter(
+                _captureBall, _captureGlow, _captureResult,
+                _btnCapture.transform as RectTransform);
+            _btnCapture.onClick.RemoveAllListeners();
+            _btnCapture.onClick.AddListener(ToggleCaptureAim);
+        }
+
+        private void ToggleCaptureAim()
+        {
+            _captureAiming = !_captureAiming;
+            if (!_captureAiming) { _stage?.HighlightCells(null, null); return; }
+            // 高亮可捕的敌方格（复用目标预览色）
+            var cells = new System.Collections.Generic.List<int>();
+            var foes = _play != null && _play.State != null
+                ? _play.State.UnitsOf(TeamSide.Enemy) : null;
+            if (foes != null)
+                for (int i = 0; i < foes.Count; i++)
+                {
+                    var f = foes[i];
+                    if (f != null && f.IsAlive && f.Def != null && CaptureRules.IsCapturable(f.Def)
+                        && f.Pos.IsValid) cells.Add(f.Pos.Index);
+                }
+            _stage?.HighlightCells(null, cells);
+            if (cells.Count == 0) { _captureAiming = false; Debug.Log("[Capture] 本场没有可捕获目标"); }
+        }
+
+        /// <summary>每帧：瞄准中且点了敌方格 → 投球。</summary>
+        private void PollCaptureClick()
+        {
+            if (!_captureAiming || _capturePresenter == null || _stage == null) return;
+            if (UnityEngine.EventSystems.EventSystem.current != null
+                && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()) return;
+            if (!Input.GetMouseButtonDown(0)) return;
+            var cam = _stage.Camera != null ? _stage.Camera : Camera.main;
+            if (cam == null) return;
+            var world = cam.ScreenToWorldPoint(Input.mousePosition);
+            string uid, uname; Vector3 anchor;
+            if (!_stage.TryPickUnit(world, out uid, out uname, out anchor)) return;
+
+            var st = _play != null ? _play.State : null;
+            if (st == null) return;
+            BattleUnit target = null;
+            var all = st.AllUnitsEver;
+            for (int i = 0; i < all.Count; i++)
+                if (all[i] != null && all[i].RuntimeId == uid) { target = all[i]; break; }
+            if (target == null) return;
+
+            _captureAiming = false;
+            _stage.HighlightCells(null, null);
+            var o = CaptureFlow.TryInBattle(st, WanXiang.Run.RunSave.Current, target);
+
+            var canvasRt = transform as RectTransform;
+            Vector2 targetLocal;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRt, cam.WorldToScreenPoint(anchor), null, out targetLocal);
+            Vector2 startLocal;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRt, RectTransformUtility.WorldToScreenPoint(null, _btnCapture.transform.position),
+                null, out startLocal);
+            _capturePresenter.Play(o, targetLocal, startLocal);
+        }
+
+        private void CancelCaptureAim()
+        {
+            if (!_captureAiming) return;
+            _captureAiming = false;
+            _stage?.HighlightCells(null, null);
+            _capturePresenter?.Cancel();
+        }
+    }
+}
