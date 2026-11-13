@@ -2182,24 +2182,16 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     // ★ 2026-11-02：谁在行动 —— 回合横幅补上"我方/敌方"
                     // ★ 2026-11-02 用户："不用每一个人行动都显示" ⇒ **只在阵营切换时改一次字**
                     //   （我方开始→"…我方"；轮到敌方→"…敌方"），同一个阵营内的连续行动不再触发。
-                    string sideCn = "我方";
-                    var sideCol = TbColPlayer;
-                    if (_views.TryGetValue(e.ActorId, out var actView) && !actView.PlayerSide)
-                    { sideCn = "敌方"; sideCol = TbColEnemy; }
-                    if (_tbLastSide != sideCn)
-                    {
-                        _tbLastSide = sideCn;
-                        ShowTurnBanner(_turnNo, "第 " + _turnNo + " 回合 · " + sideCn + "回合", sideCol);
-                        _tbT = Mathf.Max(_tbT, 1.6f);
-                    }
+                    // ★ 2026-11-13（用户第 7 次报障）：这里的"第 N 回合 · 我方回合"横幅要等
+                    //   第一个单位行动才出现（时机错），已删除；回合横幅只在 TurnStart 出现一次。
                     break;
                 }
 
                 case BattleEventKind.TurnStart:
                     _actingId = null;
                     _turnNo = e.Turn;
-                    _tbLastSide = null;
-                    ShowTurnBanner(e.Turn, "第 " + e.Turn + " 回合", TbColNeutral);
+                    // 回合开始即出现（时机正确）：统一文案 + 我方色（阶段制下回合必从我方开始）
+                    ShowTurnBanner(e.Turn, "第 " + e.Turn + " 回合 · 我方回合", TbColPlayer);
                     break;
 
                 case BattleEventKind.BattleEnd:
@@ -3475,10 +3467,8 @@ if (life < 0.2f) life = 0.2f;
         private float _tbT;                 // 剩余显示时间
         private int _tbTurn;
         private int _turnNo;                // 当前回合数（横幅与逻辑共用）
-        private string _tbLastSide;         // 横幅当前显示的阵营（防重复刷新）
         private const float TbLife = 2.4f, TbFade = 0.55f, TbSlide = 0.28f;
 
-        private static readonly Color TbColNeutral = new Color(0.93f, 0.90f, 0.74f);
         private static readonly Color TbColPlayer  = new Color(0.55f, 0.95f, 0.75f);
         private static readonly Color TbColEnemy   = new Color(0.98f, 0.52f, 0.86f);
 
