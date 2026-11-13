@@ -22,6 +22,8 @@ namespace WanXiang.Modules.UI
 {
     public sealed partial class BattlePanel : UIPanelBase
     {
+        private bool _hintTipActive;   // 当前显示的是通用说明（不是技能提示，跳过 CheckTipHover）
+
 
         private void BuildSkillTip()
         {
@@ -186,6 +188,7 @@ namespace WanXiang.Modules.UI
 
         private void CheckTipHover()
         {
+            if (_hintTipActive) return;   // 通用说明由 PollCaptureHover 管，别被技能提示逻辑吞掉
             if (_actorSkillBtns == null || _actorSkillBtns.Length == 0)
             { HideSkillTip(); return; }
             if (_btnCombo != null && RectTransformUtility.RectangleContainsScreenPoint(
@@ -449,11 +452,13 @@ namespace WanXiang.Modules.UI
             UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(_tipPanel);
             _tipTween?.Kill();
             if (_tipGroup != null) _tipGroup.alpha = 1f;
+            _hintTipActive = true;
             PlaceTipNearMouse();
         }
 
         private void HideSkillTip()
         {
+            _hintTipActive = false;
             // 收起提示 = 同时取消九宫格高亮
             if (_stage != null) _stage.HighlightCells(null, null);
             _tipShowingSlot = -1;                                   // 必须放在 return 之前复位

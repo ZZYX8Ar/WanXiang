@@ -139,13 +139,13 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>只弹结果文字（用于"没有可捕目标/灵卵不足"这类前置提示）。</summary>
-        public void ShowHint(string text)
+        public void ShowHint(string text, string hexColor = "#A33A2D")
         {
             if (_result == null) return;
             _seq?.Kill();
             _result.gameObject.SetActive(true);
             _result.transform.SetAsLastSibling();
-            _result.text = "<color=#A33A2D>" + text + "</color>";
+            _result.text = "<color=" + hexColor + ">" + text + "</color>";
             if (_resultGroup != null) _resultGroup.alpha = 1f;
             var rt = _result.rectTransform;
             rt.anchoredPosition = new Vector2(0f, 180f);

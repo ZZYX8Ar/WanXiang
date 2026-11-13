@@ -3690,8 +3690,36 @@ if (life < 0.2f) life = 0.2f;
         /// <summary>格子中心的世界坐标（捕获球落点用；单位头顶锚点不等于格子中心）。</summary>
         public Vector3 CellWorldCenter(WanXiang.Battle.Core.TeamSide side, int index)
         {
-            var local = CellPos(side == WanXiang.Battle.Core.TeamSide.Player, index);
+            // ⚠ CellPos 是**单位落位**（比格子中心低 FootOffset），球要格子几何中心（用户 11-13：偏下）
+            int col = index % 3;
+            if (side != WanXiang.Battle.Core.TeamSide.Player) col = 2 - col;
+            int row = index / 3;
+            float cx = side == WanXiang.Battle.Core.TeamSide.Player ? PlayerX : EnemyX;
+            var local = new Vector3(cx + (col - 1) * Cell, BoardY + (1 - row) * Cell * BoardRowGap, 0f);
             return transform.TransformPoint(local);
+        }
+
+        /// <summary>捕获成功后隐藏该单位（立绘 + 头顶 HUD），避免"抓到了还站在场上"。</summary>
+        public void HideUnit(string unitId)
+        {
+            if (string.IsNullOrEmpty(unitId) || _views == null) return;
+            if (!_views.TryGetValue(unitId, out var v)) return;
+            if (v.Root != null) v.Root.SetActive(false);
+            if (v.Head != null) v.Head.gameObject.SetActive(false);
+        }
+
+        /// <summary>捕获瞄准：可捕敌方格染金色（与技能预览的橙红区分，用户 11-13 混淆）</summary>
+        public void HighlightCaptureCells(List<int> enemyCells)
+        {
+            var gold = new Color(0.96f, 0.83f, 0.45f, 1f);
+            for (int i = 0; i < 9; i++)
+            {
+                if (_cellsEnemy[i] == null) continue;
+                bool on = enemyCells != null && enemyCells.Contains(i);
+                _cellsEnemy[i].color = on ? gold : _cellBaseEnemy[i];
+            }
+            for (int i = 0; i < 9; i++)
+                if (_cellsPlayer[i] != null) _cellsPlayer[i].color = _cellBasePlayer[i];
         }
 
         private static Vector2 CellPos(bool player, int cell)

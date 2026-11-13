@@ -40,8 +40,12 @@ Shader "WanXiang/CaptureBurst"
                 float r = _Progress;
                 float ring = smoothstep(r - _RingWidth, r, d)
                            * (1.0 - smoothstep(r, r + _RingWidth, d));
+                // 第二道细环（滞后 18%，错位形成"双层扩散"）
+                float r2 = saturate(r - 0.18);
+                float ring2 = smoothstep(r2 - _RingWidth * 0.45, r2, d)
+                            * (1.0 - smoothstep(r2, r2 + _RingWidth * 0.45, d)) * 0.75;
                 float core = saturate(1.0 - d * 3.2) * (1.0 - r);          // 中心柔光随扩散渐隐
-                float a = saturate(ring * 1.35 + core * 0.5);
+                float a = saturate(ring * 1.6 + ring2 + core * 0.85);
                 float3 col = lerp(float3(1.0, 0.84, 0.42), float3(1.0, 0.97, 0.88), core);
                 return fixed4(col * i.color.rgb * _Color.rgb, a * i.color.a * _Color.a);
             }

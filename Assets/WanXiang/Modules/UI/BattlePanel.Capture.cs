@@ -58,7 +58,8 @@ namespace WanXiang.Modules.UI
                     if (f != null && f.IsAlive && f.Def != null && CaptureRules.IsCapturable(f.Def)
                         && f.Pos.IsValid) cells.Add(f.Pos.Index);
                 }
-            _stage?.HighlightCells(null, cells);
+            _stage?.HighlightCaptureCells(cells);   // 金色：与技能预览的橙红区分
+            _capturePresenter?.ShowHint("选择要捕获的敌方异兽（金色格）", "#B8860B");
             if (cells.Count == 0)
             {
                 _captureAiming = false;
@@ -115,6 +116,7 @@ namespace WanXiang.Modules.UI
             _captureAiming = false;
             _stage.HighlightCells(null, null);
             var o = CaptureFlow.TryInBattle(st, WanXiang.Run.RunSave.Current, target);
+            if (o.Success) _stage.HideUnit(target.RuntimeId);   // 抓到了就别站在场上
 
             var canvasRt = transform as RectTransform;
             // ★ 落点 = **格子中心**（单位头顶锚点会让球悬在格子上沿，用户 11-13 报障）
