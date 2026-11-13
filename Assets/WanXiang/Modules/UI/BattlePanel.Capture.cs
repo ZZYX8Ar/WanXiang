@@ -82,8 +82,11 @@ namespace WanXiang.Modules.UI
             if (over && !_captureTipShown)
             {
                 _captureTipShown = true;
+                var runE = WanXiang.Run.RunSave.Current;
+                int eggsNow = runE != null ? runE.Eggs : 0;
                 ShowHintTip("捕获",
-                    "点击后在九宫格选择一只敌方异兽。\n消耗灵卵，目标血量越低成功率越高。\n首领与召唤物不可捕获，失败返还部分灵卵。");
+                    "点击后在九宫格选择一只敌方异兽。\n当前灵卵：" + eggsNow
+                    + "（消耗按品级 1~3）\n目标血量越低成功率越高；首领与召唤物不可捕获，失败返还部分灵卵。");
             }
             else if (!over && _captureTipShown)
             {
@@ -116,7 +119,7 @@ namespace WanXiang.Modules.UI
             _captureAiming = false;
             _stage.HighlightCells(null, null);
             var o = CaptureFlow.TryInBattle(st, WanXiang.Run.RunSave.Current, target);
-            if (o.Success) _stage.HideUnit(target.RuntimeId);   // 抓到了就别站在场上
+
 
             var canvasRt = transform as RectTransform;
             // ★ 落点 = **格子中心**（单位头顶锚点会让球悬在格子上沿，用户 11-13 报障）
@@ -129,7 +132,13 @@ namespace WanXiang.Modules.UI
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvasRt, RectTransformUtility.WorldToScreenPoint(null, _btnCapture.transform.position),
                 null, out startLocal);
-            _capturePresenter.Play(o, targetLocal, startLocal);
+            _capturePresenter.Play(o, targetLocal, startLocal, () =>
+            {
+                // ★ 球定格后再消散（用户：消失太快）；并清掉该单位的状态悬浮面板
+                _stage.CaptureVanish(target.RuntimeId);
+                _hoverUnitId = null;
+                HideStatusTip();
+            });
         }
 
         private void CancelCaptureAim()

@@ -33,6 +33,7 @@ namespace WanXiang.Battle.Presentation
         /// <summary>异兽定义 id（如 `b_suren`）。`UnitId` 是运行时 id，查表要用这个。</summary>
         public string DefId;
         public GameObject Root;        // 立绘容器
+        public bool Hidden;            // 被捕获/隐藏：帧更新不得再激活 Root
         public SpriteRenderer Body;    // 立绘
         public SpriteRenderer HpBg;
         public SpriteRenderer HpFill;
@@ -1709,7 +1710,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                     if (v == null) continue;
                 }
                 // 该单位第一次出现在帧流里 = 真的入场了 ， 把（预建但隐藏 / 刚补建的）view 显出来。
-                if (v.Root != null && !v.Root.activeSelf) v.Root.SetActive(true);
+                if (!v.Hidden && v.Root != null && !v.Root.activeSelf) v.Root.SetActive(true);
                 // Boss 机制提示（冰晶期倒数等）：随帧流更新（空串 = 隐藏）
                 // ⛔ 2026-10-26 用户："这个红色机制字不要一直悬浮着，直接删了"
                 //   ⇒ 常驻文本一律清空，只在**变化时**飘一条（见下面的 StateHint 比对）
@@ -3704,7 +3705,38 @@ if (life < 0.2f) life = 0.2f;
         {
             if (string.IsNullOrEmpty(unitId) || _views == null) return;
             if (!_views.TryGetValue(unitId, out var v)) return;
+            v.Hidden = true;                       // ★ 帧更新会无条件重激活 Root，必须标记
             if (v.Root != null) v.Root.SetActive(false);
+            if (v.Head != null) v.Head.gameObject.SetActive(false);
+        }
+
+        /// <summary>被收服：金色爆发 + 立绘淡出 + 延迟隐藏（用户："直接消失太秃"）。</summary>
+        public void CaptureVanish(string unitId)
+        {
+            if (string.IsNullOrEmpty(unitId) || _views == null) return;
+            if (!_views.TryGetValue(unitId, out var v)) return;
+            v.Hidden = true;
+            if (v.Root != null)
+            {
+                var gold = new Color(1f, 0.88f, 0.55f, 1f);
+                BossSkillBurst.Play(v.Root.transform.position, gold, 2.6f, 18, 0.62f, 0);
+                BossSkillBurst.PlayInward(v.Root.transform.position, new Color(1f, 0.95f, 0.8f, 1f), 1.6f, 0.45f);
+                var body = v.Body;
+                if (body != null)
+                {
+                    var startC = body.color;
+                    DG.Tweening.DOTween.To(() => 0f, k =>
+                    {
+                        if (body == null) return;
+                        body.color = new Color(startC.r, startC.g, startC.b, Mathf.Lerp(1f, 0f, k));
+                    }, 1f, 0.5f);
+                    DG.Tweening.DOVirtual.DelayedCall(0.52f, () => { if (v.Root != null) v.Root.SetActive(false); });
+                }
+                else
+                {
+                    DG.Tweening.DOVirtual.DelayedCall(0.5f, () => { if (v.Root != null) v.Root.SetActive(false); });
+                }
+            }
             if (v.Head != null) v.Head.gameObject.SetActive(false);
         }
 

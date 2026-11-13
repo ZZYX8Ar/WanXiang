@@ -41,7 +41,7 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>播一次投球。targetLocal = 目标格在 Canvas 局部坐标里的位置。</summary>
-        public void Play(CaptureOutcome o, Vector2 targetLocal, Vector2 startLocal)
+        public void Play(CaptureOutcome o, Vector2 targetLocal, Vector2 startLocal, System.Action onReveal = null)
         {
             if (_ball == null) return;
             _seq?.Kill();
@@ -89,6 +89,7 @@ namespace WanXiang.Modules.UI
                     _glow.color = new Color(1f, 0.84f, 0.35f, 0.9f);
                     if (_result != null) _result.text = "<color=#B8860B>捕获成功！</color>\n「" + o.Name
                         + "」已收录图鉴　（成功率 " + o.Chance + "% · 消耗 " + o.Cost + " 灵卵）";
+                    onReveal?.Invoke();   // ★ 球定格后才让目标消散（用户：消失太快）
                 });
                 seq.Append(_glow.rectTransform.DOScale(2.1f, 0.46f).SetEase(Ease.OutCubic));
                 seq.Join(_glowGroup.DOFade(1f, 0.10f));

@@ -669,6 +669,27 @@ namespace WanXiang.EditorTools
             UIBuild.BindArr(comp, "_actorSkillBtns", actorSkillBtns);
             UIBuild.Bind(comp, "_btnAutoBattle", bAutoBattle);
 
+            // ---- 左上角遗物栏（2026-11-13，与节点地图同一套 RelicHud）----
+            var relicRoot = new GameObject("Root_Relics", typeof(RectTransform));
+            var rrt = (RectTransform)relicRoot.transform;
+            rrt.SetParent(rt, false);
+            rrt.anchorMin = rrt.anchorMax = new Vector2(0f, 1f);
+            rrt.pivot = new Vector2(0f, 1f);
+            rrt.anchoredPosition = new Vector2(24f, -24f);
+            rrt.sizeDelta = new Vector2(600f, 56f);
+            var rhlg = relicRoot.AddComponent<HorizontalLayoutGroup>();
+            rhlg.spacing = 8f; rhlg.childControlWidth = false; rhlg.childControlHeight = false;
+            rhlg.childForceExpandWidth = false; rhlg.childForceExpandHeight = false;
+            rhlg.childAlignment = TextAnchor.UpperLeft;
+            var relicTpl = new GameObject("Item_Relic", typeof(RectTransform));
+            var trt2 = (RectTransform)relicTpl.transform;
+            trt2.SetParent(rrt, false);
+            trt2.sizeDelta = new Vector2(48f, 48f);
+            var rImg = relicTpl.AddComponent<Image>();
+            rImg.sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/UI/Kit/card_solid.png");
+            rImg.type = Image.Type.Sliced; rImg.color = Color.white; rImg.preserveAspect = true;
+            relicTpl.SetActive(false);
+
             // ---- 战斗内捕获（2026-11-13）：精灵球按钮 + 投球动画节点（默认隐藏）----
             var capGo = UIBuild.MakeBtn(actionBar, "Btn_Capture", new Vector2(1f, 1f),
                 new Vector2(144, 40), new Vector2(-16f, -196f), "捕获", UIBuild.Gold, 18f);   // 不超出底栏
