@@ -191,6 +191,21 @@ namespace WanXiang.Modules.UI
             var cfg = stt != null ? stt.Config : null;
             var stR = _play != null ? _play.State : null;
             var mineR = stR != null ? stR.UnitsOf(WanXiang.Battle.Core.TeamSide.Player) : null;
+            // ★ 捕获按钮：我方阶段 + 有可捕目标 + 有灵卵，否则置灰
+            if (_btnCapture != null)
+            {
+                bool hasFoe = false;
+                var foesR = stR != null ? stR.UnitsOf(WanXiang.Battle.Core.TeamSide.Enemy) : null;
+                if (foesR != null)
+                    for (int fi = 0; fi < foesR.Count; fi++)
+                    {
+                        var f = foesR[fi];
+                        if (f != null && f.IsAlive && f.Def != null
+                            && WanXiang.Battle.Core.CaptureRules.IsCapturable(f.Def)) { hasFoe = true; break; }
+                    }
+                var runR = WanXiang.Run.RunSave.Current;
+                _btnCapture.interactable = canAct && hasFoe && runR != null && runR.Eggs > 0;
+            }
             var selIdB = _play != null ? _play.SelectedActorId : null;
             for (int col = 0; col < 5; col++)
             {

@@ -678,7 +678,7 @@ namespace WanXiang.EditorTools
             var ball = UIBuild.Fixed(rt, "Img_CaptureBall", new Vector2(0.5f, 0.5f),
                 new Vector2(72, 72), Vector2.zero);
             var ballImg = UIBuild.Img(ball, UIBuild.Paper);
-            ballImg.sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/UI/Kit/round_btn.png");
+            ballImg.sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/UI/Kit/capture_ball.png");   // 程序化精灵球
             ballImg.type = Image.Type.Simple;
             ball.gameObject.SetActive(false);
 

@@ -87,6 +87,14 @@ namespace WanXiang.Battle.Core
         /// TickStatuses 在每回合开始时把上一回合的旧盾清掉。0 = 无盾/未记录。</summary>
         public int ShieldTurn;
 
+        /// <summary>被捕获离场：不触发伤害/反击管线，直接判定为不再存活（战斗结算按 IsAlive 过滤）。</summary>
+        public void Retire()
+        {
+            Hp = 0;
+            Shield = 0;
+            if (Statuses != null) Statuses.Clear();
+        }
+
         public bool IsAlive => Hp > 0;
         public float HpPercent => MaxHp <= 0 ? 0f : (float)Hp / MaxHp;
 

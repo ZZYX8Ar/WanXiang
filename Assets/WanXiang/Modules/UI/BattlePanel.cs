@@ -239,6 +239,7 @@ namespace WanXiang.Modules.UI
 
         protected override void OnClose()
         {
+            CancelCaptureAim();
             ClearUnitViews();
             _play = null;
             // ⛔⛔ **必须复位回放闸**（用户实测报障："进入战斗不动了，重新运行才行，其他办法都不行"）：

@@ -40,20 +40,12 @@ namespace WanXiang.Modules.UI
         [BindArray("Tmp_Line_{0}", 4)]
         [SerializeField] private TMP_Text[] _tmpLines;         // 结算明细 4 行
         [SerializeField] private Image _imgEgg;                // Img_RewardEgg 灵卵大图
-        [BindArray("Draft_{0}", 3)]
-        [SerializeField] private Button[] _draftBtns;          // 三选一草稿卡
-        [BindArray("Tmp_DraftName_{0}", 3)]
-        [SerializeField] private TMP_Text[] _tmpDraftNames;    // 草稿名
-        [BindArray("Tmp_DraftDesc_{0}", 3)]
-        [SerializeField] private TMP_Text[] _tmpDraftDescs;    // 草稿描述
-        [SerializeField] private Button _btnSkip;              // Btn_Skip
         [SerializeField] private Button _btnConfirm;           // Btn_Confirm
 
         [Header("美术（由生成器自动绑定）")]
         [SerializeField] private Sprite _spriteWin;
         [SerializeField] private Sprite _spriteLose;
 
-        private int _selectedDraft = -1;
         private bool _win;      // 本场胜负（结算奖励用）
         private bool _isDraw;   // ★ 平局（回合上限打满）—— 按"撤退"处理：本局继续、节点不推进
         private int _eggGain = 1;   // 胜利灵卵奖励（受当前节点天时影响，默认 +1）
@@ -65,17 +57,8 @@ namespace WanXiang.Modules.UI
         private int _dropEssence;            // 精魄掉落数（0 = 未掉落）
         [SerializeField] private TMP_Text _tmpDrops;   // Tmp_Drops（prefab 节点，两个按钮之间的空档）
 
-        /// <summary>本场胜利随机抽出的 3 个遗物（三选一）。null = 非胜利（无奖励）。</summary>
-        private System.Collections.Generic.List<RelicDef> _offered;
-
         protected override void OnCreate()
         {
-            for (int i = 0; i < _draftBtns.Length; i++)
-            {
-                var idx = i;
-                if (_draftBtns[i] != null) _draftBtns[i].onClick.AddListener(() => OnDraftClicked(idx));
-            }
-            if (_btnSkip != null) _btnSkip.onClick.AddListener(OnSkipClicked);
             if (_btnConfirm != null) _btnConfirm.onClick.AddListener(OnConfirmClicked);
         }
 
@@ -85,7 +68,6 @@ namespace WanXiang.Modules.UI
             bool win = req != null && req.Win;
             _win = win;
             _isDraw = req != null && req.Draw;   // ★ 平局（回合上限打满）
-            _selectedDraft = -1;
             // ★ 天气地图效果层：胜利灵卵奖励受当前节点天时影响（LiveWeather.Current 为 null ， ×1 ， +1）。
             _eggGain = win
                 ? System.Math.Max(0, (int)System.Math.Round(WanXiang.Campaign.WeatherMapEffects.Current.EggRewardMul))
@@ -145,9 +127,7 @@ namespace WanXiang.Modules.UI
             //   结算面板里的三选一卡片整组隐藏，确认按钮直接可点。
             var draftsRoot = transform.Find("Root_Drafts") ?? transform.Find("Root_Detail/Root_Drafts");
             if (draftsRoot != null) draftsRoot.gameObject.SetActive(false);
-            _offered = null;
             if (_btnConfirm != null) _btnConfirm.interactable = true;
-            if (_btnSkip != null) _btnSkip.interactable = false;
 
 
             // ★ 结算面板本身没有全屏底图 ⇒ 地图会透过来，观感像"半透明幽灵面板"。
@@ -300,232 +280,12 @@ namespace WanXiang.Modules.UI
         /// 结果面板的三选一：与 RelicPanel 同款 —— 横排三卡、从上落下、悬浮金框+上浮。
         /// ⛔ 只改运行时 rect/子节点，不碰 prefab。
         /// </summary>
-        private RectTransform FindDraftsRoot()
-        {
-            foreach (var rt in GetComponentsInChildren<RectTransform>(true))
-                if (rt.name == "Root_Drafts") return rt;
-            return null;
-        }
-
-        private void ApplyThreeChoiceLayout()
-        {
-            // ★ 2026-10-21 用户最终要求：三选一就在**结果面板里**（Root_Drafts 的那三张卡），
-            //   不要另开遗物面板、也不要把 Root_Drafts 关掉。这里把卡片按遗物面板的规格重建：
-            //   图标 + 名字 + 描述 + 落卡动画 + 悬浮金框。
-            var hoverSp = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/card_hover");
-            var relicSprites = RelicSpriteCatalog.Find();   // 与 RelicPanel 同一套图标
-            var kitCard = UnityEngine.Resources.Load<UnityEngine.Sprite>("UI/Kit/panel_dialog");
-            var xs = new[] { -250f, 0f, 250f };
-
-            // ★★ 2026-10-20 真因：三张卡挂在 Root_Drafts 下，而它带着 **HorizontalLayoutGroup** ——
-            //   卡片没有优选尺寸 ⇒ 布局组把它们算成 0×0 ⇒ 永远看不见（我之前的尺寸设置被布局组覆盖）。
-            //   修：关掉布局组，容器改成手动定位。
-            // ⛔ 2026-10-21 真因（运行期实测）：卡片实际挂在
-            //   Panel_Result > Root_Rewards > Root_Drafts > Draft_0..2，
-            //   而这里原来硬编码找 "Root_Detail/Root_Drafts" ⇒ 找不到 → 整段布局被跳过，
-            //   卡片留在 prefab 默认的 y=1361（屏幕外上方）⇒ 玩家永远看不到三选一。
-            //   改为**按名字递归找**，不依赖层级路径。
-            RectTransform draftsRoot = null;
-            foreach (var rt in GetComponentsInChildren<RectTransform>(true))
-                if (rt.name == "Root_Drafts") { draftsRoot = rt; break; }
-            if (draftsRoot != null)
-            {
-                // ⛔ 2026-10-21 真因（Play 实测）：Root_Drafts 自己的 activeSelf 是 true，
-                //   但它的父级 **Root_Rewards 在预制体里默认是关闭的** ⇒ 整个子树隐藏，
-                //   编辑器里看着"灰的"，游戏里一张卡都没有。必须**逐级把父链打开**。
-                var pUp = draftsRoot;
-                while (pUp != null && pUp != transform)
-                {
-                    if (!pUp.gameObject.activeSelf) pUp.gameObject.SetActive(true);
-                    pUp = pUp.parent as RectTransform;
-                }
-                draftsRoot.gameObject.SetActive(true);
-            }
-            Debug.Log("[ResultPanel] 三选一布局开始：offered=" + (_offered != null ? _offered.Count : -1) +
-                      " draftsRoot=" + (draftsRoot != null ? draftsRoot.name : "null") +
-                      " cards=" + (_draftBtns != null ? _draftBtns.Length : -1));
-            if (draftsRoot != null)
-            {
-                var lg = draftsRoot.GetComponent<HorizontalLayoutGroup>();
-                if (lg != null) lg.enabled = false;
-                // 从 Root_Detail（左栏）挪到**面板中央下方**：卡片要横排铺开，不能压在结算明细上
-                draftsRoot.SetParent(transform, false);
-                draftsRoot.SetAsLastSibling();
-                draftsRoot.anchorMin = draftsRoot.anchorMax = new Vector2(0.5f, 0.5f);
-                draftsRoot.pivot = new Vector2(0.5f, 0.5f);
-                draftsRoot.sizeDelta = new Vector2(1100f, 380f);
-                draftsRoot.anchoredPosition = new Vector2(0f, 205f);   // 中上，且避开左侧结算明细框
-            }
-
-            int offeredCount = _offered != null ? _offered.Count : 0;
-            Debug.Log("[ResultPanel] 三选一：offered=" + offeredCount +
-                      " win=" + _win + " drafts=" + (_draftBtns != null ? _draftBtns.Length : -1) +
-                      " draftsRoot=" + (transform.Find("Root_Drafts") != null || transform.Find("Root_Detail/Root_Drafts") != null));
-            // ★ 2026-10-21 兜底：遗物池被买空（Roll 返回 0）时不能"什么都不给" ——
-            //   改成补偿 3 枚灵卵，并在标题上说明，玩家至少知道发生了什么。
-            if (offeredCount == 0 && _win)
-            {
-                var runF = WanXiang.Run.RunSave.Current;
-                if (runF != null) { runF.Eggs += 3; WanXiang.Run.RunSave.SaveCurrent(); }
-                var tt = transform.Find("Tmp_Title");
-                var tmpT = tt != null ? tt.GetComponent<TMP_Text>() : null;
-                if (tmpT != null) tmpT.text = "战斗胜利 · 遗物已尽（补偿 3 灵卵）";
-            }
-            for (int i = 0; i < _draftBtns.Length; i++)
-            {
-                var btn = _draftBtns[i];
-                if (btn == null) continue;
-                // ★ 三选一卡在 prefab 里是隐藏的，之前一直没人激活 ⇒ 胜利后"看不到三选一"。
-                bool show = i < offeredCount;
-                btn.gameObject.SetActive(show);
-                if (!show) continue;
-                var rt = (RectTransform)btn.transform;
-
-                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-                rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.sizeDelta = new Vector2(230f, 350f);
-                rt.anchoredPosition = new Vector2(xs[i], 0f);
-
-                var bg = btn.targetGraphic as Image;
-                if (bg != null && kitCard != null) { bg.sprite = kitCard; bg.type = Image.Type.Sliced; bg.color = Color.white; }
-
-                // ---- 遗物图标（同 RelicPanel：顶部居中 150×150）----
-                var relic = (_offered != null && i < _offered.Count) ? _offered[i] : null;
-                var sp = (relic != null && relicSprites != null) ? relicSprites.Get(relic.Id) : null;
-                var iconT = rt.Find("Img_DraftIcon") as RectTransform;
-                if (iconT == null) iconT = rt.Find("Img_Icon") as RectTransform;
-                if (iconT == null)
-                {
-                    var go = new GameObject("Img_DraftIcon", typeof(RectTransform), typeof(Image));
-                    iconT = (RectTransform)go.transform;
-                    iconT.SetParent(rt, false);
-                }
-                iconT.SetAsLastSibling();
-                iconT.anchorMin = iconT.anchorMax = new Vector2(0.5f, 0.5f);
-                iconT.pivot = new Vector2(0.5f, 0.5f);
-                iconT.sizeDelta = new Vector2(150f, 150f);
-                iconT.anchoredPosition = new Vector2(0f, 95f);
-                var iconImg = iconT.GetComponent<Image>();
-                if (iconImg == null) iconImg = iconT.gameObject.AddComponent<Image>();
-                iconImg.sprite = sp;
-                iconImg.type = Image.Type.Simple;
-                iconImg.preserveAspect = true;
-                iconImg.raycastTarget = false;
-                iconImg.enabled = sp != null;
-
-                // ---- 名字 / 描述 ----
-                if (i < _tmpDraftNames.Length && _tmpDraftNames[i] != null)
-                {
-                    var nrt = (RectTransform)_tmpDraftNames[i].transform;
-                    nrt.anchorMin = nrt.anchorMax = new Vector2(0.5f, 0.5f);
-                    nrt.pivot = new Vector2(0.5f, 0.5f);
-                    nrt.sizeDelta = new Vector2(220f, 44f);
-                    nrt.anchoredPosition = new Vector2(0f, -10f);
-                    _tmpDraftNames[i].fontSize = 24;
-                    _tmpDraftNames[i].text = relic != null ? relic.Name : "（无）";
-                }
-                if (i < _tmpDraftDescs.Length && _tmpDraftDescs[i] != null)
-                {
-                    var drt = (RectTransform)_tmpDraftDescs[i].transform;
-                    drt.anchorMin = drt.anchorMax = new Vector2(0.5f, 0.5f);
-                    drt.pivot = new Vector2(0.5f, 1f);
-                    drt.sizeDelta = new Vector2(204f, 130f);
-                    drt.anchoredPosition = new Vector2(0f, -40f);
-                    _tmpDraftDescs[i].fontSize = 17;
-                    _tmpDraftDescs[i].text = relic != null ? relic.Desc : "";
-                }
-
-                // 悬浮金框
-                var hoverT = rt.Find("Img_Hover") as RectTransform;
-                if (hoverT == null)
-                {
-                    var hg = new GameObject("Img_Hover", typeof(RectTransform), typeof(Image));
-                    hoverT = (RectTransform)hg.transform;
-                    hoverT.SetParent(rt, false);
-                    var himg = hg.GetComponent<Image>();
-                    himg.sprite = hoverSp; himg.type = Image.Type.Sliced; himg.raycastTarget = false;
-                    hoverT.anchorMin = Vector2.zero; hoverT.anchorMax = Vector2.one;
-                    hoverT.offsetMin = Vector2.zero; hoverT.offsetMax = Vector2.zero;
-                }
-                hoverT.SetAsLastSibling();
-                hoverT.gameObject.SetActive(false);
-                var hoverHome = rt.anchoredPosition;
-
-                var trg = btn.gameObject.GetComponent<UnityEngine.EventSystems.EventTrigger>();
-                if (trg == null) trg = btn.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
-                trg.triggers.Clear();
-                var enter = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter };
-                enter.callback.AddListener(_ =>
-                {
-                    hoverT.gameObject.SetActive(true);
-                    DG.Tweening.DOTween.To(() => rt.anchoredPosition, v => rt.anchoredPosition = v,
-                        hoverHome + new Vector2(0f, 10f), 0.12f).SetEase(DG.Tweening.Ease.OutCubic).SetUpdate(true);
-                });
-                var exit = new UnityEngine.EventSystems.EventTrigger.Entry { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
-                exit.callback.AddListener(_ =>
-                {
-                    hoverT.gameObject.SetActive(false);
-                    DG.Tweening.DOTween.To(() => rt.anchoredPosition, v => rt.anchoredPosition = v,
-                        hoverHome, 0.12f).SetEase(DG.Tweening.Ease.OutCubic).SetUpdate(true);
-                });
-                trg.triggers.Add(enter);
-                trg.triggers.Add(exit);
-
-                // 落卡动画（2026-10-21）：**alpha 不再从 0 开始** ——
-                //   DOTween 一旦被打断/被暂停，alpha 就会永远停在 0（卡片"彻底看不见"）。
-                //   改为：立刻可见，只做位移+缩放；并用协程兜底 0.6s 后强制复位。
-                var cg = btn.GetComponent<CanvasGroup>();
-                if (cg == null) cg = btn.gameObject.AddComponent<CanvasGroup>();
-                cg.alpha = 1f;
-                rt.anchoredPosition = hoverHome + new Vector2(0f, 140f);
-                rt.localScale = Vector3.one * 0.88f;
-                var seq = DG.Tweening.DOTween.Sequence();
-                seq.SetUpdate(true);                       // ★ 不受 timeScale 影响（面板可能压在暂停态上）
-                seq.SetDelay(0.12f + i * 0.14f);
-                seq.Append(rt.DOAnchorPos(hoverHome, 0.48f).SetEase(DG.Tweening.Ease.OutCubic).SetUpdate(true));
-
-                seq.Join(rt.DOScale(Vector3.one, 0.42f).SetEase(DG.Tweening.Ease.OutBack).SetUpdate(true));
-                seq.Append(rt.DOScale(new Vector3(1.04f, 0.96f, 1f), 0.07f).SetUpdate(true));
-                seq.Append(rt.DOScale(Vector3.one, 0.14f).SetEase(DG.Tweening.Ease.OutBack).SetUpdate(true));
-            }
-
-            // ★ 兜底：0.8s（unscaled）后把所有卡片强制归位并置为可见
-        }
-
-        private void RefreshConfirmInteractable()
-        {
-            if (_btnConfirm != null) _btnConfirm.interactable = true;   // 遗物三选一已停用
-        }
-
-        private void OnDraftClicked(int index)
-        {
-            _selectedDraft = index;
-            if (_btnConfirm != null) _btnConfirm.interactable = true;
-            for (int i = 0; i < _draftBtns.Length; i++)
-            {
-                if (_draftBtns[i] == null) continue;
-                var img = _draftBtns[i].targetGraphic as Image;
-                if (img != null)
-                    img.color = (i == index) ? new Color(0.79f, 0.63f, 0.39f, 1f) : Color.white;
-            }
-        }
 
         /// <summary>消费掉"待选奖励"（确认或跳过都算用过了）。</summary>
         /// <summary>结算确认后补开遗物三选一：必须等地图开完，否则会被当"正在关闭"忽略。</summary>
 
-        private void OnSkipClicked()
-        {
-            BackToCampaign();
-        }
-
         private void OnConfirmClicked()
         {
-            // 结构验证版：三选一草稿还不是真实内容，没选也允许继续（选了就记一下）
-            if (_selectedDraft >= 0)
-            {
-                ApplyDraft(_selectedDraft);
-                Debug.Log("[ResultPanel] 已选择奖励 " + (_selectedDraft + 1) + "：" + DraftTitle(_selectedDraft));
-            }
             // ★ 每场战斗结算后刷新历程（一局一条，同局覆盖）。
             //   ⚠ 好友对战跳过：不是"局"，编队来自分享码。
             if (SceneFlow.LastWasPvp)
@@ -712,39 +472,6 @@ private void BackToCampaign()
         // ================================================================
         //  三选一奖励（重设计：遗物三选一，随机、含变强类）
         // ================================================================
-        private string DraftTitle(int i)
-        {
-            if (_offered != null && i >= 0 && i < _offered.Count) return _offered[i].Name;   // i>=0 防越界
-            // 兜底（非胜利不应走到这里）：旧文案保留以不崩 UI
-            return i == 0 ? "灵卵 +2" : (i == 1 ? "全队疗愈" : "威慑");
-        }
-
-        private string DraftDesc(int i)
-        {
-            if (_offered != null && i < _offered.Count) return _offered[i].Desc;
-            return i == 0 ? "立刻获得 2 枚灵卵。" : (i == 1 ? "全队回复 15% 生命。" : "下一场敌方 -5%。");
-        }
-
-        private void ApplyDraft(int i)
-        {
-            var run = WanXiang.Run.RunSave.Current;
-            if (run == null) return;
-            // ★ 遗物：把选中的遗物 id 加进本局 Relics（出战前由 BattleRequestFactory 折叠成战斗增益）。
-            if (_offered != null && i >= 0 && i < _offered.Count)
-            {
-                var relic = _offered[i];
-                if (run.Relics == null) run.Relics = new System.Collections.Generic.List<string>();
-                if (!run.Relics.Contains(relic.Id)) run.Relics.Add(relic.Id);
-                Debug.Log("[ResultPanel] 获得遗物：" + relic.Name + "（" + relic.Id +
-                          "）｜本局遗物 " + run.Relics.Count + " 件");
-            }
-            else
-            {
-                // 兜底（理论上不会触发）：给 2 灵卵
-                run.Eggs += 2;
-            }
-            WanXiang.Run.RunSave.SaveCurrent();
-        }
 
     
         /// <summary>

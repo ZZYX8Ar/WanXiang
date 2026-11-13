@@ -69,7 +69,11 @@ namespace WanXiang.Modules.UI
                 o.Refund = refund;
             }
 
-            if (attempt.Success) CommitCapture(def, run, dao);
+            if (attempt.Success)
+            {
+                CommitCapture(def, run, dao);
+                unit.Retire();   // ★ 收服成功 → 目标退出本场战斗（抓到了还能打是逻辑矛盾）
+            }
             WanXiang.Run.RunSave.SaveCurrent();
             UnityEngine.Debug.Log("[Capture] " + (attempt.Success ? "成功" : "失败") + "：" + def.DisplayName
                 + " 血量=" + hpPct + "% 概率=" + o.Chance + "% 消耗=" + o.Cost + " 返还=" + o.Refund);
