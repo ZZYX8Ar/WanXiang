@@ -39,6 +39,19 @@ namespace WanXiang.Modules.UI
                 _btnCapture.transform as RectTransform);
             _btnCapture.onClick.RemoveAllListeners();
             _btnCapture.onClick.AddListener(ToggleCaptureAim);
+
+            // 悬浮说明：不然玩家不知道点完要再点敌方格子
+            var trg = _btnCapture.gameObject.GetComponent<UnityEngine.EventSystems.EventTrigger>();
+            if (trg == null) trg = _btnCapture.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+            var enter = new UnityEngine.EventSystems.EventTrigger.Entry
+            { eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter };
+            enter.callback.AddListener(_ => ShowHintTip("捕获",
+                "点击后在九宫格选择一只敌方异兽。\n消耗灵卵，目标血量越低成功率越高。\n首领与召唤物不可捕获，失败返还部分灵卵。"));
+            trg.triggers.Add(enter);
+            var exit = new UnityEngine.EventSystems.EventTrigger.Entry
+            { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
+            exit.callback.AddListener(_ => HideSkillTip());
+            trg.triggers.Add(exit);
         }
 
         private void ToggleCaptureAim()
@@ -86,9 +99,12 @@ namespace WanXiang.Modules.UI
             var o = CaptureFlow.TryInBattle(st, WanXiang.Run.RunSave.Current, target);
 
             var canvasRt = transform as RectTransform;
+            // ★ 落点 = **格子中心**（单位头顶锚点会让球悬在格子上沿，用户 11-13 报障）
+            Vector3 cellWorld = target.Pos.IsValid
+                ? _stage.CellWorldCenter(TeamSide.Enemy, target.Pos.Index) : anchor;
             Vector2 targetLocal;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvasRt, cam.WorldToScreenPoint(anchor), null, out targetLocal);
+                canvasRt, cam.WorldToScreenPoint(cellWorld), null, out targetLocal);
             Vector2 startLocal;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvasRt, RectTransformUtility.WorldToScreenPoint(null, _btnCapture.transform.position),

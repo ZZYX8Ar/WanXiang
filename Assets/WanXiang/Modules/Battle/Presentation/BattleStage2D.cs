@@ -3688,6 +3688,13 @@ if (life < 0.2f) life = 0.2f;
         /// 单位枢轴在底部中点、Step 会再加 FootOffset 抬脚 ， 这里先减去它。
         /// 敌方做列镜像（col→2-col）与我方对称；BuildBoard 用同一镜像公式，单位与格子始终对齐。
         /// </summary>
+        /// <summary>格子中心的世界坐标（捕获球落点用；单位头顶锚点不等于格子中心）。</summary>
+        public Vector3 CellWorldCenter(WanXiang.Battle.Core.TeamSide side, int index)
+        {
+            var local = CellPos(side == WanXiang.Battle.Core.TeamSide.Player, index);
+            return transform.TransformPoint(local);
+        }
+
         private static Vector2 CellPos(bool player, int cell)
         {
             int col = cell % 3;

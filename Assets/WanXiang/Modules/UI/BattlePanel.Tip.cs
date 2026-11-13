@@ -399,6 +399,10 @@ namespace WanXiang.Modules.UI
             WanXiang.Battle.Core.BattleSimulator.PreviewTargets(
                 _play.State, u, sk, _previewTargets, out isRandom);
 
+            // ★ 随机目标（随机 1 只 / 随机多段）：PreviewTargets 会把全部敌人塞进候选 →
+            //   高亮成"全体敌人"，玩家以为技能打全体（用户 11-13 报障）。随机就不画格子。
+            if (isRandom) { _stage.HighlightCells(null, null); return; }
+
             _previewAllyCells.Clear();
             _previewFoeCells.Clear();
             for (int i = 0; i < _previewTargets.Count; i++)
@@ -433,6 +437,21 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>淡出并收起。</summary>
+        /// <summary>给任意按钮挂通用说明（不读技能数据；用于捕获按钮等）。</summary>
+        public void ShowHintTip(string title, string body)
+        {
+            if (_tipPanel == null) return;
+            _tipText.text = "<size=26><b>" + title + "</b></size>\n" + body;
+            _tipPanel.sizeDelta = new Vector2(430f, _tipPanel.sizeDelta.y);
+            _tipPanel.gameObject.SetActive(true);
+            _tipPanel.SetAsLastSibling();
+            _tipPanel.localScale = Vector3.one;
+            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(_tipPanel);
+            _tipTween?.Kill();
+            if (_tipGroup != null) _tipGroup.alpha = 1f;
+            PlaceTipNearMouse();
+        }
+
         private void HideSkillTip()
         {
             // 收起提示 = 同时取消九宫格高亮

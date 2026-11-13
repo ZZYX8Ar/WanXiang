@@ -288,14 +288,16 @@ namespace WanXiang.Modules.UI
                                       WanXiang.Battle.Core.StatusCatalog.ArmorBreak };
                     var srng = new WanXiang.Battle.Core.DeterministicRandom(
                         WanXiang.Battle.Core.CoreMath.Fnv1a("inspire-status:" + State.Random.Seed));
-                    var mine = State.UnitsOf(TeamSide.Player);
-                    for (int i = 0; mine != null && i < mine.Count; i++)
+                    // ★ 2026-11-13：原来给**我方**全体挂 Burn/Poison/ArmorBreak —— 玩家视角就是
+                    //   "开局莫名其妙吃 debuff"（用户报障）。「蓄势」应是开场压制 → 改挂敌方。
+                    var foes = State.UnitsOf(TeamSide.Enemy);
+                    for (int i = 0; foes != null && i < foes.Count; i++)
                     {
-                        var u = mine[i];
+                        var u = foes[i];
                         if (u == null || !u.IsAlive) continue;
                         u.ApplyStatus(pool[srng.NextInt(0, pool.Length)], 1, 2);
                     }
-                    UnityEngine.Debug.Log("[Battle] 灵感「蓄势」：全体开局 1 层随机附着");
+                    UnityEngine.Debug.Log("[Battle] 灵感「蓄势」：敌方开局 1 层随机附着");
                 }
             }
             catch { }

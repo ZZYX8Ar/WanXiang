@@ -22,6 +22,7 @@ namespace WanXiang.Modules.UI
         private readonly CanvasGroup _ballGroup;
         private readonly CanvasGroup _glowGroup;
         private readonly CanvasGroup _resultGroup;
+        private readonly Material _glowMat;      // CaptureBurst 材质实例（_Progress 驱动）
         private Sequence _seq;
 
         public BattleCapturePresenter(RectTransform ball, Image glow, TMP_Text result, RectTransform button)
@@ -31,6 +32,12 @@ namespace WanXiang.Modules.UI
             _ballGroup = ball != null ? (ball.GetComponent<CanvasGroup>() ?? ball.gameObject.AddComponent<CanvasGroup>()) : null;
             _glowGroup = glow != null ? (glow.GetComponent<CanvasGroup>() ?? glow.gameObject.AddComponent<CanvasGroup>()) : null;
             _resultGroup = result != null ? (result.GetComponent<CanvasGroup>() ?? result.gameObject.AddComponent<CanvasGroup>()) : null;
+            // 光圈材质实例化一份（避免污染共享材质，多个面板/多场战斗互不影响）
+            if (glow != null && glow.material != null && glow.material.shader != null)
+            {
+                _glowMat = new Material(glow.material);
+                glow.material = _glowMat;
+            }
         }
 
         /// <summary>播一次投球。targetLocal = 目标格在 Canvas 局部坐标里的位置。</summary>
@@ -48,6 +55,7 @@ namespace WanXiang.Modules.UI
             if (_resultGroup != null) _resultGroup.alpha = 0f;
             _glow.rectTransform.anchoredPosition = targetLocal;
             _glow.rectTransform.localScale = Vector3.one * 0.3f;
+            if (_glowMat != null && _glowMat.HasProperty("_Progress")) _glowMat.SetFloat("_Progress", 0f);
 
             // ① 弧线投掷（自定义插值：直线 + sin 抬高）
             var seq = DOTween.Sequence();
@@ -82,9 +90,12 @@ namespace WanXiang.Modules.UI
                     if (_result != null) _result.text = "<color=#B8860B>捕获成功！</color>\n「" + o.Name
                         + "」已收录图鉴　（成功率 " + o.Chance + "% · 消耗 " + o.Cost + " 灵卵）";
                 });
-                seq.Append(_glow.rectTransform.DOScale(1.8f, 0.42f).SetEase(Ease.OutCubic));
-                seq.Join(_glowGroup.DOFade(1f, 0.14f));
-                seq.Join(_glowGroup.DOFade(0f, 0.45f).SetDelay(0.2f));
+                seq.Append(_glow.rectTransform.DOScale(2.1f, 0.46f).SetEase(Ease.OutCubic));
+                seq.Join(_glowGroup.DOFade(1f, 0.10f));
+                if (_glowMat != null && _glowMat.HasProperty("_Progress"))
+                    seq.Join(DOTween.To(() => _glowMat.GetFloat("_Progress"),
+                                        v => _glowMat.SetFloat("_Progress", v), 1f, 0.46f));
+                seq.Join(_glowGroup.DOFade(0f, 0.32f).SetDelay(0.30f));
                 seq.Join(_resultGroup.DOFade(1f, 0.18f));
             }
             else
@@ -95,22 +106,34 @@ namespace WanXiang.Modules.UI
                     _glow.color = new Color(0.88f, 0.35f, 0.30f, 0.85f);
                     if (_result != null) _result.text = "<color=#A33A2D>捕获失败</color>\n" + why;
                 });
-                seq.Append(_glow.rectTransform.DOScale(1.5f, 0.30f));
-                seq.Join(_glowGroup.DOFade(1f, 0.12f));
-                seq.Join(_glowGroup.DOFade(0f, 0.35f).SetDelay(0.15f));
+                seq.Append(_glow.rectTransform.DOScale(1.5f, 0.34f));
+                seq.Join(_glowGroup.DOFade(1f, 0.10f));
+                if (_glowMat != null && _glowMat.HasProperty("_Progress"))
+                    seq.Join(DOTween.To(() => _glowMat.GetFloat("_Progress"),
+                                        v => _glowMat.SetFloat("_Progress", v), 1f, 0.34f));
+                seq.Join(_glowGroup.DOFade(0f, 0.30f).SetDelay(0.16f));
                 seq.Join(_resultGroup.DOFade(1f, 0.18f));
-                seq.Join(_ball.DOAnchorPos(startLocal, 0.32f).SetDelay(0.1f).SetEase(Ease.InQuad));
+                // 失败：球原地弹跳一下后消散（飞回按钮会导致"球残留在按钮旁边"，用户 11-13 报障）
+                seq.Join(_ball.DOPunchPosition(new Vector3(0f, 18f, 0f), 0.28f, 6, 0.6f));
             }
 
             // 收尾：结果文字停留 1.8s 后淡出，球隐藏
             if (_resultGroup != null) seq.Append(_resultGroup.DOFade(0f, 0.35f).SetDelay(1.8f));
             if (_ballGroup != null) seq.Append(_ballGroup.DOFade(0f, 0.22f));
-            seq.AppendCallback(() =>
+            seq.OnComplete(() =>
             {
+                // 兜底：任何分支 Killed/Completed 都强制收干净，避免球残留在按钮旁
                 _ball.gameObject.SetActive(false);
                 if (_glow != null) _glow.gameObject.SetActive(false);
                 if (_result != null) _result.gameObject.SetActive(false);
                 _ball.localRotation = Quaternion.identity;
+                if (_ballGroup != null) _ballGroup.alpha = 1f;
+            });
+            seq.OnKill(() =>
+            {
+                _ball.gameObject.SetActive(false);
+                if (_glow != null) _glow.gameObject.SetActive(false);
+                if (_result != null) _result.gameObject.SetActive(false);
             });
             _seq = seq;
         }
