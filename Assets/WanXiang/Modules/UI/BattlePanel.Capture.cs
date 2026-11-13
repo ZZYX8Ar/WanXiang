@@ -23,6 +23,7 @@ namespace WanXiang.Modules.UI
         private TMP_Text _captureResult;
         private BattleCapturePresenter _capturePresenter;
         private bool _captureAiming;
+        private bool _captureTipShown;
 
         private void InitCapture()
         {
@@ -40,18 +41,6 @@ namespace WanXiang.Modules.UI
             _btnCapture.onClick.RemoveAllListeners();
             _btnCapture.onClick.AddListener(ToggleCaptureAim);
 
-            // 悬浮说明：不然玩家不知道点完要再点敌方格子
-            var trg = _btnCapture.gameObject.GetComponent<UnityEngine.EventSystems.EventTrigger>();
-            if (trg == null) trg = _btnCapture.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
-            var enter = new UnityEngine.EventSystems.EventTrigger.Entry
-            { eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter };
-            enter.callback.AddListener(_ => ShowHintTip("捕获",
-                "点击后在九宫格选择一只敌方异兽。\n消耗灵卵，目标血量越低成功率越高。\n首领与召唤物不可捕获，失败返还部分灵卵。"));
-            trg.triggers.Add(enter);
-            var exit = new UnityEngine.EventSystems.EventTrigger.Entry
-            { eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit };
-            exit.callback.AddListener(_ => HideSkillTip());
-            trg.triggers.Add(exit);
         }
 
         private void ToggleCaptureAim()
@@ -70,7 +59,36 @@ namespace WanXiang.Modules.UI
                         && f.Pos.IsValid) cells.Add(f.Pos.Index);
                 }
             _stage?.HighlightCells(null, cells);
-            if (cells.Count == 0) { _captureAiming = false; Debug.Log("[Capture] 本场没有可捕获目标"); }
+            if (cells.Count == 0)
+            {
+                _captureAiming = false;
+                var runNow = WanXiang.Run.RunSave.Current;
+                string why = runNow != null && runNow.Eggs <= 0
+                    ? "灵卵不足，无法捕获"
+                    : "当前没有可捕获的目标\n（首领与召唤物不可捕获）";
+                _capturePresenter?.ShowHint(why);
+                Debug.Log("[Capture] 无法进入捕获：" + why);
+            }
+        }
+
+        /// <summary>每帧：鼠标悬停捕获按钮 → 显示说明（轮询比 EventTrigger 可靠）。</summary>
+        private void PollCaptureHover()
+        {
+            if (_btnCapture == null) return;
+            var rt = _btnCapture.transform as RectTransform;
+            if (rt == null) return;
+            bool over = RectTransformUtility.RectangleContainsScreenPoint(rt, Input.mousePosition, null);
+            if (over && !_captureTipShown)
+            {
+                _captureTipShown = true;
+                ShowHintTip("捕获",
+                    "点击后在九宫格选择一只敌方异兽。\n消耗灵卵，目标血量越低成功率越高。\n首领与召唤物不可捕获，失败返还部分灵卵。");
+            }
+            else if (!over && _captureTipShown)
+            {
+                _captureTipShown = false;
+                HideSkillTip();
+            }
         }
 
         /// <summary>每帧：瞄准中且点了敌方格 → 投球。</summary>

@@ -673,7 +673,7 @@ namespace WanXiang.EditorTools
             var capGo = UIBuild.MakeBtn(actionBar, "Btn_Capture", new Vector2(1f, 1f),
                 new Vector2(144, 40), new Vector2(-16f, -196f), "捕获", UIBuild.Gold, 18f);   // 不超出底栏
             ((RectTransform)capGo.transform).pivot = new Vector2(1f, 1f);
-            capGo.GetComponent<Image>().sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/UI/Kit/btn_secondary.png");
+            capGo.GetComponent<Image>().sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/UI/Kit/btn_primary.png");   // 主按钮亮色，别用灰纸片
 
             var ball = UIBuild.Fixed(rt, "Img_CaptureBall", new Vector2(0.5f, 0.5f),
                 new Vector2(72, 72), Vector2.zero);

@@ -138,6 +138,26 @@ namespace WanXiang.Modules.UI
             _seq = seq;
         }
 
+        /// <summary>只弹结果文字（用于"没有可捕目标/灵卵不足"这类前置提示）。</summary>
+        public void ShowHint(string text)
+        {
+            if (_result == null) return;
+            _seq?.Kill();
+            _result.gameObject.SetActive(true);
+            _result.transform.SetAsLastSibling();
+            _result.text = "<color=#A33A2D>" + text + "</color>";
+            if (_resultGroup != null) _resultGroup.alpha = 1f;
+            var rt = _result.rectTransform;
+            rt.anchoredPosition = new Vector2(0f, 180f);
+            _result.gameObject.SetActive(true);
+            if (_ball != null) _ball.gameObject.SetActive(false);
+            if (_glow != null) _glow.gameObject.SetActive(false);
+            _seq = DOTween.Sequence();
+            _seq.AppendInterval(1.8f);
+            if (_resultGroup != null) _seq.Append(_resultGroup.DOFade(0f, 0.3f));
+            _seq.OnComplete(() => { if (_result != null) _result.gameObject.SetActive(false); });
+        }
+
         public void Cancel()
         {
             _seq?.Kill();

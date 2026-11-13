@@ -403,6 +403,7 @@ namespace WanXiang.Modules.UI
 
             // ★ 悬停棋盘上的异兽 → 状态列表（用户定案：触发走世界空间，鼠标直接指单位）
             UpdateUnitStatusHover();
+            PollCaptureHover();
             PollCaptureClick();
 
             if (!_playing) return;

@@ -2190,8 +2190,17 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
                 case BattleEventKind.TurnStart:
                     _actingId = null;
                     _turnNo = e.Turn;
-                    // 回合开始即出现（时机正确）：统一文案 + 我方色（阶段制下回合必从我方开始）
-                    ShowTurnBanner(e.Turn, "第 " + e.Turn + " 回合 · 我方回合", TbColPlayer);
+                    // 回合数只记录；横幅交给阶段事件（我方/敌方各一次，时机正确）
+                    break;
+
+                case BattleEventKind.PlayerPhaseStart:
+                    ShowTurnBanner(e.Turn > 0 ? e.Turn : _turnNo,
+                        "第 " + (e.Turn > 0 ? e.Turn : _turnNo) + " 回合 · 我方回合", TbColPlayer);
+                    break;
+
+                case BattleEventKind.EnemyPhaseStart:
+                    ShowTurnBanner(e.Turn > 0 ? e.Turn : _turnNo,
+                        "第 " + (e.Turn > 0 ? e.Turn : _turnNo) + " 回合 · 敌方回合", TbColEnemy);
                     break;
 
                 case BattleEventKind.BattleEnd:
