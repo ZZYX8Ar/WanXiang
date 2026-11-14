@@ -128,6 +128,12 @@ namespace WanXiang.Campaign
 
         /// <summary>歇脚（11-14）：非战斗，全队回复 25% 生命或取 1 灵卵。</summary>
         Respite = 18,
+
+        /// <summary>命运所指（11-14）：以代价换本局增益的二选一。</summary>
+        Crossroad = 19,
+
+        /// <summary>博戏（11-14）：投灵卵按确定性随机表赌收益。</summary>
+        Gamble = 20,
     }
 
     public static class NodeKinds
@@ -154,6 +160,8 @@ namespace WanXiang.Campaign
                 case NodeKind.Elite: return "精英";
                 case NodeKind.Urgent: return "险路";
                 case NodeKind.Respite: return "歇脚";
+                case NodeKind.Crossroad: return "岔路";
+                case NodeKind.Gamble: return "博戏";
                 case NodeKind.Shop: return "市集";
                 case NodeKind.Nest: return "休整";
                 case NodeKind.Tale: return "奇遇";   // 2026-11-01：异闻改为事件节点

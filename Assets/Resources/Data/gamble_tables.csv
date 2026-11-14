@@ -1,0 +1,4 @@
+tableId,rollMin,rollMax,effect,value,text
+gamble_basic,0,49,GainEggs,3,手气不错：灵卵 +3
+gamble_basic,50,79,HealTeamPct,20,疗愈之风：全队回复 20% 生命
+gamble_basic,80,99,Nothing,0,空手而归（投出去的灵卵收不回来了）

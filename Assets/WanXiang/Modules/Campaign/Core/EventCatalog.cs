@@ -25,6 +25,9 @@ namespace WanXiang.Campaign
         TurnDelta,        // Value = 回合上限变化（正/负）
         TurnLimit,        // Value = 本场"必须在 N 回合内通过"（写成限时，而不是减回合）
         PickEgg,          // 拾一枚灵兽蛋（Value 不用；2 个节点后出壳，见 RunState.EggHatchIn）
+        SpendEggs,        // 代价专用：扣灵卵（Value = 枚数）
+        GrantGrowth,      // 本局永久成长 +Value%（BattleRequestFactory 消费 RunState.GrowthPct）
+        Gamble,           // 按 ScopeId 指向的随机表掷一次（gamble_tables.csv）
     }
 
     public sealed class EventChoice
@@ -32,7 +35,11 @@ namespace WanXiang.Campaign
         public string Text;            // 必须含代价（"扣 10% 全队生命"）
         public EventEffect Effect;
         public int Value;
-        public string ScopeId;         // GrantRelic 用
+        public string ScopeId;         // GrantRelic 用 / Gamble 的随机表 id
+
+        /// <summary>通用代价：先应用 CostEffect，再应用 Effect（文字里必须写清代价）。</summary>
+        public EventEffect CostEffect = EventEffect.Nothing;
+        public int CostValue;
     }
 
     public sealed class EventDef

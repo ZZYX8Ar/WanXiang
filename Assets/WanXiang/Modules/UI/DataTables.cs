@@ -90,6 +90,7 @@ namespace WanXiang.Modules.UI
             LoadMap();
             LoadNodeWeights();
             LoadFloorRules();
+            LoadGambleTables();
             LoadRelics();
             LoadCombos();
             LoadProgression();
@@ -942,6 +943,30 @@ namespace WanXiang.Modules.UI
                     });
                 }
             WanXiang.Campaign.FloorRules.Install(rules, specials);
+        }
+
+        /// <summary>博戏随机结果表（唯一解析层）。</summary>
+        private static void LoadGambleTables()
+        {
+            var rows = Read("gamble_tables", out var header);
+            var list = new System.Collections.Generic.List<WanXiang.Campaign.GambleRow>();
+            if (rows != null)
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    var r = new Row(header, rows[i], "gamble_tables.csv", i + 2, Problems);
+                    if (!System.Enum.TryParse(r.Str("effect"), true, out WanXiang.Campaign.EventEffect eff))
+                    { r.Fail("未知事件效果：" + r.Str("effect")); continue; }
+                    list.Add(new WanXiang.Campaign.GambleRow
+                    {
+                        TableId = r.Str("tableId"),
+                        RollMin = r.Int("rollMin", 0),
+                        RollMax = r.Int("rollMax", 99),
+                        Effect = eff,
+                        Value = r.Int("value", 0),
+                        Text = r.Str("text"),
+                    });
+                }
+            WanXiang.Campaign.GambleTables.Install(list);
         }
 
         private static void LoadRelics()

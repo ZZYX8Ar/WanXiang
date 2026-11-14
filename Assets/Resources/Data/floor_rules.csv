@@ -1,13 +1,13 @@
 act,layer0From,layer0To,minWidth,maxWidth,pool,ruleTitle,ruleText,ruleId
 1,0,5,2,3,Respite|Urgent,前路尚稳,本段事件额外得 1 灵卵,calm_egg
-1,6,11,2,4,Urgent|Respite,瘴气渐起,战斗敌方多 1 随从·胜利灵卵 +1,press_foe
+1,6,11,2,4,Urgent|Respite|Gamble,瘴气渐起,战斗敌方多 1 随从·胜利灵卵 +1,press_foe
 1,12,17,2,3,Urgent|Elite,守关在望,精英更频繁·地图禁疗,hard_noheal
 2,0,5,2,3,Respite|Urgent,火云初起,本段事件额外得 1 灵卵,calm_egg
-2,6,11,2,4,Urgent|Respite,焦原迫近,战斗敌方多 1 随从·胜利灵卵 +1,press_foe
+2,6,11,2,4,Urgent|Respite|Gamble,焦原迫近,战斗敌方多 1 随从·胜利灵卵 +1,press_foe
 2,12,17,2,3,Urgent|Elite,赤地千里,精英更频繁·地图禁疗,hard_noheal
 3,0,5,2,3,Respite|Urgent,金风初至,本段事件额外得 1 灵卵,calm_egg
-3,6,11,2,4,Urgent|Respite,戈壁扬尘,战斗敌方多 1 随从·胜利灵卵 +1,press_foe
+3,6,11,2,4,Urgent|Respite|Gamble,戈壁扬尘,战斗敌方多 1 随从·胜利灵卵 +1,press_foe
 3,12,17,2,3,Urgent|Elite,玉露凝霜,精英更频繁·地图禁疗,hard_noheal
 4,0,5,2,3,Respite|Urgent,寒渊未冻,本段事件额外得 1 灵卵,calm_egg
-4,6,11,2,4,Urgent|Respite,深潜暗涌,战斗敌方多 1 随从·胜利灵卵 +1,press_foe
+4,6,11,2,4,Urgent|Respite|Gamble,深潜暗涌,战斗敌方多 1 随从·胜利灵卵 +1,press_foe
 4,12,17,2,3,Urgent|Elite,北冥将临,精英更频繁·地图禁疗,hard_noheal

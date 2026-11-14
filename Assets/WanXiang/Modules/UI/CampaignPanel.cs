@@ -2448,6 +2448,10 @@ if (_tmpActTitle != null)
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Relic, _ => OpenPanelAsync<RelicPanel>(_current).Forget());
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Nest, r => NestChoose(r));
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Respite, r => NestChoose(r));   // 歇脚：复用扎营二选一
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Crossroad,
+                r => WanXiang.Modules.UI.TalePanel.OpenEvent(BuildCrossroadEvent(), null));
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Gamble,
+                r => WanXiang.Modules.UI.TalePanel.OpenEvent(BuildGambleEvent(), null));
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Tale, r => RunTaleNode(r));
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Forge, r => RunForgeNode(r));
         }
@@ -2846,6 +2850,56 @@ if (_tmpActTitle != null)
         /// 休整事件的数据。拆成静态方法是为了能在编辑器里直接验文案/选项数，
         /// 不用真的在节点图上走到一个「休整」（地图是种子生成的，很难点中）。
         /// </summary>
+        /// <summary>命运所指：代价换本局增益（通用 CostEffect + GrantGrowth，表驱动）。</summary>
+        internal static WanXiang.Campaign.EventDef BuildCrossroadEvent()
+        {
+            return new WanXiang.Campaign.EventDef
+            {
+                Id = "ev_node_crossroad",
+                Title = "命运所指",
+                Story = "两条路在此分开。一条要你留下点什么，另一条只给你安稳。",
+                Choices = new[]
+                {
+                    new WanXiang.Campaign.EventChoice
+                    {
+                        Text = "折损 20% 当前生命，换本局全队 +15% 攻击（永久成长）",
+                        CostEffect = WanXiang.Campaign.EventEffect.DamageTeamPct, CostValue = 20,
+                        Effect = WanXiang.Campaign.EventEffect.GrantGrowth, Value = 15,
+                    },
+                    new WanXiang.Campaign.EventChoice
+                    {
+                        Text = "稳妥通过：得 2 灵卵",
+                        Effect = WanXiang.Campaign.EventEffect.GainEggs, Value = 2,
+                    },
+                }
+            };
+        }
+
+        /// <summary>博戏：投 1 灵卵，按 gamble_tables.csv 确定性掷一次。</summary>
+        internal static WanXiang.Campaign.EventDef BuildGambleEvent()
+        {
+            return new WanXiang.Campaign.EventDef
+            {
+                Id = "ev_node_gamble",
+                Title = "博戏",
+                Story = "路边的摊主把三只碗扣在桌上。押一枚灵卵，翻开才知道是什么。",
+                Choices = new[]
+                {
+                    new WanXiang.Campaign.EventChoice
+                    {
+                        Text = "投 1 灵卵试试手气（50% +3 灵卵 / 30% 全队回血 20% / 20% 空手）",
+                        CostEffect = WanXiang.Campaign.EventEffect.SpendEggs, CostValue = 1,
+                        Effect = WanXiang.Campaign.EventEffect.Gamble, ScopeId = "gamble_basic",
+                    },
+                    new WanXiang.Campaign.EventChoice
+                    {
+                        Text = "不赌，安然路过",
+                        Effect = WanXiang.Campaign.EventEffect.Nothing,
+                    },
+                }
+            };
+        }
+
         internal static WanXiang.Campaign.EventDef BuildRestEvent(int healPct, bool eggIncubating)
         {
             string healText = healPct > 0

@@ -13,6 +13,27 @@ namespace WanXiang.Modules.UI
     public static class CampaignEventRuntime
     {
         /// <summary>应用一个选项，返回给玩家看的结果摘要（可直接显示在事件面板上）。</summary>
+        /// <summary>先应用选项代价；返回可读文案（无代价 = 空串）。</summary>
+        private static string ApplyCost(WanXiang.Run.RunState run, WanXiang.Campaign.EventChoice c)
+        {
+            if (c == null || c.CostEffect == WanXiang.Campaign.EventEffect.Nothing) return "";
+            switch (c.CostEffect)
+            {
+                case WanXiang.Campaign.EventEffect.SpendEggs:
+                {
+                    int pay = System.Math.Min(run.Eggs, System.Math.Max(0, c.CostValue));
+                    run.Eggs -= pay;
+                    return "付出 " + pay + " 灵卵。";
+                }
+                case WanXiang.Campaign.EventEffect.DamageTeamPct:
+                {
+                    int n = DamageTeam(run, c.CostValue);
+                    return "全队 -" + c.CostValue + "% 生命（" + n + " 只）。";
+                }
+                default: return "";
+            }
+        }
+
         public static string Apply(EventDef ev, int choiceIndex)
         {
             var run = RunSave.Current;
@@ -21,10 +42,34 @@ namespace WanXiang.Modules.UI
             if (choiceIndex < 0 || choiceIndex >= ev.Choices.Length) return "（无效选项）";
 
             var c = ev.Choices[choiceIndex];
+            string costMsg = ApplyCost(run, c);   // ★ 通用代价：先扣，再发收益（选项文字必须写清）
             switch (c.Effect)
             {
                 case EventEffect.Nothing:
-                    return "什么都没发生。";
+                    return costMsg + "什么都没发生。";
+
+                case EventEffect.GrantGrowth:
+                    run.GrowthPct += System.Math.Max(0, c.Value);
+                    WanXiang.Run.RunSave.SaveCurrent();
+                    return costMsg + "本局全队攻击 +" + c.Value + "%（永久成长，战斗立即生效）";
+
+                case EventEffect.Gamble:
+                {
+                    var rng = new WanXiang.Battle.Core.DeterministicRandom(
+                        WanXiang.Battle.Core.CoreMath.Fnv1a(
+                            "gamble:" + run.RunSeed + ":" + run.NodeOffset + ":" + c.ScopeId));
+                    var row = WanXiang.Campaign.GambleTables.Roll(c.ScopeId, rng);
+                    if (row == null)
+                        return costMsg + "（赌局表缺失，本次空手 —— 请检查 gamble_tables.csv）";
+                    switch (row.Effect)
+                    {
+                        case WanXiang.Campaign.EventEffect.GainEggs: run.AddRewardEggs(row.Value); break;
+                        case WanXiang.Campaign.EventEffect.HealTeamPct: HealTeam(run, row.Value); break;
+                        case WanXiang.Campaign.EventEffect.GrantGrowth: run.GrowthPct += row.Value; break;
+                    }
+                    WanXiang.Run.RunSave.SaveCurrent();
+                    return costMsg + row.Text;
+                }
 
                 case EventEffect.GainExp:
                 {
