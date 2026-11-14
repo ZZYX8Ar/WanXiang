@@ -35,7 +35,10 @@ namespace WanXiang.EditorTools
 
             TMP_FontAsset font = null;
             foreach (var t in root.GetComponentsInChildren<TMP_Text>(true)) { if (t.font != null) { font = t.font; break; } }
-            var toggleTemplate = root.transform.Find("Tgl_Fullscreen") as RectTransform;
+            var toggleTemplate = (root.transform.Find("Root_Video/Tgl_Fullscreen")
+                                  ?? root.transform.Find("Tgl_Fullscreen")) as RectTransform;
+            if (toggleTemplate == null)
+                Debug.LogWarning("[SettingsTool] 找不到 Tgl_Fullscreen 模板：新行会建无美术的裸 Toggle");
             var btnSprite = AssetDatabase.LoadAssetAtPath<Sprite>(Kit + "btn_secondary.png");
             var btnSpriteAlt = AssetDatabase.LoadAssetAtPath<Sprite>(Kit + "btn_primary.png");
 
@@ -66,16 +69,20 @@ namespace WanXiang.EditorTools
             }
 
             // ---- 战斗页 / 存档页（克隆 Root_Audio 的矩形，清空孩子后重建行）----
+            // 通栏风格：内容页统一 高 560（原 Root_Video 只有 40 高，会把 Toggle 挤成竖排）
+            SetPageRect(root.transform, "Root_Video", new Vector2(0f, 285f), new Vector2(-80f, -600f));
+            SetPageRect(root.transform, "Root_Keybinds", new Vector2(0f, 60f), new Vector2(-80f, -620f));
             var battlePage = EnsurePage(root.transform, "Root_Battle", (RectTransform)audio);
+            SetPageRect(root.transform, "Root_Battle", new Vector2(0f, 130f), new Vector2(-80f, -560f));
             RebuildBattlePage(battlePage, font, toggleTemplate, btnSpriteAlt);
             var savePage = EnsurePage(root.transform, "Root_Save", (RectTransform)audio);
+            SetPageRect(root.transform, "Root_Save", new Vector2(0f, 130f), new Vector2(-80f, -560f));
             RebuildSavePage(savePage, font, btnSpriteAlt);
 
             // ---- 音频页加静音行 ----
-            Toggle muteTgl = null;
-            var muteRow = audio.Find("Row_Mute");
-            if (muteRow == null) muteTgl = MakeToggleRow(audio, "Row_Mute", "静音", font, toggleTemplate, out _);
-            else muteTgl = muteRow.Find("Tgl_Mute")?.GetComponent<Toggle>();
+            Toggle muteTgl = FindToggle(audio, "Tgl_Mute");
+            if (muteTgl == null)
+                muteTgl = MakeToggleRow(audio, "Row_Mute", "静音", font, toggleTemplate, out _, "Tgl_Mute");
 
             // ---- 页面提示文本 ----
             var hint = root.transform.Find("Tmp_PageHint") as RectTransform;
@@ -179,6 +186,14 @@ namespace WanXiang.EditorTools
             return t;
         }
 
+        private static void SetPageRect(Transform parent, string name, Vector2 pos, Vector2 size)
+        {
+            var t = parent.Find(name) as RectTransform;
+            if (t == null) return;
+            t.anchorMin = Vector2.zero; t.anchorMax = Vector2.one; t.pivot = new Vector2(0.5f, 0.5f);
+            t.anchoredPosition = pos; t.sizeDelta = size;
+        }
+
         private static RectTransform EnsurePage(Transform parent, string name, RectTransform template)
         {
             var t = parent.Find(name) as RectTransform;
@@ -195,15 +210,15 @@ namespace WanXiang.EditorTools
         private static void RebuildBattlePage(RectTransform page, TMP_FontAsset font,
                                               RectTransform toggleTemplate, Sprite btnSprite)
         {
-            if (page.Find("Tgl_AutoBattle") != null) return;   // 已补过
+            if (FindToggle(page, "Tgl_AutoBattle") != null) return;   // 已补过（按 Toggle 判断，行存在不算）
             MakeToggleRow(page, "Row_AutoBattle", "每局开始自动战斗", font, toggleTemplate, out _, "Tgl_AutoBattle");
             MakeToggleRow(page, "Row_CutIn", "技能特写演出", font, toggleTemplate, out _, "Tgl_CutIn");
             MakeToggleRow(page, "Row_DamageNum", "伤害飘字", font, toggleTemplate, out _, "Tgl_DamageNum");
             MakeToggleRow(page, "Row_Shake", "屏幕震动", font, toggleTemplate, out _, "Tgl_Shake");
             MakeToggleRow(page, "Row_Tooltip", "战斗内提示气泡", font, toggleTemplate, out _, "Tgl_Tooltip");
             // 速度三连
-            var row = EnsureNode(page, "Row_Speed", new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(16f, -6f - 5 * 68f), new Vector2(560f, 56f));
+            var row = EnsureNode(page, "Row_Speed", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 0.5f), new Vector2(0f, -35f - 5 * 70f), new Vector2(-60f, 66f));
             var lab = MakeText(row, "Tmp_Label", "战斗速度", font, 22, new Color(0.22f, 0.18f, 0.14f, 1f));
             lab.alignment = TextAlignmentOptions.Left;
             lab.rectTransform.anchorMin = new Vector2(0f, 0f); lab.rectTransform.anchorMax = new Vector2(0f, 1f);
@@ -214,22 +229,23 @@ namespace WanXiang.EditorTools
             for (int i = 0; i < names.Length; i++)
             {
                 var b = MakeButton(row, keys[i], names[i], font, btnSprite);
-                b.GetComponent<RectTransform>().anchorMin = b.GetComponent<RectTransform>().anchorMax = new Vector2(0f, 0.5f);
-                b.GetComponent<RectTransform>().pivot = new Vector2(0f, 0.5f);
-                b.GetComponent<RectTransform>().sizeDelta = new Vector2(96f, 44f);
-                b.GetComponent<RectTransform>().anchoredPosition = new Vector2(210f + i * 108f, 0f);
+                var brt2 = b.GetComponent<RectTransform>();
+                brt2.anchorMin = brt2.anchorMax = new Vector2(1f, 0.5f);
+                brt2.pivot = new Vector2(1f, 0.5f);
+                brt2.sizeDelta = new Vector2(120f, 50f);
+                brt2.anchoredPosition = new Vector2(-24f - (names.Length - 1 - i) * 132f, 0f);
             }
         }
 
         private static void RebuildSavePage(RectTransform page, TMP_FontAsset font, Sprite btnSprite)
         {
-            if (page.Find("Btn_ClearSave") != null) return;
+            if (FindButton(page, "Btn_ClearSave") != null) return;
             var b = MakeButton(page, "Btn_ClearSave", "清空当前存档", font, btnSprite);
             var rt = b.GetComponent<RectTransform>();
             rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
-            rt.pivot = new Vector2(0f, 1f);
-            rt.sizeDelta = new Vector2(280f, 52f);
-            rt.anchoredPosition = new Vector2(16f, -16f);
+            rt.pivot = new Vector2(0f, 0.5f);
+            rt.sizeDelta = new Vector2(320f, 56f);
+            rt.anchoredPosition = new Vector2(40f, -50f);
         }
 
         private static Toggle MakeToggleRow(Transform parent, string rowName, string label, TMP_FontAsset font,
@@ -237,13 +253,14 @@ namespace WanXiang.EditorTools
         {
             row = null;
             int index = parent.childCount;
-            var rowRt = EnsureNode(parent, rowName, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(16f, -6f - index * 68f), new Vector2(560f, 56f));
+            // 通栏行：全宽 + 70 高，与旧 Tgl_Fullscreen 同风格（用户 11-14 实测：560 宽定点与旧布局打架）
+            var rowRt = EnsureNode(parent, rowName, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 0.5f), new Vector2(0f, -35f - index * 70f), new Vector2(-60f, 66f));
             row = rowRt.gameObject;
-            var lab = MakeText(rowRt, "Tmp_Label", label, font, 22, new Color(0.22f, 0.18f, 0.14f, 1f));
+            var lab = MakeText(rowRt, "Tmp_Label", label, font, 24, new Color(0.22f, 0.18f, 0.14f, 1f));
             lab.alignment = TextAlignmentOptions.Left;
-            lab.rectTransform.anchorMin = new Vector2(0f, 0f); lab.rectTransform.anchorMax = new Vector2(0f, 1f);
-            lab.rectTransform.pivot = new Vector2(0f, 0.5f); lab.rectTransform.sizeDelta = new Vector2(300f, 0f);
+            lab.rectTransform.anchorMin = Vector2.zero; lab.rectTransform.anchorMax = Vector2.one;
+            lab.rectTransform.offsetMin = new Vector2(16f, 0f); lab.rectTransform.offsetMax = new Vector2(-120f, 0f);
             lab.rectTransform.anchoredPosition = Vector2.zero;
 
             Toggle tgl;
@@ -260,11 +277,22 @@ namespace WanXiang.EditorTools
                 clone.anchoredPosition = new Vector2(-8f, 0f);
                 clone.gameObject.SetActive(true);
                 tgl = clone.GetComponent<Toggle>();
+                var crt = (RectTransform)clone;
+                crt.anchorMin = crt.anchorMax = new Vector2(1f, 0.5f);
+                crt.pivot = new Vector2(1f, 0.5f);
+                crt.sizeDelta = new Vector2(56f, 56f);
+                crt.anchoredPosition = new Vector2(-24f, 0f);
             }
             else
             {
                 var go = new GameObject(tName, typeof(RectTransform), typeof(Toggle));
-                tgl = go.AddComponent<Toggle>();
+                var grt = (RectTransform)go.transform;
+                grt.SetParent(rowRt, false);              // ★ 必须挂到行上（上一版漏了 → 行里没 Toggle）
+                grt.anchorMin = grt.anchorMax = new Vector2(1f, 0.5f);
+                grt.pivot = new Vector2(1f, 0.5f);
+                grt.sizeDelta = new Vector2(44f, 44f);
+                grt.anchoredPosition = new Vector2(-8f, 0f);
+                tgl = go.GetComponent<Toggle>();
             }
             return tgl;
         }

@@ -123,6 +123,15 @@ namespace WanXiang.Modules.UI
             _tab = Mathf.Clamp(index, 0, _tabPages.Length - 1);
             for (int i = 0; i < _tabPages.Length; i++)
                 if (_tabPages[i] != null) _tabPages[i].SetActive(i == _tab);
+            // Tab 选中态：选中的页用米黄底，其余白（用户 11-14 实测"看不出当前在哪页"）
+            if (_tabBtns != null)
+                for (int i = 0; i < _tabBtns.Length; i++)
+                {
+                    if (_tabBtns[i] == null) continue;
+                    var img = _tabBtns[i].GetComponent<UnityEngine.UI.Image>();
+                    if (img != null)
+                        img.color = i == _tab ? new Color(0.93f, 0.88f, 0.76f, 1f) : Color.white;
+                }
             if (_tmpPageHint != null)
                 _tmpPageHint.text = PageHint(_tab);
         }
