@@ -506,6 +506,11 @@ BuildNodeMap();
                             prun.FogLeft = 0; prun.FogRerolled = false;                   // 换幕：雾散
                             Debug.Log("[Campaign] 通过本幕最后一格 ， 推进到第 " + prun.Act + " 幕");
                             WanXiang.Run.RunSave.SaveCurrent();
+                            // ★ 2026-11-14 用户：打完守关 Boss 要有"写字转场"。原来 Act++ 后只内部刷新
+                            //   地图（面板不重走 OnOpenAsync）⇒ ActIntro 的播放判断永远不执行。
+                            //   这里显式触发一次（ShouldPlay 会按 IntroShownAct 防重播）。
+                            if (!_realmMode && ActIntroPanel.ShouldPlay(prun.Act, false))
+                                DeferredIntroAsync().Forget();
 
                             // ★ 2026-10-21 灵兽蛋：每通过一个节点就少一格，归零即出壳入队
                     if (prun.EggHatchIn > 0)
