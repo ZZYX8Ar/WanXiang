@@ -613,8 +613,12 @@ protected override UniTask OnOpenAsync(object payload)
                 var frRun = WanXiang.Run.RunSave.Current;
                 int frLayer = _currentOffset >= 0 ? _graph.LayerOf(_currentOffset) : 0;
                 var fr = WanXiang.Campaign.FloorRules.RuleFor(frRun != null ? frRun.Act : 1, frLayer);
-                if (fr != null && !string.IsNullOrEmpty(fr.RuleText))
-                    ShowFogBanner(fr.RuleTitle + "：" + fr.RuleText);
+                if (fr != null && frRun != null)
+                {
+                    frRun.ActiveFloorRule = fr.RuleId;
+                    if (!string.IsNullOrEmpty(fr.RuleText))
+                        ShowFogBanner(fr.RuleTitle + "：" + fr.RuleText);
+                }
             }
 
             // ★ 每一幕的开场/转场动画（宣纸底 + 大字逐字浮现 + 当季落叶）。
@@ -2451,6 +2455,13 @@ if (_tmpActTitle != null)
         /// <summary>R5-c：异闻节点（事件按 seed 抽取 + 去重）。由 NodeRouter 注册调用。</summary>
         private void RunTaleNode(WanXiang.Run.RunState run)
         {
+                // 前段规则「前路尚稳」：本段事件额外得 1 灵卵（表驱动 ruleId）
+                var taleRun = WanXiang.Run.RunSave.Current;
+                if (taleRun != null && taleRun.ActiveFloorRule == "calm_egg")
+                {
+                    taleRun.Eggs += 1;
+                    WanXiang.Run.RunSave.SaveCurrent();
+                }
                 // ★ 2026-11-01「不期而遇」：Tale 节点改为**事件节点**（复用 Panel_Tale）。
                 //   事件按 seed+offset 固定抽取，同一局同一格永远是同一个事件（可复盘）。
                 EnsureEventsLoadedFromCsv();
@@ -2827,6 +2838,7 @@ if (_tmpActTitle != null)
         {
             if (run == null) return;
             int heal = 35 + WanXiang.Campaign.WeatherMapEffects.Current.HealBonusPct;
+            if (run.ActiveFloorRule == "hard_noheal") heal = 0;   // 后段「守关在望」：地图禁疗
             TalePanel.OpenEvent(BuildRestEvent(heal, run.EggHatchIn > 0), null);
         }
 

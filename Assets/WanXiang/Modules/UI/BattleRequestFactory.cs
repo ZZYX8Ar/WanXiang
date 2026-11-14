@@ -395,6 +395,40 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                     }
                 }
             }
+            // ★ 2026-11-14 层规则「瘴气渐起 / 焦原迫近 / 戈壁扬尘 / 深潜暗涌」：
+            //   战斗敌方 +1 随从（表命中与 provider 两条部署路径统一在此追加，只改一处）
+            if (!boss && run != null && run.ActiveFloorRule == "press_foe"
+                && entries != null && entries.Length > 0 && entries.Length < 6
+                && all != null && all.Length > 0)
+            {
+                var frRng = new WanXiang.Battle.Core.DeterministicRandom(
+                    WanXiang.Battle.Core.CoreMath.Fnv1a(
+                        "floorFoe:" + run.RunSeed + ":" + run.NodeOffset));
+                var taken = new System.Collections.Generic.HashSet<int>();
+                for (int ti = 0; ti < entries.Length; ti++) taken.Add(entries[ti].PosIndex);
+                int slot = -1;
+                for (int sc = 0; sc < 9 && slot < 0; sc++) if (!taken.Contains(sc)) slot = sc;
+                if (slot >= 0)
+                {
+                    for (int tries = 0; tries < 8; tries++)
+                    {
+                        var pick = all[frRng.NextInt(0, all.Length)];
+                        if (pick == null || string.IsNullOrEmpty(pick.Id)) continue;
+                        if (pick.Id.StartsWith("b_") || pick.Id.StartsWith("summon_")) continue;
+                        var floorFoeDef = pick.Clone();
+                        StripLegacyOnPlayerBeast(floorFoeDef);
+                        ApplyEnemySkillOverrides(floorFoeDef);
+                        var grown = new WanXiang.Battle.Core.DeployEntry[entries.Length + 1];
+                        System.Array.Copy(entries, grown, entries.Length);
+                        grown[entries.Length] = WanXiang.Battle.Core.DeployEntry.Enemy(floorFoeDef, slot)
+                            .WithMul(0.80f);
+                        entries = grown;
+                        UnityEngine.Debug.Log("[BattleRequestFactory] 层规则「瘴气渐起」追加随从 "
+                            + pick.Id + "（槽 " + slot + "）");
+                        break;
+                    }
+                }
+            }
             if (boss)
             {
                 string bossId = entries.Length > 0 && entries[0].Def != null ? entries[0].Def.Id : "(无)";

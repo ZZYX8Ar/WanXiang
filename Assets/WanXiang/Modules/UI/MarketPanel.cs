@@ -215,6 +215,11 @@ namespace WanXiang.Modules.UI
 
             var run = WanXiang.Run.RunSave.Current;
             if (run == null) return;
+            if (run.ActiveFloorRule == "hard_noheal")
+            {
+                SetHint("本段「守关在望」：地图禁疗，药囊暂不可用");
+                return;
+            }
             if (run.Eggs < g.Price)
             {
                 SetHint("灵卵不够（需要 " + g.Price + "）");

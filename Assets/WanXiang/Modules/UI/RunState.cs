@@ -36,6 +36,9 @@ namespace WanXiang.Run
         public int Realm = 1;                   // 境 1..3（旧）
         public int Jie = 1;                     // 劫 1..3（旧）
         public int Eggs = 0;                    // 灵卵（每局从 0 开始；局末结转 MetaState.Eggs）
+
+        /// <summary>当前所在层的规则 id（floor_rules.csv）；进层时写入，老档空串=无修饰。</summary>
+        public string ActiveFloorRule = "";
         /// <summary>B3：本局分队 id（空 = 默认「行旅」）。JsonUtility 序列化，老档自动为空。</summary>
         public string SquadId = "";
         /// <summary>B3：本局挑战难度（玩家选的 N1~N18）。老档自动为 1。
@@ -75,6 +78,7 @@ namespace WanXiang.Run
             float v = baseEggs * mul + eggRemainder;
             int whole = (int)v;
             eggRemainder = v - whole;
+            if (ActiveFloorRule == "press_foe") whole += 1;   // 瘴气渐起：胜利灵卵 +1
             Eggs += whole;
         }
 
@@ -541,6 +545,7 @@ namespace WanXiang.Run
             PlayerBuffPct = 0;
             EnemyBuffPct = 0;
             GrowthPct = 0;
+            ActiveFloorRule = "";   // 新局不继承上一段的层修饰
             EggHatchIn = -1;
             EggBeastId = null;
             BeatFinale = false;
