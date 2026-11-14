@@ -70,19 +70,19 @@ namespace WanXiang.EditorTools
 
             // ---- 战斗页 / 存档页（克隆 Root_Audio 的矩形，清空孩子后重建行）----
             // 通栏风格：内容页统一 高 560（原 Root_Video 只有 40 高，会把 Toggle 挤成竖排）
-            SetPageRect(root.transform, "Root_Video", new Vector2(0f, 285f), new Vector2(-80f, -600f));
-            SetPageRect(root.transform, "Root_Keybinds", new Vector2(0f, 60f), new Vector2(-80f, -620f));
+            SetPageRect(root.transform, "Root_Video", new Vector2(0f, -180f), new Vector2(-80f, 620f));
+            SetPageRect(root.transform, "Root_Keybinds", new Vector2(0f, -180f), new Vector2(-80f, 620f));
             var battlePage = EnsurePage(root.transform, "Root_Battle", (RectTransform)audio);
-            SetPageRect(root.transform, "Root_Battle", new Vector2(0f, 130f), new Vector2(-80f, -560f));
+            SetPageRect(root.transform, "Root_Battle", new Vector2(0f, -180f), new Vector2(-80f, 620f));
             RebuildBattlePage(battlePage, font, toggleTemplate, btnSpriteAlt);
             var savePage = EnsurePage(root.transform, "Root_Save", (RectTransform)audio);
-            SetPageRect(root.transform, "Root_Save", new Vector2(0f, 130f), new Vector2(-80f, -560f));
+            SetPageRect(root.transform, "Root_Save", new Vector2(0f, -180f), new Vector2(-80f, 620f));
             RebuildSavePage(savePage, font, btnSpriteAlt);
 
             // ---- 音频页加静音行 ----
             Toggle muteTgl = FindToggle(audio, "Tgl_Mute");
             if (muteTgl == null)
-                muteTgl = MakeToggleRow(audio, "Row_Mute", "静音", font, toggleTemplate, out _, "Tgl_Mute");
+                muteTgl = MakeToggleRow(audio, "Row_Mute", "静音", font, toggleTemplate, out _, "Tgl_Mute", 2);
 
             // ---- 页面提示文本 ----
             var hint = root.transform.Find("Tmp_PageHint") as RectTransform;
@@ -160,6 +160,90 @@ namespace WanXiang.EditorTools
             Debug.Log("[SettingsTool] 战斗内设置按钮已补（右上角，ESC 同效）");
         }
 
+        [MenuItem("万相/UI/统一设置页行式布局")]
+        public static void LayoutAllPages()
+        {
+            if (!File.Exists(SettingsPath)) { Debug.LogError("[SettingsTool] 找不到 prefab"); return; }
+            Backup(SettingsPath);
+            var root = PrefabUtility.LoadPrefabContents(SettingsPath);
+            var audio = root.transform.Find("Root_Audio") as RectTransform;
+            var video = root.transform.Find("Root_Video") as RectTransform;
+            if (audio == null || video == null) { Debug.LogError("[SettingsTool] 缺 Root_Audio/Video"); PrefabUtility.UnloadPrefabContents(root); return; }
+
+            TMP_FontAsset font = null;
+            foreach (var t in root.GetComponentsInChildren<TMP_Text>(true)) { if (t.font != null) { font = t.font; break; } }
+
+            // 页容器给足高度（行式 3 行 ≈ 300）
+            SetPageRect(root.transform, "Root_Audio", new Vector2(0f, -180f), new Vector2(-80f, 620f));
+            SetPageRect(root.transform, "Root_Video", new Vector2(0f, -180f), new Vector2(-80f, 620f));
+
+            LayoutSliderRow(audio, "Sld_Bgm", "音乐", 0, font);
+            LayoutSliderRow(audio, "Sld_Sfx", "音效", 1, font);
+            LayoutRowFor(audio, "Row_Mute", 2);
+            LayoutToggleRow(video, "Tgl_Fullscreen", "全屏", 0, font);
+            LayoutToggleRow(video, "Tgl_Vsync", "垂直同步", 1, font);
+
+            PrefabUtility.SaveAsPrefabAsset(root, SettingsPath);
+            PrefabUtility.UnloadPrefabContents(root);
+            AssetDatabase.Refresh();
+            Debug.Log("[SettingsTool] 三个旧页已统一为行式布局");
+        }
+
+        private static RectTransform RowFor(RectTransform page, string rowName, int index)
+        {
+            var row = page.Find(rowName) as RectTransform;
+            if (row == null)
+            {
+                var go = new GameObject(rowName, typeof(RectTransform));
+                row = (RectTransform)go.transform; row.SetParent(page, false);
+            }
+            row.anchorMin = new Vector2(0f, 1f); row.anchorMax = new Vector2(1f, 1f);
+            row.pivot = new Vector2(0.5f, 0.5f);
+            row.sizeDelta = new Vector2(-80f, 66f);
+            row.anchoredPosition = new Vector2(0f, -35f - index * 74f);
+            return row;
+        }
+
+        private static void LayoutRowFor(RectTransform page, string rowName, int index) => RowFor(page, rowName, index);
+
+        private static void LayoutSliderRow(RectTransform page, string sliderName, string label, int index, TMP_FontAsset font)
+        {
+            var slider = page.Find(sliderName) as RectTransform;
+            if (slider == null) return;
+            var row = RowFor(page, "Row_" + sliderName.Replace("Sld_", ""), index);
+            slider.SetParent(row, false);
+            slider.anchorMin = slider.anchorMax = new Vector2(0f, 0.5f);
+            slider.pivot = new Vector2(0.5f, 0.5f);
+            slider.sizeDelta = new Vector2(620f, 42f);
+            slider.anchoredPosition = new Vector2(520f, 0f);
+            // 原 Slider 自带 label 会和新行 label 重叠 → 隐藏
+            foreach (var t0 in slider.GetComponentsInChildren<TMP_Text>(true)) t0.gameObject.SetActive(false);
+            var lab = MakeText(row, "Tmp_Label", label, font, 24, new Color(0.22f, 0.18f, 0.14f, 1f));
+            lab.alignment = TextAlignmentOptions.Left;
+            lab.rectTransform.anchorMin = Vector2.zero; lab.rectTransform.anchorMax = Vector2.one;
+            lab.rectTransform.offsetMin = new Vector2(16f, 0f); lab.rectTransform.offsetMax = new Vector2(-700f, 0f);
+            lab.rectTransform.anchoredPosition = Vector2.zero;
+        }
+
+        private static void LayoutToggleRow(RectTransform page, string toggleName, string label, int index, TMP_FontAsset font)
+        {
+            var tgl = page.Find(toggleName) as RectTransform;
+            if (tgl == null) return;
+            var row = RowFor(page, "Row_" + toggleName.Replace("Tgl_", ""), index);
+            tgl.SetParent(row, false);
+            tgl.anchorMin = tgl.anchorMax = new Vector2(1f, 0.5f);
+            tgl.pivot = new Vector2(1f, 0.5f);
+            tgl.sizeDelta = new Vector2(56f, 56f);
+            tgl.anchoredPosition = new Vector2(-24f, 0f);
+            // 自带 label 可能藏在子层级（Tmp_Background/Tmp_Label）→ 全隐藏，避免和新行 label 重叠
+            foreach (var t0 in tgl.GetComponentsInChildren<TMP_Text>(true)) t0.gameObject.SetActive(false);
+            var lab = MakeText(row, "Tmp_Label", label, font, 24, new Color(0.22f, 0.18f, 0.14f, 1f));
+            lab.alignment = TextAlignmentOptions.Left;
+            lab.rectTransform.anchorMin = Vector2.zero; lab.rectTransform.anchorMax = Vector2.one;
+            lab.rectTransform.offsetMin = new Vector2(16f, 0f); lab.rectTransform.offsetMax = new Vector2(-120f, 0f);
+            lab.rectTransform.anchoredPosition = Vector2.zero;
+        }
+
         // ---------------- 辅助 ----------------
         private static void Backup(string path)
         {
@@ -186,12 +270,15 @@ namespace WanXiang.EditorTools
             return t;
         }
 
+        /// <summary>页容器：顶部锚定（标题+Tab 之下开始），pos.y 表示页顶相对容器顶部的偏移。</summary>
         private static void SetPageRect(Transform parent, string name, Vector2 pos, Vector2 size)
         {
             var t = parent.Find(name) as RectTransform;
             if (t == null) return;
-            t.anchorMin = Vector2.zero; t.anchorMax = Vector2.one; t.pivot = new Vector2(0.5f, 0.5f);
-            t.anchoredPosition = pos; t.sizeDelta = size;
+            t.anchorMin = new Vector2(0f, 1f); t.anchorMax = new Vector2(1f, 1f);
+            t.pivot = new Vector2(0.5f, 1f);
+            t.anchoredPosition = new Vector2(0f, pos.y);   // pos.y 为负: 页顶下移
+            t.sizeDelta = new Vector2(size.x, size.y);     // size.y 为正: 页高
         }
 
         private static RectTransform EnsurePage(Transform parent, string name, RectTransform template)
@@ -211,11 +298,11 @@ namespace WanXiang.EditorTools
                                               RectTransform toggleTemplate, Sprite btnSprite)
         {
             if (FindToggle(page, "Tgl_AutoBattle") != null) return;   // 已补过（按 Toggle 判断，行存在不算）
-            MakeToggleRow(page, "Row_AutoBattle", "每局开始自动战斗", font, toggleTemplate, out _, "Tgl_AutoBattle");
-            MakeToggleRow(page, "Row_CutIn", "技能特写演出", font, toggleTemplate, out _, "Tgl_CutIn");
-            MakeToggleRow(page, "Row_DamageNum", "伤害飘字", font, toggleTemplate, out _, "Tgl_DamageNum");
-            MakeToggleRow(page, "Row_Shake", "屏幕震动", font, toggleTemplate, out _, "Tgl_Shake");
-            MakeToggleRow(page, "Row_Tooltip", "战斗内提示气泡", font, toggleTemplate, out _, "Tgl_Tooltip");
+            MakeToggleRow(page, "Row_AutoBattle", "每局开始自动战斗", font, toggleTemplate, out _, "Tgl_AutoBattle", 0);
+            MakeToggleRow(page, "Row_CutIn", "技能特写演出", font, toggleTemplate, out _, "Tgl_CutIn", 1);
+            MakeToggleRow(page, "Row_DamageNum", "伤害飘字", font, toggleTemplate, out _, "Tgl_DamageNum", 2);
+            MakeToggleRow(page, "Row_Shake", "屏幕震动", font, toggleTemplate, out _, "Tgl_Shake", 3);
+            MakeToggleRow(page, "Row_Tooltip", "战斗内提示气泡", font, toggleTemplate, out _, "Tgl_Tooltip", 4);
             // 速度三连
             var row = EnsureNode(page, "Row_Speed", new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0.5f, 0.5f), new Vector2(0f, -35f - 5 * 70f), new Vector2(-60f, 66f));
@@ -249,10 +336,11 @@ namespace WanXiang.EditorTools
         }
 
         private static Toggle MakeToggleRow(Transform parent, string rowName, string label, TMP_FontAsset font,
-                                            RectTransform template, out GameObject row, string toggleName = null)
+                                            RectTransform template, out GameObject row, string toggleName = null,
+                                            int rowIndex = -1)
         {
             row = null;
-            int index = parent.childCount;
+            int index = rowIndex >= 0 ? rowIndex : parent.childCount;
             // 通栏行：全宽 + 70 高，与旧 Tgl_Fullscreen 同风格（用户 11-14 实测：560 宽定点与旧布局打架）
             var rowRt = EnsureNode(parent, rowName, new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0.5f, 0.5f), new Vector2(0f, -35f - index * 70f), new Vector2(-60f, 66f));
