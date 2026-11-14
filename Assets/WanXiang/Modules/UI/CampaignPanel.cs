@@ -744,13 +744,22 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
 
         private static readonly Color NodeVisited = new Color(0.79f, 0.63f, 0.39f);   // 金
         private static readonly Color NodeReachable = new Color(0.47f, 0.57f, 0.38f); // 木绿
-        private static readonly Color NodeLocked = new Color(0.61f, 0.58f, 0.53f);    // 灰
+        private static readonly Color NodeLocked = new Color(0.42f, 0.39f, 0.35f);    // 灰（加深：彩叶/雪景底上也看得清）
 
         // 路线图尺寸常量（连线的节点坐标必须与排布公式一致，所以提出来共用）
         // ★ 2026-11-02：层数改为读 MapRules（Resources/Data/map.csv 可覆盖），
         //   不能再写 const —— 否则表里改了层数，这里的坐标/上限还是 18。
         private static int Layers => WanXiang.Campaign.MapRules.Layers;
-        private const float NodeW = 420f, NodeH = 110f, GapX = 24f, GapY = 90f;   // 2026-10-10 节点加大、间距收窄（配合 Scroll_Nodes 加宽到 1376，三列不再被裁）
+        private const float NodeW = 420f, NodeH = 110f, GapX = 24f, GapY = 90f;
+        private const float NodeAreaW = 1376f;   // Scroll_Nodes 内容区可用宽
+
+        /// <summary>按该层节点数算卡宽：4 节点收窄到 326，避免最左/最右被裁（用户 11-14）。</summary>
+        private static float NodeWidthFor(int count)
+        {
+            if (count <= 1) return NodeW;
+            float w = (NodeAreaW - (count - 1) * GapX) / count;
+            return Mathf.Min(NodeW, Mathf.Floor(w));
+        }   // 2026-10-10 节点加大、间距收窄（配合 Scroll_Nodes 加宽到 1376，三列不再被裁）
         private static readonly Color EdgeInk = new Color(0.72f, 0.68f, 0.60f, 0.9f);
         private static readonly Color PathGold = new Color(0.79f, 0.63f, 0.39f, 1f);
         private static readonly Color QuestionInk = new Color(0.45f, 0.42f, 0.62f, 1f);
@@ -1262,15 +1271,16 @@ if (_tmpActTitle != null)
                 //    天阙图只有 5 层，用 12 会把节点摆到很下面、content 也算出 2480 的空白区，
                 //    表现就是"往上滑一片空白、还滑不回来"（用户实测）。
                 float y = -(lc - 1 - layer) * (NodeH + GapY);   // 层号越大越靠上
+                float nw = NodeWidthFor(row.Length);
                 for (int k = 0; k < row.Length; k++)
                 {
                     var item = SpawnNodeItem(content, row[k], layer);
-                    item.sizeDelta = new Vector2(NodeW, NodeH);
+                    item.sizeDelta = new Vector2(nw, NodeH);
                     item.anchorMin = item.anchorMax = new Vector2(0.5f, 1f);
                     item.pivot = new Vector2(0.5f, 1f);
                     float x = row.Length <= 1
                         ? 0f
-                        : (k - (row.Length - 1) * 0.5f) * (NodeW + GapX);
+                        : (k - (row.Length - 1) * 0.5f) * (nw + GapX);
                     item.anchoredPosition = new Vector2(x, y);
                 }
             }
@@ -2049,11 +2059,16 @@ if (_tmpActTitle != null)
                 if (card != null) { cardImg.sprite = card; cardImg.type = Image.Type.Sliced; }
                 cardImg.color = fogged
                     ? new Color(0.78f, 0.80f, 0.82f, 0.95f)                      // ★ 瘴雾：冷灰"雾气卡"
-                    : (passed || canGo || isHere) ? Color.white : new Color(0.80f, 0.80f, 0.80f, 0.92f);
+                    : (passed || canGo || isHere) ? Color.white : new Color(0.95f, 0.93f, 0.88f, 0.99f);   // 未解锁也实一些
             }
 
             var label = item.Find("Tmp_NodeText") != null
                 ? item.Find("Tmp_NodeText").GetComponent<TMP_Text>() : null;
+            if (label != null)
+            {
+                float cardW = ((RectTransform)item).sizeDelta.x;
+                label.fontSize = cardW < 360f ? 17f : 20f;   // 4 节点收窄时字号同步缩小
+            }
             if (label != null && fogged)
             {
                 // ★ 瘴雾：遮住的层连类型都不透 —— 只显示"迷雾"（这就是迷雾的意义）
@@ -2105,6 +2120,8 @@ if (_tmpActTitle != null)
      label.text = prefix + "【" + name + "】" +
      (isHere ? " ◀当前" : canGo ? " ←可前往" : "");
              label.color = isHere ? NodeVisited : canGo ? NodeReachable : passed ? PathGold : NodeLocked;
+             label.outlineWidth = 0.18f;                                    // 彩叶/雪景底也读得清
+             label.outlineColor = new Color(0.97f, 0.95f, 0.90f, 0.92f);
             }
 
             var dot = item.Find("Img_Dot") != null ? item.Find("Img_Dot").GetComponent<Image>() : null;

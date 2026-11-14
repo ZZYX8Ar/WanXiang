@@ -119,8 +119,20 @@ namespace WanXiang.Modules.UI
                 if (snap.Path != null) { run.Path.Clear(); run.Path.AddRange(snap.Path); }
                 if (snap.VisitedNodes != null) { run.VisitedNodes.Clear(); run.VisitedNodes.AddRange(snap.VisitedNodes); }
                 if (snap.PassedNodes != null) { run.PassedNodes.Clear(); run.PassedNodes.AddRange(snap.PassedNodes); }
+                // ★ 2026-11-14 用户：进秘境后主动离开，外面那一格不算通过、同层还能再选
+                //   → 一旦进过秘境，这一格就算"走过"（误入奇境是一次已消耗的节点），
+                //     保留在 PassedNodes 里，离开/通关都不再退回未通过。
+                if (snap.NodeOffset >= 0)
+                {
+                    if (run.PassedNodes == null) run.PassedNodes = new System.Collections.Generic.List<int>();
+                    if (!run.PassedNodes.Contains(snap.NodeOffset)) run.PassedNodes.Add(snap.NodeOffset);
+                }
             }
 
+            UnityEngine.Debug.Log("[Realm] 退出秘境：入场节点=" + (snap != null ? snap.NodeOffset : -2)
+                + " 主线NodeOffset=" + run.NodeOffset
+                + " 该格在PassedNodes=" + (run.PassedNodes != null && snap != null && run.PassedNodes.Contains(snap.NodeOffset))
+                + "（若同层仍可多选，请把这行日志发我）");
             run.InRealm = false;
      run.RealmId = null;
     run.RealmWave = 0;
