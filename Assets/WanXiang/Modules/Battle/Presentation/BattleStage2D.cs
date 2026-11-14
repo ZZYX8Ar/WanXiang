@@ -506,6 +506,11 @@ namespace WanXiang.Battle.Presentation
         private BattleAmbientParticles _ambient;
 
         // ---- 终结技 / 觉醒技 大演出 + 镜头震动（2026-10-13）----
+        /// <summary>表现开关（UI 层开战前按设置写入；默认全开。表现层不引用 UI，故用静态注入）。</summary>
+        public static bool FxScreenShake = true;
+        public static bool FxDamageNumbers = true;
+        public static bool FxSkillCutIn = true;
+
         private SkillFxPlayer _skillFx;
         private Vector3 _camBase;                 // 相机基准位（震动围绕它抖）
         private float _shakeAmp, _shakeT, _shakeDur;
@@ -1555,6 +1560,15 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
             if (!_views.TryGetValue(actorId, out var v) || v.Root == null || !v.Alive) return;
             EnsureSkillFx();
             if (_skillFx == null) { StartLunge(actorId, targetId); return; }
+            if (!FxSkillCutIn)
+            {
+                // 设置关闭特写：只冲锋 + 播命中特效（伤害数字/震屏仍按各自开关）
+                StartLunge(actorId, targetId);
+                var c0 = BattlePalette.OfElement(element);
+                if (!string.IsNullOrEmpty(targetId) && _views.TryGetValue(targetId, out var tv0) && tv0.Root != null)
+                    BossSkillBurst.Play(tv0.Root.transform.position, c0, 1.4f, 8, 0.35f, 0);
+                return;
+            }
             var col = BattlePalette.OfElement(element);
             // P5R 式 cut-in：把该异兽的立绘 + 名字 + 终结技名传进去，先特写再特效
             var portrait = v.Body != null ? v.Body.sprite : null;
@@ -1643,6 +1657,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         /// <summary>镜头震动（由 SkillFxPlayer 在大招起爆点回调）。</summary>
         public void TriggerShake(float amp, float dur)
         {
+            if (!FxScreenShake) return;   // 设置：屏幕震动
             if (_cam == null) return;
             _shakeAmp = Mathf.Max(_shakeAmp, amp);
             _shakeDur = Mathf.Max(_shakeDur, dur);
@@ -3050,6 +3065,7 @@ return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 1
         private void SpawnNumberInternal(UnitView2D v, string text, Color color, float baseScale,
                                          float life = 0.7f, float raise = 0f)
    {
+            if (!FxDamageNumbers) return;   // 设置：伤害/状态飘字
             var go = new GameObject("Dmg");
             go.transform.SetParent(transform, false);
             // raise：同一次演出里的多行字（反应名/属性组合/伤害）要用不同高度分层，

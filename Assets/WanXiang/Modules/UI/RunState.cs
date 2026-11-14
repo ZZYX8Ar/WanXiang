@@ -728,6 +728,21 @@ namespace WanXiang.Run
             return Path.Combine(Dir, "wanxiang_save_" + slot + ".json");
         }
 
+        /// <summary>删除槽位存档（设置页「清空存档」用）。</summary>
+        public static void Delete(int slot)
+        {
+            try
+            {
+                var p = PathOf(slot);
+                if (File.Exists(p)) File.Delete(p);
+                if (Current != null && Current.Slot == slot) Current = null;
+            }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogWarning("[RunSave] 删除存档失败：" + ex.Message);
+            }
+        }
+
         /// <summary>槽位上有没有档。</summary>
         public static bool Exists(int slot)
         {

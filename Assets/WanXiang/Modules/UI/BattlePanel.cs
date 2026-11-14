@@ -31,6 +31,9 @@ namespace WanXiang.Modules.UI
     {        /// <summary>战斗 HUD 有「离开」按钮，Esc 误关会让玩家以为卡死（基类默认允许，这里显式禁止）。</summary>
         public override bool AllowBackClose => false;
 
+        /// <summary>右上角设置按钮（prefab 补节点后绑定；ESC 同效）。</summary>
+        [SerializeField] private Button _btnSettings;
+
         private sealed class UnitView
         {
             public RectTransform Root;
@@ -135,7 +138,12 @@ namespace WanXiang.Modules.UI
                 var _tx = _fi != null ? _fi.GetValue(this) as TMP_Text : null;
                 if (_tx != null) _tx.color = _ink;
             }
+            if (_btnSettings != null) _btnSettings.onClick.AddListener(() => OpenSettingsBattleAsync().Forget());
             InitCapture();
+            // ★ 设置 → 表现层开关（表现层不引用 UI，这里注入）
+            WanXiang.Battle.Presentation.BattleStage2D.FxScreenShake = SettingsStore.ScreenShake;
+            WanXiang.Battle.Presentation.BattleStage2D.FxDamageNumbers = SettingsStore.DamageNumbers;
+            WanXiang.Battle.Presentation.BattleStage2D.FxSkillCutIn = SettingsStore.SkillCutIn;
             _rootOrderList = transform.Find("Root_OrderList") as RectTransform;
             var _orderT = GameObject.Find("Tmp_OrderTitle");
             if (_orderT != null) _orderT.GetComponent<TMP_Text>().color = _ink;
@@ -387,6 +395,14 @@ namespace WanXiang.Modules.UI
         /// 不能像旧版那样"每次推进事件时 Step(整段时长)"：那样补间一步到位，
         /// 抖动和冲锋看着就是瞬移。
         /// </summary>
+        /// <summary>战斗内打开设置（payload=true → 设置面板负责 timeScale=0 暂停/恢复）。</summary>
+        private async Cysharp.Threading.Tasks.UniTaskVoid OpenSettingsBattleAsync()
+        {
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (ui == null) return;
+            await ui.OpenAsync<SettingsPanel>(true);
+        }
+
         private void Update()
         {
             // 提示面板兜底收起：**被置灰（interactable=false）的按钮不触发 PointerExit**，
@@ -399,6 +415,10 @@ namespace WanXiang.Modules.UI
                 if (_autoSpin.gameObject.activeSelf != show) _autoSpin.gameObject.SetActive(show);
                 if (show) _autoSpin.Rotate(0f, 0f, -360f * Time.deltaTime / 1.4f);
             }
+
+            // ★ 设置：ESC 呼出设置并暂停战斗（用户 11-14 永久约束；战斗里 ESC 不再是"关闭"）
+            if (Input.GetKeyDown(KeyCode.Escape) && !WanXiang.Modules.UI.SettingsPanel.IsOpen)
+                OpenSettingsBattleAsync().Forget();
 
             if (_tipPanel != null && _tipPanel.gameObject.activeSelf) CheckTipHover();
 

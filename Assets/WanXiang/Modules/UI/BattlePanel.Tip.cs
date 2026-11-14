@@ -222,7 +222,11 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>填充并淡入提示：从左滑入 20px + 透明度 0→1。</summary>
-        private void ShowSkillTip(int slot) => ShowActorSkillTip(-1, slot);   // 兼容旧调用（PendingUnit）
+        private void ShowSkillTip(int slot)
+        {
+            if (!SettingsStore.Tooltips) return;   // 设置：关闭战斗内提示气泡
+            ShowActorSkillTip(-1, slot);
+        }   // 兼容旧调用（PendingUnit）
 
         /// <summary>B5：按列取异兽的技能提示（col<0 = 用 PendingUnit）。</summary>
         private void ShowActorSkillTip(int actorCol, int slot)

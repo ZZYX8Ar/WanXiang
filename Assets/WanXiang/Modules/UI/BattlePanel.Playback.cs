@@ -87,8 +87,8 @@ namespace WanXiang.Modules.UI
             // ★ 每场战斗重置自动/倍速：面板是 Cached 复用的，字段会从上场带过来。
             //   ★★ 2026-10-16：PvP 不再强制自动（用户："好友对战改回可以手动作战"）
             //   ⇒ 一律手动起局，玩家可随时点"自动战斗"接管。
-            _autoBattle = false;
-            _speed = 1f;
+            _autoBattle = SettingsStore.AutoBattle;   // 设置：每局开始自动战斗（PvP 仍强制手动）
+            _speed = SettingsStore.BattleSpeed;     // 设置：战斗速度
 
             // ★ 格挡 QTE（2026-10-14）：只在"玩家手动的战斗"里开（自动模式关，AI 不会替玩家按）。
             //   关 ⇒ 模拟层不 yield、零事件、零修正（指纹红线，见 BattleSimulator.Parry.cs）。
