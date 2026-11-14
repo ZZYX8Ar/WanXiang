@@ -1,4 +1,4 @@
-﻿id,title,story,choice,text,effect,value,scope
+﻿id,title,story,choice,text,effect,value,scope,nextId
 ev_fog_guest,雾中来客,雾里有人影招手。它说前面三条路它都走过，只是现在看不清了。,0,听它的（未来 3 节不可见并重掷；雾中首节点奖励 +20%）,StartFog,3,
 ev_fog_guest,雾中来客,雾里有人影招手。它说前面三条路它都走过，只是现在看不清了。,1,不信，绕开（安全，但本幕少一次素材机会）,Nothing,0,
 ev_fog_guest,雾中来客,雾里有人影招手。它说前面三条路它都走过，只是现在看不清了。,2,追问它的来历（扣 10% 全队生命，换 1 个规则遗物）,DamageTeamPct,10,r_rule_no_hit
@@ -65,3 +65,7 @@ ev_broken_lute,断弦,驿亭里挂着一把断了弦的琴。有人留话：修�
 ev_broken_lute,断弦,驿亭里挂着一把断了弦的琴。有人留话：修它 或 拿走它。,1,拆下琴身换药（全队回复 20% 生命）,HealTeamPct,20,
 ev_frost_market,霜市,结霜的早市只剩两三个摊子 摊主都不太想说话。,0,替人守摊（得 2 灵卵）,GainEggs,2,
 ev_frost_market,霜市,结霜的早市只剩两三个摊子 摊主都不太想说话。,1,收下摊主塞来的碎料（进化素材 +1）,GrantMaterial,1,
+ev_chain_lantern,残灯,山坳里立着一盏没灭的灯。灯芯还剩一点，油却像是刚添的。,0,拨亮灯芯（得 1 灵卵 看看谁来添的油）,GainEggs,1,,ev_chain_lantern_2
+ev_chain_lantern,残灯,山坳里立着一盏没灭的灯。灯芯还剩一点，油却像是刚添的。,1,绕开（不惊动灯下的人）,Nothing,0,,
+ev_chain_lantern_2,灯下人,灯亮起来 才看见底下坐着个赶路人。他说前路有两条 只肯讲一条。,0,听他讲完（全队回复 20% 生命）,HealTeamPct,20,,
+ev_chain_lantern_2,灯下人,灯亮起来 才看见底下坐着个赶路人。他说前路有两条 只肯讲一条。,1,拿走他脚边的油囊（进化素材 +1）,GrantMaterial,1,,

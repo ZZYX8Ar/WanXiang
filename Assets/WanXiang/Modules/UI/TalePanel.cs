@@ -217,6 +217,30 @@ namespace WanXiang.Modules.UI
             {
                 _picked = index;
                 string result = CampaignEventRuntime.Apply(_event, index);
+                // ★ 2026-11-14 连续事件（IS「不期而遇」）：本选项指向下一段
+                //   → 在同一面板铺下一段文本/选项，不重开面板、不回地图；
+                //   _eventCallback 保留到最后一段选完才触发。
+                string nextId = WanXiang.Modules.UI.CampaignEventRuntime.NextEventId(_event, index);
+                if (!string.IsNullOrEmpty(nextId))
+                {
+                    var next = WanXiang.Campaign.EventCatalog.Get(nextId);
+                    if (next != null && next.Choices != null && next.Choices.Length > 0)
+                    {
+                        _event = next;
+                        _picked = -1;
+                        if (_tmpTitle != null) _tmpTitle.text = "奇遇 · " + next.Title;
+                        if (_tmpStory != null) _tmpStory.text = "上一步：" + result + "\n\n" + next.Story;
+                        for (int k = 0; k < _tmpOpts.Length; k++)
+                        {
+                            bool has = k < next.Choices.Length;
+                            if (_tmpOpts[k] != null) _tmpOpts[k].text = has ? next.Choices[k].Text : "";
+                            if (_tmpCosts[k] != null) _tmpCosts[k].text = "";
+                            if (_optBtns[k] != null) _optBtns[k].gameObject.SetActive(has);
+                        }
+                        return;
+                    }
+                    Debug.LogWarning("[TalePanel] 连续事件找不到下一段：" + nextId);
+                }
                 for (int i = 0; i < _optBtns.Length; i++)
                     if (_optBtns[i] != null) _optBtns[i].gameObject.SetActive(false);
                 if (_tmpStory != null) _tmpStory.text = result;

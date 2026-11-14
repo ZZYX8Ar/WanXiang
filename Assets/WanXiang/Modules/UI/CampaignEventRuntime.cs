@@ -13,6 +13,15 @@ namespace WanXiang.Modules.UI
     public static class CampaignEventRuntime
     {
         /// <summary>应用一个选项，返回给玩家看的结果摘要（可直接显示在事件面板上）。</summary>
+        /// <summary>连续事件：返回该选项指向的下一段事件 id（无 = 空串）。</summary>
+        public static string NextEventId(WanXiang.Campaign.EventDef ev, int choiceIndex)
+        {
+            if (ev == null || ev.Choices == null) return "";
+            if (choiceIndex < 0 || choiceIndex >= ev.Choices.Length) return "";
+            var next = ev.Choices[choiceIndex].NextId;
+            return string.IsNullOrEmpty(next) ? "" : next;
+        }
+
         /// <summary>先应用选项代价；返回可读文案（无代价 = 空串）。</summary>
         private static string ApplyCost(WanXiang.Run.RunState run, WanXiang.Campaign.EventChoice c)
         {

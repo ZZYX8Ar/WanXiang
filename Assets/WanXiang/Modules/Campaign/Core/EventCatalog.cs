@@ -40,6 +40,9 @@ namespace WanXiang.Campaign
         /// <summary>通用代价：先应用 CostEffect，再应用 Effect（文字里必须写清代价）。</summary>
         public EventEffect CostEffect = EventEffect.Nothing;
         public int CostValue;
+
+        /// <summary>连续事件：选完接 EventCatalog 里的下一段（空 = 单步，选完回地图）。</summary>
+        public string NextId;
     }
 
     public sealed class EventDef

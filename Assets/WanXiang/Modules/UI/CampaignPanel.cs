@@ -291,6 +291,7 @@ BuildNodeMap();
                     Text = c[4].Trim(), Effect = eff,
                     Value = int.TryParse(c[6].Trim(), out int v) ? v : 0,
                     ScopeId = c.Count > 7 ? c[7].Trim() : null,
+                    NextId = c.Count > 8 ? c[8].Trim() : null,
                 });
             }
             if (order.Count == 0) { Debug.LogWarning("[Campaign] events.csv 无有效行"); return; }
