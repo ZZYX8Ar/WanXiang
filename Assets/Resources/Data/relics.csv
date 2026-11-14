@@ -1,4 +1,4 @@
-id,name,desc,rarity,effect,value,value2,scopeId,mechanic
+﻿id,name,desc,rarity,effect,value,value2,scopeId,mechanic
 r_mech_all_hits,兵无常势,全队普攻改为攻击【全体敌人】,Boss,None,0,0,,BasicHitsAll
 r_mech_extra_hit,连环击,全队普攻段数 +1（更易触发连携/破盾）,Rare,None,0,0,,BasicExtraHit
 r_mech_burn,火种,全队普攻额外附带【灼烧】,Rare,None,0,0,,BasicBurn
@@ -19,3 +19,15 @@ r_rule_enemy_cautious,乱其心,敌方打法变为【保守】（不抢放奥义
 r_trade_1,赌命契·小,全队 生命/攻击/防御 +12%，但战斗开局灵力 -1,Common,TradeStatPct,12,1,,None
 r_trade_5,赌命契·险,全队 生命/攻击/防御 +28%，但战斗开局灵力 -3,Rare,TradeStatPct,28,3,,None
 r_trade_10,赌命契·狂,全队 生命/攻击/防御 +80%，但战斗开局灵力 -8,Boss,TradeStatPct,80,8,,None
+r_stat_wood,青帝符,木属性我方全属性 +12%（只作用于木系）,Rare,ElementStatPct,12,0,Wood,None
+r_stat_fire,祝融烬,火属性我方全属性 +12%（只作用于火系）,Rare,ElementStatPct,12,0,Fire,None
+r_stat_metal,蓐收刃,金属性我方全属性 +12%（只作用于金系）,Rare,ElementStatPct,12,0,Metal,None
+r_stat_water,玄冥珠,水属性我方全属性 +12%（只作用于水系）,Rare,ElementStatPct,12,0,Water,None
+r_stat_earth,后土印,土属性我方全属性 +12%（只作用于土系）,Rare,ElementStatPct,12,0,Earth,None
+r_stat_guard,镇山铭,守护定位我方全属性 +18%,Rare,RoleStatPct,18,0,Guard,None
+r_stat_striker,破阵角,强攻定位我方全属性 +15%,Rare,RoleStatPct,15,0,Striker,None
+r_stat_support,承露盘,辅助定位我方全属性 +15%,Rare,RoleStatPct,15,0,Support,None
+r_stat_smallteam,众寡术,上阵不超过 3 人时全队 +20%（人数多了就失效）,Common,TeamSizeStatPct,20,3,,None
+r_stat_perwin,百战纹,本局每胜 1 场全队 +3%（封顶 30%）,Epic,PerWinStatPct,3,30,,None
+r_stat_early,先声符,本局前 3 场战斗内全队 +15%（之后失效）,Common,EarlyWinStatPct,15,3,,None
+r_stat_norevive,绝命符,全队 +30% 代价是【不可复活】,Boss,NoReviveStatPct,30,0,,None
