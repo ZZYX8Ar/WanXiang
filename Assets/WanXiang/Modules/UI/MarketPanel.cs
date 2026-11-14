@@ -1,28 +1,23 @@
 // ============================================================================
-//  Panel_Market —— 灵市（商店）
-//  v1.2 填充：货架数据流。
-//    商品 = 按本局种子（RunSeed）抽的异兽 ×4；购买 → 扣灵卵 → 入队 → 盖售罄印。
-//    刷新 → 每次花 1 灵卵重摇（GDD 的"可刷新 1 次（1 灵卵）"放宽为付费无限，
-//           省一份"每节点刷没刷过"的状态管理；1 卵/次已足以约束）。
-//    GDD 的灵魂 / 技能重铸槽：待灵魂库与 SkillOverride 应用落地后开放。
+//  万相 · 灵市（2026-11-13 重构：商品改为「疗愈」）
+//  ---------------------------------------------------------------------------
+//  ⛔ 旧商品（异兽 / 魂 / 铸魂台）已全部删除：招募与魂系统都早已废弃，
+//     货架还在卖异兽与"魂"是旧数据（用户 11-13："这个是旧的数据，给我去掉"）。
+//  · 现商品：3 档疗愈（全队恢复 30% / 60% / 100% 生命），各 2 件，共 6 格
+//  · 价格随幕上涨（MarketPricing.FinalPrice），刷新 1 灵卵
+//  · 数据源：RunState.TeamHpPct（队伍每只当前血量百分比，上限 100）
 // ============================================================================
-
-using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using WanXiang.Battle.Core;
 using WanXiang.Framework.UI;
-using WanXiang.Fusion;
 
 namespace WanXiang.Modules.UI
 {
     [UIPanel("Panel_Market", Layer = UILayer.Normal, CachePolicy = UICachePolicy.Cached,
              CloseOnMaskClick = false)]
-    // ↑ 全屏面板不该"点空白就关"：它铺满屏幕，没有"面板外"可言，
-    //   否则玩家点任何空白处都会把界面关掉（踩过）。
     public sealed class MarketPanel : UIPanelBase
     {
         [SerializeField] private TMP_Text _tmpEggs;            // Tmp_Eggs        灵卵余额
@@ -34,10 +29,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text[] _tmpGoodsPrice;    // 价格
         [SerializeField] private Image[] _imgGoodsSold;        // 售罄印章
         [SerializeField] private TMP_Text _tmpHint;            // Tmp_Hint
-        [SerializeField] private WanXiang.Fusion.ContentCatalogSO _contentCatalog;  // 由生成器注入
-        [SerializeField] private WanXiang.Battle.Presentation.SpriteCatalog _sprites;  // 同上
 
-        // ---- 详情卡（由 Panel_Market.prefab 注入；生成器见 Editor/UITool/UIBuildMarketPatch.cs）----
         [SerializeField] private RectTransform _detailRoot;    // Market_DetailMask（整体显示/隐藏）
         [SerializeField] private Image _detailBig;             // Img_Big
         [SerializeField] private TMP_Text _detailName;         // Tmp_Name
@@ -47,67 +39,73 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button _detailBuy;            // Btn_Buy
         [SerializeField] private Button _detailClose;          // Btn_Close
 
+        /// <summary>一档疗愈（表驱动：加档 = 加一行）。</summary>
+        private struct HealTier
+        {
+            public string Name;
+            public int HealPct;
+            public int BasePrice;
+            public Color Tint;
+        }
+
+        private static readonly HealTier[] Tiers =
+        {
+            new HealTier { Name = "疗愈·小", HealPct = 30,  BasePrice = 3,  Tint = new Color(0.62f, 0.86f, 0.62f, 1f) },
+            new HealTier { Name = "疗愈·中", HealPct = 60,  BasePrice = 6,  Tint = new Color(0.50f, 0.82f, 0.78f, 1f) },
+            new HealTier { Name = "疗愈·全", HealPct = 100, BasePrice = 10, Tint = new Color(0.93f, 0.80f, 0.48f, 1f) },
+        };
+
         private sealed class Good
         {
-            public BeastDef Beast;
+            public int TierIndex;
             public int Price;
             public bool Sold;
-            /// <summary>★ 魂商品（用户 2026-09-28：买魂别单独按钮+弹窗，要像异兽一样摆货架）。</summary>
-            public bool IsSoul;
-            /// <summary>魄名稳定序号（= 来源异兽在内容表中的下标），同一只魂每次导出同一个魄名。</summary>
-            public int SoulOrdinal;
+            public string Name => Tiers[TierIndex].Name;
         }
 
         private readonly List<Good> _goods = new List<Good>();
         private int _refreshCount;
-        private static readonly Color RowIdle = new Color(0.96f, 0.94f, 0.89f, 1f);
+        private int _detailIndex = -1;
+        private Sprite _healIcon;
 
         protected override void OnCreate()
         {
-            if (_btnRefresh != null) _btnRefresh.onClick.AddListener(OnRefreshClicked);
-            // ★ 魂已改走货架（用户 2026-09-28）：与异兽同一套 商品→详情卡→购买→售罄印 流程。
-            //   旧的「买魂」按钮 + 魂选单（Btn_BuySoul / Market_SoulPicker）已从 prefab 与代码中移除。
+            _healIcon = Resources.Load<Sprite>("UI/Kit/market_heal");
+            if (_btnRefresh != null) _btnRefresh.onClick.AddListener(() => Reroll(false));
             if (_detailBuy != null) _detailBuy.onClick.AddListener(OnBuyClicked);
             if (_detailClose != null) _detailClose.onClick.AddListener(HideDetail);
-            // ★ 点遮罩空白处也关闭详情（用户："这个面板怎么没有 X，都关闭不了了"）
             if (_detailRoot != null)
             {
-                var maskImg = _detailRoot.GetComponent<Image>();
-                if (maskImg != null)
-                {
-                    var mb = _detailRoot.GetComponent<Button>();
-                    if (mb == null) mb = _detailRoot.gameObject.AddComponent<Button>();
-                    mb.transition = Selectable.Transition.None;
-                    mb.onClick.AddListener(HideDetail);
-                }
+                _detailRoot.gameObject.SetActive(false);
+                var mb = _detailRoot.GetComponent<Button>();
+                if (mb == null) mb = _detailRoot.gameObject.AddComponent<Button>();
+                mb.transition = Selectable.Transition.None;
+                mb.onClick.AddListener(HideDetail);
             }
-            if (_detailRoot != null) _detailRoot.gameObject.SetActive(false);   // 默认隐藏
-            EnsureBackButton();
-            if (_btnBack != null) _btnBack.onClick.AddListener(() => {
-                CloseSelf();
-                var __ui = WanXiang.Framework.Boot.UIBootstrap.UI;
-                if (__ui != null) Cysharp.Threading.Tasks.UniTask.Void(async () =>
-                {
-                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);
-                    await __ui.OpenAsync<CampaignPanel>();
-                });
-            });   // 回到节点地图（继续探索）
+            if (_btnBack != null) _btnBack.onClick.AddListener(BackToMap);
             for (int i = 0; i < _goodsBtns.Length; i++)
             {
-                var idx = i;
+                int idx = i;
                 if (_goodsBtns[i] != null) _goodsBtns[i].onClick.AddListener(() => OnGoodsClicked(idx));
             }
         }
 
         protected override UniTask OnOpenAsync(object payload)
         {
-            Reroll(free: true);      // 每次进灵市先免费摇一批（之后刷新收费）
+            Reroll(true);      // 进店免费摇一批
             return UniTask.CompletedTask;
         }
 
-        // ================================================================
-        //  摇货架
-        // ================================================================
+        private void BackToMap()
+        {
+            CloseSelf();
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (ui != null) Cysharp.Threading.Tasks.UniTask.Void(async () =>
+            {
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);
+                await ui.OpenAsync<CampaignPanel>();
+            });
+        }
 
         private void Reroll(bool free)
         {
@@ -118,200 +116,84 @@ namespace WanXiang.Modules.UI
             {
                 if (run.Eggs < 1)
                 {
-                    if (_tmpHint != null) _tmpHint.text = "灵卵不足，刷不动货架了";
+                    SetHint("灵卵不足，刷不动货架了");
                     SfxThrottled("sfx_ui_currency_lack");
                     return;
                 }
                 run.Eggs -= 1;
                 _refreshCount++;
-                SfxThrottled("sfx_ui_reroll");   // 只有付费刷新才响（进面板时的免费摇货不响）
+                SfxThrottled("sfx_ui_reroll");
             }
 
-            var all = _contentCatalog != null ? ContentLibrary.BuildBeasts(_contentCatalog) : null;
-            if (all == null || all.Length == 0)
-            {
-                if (_tmpHint != null) _tmpHint.text = "（内容目录缺失，货架空）";
-                return;
-            }
-
-            ulong seed = CoreMath.Fnv1a("market:" + run.RunSeed + ":" + run.Act + ":" + _refreshCount);
-            var rng = new DeterministicRandom(seed);
-
+            float priceMul = WanXiang.Campaign.WeatherMapEffects.Current.PriceMul;
             _goods.Clear();
-            var used = new HashSet<string>();
-            // ★ 商店只卖你"还没有"的异兽：排除已拥有（图鉴/队伍），
-            //   阵亡失去的异兽自然重新出现在货架上，可花钱买回（异兽唯一、可重购）。
-            var owned = new HashSet<string>();
-            if (run.Collection != null) foreach (var id in run.Collection) owned.Add(id);
-            if (run.Team != null) foreach (var id in run.Team) owned.Add(id);
-
-            // ★ 缺的优先（用户 2026-10-06）：本局**曾经拥有、后来阵亡失去**的兽加权上架。
-            //   口径 = 开局快照 SnapBeastIds 里有、但现在不在 Collection∪Team 里的 ——
-            //   这正是"阵亡丢掉的"，不必另立 LostThisRun 名单（那套已被推翻）。
-            var lost = new List<BeastDef>();
-            if (run.SnapBeastIds != null)
-            {
-                var snap = new HashSet<string>();
-                foreach (var id in run.SnapBeastIds) snap.Add(id);
-                for (int i = 0; i < all.Length; i++)
-                    if (all[i] != null && snap.Contains(all[i].Id) && !owned.Contains(all[i].Id))
-                        lost.Add(all[i]);
-            }
-
-            int guard = 0;
-            while (_goods.Count < 4 && guard++ < 40)
-            {
-                // 一半概率从"你丢掉的"里摇 —— 想买回阵亡兽就不用刷那么多次
-                var b = (lost.Count > 0 && rng.NextInt(0, 2) == 0)
-                    ? lost[rng.NextInt(0, lost.Count)]
-                    : all[rng.NextInt(0, all.Length)];
-                if (used.Contains(b.Id) || owned.Contains(b.Id)) continue;
-                used.Add(b.Id);
-                // 价格随稀有度与幕数上浮（GDD：价格随幕数与劫数上浮）
-                // ★ 2026-11-02：定价统一走 MarketPricing（market.csv 可覆盖）
-                int baseP = WanXiang.Run.MarketPricing.BasePriceOf(b.Rarity);
-                // ★ 天气地图效果层：当前节点天时影响物价（LiveWeather.Current 为 null ， ×1，旧行为）。
-                float priceMul = WanXiang.Campaign.WeatherMapEffects.Current.PriceMul;
-                _goods.Add(new Good
-                {
-                    Beast = b,
-                    Price = WanXiang.Run.MarketPricing.FinalPrice(baseP, run.Act, priceMul),
-                });
-            }
-
-            // ★ 魂上架（用户 2026-09-28）：货架共 6 格、异兽占 4，剩余格摆魂。
-            //   与异兽同一套 货架→详情卡→购买→售罄印 流程；同一次摇货不重复同一来源。
-            float soulMul = WanXiang.Campaign.WeatherMapEffects.Current.PriceMul;
-            int soulGuard = 0;
-            // ★ 魂商品已删除（2026-11-12 用户："市集还有旧的东西"）：现在没有"魂"这个玩法，
-            //   货架只卖异兽，不足 6 格用异兽补满。
-            var soulUsed = new HashSet<string>();
-            while (_goods.Count < _goodsBtns.Length && soulGuard++ < 40)
-            {
-                var b = all[rng.NextInt(0, all.Length)];
-                if (soulUsed.Contains(b.Id)) continue;
-                soulUsed.Add(b.Id);
-                _goods.Add(new Good
-                {
-                    Beast = b,
-                    Price = WanXiang.Run.MarketPricing.FinalPrice(
-                                WanXiang.Run.MarketPricing.PriceRare, run.Act, soulMul),
-                    IsSoul = false,
-                    SoulOrdinal = System.Array.IndexOf(all, b),
-                });
-            }
+            // 3 档 × 2 件 = 6 格（顺序交替，货架看起来不呆板）
+            for (int copy = 0; copy < 2; copy++)
+                for (int t = 0; t < Tiers.Length; t++)
+                    _goods.Add(new Good
+                    {
+                        TierIndex = t,
+                        Price = WanXiang.Run.MarketPricing.FinalPrice(Tiers[t].BasePrice, run.Act, priceMul),
+                    });
 
             if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
             if (_tmpRefreshCost != null) _tmpRefreshCost.text = "刷新（1 灵卵）";
+            SetHint("灵市：只卖疗愈。灵卵是唯一货币。");
             Paint();
             WanXiang.Run.RunSave.SaveCurrent();
         }
 
         private void Paint()
         {
-            var run = WanXiang.Run.RunSave.Current;
             if (_goodsBtns == null) return;
-
             for (int i = 0; i < _goodsBtns.Length; i++)
             {
                 bool has = i < _goods.Count;
                 if (_goodsBtns[i] != null) _goodsBtns[i].gameObject.SetActive(has);
                 if (!has) continue;
-
                 var g = _goods[i];
-                if (_imgGoodsHead != null && i < _imgGoodsHead.Length && _imgGoodsHead[i] != null && _sprites != null)
+                var tier = Tiers[g.TierIndex];
+                if (_imgGoodsHead != null && i < _imgGoodsHead.Length && _imgGoodsHead[i] != null)
                 {
-                    var head = _sprites.GetHead(g.Beast.Id);
-                    if (head != null)
-                    {
-                        _imgGoodsHead[i].sprite = head;
-                        // 魂用淡青色调与异兽区分（同一个头像底图）
-                        _imgGoodsHead[i].color = g.IsSoul ? new Color(0.78f, 0.9f, 1f, 1f) : Color.white;
-                    }
+                    _imgGoodsHead[i].sprite = _healIcon;
+                    _imgGoodsHead[i].type = Image.Type.Simple;
+                    _imgGoodsHead[i].preserveAspect = true;
+                    _imgGoodsHead[i].color = _healIcon != null ? tier.Tint : new Color(1f, 1f, 1f, 0.25f);
                 }
                 if (_tmpGoodsPrice != null && i < _tmpGoodsPrice.Length && _tmpGoodsPrice[i] != null)
-                    _tmpGoodsPrice[i].text = g.Sold ? "已售出" : (g.IsSoul ? "魂 " : "") + g.Price + " 灵卵";
+                    _tmpGoodsPrice[i].text = g.Sold ? "已售出" : g.Price + " 灵卵";
                 if (_imgGoodsSold != null && i < _imgGoodsSold.Length && _imgGoodsSold[i] != null)
                     _imgGoodsSold[i].gameObject.SetActive(g.Sold);
             }
-
-            if (_tmpHint != null)
-                // ★ 澄清"拥有"与"上阵"的区别（用户疑问：不是可以超过 5 只吗？）
-                //   拥有：不设上限（都进图鉴/收藏）；上阵：最多 5 只，在编阵界面挑选。
-                _tmpHint.text = (run != null && run.Team != null && run.Team.Count >= 5)
-                    ? "当前拥有 " + (run.Collection != null ? run.Collection.Count : 0) +
-                      " 只（不设上限）｜出战时最多上阵 5 只 —— 在编阵界面调整阵容"
-                    : "点商品购买：异兽直接入队 · 魂进背包（铸魂台融合用）";
+            var run = WanXiang.Run.RunSave.Current;
+            if (_tmpEggs != null && run != null) _tmpEggs.text = "灵卵 " + run.Eggs;
         }
 
-        // ================================================================
-        //  购买 / 刷新
-        // ================================================================
-
-        private void OnRefreshClicked()
-        {
-            Reroll(free: false);
-        }
-
-        /// <summary>点货架 = 打开【详情卡】（用户要求：不能一点就买，先看介绍再决定）。</summary>
         private void OnGoodsClicked(int index)
         {
             if (index < 0 || index >= _goods.Count) return;
-            if (_goods[index].Sold) return;          // 已售出：不弹
+            if (_goods[index].Sold) return;
             ShowDetail(index);
         }
-
-        // ================================================================
-        //  详情卡（代码自建，不动 prefab）：立绘 / 名字 / 五行·定位·稀有度 /
-        //  出处 / 价格 + 「购买」「关闭」。购买只作用于当前选中的这只。
-        // ================================================================
-        private int _detailIndex = -1;    // 当前详情卡指向的货架下标（字段已改为 prefab 注入）
-
-
-        /// <summary>魂的基准价（灵卵）；实际上架价随幕数与天时物价浮动（见 Reroll）。</summary>
-        // ⛔ 价格常量统一在 WanXiang.Run.MarketPricing（market.csv），别在这里再留一份。
-
-        private void SetHint(string msg)
-        {
-            if (_tmpHint != null) _tmpHint.text = msg;
-        }
-
 
         private void ShowDetail(int index)
         {
             var g = _goods[index];
             _detailIndex = index;
-            if (g.IsSoul) { ShowSoulDetail(g); return; }
-
+            var tier = Tiers[g.TierIndex];
             if (_detailBig != null)
             {
-                _detailBig.sprite = _sprites != null ? _sprites.Get(_detailBig_BeastId(g)) : null;
-                _detailBig.color = _detailBig.sprite != null ? Color.white : new Color(0.86f, 0.82f, 0.74f, 1f);
+                _detailBig.sprite = _healIcon;
+                _detailBig.color = _healIcon != null ? tier.Tint : new Color(1f, 1f, 1f, 0.25f);
             }
-            if (_detailName != null) _detailName.text = g.Beast.DisplayName;
-
-            // ★ 详情只讲"战斗相关"（用户要求）：属性 / 推荐站位（前后排）/ 技能 / 特性。
-            //   原来的典籍原文对玩家没有决策价值，已去掉（最长一段大段古文占了大半张卡）。
-            if (_detailInfo != null)
-                _detailInfo.text = Cn.Of(g.Beast.Element) + " · " + Cn.Of(g.Beast.Role) +
-                                    " · " + RarityCn(g.Beast.Rarity);
-
-            if (_detailSource != null)
-            {
-                var b = new System.Text.StringBuilder();
-                b.Append("推荐站位：").Append(RowHint(g.Beast.Role));
-                b.Append("\n技能：");
-                if (g.Beast.Basic != null) b.Append(g.Beast.Basic.Name).Append("（基础）");
-                if (g.Beast.Active != null) b.Append("　").Append(g.Beast.Active.Name).Append("（主动）");
-                if (g.Beast.Ultimate != null) b.Append("　").Append(g.Beast.Ultimate.Name).Append("（奥义）");
-                if (!string.IsNullOrEmpty(g.Beast.Trait.Name))
-                    b.Append("\n特性：").Append(g.Beast.Trait.Name);
-                _detailSource.text = b.ToString();
-            }
+            var run = WanXiang.Run.RunSave.Current;
+            int avg = TeamAvgHpPct(run);
+            if (_detailName != null) _detailName.text = tier.Name;
+            if (_detailInfo != null) _detailInfo.text = "全队恢复 " + tier.HealPct + "% 生命（当前平均 " + avg + "%）";
+            if (_detailSource != null) _detailSource.text = "灵市药囊：立即作用于全队每一只异兽，上限 100%。";
             if (_detailPrice != null) _detailPrice.text = "价格：" + g.Price + " 灵卵";
             if (_detailBuy != null)
             {
-                var run = WanXiang.Run.RunSave.Current;
                 bool afford = run != null && run.Eggs >= g.Price;
                 _detailBuy.interactable = afford;
                 var l = _detailBuy.GetComponentInChildren<TMP_Text>();
@@ -324,84 +206,6 @@ namespace WanXiang.Modules.UI
             }
         }
 
-        /// <summary>魂商品的详情卡：与异兽共用同一张卡（用户 2026-09-28：别单独弹窗）。</summary>
-        private void ShowSoulDetail(Good g)
-        {
-            var soul = WanXiang.Fusion.SoulForge.Derive(g.Beast, g.SoulOrdinal);
-            if (_detailBig != null)
-            {
-                _detailBig.sprite = _sprites != null ? _sprites.Get(g.Beast.Id) : null;
-                _detailBig.color = _detailBig.sprite != null
-                    ? new Color(0.78f, 0.9f, 1f, 1f)          // 与货架一致：魂=淡青色调
-                    : new Color(0.86f, 0.82f, 0.74f, 1f);
-            }
-            if (_detailName != null)
-                _detailName.text = soul.DisplayName + " ·「" + soul.Epithet + "」";
-            if (_detailInfo != null)
-                _detailInfo.text = "魂 · " + Cn.Of(g.Beast.Element) + " · " + RarityCn(g.Beast.Rarity) + " · 融合材料";
-            if (_detailSource != null)
-            {
-                var b = new System.Text.StringBuilder();
-                b.Append("来源：").Append(g.Beast.DisplayName).Append("之魂（铸魂台融合用）");
-                b.Append("\n融合时改写宿主外观与特性");
-                // ⚠ TraitDef 是 struct（同 StatusDef 的坑）：不能 != null，直接取字段
-                if (!string.IsNullOrEmpty(soul.TraitInjection.Name))
-                    b.Append("\n注入特性：").Append(soul.TraitInjection.Name)
-                     .Append("（").Append(soul.TraitInjection.Description).Append("）");
-                _detailSource.text = b.ToString();
-            }
-            if (_detailPrice != null) _detailPrice.text = "价格：" + g.Price + " 灵卵";
-            if (_detailBuy != null)
-            {
-                var run = WanXiang.Run.RunSave.Current;
-                bool afford = run != null && run.Eggs >= g.Price;
-                _detailBuy.interactable = afford;
-                var l = _detailBuy.GetComponentInChildren<TMP_Text>();
-                if (l != null) l.text = afford ? "购买" : "灵卵不足";
-            }
-            if (_detailRoot != null)
-            {
-                _detailRoot.gameObject.SetActive(true);
-                _detailRoot.SetAsLastSibling();
-            }
-        }
-
-        /// <summary>推荐站位（用户要的"前后排"提示）：由定位推导，与战斗的 RanksCloser 一致。</summary>
-        private static string RowHint(WanXiang.Battle.Core.RoleType role)
-        {
-            switch (role)
-            {
-                case WanXiang.Battle.Core.RoleType.Guard:   return "前排（御：血厚攻低，优先承伤）";
-                case WanXiang.Battle.Core.RoleType.Striker: return "后排（攻：脆但爆发）";
-                case WanXiang.Battle.Core.RoleType.Swift:   return "后排（疾：依赖先手）";
-                case WanXiang.Battle.Core.RoleType.Caster:  return "中排（术：输出主力）";
-                case WanXiang.Battle.Core.RoleType.Support: return "中排（辅：增益治疗）";
-                default: return "任意";
-            }
-        }
-
-        private static string RarityCn(WanXiang.Battle.Core.Rarity r)
-        {
-            switch (r.ToString())
-            {
-                case "Common": return "凡";
-                case "Rare": return "珍";
-                case "Epic": return "史诗";
-                case "Legend": return "传说";
-                case "Legendary": return "传说";
-                default: return r.ToString();
-            }
-        }
-
-        private string _detailBig_BeastId(Good g) => g.Beast != null ? g.Beast.Id : "";
-
-        private void HideDetail()
-        {
-            _detailIndex = -1;
-            if (_detailRoot != null) _detailRoot.gameObject.SetActive(false);
-        }
-
-        /// <summary>购买（只买详情卡里当前选中的那只）。</summary>
         private void OnBuyClicked()
         {
             int index = _detailIndex;
@@ -413,91 +217,64 @@ namespace WanXiang.Modules.UI
             if (run == null) return;
             if (run.Eggs < g.Price)
             {
-                if (_tmpHint != null) _tmpHint.text = "灵卵不够（需要 " + g.Price + "）";
+                SetHint("灵卵不够（需要 " + g.Price + "）");
                 SfxThrottled("sfx_ui_currency_lack");
                 return;
             }
 
-            // ★ 魂购买（用户 2026-09-28）：与异兽同一入口，买成功盖「已售出」印 + 底部提示。
-            if (g.IsSoul)
-            {
-                run.Eggs -= g.Price;
-                if (run.Souls == null) run.Souls = new System.Collections.Generic.List<string>();
-                run.Souls.Add(g.Beast.Id);
-                g.Sold = true;
-                WanXiang.Run.RunSave.SaveCurrent();
-                SfxThrottled("sfx_ui_buy");
-                if (_tmpHint != null)
-                    _tmpHint.text = "已购入 " + g.Beast.DisplayName + " 之魂（现有 " + run.Souls.Count +
-                                    " 个）—— 铸魂台可用";
-                if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
-                HideDetail();
-                Paint();
-                UnityEngine.Debug.Log("[Market] 货架买魂 " + g.Beast.Id + "（现有 " + run.Souls.Count + "）");
-                return;
-            }
-
-            if (run.Collection == null) run.Collection = new System.Collections.Generic.List<string>();
-
             run.Eggs -= g.Price;
-            if (run.Collection == null) run.Collection = new System.Collections.Generic.List<string>();
-            if (!run.Collection.Contains(g.Beast.Id)) run.Collection.Add(g.Beast.Id);  // ★ 异兽唯一，不重复购买
+            int healed = ApplyHeal(run, Tiers[g.TierIndex].HealPct);
             g.Sold = true;
             WanXiang.Run.RunSave.SaveCurrent();
             SfxThrottled("sfx_ui_buy");
-
-            if (_tmpHint != null)
-                _tmpHint.text = g.Beast.DisplayName + " 已收入图鉴（当前拥有 " + run.Collection.Count +
-                                " 只）——  出战最多 5 只，在编阵界面调整";
+            SetHint("已购入 " + g.Name + "：全队恢复 " + Tiers[g.TierIndex].HealPct + "%（现平均 " + healed + "%）");
             if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
             HideDetail();
             Paint();
+            UnityEngine.Debug.Log("[Market] 购买 " + g.Name + "，全队平均血量 → " + healed + "%");
         }
 
-        /// <summary>
-        /// 返回地图按钮的兜底创建：prefab 里没有（防覆盖后新控件不落盘）时也要能返回，
-        /// 否则玩家进了灵市就出不去了。同 EnsureAutoSpin 模式。
-        /// </summary>
-        private void EnsureBackButton()
+        /// <summary>全队加血（上限 100），返回加完后的平均百分比。</summary>
+        private static int ApplyHeal(WanXiang.Run.RunState run, int healPct)
         {
-            if (_btnBack != null) return;
-
-            var go = new GameObject("Btn_Back", typeof(RectTransform));
-            go.transform.SetParent(transform, false);
-            var img = go.AddComponent<Image>();
-            img.color = new Color(0.94f, 0.92f, 0.88f, 1f);
-            var btn = go.AddComponent<Button>();
-            btn.targetGraphic = img;
-            var r = (RectTransform)go.transform;
-            r.anchorMin = r.anchorMax = new Vector2(0f, 1f);
-            r.anchoredPosition = new Vector2(96f, -52f);
-            r.sizeDelta = new Vector2(152f, 64f);
-
-            var tgo = new GameObject("Tmp_Label", typeof(RectTransform));
-            tgo.transform.SetParent(go.transform, false);
-            var tmp = tgo.AddComponent<TextMeshProUGUI>();
-            tmp.text = "返回地图";
-            tmp.fontSize = 26;
-            tmp.color = new Color(0.16f, 0.13f, 0.09f, 1f);
-            tmp.alignment = TextAlignmentOptions.Center;
-            var tr = (RectTransform)tgo.transform;
-            tr.anchorMin = Vector2.zero;
-            tr.anchorMax = Vector2.one;
-            tr.sizeDelta = Vector2.zero;
-
-            _btnBack = btn;
-            btn.onClick.AddListener(() =>
-            {
-                CampaignPanel.PendingCommit = -1;      // 返回 = 未完成，节点不通过
-                CloseSelf();
-                var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
-                Cysharp.Threading.Tasks.UniTask.Void(async () =>
+            if (run.TeamHpPct == null)
+                run.TeamHpPct = new Dictionary<string, int>();
+            if (run.Team != null)
+                for (int i = 0; i < run.Team.Count; i++)
                 {
-                    await Cysharp.Threading.Tasks.UniTask.DelayFrame(30);
-                    await ui.OpenAsync<CampaignPanel>();
-                });
-            });
+                    string id = run.Team[i];
+                    if (string.IsNullOrEmpty(id)) continue;
+                    int cur;
+                    if (!run.TeamHpPct.TryGetValue(id, out cur)) cur = 100;
+                    run.TeamHpPct[id] = Mathf.Clamp(cur + healPct, 0, 100);
+                }
+            return TeamAvgHpPct(run);
         }
 
+        private static int TeamAvgHpPct(WanXiang.Run.RunState run)
+        {
+            if (run == null || run.Team == null || run.Team.Count == 0) return 100;
+            int sum = 0, n = 0;
+            for (int i = 0; i < run.Team.Count; i++)
+            {
+                string id = run.Team[i];
+                if (string.IsNullOrEmpty(id)) continue;
+                int v = 100;
+                if (run.TeamHpPct != null) run.TeamHpPct.TryGetValue(id, out v);
+                sum += v; n++;
+            }
+            return n > 0 ? sum / n : 100;
+        }
+
+        private void HideDetail()
+        {
+            _detailIndex = -1;
+            if (_detailRoot != null) _detailRoot.gameObject.SetActive(false);
+        }
+
+        private void SetHint(string msg)
+        {
+            if (_tmpHint != null) _tmpHint.text = msg;
+        }
     }
 }

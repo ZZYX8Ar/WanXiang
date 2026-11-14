@@ -1,4 +1,4 @@
-act,nodeKind,name,synergy,comp,scale,hpMul
+﻿act,nodeKind,name,synergy,comp,scale,hpMul
 1,Encounter,林地游猎,坦(前排)顶住、输出居中、奶在后(8)；破局点=先杀后排灌灌,zhuhuai@2;mengji@4;guanguan@6;lushu@0;migu@1,0.80,1
 1,Encounter,藤影伏击,迷榖前排挡路、鹿蜀中排突进、絜钩后排上易伤,migu@2;lushu@4;xiegou@6;guanguan@0;zhuhuai@1,0.80,1
 1,Elite,群兽首领,诸怀前排抗、孟极+鹿蜀双输出、灌灌后排奶；不杀奶一直回血,zhuhuai@2;mengji@4;lushu@1;guanguan@6;migu@0,0.85,0.82
@@ -18,3 +18,8 @@ act,nodeKind,name,synergy,comp,scale,hpMul
 5,Encounter,长夏游猎,豪彘前排抗，火鼠中排输出，当康后排奶,haozhi@2;huoshu@4;dangkang@6;tulou@0;jiuying@1,0.80,1
 5,Elite,终焉双煞,双核心分列中排两翼，豪彘前排，貔貅中排,jiuying@5;suanni@3;haozhi@2;pixiu@7;huoshu@0,0.85,0.82
 5,Boss,天阙之主,溟鲲+赤魃占中排两翼(3/5)，豪彘前排，鲛人后排,b_mingkun@5;b_chiba@3;haozhi@2;jiaoren@6;huoshu@7,0.85,1
+1,Encounter,溪谷伏兵,四兽轮流挡路，先清前排再压后排,zhuhuai@1;mengji@4;guanguan@7;migu@2,0.82,1
+1,Encounter,九尾幻境,九尾居中控场，两侧游猎骚扰,jiuweihu@4;guanguan@2;lushu@6;mengji@0,0.85,1
+1,Encounter,枯木成阵,句芒立木为障，鹿蜀绕后突进,jumang@1;migu@4;zhuhuai@7;xiegou@2;lushu@5,0.80,1
+1,Encounter,乱石滩,孟极领队抢速，灌灌后排补伤,mengji@2;zhuhuai@0;lushu@4;guanguan@8,0.83,1
+1,Encounter,藤下夜行,絜钩后排挂易伤，迷榖前排硬顶,migu@0;xiegou@8;guanguan@5;zhuhuai@3;mengji@1,0.80,1
