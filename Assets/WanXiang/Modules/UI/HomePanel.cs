@@ -340,7 +340,7 @@ namespace WanXiang.Modules.UI
             var run = WanXiang.Run.RunSave.Current;
             bool hasProgress = run != null && (run.NodeOffset >= 0 || run.Act > 1);
             t.text = hasProgress
-                ? string.Format("继续 · 第{0}幕 第{1}层", run.Act, run.NodeOffset + 1)
+                ? string.Format("继续 · 第{0}幕 已走 {1} 格", run.Act, run.NodeOffset + 1)
                 : "出征";
         }
 

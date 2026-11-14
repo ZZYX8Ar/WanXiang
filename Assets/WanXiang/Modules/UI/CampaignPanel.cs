@@ -2388,6 +2388,10 @@ if (_tmpActTitle != null)
                 for (int l = 0; l < _graph.Layers.Length && offset < 0; l++)
                     foreach (var o in _graph.Layers[l])
                         if (IsReachable(o)) { offset = o; break; }
+                // ★ 兜底：站在最后一个节点上时没有"可达后继"，但详情面板仍应显示当前格信息，
+                //   否则一片 Node Name/Type/Weather 占位符（用户实测"什么都点不了"）。
+                if (offset < 0 && _currentOffset >= 0 && _currentOffset < _graph.NodeCount)
+                    offset = _currentOffset;
                 if (offset < 0) return;
             }
 
