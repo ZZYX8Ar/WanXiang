@@ -1200,10 +1200,15 @@ if (injected != null && !injected.IsEmpty)
     //   在这里拿秘境图（格数与主线不同）去钳主线偏移，会把主线进度莫名其妙重置。
             // ⛔ 只在**越界**时才重置！原先判 `>= NodeCount - 1`，把"正站在守关格上"的玩家
             //   也一并踹回本幕起点（守关格本身就是合法停靠位 —— 你就是要去打它）。
-            if (!_realmMode && run != null && _graph != null && run.NodeOffset >= _graph.NodeCount)
+            // ★ 2026-11-14 修：这里原来用 _graph.NodeCount 判越界，但此刻 _graph 可能还是
+            //   **上一幕（或 Act1 默认）的旧图**（39 节点），而当前幕有 51 节点 → 合法的
+            //   NodeOffset=50 被误判越界、清回起点（用户实测"存档总是第 1 层"）。
+            //   改成按"层数 × 每层格数"的幕内上限，不依赖尚未重建的图。
+            int offsetCap = Mathf.Max(1, Layers) * WanXiang.Campaign.MapRules.Width;
+            if (!_realmMode && run != null && run.NodeOffset >= offsetCap)
             {
                 Debug.LogWarning("[Campaign] 自愈：NodeOffset(" + run.NodeOffset +
-                                 ") 越界 → 回到本幕起点");
+                                 ") 超过幕内上限(" + offsetCap + ") → 回到本幕起点");
                 run.NodeOffset = -1;
                 WanXiang.Run.RunSave.SaveCurrent();
             }
