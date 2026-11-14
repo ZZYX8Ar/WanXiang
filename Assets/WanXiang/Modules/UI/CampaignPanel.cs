@@ -2899,6 +2899,12 @@ if (_tmpActTitle != null)
                     },
                     new WanXiang.Campaign.EventChoice
                     {
+                        Text = "押高桌：投 2 灵卵（10% +10 卵 / 40% 回本 2 卵 / 50% 空手）",
+                        CostEffect = WanXiang.Campaign.EventEffect.SpendEggs, CostValue = 2,
+                        Effect = WanXiang.Campaign.EventEffect.Gamble, ScopeId = "gamble_high",
+                    },
+                    new WanXiang.Campaign.EventChoice
+                    {
                         Text = "不赌，安然路过",
                         Effect = WanXiang.Campaign.EventEffect.Nothing,
                     },
