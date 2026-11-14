@@ -72,6 +72,9 @@ namespace WanXiang.Modules.UI
             _eggGain = win
                 ? System.Math.Max(0, (int)System.Math.Round(WanXiang.Campaign.WeatherMapEffects.Current.EggRewardMul))
                 : 0;
+            // ★ 2026-11-14 IS「紧急作战」：险路高压 → 胜利灵卵 ×2（上轮线框承诺，本轮收口）
+            if (win && WanXiang.Modules.UI.SceneFlow.LastBattleKind == WanXiang.Campaign.NodeKind.Urgent)
+                _eggGain *= 2;
             // ★★ 这里原本有一行 `_win = false;` —— 它把上面刚算好的胜负又覆盖成"失败"，
             //    导致"明明赢了却判失败/奖励不显示/确认可直接点/回主界面/节点不解锁"五个症状。
             //    已删除，胜负只认 ResultRequest.Win。

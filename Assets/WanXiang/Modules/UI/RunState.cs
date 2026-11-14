@@ -39,6 +39,9 @@ namespace WanXiang.Run
 
         /// <summary>当前所在层的规则 id（floor_rules.csv）；进层时写入，老档空串=无修饰。</summary>
         public string ActiveFloorRule = "";
+
+        /// <summary>市集"本幕首次刷新免费"已用在哪一幕（0=未用过；老档缺字段默认 0）。</summary>
+        public int FreeRefreshAct = 0;
         /// <summary>B3：本局分队 id（空 = 默认「行旅」）。JsonUtility 序列化，老档自动为空。</summary>
         public string SquadId = "";
         /// <summary>B3：本局挑战难度（玩家选的 N1~N18）。老档自动为 1。
@@ -546,6 +549,7 @@ namespace WanXiang.Run
             EnemyBuffPct = 0;
             GrowthPct = 0;
             ActiveFloorRule = "";   // 新局不继承上一段的层修饰
+            FreeRefreshAct = 0;
             EggHatchIn = -1;
             EggBeastId = null;
             BeatFinale = false;

@@ -60,16 +60,19 @@ namespace WanXiang.Editor.CampaignTool
                 probe.ActiveFloorRule = "press_foe";
                 probe.GrowthPct = 15;
                 probe.Eggs = 7;
+                probe.FreeRefreshAct = 3;
                 string json = UnityEngine.JsonUtility.ToJson(probe);
                 var back = UnityEngine.JsonUtility.FromJson<WanXiang.Run.RunState>(json);
                 bool roundTrip = back != null && back.ActiveFloorRule == "press_foe"
-                                 && back.GrowthPct == 15 && back.Eggs == 7;
+                                 && back.GrowthPct == 15 && back.Eggs == 7
+                                 && back.FreeRefreshAct == 3;
                 // 老档没有 activeFloorRule 字段 → 应保留字段初始值空串（无修饰）
                 var old = UnityEngine.JsonUtility.FromJson<WanXiang.Run.RunState>(
                     "{\"Eggs\":7,\"GrowthPct\":15}");
-                bool legacyOk = old != null && string.IsNullOrEmpty(old.ActiveFloorRule);
+                bool legacyOk = old != null && string.IsNullOrEmpty(old.ActiveFloorRule)
+                                && old.FreeRefreshAct == 0;
                 Check(lines, roundTrip && legacyOk,
-                    "存档往返：层规则/成长/灵卵不丢 且老档空串兼容");
+                    "存档往返：层规则/成长/灵卵/免费刷新不丢 且老档默认值兼容");
             }
 
             var acts = SolarTermGraph.BuildDefault();

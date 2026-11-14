@@ -114,13 +114,20 @@ namespace WanXiang.Modules.UI
 
             if (!free)
             {
-                if (run.Eggs < 1)
+                // ★ IS「诡意行商」：本幕首次刷新免费（RunState.FreeRefreshAct 记账）
+                bool freeThisAct = run.FreeRefreshAct != run.Act;
+                if (!freeThisAct && run.Eggs < 1)
                 {
                     SetHint("灵卵不足，刷不动货架了");
                     SfxThrottled("sfx_ui_currency_lack");
                     return;
                 }
-                run.Eggs -= 1;
+                if (freeThisAct)
+                {
+                    run.FreeRefreshAct = run.Act;
+                    SetHint("商队初见：本幕首次刷新免费");
+                }
+                else run.Eggs -= 1;
                 _refreshCount++;
                 SfxThrottled("sfx_ui_reroll");
             }
@@ -137,7 +144,9 @@ namespace WanXiang.Modules.UI
                     });
 
             if (_tmpEggs != null) _tmpEggs.text = "灵卵 " + run.Eggs;
-            if (_tmpRefreshCost != null) _tmpRefreshCost.text = "刷新（1 灵卵）";
+            if (_tmpRefreshCost != null)
+                _tmpRefreshCost.text = run.FreeRefreshAct != run.Act
+                    ? "刷新（本幕首次免费）" : "刷新（1 灵卵）";
             SetHint("灵市：只卖疗愈。灵卵是唯一货币。");
             Paint();
             WanXiang.Run.RunSave.SaveCurrent();
