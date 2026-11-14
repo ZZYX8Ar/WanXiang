@@ -277,30 +277,8 @@ namespace WanXiang.Modules.UI
             }
 
             // B5-3：灵感「战阵·蓄势」—— 开局全体自带 1 层随机附着（灼烧/中毒/碎甲）
-            try
-            {
-                var mstS = WanXiang.Meta.MetaStore.Ensure();
-                if (mstS != null && WanXiang.Battle.Core.InspirationRules.EffectValue(
-                        mstS.InspirationIds, "battle_start_status") > 0 && State != null)
-                {
-                    string[] pool = { WanXiang.Battle.Core.StatusCatalog.Burn,
-                                      WanXiang.Battle.Core.StatusCatalog.Poison,
-                                      WanXiang.Battle.Core.StatusCatalog.ArmorBreak };
-                    var srng = new WanXiang.Battle.Core.DeterministicRandom(
-                        WanXiang.Battle.Core.CoreMath.Fnv1a("inspire-status:" + State.Random.Seed));
-                    // ★ 2026-11-13：原来给**我方**全体挂 Burn/Poison/ArmorBreak —— 玩家视角就是
-                    //   "开局莫名其妙吃 debuff"（用户报障）。「蓄势」应是开场压制 → 改挂敌方。
-                    var foes = State.UnitsOf(TeamSide.Enemy);
-                    for (int i = 0; foes != null && i < foes.Count; i++)
-                    {
-                        var u = foes[i];
-                        if (u == null || !u.IsAlive) continue;
-                        u.ApplyStatus(pool[srng.NextInt(0, pool.Length)], 1, 2);
-                    }
-                    UnityEngine.Debug.Log("[Battle] 灵感「蓄势」：敌方开局 1 层随机附着");
-                }
-            }
-            catch { }
+            // ★ 2026-11-14 用户：灵感「战阵·蓄势」的"开局随机附着"我方/敌方都不要 → 已删除
+
 
             // B5-3：灵感「战阵·破阵」—— 对首领完美格挡反震 ×(1+50%)（State 就绪后折算）
             try

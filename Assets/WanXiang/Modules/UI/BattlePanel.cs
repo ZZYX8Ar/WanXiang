@@ -136,6 +136,7 @@ namespace WanXiang.Modules.UI
                 if (_tx != null) _tx.color = _ink;
             }
             InitCapture();
+            _rootOrderList = transform.Find("Root_OrderList") as RectTransform;
             var _orderT = GameObject.Find("Tmp_OrderTitle");
             if (_orderT != null) _orderT.GetComponent<TMP_Text>().color = _ink;
 
@@ -405,6 +406,16 @@ namespace WanXiang.Modules.UI
             UpdateUnitStatusHover();
             PollCaptureHover();
             PollCaptureClick();
+            // ★ 大招 cut-in 是 3D 演出，UI 面板会盖在上面（用户 11-14："行动面板挡住大招动画"）
+            //   → 演出期间隐藏行动顺序面板，结束自动恢复（只在状态变化时切）
+            {
+                bool cutin = _stage != null && _stage.CutInPlaying;
+                if (cutin != _cutinHiding)
+                {
+                    _cutinHiding = cutin;
+                    if (_rootOrderList != null) _rootOrderList.gameObject.SetActive(!cutin);
+                }
+            }
 
             if (!_playing) return;
             // ★ 回放闸：冻结期间也不推进舞台动画/按钮刷新（战场要真的"停住"，用户 2026-10-15）。
@@ -565,6 +576,8 @@ namespace WanXiang.Modules.UI
 
         private bool _inspectOpen;
         private UnitInspectPanel _inspectPanel;   // 实例（看门狗要判它是否真的还开着）
+        private RectTransform _rootOrderList;     // Root_OrderList（大招演出时临时隐藏）
+        private bool _cutinHiding;
 
         /// <summary>双击单位：暂停战斗，弹出正式查看面板（崩铁式）。</summary>
         private void ShowUnitInspect(string name, string stats, string status, string skills,
