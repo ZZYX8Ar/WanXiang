@@ -617,7 +617,12 @@ protected override UniTask OnOpenAsync(object payload)
                 {
                     frRun.ActiveFloorRule = fr.RuleId;
                     if (!string.IsNullOrEmpty(fr.RuleText))
-                        ShowFogBanner(fr.RuleTitle + "：" + fr.RuleText);
+                    {
+                        var fsp = WanXiang.Campaign.FloorRules.SpecialFor(frRun.Act, frLayer);
+                        string prefix = (fsp != null && !string.IsNullOrEmpty(fsp.Label))
+                            ? fsp.Label + " · " : "";
+                        ShowFogBanner(prefix + fr.RuleTitle + "：" + fr.RuleText);
+                    }
                 }
             }
 
