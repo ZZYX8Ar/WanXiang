@@ -783,6 +783,20 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         private Color SeasonAccent { get { return SeasonPalette[SeasonIdx]; } }
 
         // 节点季节徽（Resources/UI/Campaign/node_s1..5：花/竹/枫/雪/土）。缺图则保留 prefab 默认。
+        private static readonly System.Collections.Generic.Dictionary<string, Sprite> _kindIconCache
+            = new System.Collections.Generic.Dictionary<string, Sprite>(16);
+
+        /// <summary>节点类型图标（node_kind_*.png；缺失返回 null → 回退季节徽）。</summary>
+        private static Sprite KindIconSprite(string kindName)
+        {
+            if (string.IsNullOrEmpty(kindName)) return null;
+            Sprite s;
+            if (_kindIconCache.TryGetValue(kindName, out s)) return s;
+            s = UnityEngine.Resources.Load<Sprite>("UI/Campaign/node_kind_" + kindName);
+            _kindIconCache[kindName] = s;
+            return s;
+        }
+
         private static Sprite[] _seasonNodeSprites;
         private static Sprite SeasonNodeSpriteFor(int idx)
         {
@@ -2160,14 +2174,21 @@ if (_tmpActTitle != null)
                 if (!fogged)
                 {
                     bool q = kind == WanXiang.Campaign.NodeKind.Question && !IsRevealed(offset);
-                    var em = SeasonNodeSprite();             // ★ 本幕季节徽（花/竹/枫/雪/土）
+                    // ★ 2026-11-14 用户：每类节点要有自己的图标（原来全用同一张季节徽分不出来）
+                    bool isBossCell = IsSeasonBossNode(offset)
+                        || (_graph != null && _graph.Act >= 5 && offset == _graph.NodeCount - 1);
+                    var kindIcon = KindIconSprite(isBossCell ? "Boss" : kind.ToString());
+                    var em = kindIcon != null ? kindIcon : SeasonNodeSprite();
                     if (em != null) dot.sprite = em;
                     // ★ 节点按【本幕季节】上色；锁定态压暗 = "去不了"。"当前/可前往/已过"另有文字标签按状态上色。
                     var sc = SeasonAccent;
                     bool lit = isHere || canGo || passed;
-                    dot.color = q ? QuestionInk
-                              : lit ? sc
-                              : new Color(sc.r * 0.62f, sc.g * 0.62f, sc.b * 0.62f, 0.75f);
+                    // ★ 新图标自带配色（墨绿双环），不能再被季节色 tint（否则变成一团茶色空圆）
+                    dot.color = kindIcon != null
+                        ? (lit ? Color.white : new Color(1f, 1f, 1f, 0.72f))
+                        : (q ? QuestionInk
+                             : lit ? sc
+                             : new Color(sc.r * 0.62f, sc.g * 0.62f, sc.b * 0.62f, 0.75f));
                 }
             }
 
