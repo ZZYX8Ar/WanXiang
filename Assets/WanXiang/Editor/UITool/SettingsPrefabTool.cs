@@ -244,6 +244,123 @@ namespace WanXiang.EditorTools
             lab.rectTransform.anchoredPosition = Vector2.zero;
         }
 
+        /// <summary>方案 B：通栏风格统一排版（按组件类型规整，不逐行硬编码）。</summary>
+        [MenuItem("万相/UI/设置·通栏排版")]
+        public static void ApplyComfyLayout()
+        {
+            if (!File.Exists(SettingsPath)) { Debug.LogError("[SettingsTool] 找不到 prefab"); return; }
+            Backup(SettingsPath);
+            var root = PrefabUtility.LoadPrefabContents(SettingsPath);
+            var rootRt = root.transform as RectTransform;
+
+            // ① 不透明底（解决 Home 按钮透出）
+            var bg = root.transform.Find("Img_PanelBg") as RectTransform;
+            if (bg == null)
+            {
+                var go = new GameObject("Img_PanelBg", typeof(RectTransform), typeof(Image));
+                bg = (RectTransform)go.transform; bg.SetParent(root.transform, false);
+            }
+            // ★ 每次强制设属性（已存在时也要重设，否则旧 sprite 的透明会让 Home 透出来）
+            {
+                var im = bg.GetComponent<Image>();
+                if (im == null) im = bg.gameObject.AddComponent<Image>();
+                im.sprite = null;
+                im.type = Image.Type.Simple;
+                im.color = new Color(0.965f, 0.945f, 0.895f, 1f);
+            }
+            bg.anchorMin = Vector2.zero; bg.anchorMax = Vector2.one;
+            bg.offsetMin = Vector2.zero; bg.offsetMax = Vector2.zero;
+            bg.SetAsFirstSibling();
+
+            // ② 页容器：顶部锚定，Tab 之下
+            foreach (var pg in new[] { "Root_Audio", "Root_Battle", "Root_Video", "Root_Keybinds", "Root_Save" })
+                SetPageRect(root.transform, pg, new Vector2(0f, -180f), new Vector2(-80f, 620f));
+
+            // ③ 行顺序（显式指定，避免静音跑第一行）
+            OrderRows(root.transform, "Root_Audio", new[] { "Row_Bgm", "Row_Sfx", "Row_Mute" });
+            OrderRows(root.transform, "Root_Battle", new[] { "Row_AutoBattle", "Row_CutIn", "Row_DamageNum", "Row_Shake", "Row_Tooltip", "Row_Speed" });
+            OrderRows(root.transform, "Root_Video", new[] { "Row_Fullscreen", "Row_Vsync" });
+
+            // ④ 页内所有行：Label 固定左 260 / Slider 通栏留位 / Toggle 右对齐
+            foreach (var pg in new[] { "Root_Audio", "Root_Battle", "Root_Video", "Root_Save" })
+            {
+                var page = root.transform.Find(pg) as RectTransform;
+                if (page == null) continue;
+                int i = 0;
+                foreach (Transform row in page)
+                {
+                    if (!(row is RectTransform rowRt)) continue;
+                    // 行容器（有 Label/Toggle/Slider 的才当行）
+                    bool isRow = row.name.StartsWith("Row_") || row.GetComponentInChildren<Slider>(true) != null
+                                 || row.GetComponentInChildren<Toggle>(true) != null;
+                    if (!isRow) continue;
+                    rowRt.anchorMin = new Vector2(0f, 1f); rowRt.anchorMax = new Vector2(1f, 1f);
+                    rowRt.pivot = new Vector2(0.5f, 0.5f);
+                    rowRt.sizeDelta = new Vector2(-80f, 66f);
+                    rowRt.anchoredPosition = new Vector2(0f, -35f - i * 74f);
+                    i++;
+
+                    // Label：左固定 260，绝不压滑条
+                    foreach (var tx in rowRt.GetComponentsInChildren<TMP_Text>(true))
+                    {
+                        var lrt = tx.rectTransform;
+                        lrt.anchorMin = new Vector2(0f, 0f); lrt.anchorMax = new Vector2(0f, 1f);
+                        lrt.pivot = new Vector2(0f, 0.5f);
+                        lrt.sizeDelta = new Vector2(260f, 0f);
+                        lrt.anchoredPosition = new Vector2(24f, 0f);
+                        tx.alignment = TextAlignmentOptions.Left;
+                        tx.enableWordWrapping = false;
+                    }
+                    // Slider：恢复通栏（左右留位），不缩窄
+                    foreach (var sl in rowRt.GetComponentsInChildren<Slider>(true))
+                    {
+                        var srt = sl.transform as RectTransform;
+                        srt.anchorMin = new Vector2(0f, 0.5f); srt.anchorMax = new Vector2(1f, 0.5f);
+                        srt.pivot = new Vector2(0.5f, 0.5f);
+                        srt.offsetMin = new Vector2(300f, -21f);
+                        srt.offsetMax = new Vector2(-40f, 21f);
+                        srt.localScale = Vector3.one;
+                    }
+                    // Toggle：右对齐 + 隐藏其内部模板文字（行 label 是兄弟节点，安全）
+                    foreach (var tg in rowRt.GetComponentsInChildren<Toggle>(true))
+                    {
+                        foreach (var t0 in tg.GetComponentsInChildren<TMP_Text>(true)) t0.gameObject.SetActive(false);
+                        var trt = tg.transform as RectTransform;
+                        trt.anchorMin = trt.anchorMax = new Vector2(1f, 0.5f);
+                        trt.pivot = new Vector2(1f, 0.5f);
+                        trt.sizeDelta = new Vector2(56f, 56f);
+                        trt.anchoredPosition = new Vector2(-24f, 0f);
+                    }
+                }
+            }
+
+            // ④ 页说明：面板底部居中（原来压到 Home 的退出按钮上）
+            var hint = root.transform.Find("Tmp_PageHint") as RectTransform;
+            if (hint != null)
+            {
+                hint.anchorMin = new Vector2(0f, 0f); hint.anchorMax = new Vector2(1f, 0f);
+                hint.pivot = new Vector2(0.5f, 0f);
+                hint.sizeDelta = new Vector2(-80f, 34f);
+                hint.anchoredPosition = new Vector2(0f, 16f);
+            }
+
+            PrefabUtility.SaveAsPrefabAsset(root, SettingsPath);
+            PrefabUtility.UnloadPrefabContents(root);
+            AssetDatabase.Refresh();
+            Debug.Log("[SettingsTool] 通栏排版完成（背景底 + Label 左 260 + Slider 通栏 + Toggle 右）");
+        }
+
+        private static void OrderRows(Transform root, string pageName, string[] order)
+        {
+            var page = root.Find(pageName);
+            if (page == null) return;
+            for (int i = 0; i < order.Length; i++)
+            {
+                var row = page.Find(order[i]);
+                if (row != null) row.SetSiblingIndex(i);
+            }
+        }
+
         // ---------------- 辅助 ----------------
         private static void Backup(string path)
         {
@@ -364,6 +481,8 @@ namespace WanXiang.EditorTools
                 clone.sizeDelta = new Vector2(44f, 44f);
                 clone.anchoredPosition = new Vector2(-8f, 0f);
                 clone.gameObject.SetActive(true);
+                // ★ 模板 Tgl_Fullscreen 自带一个 "全屏" label，克隆体会把它带过来（战斗页每行都会显示"全屏"）
+                foreach (var t0 in clone.GetComponentsInChildren<TMP_Text>(true)) t0.gameObject.SetActive(false);
                 tgl = clone.GetComponent<Toggle>();
                 var crt = (RectTransform)clone;
                 crt.anchorMin = crt.anchorMax = new Vector2(1f, 0.5f);
