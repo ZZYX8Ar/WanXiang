@@ -87,7 +87,8 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
             int act = System.Math.Max(1, System.Math.Min(run.Act, 5));
             int term = termIndex >= 0 ? termIndex : System.Math.Max(0, run.NodeOffset);
             bool elite = kind == WanXiang.Campaign.NodeKind.Elite
-                      || kind == WanXiang.Campaign.NodeKind.RealmChampion;
+                      || kind == WanXiang.Campaign.NodeKind.RealmChampion
+                      || kind == WanXiang.Campaign.NodeKind.Urgent;   // 险路：精英规模
             // ★ 守关：图里最后一格复用 【精英】占位，靠 isBoss 标志区分（普通精英 vs 首领）。
             bool boss = isBoss && kind == WanXiang.Campaign.NodeKind.Elite;
             // ★★ 秘境「镇守」（2026-10-16 用户："一些特殊的敌人，这些敌人的攻击设计很有意思，

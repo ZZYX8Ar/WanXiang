@@ -89,6 +89,7 @@ namespace WanXiang.Modules.UI
             LoadSquad();
             LoadMap();
             LoadNodeWeights();
+            LoadFloorRules();
             LoadRelics();
             LoadCombos();
             LoadProgression();
@@ -893,6 +894,55 @@ namespace WanXiang.Modules.UI
         // ================================================================
         //  relics.csv / combos.csv / progression.csv
         // ================================================================
+
+        /// <summary>层规则 / 特殊层（唯一解析层；Core 只接受 Install）。</summary>
+        private static void LoadFloorRules()
+        {
+            var rules = new System.Collections.Generic.List<WanXiang.Campaign.FloorRuleDef>();
+            var rows = Read("floor_rules", out var header);
+            if (rows != null)
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    var r = new Row(header, rows[i], "floor_rules.csv", i + 2, Problems);
+                    var pool = new System.Collections.Generic.List<WanXiang.Campaign.NodeKind>();
+                    foreach (var part in r.Str("pool").Split('|'))
+                    {
+                        if (string.IsNullOrWhiteSpace(part)) continue;
+                        if (System.Enum.TryParse(part.Trim(), true, out WanXiang.Campaign.NodeKind k)) pool.Add(k);
+                        else r.Fail("未知节点类型：" + part);
+                    }
+                    rules.Add(new WanXiang.Campaign.FloorRuleDef
+                    {
+                        Act = r.Int("act", 1),
+                        LayerFrom = r.Int("layer0From", 0),
+                        LayerTo = r.Int("layer0To", 17),
+                        MinWidth = r.Int("minWidth", 2),
+                        MaxWidth = r.Int("maxWidth", 3),
+                        Pool = pool.ToArray(),
+                        RuleTitle = r.Str("ruleTitle"),
+                        RuleText = r.Str("ruleText"),
+                        RuleId = r.Str("ruleId"),
+                    });
+                }
+            var specials = new System.Collections.Generic.List<WanXiang.Campaign.FloorSpecialDef>();
+            var rows2 = Read("floor_special", out var header2);
+            if (rows2 != null)
+                for (int i = 0; i < rows2.Count; i++)
+                {
+                    var r = new Row(header2, rows2[i], "floor_special.csv", i + 2, Problems);
+                    if (!System.Enum.TryParse(r.Str("kind"), true, out WanXiang.Campaign.NodeKind k))
+                    { r.Fail("未知节点类型：" + r.Str("kind")); continue; }
+                    specials.Add(new WanXiang.Campaign.FloorSpecialDef
+                    {
+                        Act = r.Int("act", 1),
+                        Layer = r.Int("layer0", 0),
+                        Width = r.Int("width", 1),
+                        Kind = k,
+                        Label = r.Str("label"),
+                    });
+                }
+            WanXiang.Campaign.FloorRules.Install(rules, specials);
+        }
 
         private static void LoadRelics()
         {

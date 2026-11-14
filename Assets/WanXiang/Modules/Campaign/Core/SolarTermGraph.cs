@@ -122,6 +122,12 @@ namespace WanXiang.Campaign
         /// **古战场**（2026-10-20）：非战斗。三选一遗物，代价是下一场敌人 +15%。
         /// </summary>
         Ruins = 16,
+
+        /// <summary>险路（11-14）：高压战斗，敌方 +1 随从、属性 ×1.15，胜利灵卵 ×2。</summary>
+        Urgent = 17,
+
+        /// <summary>歇脚（11-14）：非战斗，全队回复 25% 生命或取 1 灵卵。</summary>
+        Respite = 18,
     }
 
     public static class NodeKinds
@@ -133,7 +139,8 @@ namespace WanXiang.Campaign
         ///   两者不会同时被数到，所以加进来是安全的（不加反而会让秘境场次不计入强度曲线）。
         /// </remarks>
         public static bool IsBattle(NodeKind k) =>
-            k == NodeKind.Encounter || k == NodeKind.Elite || k == NodeKind.RealmChampion;
+            k == NodeKind.Encounter || k == NodeKind.Elite || k == NodeKind.RealmChampion
+            || k == NodeKind.Urgent;   // 险路也是战斗
 
         /// <summary>秘境**专属**节点类型（主线图永远不会生成这些）。</summary>
         public static bool IsRealmOnly(NodeKind k) =>
@@ -145,6 +152,8 @@ namespace WanXiang.Campaign
             {
                 case NodeKind.Encounter: return "作战";
                 case NodeKind.Elite: return "精英";
+                case NodeKind.Urgent: return "险路";
+                case NodeKind.Respite: return "歇脚";
                 case NodeKind.Shop: return "市集";
                 case NodeKind.Nest: return "休整";
                 case NodeKind.Tale: return "奇遇";   // 2026-11-01：异闻改为事件节点
@@ -342,7 +351,9 @@ namespace WanXiang.Campaign
                 bool isBoss = layer == layers - 1;
 
                 // ★ 2026-11-02 用户：每层候选数应当一致（原来 2~3 随机）；首领层固定 1
-                    int width = isBoss ? 1 : MapRules.Width;   // ★ 每层候选数可外置（map.csv）
+                    // ★ 2026-11-14：层结构按 floor_rules.csv 分段，不再每层同一个宽度/池
+                    int width = isBoss ? 1 : FloorRules.WidthFor(act, layer, rng);
+                    var sp = FloorRules.SpecialFor(act, layer);
                 var row = new int[width];
                 for (int k = 0; k < width; k++)
                 {
@@ -355,9 +366,11 @@ namespace WanXiang.Campaign
                     // ★ 每幕第二层固定「遗物」（招募已删，见上方注释）。
                     // ★ 招募节点已删除（用户 2026-11-12）：改由固定 5 人起手承担开局队伍，
                     //   首层不再强制 Recruit，按普通池随机；次层仍固定遗物。
+                    NodeKind main = PickKind(rng, false, act);
                     NodeKind kind = isBoss ? NodeKind.Elite
                                 : (layer == 1) ? NodeKind.Relic
-                                : PickKind(rng, false, act);
+                                : (sp != null) ? sp.Kind
+                                : FloorRules.PickKind(act, layer, rng, main);
                     kinds.Add(kind);
                 }
                 layerIndex.Add(row);

@@ -607,6 +607,16 @@ protected override UniTask OnOpenAsync(object payload)
             //   放在 ActIntro 之前：换幕时 OnOpenAsync 会重跑，这里跟着重建，背景/粒子随幕变。
             RefreshAmbient();
 
+            // ★ 2026-11-14：当前段落规则横幅（明日方舟肉鸽"层修饰"的轻量版）
+            if (!_realmMode && _graph != null)
+            {
+                var frRun = WanXiang.Run.RunSave.Current;
+                int frLayer = _currentOffset >= 0 ? _graph.LayerOf(_currentOffset) : 0;
+                var fr = WanXiang.Campaign.FloorRules.RuleFor(frRun != null ? frRun.Act : 1, frLayer);
+                if (fr != null && !string.IsNullOrEmpty(fr.RuleText))
+                    ShowFogBanner(fr.RuleTitle + "：" + fr.RuleText);
+            }
+
             // ★ 每一幕的开场/转场动画（宣纸底 + 大字逐字浮现 + 当季落叶）。
             //   触发口子**只放这一处**：进图与换幕都会经过 CampaignPanel.OnOpenAsync，
             //   免得两处各写一遍、行为还不一致。是否已播记在存档 RunState.IntroShownAct。
@@ -2433,6 +2443,7 @@ if (_tmpActTitle != null)
             // 招募节点已删除（2026-11-12）：不再注册路由；老存档遇到该枚举按普通节点处理
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Relic, _ => OpenPanelAsync<RelicPanel>(_current).Forget());
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Nest, r => NestChoose(r));
+            _nodeRouter.Register(WanXiang.Campaign.NodeKind.Respite, r => NestChoose(r));   // 歇脚：复用扎营二选一
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Tale, r => RunTaleNode(r));
             _nodeRouter.Register(WanXiang.Campaign.NodeKind.Forge, r => RunForgeNode(r));
         }
