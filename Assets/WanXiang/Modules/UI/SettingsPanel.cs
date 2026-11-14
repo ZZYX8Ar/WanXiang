@@ -161,14 +161,58 @@ namespace WanXiang.Modules.UI
             if (_tglDamageNum != null) _tglDamageNum.SetIsOnWithoutNotify(SettingsStore.DamageNumbers);
             if (_tglShake != null) _tglShake.SetIsOnWithoutNotify(SettingsStore.ScreenShake);
             if (_tglTooltip != null) _tglTooltip.SetIsOnWithoutNotify(SettingsStore.Tooltips);
+            RelabelSpeedButtons();
+            RefreshSegmentState();
+        }
+
+        /// <summary>按钮文本统一成 1x / 2x / 4x（prefab 里原来写的是 1x/1.5x/2x）。</summary>
+        private void RelabelSpeedButtons()
+        {
+            if (_speedBtns == null) return;
+            string[] labels = { "1x", "2x", "4x" };
+            for (int i = 0; i < _speedBtns.Length && i < labels.Length; i++)
+            {
+                if (_speedBtns[i] == null) continue;
+                var tx = _speedBtns[i].GetComponentInChildren<TMP_Text>();
+                if (tx != null) tx.text = labels[i];
+            }
         }
 
         private void SetSpeed(int idx)
         {
-            float[] table = { 1f, 1.5f, 2f };
+            float[] table = { 1f, 2f, 4f };   // 与战斗界面 x1/x2/x4 完全一致（用户 11-14）
             if (idx < 0 || idx >= table.Length) return;
             SettingsStore.BattleSpeed = table[idx];
-            Debug.Log("[Settings] 战斗速度 = " + table[idx].ToString("0.0") + "x（下一场生效）");
+            RefreshSegmentState();
+            Debug.Log("[Settings] 战斗速度 = " + table[idx].ToString("0") + "x（下一场生效）");
+        }
+
+        /// <summary>分段按钮选中态：当前档位米黄底，其余白（用户："点了没感觉"）。</summary>
+        private void RefreshSegmentState()
+        {
+            float[] speeds = { 1f, 2f, 4f };
+            int[] fps = { 30, 60, 120, 0 };
+            SetSegSelected(_speedBtns, speeds, SettingsStore.BattleSpeed);
+            int curFps = SettingsStore.TargetFps;
+            if (_fpsBtns != null)
+                for (int i = 0; i < _fpsBtns.Length && i < fps.Length; i++)
+                    PaintSeg(_fpsBtns[i], fps[i] == curFps);
+        }
+
+        private static void SetSegSelected(UnityEngine.UI.Button[] btns, float[] values, float current)
+        {
+            if (btns == null) return;
+            for (int i = 0; i < btns.Length && i < values.Length; i++)
+                PaintSeg(btns[i], Mathf.Abs(values[i] - current) < 0.01f);
+        }
+
+        private static void PaintSeg(UnityEngine.UI.Button b, bool on)
+        {
+            if (b == null) return;
+            var img = b.GetComponent<UnityEngine.UI.Image>();
+            if (img != null) img.color = on ? new Color(0.93f, 0.88f, 0.76f, 1f) : Color.white;
+            var tx = b.GetComponentInChildren<TMP_Text>();
+            if (tx != null) tx.fontStyle = on ? FontStyles.Bold : FontStyles.Normal;
         }
 
         private void SetFps(int idx)

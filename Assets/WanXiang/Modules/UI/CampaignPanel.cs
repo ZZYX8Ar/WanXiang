@@ -546,8 +546,8 @@ BuildNodeMap();
                                 _currentOffset = -1;
                                 _visited.Clear();
                                 BuildNodeMap();
-                                var uiF = WanXiang.Framework.Boot.UIBootstrap.UI;
-                                if (uiF != null) uiF.OpenAsync<TrialPanel>().Forget();
+                                // 先等奖励界面关 + 播转场，再弹天阙抉择（原来同时抢屏 → 用户实测"第四幕被跳过"）
+                                DeferredIntroThenTrialAsync().Forget();
                                 return true;
                             }
 
@@ -744,7 +744,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
 
         private static readonly Color NodeVisited = new Color(0.79f, 0.63f, 0.39f);   // 金
         private static readonly Color NodeReachable = new Color(0.47f, 0.57f, 0.38f); // 木绿
-        private static readonly Color NodeLocked = new Color(0.42f, 0.39f, 0.35f);    // 灰（加深：彩叶/雪景底上也看得清）
+        private static readonly Color NodeLocked = new Color(0.30f, 0.27f, 0.24f);    // 灰（加深：彩叶/雪景底上也看得清）
 
         // 路线图尺寸常量（连线的节点坐标必须与排布公式一致，所以提出来共用）
         // ★ 2026-11-02：层数改为读 MapRules（Resources/Data/map.csv 可覆盖），
@@ -942,6 +942,23 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// ⚠ 不是等转场完全结束：用户 2026-10-12："粒子拨开转场就立马到写字了，没有衔接起来，
         ///    要连贯"。， 在退场那一刻就让写字淡入，与拨开重叠，视觉上是连续的。
         /// </summary>
+        /// <summary>第 5 幕：先等奖励关 + 播幕间转场，转场结束后再弹天阙抉择（原来三者抢屏）。</summary>
+        private async Cysharp.Threading.Tasks.UniTaskVoid DeferredIntroThenTrialAsync()
+        {
+            await OpenPanelAsync<ActIntroPanel>();
+            int guard = 0;
+            while (guard < 1800)
+            {
+                var ip = UnityEngine.Object.FindObjectOfType<WanXiang.Modules.UI.ActIntroPanel>(true);
+                if (ip == null || !ip.gameObject.activeInHierarchy) break;
+                guard++;
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
+            }
+            Debug.Log("[Campaign] 天阙转场播完（等 " + guard + " 帧），打开天阙抉择");
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            if (ui != null) ui.OpenAsync<WanXiang.Modules.UI.TrialPanel>().Forget();
+        }
+
         private async Cysharp.Threading.Tasks.UniTaskVoid DeferredIntroAsync()
         {
             // ★ 2026-10-14 首播优化（用户："从主界面到节点地图的转场第一次会卡，后面就流畅"）：
@@ -950,6 +967,18 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             //   首次改在**建图转场的遮盖期内**就打开（不等退场时刻）—— 卡顿落在屏幕
             //   被盖住时、不可见；第二次起资源已热，照旧等退场时刻，保持"写字与拨开
             //   重叠"的原设计。冷热判定用 ActIntroPanel.SessionPlayed。
+            // ★ 2026-11-14 用户：守关 Boss 的奖励界面挡住幕间转场，甚至让人以为跳幕
+            //   → 先等 ResultPanel 关掉（玩家确认奖励），再播写字转场。
+            int rpGuard = 0;
+            while (rpGuard < 900)
+            {
+                var rp = UnityEngine.Object.FindObjectOfType<WanXiang.Modules.UI.ResultPanel>(true);
+                if (rp == null || !rp.gameObject.activeInHierarchy) break;
+                rpGuard++;
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
+            }
+            if (rpGuard > 0) Debug.Log("[Campaign] 已等奖励界面关闭 " + rpGuard + " 帧，开始幕间转场");
+
             bool cold = !ActIntroPanel.SessionPlayed;
             if (cold)
             {
@@ -2059,7 +2088,7 @@ if (_tmpActTitle != null)
                 if (card != null) { cardImg.sprite = card; cardImg.type = Image.Type.Sliced; }
                 cardImg.color = fogged
                     ? new Color(0.78f, 0.80f, 0.82f, 0.95f)                      // ★ 瘴雾：冷灰"雾气卡"
-                    : (passed || canGo || isHere) ? Color.white : new Color(0.95f, 0.93f, 0.88f, 0.99f);   // 未解锁也实一些
+                    : (passed || canGo || isHere) ? Color.white : new Color(1f, 1f, 1f, 1f);   // 未解锁实心（卡片图本身半透明）
             }
 
             var label = item.Find("Tmp_NodeText") != null
@@ -2120,8 +2149,8 @@ if (_tmpActTitle != null)
      label.text = prefix + "【" + name + "】" +
      (isHere ? " ◀当前" : canGo ? " ←可前往" : "");
              label.color = isHere ? NodeVisited : canGo ? NodeReachable : passed ? PathGold : NodeLocked;
-             label.outlineWidth = 0.18f;                                    // 彩叶/雪景底也读得清
-             label.outlineColor = new Color(0.97f, 0.95f, 0.90f, 0.92f);
+             label.outlineWidth = 0.28f;                                    // 深墨描边：彩叶/雪景/树枝底都读得清
+             label.outlineColor = new Color(0.22f, 0.18f, 0.14f, 0.95f);
             }
 
             var dot = item.Find("Img_Dot") != null ? item.Find("Img_Dot").GetComponent<Image>() : null;

@@ -44,11 +44,11 @@ namespace WanXiang.Modules.UI
             get
             {
                 int v = PlayerPrefs.GetInt(KSpeed, 100);
-                return Mathf.Clamp(v / 100f, 1f, 2f);
+                return Mathf.Clamp(v / 100f, 1f, 4f);   // 与战斗界面一致：1/2/4
             }
             set
             {
-                int v = Mathf.RoundToInt(Mathf.Clamp(value, 1f, 2f) * 100f);
+                int v = Mathf.RoundToInt(Mathf.Clamp(value, 1f, 4f) * 100f);
                 PlayerPrefs.SetInt(KSpeed, v);
                 PlayerPrefs.Save();
             }

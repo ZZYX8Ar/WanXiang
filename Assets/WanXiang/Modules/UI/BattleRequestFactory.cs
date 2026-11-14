@@ -421,7 +421,7 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                         var grown = new WanXiang.Battle.Core.DeployEntry[entries.Length + 1];
                         System.Array.Copy(entries, grown, entries.Length);
                         grown[entries.Length] = WanXiang.Battle.Core.DeployEntry.Enemy(floorFoeDef, slot)
-                            .WithMul(0.80f);
+                            .WithMul(0.95f);   // 随从略弱于主队，但不至于一碰就死（用户 11-14）
                         entries = grown;
                         UnityEngine.Debug.Log("[BattleRequestFactory] 层规则「瘴气渐起」追加随从 "
                             + pick.Id + "（槽 " + slot + "）");
