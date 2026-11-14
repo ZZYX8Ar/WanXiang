@@ -54,6 +54,24 @@ namespace WanXiang.Editor.CampaignTool
             lines.Add($"时间　　{System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             lines.Add("拓扑　　v1 占位：每幕 4 层 [2,2,1,1] 相邻层全连通（GDD 只定 6 选 4 + 收尾必土）");
 
+            // ★ 2026-11-14：存档往返（新字段 ActiveFloorRule / GrowthPct / Eggs）+ 老档兼容
+            {
+                var probe = new WanXiang.Run.RunState();
+                probe.ActiveFloorRule = "press_foe";
+                probe.GrowthPct = 15;
+                probe.Eggs = 7;
+                string json = UnityEngine.JsonUtility.ToJson(probe);
+                var back = UnityEngine.JsonUtility.FromJson<WanXiang.Run.RunState>(json);
+                bool roundTrip = back != null && back.ActiveFloorRule == "press_foe"
+                                 && back.GrowthPct == 15 && back.Eggs == 7;
+                // 老档没有 activeFloorRule 字段 → 应保留字段初始值空串（无修饰）
+                var old = UnityEngine.JsonUtility.FromJson<WanXiang.Run.RunState>(
+                    "{\"Eggs\":7,\"GrowthPct\":15}");
+                bool legacyOk = old != null && string.IsNullOrEmpty(old.ActiveFloorRule);
+                Check(lines, roundTrip && legacyOk,
+                    "存档往返：层规则/成长/灵卵不丢 且老档空串兼容");
+            }
+
             var acts = SolarTermGraph.BuildDefault();
 
             // ---- ① 幕表 ----

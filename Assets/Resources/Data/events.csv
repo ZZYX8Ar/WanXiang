@@ -1,4 +1,4 @@
-id,title,story,choice,text,effect,value,scope
+﻿id,title,story,choice,text,effect,value,scope
 ev_fog_guest,雾中来客,雾里有人影招手。它说前面三条路它都走过，只是现在看不清了。,0,听它的（未来 3 节不可见并重掷；雾中首节点奖励 +20%）,StartFog,3,
 ev_fog_guest,雾中来客,雾里有人影招手。它说前面三条路它都走过，只是现在看不清了。,1,不信，绕开（安全，但本幕少一次素材机会）,Nothing,0,
 ev_fog_guest,雾中来客,雾里有人影招手。它说前面三条路它都走过，只是现在看不清了。,2,追问它的来历（扣 10% 全队生命，换 1 个规则遗物）,DamageTeamPct,10,r_rule_no_hit
@@ -53,3 +53,15 @@ ev_smith,铸剑师,老铁匠把一柄没开刃的剑推到你面前：这剑认�
 ev_lantern,雾中灯,雾里飘着一盏灯，你走近它就退，你不走它也不灭。,0,跟上去（未来 3 节不可见并重掷）,StartFog,3,
 ev_lantern,雾中灯,雾里飘着一盏灯，你走近它就退，你不走它也不灭。,1,站在原地（全队回复 12% 生命）,HealTeamPct,12,
 ev_lantern,雾中灯,雾里飘着一盏灯，你走近它就退，你不走它也不灭。,2,吹灭它（+40 灵卵）,GainEggs,40,
+ev_woodcutter,伐木人,山道边有人锯着一段枯木。他说这木头能换钱，也能烧火取暖。,0,替他扛一段（得 3 灵卵 但要绕远路）,GainEggs,3,
+ev_woodcutter,伐木人,山道边有人锯着一段枯木。他说这木头能换钱，也能烧火取暖。,1,借他的火歇一歇（全队回复 15% 生命）,HealTeamPct,15,
+ev_mist_ferry,雾渡,渡口空着一条船。撑篙人说雾里看得近，反而走得稳。,0,上船（接下来 2 节不可见 但雾中首节点有额外收益）,StartFog,2,
+ev_mist_ferry,雾渡,渡口空着一条船。撑篙人说雾里看得近，反而走得稳。,1,沿岸步行（拾得 1 枚灵卵）,GainEggs,1,
+ev_old_shrine,旧祠,残破的祠堂里还留着半卷兽谱，字都被虫蛀了。,0,细读兽谱（随机一只上阵异兽技能专精 +1）,GrantMastery,0,
+ev_old_shrine,旧祠,残破的祠堂里还留着半卷兽谱，字都被虫蛀了。,1,翻找供桌（拾一枚灵兽蛋 2 节后出壳）,PickEgg,0,
+ev_moon_well,月井,井水映着月亮，照得伤口发凉。,0,掬水疗伤（全队回复 30% 生命）,HealTeamPct,30,
+ev_moon_well,月井,井水映着月亮，照得伤口发凉。,1,把井绳留给后来人（本场回合上限 +4）,TurnDelta,4,
+ev_broken_lute,断弦,驿亭里挂着一把断了弦的琴。有人留话：修它 或 拿走它。,0,续弦试音（随机一只上阵异兽技能专精 +1）,GrantMastery,0,
+ev_broken_lute,断弦,驿亭里挂着一把断了弦的琴。有人留话：修它 或 拿走它。,1,拆下琴身换药（全队回复 20% 生命）,HealTeamPct,20,
+ev_frost_market,霜市,结霜的早市只剩两三个摊子 摊主都不太想说话。,0,替人守摊（得 2 灵卵）,GainEggs,2,
+ev_frost_market,霜市,结霜的早市只剩两三个摊子 摊主都不太想说话。,1,收下摊主塞来的碎料（进化素材 +1）,GrantMaterial,1,
