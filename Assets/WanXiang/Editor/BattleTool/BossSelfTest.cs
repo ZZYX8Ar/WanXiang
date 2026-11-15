@@ -61,6 +61,7 @@ namespace WanXiang.Editor.BattleTool
                 CheckRepresentativeMechanics(c);
                 CheckWinnability(c);
                 CheckEncounterRoster(c);   // ★ 2026-11-15：编队引用的敌人 id 必须全部可解析
+                CheckDiceMechanic(c);      // ★ 2026-11-15：秘境骰子机制必须真的掷出 [DICE] 事件
             }
             catch (Exception ex)
             {
@@ -158,6 +159,68 @@ namespace WanXiang.Editor.BattleTool
         // ================================================================
         //  1) 内容表结构自洽
         // ================================================================
+
+        /// <summary>
+        /// 秘境骰子机制（rc_gamble / rc_allin）必须真的掷骰并写 [DICE] 事件 ——
+        /// 否则表现层的骰子面板永远不会出现（静默失效最难查）。
+        /// </summary>
+        private static void CheckDiceMechanic(Ctx c)
+        {
+            c.Title("附：秘境骰子机制（[DICE] 事件）");
+            try
+            {
+                int okIds = 0;
+                var fails = new List<string>();
+                foreach (var hid in new[] { "rc_gamble", "rc_allin" })
+                {
+                    var def = BossCatalog.BuildBoss("b_guixu");
+                    if (def == null) { fails.Add("BuildBoss(b_guixu) 返回 null"); break; }
+                    def.Id = hid;
+                    def.DisplayName = hid;
+
+                    var players = new[]
+                    {
+                        DeployEntry.Player(BattleSampleContent.Make("p0", "我", Element.Wood, RoleType.Guard), 4),
+                    };
+                    var enemies = new[] { DeployEntry.Enemy(def, 0) };
+                    var st = BattleFactory.Create(BattleConfig.Default, 424242UL, players, enemies);
+
+                    bool hasHook = false;
+                    for (int i = 0; i < st.Hooks.Count; i++) if (st.Hooks[i] != null) hasHook = true;
+                    if (!hasHook) { fails.Add(hid + "：没挂上任何 Hook"); continue; }
+
+                    // rc_allin 是"血量跌破 75/50/25% 才梭哈" → 先扣血到 65% 才会触发
+                    var foe = st.UnitsOf(TeamSide.Enemy);
+                    if (foe.Count > 0 && foe[0] != null && foe[0].MaxHp > 0)
+                        foe[0].TakeDamage(CoreMath.RoundDamage(foe[0].MaxHp * 0.35f));
+
+                    // 跑几回合，扫日志里的 [DICE]
+                    bool found = false;
+                    for (int t = 0; t < 6 && !found; t++)
+                    {
+                        st.Turn = t + 1;
+                        for (int i = 0; i < st.Hooks.Count; i++)
+                            st.Hooks[i].OnTurnStart(st);
+                        var evs = st.Log.Events;
+                        for (int k = 0; k < evs.Count; k++)
+                            if (evs[k].Note != null && evs[k].Note.StartsWith("[DICE]")) { found = true; break; }
+                        // allin 在回合结束也会触发
+                        for (int i = 0; i < st.Hooks.Count && !found; i++)
+                            st.Hooks[i].OnTurnEnd(st);
+                        var evs2 = st.Log.Events;
+                        for (int k = 0; k < evs2.Count && !found; k++)
+                            if (evs2[k].Note != null && evs2[k].Note.StartsWith("[DICE]")) { found = true; break; }
+                    }
+                    if (found) okIds++;
+                    else fails.Add(hid + "：跑了 6 回合没产生 [DICE] 事件");
+                }
+                if (okIds == 2 && fails.Count == 0)
+                    c.Ok("rc_gamble / rc_allin 均产出 [DICE] 事件（表现层骰子面板可达）");
+                else
+                    c.Bad("骰子机制失效：" + string.Join("；", fails));
+            }
+            catch (System.Exception ex) { c.Bad("骰子机制校验异常：" + ex.Message); }
+        }
 
         /// <summary>
         /// 编队表引用的每个敌人 id 必须能在 beasts / boss / enemies 三张表里找到。

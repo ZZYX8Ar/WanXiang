@@ -254,7 +254,14 @@ namespace WanXiang.Battle.Core
             return null;
         }
 
-        public static bool IsBoss(string id) => id != null && id.StartsWith("b_");
+        /// <summary>
+        /// 是不是首领单位。**必须同时认 `rc_` 前缀** ——
+        /// 秘境镇守的 id 是 `rc_&lt;hookId&gt;`（见 RealmChampionMechanics），
+        /// 只认 `b_` 会让 `AttachAllBossHooks` 直接跳过它们 ⇒ 秘境 Boss 的机制永远挂不上
+        /// （A-2026-11-15 自检抓到的真 bug：rc_gamble/rc_allin 钩子数为 0）。
+        /// </summary>
+        public static bool IsBoss(string id)
+            => id != null && (id.StartsWith("b_") || id.StartsWith("rc_"));
 
         /// <summary>
         /// 白魍双子的落位：**格 1 = 后排中**（中宫格 4 的正后方）。
@@ -391,7 +398,10 @@ namespace WanXiang.Battle.Core
             //   之前 `AttachAllBossHooks` 直接跳过 ⇒ 打秘境 Boss 跟小兵一样没机制。
             if (!string.IsNullOrEmpty(boss.Def.Id) && boss.Def.Id.StartsWith("rc_"))
             {
-                RealmChampionMechanics.Attach(st, boss.Def.Id.Substring(3));
+                // ⛔ 传**完整 id**：RealmChampionMechanics 的 switch case 都是 "rc_xxx"，
+                //   原来 Substring(3) 去掉前缀变成 "gamble" ⇒ 一个 case 都匹配不上
+                //   ⇒ 秘境 Boss 机制全部静默失效（A-2026-11-15 自检抓到）。
+                RealmChampionMechanics.Attach(st, boss.Def.Id);
                 return;
             }
 
