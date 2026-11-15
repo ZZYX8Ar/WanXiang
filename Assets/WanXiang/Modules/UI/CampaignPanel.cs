@@ -149,6 +149,7 @@ BuildNodeMap();
 
         protected override void OnCreate()
         {
+            EnsureInkColors();   // ★ 节点文字色按当前色彩空间校正（Linear 下必须）
             if (_rootNodeInfo != null) _rootNodeInfo.SetActive(true);
             if (_btnNext != null) _btnNext.onClick.AddListener(OnNextClicked);
             if (_btnBack != null) _btnBack.onClick.AddListener(OnBackToHome);
@@ -914,9 +915,13 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         //  节点图（按 SolarTermGraph 的层拓扑生成）
         // ================================================================
 
-        private static readonly Color NodeVisited = new Color(0.79f, 0.63f, 0.39f);   // 金
-        private static readonly Color NodeReachable = new Color(0.47f, 0.57f, 0.38f); // 木绿
-        private static readonly Color NodeLocked = new Color(0.30f, 0.27f, 0.24f);    // 灰（加深：彩叶/雪景底上也看得清）
+        // ★ 2026-11-15：项目是 Linear 色彩空间，裸 new Color 会被当线性值 → 显示偏亮偏淡。
+        //   ⛔ 不能在静态字段初始化器里调 UiInk.Srgb（会读 QualitySettings.activeColorSpace，
+        //      该 API 禁止在 MonoBehaviour 构造/字段初始化阶段调用 → TypeInitializationException）。
+        //      ⇒ 这里存 sRGB 原值，OnCreate 里用 EnsureInkColors() 一次性转 linear。
+        private static Color NodeVisited = new Color(0.79f, 0.63f, 0.39f);   // 金
+        private static Color NodeReachable = new Color(0.47f, 0.57f, 0.38f); // 木绿
+        private static Color NodeLocked = new Color(0.30f, 0.27f, 0.24f);    // 灰（加深：彩叶/雪景底上也看得清）
 
         // 路线图尺寸常量（连线的节点坐标必须与排布公式一致，所以提出来共用）
         // ★ 2026-11-02：层数改为读 MapRules（Resources/Data/map.csv 可覆盖），
@@ -933,7 +938,23 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             return Mathf.Min(NodeW, Mathf.Floor(w));
         }   // 2026-10-10 节点加大、间距收窄（配合 Scroll_Nodes 加宽到 1376，三列不再被裁）
         private static readonly Color EdgeInk = new Color(0.72f, 0.68f, 0.60f, 0.9f);
-        private static readonly Color PathGold = new Color(0.79f, 0.63f, 0.39f, 1f);
+        private static Color PathGold = new Color(0.79f, 0.63f, 0.39f, 1f);
+
+        private static bool _inkColorsFixed;
+
+        /// <summary>
+        /// 把节点文字色从 sRGB 转到当前色彩空间（Linear 下必须转，否则显示偏亮偏淡）。
+        /// ⛔ 只能在这里（运行时）调 UiInk，不能在静态字段初始化器里调 —— 见上方注释。
+        /// </summary>
+        private static void EnsureInkColors()
+        {
+            if (_inkColorsFixed) return;
+            _inkColorsFixed = true;
+            NodeVisited = UiInk.Srgb(0.79f, 0.63f, 0.39f);
+            NodeReachable = UiInk.Srgb(0.47f, 0.57f, 0.38f);
+            NodeLocked = UiInk.Srgb(0.30f, 0.27f, 0.24f);
+            PathGold = UiInk.Srgb(0.79f, 0.63f, 0.39f, 1f);
+        }
         private static readonly Color QuestionInk = new Color(0.45f, 0.42f, 0.62f, 1f);
 
         // ★ 节点/连线按【幕=季节】换风格（用户要求）：春绿 / 夏深绿 / 秋赭金 / 冬冰蓝 / 长夏土黄。
