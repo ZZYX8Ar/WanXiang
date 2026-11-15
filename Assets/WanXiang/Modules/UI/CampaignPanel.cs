@@ -324,6 +324,68 @@ BuildNodeMap();
         /// <summary>奖励待确认闸门：ExitBattle 置位，ResultPanel.OnClose 清除。不依赖面板实例，避免栈重算时序问题。</summary>
         internal static bool RewardAwaitingConfirm;
 
+        /// <summary>本次待落地节点是不是本幕最后一格（守关）。用真图判断，不硬编码格数。</summary>
+        internal static bool IsFinaleCellCommit()
+        {
+            if (PendingCommit < 0) return false;
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null || run.Act >= 5) return false;      // 第 5 幕终局走另一套
+            try
+            {
+                var g = WanXiang.Campaign.SolarTermGraph.BuildRoute(
+                    run.Act, WanXiang.Campaign.SolarTermGraph.RouteSeed(run.RunSeed, run.Act),
+                    WanXiang.Campaign.MapRules.Layers);
+                return g != null && PendingCommit == g.NodeCount - 1;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// 幕末守关胜利后的转场流程：**不先显示节点地图**。
+        /// 直接落地（Act++）→ 播本幕转场 → 转场结束后才打开地图。
+        /// </summary>
+        internal static void BeginActTransitionFlow()
+        {
+            RewardAwaitingConfirm = false;
+            DirectTransitionFlow().Forget();
+        }
+
+        private static async Cysharp.Threading.Tasks.UniTaskVoid DirectTransitionFlow()
+        {
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return;
+            int fromAct = run.Act;
+            Debug.Log("[Campaign] ★直接转场流程：第 " + fromAct + " 幕末格，先落地再播转场（不显示地图）");
+            // 关键：**打开前**先预热实例并压到完全透明，否则 OpenAsync 那一帧会闪出旧幕地图。
+            var ui = WanXiang.Framework.Boot.UIBootstrap.UI;
+            var pre = await ui.PrewarmAsync<CampaignPanel>();
+            var cg = pre != null ? pre.GetComponent<UnityEngine.CanvasGroup>() : null;
+            if (pre != null && cg == null) cg = pre.gameObject.AddComponent<UnityEngine.CanvasGroup>();
+            if (cg != null) { cg.alpha = 0f; cg.blocksRaycasts = false; cg.interactable = false; }
+            var cp = await ui.OpenAsync<CampaignPanel>();
+            if (cp == null) return;
+            // 等转场面板播完并关闭
+            int guard = 0;
+            while (guard < 2400)
+            {
+                var intro = UnityEngine.Object.FindObjectOfType<WanXiang.Modules.UI.ActIntroPanel>(true);
+                if (intro != null && intro.gameObject.activeInHierarchy) break;
+                guard++;
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
+            }
+            int guard2 = 0;
+            while (guard2 < 2400)
+            {
+                var intro = UnityEngine.Object.FindObjectOfType<WanXiang.Modules.UI.ActIntroPanel>(true);
+                if (intro == null || !intro.gameObject.activeInHierarchy) break;
+                guard2++;
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
+            }
+            var cgEnd = cp.GetComponent<UnityEngine.CanvasGroup>();
+            if (cgEnd != null) { cgEnd.alpha = 1f; cgEnd.blocksRaycasts = true; cgEnd.interactable = true; }
+            Debug.Log("[Campaign] 转场播完（等 " + guard + "+" + guard2 + " 帧）→ 显示第 " + run.Act + " 幕地图");
+        }
+
         private static bool _deferredCommitScheduled;
 
         /// <summary>奖励确认后的唯一落地入口：OnRefresh / OnResume / OnOpenAsync 三处都收敛到这里，只跑一次。</summary>

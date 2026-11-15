@@ -481,6 +481,14 @@ private void BackToCampaign()
                 //    （用户实测：选完通关奖励后画面全空）。
       var r = WanXiang.Run.RunSave.Current;
     if (r != null && r.BeatFinale) OpenPanelAsync<HomePanel>().Forget();
+    else if (CampaignPanel.IsFinaleCellCommit())
+    {
+        // ★ 2026-11-15 用户："点确定面板后直接转场，不要先显示节点地图"
+        //   末格胜利 = 换幕：不打开地图（否则会闪一帧旧地图再转场），
+        //   由 CampaignPanel 的延后落地流程直接播转场，转场结束再回地图。
+        Debug.Log("[ResultPanel] 幕末守关胜利 → 跳过节点地图，直接交给转场流程");
+        CampaignPanel.BeginActTransitionFlow();
+    }
     else OpenPanelAsync<CampaignPanel>().Forget();
             }
  else OpenPanelAsync<HomePanel>().Forget();

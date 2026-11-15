@@ -176,6 +176,9 @@ namespace WanXiang.Modules.UI
             var enemies = req.Enemy;
             _enemyDefs = enemies;
             _relicPlayerMul = req.PlayerMul > 0f ? req.PlayerMul : 1f;   // ★ 我方战力要乘它（含遗物）
+            // ★ 2026-11-15 用户："写着 6 只怎么就显示 5 只立绘" —— 槽位原来只有 5 个，
+            //   prefab 已补到 6 个；这里按实际显示数写括号，避免只数对不上。
+            int shownEnemies = 0;
             for (int i = 0; i < _imgEnemies.Length; i++)
             {
                 if (_imgEnemies[i] == null) continue;
@@ -191,15 +194,21 @@ namespace WanXiang.Modules.UI
                     _imgEnemies[i].sprite = sprite;
                     _imgEnemies[i].color = new Color(0.72f, 0.72f, 0.80f, 1f);   // 敌方压暗
                     _imgEnemies[i].preserveAspect = true;
+                    shownEnemies++;
                 }
+                else _imgEnemies[i].enabled = false;
             }
             // 敌方总战力：与**我方/结算/历程共用同一份口径**（BattlePower）。
             // ⚠ 原来是 "敌方强度 BP 7.01"（EnemyBudget 的计价口径，是个"预算价格"不是战力）
             //   ， 玩家看不懂（用户实测报障）。改用战力：与上方我方数字同一把尺，可比。
             if (_tmpEnemyPower != null)
             {
+                // 战力按全部敌人算（真实数值），括号写"已显示/总数"，只数对不上时看得出来
+                string cnt = shownEnemies >= enemies.Count
+                    ? enemies.Count + " 只"
+                    : shownEnemies + "/" + enemies.Count + " 只";
                 _tmpEnemyPower.text = "敌方总战力 " + WanXiang.Battle.Core.BattlePower.Sum(enemies, req.EnemyMul)
-                                    + "（" + enemies.Count + " 只）";
+                                    + "（" + cnt + "）";
             }
         }
 

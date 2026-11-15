@@ -10,14 +10,14 @@
 3,Encounter,金戈游猎,豪彘前排抗，白猿中排输出，当康后排奶,haozhi@2;baiyuan@4;dangkang@6;tulou@0;shangao@1,1.1,1
 3,Encounter,山石截击,土蝼前排反伤，山膏中排群伤，当康后排续航,tulou@2;shangao@4;dangkang@6;baiyuan@0;haozhi@1,1.1,1
 3,Elite,铁壁群首,土蝼前排挡，貔貅+白猿中排双输出，当康后排奶,tulou@2;pixiu@4;baiyuan@1;dangkang@6;haozhi@0,1.15,1.15
-3,Boss,鸣金之阵,归墟居中，土蝼前排，当康后排，白猿中排,b_guixu@4;tulou@2;pixiu@5;dangkang@6;baiyuan@7,1.15,1
+3,Boss,鸣金之阵,白刃居中，土蝼前排，当康后排，白猿中排,b_bairen@4;tulou@2;pixiu@5;dangkang@6;baiyuan@7,1.15,1
 4,Encounter,幽都游猎,旋龟前排挡，巴蛇中排输出，鲛人后排奶,xuangui@2;bashe@4;jiaoren@6;fuzhu@0;xiangliu@1,1.15,1
 4,Encounter,深潜截击,陵鲤前排顶，相柳中排群伤，夫诸后排回血,lingli@2;xiangliu@4;fuzhu@6;bashe@0;xuangui@1,1.15,1
 4,Elite,寒潭群首,陵鲤前排抗，相柳+巴蛇中排双输出，鲛人后排奶,lingli@2;xiangliu@4;bashe@1;jiaoren@6;fuzhu@0,1.2,1.2
 4,Boss,玄冥之潮,溟鲲居中控场，陵鲤前排，鲛人后排奶，夫诸中排,b_mingkun@4;lingli@2;xiangliu@5;jiaoren@6;fuzhu@7,1.2,1
 5,Encounter,长夏游猎,豪彘前排抗，火鼠中排输出，当康后排奶,haozhi@2;huoshu@4;dangkang@6;tulou@0;jiuying@1,1.2,1
 5,Elite,终焉双煞,双核心分列中排两翼，豪彘前排，貔貅中排,jiuying@5;suanni@3;haozhi@2;pixiu@7;huoshu@0,1.25,1.25
-5,Boss,天阙之主,溟鲲+赤魃占中排两翼(3/5)，豪彘前排，鲛人后排,b_mingkun@5;b_chiba@3;haozhi@2;jiaoren@6;huoshu@7,1.25,1
+5,Boss,天阙之主,归墟之主居中，赤魃与豪彘两翼，鲛人后排,b_guixu@5;b_chiba@3;haozhi@2;jiaoren@6;huoshu@7,1.25,1
 1,Encounter,溪谷伏兵,五兽轮流挡路，先清前排再压后排,zhuhuai@1;mengji@4;guanguan@7;migu@2;lushu@5,1,1
 1,Encounter,九尾幻境,九尾居中控场，两侧游猎骚扰,jiuweihu@4;guanguan@2;lushu@6;mengji@0,1,1
 1,Encounter,枯木成阵,句芒立木为障，鹿蜀绕后突进,jumang@1;migu@4;zhuhuai@7;xiegou@2;lushu@5,1,1
