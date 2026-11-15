@@ -867,6 +867,35 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// 走 OnRefresh 那条路时背景会**留在主线那一幕**、信息卡会停在主线节点上
         /// （实测：进秘境后背景仍是第三幕秋天、右侧写着"第10节·秋分 / 天时 蛰虫始振"）。</para>
         /// </summary>
+        /// <summary>
+        /// 顶栏文案的**唯一拼装处**（幕 / 季节 / 守关 / Lv / 素材 / 灵卵 / 下场 buff）。
+        /// ⛔ 别再在别处另拼一份 —— 曾因"简版"覆盖完整版，导致缺 Lv 与素材。
+        /// </summary>
+        private string BuildActTitle()
+        {
+            if (_graph == null) return "";
+            var run = WanXiang.Run.RunSave.Current;
+            int lv = run != null ? run.PlayerLevel : 1;
+            if (_realmMode)
+                return "秘境 · " + _graph.SeasonCn + "　｜　灵卵 " + (run != null ? run.Eggs : 0)
+                     + " 枚　｜　Lv " + lv;
+            var sb = new System.Text.StringBuilder();
+            sb.Append("第").Append(CnNum(_graph.Act)).Append("幕 · ").Append(_graph.SeasonCn)
+              .Append(" · 守关 ").Append(_graph.BossName)
+              .Append("　｜　Lv ").Append(lv)
+              .Append("　｜　素材 ").Append(run != null ? run.Materials : 0)
+              .Append("　｜　灵卵 ").Append(run != null ? run.Eggs : 0).Append(" 枚");
+            if (run != null)
+            {
+                int nextBuff = run.PlayerBuffPct + run.HealPending;
+                if (nextBuff != 0)
+                    sb.Append("　｜　下场我方 ").Append(nextBuff > 0 ? "+" : "").Append(nextBuff).Append("%");
+                if (run.EnemyBuffPct != 0)
+                    sb.Append("　｜　下场敌方 ").Append(run.EnemyBuffPct > 0 ? "+" : "").Append(run.EnemyBuffPct).Append("%");
+            }
+            return sb.ToString();
+        }
+
         private void ApplyViewAfterGraphChange(bool silentSelect)
         {
             RefreshAmbient();
@@ -875,11 +904,9 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             var run = WanXiang.Run.RunSave.Current;
             if (_tmpActTitle != null && _graph != null)
             {
-                _tmpActTitle.text = _realmMode
-                    ? "秘境 · " + _graph.SeasonCn + "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚"
-                    : "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn +
-                      " · 守关 " + _graph.BossName +
-                      "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
+                // ★ 2026-11-15：顶栏文案只有这一处来源（原来这里有个"简版"会覆盖完整版，
+                //   导致缺 Lv / 素材 / 下场 buff）。
+                _tmpActTitle.text = BuildActTitle();
             }
 
             // 选中格：秘境从 RealmCursor 恢复；主线回到"当前所在格"。
@@ -1453,25 +1480,7 @@ if (injected != null && !injected.IsEmpty)
             }
 
 
-int lvHud = run != null ? run.PlayerLevel : 1;
-if (_tmpActTitle != null)
-{
-   // ★ 秘境模式：标题写场域名，别写"第零幕"（Act=0 会渲染成"第零幕"，玩家一脸问号）。
-       _tmpActTitle.text = _realmMode
-        ? "秘境 · " + _graph.SeasonCn + "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚"
-            : "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn + " · 守关 " + _graph.BossName + "　｜　Lv " + lvHud + "　｜　素材 " + (run != null ? run.Materials : 0);
-        if (!_realmMode) _tmpActTitle.text += "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
-        else _tmpActTitle.text += "　｜　Lv " + lvHud;
-        // ★ 2026-10-21 用户："选了天象/孵穴之后，哪里有说明？" —— 顶栏直接写出挂起效果。
-        if (!_realmMode && run != null)
-        {
-            var eff = new System.Text.StringBuilder();
-            int nextBuff = run.PlayerBuffPct + run.HealPending;
-            if (nextBuff != 0) { if (eff.Length > 0) eff.Append(" · "); eff.Append("下场我方 ").Append(nextBuff > 0 ? "+" : "").Append(nextBuff).Append("%"); }
-            if (run.EnemyBuffPct != 0) { if (eff.Length > 0) eff.Append(" · "); eff.Append("下场敌方 ").Append(run.EnemyBuffPct > 0 ? "+" : "").Append(run.EnemyBuffPct).Append("%"); }
-            if (eff.Length > 0) _tmpActTitle.text += "　｜　" + eff;
-        }
-        }
+        if (_tmpActTitle != null) _tmpActTitle.text = BuildActTitle();   // ★ 单一来源
 
             // ★ 秘境「离开」按钮：只在秘境里出现（主线地图上它没有意义，
             //   露出来反而会让玩家以为是"退出游戏"）。
@@ -3021,13 +3030,7 @@ if (_tmpActTitle != null)
         private void RefreshEggsLabel()
         {
             if (_tmpActTitle == null || _graph == null) return;
-            var run = WanXiang.Run.RunSave.Current;
-// ★ 秘境模式同OnOpenAsync：标题写场域名（选节点后会再刷一次这里）
-        _tmpActTitle.text = _realmMode
-          ? "秘境 · " + _graph.SeasonCn + "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚"
-                : "第" + CnNum(_graph.Act) + "幕 · " + _graph.SeasonCn +
-        " · 守关 " + _graph.BossName +
-            "　｜　灵卵 " + (run != null ? run.Eggs : 0) + " 枚";
+            _tmpActTitle.text = BuildActTitle();   // ★ 单一来源（别在这里另拼简版）
         }
 
         /// <summary>
