@@ -343,7 +343,20 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                             for (int bi = 0; bi < all.Length; bi++)
                                 if (all[bi] != null && all[bi].Id == en.Id) { def = all[bi].Clone(); break; }
                         }
-                        if (def == null) continue;
+                        // ★ 2026-11-15：编队表里有 39 个"非玩家异兽"id（enemies.csv），
+                        //   原来找不到就 continue → 静默减员、战力暴跌（用户"敌人一打就死"）。
+                        if (def == null)
+                        {
+                            var er = WanXiang.Battle.Core.EnemyRoster.Get(en.Id);
+                            if (er != null) def = WanXiang.Battle.Core.EnemyRoster.ToBeastDef(er);
+                        }
+                        if (def == null)
+                        {
+                            // ⚠ 仍然找不到：留痕，别再静默
+                            UnityEngine.Debug.LogWarning("[BattleRequest] 编队 " + row.Name + " 的敌人 id 无法解析：" + en.Id
+                                             + "（检查 beasts.csv / boss.csv / enemies.csv）");
+                            continue;
+                        }
                         // 首领战：第一条是本体吃满 scale，其余随从按旧的 BossSidekickMul(0.55) 打折
                         float mul = row.Scale;
                         if (kindName == "Boss" && ei > 0) mul *= WanXiang.Campaign.SeededEnemyProvider.BossSidekickMul;

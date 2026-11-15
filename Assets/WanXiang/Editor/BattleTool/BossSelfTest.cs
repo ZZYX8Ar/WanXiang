@@ -60,6 +60,7 @@ namespace WanXiang.Editor.BattleTool
                 CheckDeterminismRedLine(c);
                 CheckRepresentativeMechanics(c);
                 CheckWinnability(c);
+                CheckEncounterRoster(c);   // ★ 2026-11-15：编队引用的敌人 id 必须全部可解析
             }
             catch (Exception ex)
             {
@@ -157,6 +158,66 @@ namespace WanXiang.Editor.BattleTool
         // ================================================================
         //  1) 内容表结构自洽
         // ================================================================
+
+        /// <summary>
+        /// 编队表引用的每个敌人 id 必须能在 beasts / boss / enemies 三张表里找到。
+        /// ⚠ 这条是为了防"静默跳过"回归：找不到时 BattleRequestFactory 会 continue，
+        ///   表现为编队减员、战力暴跌（用户实测"敌人一打就死"）。
+        /// </summary>
+        private static void CheckEncounterRoster(Ctx c)
+        {
+            c.Title("附：编队 id 可解析性（防静默减员）");
+            try
+            {
+                string dir = UnityEngine.Application.dataPath + "/Resources/Data/";
+                if (!System.IO.File.Exists(dir + "encounters.csv"))
+                { c.Info("encounters.csv 不存在，跳过"); return; }
+
+                var known = new System.Collections.Generic.HashSet<string>();
+                foreach (var f in new[] { "beasts.csv", "boss.csv", "enemies.csv" })
+                {
+                    if (!System.IO.File.Exists(dir + f)) continue;
+                    var lines = System.IO.File.ReadAllText(dir + f, System.Text.Encoding.UTF8)
+                        .Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+                    for (int i = 1; i < lines.Length; i++)
+                    {
+                        if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                        int comma = lines[i].IndexOf(',');
+                        if (comma > 0) known.Add(lines[i].Substring(0, comma).Trim().TrimStart('\uFEFF'));
+                    }
+                }
+                if (known.Count == 0) { c.Bad("三张敌人表都没读到 id"); return; }
+
+                var enc = System.IO.File.ReadAllText(dir + "encounters.csv", System.Text.Encoding.UTF8)
+                    .Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+                var missing = new System.Collections.Generic.HashSet<string>();
+                int rows = 0, refs = 0;
+                for (int i = 1; i < enc.Length; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(enc[i])) continue;
+                    var cols = enc[i].Split(',');
+                    if (cols.Length < 5) continue;
+                    rows++;
+                    foreach (var part in cols[4].Split(';'))
+                    {
+                        if (string.IsNullOrWhiteSpace(part)) continue;
+                        string id = part.Split('@')[0].Trim();
+                        if (id.Length == 0) continue;
+                        refs++;
+                        if (!known.Contains(id)) missing.Add(id + "（第" + cols[0].Trim() + "幕）");
+                    }
+                }
+                if (missing.Count == 0)
+                    c.Ok("编队 " + rows + " 行 / " + refs + " 个敌人引用，全部可解析");
+                else
+                {
+                    var arr = new string[missing.Count]; missing.CopyTo(arr);
+                    c.Bad("有 " + missing.Count + " 个敌人 id 无法解析（会被静默跳过 → 编队减员）："
+                          + string.Join(", ", arr));
+                }
+            }
+            catch (System.Exception ex) { c.Bad("编队 id 校验异常：" + ex.Message); }
+        }
 
         private static void CheckContentShape(Ctx c)
         {
