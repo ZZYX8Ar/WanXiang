@@ -357,6 +357,26 @@ BuildNodeMap();
             cg.alpha = 0f; cg.blocksRaycasts = false; cg.interactable = false;
             _transitionMapCg = cg;
             Debug.Log("[Campaign] 关闭奖励前：旧地图已压透明（不 Resume 闪帧）");
+            AutoRestoreMapIfStuckAsync().Forget();   // 兜底：任何异常路径都不会让地图永久黑屏
+        }
+
+        /// <summary>
+        /// 兜底：压透明后 20 秒还没有任何恢复调用（例如走了战败/异常分支），
+        /// 强制把地图恢复可见 —— 宁可闪一下，也不能永久黑屏。
+        /// </summary>
+        private static async Cysharp.Threading.Tasks.UniTaskVoid AutoRestoreMapIfStuckAsync()
+        {
+            int guard = 0;
+            while (guard < 1200 && _transitionMapCg != null && _transitionMapCg.alpha < 0.01f)
+            {
+                guard++;
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
+            }
+            if (_transitionMapCg != null && _transitionMapCg.alpha < 0.01f)
+            {
+                Debug.LogWarning("[Campaign] 地图透明无人恢复（" + guard + " 帧）→ 强制恢复，避免黑屏");
+                ShowMapAfterTransition();
+            }
         }
 
         /// <summary>转场播完恢复地图可见。</summary>

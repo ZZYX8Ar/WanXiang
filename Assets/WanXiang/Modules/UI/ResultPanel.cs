@@ -303,7 +303,8 @@ namespace WanXiang.Modules.UI
             // ★ 玩家真正点了「确定」→ 放行节点落地（唯一放行点，栈重算不会误触发）
             // ★★ 2026-11-15 补：CloseSelf 会让栈里 Paused 的旧地图 InternalResume 露一帧
             //   （用户"还是会闪那么一下"）→ 关闭前先把它压到全透明，转场结束再恢复。
-            if (CampaignPanel.IsFinaleCellCommit())
+            // ⛔ 必须同时判胜负：战败不走幕间转场，压了透明就没人恢复 → 地图永久黑屏
+            if ((_win || _isDraw) && CampaignPanel.IsFinaleCellCommit())
                 CampaignPanel.HideMapForTransition();
             CampaignPanel.RewardAwaitingConfirm = false;
             Debug.Log("[ResultPanel] 玩家确认奖励 → 放行节点落地");
