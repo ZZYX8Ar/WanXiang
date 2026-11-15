@@ -676,13 +676,17 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                       "｜Act=" + (WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.Act : -1) +
                       " RunSeed=" + (WanXiang.Run.RunSave.Current != null ? WanXiang.Run.RunSave.Current.RunSeed : 0));
 
-            var node = payload as NodeRequest ?? _current;
+            var req = payload as NodeRequest;
+            // ★ 2026-11-15 用户实测：存档在第 3 幕倒数第二格，详情面板却显示"第 1 节 · 立秋"
+            //   → 原来传 _current.Offset（默认 -1），会选中第一个可达节点。改为优先当前所在格。
+            int openSel = req != null ? req.Offset : (_currentOffset >= 0 ? _currentOffset : _current.Offset);
             FillTeamPreview();
+            ApplyRealmChrome();
+            Debug.Log("[Campaign] 打开地图 openSel=" + openSel + " _currentOffset=" + _currentOffset
+                + " _graph=" + (_graph != null ? _graph.NodeCount.ToString() : "NULL"));
+            SelectNode(openSel, silent: true);
             // ★ 按钮组成要按模式落一次：冷启动直接开进秘境（RealmPanel 发现已在秘境 ⇒
             //   OpenAsRealm）走的是本方法，不是 OnRefresh，漏了这里返回键/星移会露着。
-            ApplyRealmChrome();
-            SelectNode(node != null ? node.Offset : -1, silent: true);
-
             // ★ 有未领的胜利奖励 → 下一帧补一次三选一（不能在"本面板还在开"的同一帧叠面板）
             return UniTask.CompletedTask;
         }
@@ -1204,12 +1208,15 @@ if (injected != null && !injected.IsEmpty)
             //   **上一幕（或 Act1 默认）的旧图**（39 节点），而当前幕有 51 节点 → 合法的
             //   NodeOffset=50 被误判越界、清回起点（用户实测"存档总是第 1 层"）。
             //   改成按"层数 × 每层格数"的幕内上限，不依赖尚未重建的图。
-            int offsetCap = Mathf.Max(1, Layers) * WanXiang.Campaign.MapRules.Width;
-            if (!_realmMode && run != null && run.NodeOffset >= offsetCap)
+            // ★ 2026-11-15：用**真图 NodeCount** 钳存档（上一版按 层×宽 的粗上限，
+            //   45 格的图却允许 49，SelectNode 越界早退 → 详情空白/按钮灰/点不动）。
+            if (!_realmMode && run != null && _graph != null && run.NodeOffset >= _graph.NodeCount)
             {
-                Debug.LogWarning("[Campaign] 自愈：NodeOffset(" + run.NodeOffset +
-                                 ") 超过幕内上限(" + offsetCap + ") → 回到本幕起点");
-                run.NodeOffset = -1;
+                int safe = Mathf.Max(0, _graph.NodeCount - 2);
+                Debug.LogWarning("[Campaign] 自愈：NodeOffset(" + run.NodeOffset + ") >= 真图 "
+                    + _graph.NodeCount + " 格 → 钳到倒数第二格 " + safe + "（不清回起点）");
+                run.NodeOffset = safe;
+                _currentOffset = safe;
                 WanXiang.Run.RunSave.SaveCurrent();
             }
 
@@ -2326,7 +2333,7 @@ if (_tmpActTitle != null)
         private void RebuildGraphFor(int act, int runSeed)
         {
             int a = Mathf.Clamp(act, 1, 5);
-            ulong sd = CoreMath.Fnv1a("route:" + runSeed + ":" + a);
+            ulong sd = WanXiang.Campaign.SolarTermGraph.RouteSeed(runSeed, a);
             _graph = WanXiang.Campaign.SolarTermGraph.BuildRoute(a, sd, Layers);
         }
 
@@ -2372,6 +2379,9 @@ if (_tmpActTitle != null)
 
         private void SelectNode(int offset, bool silent)
         {
+            Debug.Log("[Campaign] SelectNode 入口 offset=" + offset + " _graph="
+                + (_graph != null ? _graph.NodeCount.ToString() : "NULL")
+                + " _realmMode=" + _realmMode + " 名称控件=" + (_tmpNodeName != null));
             if (_graph == null)
             {
                 if (!silent) Debug.LogWarning("[Campaign] 节点图还没建好。");
@@ -2382,7 +2392,7 @@ if (_tmpActTitle != null)
                 // ★★ 越界必须先归零！否则下面循环条件（offset < 0）不成立、循环不执行，
                 //    带着越界值走到 Terms[offset] 就 IndexOutOfRange（用户实测：奖励后回节点图报错）。
                 //    越界来源：payload 带的 Offset 属于旧图/上一幕，格号超出当前图范围。
-                if (offset >= _graph.NodeCount) offset = -1;
+                if (offset >= _graph.NodeCount) offset = Mathf.Max(0, _graph.NodeCount - 2);
 
                 // 没有 payload 时默认指向第一个可前往的节点，避免右侧信息卡空着
                 for (int l = 0; l < _graph.Layers.Length && offset < 0; l++)
@@ -2416,7 +2426,8 @@ if (_tmpActTitle != null)
             ApplySelectionVisual(offset);
             string term = TermName(_graph.Terms[offset]);
 
-            if (_tmpNodeName != null) _tmpNodeName.text = "第 " + (offset + 1) + " 节 · " + term;
+            // ★ 2026-11-15 用户：这里原来用 (offset+1) 格号，会显示"第 51 节"（本幕只有 18 层）
+            if (_tmpNodeName != null) _tmpNodeName.text = "第 " + (_graph.LayerOf(offset) + 1) + " 层 · " + term;
             // ★ 天阙最后一格 = 终局战（后土）：类型显示为"终局·后土"，而不是占位用的【精英】
             bool isFinaleBoss = _graph != null && _graph.Act >= 5 && offset == _graph.NodeCount - 1;
             if (isFinaleBoss && _tmpNodeName != null)
@@ -2434,6 +2445,7 @@ if (_tmpActTitle != null)
                                         ? "　（续劫专属 · 直入下一幕）"
                                         : (WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "　（战斗）" : "　（休整）"));
             if (_tmpWeather != null) _tmpWeather.text = WeatherHint(kind, isSeasonBoss, isFinaleBoss);
+            Debug.Log("[Campaign] SelectNode 完成 offset=" + offset + " 名称=\"" + (_tmpNodeName != null ? _tmpNodeName.text : "NULL") + "\"");
 
             // _current 是常驻实例（表单里被 Btn_Next 复用），逐字段赋值而不是换新对象
             _current.Title = term;

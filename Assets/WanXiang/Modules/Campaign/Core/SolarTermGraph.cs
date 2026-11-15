@@ -313,6 +313,10 @@ namespace WanXiang.Campaign
         /// 生成后立刻跑三条保底校验（战斗 ≥4、问号 1~3 且不连续、末层唯一），
         /// 不通过就换盐重采样，最多 8 次；仍失败则退回 BuildDefault 的缺省图（保证一定能玩）。
         /// </summary>
+        /// <summary>路线种子的唯一派生口（UI 层算层号、写测试档都走它，禁止各写各的）。</summary>
+        public static ulong RouteSeed(int runSeed, int act)
+            => WanXiang.Battle.Core.CoreMath.Fnv1a("route:" + runSeed + ":" + act);
+
         public static ActGraph BuildRoute(int act, ulong seed, int layers = DefaultLayers)
         {
             // ★★ 第 5 幕 = 天阙：**固定 5 节点线性图**（休整 → 商店 → 熔炼 → 看护关 → 后土）。

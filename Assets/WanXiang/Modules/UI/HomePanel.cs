@@ -184,7 +184,7 @@ namespace WanXiang.Modules.UI
         {
             var run = WanXiang.Run.RunSave.Current;
             // ★ 未出发（NodeOffset = -1）时显示"第 1 层"，不要显示"第 0 层"
-            int layer = run != null ? Mathf.Max(1, run.NodeOffset + 1) : 1;
+            int layer = LayerNoOf(run);   // ★ 格号 → 层号（本幕 18 层，不能再显示 50/51）
             // ★ 判据放宽：以前只认 NodeOffset>=0 / Act>1，但"进过节点却没通过"时
             //   NodeOffset 仍是 -1（节点改为延后推进）， 判定成"无进度"，直接进图不弹窗
             //   （用户实测）。现在只要有过任何探索痕迹就算有进度。
@@ -201,6 +201,25 @@ namespace WanXiang.Modules.UI
             }
 
             DeployChoice(run, layer).Forget();
+        }
+
+        /// <summary>把格号换成层号（1~18）。NodeOffset 是"格号"，不能直接 +1 当层数显示。</summary>
+        private static int LayerNoOf(WanXiang.Run.RunState run)
+        {
+            if (run == null || run.NodeOffset < 0) return 1;
+            try
+            {
+                var g = WanXiang.Campaign.SolarTermGraph.BuildRoute(
+                    run.Act, WanXiang.Campaign.SolarTermGraph.RouteSeed(run.RunSeed, run.Act),
+                    WanXiang.Campaign.MapRules.Layers);
+                if (g != null)
+                {
+                    int l = g.LayerOf(run.NodeOffset);
+                    if (l >= 0) return l + 1;
+                }
+            }
+            catch (System.Exception e) { Debug.LogWarning("[Home] 层号计算失败：" + e.Message); }
+            return 1;
         }
 
         private async Cysharp.Threading.Tasks.UniTaskVoid DeployChoice(WanXiang.Run.RunState run, int layer)
@@ -340,7 +359,7 @@ namespace WanXiang.Modules.UI
             var run = WanXiang.Run.RunSave.Current;
             bool hasProgress = run != null && (run.NodeOffset >= 0 || run.Act > 1);
             t.text = hasProgress
-                ? string.Format("继续 · 第{0}幕 已走 {1} 格", run.Act, run.NodeOffset + 1)
+                ? string.Format("继续 · 第{0}幕 第{1}层", run.Act, LayerNoOf(run))
                 : "出征";
         }
 
