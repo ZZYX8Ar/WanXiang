@@ -321,8 +321,75 @@ BuildNodeMap();
             return outp;
         }
 
+        /// <summary>奖励待确认闸门：ExitBattle 置位，ResultPanel.OnClose 清除。不依赖面板实例，避免栈重算时序问题。</summary>
+        internal static bool RewardAwaitingConfirm;
+
+        private static bool _deferredCommitScheduled;
+
+        /// <summary>奖励确认后的唯一落地入口：OnRefresh / OnResume / OnOpenAsync 三处都收敛到这里，只跑一次。</summary>
+        private void ScheduleDeferredCommit()
+        {
+            if (_deferredCommitScheduled) return;
+            _deferredCommitScheduled = true;
+            DeferredCommitAsync().Forget();
+        }
+
+        private async Cysharp.Threading.Tasks.UniTaskVoid DeferredCommitAsync()
+        {
+            await WaitResultClosedAsync();
+            _deferredCommitScheduled = false;
+            // 奖励关闭后：如果 pending 已被别处消费，就不重复落地
+            if (PendingCommit < 0)
+            {
+                Debug.Log("[Campaign] 延后落地：pending 已消费，仅刷新视图");
+                BuildNodeMap();
+                ApplyViewAfterGraphChange(silentSelect: true);
+                return;
+            }
+            Debug.Log("[Campaign] ★奖励已确认 → 唯一一次落地 PendingCommit=" + PendingCommit);
+            bool terminal = LandPendingCommit();
+            if (terminal) return;                 // 终局战/天阙分支会自己接管
+            BuildNodeMap();
+            ApplyViewAfterGraphChange(silentSelect: true);
+        }
+
+        /// <summary>奖励面板（ResultPanel，含 draft 三选一）是否还开着。</summary>
+        internal static bool ResultPanelIsOpen()
+        {
+            if (RewardAwaitingConfirm) return true;   // ★ 闸门优先：结算未完成就当作"奖励界面还在"
+            var rp = UnityEngine.Object.FindObjectOfType<WanXiang.Modules.UI.ResultPanel>(true);
+            return rp != null && rp.gameObject.activeInHierarchy;
+        }
+
+        /// <summary>所有幕间转场的统一等待：奖励界面确认并关闭后才允许播。</summary>
+        internal static async Cysharp.Threading.Tasks.UniTask WaitResultClosedAsync()
+        {
+            int guard = 0;
+            while ((RewardAwaitingConfirm || ResultPanelIsOpen()) && guard < 1800)
+            {
+                guard++;
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
+            }
+            if (guard >= 1800)
+            {
+                // 兜底：ResultPanel 从未打开/异常未关闭时，不能让闸门永久卡死节点推进
+                Debug.LogWarning("[Campaign] 等待奖励确认超时 → 强制放行（避免卡关）");
+                RewardAwaitingConfirm = false;
+            }
+            else if (guard > 0) Debug.Log("[Campaign] 已等奖励界面关闭 " + guard + " 帧，允许转场");
+        }
+
         private bool LandPendingCommit()
         {
+            // ★★ 2026-11-15 用户实测："没点奖励确定就播第四幕转场，点确定又播第五幕"
+            //   根因：落地（Act++/换幕图/播转场）在 OnOpenAsync 里同步发生，而 ResultPanel 还开着。
+            //   → 门闩：奖励面板未确认前，绝不落地、绝不推进幕、绝不播转场。
+            if (ResultPanelIsOpen())
+            {
+                Debug.Log("[Campaign] 奖励界面未确认 → 挂起落地（PendingCommit=" + PendingCommit + " 保留）");
+                ScheduleDeferredCommit();   // ★ 奖励关闭后由唯一入口落地一次，避免多点重复
+                return true;   // true = 调用方不建图、提前返回
+            }
             // ★★ 2026-10-20：出征/战斗期间**禁止**落地通过。
             //   出征时编队面板关闭 → 地图 Resume → 这里会立刻把待推进节点落地，
             //   于是"仗还没打，节点已通过；战斗中退游戏，回来就是已通过"（用户实测）。
@@ -547,6 +614,8 @@ BuildNodeMap();
                                 _visited.Clear();
                                 BuildNodeMap();
                                 // 先等奖励界面关 + 播转场，再弹天阙抉择（原来同时抢屏 → 用户实测"第四幕被跳过"）
+                                PendingCommit = -1;   // ★ 这个 return 原来跳过末尾清理 → 二次落地又推进一幕
+                                if (prun.PendingBattlePass >= 0) { prun.PendingBattlePass = -1; WanXiang.Run.RunSave.SaveCurrent(); }
                                 DeferredIntroThenTrialAsync().Forget();
                                 return true;
                             }
@@ -559,6 +628,13 @@ BuildNodeMap();
            }             // ← 收口：if (prun != null)
              }             // ← 收口：else（秘境分支）
              PendingCommit = -1;
+             // ★ 同步清存档镜像：否则 OnRefresh 会 RestorePendingBattlePass 把同一次胜利再落地一次
+             var landed = WanXiang.Run.RunSave.Current;
+             if (landed != null && landed.PendingBattlePass >= 0)
+             {
+                 landed.PendingBattlePass = -1;
+                 WanXiang.Run.RunSave.SaveCurrent();
+             }
           }
         return false;
         }
@@ -644,7 +720,7 @@ protected override UniTask OnOpenAsync(object payload)
                     //   "我不是说了要前面这个转场完才开始写字吗"）。
                     //   原来中点就打开 ActIntro ， 写字与转场退场重叠，观感很乱。
                     if (UiTransition.IsPlaying) DeferredIntroAsync().Forget();
-                    else OpenPanelAsync<ActIntroPanel>().Forget();   // 开面板只能由面板自己调（protected）
+                    else DeferredIntroAsync().Forget();   // ★ 统一走 DeferredIntroAsync（内含等奖励界面确认），不再绕过
                 }
             }
 
@@ -659,6 +735,7 @@ protected override UniTask OnOpenAsync(object payload)
             //   把之前未完成的节点记为通过 —— 玩家没处理完就关游戏的话，_pendingCommit 是内存变量、
             //   不会持久化，节点也不会推进 ， 下次进来还能重做（奖励不丢）。
             // ⚠ 彩排（GhostSilent）时跳过：不让彩排消费 PendingCommit / 写档（真开会再处理）。
+            if (ResultPanelIsOpen()) { ScheduleDeferredCommit(); return UniTask.CompletedTask; }
             if (LandPendingCommit()) return UniTask.CompletedTask;
 
             BuildNodeMap();
@@ -885,9 +962,8 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             //   无条件落地 + 全量重建（同样不能拿 PendingCommit 当判据）。
             if (g == null)
             {
-                LandPendingCommit();
-                BuildNodeMap();
-                ApplyViewAfterGraphChange(silentSelect: true);
+                if (ResultPanelIsOpen()) ScheduleDeferredCommit();
+                else { LandPendingCommit(); BuildNodeMap(); ApplyViewAfterGraphChange(silentSelect: true); }
                 return;
             }
 
@@ -963,6 +1039,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
         /// <summary>第 5 幕：先等奖励关 + 播幕间转场，转场结束后再弹天阙抉择（原来三者抢屏）。</summary>
         private async Cysharp.Threading.Tasks.UniTaskVoid DeferredIntroThenTrialAsync()
         {
+            await WaitResultClosedAsync();          // ★ 奖励确认后才播
             await OpenPanelAsync<ActIntroPanel>();
             int guard = 0;
             while (guard < 1800)
@@ -987,15 +1064,7 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             //   重叠"的原设计。冷热判定用 ActIntroPanel.SessionPlayed。
             // ★ 2026-11-14 用户：守关 Boss 的奖励界面挡住幕间转场，甚至让人以为跳幕
             //   → 先等 ResultPanel 关掉（玩家确认奖励），再播写字转场。
-            int rpGuard = 0;
-            while (rpGuard < 900)
-            {
-                var rp = UnityEngine.Object.FindObjectOfType<WanXiang.Modules.UI.ResultPanel>(true);
-                if (rp == null || !rp.gameObject.activeInHierarchy) break;
-                rpGuard++;
-                await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
-            }
-            if (rpGuard > 0) Debug.Log("[Campaign] 已等奖励界面关闭 " + rpGuard + " 帧，开始幕间转场");
+            await WaitResultClosedAsync();
 
             bool cold = !ActIntroPanel.SessionPlayed;
             if (cold)
@@ -1784,9 +1853,10 @@ if (_tmpActTitle != null)
             //   ⛔ 不能只判"有没有 PendingCommit 待办"——弹窗类完成时数据当场落地，
             //   Resume 时已是 -1，判断会跳过重建（上一轮"要点两次才解锁"就是这么来的）。
             //   ⇒ **无条件落地 + 全量重建**（BuildNodeMap 本来就是开图必跑的重建，代价可接受）。
-            LandPendingCommit();
-            BuildNodeMap();
-            ApplyViewAfterGraphChange(silentSelect: true);
+            // ★ 2026-11-15：奖励面板关闭时地图会 Resume，这里原来直接落地 → 与 OnRefresh 重复推进一幕。
+            //   统一交给 DeferredCommitAsync（等奖励真正关闭、只跑一次）。
+            if (ResultPanelIsOpen()) ScheduleDeferredCommit();
+            else { LandPendingCommit(); BuildNodeMap(); ApplyViewAfterGraphChange(silentSelect: true); }
             if (_pendingAnim) StartCoroutine(PlayPendingAnimAfter(0.30f));   // 被上层弹层（如开场）盖过再露出 ， 这时才播
         }
 

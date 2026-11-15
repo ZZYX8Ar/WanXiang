@@ -220,7 +220,9 @@ namespace WanXiang.Modules.UI
             PendingResult = result;
             // ★ 2026-10-20 用户："点重新挑战怎么就直接通过这个节点了" ——
             //   撤退/重挑（result == null）绝不能带着"待落地通过"回地图。
-            if (result == null) CampaignPanel.PendingCommit = -1;
+            if (result != null && (result.Win || result.Draw))
+                CampaignPanel.RewardAwaitingConfirm = true;   // ★ 结算未完成：禁止落地/推进幕/播转场
+            if (result == null) { CampaignPanel.PendingCommit = -1; CampaignPanel.RewardAwaitingConfirm = false; }
             // ★ 2026-10-20：回城同样走秘境式转场，胜负各配一张艺术字
             //   （胜利「胜利」/ 失败「败退」/ 平局撤退「败退」/ 通关「通关」）。
             string baseWord = "UI/Title/defeat";

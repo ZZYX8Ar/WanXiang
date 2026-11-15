@@ -185,7 +185,7 @@ namespace WanXiang.Modules.UI
             for (int i = 0; i < _choiceBtns.Length; i++)
             {
                 var idx = i;
-                if (_choiceBtns[i] != null) _choiceBtns[i].onClick.AddListener(() => OnChoiceClicked(idx));
+                if (_choiceBtns[i] != null) _choiceBtns[i].onClick.AddListener(() => OnChoiceWithIntro(idx).Forget());
             }
         }
 
@@ -195,7 +195,38 @@ namespace WanXiang.Modules.UI
         ///   1 续劫   → 季节回春，队伍/资源/路线种子继承，敌强 +3%、+1 道劫律；
         ///   2 归元   → 主动结束本局，按当前进度正常结算回主城。
         /// </summary>
-        private void OnChoiceClicked(int index)
+        /// <summary>3 选 1 每个选项都先播自己的转场，播完才执行动作（用户 11-15）。</summary>
+        private async Cysharp.Threading.Tasks.UniTaskVoid OnChoiceWithIntro(int index)
+        {
+            if (_choiceBusy) return;
+            _choiceBusy = true;
+            string[] mains = { "登天阙", "再起一劫", "归元" };
+            string[] subs  = { "第五幕 · 长夏 · 终局在望", "第一幕 · 春 · 轮回再启", "一局终了 · 返本还源" };
+            var title = new ActIntroPanel.ActTitle
+            {
+                Main = mains[index], Sub = subs[index],
+                LeafTint = new Color(0.80f, 0.68f, 0.42f, 0.9f),
+                MainColor = new Color(0.38f, 0.30f, 0.15f, 1f)
+            };
+            Debug.Log("[TrialPanel] 播放选择转场：" + title.Main);
+            await OpenPanelAsync<ActIntroPanel>(title);
+            // 等转场面板播完关闭（它有自动关闭流程）
+            int guard = 0;
+            while (guard < 1800)
+            {
+                var ip = UnityEngine.Object.FindObjectOfType<ActIntroPanel>(true);
+                if (ip == null || !ip.gameObject.activeInHierarchy) break;
+                guard++;
+                await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
+            }
+            Debug.Log("[TrialPanel] 转场播完（" + guard + " 帧），执行 " + title.Main);
+            ApplyChoice(index);
+            CloseSelf();
+        }
+
+        private bool _choiceBusy;
+
+        private void ApplyChoice(int index)
         {
             var run = WanXiang.Run.RunSave.Current;
             if (run == null) return;

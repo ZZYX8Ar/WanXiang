@@ -41,6 +41,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private TMP_Text[] _tmpLines;         // 结算明细 4 行
         [SerializeField] private Image _imgEgg;                // Img_RewardEgg 灵卵大图
         [SerializeField] private Button _btnConfirm;           // Btn_Confirm
+        [SerializeField] private Button _btnSkip;              // Btn_Skip（"跳过 +1 灵卵"）
 
         [Header("美术（由生成器自动绑定）")]
         [SerializeField] private Sprite _spriteWin;
@@ -60,6 +61,16 @@ namespace WanXiang.Modules.UI
         protected override void OnCreate()
         {
             if (_btnConfirm != null) _btnConfirm.onClick.AddListener(OnConfirmClicked);
+            if (_btnSkip != null) _btnSkip.onClick.AddListener(OnConfirmClicked);   // 跳过也是"确认奖励"
+        }
+
+        /// <summary>
+        /// ⚠ 不放行闸门：UISystem 打开地图时会把本面板挤掉，OnClose 也会被那种"非玩家确认"触发。
+        ///   闸门只由 OnConfirmClicked（玩家真正点了确定）清除。
+        /// </summary>
+        protected override void OnClose()
+        {
+            base.OnClose();
         }
 
         protected override UniTask OnOpenAsync(object payload)
@@ -289,6 +300,9 @@ namespace WanXiang.Modules.UI
 
         private void OnConfirmClicked()
         {
+            // ★ 玩家真正点了「确定」→ 放行节点落地（唯一放行点，栈重算不会误触发）
+            CampaignPanel.RewardAwaitingConfirm = false;
+            Debug.Log("[ResultPanel] 玩家确认奖励 → 放行节点落地");
             // ★ 每场战斗结算后刷新历程（一局一条，同局覆盖）。
             //   ⚠ 好友对战跳过：不是"局"，编队来自分享码。
             if (SceneFlow.LastWasPvp)

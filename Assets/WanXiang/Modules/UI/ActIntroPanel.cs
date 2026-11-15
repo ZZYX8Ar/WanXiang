@@ -214,12 +214,15 @@ namespace WanXiang.Modules.UI
         {
             var run = WanXiang.Run.RunSave.Current;
             int act = run != null ? run.Act : 1;
-            var t = (Titles != null && act >= 1 && act <= Titles.Length && Titles[act - 1] != null)
-                ? Titles[act - 1]
-                : (Titles != null && Titles.Length > 0 ? Titles[0] : new ActTitle());
+            // ★ 2026-11-15：支持自定义标题（3 选 1 的登天阙/续劫/归元各有专属转场文案）
+            var custom = payload as ActTitle;
+            var t = custom != null ? custom
+                : ((Titles != null && act >= 1 && act <= Titles.Length && Titles[act - 1] != null)
+                    ? Titles[act - 1]
+                    : (Titles != null && Titles.Length > 0 ? Titles[0] : new ActTitle()));
 
             // ⚠ 彩排（GhostSilent）：不记账、不算"已播" —— 这只是把首帧成本烤热，不是真的开场
-            if (!UIPanelBase.GhostSilent)
+            if (!UIPanelBase.GhostSilent && custom == null)
             {
                 MarkShown(act);        // ★ 这里才记账（见 MarkShown 注释）
                 SessionPlayed = true;  // ★ 本进程已播过（之后打开不再是"冷启动"，见字段注释）

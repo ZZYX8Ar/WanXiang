@@ -2207,20 +2207,8 @@ MonoBehaviour:
   - {fileID: 6207740021648422704}
   - {fileID: 578963558608750631}
   _imgEgg: {fileID: 4386560263953396970}
-  _draftBtns:
-  - {fileID: 640960769861991589}
-  - {fileID: 890908372227392791}
-  - {fileID: 8300353003095782065}
-  _tmpDraftNames:
-  - {fileID: 318960603208525027}
-  - {fileID: 9075775988742416599}
-  - {fileID: 7230316169319062696}
-  _tmpDraftDescs:
-  - {fileID: 2916476047692515802}
-  - {fileID: 8314164299586449154}
-  - {fileID: 5286893019565018762}
-  _btnSkip: {fileID: 8467178717201199320}
   _btnConfirm: {fileID: 3505674771089387196}
+  _btnSkip: {fileID: 8467178717201199320}
   _spriteWin: {fileID: 21300000, guid: 464e688ae8146724e880a76384179538, type: 3}
   _spriteLose: {fileID: 21300000, guid: 97622e094d2da44448b8928b76a14f01, type: 3}
   _tmpDrops: {fileID: 5229390788503010972}
@@ -2451,7 +2439,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &5633846321680970045
 RectTransform:
   m_ObjectHideFlags: 0
