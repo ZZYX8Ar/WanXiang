@@ -1,0 +1,7 @@
+face,grade,label,effect,value,text
+1,罚,一点·空,MarkEnemy,1,骰落一点：敌方被标记（受击 +25%）
+2,罚,二点·紧,MarkEnemy,2,骰落二点：敌方被标记两层
+3,平,三点·和,MarkBoth,1,骰落三点：双方各被标记一层
+4,平,四点·转,MarkPlayer,1,骰落四点：我方被标记一层
+5,赏,五点·顺,HealPlayer,12,骰落五点：我方回血 12%
+6,赏,六点·满,HealPlayer,20,骰落六点：我方回血 20%

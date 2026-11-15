@@ -363,6 +363,8 @@ namespace WanXiang.Modules.UI
 
         private void ApplyEvent(BattleEvent e)
         {
+            // ★ Boss/秘境机制演出派发（只读 Note；加特效只改 BossFxRegistry 注册，不动这里）
+            WanXiang.Modules.UI.BossFx.BossFxDispatcher.OnBattleEvent(e);
             string actor = e.ActorId ?? "";
             string target = e.TargetId ?? "";
             switch (e.Kind)

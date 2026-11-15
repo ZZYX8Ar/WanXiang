@@ -203,25 +203,39 @@ namespace WanXiang.Battle.Core
     //  每回合开局掷骰：50% 全体我方被标记（易伤），50% 全体敌方被标记。
     //  ⇒ 每回合的开局都不一样，配合荆墟"结算 2.2 倍"的赌坊定位。
     // ========================================================================
+    /// <summary>
+    /// 枯骨庄家·坐庄：每回合**掷三颗骰子**，按点数决定标记落在谁身上。
+    /// 结算走 DiceRule（唯一判定源），表现层读 [DICE] 事件播抛骰动画与点数。
+    /// </summary>
     public sealed class ChampionGambleHook : BattleHook
     {
         public override void OnTurnStart(BattleState st)
         {
-            bool playerWins = (st.Random.NextInt(0, 2) == 0);
-            var side = playerWins ? TeamSide.Enemy : TeamSide.Player;
+            var roll = WanXiang.Battle.Core.Dice.DiceRule.Roll(st.Random, "gamble_basic");
+            var side = roll.Face <= 2 ? TeamSide.Enemy
+                     : roll.Face <= 4 ? TeamSide.Player
+                     : TeamSide.Enemy;   // 5/6 赏：敌方标记 + 我方回血（在下面补）
             var list = st.UnitsOf(side);
             int n = 0;
             for (int i = 0; i < list.Count; i++)
             {
                 var u = list[i];
                 if (u == null || !u.IsAlive) continue;
-                u.ApplyStatus(StatusCatalog.Marked, 1, 1);
+                u.ApplyStatus(StatusCatalog.Marked, roll.Face <= 2 ? 2 : 1, 1);
                 n++;
             }
+            if (roll.Face >= 5)
+            {
+                var mine = st.UnitsOf(TeamSide.Player);
+                for (int i = 0; i < mine.Count; i++)
+                    if (mine[i] != null && mine[i].IsAlive)
+                        mine[i].Heal(CoreMath.RoundDamage(mine[i].MaxHp * (roll.Face == 6 ? 0.20f : 0.12f)));
+            }
+            string outcome = roll.Face <= 2 ? "罚 · 敌方 " + n + " 人被标记 2 层"
+                           : roll.Face <= 4 ? "平 · 我方 " + n + " 人被标记 1 层"
+                           : "赏 · 我方回血 " + (roll.Face == 6 ? "20%" : "12%");
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                       note: playerWins
-                           ? "枯骨庄家·开赌：这一局押你赢 —— 敌方 " + n + " 人被标记（受击 +25%）"
-                           : "枯骨庄家·开赌：这一局押你输 —— 我方 " + n + " 人被标记（受击 +25%）");
+                note: WanXiang.Battle.Core.Dice.DiceRule.Encode(roll, "枯骨庄家·坐庄|" + outcome));
         }
     }
     // ========================================================================
@@ -394,17 +408,18 @@ namespace WanXiang.Battle.Core
             if (_boss.Hp > _boss.MaxHp * _next) return;
 
             _next -= 0.25f;
-            bool playerWins = (st.Random.NextInt(0, 2) == 0);
-            var side = playerWins ? TeamSide.Player : TeamSide.Player;   // 结果都落在我方身上
+            // ★ 2026-11-15：原来是掷硬币 + 一个算了却没用的 side 变量 → 改成真正掷骰
+            var roll = WanXiang.Battle.Core.Dice.DiceRule.Roll(st.Random, "gamble_high");
+            bool reward = roll.Face >= 4;   // 4/5/6 = 赏，1/2/3 = 罚
             var list = st.UnitsOf(TeamSide.Player);
             int hit = 0;
             for (int i = 0; i < list.Count; i++)
             {
                 var u = list[i];
                 if (u == null || !u.IsAlive) continue;
-                if (playerWins)
+                if (reward)
                 {
-                    int h = u.Heal(CoreMath.RoundDamage(u.MaxHp * 0.12f));
+                    int h = u.Heal(CoreMath.RoundDamage(u.MaxHp * (roll.Face >= 5 ? 0.18f : 0.12f)));
                     if (h > 0) hit++;
                 }
                 else
@@ -418,9 +433,8 @@ namespace WanXiang.Battle.Core
                 }
             }
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: _boss.RuntimeId,
-                       note: playerWins
-                           ? "荷官·蛊·梭哈：翻出「赏」—— 我方 " + hit + " 人回血 12%"
-                           : "荷官·蛊·梭哈：翻出「罚」—— 我方 " + hit + " 人受 12% 最大生命真伤");
+                note: WanXiang.Battle.Core.Dice.DiceRule.Encode(roll,
+                    "荷官·蛊·梭哈|" + (reward ? "赏 · 我方 " + hit + " 人回血" : "罚 · 我方 " + hit + " 人受真伤")));
         }
     }
 }

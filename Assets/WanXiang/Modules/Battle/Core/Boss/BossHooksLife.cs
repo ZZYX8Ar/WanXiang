@@ -93,6 +93,10 @@ namespace WanXiang.Battle.Core
             BossHint.SetOnBoss(st, string.IsNullOrEmpty(_label)
                 ? "首领进入下一阶段（" + (int)System.Math.Round(_threshold * 100f) + "%）"
                 : _label);
+            // ★ 2026-11-15：阶段转换是全部首领共用的唯一收口 → 在这里写一条机制事件，
+            //   表现层按注册表播 BossSkillBurst，不需要逐个 Boss 改 15 处。
+            st.Log.Add(st.Turn, BattleEventKind.StatChange, actorId: _boss.RuntimeId,
+                       note: "[BOSSFX:BossBurst]首领阶段转换 · " + (int)System.Math.Round(_threshold * 100f) + "%");
             _onCross(st, _boss);
         }
     }

@@ -344,6 +344,36 @@ BuildNodeMap();
         /// 幕末守关胜利后的转场流程：**不先显示节点地图**。
         /// 直接落地（Act++）→ 播本幕转场 → 转场结束后才打开地图。
         /// </summary>
+        private static CanvasGroup _transitionMapCg;
+
+        /// <summary>关闭奖励面板前把已在栈里的地图压透明（防止 Resume 闪一帧）。</summary>
+        internal static void HideMapForTransition()
+        {
+            var cp = UnityEngine.Object.FindObjectOfType<CampaignPanel>(true);
+            if (cp == null) return;
+            var cg = cp.GetComponent<UnityEngine.CanvasGroup>();
+            if (cg == null) cg = cp.gameObject.AddComponent<UnityEngine.CanvasGroup>();
+            cg.alpha = 0f; cg.blocksRaycasts = false; cg.interactable = false;
+            _transitionMapCg = cg;
+            Debug.Log("[Campaign] 关闭奖励前：旧地图已压透明（不 Resume 闪帧）");
+        }
+
+        /// <summary>转场播完恢复地图可见。</summary>
+        internal static void ShowMapAfterTransition()
+        {
+            if (_transitionMapCg == null)
+            {
+                var cp = UnityEngine.Object.FindObjectOfType<CampaignPanel>(true);
+                if (cp != null) _transitionMapCg = cp.GetComponent<UnityEngine.CanvasGroup>();
+            }
+            if (_transitionMapCg != null)
+            {
+                _transitionMapCg.alpha = 1f; _transitionMapCg.blocksRaycasts = true; _transitionMapCg.interactable = true;
+                Debug.Log("[Campaign] 转场播完：地图恢复可见");
+            }
+            _transitionMapCg = null;
+        }
+
         internal static void BeginActTransitionFlow()
         {
             RewardAwaitingConfirm = false;
@@ -381,8 +411,7 @@ BuildNodeMap();
                 guard2++;
                 await Cysharp.Threading.Tasks.UniTask.DelayFrame(1);
             }
-            var cgEnd = cp.GetComponent<UnityEngine.CanvasGroup>();
-            if (cgEnd != null) { cgEnd.alpha = 1f; cgEnd.blocksRaycasts = true; cgEnd.interactable = true; }
+            ShowMapAfterTransition();
             Debug.Log("[Campaign] 转场播完（等 " + guard + "+" + guard2 + " 帧）→ 显示第 " + run.Act + " 幕地图");
         }
 
