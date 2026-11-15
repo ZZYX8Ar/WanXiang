@@ -212,30 +212,49 @@ namespace WanXiang.Battle.Core
         public override void OnTurnStart(BattleState st)
         {
             var roll = WanXiang.Battle.Core.Dice.DiceRule.Roll(st.Random, "gamble_basic");
-            var side = roll.Face <= 2 ? TeamSide.Enemy
-                     : roll.Face <= 4 ? TeamSide.Player
-                     : TeamSide.Enemy;   // 5/6 赏：敌方标记 + 我方回血（在下面补）
+            // ★ 2026-11-15：效果全部来自 dice_faces.csv（DiceFaceTable），不再内联 —— 改表即生效
+            var def = WanXiang.Battle.Core.Dice.DiceFaceTable.For(roll.Face);
+            int n = 0;
+            switch (def.Effect)
+            {
+                case WanXiang.Battle.Core.Dice.DiceEffect.MarkEnemy:
+                    n = MarkSide(st, TeamSide.Enemy, def.Value);
+                    break;
+                case WanXiang.Battle.Core.Dice.DiceEffect.MarkPlayer:
+                    n = MarkSide(st, TeamSide.Player, def.Value);
+                    break;
+                case WanXiang.Battle.Core.Dice.DiceEffect.MarkBoth:
+                    n = MarkSide(st, TeamSide.Enemy, def.Value) + MarkSide(st, TeamSide.Player, def.Value);
+                    break;
+                case WanXiang.Battle.Core.Dice.DiceEffect.HealPlayer:
+                    var mine = st.UnitsOf(TeamSide.Player);
+                    float pct = def.Value / 100f;
+                    for (int i = 0; i < mine.Count; i++)
+                        if (mine[i] != null && mine[i].IsAlive)
+                        {
+                            mine[i].Heal(CoreMath.RoundDamage(mine[i].MaxHp * pct));
+                            n++;
+                        }
+                    break;
+            }
+            string outcome = def.Grade + " · " + def.Text + "（" + n + " 人）";
+            st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                note: WanXiang.Battle.Core.Dice.DiceRule.Encode(roll, "枯骨庄家·坐庄", outcome));
+        }
+
+        /// <summary>给某一侧全体挂标记，返回受影响人数。</summary>
+        private static int MarkSide(BattleState st, TeamSide side, int layers)
+        {
             var list = st.UnitsOf(side);
             int n = 0;
             for (int i = 0; i < list.Count; i++)
             {
                 var u = list[i];
                 if (u == null || !u.IsAlive) continue;
-                u.ApplyStatus(StatusCatalog.Marked, roll.Face <= 2 ? 2 : 1, 1);
+                u.ApplyStatus(StatusCatalog.Marked, CoreMath.Max(1, layers), 1);
                 n++;
             }
-            if (roll.Face >= 5)
-            {
-                var mine = st.UnitsOf(TeamSide.Player);
-                for (int i = 0; i < mine.Count; i++)
-                    if (mine[i] != null && mine[i].IsAlive)
-                        mine[i].Heal(CoreMath.RoundDamage(mine[i].MaxHp * (roll.Face == 6 ? 0.20f : 0.12f)));
-            }
-            string outcome = roll.Face <= 2 ? "罚 · 敌方 " + n + " 人被标记 2 层"
-                           : roll.Face <= 4 ? "平 · 我方 " + n + " 人被标记 1 层"
-                           : "赏 · 我方回血 " + (roll.Face == 6 ? "20%" : "12%");
-            st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
-                note: WanXiang.Battle.Core.Dice.DiceRule.Encode(roll, "枯骨庄家·坐庄|" + outcome));
+            return n;
         }
     }
     // ========================================================================
@@ -433,8 +452,8 @@ namespace WanXiang.Battle.Core
                 }
             }
             st.Log.Add(st.Turn, BattleEventKind.RoundResolve, actorId: _boss.RuntimeId,
-                note: WanXiang.Battle.Core.Dice.DiceRule.Encode(roll,
-                    "荷官·蛊·梭哈|" + (reward ? "赏 · 我方 " + hit + " 人回血" : "罚 · 我方 " + hit + " 人受真伤")));
+                note: WanXiang.Battle.Core.Dice.DiceRule.Encode(roll, "荷官·蛊·梭哈",
+                    reward ? "赏 · 我方 " + hit + " 人回血" : "罚 · 我方 " + hit + " 人受真伤"));
         }
     }
 }

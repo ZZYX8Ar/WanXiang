@@ -16,7 +16,7 @@ namespace WanXiang.Modules.UI.BossFx
             if (_installed) return;
             _installed = true;
             BossFxRegistry.Register("Dice", new CompositeFx(new DiceNoteFx(), new BossShaderFx(BurstStyles.Dice)));
-            BossFxRegistry.Register("BossBurst", new CompositeFx(new BossBurstNoteFx(), new BossShaderFx(BurstStyles.Damage)));
+            BossFxRegistry.Register("BossBurst", new BossShaderFx(BurstStyles.Damage));
             BossFxRegistry.Register("BossControl", new BossShaderFx(BurstStyles.Control));
             BossFxRegistry.Register("BossHeal", new BossShaderFx(BurstStyles.Heal));
         }
@@ -60,14 +60,5 @@ namespace WanXiang.Modules.UI.BossFx
             }
         }
 
-        /// <summary>首领机制爆发：预留 shader 特效位（注册表驱动，后续接 Shader）。</summary>
-        private sealed class BossBurstNoteFx : IBossFx
-        {
-            public void Play(FxContext ctx)
-            {
-                UnityEngine.Debug.Log("[BossFx] 机制爆发：" + ctx.Note);
-                // TODO(shader): 接 BossSkillBurst，注册表不变
-            }
-        }
     }
 }

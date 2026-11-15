@@ -58,7 +58,7 @@ namespace WanXiang.Modules.UI.BossFx
         private async UniTask Play(DiceRollPayload p)
         {
             if (p == null) { CloseSelf(); return; }
-            if (_title != null) _title.text = (p.Prefix ?? "庄家开赌").Split('|')[0];
+            if (_title != null) _title.text = string.IsNullOrEmpty(p.Prefix) ? "庄家开赌" : p.Prefix;
             if (_result != null) _result.text = "";
 
             // ① 抛掷：三颗骰子翻点数 + 摇晃 + 缩放

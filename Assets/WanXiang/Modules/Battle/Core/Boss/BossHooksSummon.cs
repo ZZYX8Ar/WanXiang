@@ -51,6 +51,10 @@ namespace WanXiang.Battle.Core
                 //    两只召唤物活着时后续回合照样全跳过（用户 2026-10-30 再次反馈）。
                 DeploySummon(st, proto, cell);
             }
+            // ★ 2026-11-15：召唤是统一收口 → 一条机制事件，表现层播生机色爆发
+            if (n > 0)
+                st.Log.Add(st.Turn, BattleEventKind.RoundResolve,
+                           note: "[BOSSFX:BossHeal]首领召唤 · 场上增援 " + n + " 只");
         }
         /// <summary>把一只召唤物放上敌方棋盘（克隆 + 占位面板 + 上阵）。</summary>
         public static void DeploySummon(BattleState st, BeastDef proto, int cell)

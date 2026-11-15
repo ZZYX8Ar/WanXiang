@@ -103,6 +103,9 @@ namespace WanXiang.Battle.Core
             t.ApplyStatus(StatusCatalog.Root, 1, 1);   // PreventsAction 会把 turns 自动 +1 ， 覆盖本回合
             st.Log.Add(st.Turn, BattleEventKind.StatusApplied, targetId: t.RuntimeId,
                        note: $"{t.DisplayName} 被根缚缠住（本回合无法行动）");
+            // ★ 2026-11-15：根缚是全部首领共用的控制收口 → 一条机制事件，表现层播控制色爆发
+            st.Log.Add(st.Turn, BattleEventKind.StatusApplied, actorId: t.RuntimeId,
+                       note: "[BOSSFX:BossControl]根缚 · " + t.DisplayName);
         }
     }
 

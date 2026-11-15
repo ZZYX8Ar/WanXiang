@@ -53,6 +53,7 @@ namespace WanXiang.Modules.UI
         public static int LabelCount { get; private set; }      // B0：labels.csv 生效行数
         public static int TemperamentCount { get; private set; } // 通道化：temperaments.csv 生效行数
         public static int SkillPoolCount { get; private set; }   // B2：skill_pool.csv 生效行数
+        public static int DiceFaceCount { get; private set; }    // dice_faces.csv 生效行数
         public static int DaoMarkCount { get; private set; }     // B2：dao_marks.csv 生效行数
         public static int EndingCount { get; private set; }      // B4：endings.csv 生效行数
         public static int InspirationCount { get; private set; } // B5：inspirations.csv 生效行数
@@ -102,6 +103,7 @@ namespace WanXiang.Modules.UI
             LoadSkillPool();
             LoadDaoMarks();
             LoadEndings();
+            LoadDiceFaces();
             LoadInspirations();
             LoadSquadPresets();
             LoadDifficulty();
@@ -451,6 +453,32 @@ namespace WanXiang.Modules.UI
         // ================================================================
         //  B4 · endings.csv（结局：条件表达式 + 优先级互斥判定）
         // ================================================================
+        /// <summary>dice_faces.csv → Core 的 DiceFaceTable（骰子机制的唯一取数口）。</summary>
+        private static void LoadDiceFaces()
+        {
+            var rows = Read("dice_faces", out var header);
+            if (rows == null) return;
+            var list = new List<WanXiang.Battle.Core.Dice.DiceFaceDef>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "dice_faces.csv", i + 2, Problems);
+                int face = r.Int("face", 0);
+                if (face < 1 || face > 6) { r.Fail("face 必须在 1~6"); continue; }
+                list.Add(new WanXiang.Battle.Core.Dice.DiceFaceDef
+                {
+                    Face = face,
+                    Grade = r.Str("grade"),
+                    Label = r.Str("label"),
+                    Effect = r.Enum("effect", WanXiang.Battle.Core.Dice.DiceEffect.None),
+                    Value = r.Int("value", 0),
+                    Text = r.Str("text"),
+                });
+            }
+            if (list.Count == 0) return;
+            WanXiang.Battle.Core.Dice.DiceFaceTable.Install(list);
+            DiceFaceCount = list.Count;
+        }
+
         private static void LoadEndings()
         {
             var rows = Read("endings", out var header);
