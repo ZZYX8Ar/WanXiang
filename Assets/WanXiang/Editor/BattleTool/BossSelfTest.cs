@@ -62,6 +62,7 @@ namespace WanXiang.Editor.BattleTool
                 CheckWinnability(c);
                 CheckEncounterRoster(c);   // ★ 2026-11-15：编队引用的敌人 id 必须全部可解析
                 CheckDiceMechanic(c);      // ★ 2026-11-15：秘境骰子机制必须真的掷出 [DICE] 事件
+                CheckEnemyIntent(c);       // ★ 2026-11-16：敌人意图预告必须与实战同源
             }
             catch (Exception ex)
             {
@@ -159,6 +160,47 @@ namespace WanXiang.Editor.BattleTool
         // ================================================================
         //  1) 内容表结构自洽
         // ================================================================
+
+        /// <summary>
+        /// 敌人意图预告的命门：预告的槽位必须等于实战会放的槽位。
+        /// 因为两者共用 DecideSkillSlot，这条断言也防止以后有人把判定改回"内联一份"。
+        /// </summary>
+        private static void CheckEnemyIntent(Ctx c)
+        {
+            c.Title("附：敌人意图预告（与实战同源）");
+            try
+            {
+                var st = BuildBossBattle("b_guixu", 3, RoleType.Guard, 100f, 2000, 777UL);
+                var foes = st.UnitsOf(TeamSide.Enemy);
+                if (foes == null || foes.Count == 0) { c.Bad("没有敌人可测"); return; }
+
+                int checkedCount = 0;
+                var fails = new List<string>();
+                foreach (var u in foes)
+                {
+                    if (u == null || !u.IsAlive) continue;
+                    var info = EnemyIntentReader.Read(st, u);
+                    if (info == null) { fails.Add(u.DisplayName + "：Read 返回 null"); continue; }
+                    if (string.IsNullOrEmpty(info.Label)) fails.Add(u.DisplayName + "：Label 为空");
+                    if (info.Kind == IntentKind.Unknown) fails.Add(u.DisplayName + "：Kind=Unknown");
+                    // 百分比口径：有伤害就必须有百分比，且 Label 带 %
+                    if (info.Value > 0 && (info.Percent <= 0 || !info.Label.Contains("%")))
+                        fails.Add(u.DisplayName + "：伤害" + info.Value + " 但百分比/标签异常("
+                                  + info.Percent + ",\"" + info.Label + "\")");
+                    // 同源核心断言：预告槽位 == 实际判定槽位
+                    SkillType previewSlot = EnemyIntentReader.DecideSkillSlot(st, u);
+                    SkillDef sk = u.GetSkill(previewSlot);
+                    if (sk == null) fails.Add(u.DisplayName + "：预告槽 " + previewSlot + " 没有技能");
+                    else if (info.Name != sk.Name) fails.Add(u.DisplayName + "：预告名与技能名不符");
+                    checkedCount++;
+                }
+                if (checkedCount == 0) c.Bad("没有存活敌人被检查");
+                else if (fails.Count == 0)
+                    c.Ok(checkedCount + " 个敌人意图可读，预告槽位与实战同源");
+                else { c.Bad("意图预告异常：" + string.Join("；", fails)); }
+            }
+            catch (System.Exception ex) { c.Bad("意图自检异常：" + ex.Message); }
+        }
 
         /// <summary>
         /// 秘境骰子机制（rc_gamble / rc_allin）必须真的掷骰并写 [DICE] 事件 ——

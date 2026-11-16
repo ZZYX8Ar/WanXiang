@@ -24,8 +24,10 @@ namespace WanXiang.Battle.Core
     public sealed class IntentInfo
     {
         public IntentKind Kind = IntentKind.Unknown;
-        public int Value;             // 约略伤害，0 = 不显示数字
-        public string Label = "?";    // 徽章短文本 "剑 12"
+        public int Value;             // 约略伤害绝对值（详情用）
+        public int Percent;           // 相对我方平均血量的百分比（徽章主显示，玩家可判轻重）
+        public bool IsAoe;            // 是否群攻（徽章加"全"标记）
+        public string Label = "?";    // 徽章短文本 "剑 20%"
         public string Name = "";      // 技能名
         public string Detail = "";    // 悬停说明
         public bool IsUltimate;       // 终结技（UI 用高亮底强调）
@@ -76,9 +78,58 @@ namespace WanXiang.Battle.Core
             info.IsUltimate = slot == SkillType.Ultimate;
             info.Kind = Classify(slot, sk);
             info.Value = Estimate(u, sk);
-            info.Label = info.Value > 0 ? Tag(info.Kind) + " " + info.Value : Tag(info.Kind);
-            info.Detail = info.Name + (info.Value > 0 ? " · 约 " + info.Value + " 点" : "") + Suffix(info.Kind);
+            info.IsAoe = IsAoeSkill(sk);
+
+            // ★ 2026-11-16 优化：绝对值（剑495）玩家判不出轻重 → 改相对我方平均血量百分比。
+            int avgHp = AveragePlayerMaxHp(st);
+            info.Percent = avgHp > 0 && info.Value > 0
+                ? MathfClampPercent(info.Value * 100 / avgHp)
+                : 0;
+
+            string tag = Tag(info.Kind);
+            info.Label = info.Percent > 0
+                ? tag + " " + info.Percent + "%" + (info.IsAoe ? "·全" : "")
+                : tag;
+            info.Detail = info.Name
+                + (info.Value > 0 ? " · 约 " + info.Value + " 点" : "")
+                + (info.Percent > 0 ? "（我方均血 " + avgHp + "，约 " + info.Percent + "%）" : "")
+                + Suffix(info.Kind);
             return info;
+        }
+
+        /// <summary>是否群攻（与实战 IsAoeTarget 同一批选择器）。</summary>
+        private static bool IsAoeSkill(SkillDef sk)
+        {
+            if (sk == null || sk.Effects == null) return false;
+            for (int i = 0; i < sk.Effects.Length; i++)
+            {
+                var t = sk.Effects[i].Target;
+                if (t == TargetSelector.AllEnemies || t == TargetSelector.AllAllies
+                    || t == TargetSelector.AllOthers) return true;
+            }
+            return false;
+        }
+
+        /// <summary>我方存活单位的平均最大血量（百分比口径的分母）。</summary>
+        private static int AveragePlayerMaxHp(BattleState st)
+        {
+            var allies = st.UnitsOf(TeamSide.Player);
+            if (allies == null) return 0;
+            long sum = 0; int n = 0;
+            for (int i = 0; i < allies.Count; i++)
+            {
+                var a = allies[i];
+                if (a == null || !a.IsAlive || a.MaxHp <= 0) continue;
+                sum += a.MaxHp; n++;
+            }
+            return n == 0 ? 0 : (int)(sum / n);
+        }
+
+        private static int MathfClampPercent(int v)
+        {
+            if (v < 1) return 1;      // 至少 1%，不让"有伤害"显示成空
+            if (v > 999) return 999;  // 徽章宽度上限
+            return v;
         }
 
         private static IntentKind Classify(SkillType slot, SkillDef sk)
