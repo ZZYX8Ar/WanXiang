@@ -172,31 +172,12 @@ namespace WanXiang.Battle.Core
             }
 
             // ---- AI 规则（按策略组调整，v2.1 P4；只影响敌方，我方由玩家下令）----
-            var ult = u.GetSkill(SkillType.Ultimate);
-            var act = u.GetSkill(SkillType.Active);
-
-            if (cfg.AiProfile == AiProfile.Aggressive)
-            {
-                // 激进：资源优先兑现成伤害 —— 终结技能放就放，不等时机
-                if (ult != null && u.CanCast(SkillType.Ultimate, cfg)) { chosen = ult; return SkillType.Ultimate; }
-                if (act != null && u.CanCast(SkillType.Active, cfg)) { chosen = act; return SkillType.Active; }
-            }
-            else if (cfg.AiProfile == AiProfile.Cautious)
-            {
-                // 稳健：生命低于一半才舍得放战记（其余普攻攒着），终结技同理
-                bool hurt = u.HpPercent < 0.5f;
-                if (!hurt && act != null && u.CanCast(SkillType.Active, cfg)) { chosen = act; return SkillType.Active; }
-            }
-            else
-            {
-                // 均衡（默认）：沿用原规则
-                if (ult != null && cfg.AutoCastUltimate && u.CanCast(SkillType.Ultimate, cfg))
-                { chosen = ult; return SkillType.Ultimate; }
-                if (act != null && u.CanCast(SkillType.Active, cfg)) { chosen = act; return SkillType.Active; }
-            }
-
-            chosen = u.GetSkill(SkillType.Basic);
-            return SkillType.Basic;
+            // ★ 2026-11-16：AI 判定抽到 EnemyIntentReader.DecideSkillSlot，
+            //   敌人意图预告与实际出手共用同一函数（单一真相源，防止预告骗人）
+            SkillType slot = EnemyIntentReader.DecideSkillSlot(st, u);
+            chosen = u.GetSkill(slot);
+            if (chosen == null) chosen = u.GetSkill(SkillType.Basic);
+            return chosen != null ? slot : SkillType.Basic;
         }
         // （先手连击机制已于 2026-10-14 移除：用户认为"每回合额外行动一次"观感怪异，
         //   且会让速度快的单位每回合行动两次。现每个单位每回合固定只行动一次。）

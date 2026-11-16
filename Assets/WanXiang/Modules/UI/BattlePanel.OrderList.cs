@@ -68,6 +68,10 @@ namespace WanXiang.Modules.UI
 
         private void RefreshOrderList()
         {
+            // ★ 2026-11-16：意图刷新必须在所有 early-return 之前 ——
+            //   行动顺序面板被用户定案"暂时隐藏"（ShowOrderPanel=false），
+            //   放在它后面会被挡住，徽章永远不显示。
+            RefreshEnemyIntent();
             if (_orderPanel == null || _play == null || _play.State == null) return;
             if (!ShowOrderPanel) { if (_orderPanel.gameObject.activeSelf) _orderPanel.gameObject.SetActive(false); return; }
             var stt = _play.State;
