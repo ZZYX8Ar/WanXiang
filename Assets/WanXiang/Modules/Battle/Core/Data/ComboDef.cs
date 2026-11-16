@@ -308,6 +308,71 @@ namespace WanXiang.Battle.Core
         /// 优先级：① 有没有哪条能发（能就 null）→ ② 形状已够、只差资源的那条（最可操作）
         /// → ③ 都没成阵时，挑"缺格最少"的阵形报缺哪几格。
         /// </summary>
+        /// <summary>
+        /// 单个阵型的当前状态（给"阵型清单"UI 用：看得见目标、进度、差什么）。
+        /// </summary>
+        public sealed class ComboStatus
+        {
+            public ComboDef Def;
+            public bool Ready;            // 可发动（含灵力等全部条件）
+            public string Reason;         // 不可发动的原因（Ready=false 时有值）
+            public int[] MissingCells;    // 阵型还差哪些格（已匹配则为空）
+        }
+
+        /// <summary>
+        /// 列出**全部**阵型及其状态（不是只列可用的）。
+        /// 用途：玩家要能看见"我要凑哪个阵、还差哪几格"——这是配合/构筑感的来源。
+        /// ⛔ 与 AvailableFor 同源（都走 CanFire），不产生第二套判定。
+        /// </summary>
+        public static System.Collections.Generic.List<ComboStatus> Overview(BattleState st, BattleUnit actor)
+        {
+            var list = new System.Collections.Generic.List<ComboStatus>();
+            if (st == null || actor == null || actor.Def == null)
+            {
+                for (int i = 0; i < Table.Count; i++)
+                    list.Add(new ComboStatus { Def = Table[i], Ready = false, Reason = "没有待令单位", MissingCells = Table[i].Cells });
+                return list;
+            }
+
+            for (int i = 0; i < Table.Count; i++)
+            {
+                var c = Table[i];
+                string why;
+                bool ready = CanFire(st, actor, c, out why);
+                var miss = ready ? new int[0] : MissingCellsOf(st, actor.Side, c);
+                list.Add(new ComboStatus { Def = c, Ready = ready, Reason = ready ? null : why, MissingCells = miss });
+            }
+            return list;
+        }
+
+        /// <summary>阵型缺哪些格（取 Cells / CellsAlt 里缺得少的那组）。</summary>
+        private static int[] MissingCellsOf(BattleState st, TeamSide side, ComboDef c)
+        {
+            var a = MissingOf(st, side, c.Cells);
+            if (c.CellsAlt == null || c.CellsAlt.Length == 0) return a;
+            var b = MissingOf(st, side, c.CellsAlt);
+            return b.Length < a.Length ? b : a;
+        }
+
+        private static int[] MissingOf(BattleState st, TeamSide side, int[] cells)
+        {
+            if (cells == null || cells.Length == 0) return new int[0];
+            var ours = st.UnitsOf(side);
+            var miss = new System.Collections.Generic.List<int>(cells.Length);
+            for (int i = 0; i < cells.Length; i++)
+            {
+                bool ok = false;
+                for (int j = 0; j < ours.Count; j++)
+                {
+                    var u = ours[j];
+                    if (u == null || !u.IsAlive) continue;
+                    if (u.Pos.IsValid && u.Pos.Index == cells[i]) { ok = true; break; }
+                }
+                if (!ok) miss.Add(cells[i]);
+            }
+            return miss.ToArray();
+        }
+
         public static string WhyNot(BattleState st, BattleUnit actor)
         {
             if (actor == null || actor.Def == null) return "没有待令单位";

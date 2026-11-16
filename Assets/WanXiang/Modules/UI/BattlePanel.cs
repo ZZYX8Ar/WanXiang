@@ -123,6 +123,7 @@ namespace WanXiang.Modules.UI
 
             BuildOrderList();   // 右上角"行动顺序"，让玩家看清轮到谁（v2.1 P4 前置）
             BuildEnemyIntent(); // ★ 2026-11-16：敌人意图徽章（prefab 节点，只绑定不创建）
+            BuildComboPanel();  // ★ 2026-11-16：连携阵型清单（prefab 节点，只绑定不创建）
             if (_rootWeather != null) _rootWeather.SetActive(false);
             if (_btnSpeed != null) _btnSpeed.onClick.AddListener(OnSpeedClicked);
             if (_btnLeave != null) _btnLeave.onClick.AddListener(OnLeaveClicked);
@@ -418,8 +419,11 @@ namespace WanXiang.Modules.UI
             }
 
             // ★ 设置：ESC 呼出设置并暂停战斗（用户 11-14 永久约束；战斗里 ESC 不再是"关闭"）
-            if (Input.GetKeyDown(KeyCode.Escape) && !WanXiang.Modules.UI.SettingsPanel.IsOpen)
-                OpenSettingsBattleAsync().Forget();
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (_comboPanelOpen) { CloseComboPanel(); return; }   // ★ 开着阵型清单时 ESC = 关闭
+                if (!WanXiang.Modules.UI.SettingsPanel.IsOpen) OpenSettingsBattleAsync().Forget();
+            }
 
             if (_tipPanel != null && _tipPanel.gameObject.activeSelf) CheckTipHover();
 

@@ -28,7 +28,8 @@ namespace WanXiang.Modules.UI
             if (_btnCombo == null || _play == null) return;
             var combos = _play.AvailableCombos;
             // ★ 只有"等我方下令"时才可点连携；敌人回合/伤害结算一律置灰（用户 2026-10-13）
-            _btnCombo.interactable = _play.AwaitingCommand && combos.Count > 0;
+            // ★ 即使当前 0 个可发动也允许打开 —— 玩家要能看到"我还差哪一格"
+            _btnCombo.interactable = _play.AwaitingCommand;
             var label = _btnCombo.GetComponentInChildren<TMPro.TMP_Text>();
             if (label != null)
                 label.text = combos.Count > 0 ? "连携·" + combos[0].Name : "连携";
@@ -334,7 +335,7 @@ namespace WanXiang.Modules.UI
                 for (int i = 0; i < _actorSkillBtns.Length; i++)
                     if (_actorSkillBtns[i] != null)
                         _actorSkillBtns[i].interactable = on;
-            if (_btnCombo != null) _btnCombo.interactable = on && _play != null && _play.AwaitingCommand && _play.AvailableCombos.Count > 0;
+            if (_btnCombo != null) _btnCombo.interactable = on && _play != null && _play.AwaitingCommand;
         }
 
         /// <summary>B5：点某异兽的技能 = 换人 + 立即出手（模拟层 PendingActorSelect 原子归属）。</summary>
@@ -372,12 +373,11 @@ namespace WanXiang.Modules.UI
         private void OnComboClicked()
         {
             if (_play == null || !_play.AwaitingCommand) return;
-            var combos = _play.AvailableCombos;
-            if (combos.Count == 0) return;
+            // ★ 2026-11-16 用户："让战斗有配合和构筑的感觉"
+            //   原来直接发第一条可用阵型（v1 遗留），玩家不知道有 10 个阵型、也不知道差什么格。
+            //   改为打开阵型清单：看得见目标 / 缺哪格 / 效果，才会主动去凑站位。
             _autoBattle = false;
-            _play.SubmitCombo(combos[0].Id);      // v1：发第一条可用连携（多条选择下一轮做）
-            Sfx("sfx_bt_cmd_confirm");            // 下令音（连携的"发动"音由事件流补）
-            RefreshActionBar();
+            OpenComboPanel();
         }
 
         private void OnAutoBattleClicked()

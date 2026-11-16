@@ -215,6 +215,30 @@ namespace WanXiang.Editor.BattleTool
             if (avail.Count == 0) { Bad(sb, "中宫单位 AvailableFor 为空（应含鱼鳞阵）"); return; }
             Pass(sb, "AvailableFor 含：" + avail[0].Name);
 
+            // ★ 2026-11-16：阵型清单（Overview）必须与 AvailableFor 同源同结果。
+            //   玩家看到的"可发动"数量不能与实际能发动的数量不一致。
+            var ov = ComboRules.Overview(st, center);
+            int readyCount = 0;
+            for (int oi = 0; oi < ov.Count; oi++) if (ov[oi].Ready) readyCount++;
+            if (ov.Count != ComboRules.All.Count)
+                Bad(sb, "Overview 返回 " + ov.Count + " 条，阵型表有 " + ComboRules.All.Count + " 条（应全列）");
+            else if (readyCount != avail.Count)
+                Bad(sb, "Overview 可发动 " + readyCount + " 条但 AvailableFor 给出 " + avail.Count + " 条（口径不一致）");
+            else
+            {
+                // 不可发动的必须给出"差哪几格"或原因，不能两者都空
+                int noHint = 0;
+                for (int oi = 0; oi < ov.Count; oi++)
+                {
+                    var o = ov[oi];
+                    if (o.Ready) continue;
+                    bool hasCell = o.MissingCells != null && o.MissingCells.Length > 0;
+                    if (!hasCell && string.IsNullOrEmpty(o.Reason)) noHint++;
+                }
+                if (noHint > 0) Bad(sb, "有 " + noHint + " 个不可发动阵型既没说缺格也没说原因");
+                else Pass(sb, "阵型清单 " + ov.Count + " 条，可发动 " + readyCount + " 条（与 AvailableFor 一致），其余均给出缺格/原因");
+            }
+
             int mpBefore = st.TeamMp;
             bool submitted = RunComboQte(play, "fm_scale", ParryGrade.Perfect);
             if (!submitted) { Bad(sb, "SubmitCombo 失败"); return; }
