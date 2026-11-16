@@ -373,6 +373,90 @@ namespace WanXiang.Battle.Core
             return miss.ToArray();
         }
 
+        // ====================================================================
+        //  纯站位版（编队预览用）：不需要 BattleState，只吃"哪些格有人"。
+        //  用途：玩家在**编队界面**调站位时就该看见"我能凑成哪些阵型"，
+        //        而不是进了战斗才发现差两格、已经改不了。
+        //  ⚠ 这里只能判"阵型是否凑齐"，判不了灵力/大招能量（那些战斗中才有）。
+        // ====================================================================
+
+        /// <summary>按占用格判阵型是否凑齐（Cells 或 CellsAlt 任一满足即可）。</summary>
+        public static bool FormationMatchedByCells(bool[] occupied, ComboDef c)
+        {
+            if (occupied == null || c == null) return false;
+            if (AllCellsOccupied(occupied, c.Cells)) return true;
+            return c.CellsAlt != null && c.CellsAlt.Length > 0 && AllCellsOccupied(occupied, c.CellsAlt);
+        }
+
+        private static bool AllCellsOccupied(bool[] occupied, int[] cells)
+        {
+            if (cells == null || cells.Length == 0) return false;
+            for (int i = 0; i < cells.Length; i++)
+            {
+                int idx = cells[i];
+                if (idx < 0 || idx >= occupied.Length || !occupied[idx]) return false;
+            }
+            return true;
+        }
+
+        /// <summary>编队预览：每个阵型"是否成型 / 差哪几格"。</summary>
+        public static System.Collections.Generic.List<ComboStatus> OverviewByCells(bool[] occupied)
+        {
+            var list = new System.Collections.Generic.List<ComboStatus>();
+            for (int i = 0; i < Table.Count; i++)
+            {
+                var c = Table[i];
+                bool ready = FormationMatchedByCells(occupied, c);
+                int[] miss = ready ? new int[0] : MissingCellsByOccupied(occupied, c);
+                list.Add(new ComboStatus
+                {
+                    Def = c,
+                    Ready = ready,
+                    Reason = ready ? null : "阵型未凑齐",
+                    MissingCells = miss,
+                });
+            }
+            return list;
+        }
+
+        private static int[] MissingCellsByOccupied(bool[] occupied, ComboDef c)
+        {
+            var a = MissingOfOccupied(occupied, c.Cells);
+            if (c.CellsAlt == null || c.CellsAlt.Length == 0) return a;
+            var b = MissingOfOccupied(occupied, c.CellsAlt);
+            return b.Length < a.Length ? b : a;
+        }
+
+        private static int[] MissingOfOccupied(bool[] occupied, int[] cells)
+        {
+            if (cells == null || cells.Length == 0) return new int[0];
+            var miss = new System.Collections.Generic.List<int>(cells.Length);
+            for (int i = 0; i < cells.Length; i++)
+            {
+                int idx = cells[i];
+                if (idx < 0 || idx >= (occupied != null ? occupied.Length : 0) || !occupied[idx]) miss.Add(idx);
+            }
+            return miss.ToArray();
+        }
+
+        /// <summary>
+        /// 某一格对"接近成型"阵型的价值：还能让几个"差 1 格"的阵型立刻成阵。
+        /// 编队界面用它给格子加"放这里能成阵"的提示。
+        /// </summary>
+        public static int FormationValueOfCell(bool[] occupied, int cell)
+        {
+            if (occupied == null || cell < 0 || cell >= occupied.Length) return 0;
+            int n = 0;
+            for (int i = 0; i < Table.Count; i++)
+            {
+                var c = Table[i];
+                if (FormationMatchedByCells(occupied, c)) continue;
+                var miss = MissingCellsByOccupied(occupied, c);
+                if (miss.Length == 1 && miss[0] == cell) n++;   // 放这一格就能成
+            }
+            return n;
+        }
+
         public static string WhyNot(BattleState st, BattleUnit actor)
         {
             if (actor == null || actor.Def == null) return "没有待令单位";

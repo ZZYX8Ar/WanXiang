@@ -238,6 +238,40 @@ namespace WanXiang.Editor.BattleTool
                 if (noHint > 0) Bad(sb, "有 " + noHint + " 个不可发动阵型既没说缺格也没说原因");
                 else Pass(sb, "阵型清单 " + ov.Count + " 条，可发动 " + readyCount + " 条（与 AvailableFor 一致），其余均给出缺格/原因");
             }
+            // ★ 2026-11-16：编队预览（纯站位版）必须与战斗版不矛盾 ——
+            //   编队版只判站位，战斗版还灵力/能量，所以编队可发动集合应**包含**战斗版。
+            {
+                var occupied = new bool[9];
+                var mineAll = st.UnitsOf(TeamSide.Player);
+                for (int mi = 0; mi < mineAll.Count; mi++)
+                {
+                    var mu = mineAll[mi];
+                    if (mu != null && mu.IsAlive && mu.Pos.IsValid) occupied[mu.Pos.Index] = true;
+                }
+                var byCells = ComboRules.OverviewByCells(occupied);
+                int cellReady = 0;
+                for (int bi = 0; bi < byCells.Count; bi++) if (byCells[bi].Ready) cellReady++;
+
+                int battleShapeOk = 0;
+                for (int bi = 0; bi < ov.Count; bi++)
+                    if (ov[bi].Def != null && ComboRules.FormationMatched(st, TeamSide.Player, ov[bi].Def)) battleShapeOk++;
+
+                if (byCells.Count != ComboRules.All.Count)
+                    Bad(sb, "编队预览返回 " + byCells.Count + " 条（应全列 " + ComboRules.All.Count + "）");
+                else if (cellReady != battleShapeOk)
+                    Bad(sb, "编队预览成型 " + cellReady + " 条 vs 战斗侧阵型匹配 " + battleShapeOk + " 条（不一致）");
+                else
+                    Pass(sb, "编队预览 " + byCells.Count + " 条，成型 " + cellReady + " 条（与战斗侧阵型匹配一致）");
+
+                // 格子价值：0..8 每个值都不能越界；且"能成阵"的格必须 <= 阵型总数
+                int maxVal = 0;
+                for (int cidx = 0; cidx < 9; cidx++)
+                    maxVal = System.Math.Max(maxVal, ComboRules.FormationValueOfCell(occupied, cidx));
+                if (maxVal > ComboRules.All.Count) Bad(sb, "格子价值 " + maxVal + " 超出阵型总数");
+                else Pass(sb, "格子成阵价值最高 " + maxVal + "（未越界）");
+            }
+
+
 
             int mpBefore = st.TeamMp;
             bool submitted = RunComboQte(play, "fm_scale", ParryGrade.Perfect);

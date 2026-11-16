@@ -399,24 +399,20 @@ namespace WanXiang.Modules.UI
         // ================================================================
         private RectTransform _shapeBar;
 
+        /// <summary>
+        /// 阵型是否凑齐。★ 2026-11-16：改用 Core 的 FormationMatchedByCells ——
+        /// 原来这里有一份 AllCellsFilled 自己实现，与 Core 判阵型是两条真相源。
+        /// </summary>
         private bool ShapeActive(WanXiang.Battle.Core.ComboDef c)
-        {
-            if (c == null || _deployed == null) return false;
-            if (AllCellsFilled(c.Cells)) return true;
-            if (c.CellsAlt != null && c.CellsAlt.Length > 0 && AllCellsFilled(c.CellsAlt)) return true;
-            return false;
-        }
+            => WanXiang.Battle.Core.ComboRules.FormationMatchedByCells(OccupiedCells(), c);
 
-        private bool AllCellsFilled(int[] cells)
+        /// <summary>把 _deployed 转成"哪些格有人"，喂给 Core 的纯站位 API。</summary>
+        private bool[] OccupiedCells()
         {
-            if (cells == null || cells.Length == 0) return false;
-            for (int i = 0; i < cells.Length; i++)
-            {
-                int cell = cells[i];
-                if (cell < 0 || cell >= _deployed.Length) return false;
-                if (_deployed[cell] < 0) return false;
-            }
-            return true;
+            var occ = new bool[9];
+            if (_deployed == null) return occ;
+            for (int i = 0; i < _deployed.Length && i < 9; i++) occ[i] = _deployed[i] >= 0;
+            return occ;
         }
 
         private void RefreshShapePreview()
@@ -474,8 +470,9 @@ namespace WanXiang.Modules.UI
                 var cc = c;
                 bool isActiveOne = i == activeIdx;
                 enter.callback.AddListener(_ => PresentBondTip(
-                    "<size=24><b>阵形 · " + cc.Name + "（" + (isActiveOne ? "已激活" : (ShapeActive(cc) ? "可成阵（优先级较低）" : "未激活")) + "）</b></size>\n" +
-                    cc.Note + "\n形状：" + WanXiang.Battle.Core.ComboRules.ShapeText(cc)));
+                    "<size=24><b>阵形 · " + cc.Name + "（" + (isActiveOne ? "已激活" : (ShapeActive(cc) ? "可成阵（优先级较低）" : "未凑齐")) + "）</b></size>\n" +
+                    cc.Note + "\n形状：" + WanXiang.Battle.Core.ComboRules.ShapeText(cc) +
+                    MissingHint(cc)));   // ★ 未凑齐时明确写出"还差哪几格"
                 var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
                 exit.callback.AddListener(_ => HideBondTip());
                 trg.triggers.Add(enter);
@@ -485,6 +482,32 @@ namespace WanXiang.Modules.UI
 
         /// <summary>把上阵的立绘落到格子上（文字/头像由 Img_Head 之类承担，这里直接画立绘）。</summary>
         /// <summary>把九宫格容器与说明面板的兄弟顺序互换（2026-11-01 用户要求）。</summary>
+        /// <summary>
+        /// 未凑齐时的补充提示："还差：前上、后下"。
+        /// 这是编队阶段最需要的反馈 —— 玩家要能看见"再挪一格就成阵"，才会主动调站位。
+        /// </summary>
+        private string MissingHint(WanXiang.Battle.Core.ComboDef c)
+        {
+            if (c == null || ShapeActive(c)) return "";
+            var occ = OccupiedCells();
+            var ov = WanXiang.Battle.Core.ComboRules.OverviewByCells(occ);
+            for (int i = 0; i < ov.Count; i++)
+            {
+                if (ov[i].Def != c) continue;
+                var miss = ov[i].MissingCells;
+                if (miss == null || miss.Length == 0) return "";
+                var sb = new System.Text.StringBuilder("\n<color=#8C2F1E>还差：");
+                for (int m = 0; m < miss.Length; m++)
+                {
+                    if (m > 0) sb.Append("、");
+                    sb.Append(WanXiang.Battle.Core.ComboRules.CellName(miss[m]));
+                }
+                sb.Append("</color>");
+                return sb.ToString();
+            }
+            return "";
+        }
+
         private void SwapGridAndDetailOnce()
         {
             if (_swappedLayout || _cells == null || _cells.Length == 0 || _cells[0] == null || _detailPanel == null) return;
