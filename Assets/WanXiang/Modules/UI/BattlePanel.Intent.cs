@@ -16,6 +16,8 @@ namespace WanXiang.Modules.UI
     public sealed partial class BattlePanel
     {
         private const int IntentSlotCount = 9;
+        private const float IntentYOffset = 96f;   // 徽章相对格子中心上移（约 0.96 世界单位）
+        private RectTransform _intentHolder;
         private RectTransform[] _intentNodes;
         private TMP_Text[] _intentTexts;
         private Image[] _intentBg;
@@ -26,7 +28,8 @@ namespace WanXiang.Modules.UI
             _intentNodes = new RectTransform[IntentSlotCount];
             _intentTexts = new TMP_Text[IntentSlotCount];
             _intentBg = new Image[IntentSlotCount];
-            var holder = transform.Find("Root_Stage/Root_EnemyIntent");
+            var holder = transform.Find("Root_Stage/Root_EnemyIntent") as RectTransform;
+            _intentHolder = holder;
             if (holder == null) return;
             for (int i = 0; i < IntentSlotCount; i++)
             {
@@ -69,10 +72,33 @@ namespace WanXiang.Modules.UI
 
                 var node = _intentNodes[cell];
                 node.gameObject.SetActive(true);
+                // ★ 2026-11-16 用户："意图位置怎么偏左" ——
+                //   原来靠 prefab 里硬编码的 anchoredPosition，与相机/棋盘换算有系统偏差。
+                //   改为按敌人格子的世界中心换算屏幕坐标，再转 holder 本地坐标，永不偏。
+                PlaceIntentAtCell(node, cell);
                 // 终结技加高亮底（其余保持浅纸卡）
                 if (_intentBg[cell] != null)
                     _intentBg[cell].color = info.IsUltimate ? new Color(1f, 0.92f, 0.70f, 1f) : Color.white;
             }
+        }
+
+        /// <summary>把徽章钉到指定敌人格子的正上方（世界坐标 → 屏幕 → holder 本地）。</summary>
+        private void PlaceIntentAtCell(RectTransform node, int cell)
+        {
+            if (node == null || _intentHolder == null || _stage == null) return;
+            var cam = _stage.Camera;
+            if (cam == null) return;
+
+            Vector3 world = _stage.CellWorldCenter(TeamSide.Enemy, cell);
+            Vector3 screen = cam.WorldToScreenPoint(world);
+            if (screen.z < 0f) return;   // 在相机背后
+
+            Vector2 local;
+            // Overlay Canvas：cam 参数必须传 null
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    _intentHolder, screen, null, out local)) return;
+
+            node.anchoredPosition = local + new Vector2(0f, IntentYOffset);
         }
 
         private Color IntentInk(IntentKind k)

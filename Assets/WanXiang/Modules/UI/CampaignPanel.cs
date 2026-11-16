@@ -391,6 +391,10 @@ BuildNodeMap();
             {
                 _transitionMapCg.alpha = 1f; _transitionMapCg.blocksRaycasts = true; _transitionMapCg.interactable = true;
                 Debug.Log("[Campaign] 转场播完：地图恢复可见");
+                // ★ 若落印/画线动画因"地图不可见"被推迟，这里补播（等画面稳定一点再播）
+                var cpNow = UnityEngine.Object.FindObjectOfType<CampaignPanel>(true);
+                if (cpNow != null && cpNow._pendingAnim)
+                    cpNow.StartCoroutine(cpNow.PlayPendingAnimAfter(0.35f));
             }
             _transitionMapCg = null;
         }
@@ -2036,6 +2040,15 @@ if (injected != null && !injected.IsEmpty)
         {
             if (!_pendingAnim) return;
             if (State == UIPanelState.Paused) return;   // 还被弹层盖着 ， 等 OnResume
+            // ★ 2026-11-16 用户："节点打X的动画没了，就感觉卡了一下/闪了一下"
+            //   根因：转场期间地图被 HideMapForTransition 压成 alpha=0，
+            //   而这段协程照常播放 ⇒ 动画在不可见时播完，恢复后只剩最终态。
+            //   地图不可见就推迟（_pendingAnim 保持 true），由 ShowMapAfterTransition 补播。
+            if (_transitionMapCg != null && _transitionMapCg.alpha < 0.5f)
+            {
+                Debug.Log("[Campaign] 落印动画推迟：地图仍被转场遮住");
+                return;
+            }
             _pendingAnim = false;
             _justPassedNode = -1;                        // 播完就消费掉（后续重绘不再重播）
 
