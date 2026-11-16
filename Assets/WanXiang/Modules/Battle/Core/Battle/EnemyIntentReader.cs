@@ -31,6 +31,7 @@ namespace WanXiang.Battle.Core
         public string Name = "";      // 技能名
         public string Detail = "";    // 悬停说明
         public bool IsUltimate;       // 终结技（UI 用高亮底强调）
+        public string TargetLabel = "";   // 打谁（"句芒" / "随机"）；空 = 群攻或无目标
     }
 
     public static class EnemyIntentReader
@@ -86,6 +87,15 @@ namespace WanXiang.Battle.Core
                 ? MathfClampPercent(info.Value * 100 / avgHp)
                 : 0;
 
+            // ★ 2026-11-16：算出"这一下要打谁" —— 玩家知道核心输出要被集火，才会去保护/换位。
+            //   口径与结算同源（PreviewTargets 是结算用的同一份规则，纯只读）。
+            // ⛔ 防御/增益的目标是它自己或友方，显示"→ 白猿"会让玩家误以为要打白猿。
+            //   只有 攻击 / 终结技 / 减益 才有"谁要挨打"的语义。
+            bool threatening = info.Kind == IntentKind.Attack
+                            || info.Kind == IntentKind.Ultimate
+                            || info.Kind == IntentKind.Debuff;
+            info.TargetLabel = threatening ? ResolveTargetLabel(st, u, sk, info.IsAoe) : "";
+
             string tag = Tag(info.Kind);
             info.Label = info.Percent > 0
                 ? tag + " " + info.Percent + "%" + (info.IsAoe ? "·全" : "")
@@ -130,6 +140,22 @@ namespace WanXiang.Battle.Core
             if (v < 1) return 1;      // 至少 1%，不让"有伤害"显示成空
             if (v > 999) return 999;  // 徽章宽度上限
             return v;
+        }
+
+        private static readonly System.Collections.Generic.List<BattleUnit> _intentTargetBuf
+            = new System.Collections.Generic.List<BattleUnit>(8);
+
+        /// <summary>意图目标的一句话标签（群攻不显示具体人）。</summary>
+        private static string ResolveTargetLabel(BattleState st, BattleUnit u, SkillDef sk, bool isAoe)
+        {
+            if (isAoe || st == null || u == null || sk == null) return "";
+            bool isRandom;
+            BattleSimulator.PreviewTargets(st, u, sk, _intentTargetBuf, out isRandom);
+            if (_intentTargetBuf.Count == 0) return "";
+            if (isRandom) return "随机";
+            if (_intentTargetBuf.Count == 1)
+                return _intentTargetBuf[0] != null ? _intentTargetBuf[0].DisplayName : "";
+            return _intentTargetBuf.Count + " 人";
         }
 
         private static IntentKind Classify(SkillType slot, SkillDef sk)

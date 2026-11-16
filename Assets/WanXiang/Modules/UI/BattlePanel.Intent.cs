@@ -16,7 +16,9 @@ namespace WanXiang.Modules.UI
     public sealed partial class BattlePanel
     {
         private const int IntentSlotCount = 9;
-        private const float IntentYOffset = 96f;   // 徽章相对格子中心上移（约 0.96 世界单位）
+        // 徽章相对格子中心上移的距离（像素）。抬高到 132 是因为两行文字（数值+目标）后
+        // 96 会压住敌人立绘头部（第 4 幕 3+3 密排时实测）。
+        private const float IntentYOffset = 132f;
         private RectTransform _intentHolder;
         private RectTransform[] _intentNodes;
         private TMP_Text[] _intentTexts;
@@ -68,7 +70,15 @@ namespace WanXiang.Modules.UI
 
                 var info = EnemyIntentReader.Read(st, u);
                 var tx = _intentTexts[cell];
-                if (tx != null) { tx.text = info.Label; tx.color = IntentInk(info.Kind); }
+                if (tx != null)
+                {
+                    // ★ 2026-11-16：副行显示"要打谁" —— 玩家知道核心输出被盯上才会去保护/换位。
+                    //   群攻/无目标时只显示主行（不给假信息）。
+                    tx.text = string.IsNullOrEmpty(info.TargetLabel)
+                        ? "<size=24>" + info.Label + "</size>"
+                        : "<size=24>" + info.Label + "</size>\n<size=13>→ " + info.TargetLabel + "</size>";
+                    tx.color = IntentInk(info.Kind);
+                }
 
                 var node = _intentNodes[cell];
                 node.gameObject.SetActive(true);

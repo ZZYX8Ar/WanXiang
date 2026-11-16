@@ -187,6 +187,19 @@ namespace WanXiang.Editor.BattleTool
                     if (info.Value > 0 && (info.Percent <= 0 || !info.Label.Contains("%")))
                         fails.Add(u.DisplayName + "：伤害" + info.Value + " 但百分比/标签异常("
                                   + info.Percent + ",\"" + info.Label + "\")");
+                    // ★ 2026-11-16：单体技能必须能说出"打谁"；群攻必须留空（不给假目标）
+                    if (info.IsAoe)
+                    {
+                        if (!string.IsNullOrEmpty(info.TargetLabel))
+                            fails.Add(u.DisplayName + "：群攻却给了具体目标「" + info.TargetLabel + "」");
+                    }
+                    else if (!string.IsNullOrEmpty(info.Name) && info.Value > 0
+                             && (info.Kind == IntentKind.Attack || info.Kind == IntentKind.Ultimate
+                                 || info.Kind == IntentKind.Debuff)
+                             && string.IsNullOrEmpty(info.TargetLabel))
+                    {
+                        fails.Add(u.DisplayName + "：攻击类技能「" + info.Name + "」没算出目标");
+                    }
                     // 同源核心断言：预告槽位 == 实际判定槽位
                     SkillType previewSlot = EnemyIntentReader.DecideSkillSlot(st, u);
                     SkillDef sk = u.GetSkill(previewSlot);
