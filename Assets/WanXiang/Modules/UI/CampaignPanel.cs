@@ -2283,7 +2283,15 @@ if (injected != null && !injected.IsEmpty)
             var t = transform.Find("Root_FogBanner");
             if (t == null) yield break;                                  // 缺节点 = 不提示（不报错）
             var txt = t.Find("Tmp_FogBanner") != null ? t.Find("Tmp_FogBanner").GetComponent<TMP_Text>() : null;
-            if (txt != null) txt.text = text;
+            if (txt != null)
+            {
+                txt.text = text;
+                // ★ 2026-11-16 用户："先看有文字的面板底图是什么颜色，再决定文字颜色"。
+                //   底图 = map_ui_card 浅米纸（白），原字色 (0.96,0.91,0.78) 浅米金 ⇒ 明度几乎相同看不清。
+                //   改深墨色（sRGB #3A3026），Linear 下走 UiInk 转换，保证浅底深字。
+                if (QualitySettings.activeColorSpace == ColorSpace.Linear)
+                    txt.color = UiInk.Hex("#3A3026");
+            }
             var cg = t.GetComponent<CanvasGroup>();
             if (cg == null) cg = t.gameObject.AddComponent<CanvasGroup>();
 
@@ -2582,9 +2590,12 @@ if (injected != null && !injected.IsEmpty)
 
                 if (!_dotColorCache.ContainsKey(off)) _dotColorCache[off] = dot.color;
                 dotT.localScale = sel ? Vector3.one * 1.35f : Vector3.one;
-                if (sel) dot.color = new Color(1f, 0.99f, 0.92f, 1f);
-                else if (IsReachable(off)) dot.color = NodeReachable;     // 可前往 = 木绿
-                else dot.color = _dotColorCache.TryGetValue(off, out var c0) ? c0 : Color.white;
+                // ★ 2026-11-16 用户："奇遇/未知的图标变成纯绿圆，图标不符合"
+                //   根因：这里把**可前往**节点强行染成木绿 NodeReachable，
+                //   覆盖了上面按 NodeKind 设好的图标自带配色（书/问号/骰子全被染绿）。
+                //   修：任何状态都保留 dot 原色（图标语义优先）；"可前往"由卡片描边 +
+                //   文字「← 可前往」+ 选中放大表达，不再靠染图标。
+                dot.color = _dotColorCache.TryGetValue(off, out var c0) ? c0 : Color.white;
             }
         }
 

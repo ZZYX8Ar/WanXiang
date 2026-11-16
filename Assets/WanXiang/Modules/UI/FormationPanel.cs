@@ -1620,6 +1620,10 @@ namespace WanXiang.Modules.UI
             // 出征 = 切到战斗场景。关掉布阵界面：布阵是 Normal 层，
             // 战斗 HUD 在 Main 层，留着会被布阵的遮罩压住。
             // ★ 记录当前节点：战斗里点「重新挑战」时要回到同一个节点的编队界面（2026-09-29）。
+            // ★ 2026-11-16：节点地图出征必须清掉"首领连战"来源标记。
+            //   否则打完一次首领连战后 LastWasBossRush 一直是 true，
+            //   之后从节点地图进任何战斗点"重新挑战"都会被误判回首领连战面板。
+            SceneFlow.LastWasBossRush = false;
             SceneFlow.PendingBattleNode = _node;
             // ★ 重挑战快照是"一次性"的：真正出征后清掉，避免下次进同名节点误用旧敌人
             SceneFlow.RechallengeEnemySnapshot = null;

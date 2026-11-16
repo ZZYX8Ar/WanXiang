@@ -523,7 +523,15 @@ namespace WanXiang.Editor.BattleTool
 
                 c.Info("节奏体检（5v5 基准局）：" +
                        $"普攻 {nBasic} 次／战技 {nActive} 次／绝技 {nUlt} 次，首次绝技在第 {(firstUlt == 0 ? "（未放出）" : firstUlt.ToString())} 回合");
-                if (firstUlt >= 2)
+                // ★ 2026-11-16：测试期玩家伤害倍率（battle_tuning.csv）>1 时，
+                //   高伤害 → 怒气按伤害攒得更快 → 首回合放绝技是**预期行为**，不是节奏退化。
+                //   这条"开局不对轰大招"的断言只在正式倍率(1f)下有意义。
+                if (WanXiang.Battle.Core.BattleTuning.PlayerDamageMul > 1.01f)
+                {
+                    c.Info("测试期倍率 ×" + WanXiang.Battle.Core.BattleTuning.PlayerDamageMul.ToString("0.0")
+                           + "：跳过「开局绝技节奏」断言（高伤害会提前攒满怒气，属预期）");
+                }
+                else if (firstUlt >= 2)
                 {
                     c.Ok("绝技受怒气约束，**开局不会全员放大招**（CD 开局为 0，唯一的闸门就是怒气）");
                 }
