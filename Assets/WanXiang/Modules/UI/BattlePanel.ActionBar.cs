@@ -177,7 +177,11 @@ namespace WanXiang.Modules.UI
             if (_actionBar == null || _play == null) return;
             // ★ 战斗中操作区**常驻可见**（不再随回合显隐 —— 用户 2026-10-13：老是显隐观感差）。
             //   "能不能点"用 interactable + 置灰色表达，不靠隐藏。show=_playing 整场稳定，不逐回合翻。
-            bool show = _playing;
+            // ★ 2026-11-16 用户："这个面板挡住大招的那个闪过立绘的动画了"
+            //   大招 cut-in 是 3D 演出，Overlay Canvas 会盖在上面；演出期间行动条要让位。
+            //   在 show 计算里处理（而不是直接 SetActive），避免和本方法每帧刷新打架。
+            bool cutin = _stage != null && _stage.CutInPlaying;
+            bool show = _playing && !cutin;
             if (_actionBar.gameObject.activeSelf != show)
                 _actionBar.gameObject.SetActive(show);
             if (!show) return;

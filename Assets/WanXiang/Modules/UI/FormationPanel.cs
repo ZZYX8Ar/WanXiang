@@ -1516,6 +1516,26 @@ namespace WanXiang.Modules.UI
                 req = TrialPanel.BuildFinaleBattle(run, allBeasts);
                 return req != null;
             }
+            // ★ 2026-11-16：重新挑战 → 复用原战场敌人快照（同一节点才用）
+            //   用户实测"编队显示 6 只 16915，重挑战回来变 4 只 9059"：
+            //   根因是重算 seed（含 run.NodeOffset/run.Wins）得到另一组敌人。
+            if (SceneFlow.RechallengeEnemySnapshot != null
+                && SceneFlow.RechallengeEnemySnapshot.Count > 0
+                && _node != null
+                && string.Equals(SceneFlow.RechallengeNodeTitle, _node.Title,
+                                 System.StringComparison.Ordinal))
+            {
+                bool ok = BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather,
+                                                               out req, _node.Kind, -1, _node.IsBoss);
+                if (ok && req != null)
+                {
+                    req.Enemy = new System.Collections.Generic.List<WanXiang.Battle.Core.BeastDef>(
+                        SceneFlow.RechallengeEnemySnapshot);
+                    UnityEngine.Debug.Log("[FormationPanel] 重挑战：复用原敌人快照 "
+                                          + req.Enemy.Count + " 只（" + _node.Title + "）");
+                    return true;
+                }
+            }
             return (run != null)
                 ? BattleRequestFactory.TryBuildFromRun(_contentCatalog, run, _node.Weather, out req,
                                                        _node.Kind, -1, _node.IsBoss)
@@ -1601,6 +1621,9 @@ namespace WanXiang.Modules.UI
             // 战斗 HUD 在 Main 层，留着会被布阵的遮罩压住。
             // ★ 记录当前节点：战斗里点「重新挑战」时要回到同一个节点的编队界面（2026-09-29）。
             SceneFlow.PendingBattleNode = _node;
+            // ★ 重挑战快照是"一次性"的：真正出征后清掉，避免下次进同名节点误用旧敌人
+            SceneFlow.RechallengeEnemySnapshot = null;
+            SceneFlow.RechallengeNodeTitle = null;
             // ★ 重新挑战修复（2026-09-29）：把"待推进节点"在【出征】这一刻重新写回。
             //   点节点时 CampaignPanel 已写过一次 PendingCommit，但重新挑战会先把 PendingCommit 清 -1
             //   （避免回地图时把"放弃的本场"误判为通过）；这里再次写入，保证【真正打赢】回到地图时

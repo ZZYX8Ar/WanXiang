@@ -106,6 +106,7 @@ namespace WanXiang.Modules.UI
             LoadEndings();
             LoadDiceFaces();
             LoadEnemies();
+            LoadBattleTuning();
             LoadInspirations();
             LoadSquadPresets();
             LoadDifficulty();
@@ -455,6 +456,26 @@ namespace WanXiang.Modules.UI
         // ================================================================
         //  B4 · endings.csv（结局：条件表达式 + 优先级互斥判定）
         // ================================================================
+        /// <summary>
+        /// battle_tuning.csv → Core 的 BattleTuning（战斗数值旋钮，如测试期玩家伤害倍率）。
+        /// ⛔ 表缺失/无该行 ⇒ BattleTuning 保持默认 1f（正式数值），不报错。
+        /// </summary>
+        private static void LoadBattleTuning()
+        {
+            var rows = Read("battle_tuning", out var header);
+            if (rows == null) return;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "battle_tuning.csv", i + 2, Problems);
+                if (!string.Equals(r.Str("key").Trim(), "player_damage_mul",
+                                   System.StringComparison.OrdinalIgnoreCase)) continue;
+                float v = r.Float("value", 1f);
+                if (v <= 0f) { r.Fail("player_damage_mul 必须 > 0"); continue; }
+                WanXiang.Battle.Core.BattleTuning.Install(v);
+                return;
+            }
+        }
+
         /// <summary>enemies.csv → Core 的 EnemyRoster（敌方专属数值，编队表引用的非玩家 id）。</summary>
         private static void LoadEnemies()
         {

@@ -80,6 +80,9 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
         {
             req = null;
             if (catalog == null || run == null) return false;
+            // ★ 2026-11-16：战斗数值旋钮（玩家伤害倍率等）必须在建战斗前装好，
+            //   否则直接进战斗（PvP / 重挑战）时表还是默认值。
+            WanXiang.Modules.UI.DataTables.EnsureInstalled();
 
             var all = ContentLibrary.BuildBeasts(catalog);
             if (all == null || all.Length < 2) return false;

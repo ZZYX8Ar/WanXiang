@@ -675,6 +675,9 @@ namespace WanXiang.Battle.Core
         {
             var cfg = st.Config;
             float raw = src.Attack * power * (1f + src.QiSkillBonus(cfg.QiEffectPerStack));
+            // ★ 2026-11-16 用户测试期：玩家伤害临时 ×5（常量在 BattleTuning，关测试改回 1f 即可）
+            //   放在 raw 处 = 真伤/普伤/追击全覆盖；敌方 Side 不乘，不改任何战斗公式
+            if (src != null && src.Side == TeamSide.Player) raw *= BattleTuning.PlayerDamageMul;
             if (trueDamage) return CoreMath.RoundDamage(raw);
 
             float v = raw * ElementMatrix.Coefficient(el, dst.Element, cfg.Elements);

@@ -28,6 +28,17 @@ namespace WanXiang.Modules.UI
         /// <summary>进战斗场景前写入；战斗场景启动时取用。</summary>
         public static BattleRequest PendingBattle;
 
+        /// <summary>
+        /// ★ 2026-11-16：重新挑战时的敌方阵容快照。
+        /// 用户实测"点重新挑战后敌人从 6 只变 4 只" —— 根因是重挑战回编队后
+        /// TryBuildFromRun 用 run.NodeOffset/run.Wins 重新算 seed，和进场时不是同一组。
+        /// 重新挑战的正确语义是"同一批敌人再打一次"，所以这里保留原战场的 Enemy 列表。
+        /// </summary>
+        public static System.Collections.Generic.List<WanXiang.Battle.Core.BeastDef> RechallengeEnemySnapshot;
+
+        /// <summary>快照是否属于当前这个待重挑战的节点（防止串到别的节点）。</summary>
+        public static string RechallengeNodeTitle;
+
         /// <summary>回主城要弹的结算；主城入口取用后清零。</summary>
         public static ResultRequest PendingResult;
 

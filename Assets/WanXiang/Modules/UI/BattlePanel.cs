@@ -434,6 +434,8 @@ namespace WanXiang.Modules.UI
                 {
                     _cutinHiding = cutin;
                     if (_rootOrderList != null) _rootOrderList.gameObject.SetActive(!cutin);
+                    // ★ 2026-11-16：行动条也要立刻让位（RefreshActionBar 的 show 已含 cutin 判据）
+                    RefreshActionBar();
                 }
             }
 
@@ -839,6 +841,21 @@ namespace WanXiang.Modules.UI
             //   在已有舞台上又画了一遍单位 ⇒ 棋盘上出现两套单位（用户实测截图）。
             //   现在交给 BattleSceneDriver.Restart：清舞台 → 重建 playback → CloseAll → 重开面板。
             if (SceneFlow.LastWasBossRush)
+            // ★ 2026-11-16：重挑战前快照原战场的敌人，回编队后原样复用
+            //   （否则种子重算 → 6 只变 4 只，用户实测"敌人变了"）
+            if (_req != null && _req.Enemy != null && _req.Enemy.Count > 0)
+            {
+                SceneFlow.RechallengeEnemySnapshot = new System.Collections.Generic.List<WanXiang.Battle.Core.BeastDef>(_req.Enemy);
+                SceneFlow.RechallengeNodeTitle = _req.Title;
+                UnityEngine.Debug.Log("[BattlePanel] 重挑战快照敌人 " + SceneFlow.RechallengeEnemySnapshot.Count
+                                      + " 只（" + SceneFlow.RechallengeNodeTitle + "）");
+            }
+            else
+            {
+                SceneFlow.RechallengeEnemySnapshot = null;
+                SceneFlow.RechallengeNodeTitle = null;
+            }
+
             {
                 // 首领试炼：重挑回试炼面板（不结算、不进节点图）
                 SceneFlow.ReturnToBossRushPanel();
