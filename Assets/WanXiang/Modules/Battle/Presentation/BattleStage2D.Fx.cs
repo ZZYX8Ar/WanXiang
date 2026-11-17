@@ -94,24 +94,15 @@ namespace WanXiang.Battle.Presentation
             for (int i = 0; i < 5; i++)
             {
                 float a = Mathf.PI * 2f * i / 5f + 0.4f;
-                var go = new GameObject("CorruptSpark");
-                go.transform.SetParent(transform, false);
                 var col = new Color(0.62f, 0.32f, 0.95f, 0.9f);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = SolidSprite(col, 12, 12, 0, col);
-                sr.sortingOrder = 38;
-                go.transform.position = c;
-                go.transform.localScale = Vector3.one * 0.18f;
-                _bursts.Add(new Burst
-                {
-                    T = go.transform, Sr = sr,
-                    Vel = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.8f + 0.6f) * 1.6f,
-                    Life = 0.55f, Max = 0.55f,
-                });
+                var burst = AcquireBurst(SolidSprite(col, 12, 12, 0, col), 38, c, 0.18f);
+                burst.Vel = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.8f + 0.6f) * 1.6f;
+                burst.Life = 0.55f; burst.Max = 0.55f;
+                _bursts.Add(burst);
             }
             while (_bursts.Count > 96)
             {
-                if (_bursts[0].T != null) Destroy(_bursts[0].T.gameObject);
+                RecycleBurst(_bursts[0]);
                 _bursts.RemoveAt(0);
             }
         }
@@ -164,23 +155,14 @@ namespace WanXiang.Battle.Presentation
             for (int i = 0; i < 8; i++)
             {
                 float a = Mathf.PI * 2f * i / 8f;
-                var go = new GameObject("RxSpark");
-                go.transform.SetParent(transform, false);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = SolidSprite(color, 14, 14, 0, color);
-                sr.sortingOrder = 40;
-                go.transform.position = c;
-                go.transform.localScale = Vector3.one * 0.22f;
-                _bursts.Add(new Burst
-                {
-                    T = go.transform, Sr = sr,
-                    Vel = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * 2.2f,
-                    Life = 0.45f, Max = 0.45f,
-                });
+                var burst = AcquireBurst(SolidSprite(color, 14, 14, 0, color), 40, c, 0.22f);
+                burst.Vel = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * 2.2f;
+                burst.Life = 0.45f; burst.Max = 0.45f;
+                _bursts.Add(burst);
             }
             while (_bursts.Count > 96)
             {
-                if (_bursts[0].T != null) Destroy(_bursts[0].T.gameObject);
+                RecycleBurst(_bursts[0]);
                 _bursts.RemoveAt(0);
             }
         }
@@ -235,7 +217,7 @@ namespace WanXiang.Battle.Presentation
                 var b = _bursts[i];
                 if (b.T == null) { _bursts.RemoveAt(i); continue; }
                 b.Life -= dt;
-                if (b.Life <= 0f) { Destroy(b.T.gameObject); _bursts.RemoveAt(i); continue; }
+                if (b.Life <= 0f) { RecycleBurst(b); _burstFree.Push(b); _bursts.RemoveAt(i); continue; }
                 float k = b.Life / b.Max;
                 b.Vel.y -= 6.5f * dt;
                 b.T.position += (Vector3)(b.Vel * dt);

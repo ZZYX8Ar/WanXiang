@@ -697,6 +697,8 @@ namespace WanXiang.Battle.Presentation
             _shakeDur = 0f; _shakeAmp = 0f;
             _deferredDmg.Clear();
             _burstPool.ClearRefs();   // 爆闪子物体已被上面统一销毁；只清引用
+            _bursts.Clear();            // ★ 抛物线火花：子物体已统一销毁，活跃表与回收栈一起清
+            _burstFree.Clear();
         }
 
         // player=true 我方（左，不镜像）；player=false 敌方（右，列镜像 ， 与我方对称）
@@ -2520,6 +2522,43 @@ namespace WanXiang.Battle.Presentation
         private struct Burst { public Transform T; public SpriteRenderer Sr; public Vector2 Vel; public float Life, Max; }
         private readonly System.Collections.Generic.List<Burst> _bursts =
             new System.Collections.Generic.List<Burst>(32);
+        // ★ 2026-11-17 性能优化：抛物线火花的回收栈（元素反应/魇化/落地尘共用）。
+        //   原来每次 new GameObject + Destroy，现在 SetActive(false) 回收复用。
+        private readonly System.Collections.Generic.Stack<Burst> _burstFree =
+            new System.Collections.Generic.Stack<Burst>(32);
+
+        /// <summary>取一个火花对象（复用优先），只设置身份属性；速度/寿命由调用方填。</summary>
+        private Burst AcquireBurst(Sprite sp, int order, Vector3 pos, float scale)
+        {
+            Burst b;
+            if (_burstFree.Count > 0)
+            {
+                b = _burstFree.Pop();
+                if (b.T != null)
+                {
+                    b.T.gameObject.SetActive(true);
+                    b.T.position = pos;
+                    b.T.localScale = Vector3.one * scale;
+                }
+                if (b.Sr != null) { b.Sr.sprite = sp; b.Sr.sortingOrder = order; b.Sr.color = Color.white; }
+            }
+            else
+            {
+                var go = new GameObject("Burst");
+                go.transform.SetParent(transform, false);
+                go.transform.position = pos;
+                go.transform.localScale = Vector3.one * scale;
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = sp; sr.sortingOrder = order;
+                b = new Burst { T = go.transform, Sr = sr };
+            }
+            return b;
+        }
+
+        private static void RecycleBurst(Burst b)
+        {
+            if (b.T != null) b.T.gameObject.SetActive(false);
+        }
 
 
         /// <summary>元素附着：脚下圈 = 元素色（恒定亮度）；血条右侧 4 段小圈 = 层数。</summary>
@@ -2935,20 +2974,11 @@ namespace WanXiang.Battle.Presentation
             for (int i = 0; i < 6; i++)
             {
                 float a = Mathf.PI * 2f * i / 6f;
-                var go = new GameObject("Dust");
-                go.transform.SetParent(transform, false);
                 var col = new Color(0.78f, 0.72f, 0.60f, 0.55f);
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = SolidSprite(col, 10, 10, 0, col);
-                sr.sortingOrder = 30;
-                go.transform.position = c;
-                go.transform.localScale = Vector3.one * 0.12f;
-                _bursts.Add(new Burst
-                {
-                    T = go.transform, Sr = sr,
-                    Vel = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.35f) * 1.2f,
-                    Life = 0.32f, Max = 0.32f,
-                });
+                var burst = AcquireBurst(SolidSprite(col, 10, 10, 0, col), 30, c, 0.12f);
+                burst.Vel = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.35f) * 1.2f;
+                burst.Life = 0.32f; burst.Max = 0.32f;
+                _bursts.Add(burst);
             }
         }
 
