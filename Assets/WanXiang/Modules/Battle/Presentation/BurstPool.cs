@@ -101,5 +101,12 @@ namespace WanXiang.Battle.Presentation
             for (int i = 0; i < _items.Count; i++) Recycle(_items[i]);
             _items.Clear();
         }
+
+        /// <summary>跨场重置：舞台 DestroyImmediate 后整栈丢弃失效引用（见 FloatingTextPool.Reset）。</summary>
+        public void Reset()
+        {
+            _items.Clear();
+            _free.Clear();
+        }
     }
 }

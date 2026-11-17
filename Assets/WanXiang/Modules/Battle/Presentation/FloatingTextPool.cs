@@ -101,6 +101,19 @@ namespace WanXiang.Battle.Presentation
             _items.Clear();
         }
 
+        /// <summary>
+        /// ★ 跨场重置：舞台 DestroyImmediate 掉所有子物体后调用。
+        /// 池里的 GameObject 引用已失效（Unity 的 == null 为 true），必须整栈丢弃，
+        /// 否则下一场 Pop 到失效对象会既不复用也不新建 ⇒ 飘字静默消失。
+        /// 与 Clear() 的区别：Clear 用于"同场内清空仍活着的对象"，Reset 用于"对象已被外部销毁"。
+        /// </summary>
+        public void Reset()
+        {
+            _items.Clear();
+            _free.Clear();
+            _parent = null;
+        }
+
         public void Step(float dt)
         {
             for (int i = _items.Count - 1; i >= 0; i--)

@@ -679,7 +679,8 @@ namespace WanXiang.Battle.Presentation
             for (int i = transform.childCount - 1; i >= 0; i--)
                 DestroyImmediate(transform.GetChild(i).gameObject);
             _views.Clear();
-            _floaters.Clear();
+            _floaters.Reset();   // ★ 子物体已 DestroyImmediate，丢弃全部失效池引用（不能用 Clear）
+
             _verdictBanner.ClearRefs();
     _pendingDmg.Clear();
             _pendingCritFloat = null;
@@ -696,7 +697,7 @@ namespace WanXiang.Battle.Presentation
             _turnArrow = null; // 箭头子物体已被上面销毁；Build 里重建
             _shakeDur = 0f; _shakeAmp = 0f;
             _deferredDmg.Clear();
-            _burstPool.ClearRefs();   // 爆闪子物体已被上面统一销毁；只清引用
+            _burstPool.Reset();       // ★ 同上：丢弃失效池引用（ClearRefs 会把失效对象压回 free 栈）
             _bursts.Clear();            // ★ 抛物线火花：子物体已统一销毁，活跃表与回收栈一起清
             _burstFree.Clear();
         }
