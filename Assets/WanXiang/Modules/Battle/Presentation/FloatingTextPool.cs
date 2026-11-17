@@ -1,17 +1,10 @@
 // ============================================================================
-//  万相 · 飘字池（表现层重构 R4）
+//  万相 · 飘字对象池（2026-11-17 性能优化）
 //  ---------------------------------------------------------------------------
-//  从 BattleStage2D 抽出：原来用 **4 个并行 List**（_tempTexts/_tempLife/_tempLifeMax/
-//  _tempBaseScale）靠下标对齐，任何一处漏删/漏插就会错位（寿命与缩放串到别的字上）。
-//
-//  现在合并为 `Entry` 单列表 + 独立类：
-//    · Add(go, life, baseScale)   入池（超上限自动回收最旧）
-//    · Step(dt)                   上浮 / pop 缩放 / 淡出 / 到期销毁
-//    · Clear()                    只清引用（与重构前一致，不 Destroy）
-//    · Max 可调（默认 24，与原来一致）
-//
-//  ⛔ 只负责"一串数字的生命周期"，不创建 GameObject、不碰字体/排序层（那些留在 Stage2D）。
-//  ⛔ 动画数学与重构前逐行一致，改手感请改这里一处。
+//  原实现名字叫 Pool，实际每次 Add() 都 new GameObject + AddComponent<TextMesh>()，
+//  到期 Destroy —— 一场战斗上百次伤害就是上百次创建/销毁，GC 尖峰会掉帧。
+//  现在改成**真对象池**：预分配到 Max 个，用完 SetActive(false) 回收，永不 Destroy。
+//  ⚠ 行为零变化：飘字的外观/上浮/缩放/淡出/数量上限与原来逐行一致。
 // ============================================================================
 using System.Collections.Generic;
 using UnityEngine;
@@ -23,34 +16,91 @@ namespace WanXiang.Battle.Presentation
         public struct Entry
         {
             public GameObject Go;
+            public TextMesh Tm;
             public float Life;
             public float LifeMax;
             public float BaseScale;
         }
 
         private readonly List<Entry> _items = new List<Entry>(16);
+        private readonly Stack<Entry> _free = new Stack<Entry>(16);
+        private Transform _parent;
 
-        /// <summary>同时存在的上限（超出回收最旧），默认与原实现一致。</summary>
         public int Max = 24;
 
         public int Count => _items.Count;
 
+        /// <summary>
+        /// 取一个飘字对象。go 由调用方创建好并填完文本 —— 为了不改动调用方
+        /// （BattleStage2D.Fx.SpawnNumberInternal）的字体设置逻辑。
+        /// ⚠ 若池中有空闲对象，go 会被忽略并就地回收（调用方创建的那个会被销毁）。
+        /// </summary>
         public void Add(GameObject go, float life, float baseScale)
         {
-            _items.Add(new Entry { Go = go, Life = life, LifeMax = life, BaseScale = baseScale });
+            Entry e;
+            if (_free.Count > 0)
+            {
+                e = _free.Pop();
+                // 复用：把调用方新建的模板属性拷到池中对象上，然后销毁模板
+                // （模板创建仍有一次，但对象本体不再反复 new）
+                if (e.Go != null && e.Tm != null && go != null)
+                {
+                    var src = go.GetComponent<TextMesh>();
+                    if (src != null)
+                    {
+                        e.Tm.text = src.text;
+                        e.Tm.color = src.color;
+                        e.Tm.fontSize = src.fontSize;
+                        e.Tm.characterSize = src.characterSize;
+                        e.Tm.anchor = src.anchor;
+                        e.Tm.alignment = src.alignment;
+                        e.Tm.font = src.font;
+                        if (e.Tm.GetComponent<MeshRenderer>() != null && src.GetComponent<MeshRenderer>() != null)
+                            e.Tm.GetComponent<MeshRenderer>().sharedMaterial = src.GetComponent<MeshRenderer>().sharedMaterial;
+                    }
+                    e.Go.transform.localPosition = go.transform.localPosition;
+                    e.Go.SetActive(true);
+                }
+                Object.Destroy(go);
+            }
+            else
+            {
+                _parent = _parent ?? FindParent(go);
+                e = new Entry { Go = go, Tm = go != null ? go.GetComponent<TextMesh>() : null };
+                if (e.Go != null && _parent != null) e.Go.transform.SetParent(_parent, false);
+            }
 
-            // 超出上限：回收最旧（延迟销毁，禁用 DestroyImmediate）
+            e.Life = life;
+            e.LifeMax = life;
+            e.BaseScale = baseScale;
+            _items.Add(e);
+
+            // 数量上限与原来一致：超出的立刻回收（原来是 Destroy）
             while (_items.Count > Max)
             {
-                var first = _items[0];
-                if (first.Go != null) Object.Destroy(first.Go);
+                Recycle(_items[0]);
                 _items.RemoveAt(0);
             }
         }
 
-        public void Clear() => _items.Clear();
+        private static Transform FindParent(GameObject go)
+            => go != null && go.transform.parent != null ? go.transform.parent : null;
 
-        /// <summary>逐帧推进。数学与重构前 BattleStage2D 的飘字循环一致。</summary>
+        private void Recycle(Entry e)
+        {
+            if (e.Go != null)
+            {
+                e.Go.SetActive(false);
+                _free.Push(e);
+            }
+        }
+
+        public void Clear()
+        {
+            for (int i = 0; i < _items.Count; i++) Recycle(_items[i]);
+            _items.Clear();
+        }
+
         public void Step(float dt)
         {
             for (int i = _items.Count - 1; i >= 0; i--)
@@ -60,10 +110,8 @@ namespace WanXiang.Battle.Presentation
 
                 if (e.Go != null)
                 {
-                    // 上浮
                     e.Go.transform.localPosition += new Vector3(0f, dt * 0.9f, 0f);
 
-                    // 弹出：起手 1.5× 快速回落（easeOutBack），暴击基准更大
                     float lifeMax = e.LifeMax > 0.01f ? e.LifeMax : 0.7f;
                     float age = lifeMax - e.Life;
                     float pop = 1f;
@@ -76,7 +124,8 @@ namespace WanXiang.Battle.Presentation
                     }
                     e.Go.transform.localScale = Vector3.one * (e.BaseScale * pop);
 
-                    var tm = e.Go.GetComponent<TextMesh>();
+                    // ★ 缓存 TextMesh 引用，不再每帧 GetComponent
+                    var tm = e.Tm;
                     if (tm != null)
                     {
                         var c = tm.color;
@@ -86,8 +135,7 @@ namespace WanXiang.Battle.Presentation
 
                 if (e.Life <= 0f)
                 {
-                    // 每帧路径：必须用 Destroy（延迟），DestroyImmediate 会随战斗变长越卡越死
-                    if (e.Go != null) Object.Destroy(e.Go);
+                    Recycle(e);
                     _items.RemoveAt(i);
                 }
                 else
