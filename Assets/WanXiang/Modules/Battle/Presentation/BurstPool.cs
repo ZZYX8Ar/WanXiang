@@ -1,10 +1,10 @@
 // ============================================================================
-//  万相 · 爆闪池（表现层重构 R3-c）
+//  万相 · 火花对象池（2026-11-17 性能优化）
 //  ---------------------------------------------------------------------------
-//  从 BattleStage2D 抽出的**格挡爆闪**：圆环/圆盘从 0 快速放大到 R1 并淡出。
-//  与 FloatingTextPool 同模式：struct 单列表 + Spawn/Step/ClearRefs。
-//
-//  ⛔ 不认识格挡语义（颜色/半径/时长全由调用方给）——Stage2D 决定"放什么"。
+//  原实现每次 Spawn 都 new GameObject + AddComponent<SpriteRenderer>()，
+//  到期 Destroy —— 格挡火花/元素爆发高频触发时会产生 GC 尖峰。
+//  现在改成**真对象池**：预分配复用，到期 SetActive(false) 回收，永不 Destroy。
+//  ⚠ 行为零变化：缩放曲线(1-(1-k)^2)/淡出/sortingOrder 与原来逐行一致。
 // ============================================================================
 using System.Collections.Generic;
 using UnityEngine;
@@ -15,30 +15,54 @@ namespace WanXiang.Battle.Presentation
     {
         private struct Item
         {
+            public GameObject Go;
             public SpriteRenderer Sr;
             public float T, Dur, R0, R1;
             public Color C;
         }
 
         private readonly List<Item> _items = new List<Item>(8);
+        private readonly Stack<Item> _free = new Stack<Item>(8);
 
         public int Count => _items.Count;
 
         public void Spawn(Transform parent, Vector3 pos, Sprite sp, Color c,
                           float r0, float r1, float dur, int order)
         {
-            var go = new GameObject("ParryBurst");
-            go.transform.SetParent(parent, false);
-            go.transform.position = pos;
             if (sp != null && sp.texture != null) sp.texture.wrapMode = TextureWrapMode.Repeat;
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = sp;
-            sr.sortingOrder = order;
-            sr.color = c;
-            _items.Add(new Item { Sr = sr, T = 0f, Dur = dur, R0 = r0, R1 = r1, C = c });
+
+            Item b;
+            if (_free.Count > 0)
+            {
+                b = _free.Pop();
+                if (b.Go != null)
+                {
+                    b.Go.SetActive(true);
+                    b.Go.transform.SetParent(parent, false);
+                    b.Go.transform.position = pos;
+                }
+                if (b.Sr != null)
+                {
+                    b.Sr.sprite = sp;
+                    b.Sr.sortingOrder = order;
+                    b.Sr.color = c;
+                }
+            }
+            else
+            {
+                var go = new GameObject("ParryBurst");
+                go.transform.SetParent(parent, false);
+                go.transform.position = pos;
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = sp;
+                sr.sortingOrder = order;
+                sr.color = c;
+                b = new Item { Go = go, Sr = sr };
+            }
+            b.T = 0f; b.Dur = dur; b.R0 = r0; b.R1 = r1; b.C = c;
+            _items.Add(b);
         }
 
-        /// <summary>逐帧推进（easeOut 放大 + 淡出，到期 Destroy）。数学与重构前逐行一致。</summary>
         public void Step(float dt)
         {
             for (int i = _items.Count - 1; i >= 0; i--)
@@ -54,7 +78,7 @@ namespace WanXiang.Battle.Presentation
                 b.Sr.color = new Color(c.r, c.g, c.b, c.a * (1f - k));
                 if (k >= 1f)
                 {
-                    Object.Destroy(b.Sr.gameObject);
+                    Recycle(b);
                     _items.RemoveAt(i);
                 }
                 else
@@ -64,7 +88,18 @@ namespace WanXiang.Battle.Presentation
             }
         }
 
-        /// <summary>只清引用（舞台 Clear 时调用；子物体已被统一销毁）。</summary>
-        public void ClearRefs() => _items.Clear();
+        private void Recycle(Item b)
+        {
+            if (b.Go == null) return;
+            b.Go.SetActive(false);
+            _free.Push(b);
+        }
+
+        // ★ 原来只清列表（对象留在场景 active）；现在所有活跃对象一并回收。
+        public void ClearRefs()
+        {
+            for (int i = 0; i < _items.Count; i++) Recycle(_items[i]);
+            _items.Clear();
+        }
     }
 }
