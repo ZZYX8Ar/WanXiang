@@ -3162,8 +3162,22 @@ namespace WanXiang.Battle.Presentation
         }
 
         private static Sprite _solid;
+        // ★ 2026-11-17 性能优化：纯色块 Sprite 缓存。
+        //   原实现每次调用都 new Texture2D + Sprite.Create —— 元素反应火花每次炸 8 张纹理，
+        //   一场战斗几百张，是比 GameObject 创建更严重的 GC/显存压力。
+        //   纯色块的像素只由 (颜色,尺寸,边框,边框色) 决定 ⇒ 同参数完全可复用，行为零变化。
+        private static readonly System.Collections.Generic.Dictionary<string, Sprite> _solidSpriteCache
+            = new System.Collections.Generic.Dictionary<string, Sprite>(32);
+
         public static Sprite SolidSprite(Color c, int w, int h, int border, Color borderColor)
         {
+            string key = c.r.ToString("F3") + "," + c.g.ToString("F3") + "," + c.b.ToString("F3") + "," + c.a.ToString("F3")
+                       + "|" + w + "x" + h + "|" + border + "|"
+                       + borderColor.r.ToString("F3") + "," + borderColor.g.ToString("F3")
+                       + "," + borderColor.b.ToString("F3") + "," + borderColor.a.ToString("F3");
+            Sprite cached;
+            if (_solidSpriteCache.TryGetValue(key, out cached) && cached != null) return cached;
+
             var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
             var px = new Color[w * h];
             for (int y = 0; y < h; y++)
@@ -3174,7 +3188,9 @@ namespace WanXiang.Battle.Presentation
                 }
             tex.SetPixels(px);
             tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f);
+            var sprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f);
+            _solidSpriteCache[key] = sprite;
+            return sprite;
         }
 
         private static Font _legacyFont;
