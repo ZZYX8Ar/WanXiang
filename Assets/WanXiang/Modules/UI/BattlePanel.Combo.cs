@@ -132,10 +132,6 @@ namespace WanXiang.Modules.UI
             _comboStatus.Clear();
             _comboStatus.AddRange(ComboRules.Overview(_play.State, actor));
 
-            // 待令者不在中宫时，额外给一句明确提示（否则十行全红，玩家不知道为什么）
-            bool needCenter = actor == null || !actor.IsAlive || !actor.Pos.IsCenter;
-            if (_comboCountText != null && needCenter)
-                _comboCountText.text = "须站中宫的单位待令才能发动连携";
 
             int ready = 0;
             for (int i = 0; i < ComboRowCount; i++)
@@ -174,7 +170,7 @@ namespace WanXiang.Modules.UI
                 PaintComboCells(i, st, def);
             }
 
-            if (_comboCountText != null && !needCenter)
+            if (_comboCountText != null)
                 _comboCountText.text = ready + " / " + _comboStatus.Count + " 可发动";
         }
 

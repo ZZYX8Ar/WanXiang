@@ -267,7 +267,6 @@ namespace WanXiang.Battle.Core
             if (st == null || actor == null || c == null || !actor.IsAlive || actor.Def == null)
             { why = "没有待令单位"; return false; }
             if (!actor.CanCastSkills) { why = actor.DisplayName + " 被封印，无法发动"; return false; }
-            if (!actor.Pos.IsCenter) { why = "须站九宫格中宫（中间格）才能发动连携"; return false; }
             if (st.UsedCombos.Contains(c.Id)) { why = "本场已发动过「" + c.Name + "」"; return false; }
             if (!FormationMatched(st, actor.Side, c))
             { why = MissingShapeText(st, actor.Side); return false; }
@@ -293,7 +292,6 @@ namespace WanXiang.Battle.Core
         {
             var list = new System.Collections.Generic.List<ComboDef>();
             if (st == null || actor == null || !actor.IsAlive || actor.CanCastSkills == false) return list;
-            if (!actor.Pos.IsCenter) return list;     // 主兽须站中宫（短路，省得逐条判）
 
             for (int i = 0; i < Table.Count; i++)
             {

@@ -47,8 +47,14 @@ namespace WanXiang.Modules.UI
         /// <summary>
         /// 刷新敌人意图：读 Core 的同源预告，按敌人当前格号填徽章。
         /// </summary>
+        // ★ 2026-11-17 用户："还是不要这个敌人的攻击意图了，都把敌人遮挡完了"
+        //   Core 的 EnemyIntentReader 保留（自检/以后要用），但 UI 层整体关闭。
+        //   想重新开启时：把本常量改 true 即可，其余逻辑无需动。
+        private const bool ShowEnemyIntent = false;
+
         private void RefreshEnemyIntent()
         {
+            if (!ShowEnemyIntent) { HideAllIntents(); return; }
             if (_intentNodes == null || _play == null || _play.State == null) return;
             var st = _play.State;
             var foes = st.UnitsOf(TeamSide.Enemy);
@@ -58,8 +64,7 @@ namespace WanXiang.Modules.UI
             if (foes == null || (foes.Count == 0 && deploying)) return;
 
             // 先全隐藏（回合切换/敌人死亡时不能留残影）
-            for (int i = 0; i < IntentSlotCount; i++)
-                if (_intentNodes[i] != null) _intentNodes[i].gameObject.SetActive(false);
+            HideAllIntents();
 
             for (int i = 0; i < foes.Count; i++)
             {
@@ -90,6 +95,13 @@ namespace WanXiang.Modules.UI
                 if (_intentBg[cell] != null)
                     _intentBg[cell].color = info.IsUltimate ? new Color(1f, 0.92f, 0.70f, 1f) : Color.white;
             }
+        }
+
+        private void HideAllIntents()
+        {
+            if (_intentNodes == null) return;
+            for (int i = 0; i < IntentSlotCount; i++)
+                if (_intentNodes[i] != null) _intentNodes[i].gameObject.SetActive(false);
         }
 
         /// <summary>把徽章钉到指定敌人格子的正上方（世界坐标 → 屏幕 → holder 本地）。</summary>

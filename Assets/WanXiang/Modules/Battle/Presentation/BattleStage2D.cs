@@ -217,7 +217,9 @@ namespace WanXiang.Battle.Presentation
 
         // ---- 单位标签（名字 / 血条）的美术点位：直接在 Inspector 里改，不用动代码、不用改 prefab ----
         /// <summary>血条相对立绘容器的 y 偏移。</summary>
-        public float HpBarY = 0.46f;      // 世界高度（格中心往上）
+        // ★ 2026-11-17 用户："血条能往下偏移一下吗"：0.46 → 0.30（世界单位，下移 0.16 ≈ 16px）
+        //   注意：这是默认值，场景里若有序列化值会覆盖它 —— 见 BattleStageWindow 的 Inspector。
+        public float HpBarY = 0.30f;      // 世界高度（格中心往上）
         /// <summary>血条满宽（世界单位）。</summary>
         public float HpBarWidth = 1.25f;
 
