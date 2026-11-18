@@ -190,7 +190,9 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                 || run.GrowthPct != 0)
             {
                 // ★ 2026-10-20：加入本局永久成长（GrowthPct），它**不随本场清零**。
-                req.PlayerMul = 1f + (run.HealPending + run.PlayerBuffPct + run.GrowthPct) / 100f;
+                // ★ 2026-11-18 修复：原为 `=` 直接覆盖，会把上面"五行俱全 ×1.10"吞掉。
+                //   这些是百分比加成，应在已有倍率基础上相乘，而不是重置。
+                req.PlayerMul *= 1f + (run.HealPending + run.PlayerBuffPct + run.GrowthPct) / 100f;
                 if (req.EnemyEntries != null)
                     foreach (var en in req.EnemyEntries)
                         en.WithMul(en.StatMul * (1f + run.EnemyBuffPct / 100f));
