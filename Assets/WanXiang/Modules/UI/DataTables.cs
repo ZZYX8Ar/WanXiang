@@ -471,7 +471,16 @@ namespace WanXiang.Modules.UI
                                    System.StringComparison.OrdinalIgnoreCase)) continue;
                 float v = r.Float("value", 1f);
                 if (v <= 0f) { r.Fail("player_damage_mul 必须 > 0"); continue; }
-                WanXiang.Battle.Core.BattleTuning.Install(v);
+                // ★ 2026-11-18：同读敌方威胁目标开关（缺行/非法 ⇒ 默认 false，老存档安全）
+                bool smart = false;
+                for (int j = 0; j < rows.Count; j++)
+                {
+                    var rr = new Row(header, rows[j], "battle_tuning.csv", j + 2, Problems);
+                    if (string.Equals(rr.Str("key").Trim(), "enemy_smart_targeting",
+                                      System.StringComparison.OrdinalIgnoreCase))
+                    { smart = rr.Float("value", 0f) > 0.5f; break; }
+                }
+                WanXiang.Battle.Core.BattleTuning.Install(v, smart);
                 return;
             }
         }

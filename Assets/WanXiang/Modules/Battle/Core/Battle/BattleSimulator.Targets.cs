@@ -221,10 +221,16 @@ namespace WanXiang.Battle.Core
             int rb = b.Pos.IsValid ? b.Pos.FrontRankFor(b.Side) : int.MaxValue;
             if (ra != rb) return frontMost ? ra < rb : ra > rb;   // 前排 = 列小；后排 = 列大
 
-            // 同列：行小的先（上→下，稳定）—— 一个格子只能站一只，
-            // 所以"同排同行"不可能出现；同列的目标因此**不会随血量变化而跳**。
-            // ⚠ 原先这里还有一条「同列同排时取生命比例高的」，但它是不可达的死分支，
-            //   留着会让人误以为"目标会随血量跳"（用户曾据此报障）。已删。
+            // 同列：默认行小的先（上→下，稳定）。
+            // ★ 2026-11-18 开关 enemy_smart_targeting=1 时改按"威胁度"（Attack 高）优先：
+            //   ⚠ 只在**同一列**内生效 —— 前排坦克照样挡刀，不破坏前后排策略；
+            //   只是当同一前排站着多只时，敌人先挑输出端那个。
+            //   PreviewTargets 也走这里 ⇒ 意图预告与实战自动同源。
+            if (BattleTuning.EnemySmartTargeting)
+            {
+                float aa = a.Attack, ab = b.Attack;
+                if (aa != ab) return aa > ab;   // 攻击高 = 威胁大，先打
+            }
             int ca = a.Pos.IsValid ? a.Pos.Row : int.MaxValue;
             int cb = b.Pos.IsValid ? b.Pos.Row : int.MaxValue;
             if (ca != cb) return ca < cb;

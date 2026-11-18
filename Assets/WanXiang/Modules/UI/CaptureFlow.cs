@@ -84,6 +84,17 @@ namespace WanXiang.Modules.UI
         private static void CommitCapture(BeastDef def, WanXiang.Run.RunState run, float dao)
         {
             run.Stats.Captures++;
+
+            // ★ 2026-11-18：捕获的异兽加入本局收藏 —— 编队候选池 = Collection + Team，
+            //   因此下一场出征前的编队界面就能把它换上场。补齐"抓→用"的核心循环。
+            //   （原实现只记图鉴/异色/计数，抓到的兽本局永远用不了，是"差一点意思"的根因）
+            if (run.Collection == null) run.Collection = new System.Collections.Generic.List<string>();
+            if (!run.Collection.Contains(def.Id))
+            {
+                run.Collection.Add(def.Id);
+                UnityEngine.Debug.Log("[Capture] 「" + def.DisplayName + "」已加入本局收藏，下一场编队可上场");
+            }
+
             bool first = BeastCodexPrefs.MarkCaught(def.Id);
 
             var meta = WanXiang.Meta.MetaStore.Ensure();

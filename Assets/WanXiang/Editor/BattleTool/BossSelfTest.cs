@@ -604,6 +604,7 @@ namespace WanXiang.Editor.BattleTool
 
             // 首击减伤（魍魉隐遁） —— 隔离单测，确定性核对数学
             ExpectFirstHitReduce(c);
+            ExpectSmartTargeting(c);
         }
 
         // ================================================================
@@ -771,6 +772,46 @@ namespace WanXiang.Editor.BattleTool
             catch (Exception ex)
             {
                 c.Bad($"免疫克制（{bossId}）：抛 {ex.GetType().Name}：{ex.Message}");
+            }
+        }
+
+        /// <summary>敌方同列威胁优先开关（2026-11-18）：开=打同列攻击高的，关=按位置。坦克仍挡刀。</summary>
+        private static void ExpectSmartTargeting(Ctx c)
+        {
+            try
+            {
+                var weak = new BattleUnit(TeamSide.Enemy,
+                    BattleSampleContent.Make("tw", "弱", Element.Wood, RoleType.Guard), "TW");
+                var strong = new BattleUnit(TeamSide.Enemy,
+                    BattleSampleContent.Make("ts", "强", Element.Wood, RoleType.Striker), "TS");
+                if (weak.Attack >= strong.Attack) { c.Bad("威胁目标测试：样本攻击力未拉开"); return; }
+
+                var pf = typeof(BattleUnit).GetField("Pos");
+                pf.SetValue(weak, new GridPos(0));    // 同列（col0）
+                pf.SetValue(strong, new GridPos(3));  // 同列（col0，不同行）
+                var src = new BattleUnit(TeamSide.Player,
+                    BattleSampleContent.Make("tp", "我", Element.Wood, RoleType.Guard), "TP");
+                var m = typeof(BattleSimulator).GetMethod("RanksCloser",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                var tf = typeof(BattleTuning).GetField("_enemySmartTargeting",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                bool orig = (bool)tf.GetValue(null);
+                try
+                {
+                    tf.SetValue(null, false);
+                    bool off = (bool)m.Invoke(null, new object[] { strong, weak, src, true });
+                    tf.SetValue(null, true);
+                    bool on = (bool)m.Invoke(null, new object[] { strong, weak, src, true });
+                    if (!off && on)
+                        c.Ok("敌方威胁目标开关：关=按位置，开=打同列攻击高的（坦克仍挡刀）");
+                    else
+                        c.Bad($"敌方威胁目标开关不符：关={off} 开={on}（期望 false/true）");
+                }
+                finally { tf.SetValue(null, orig); }
+            }
+            catch (Exception ex)
+            {
+                c.Bad($"敌方威胁目标开关：隔离单测抛 {ex.GetType().Name}：{ex.Message}");
             }
         }
 

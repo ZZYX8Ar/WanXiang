@@ -11,6 +11,9 @@ namespace WanXiang.Battle.Core
     public static class BattleTuning
     {
         private static float _playerDamageMul = 1f;
+        // ★ 2026-11-18：敌方"同列威胁优先"开关（0=原版按位置，1=打同列攻击最高的）。
+        //   只影响同一前排列内的 tie-break，坦克仍挡刀 —— 不改变前后排策略。
+        private static bool _enemySmartTargeting = false;
 
         /// <summary>
         /// 玩家造成伤害倍率（普攻/技能/真伤/追击通用；敌方不受影响）。
@@ -23,15 +26,23 @@ namespace WanXiang.Battle.Core
         }
 
         /// <summary>由 UI 层 DataTables 调用（唯一写入口）。</summary>
-        public static void Install(float playerDamageMul)
+        public static bool EnemySmartTargeting
+        {
+            get { return _enemySmartTargeting; }
+            internal set { _enemySmartTargeting = value; }
+        }
+
+        public static void Install(float playerDamageMul, bool enemySmartTargeting = false)
         {
             _playerDamageMul = playerDamageMul > 0f ? playerDamageMul : 1f;
+            _enemySmartTargeting = enemySmartTargeting;
         }
 
         /// <summary>测试结束：重置为正式数值（表里没配时也走这个）。</summary>
         public static void ResetToDefaults()
         {
             _playerDamageMul = 1f;
+            _enemySmartTargeting = false;
         }
     }
 }
