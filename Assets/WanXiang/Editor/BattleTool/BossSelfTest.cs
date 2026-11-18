@@ -780,10 +780,13 @@ namespace WanXiang.Editor.BattleTool
         {
             try
             {
-                var weak = new BattleUnit(TeamSide.Enemy,
-                    BattleSampleContent.Make("tw", "弱", Element.Wood, RoleType.Guard), "TW");
-                var strong = new BattleUnit(TeamSide.Enemy,
-                    BattleSampleContent.Make("ts", "强", Element.Wood, RoleType.Striker), "TS");
+                // 样本 Make() 默认不设 BaseAtk（所有单位攻击相同），必须显式拉开才能测威胁排序
+                var weakDef = BattleSampleContent.Make("tw", "弱", Element.Wood, RoleType.Guard);
+                weakDef.BaseAtk = 100;
+                var strongDef = BattleSampleContent.Make("ts", "强", Element.Wood, RoleType.Striker);
+                strongDef.BaseAtk = 300;
+                var weak = new BattleUnit(TeamSide.Enemy, weakDef, "TW");
+                var strong = new BattleUnit(TeamSide.Enemy, strongDef, "TS");
                 if (weak.Attack >= strong.Attack) { c.Bad("威胁目标测试：样本攻击力未拉开"); return; }
 
                 var pf = typeof(BattleUnit).GetField("Pos");
