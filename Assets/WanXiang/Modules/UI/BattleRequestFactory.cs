@@ -181,8 +181,23 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                 }
                 if (req.Player.Count >= 5 && seen.Count >= 5)
                 {
-                    req.PlayerMul *= 1.10f;
-                    UnityEngine.Debug.Log("[BattleRequestFactory] 五行俱全：5 种不同元素 → 全队 ×1.10");
+                    // ★ 2026-11-18：灵感「战阵·蓄势」把五行加成从 +10% 提到 +15%。
+                    //   （原"开局随机附着"效果按用户 11-14 要求已删，此节点改为真实有效的增益，
+                    //     避免玩家花悟道点买了却提示"已生效"的欺骗）
+                    float fiveBoost = 1.10f;
+                    try
+                    {
+                        var mstF = WanXiang.Meta.MetaStore.Ensure();
+                        if (mstF != null)
+                        {
+                            int up = WanXiang.Battle.Core.InspirationRules.EffectValue(
+                                mstF.InspirationIds, "five_element_boost_up");
+                            if (up > 0) fiveBoost = 1f + (10 + up) / 100f;
+                        }
+                    }
+                    catch { }
+                    req.PlayerMul *= fiveBoost;
+                    UnityEngine.Debug.Log("[BattleRequestFactory] 五行俱全：5 种不同元素 → 全队 ×" + fiveBoost.ToString("F2"));
                 }
             }
 
@@ -587,6 +602,21 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                 if (mods.ReviveOn) { req.PlayerReviveOn = true; req.PlayerReviveHpPercent = mods.ReviveHpPercent; }
                 else if (mods.ReviveForbidden) req.PlayerReviveOn = false;
                 req.PlayerStartMana += mods.StartMana;
+
+                // ★ 2026-11-18 灵感接线：战阵·先手（first_skill_mp_off）
+                //   原描述"首个技能耗灵-1"等价于"开局灵力+1"（都让玩家早一轮放技能），
+                //   走已有的 PlayerStartMana 通道 ⇒ 零 Core 改动、与遗物加法叠加。
+                try
+                {
+                    var mstI = WanXiang.Meta.MetaStore.Ensure();
+                    if (mstI != null)
+                    {
+                        int off = WanXiang.Battle.Core.InspirationRules.EffectValue(
+                            mstI.InspirationIds, "first_skill_mp_off");
+                        if (off > 0) req.PlayerStartMana += off;
+                    }
+                }
+                catch { }
 
                 // ⑤ 机制类遗物（v1.2）：改技能 / 授予劫象 / 改规则 —— 改的是**克隆兽**，不污染内容表
                 if (req.PlayerTrait == null) req.PlayerTrait = new System.Collections.Generic.List<string>();

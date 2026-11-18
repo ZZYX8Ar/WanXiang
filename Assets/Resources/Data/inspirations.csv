@@ -4,7 +4,7 @@ x1_lx2,行旅·问津,travel,2,3,灵泉/事件节点的印记选项不再隐去,
 x1_lx3,行旅·稀客,travel,3,4,事件节点出现稀有选项（金边）,event_rare_option,1
 x1_lx4,行旅·轻装,travel,4,5,撤退不掉灵卵,retire_keep_eggs,1
 x1_lx5,行旅·坦途,travel,5,6,秘境第一波不再受天时影响,realm_no_weather,1
-z1_zz1,战阵·蓄势,battle,1,2,开局全体自带 1 层随机附着,battle_start_status,1
+z1_zz1,战阵·蓄势,battle,1,2,五行俱全加成由 +10% 提升至 +15%,five_element_boost_up,5
 z1_zz2,战阵·明察,battle,2,3,QTE 完美判定窗口 +10%,qte_window_bonus,10
 z1_zz3,战阵·先手,battle,3,4,我方阶段首个技能耗灵 −1,first_skill_mp_off,1
 z1_zz4,战阵·同袍,battle,4,5,相邻同伴受击时你获得 1 点护盾,ally_guard,1
