@@ -30,6 +30,7 @@ namespace WanXiang.Modules.UI
         /// <summary>这队敌人的 AI 打法（v2.1 P4：节点/遭遇决定，精英更凶）。</summary>
         public AiProfile AiProfile = AiProfile.Balanced;
         public string WeatherName = "";
+        public string GoalId = "";   // ★ 战斗目标 id（空=无目标，附加奖励不判负）
         /// <summary>真正的天时（WeatherDef）。为 null = 本场无天时，战斗行为与旧版逐位一致（可复现性红线）。
         /// 由 BattleRequestFactory 从活 RunState.ComposeCurrentWeather() 填入；UI 占位串只进 WeatherName（显示用）。</summary>
         public WanXiang.Battle.Core.WeatherDef Weather;
@@ -133,6 +134,56 @@ namespace WanXiang.Modules.UI
     {
         public BattleState State { get; private set; }
         public BattleResult Result { get; private set; }
+        /// <summary>本场附加目标是否达成并发奖（供 ResultPanel/UI 显示）。</summary>
+        public bool ObjectiveAwarded { get; private set; }
+        public string ObjectiveAwardText { get; private set; } = "";
+
+        /// <summary>
+        /// 战斗结束时判定附加目标并发奖（2026-11-19）。
+        /// 目标 = 附加奖励，未完成不判负、不影响结算；达成则把奖励直接写进 RunState/MetaState。
+        /// </summary>
+        private void SettleObjective()
+        {
+            ObjectiveAwarded = false;
+            ObjectiveAwardText = "";
+            if (State == null || State.Objective == null || !State.Objective.Active) return;
+
+            var def = WanXiang.Battle.Core.ObjectiveRules.Get(State.Objective.GoalId);
+            if (def == null) return;
+            if (!WanXiang.Battle.Core.ObjectiveRules.IsComplete(State.Objective, State)) return;
+
+            var run = WanXiang.Run.RunSave.Current;
+            if (run == null) return;
+            string msg = "";
+            switch (def.RewardType)
+            {
+                case WanXiang.Battle.Core.ObjectiveReward.Eggs:
+                    run.Eggs += def.RewardValue; msg = "+" + def.RewardValue + " 灵卵"; break;
+                case WanXiang.Battle.Core.ObjectiveReward.Wudao:
+                {
+                    var meta = WanXiang.Meta.MetaStore.Ensure();
+                    if (meta != null) { meta.WudaoPoints += def.RewardValue; WanXiang.Meta.MetaStore.Save(); }
+                    msg = "+" + def.RewardValue + " 悟道点"; break;
+                }
+                case WanXiang.Battle.Core.ObjectiveReward.Ink:
+                {
+                    var meta = WanXiang.Meta.MetaStore.Ensure();
+                    if (meta != null) { meta.Ink += def.RewardValue; WanXiang.Meta.MetaStore.Save(); }
+                    msg = "+" + def.RewardValue + " 墨铊"; break;
+                }
+                case WanXiang.Battle.Core.ObjectiveReward.Essence:
+                {
+                    var meta = WanXiang.Meta.MetaStore.Ensure();
+                    if (meta != null) { meta.Essence += def.RewardValue; WanXiang.Meta.MetaStore.Save(); }
+                    msg = "+" + def.RewardValue + " 精魄"; break;
+                }
+            }
+            if (string.IsNullOrEmpty(msg)) return;
+            ObjectiveAwarded = true;
+            ObjectiveAwardText = "目标达成「" + def.Name + "」 " + msg;
+            WanXiang.Run.RunSave.Save(run);
+            UnityEngine.Debug.Log("[目标] " + ObjectiveAwardText);
+        }
 
         private int _eventIndex = -1;
         private int _frameIndex = 0;
@@ -240,6 +291,14 @@ namespace WanXiang.Modules.UI
             }
 
             State = BattleFactory.Create(cfg, req.Seed, p, e, req.Weather, req.RealmSpeedMulPlayer);
+
+            // ★ 2026-11-19：初始化本场附加目标（附加奖励，不判负）
+            if (State != null && State.Objective != null)
+            {
+                State.Objective.Reset(req.GoalId, State.Turn);
+                if (State.Objective.Active)
+                    UnityEngine.Debug.Log("[Battle] 附加目标：" + WanXiang.Battle.Core.ObjectiveRules.Describe(req.GoalId));
+            }
 
             // B2：把"已装备的道痕"折算成通道加成写入本局状态。
             //   通道列表从 DaoMarkRules.All 自动收集 ⇒ 以后加道痕/通道不用改这里。
@@ -360,6 +419,7 @@ namespace WanXiang.Modules.UI
             else
             {
                 Result = BattleSimulator.Run(State);   // 一次跑完，事件流/帧流即完整
+                SettleObjective();   // ★ 附加目标判定发奖（2026-11-19）
                 _simDone = true;
             }
 
@@ -493,6 +553,7 @@ namespace WanXiang.Modules.UI
                 _awaiting = false;
                 _awaitingParry = false;
                 Result = State.Result;
+                SettleObjective();   // ★ 附加目标判定发奖（2026-11-19）
             }
             else if (State.ParryPendingUnit != null)
             {

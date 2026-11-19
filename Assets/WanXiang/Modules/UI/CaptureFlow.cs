@@ -71,6 +71,7 @@ namespace WanXiang.Modules.UI
 
             if (attempt.Success)
             {
+                st.StatCaptures++;   // ★ 目标判定：捕猎（2026-11-19）
                 CommitCapture(def, run, dao);
                 unit.Retire();   // ★ 收服成功 → 目标退出本场战斗（抓到了还能打是逻辑矛盾）
             }

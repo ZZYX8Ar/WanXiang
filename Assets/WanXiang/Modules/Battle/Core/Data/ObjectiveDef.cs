@@ -20,7 +20,7 @@ namespace WanXiang.Battle.Core
     /// <summary>奖励类型。</summary>
     public enum ObjectiveReward
     {
-        None = 0, Eggs = 1, Wudao = 2, Ink = 3, RelicShard = 4,
+        None = 0, Eggs = 1, Wudao = 2, Ink = 3, Essence = 4,
     }
 
     /// <summary>一条目标定义（来自 objectives.csv）。</summary>

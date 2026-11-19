@@ -82,7 +82,11 @@ namespace WanXiang.Battle.Core
             actor.PutOnCooldown(skill.Type, skill.Cd, cdDelta);
 
             if (skill.Type == SkillType.Basic) actor.AddRage(cfg.RagePerBasicAttack);
-            if (skill.Type == SkillType.Ultimate) actor.SpendRage(cfg.UltimateRageCost);
+            if (skill.Type == SkillType.Ultimate)
+            {
+                actor.SpendRage(cfg.UltimateRageCost);
+                if (actor.Side == TeamSide.Player) st.StatUltimates++;   // 目标判定：截流（2026-11-19）
+            }
             // ★ 觉醒技：同样耗满额元气（用户定案），且伤害额外 ×1.4（"觉醒技就是厉害"）
             if (skill.Type == SkillType.Awaken) actor.SpendRage(cfg.UltimateRageCost);
 

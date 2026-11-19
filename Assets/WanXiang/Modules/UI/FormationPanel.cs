@@ -822,6 +822,14 @@ namespace WanXiang.Modules.UI
                 return;
             }
 
+            // ★ 2026-11-19：把节点分配的附加目标带进战斗（空=无目标）
+            if (req != null && _node != null)
+            {
+                req.GoalId = _node.GoalId ?? "";
+                if (!string.IsNullOrEmpty(req.GoalId))
+                    Debug.Log("[FormationPanel] 本场附加目标：" + WanXiang.Battle.Core.ObjectiveRules.Describe(req.GoalId));
+            }
+
             // ⚠ 必须保留 TryBuildFromRun 注入的觉醒技：工厂把觉醒技装进 req.Player 的克隆上，
             //   下面替换默认队形时若直接加 _all[idx]（内容目录原兽，无觉醒技），觉醒技会被丢掉，
             //   导致战斗中觉醒技按钮不显示（hasAwaken=False）。先按 Id 建"注入了觉醒技的克隆"查表。

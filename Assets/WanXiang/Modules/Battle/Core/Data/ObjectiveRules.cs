@@ -32,14 +32,15 @@ namespace WanXiang.Battle.Core
                 && st.Turn <= p.StartTurn + d.Param;
             _judges[ObjectiveKind.NoDeath] = (d, p, st) =>
                 st != null && st.Outcome == BattleOutcome.PlayerWin
-                && st.AllPlayerUnitsSurvived();
+                && st.StatDeaths == 0;
+            // ★ 复用 BattleState 已有的 Stat 统计（StatReactions/StatDeaths），不重复造计数器
             _judges[ObjectiveKind.ElementReactions] = (d, p, st) =>
-                p.Counter >= d.Param;
+                st != null && st.StatReactions >= d.Param;
             _judges[ObjectiveKind.CaptureOne] = (d, p, st) =>
-                p.Counter >= d.Param;
+                st != null && st.StatCaptures >= d.Param;
             _judges[ObjectiveKind.NoUltimate] = (d, p, st) =>
                 st != null && st.Outcome == BattleOutcome.PlayerWin
-                && p.Counter == 0;
+                && st.StatUltimates == 0;
             _judges[ObjectiveKind.WinLowHp] = (d, p, st) =>
                 st != null && st.Outcome == BattleOutcome.PlayerWin
                 && st.PlayerLowestHpPercent() <= d.Param;
@@ -120,7 +121,7 @@ namespace WanXiang.Battle.Core
                 case ObjectiveReward.Eggs: return "+" + d.RewardValue + " 灵卵";
                 case ObjectiveReward.Wudao: return "+" + d.RewardValue + " 悟道点";
                 case ObjectiveReward.Ink: return "+" + d.RewardValue + " 墨铊";
-                case ObjectiveReward.RelicShard: return "+" + d.RewardValue + " 遗物碎片";
+                case ObjectiveReward.Essence: return "+" + d.RewardValue + " 精魄";
                 default: return "无奖励";
             }
         }

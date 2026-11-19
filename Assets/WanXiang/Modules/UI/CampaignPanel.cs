@@ -32,6 +32,7 @@ namespace WanXiang.Modules.UI
         /// <summary>所属幕（1..5）与节点下标（幕内 0..5）。</summary>
         public int Act = 1;
         public int Offset = -1;
+        public string GoalId = "";   // ★ 战斗目标（2026-11-19）：按 seed/act/offset 确定性分配
 
         /// <summary>秘境层号（1 起）。&gt;0 表示这是秘境节点 —— 战斗标题用它，别再拿幕内下标当层号。</summary>
         public int RealmLayer = -1;
@@ -839,6 +840,15 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
             //   不走这里，故排除，避免"双重首领"。
             _current.IsBoss = _graph.Act >= 1 && _graph.Act <= 4 &&
                               _graph.NodeCount > 0 && offset == _graph.NodeCount - 1;
+            // ★ 2026-11-19：附加目标按 (RunSeed, act, offset) 确定性分配；只有战斗节点才有
+            {
+                var runForGoal = WanXiang.Run.RunSave.Current;
+                bool isBattle = WanXiang.Campaign.NodeKinds.IsBattle(kind);
+                _current.GoalId = (runForGoal != null && isBattle)
+                    ? (WanXiang.Battle.Core.ObjectiveRules.AssignFor(
+                        (ulong)runForGoal.RunSeed, _graph.Act, offset)?.Id ?? "")
+                    : "";
+            }
 
             // ★ 终局战格（第 5 幕末格）：走 TrialPanel.BuildFinaleBattle（Boss + 我方镜像×3），
             //   与守关（BossSquadFor：Boss + 2 随从）是**两条不同的建敌路径**，必须分开标。

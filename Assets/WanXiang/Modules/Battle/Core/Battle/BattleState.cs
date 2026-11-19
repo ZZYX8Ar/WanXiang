@@ -36,6 +36,8 @@ namespace WanXiang.Battle.Core
         public int Turn = 1;
 
         public BattleOutcome Outcome = BattleOutcome.Ongoing;
+        /// <summary>本场附加目标（2026-11-19）。空 = 无目标；达成给额外奖励，不达成不判负。</summary>
+        public ObjectiveProgress Objective = new ObjectiveProgress();
 
         // ---- B5-3：灵感「战阵·破阵」—— 对首领完美格挡反震倍率（工厂折算，默认 1）----
         public float ParryCounterMul = 1f;
@@ -46,6 +48,8 @@ namespace WanXiang.Battle.Core
 
         // ---- B2 局内统计（道痕来源）—— 战斗结束由 UI 回传 RunState.Stats ----
         public int StatReactions;     // 触发元素反应次数
+        public int StatCaptures;      // 本场捕获成功数（目标判定用，2026-11-19）
+        public int StatUltimates;     // 本场终结技使用数（目标判定用，2026-11-19）
         public int StatMaxHit;        // 我方单次最大伤害
         public int StatBossKills;     // 击败首领数
         public int StatDeaths;        // 我方阵亡数
