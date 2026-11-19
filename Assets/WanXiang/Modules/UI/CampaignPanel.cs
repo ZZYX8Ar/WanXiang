@@ -118,6 +118,8 @@ BuildNodeMap();
         [SerializeField] private TMP_Text _tmpNodeType;        // Tmp_NodeType
         [SerializeField] private TMP_Text _tmpWeather;         // Tmp_Weather
         [SerializeField] private Image _imgNodeIcon;           // Img_NodeIcon
+        [SerializeField] private GameObject _targetIconTemplate;  // Item_Node/Img_TargetIcon（目标图标模板，2026-11-19）
+        [SerializeField] private TMP_Text _tmpNodeGoal;           // Root_NodeInfo/Tmp_NodeGoal（节点目标说明）
         [BindArray("Img_Avatar_{0}", 5)]
         [SerializeField] private Image[] _imgAvatars;          // 队伍预览 5 个头像
         [SerializeField] private Button _btnNext;              // Btn_Next

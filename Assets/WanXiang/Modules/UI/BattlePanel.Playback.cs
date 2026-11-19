@@ -27,6 +27,8 @@ namespace WanXiang.Modules.UI
         [SerializeField] private bool _manualBattle = true;   // 回合制手动（操作区已就位；关掉即全自动）
         [SerializeField] private GameObject _rootWeather;       // Root_WeatherBanner
         [SerializeField] private TMP_Text _tmpWeatherName;      // Tmp_WeatherName
+        [SerializeField] private GameObject _rootTargetPanel;    // Root_TargetPanel（天时下方目标条，2026-11-19）
+        [SerializeField] private TMP_Text _tmpTargetText;        // Tmp_TargetText
         [SerializeField] private RectTransform _rootStage;      // Root_Stage
         [SerializeField] private RectTransform _rootUnits;      // Root_Units（单位容器，运行时填充）
         [SerializeField] private RectTransform _hpBarTemplate;  // Item_HpBar（模板，默认隐藏）
