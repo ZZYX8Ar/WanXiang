@@ -146,6 +146,8 @@ namespace WanXiang.Run
 
         /// <summary>事件给的"限时"：下一场必须在该回合数内通过（0 = 不限制）；打完即清。</summary>
         public int EventTurnLimit;
+        /// <summary>事件给的回合上限增量（如旱地行舟+6），累加进战斗 MaxTurnsDelta。</summary>
+        public int EventTurnDelta;
         /// <summary>每只兽的"战后血量百分比"（0~100）：阵亡记 50，编队界面据此显示重伤。</summary>
         public System.Collections.Generic.Dictionary<string, int> TeamHpPct
             = new System.Collections.Generic.Dictionary<string, int>();

@@ -640,6 +640,14 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                     UnityEngine.Debug.Log("[BattleRequestFactory] 事件限时：" + run.EventTurnLimit + " 回合（MaxTurnsDelta=" + req.MaxTurnsDelta + "）");
                     run.EventTurnLimit = 0;
                 }
+                // ★ 2026-11-18：事件「旱地行舟/月井」的回合上限加成（原 TODO 未接）
+                if (run.EventTurnDelta != 0)
+                {
+                    req.MaxTurnsDelta += run.EventTurnDelta;
+                    UnityEngine.Debug.Log("[BattleRequestFactory] 事件宽限：回合上限 " + (run.EventTurnDelta >= 0 ? "+" : "")
+                        + run.EventTurnDelta + "（MaxTurnsDelta=" + req.MaxTurnsDelta + "）");
+                    run.EventTurnDelta = 0;   // 一次性：下一场生效后清零
+                }
                 // ★ 2026-11-04：「无相」从"免元气"削弱为"元气减半"。只给我方条目打折（单位级）。
                 if (WanXiang.Campaign.RelicCatalog.HasMechanic(run.Relics, WanXiang.Campaign.RelicMechanic.UltimateHalfRage))
                     req.UltRageCostMul = 0.5f;
