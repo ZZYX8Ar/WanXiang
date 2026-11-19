@@ -239,6 +239,32 @@ namespace WanXiang.Modules.UI
             if (_rootWeather != null)
                 _rootWeather.SetActive(!string.IsNullOrEmpty(_req.WeatherName) ||
                                        !string.IsNullOrEmpty(_req.Title));
+            // ★ 2026-11-19：天时面板下方的附加目标条（附加奖励，不判负）
+            if (_rootTargetPanel != null)
+            {
+                var obj = _play != null && _play.State != null ? _play.State.Objective : null;
+                bool hasGoal = obj != null && obj.Active;
+                _rootTargetPanel.SetActive(hasGoal);
+                if (hasGoal && _tmpTargetText != null)
+                {
+                    var def = WanXiang.Battle.Core.ObjectiveRules.Get(obj.GoalId);
+                    if (def != null)
+                    {
+                        string extra = "";
+                        if (def.Kind == WanXiang.Battle.Core.ObjectiveKind.KillByTurn)
+                        {
+                            int left = obj.StartTurn + def.Param - _play.State.Turn;
+                            extra = " · 剩余 " + (left >= 0 ? left.ToString() : "0") + " 回合";
+                        }
+                        else if (def.Param > 0)
+                        {
+                            extra = " · 进度 " + _play.State.StatReactions + "/" + def.Param;
+                        }
+                        _tmpTargetText.text = "额外目标：" + def.Name + " — " + def.Desc + extra
+                            + "　<color=#3B6D11>" + WanXiang.Battle.Core.ObjectiveRules.RewardText(def) + "</color>";
+                    }
+                }
+            }
 
             // 场景模式下单位由舞台渲染，HUD 不再画一遍
             if (_sceneMode) ClearUnitViews();

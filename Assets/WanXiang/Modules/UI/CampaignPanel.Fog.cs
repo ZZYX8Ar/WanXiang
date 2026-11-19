@@ -346,6 +346,28 @@ namespace WanXiang.Modules.UI
              label.outlineColor = new Color(0.22f, 0.18f, 0.14f, 0.95f);
             }
 
+            // ★ 2026-11-19：节点右上角目标图标（附加奖励，方便规划路线）
+            var goalIcon = item.Find("Img_TargetIcon") != null ? item.Find("Img_TargetIcon").GetComponent<Image>() : null;
+            if (goalIcon != null)
+            {
+                var runForGoal = WanXiang.Run.RunSave.Current;
+                string gid = (runForGoal != null && WanXiang.Campaign.NodeKinds.IsBattle(kind) && !fogged)
+                    ? (WanXiang.Battle.Core.ObjectiveRules.AssignFor(
+                        (ulong)runForGoal.RunSeed, _graph != null ? _graph.Act : 1, offset)?.Id ?? "")
+                    : "";
+                bool hasGoal = !string.IsNullOrEmpty(gid);
+                goalIcon.gameObject.SetActive(hasGoal);
+                if (hasGoal)
+                {
+                    // 图标颜色按目标类型区分（橙色系=进攻类，青色系=生存/辅助类）
+                    var def = WanXiang.Battle.Core.ObjectiveRules.Get(gid);
+                    bool offensive = def != null && (def.Kind == WanXiang.Battle.Core.ObjectiveKind.KillByTurn
+                        || def.Kind == WanXiang.Battle.Core.ObjectiveKind.ElementReactions);
+                    goalIcon.color = offensive ? new Color(0.85f, 0.42f, 0.24f, 1f)
+                                               : new Color(0.28f, 0.62f, 0.55f, 1f);
+                }
+            }
+
             var dot = item.Find("Img_Dot") != null ? item.Find("Img_Dot").GetComponent<Image>() : null;
             if (dot != null)
             {

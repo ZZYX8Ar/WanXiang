@@ -825,6 +825,18 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                                         ? "　（续劫专属 · 直入下一幕）"
                                         : (WanXiang.Campaign.NodeKinds.IsBattle(kind) ? "　（战斗）" : "　（休整）"));
             if (_tmpWeather != null) _tmpWeather.text = WeatherHint(kind, isSeasonBoss, isFinaleBoss);
+            // ★ 2026-11-19：节点信息面板显示附加目标说明（就地重算，避免依赖 _current 赋值顺序）
+            if (_tmpNodeGoal != null)
+            {
+                var runForGoal = WanXiang.Run.RunSave.Current;
+                string gid = (runForGoal != null && WanXiang.Campaign.NodeKinds.IsBattle(kind))
+                    ? (WanXiang.Battle.Core.ObjectiveRules.AssignFor(
+                        (ulong)runForGoal.RunSeed, _graph != null ? _graph.Act : 1, offset)?.Id ?? "")
+                    : "";
+                bool hasGoal = !string.IsNullOrEmpty(gid);
+                _tmpNodeGoal.gameObject.SetActive(hasGoal);
+                if (hasGoal) _tmpNodeGoal.text = "额外目标：" + WanXiang.Battle.Core.ObjectiveRules.Describe(gid);
+            }
             Debug.Log("[Campaign] SelectNode 完成 offset=" + offset + " 名称=\"" + (_tmpNodeName != null ? _tmpNodeName.text : "NULL") + "\"");
 
             // _current 是常驻实例（表单里被 Btn_Next 复用），逐字段赋值而不是换新对象
