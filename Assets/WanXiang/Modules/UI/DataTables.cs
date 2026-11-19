@@ -57,7 +57,8 @@ namespace WanXiang.Modules.UI
         public static int EnemyCount { get; private set; }       // enemies.csv 生效行数
         public static int DaoMarkCount { get; private set; }     // B2：dao_marks.csv 生效行数
         public static int EndingCount { get; private set; }      // B4：endings.csv 生效行数
-        public static int InspirationCount { get; private set; } // B5：inspirations.csv 生效行数
+        public static int InspirationCount { get; private set; }
+        public static int ObjectiveCount { get; private set; }   // 战斗目标定义数（2026-11-19） // B5：inspirations.csv 生效行数
         public static int CosmeticsPartCount { get; private set; }   // C2：beast_parts.csv 装饰挂点
         public static int CosmeticsOutfitCount { get; private set; } // C3：outfits.csv 换装颜色
         public static int CosmeticsFaceCount { get; private set; }   // C4：facebody.csv 捏脸参数
@@ -108,6 +109,7 @@ namespace WanXiang.Modules.UI
             LoadEnemies();
             LoadBattleTuning();
             LoadInspirations();
+            LoadObjectives();   // ★ 2026-11-19 战斗目标系统
             LoadSquadPresets();
             LoadDifficulty();
             LoadLlm();
@@ -567,6 +569,43 @@ namespace WanXiang.Modules.UI
         // ================================================================
         //  B5 · inspirations.csv（灵感树：三支 ×5，节点只改规则不加数值）
         // ================================================================
+        /// <summary>战斗目标定义（objectives.csv）—— 数据唯一源，Core 只收 Install。</summary>
+        private static void LoadObjectives()
+        {
+            var rows = Read("objectives", out var header);
+            if (rows == null) return;
+            var list = new List<WanXiang.Battle.Core.ObjectiveDef>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "objectives.csv", i + 2, Problems);
+                string id = r.Str("id");
+                if (string.IsNullOrEmpty(id)) { r.Fail("id 为空"); continue; }
+                // 表里的 snake_case（kill_by_turn）转 PascalCase（KillByTurn）再解析，表更可读
+                string kindText = r.Str("kind").Replace("_", "");
+                WanXiang.Battle.Core.ObjectiveKind kind;
+                if (!System.Enum.TryParse(kindText, true, out kind) || kind == WanXiang.Battle.Core.ObjectiveKind.None)
+                { r.Fail("未知目标类型：" + r.Str("kind")); continue; }
+                string rewardText = r.Str("reward_type").Replace("_", "");
+                WanXiang.Battle.Core.ObjectiveReward reward;
+                if (!System.Enum.TryParse(rewardText, true, out reward))
+                { r.Fail("未知奖励类型：" + r.Str("reward_type")); continue; }
+                list.Add(new WanXiang.Battle.Core.ObjectiveDef
+                {
+                    Id = id,
+                    Name = r.Str("name", id),
+                    Desc = r.Str("desc", ""),
+                    Kind = kind,
+                    Param = r.Int("param", 0),
+                    RewardType = reward,
+                    RewardValue = r.Int("reward_value", 0),
+                    Icon = r.Str("icon", ""),
+                    Chance = Mathf.Clamp(r.Int("chance", 0), 0, 100),
+                });
+            }
+            WanXiang.Battle.Core.ObjectiveRules.Install(list);
+            ObjectiveCount = list.Count;
+        }
+
         private static void LoadInspirations()
         {
             var rows = Read("inspirations", out var header);

@@ -479,6 +479,32 @@ namespace WanXiang.Battle.Core
             return n;
         }
 
+        /// <summary>目标判定用：我方全员是否都存活（含无单位视为 false）。</summary>
+        public bool AllPlayerUnitsSurvived()
+        {
+            var list = _units[(int)TeamSide.Player];
+            if (list.Count == 0) return false;
+            for (int i = 0; i < list.Count; i++) if (!list[i].IsAlive) return false;
+            return true;
+        }
+
+        /// <summary>目标判定用：我方存活单位中最低血量百分比（0~100）。全员阵亡返回 0。</summary>
+        public int PlayerLowestHpPercent()
+        {
+            var list = _units[(int)TeamSide.Player];
+            int lowest = 100;
+            bool any = false;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var u = list[i];
+                if (!u.IsAlive || u.MaxHp <= 0) continue;
+                any = true;
+                int pct = u.Hp * 100 / u.MaxHp;
+                if (pct < lowest) lowest = pct;
+            }
+            return any ? lowest : 0;
+        }
+
         /// <summary>
         /// 03 惊蛰：把"刚阵亡且本场还没用过卵"的我方单位转成虫卵。
         /// ⚠ 放在 <see cref="CheckOutcome"/> 里是刻意的：判负的每一道关口都会先经过这里，
