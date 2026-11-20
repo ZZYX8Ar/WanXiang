@@ -38,12 +38,17 @@ namespace WanXiang.Battle.Core
                 st != null && st.StatReactions >= d.Param;
             _judges[ObjectiveKind.CaptureOne] = (d, p, st) =>
                 st != null && st.StatCaptures >= d.Param;
+            // param = 允许使用的绝技次数上限（0=完全不用）。倍率2下绝技是常规循环(2~4次)，
+            //   所以表里可配 2/3 让目标可达成，而不是永远不可能的 ==0。
             _judges[ObjectiveKind.NoUltimate] = (d, p, st) =>
                 st != null && st.Outcome == BattleOutcome.PlayerWin
-                && st.StatUltimates == 0;
+                && st.StatUltimates <= d.Param;
             _judges[ObjectiveKind.WinLowHp] = (d, p, st) =>
                 st != null && st.Outcome == BattleOutcome.PlayerWin
                 && st.PlayerLowestHpPercent() <= d.Param;
+            _judges[ObjectiveKind.NoHeal] = (d, p, st) =>
+                st != null && st.Outcome == BattleOutcome.PlayerWin
+                && st.StatHealUsed <= d.Param;   // param=0 完全不治疗
         }
 
         public static void Install(IEnumerable<ObjectiveDef> defs)

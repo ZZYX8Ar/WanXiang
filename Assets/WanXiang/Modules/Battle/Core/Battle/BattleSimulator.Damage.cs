@@ -131,6 +131,7 @@ namespace WanXiang.Battle.Core
                         int amount = CoreMath.RoundDamage(raw * src.HealShieldMultiplier);
                         int healed = dst.Heal(amount);
                         if (healed <= 0) continue;
+                        if (src != null && src.Side == TeamSide.Player) st.StatHealUsed++;
                         st.Log.Add(st.Turn, BattleEventKind.Heal, actorId: src.RuntimeId,
                                    targetId: dst.RuntimeId, skillName: skill?.Name,
                                    amount: healed, element: src.Element);
@@ -551,7 +552,11 @@ namespace WanXiang.Battle.Core
         public static void ResolveElementReactions(BattleState st, BattleUnit src, BattleUnit dst, Element el)
         {
             if (ElementReactions.Resolve(st, src, dst, el) != ReactionKind.None)
-                st.StatReactions++;   // B2 骨架：反应计数
+            {
+                // ★ 2026-11-20：只统计我方触发的反应（目标"元素大师"要的是玩家的操作成果，
+                //   敌方触发给我方计数 = 敌人送奖励，是假目标）
+                if (src != null && src.Side == TeamSide.Player) st.StatReactions++;
+            }
         }
 
         /// <summary>

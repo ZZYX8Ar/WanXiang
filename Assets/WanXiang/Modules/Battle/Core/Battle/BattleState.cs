@@ -49,6 +49,7 @@ namespace WanXiang.Battle.Core
         // ---- B2 局内统计（道痕来源）—— 战斗结束由 UI 回传 RunState.Stats ----
         public int StatReactions;     // 触发元素反应次数
         public int StatCaptures;      // 本场捕获成功数（目标判定用，2026-11-19）
+        public int StatHealUsed;      // 我方治疗次数（目标判定用，2026-11-20）
         public int StatUltimates;     // 本场终结技使用数（目标判定用，2026-11-19）
         public int StatMaxHit;        // 我方单次最大伤害
         public int StatBossKills;     // 击败首领数

@@ -15,6 +15,7 @@ namespace WanXiang.Battle.Core
         CaptureOne = 4,       // 捕获至少 1 只
         NoUltimate = 5,       // 不用终结技
         WinLowHp = 6,         // 低血量取胜
+        NoHeal = 7,           // 不用治疗通关
     }
 
     /// <summary>奖励类型。</summary>
