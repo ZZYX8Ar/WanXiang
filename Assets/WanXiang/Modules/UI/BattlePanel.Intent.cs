@@ -106,9 +106,12 @@ namespace WanXiang.Modules.UI
                 //   原来靠 prefab 里硬编码的 anchoredPosition，与相机/棋盘换算有系统偏差。
                 //   改为按敌人格子的世界中心换算屏幕坐标，再转 holder 本地坐标，永不偏。
                 PlaceIntentAtCell(node, cell);
-                // 终结技加高亮底（其余保持浅纸卡）
+                // ★ 2026-11-20：半透明纸色，让水墨背景透出 —— 纯白不透明在水彩画面上像"白方块"很突兀
                 if (_intentBg[cell] != null)
-                    _intentBg[cell].color = info.IsUltimate ? new Color(1f, 0.92f, 0.70f, 1f) : Color.white;
+                    _intentBg[cell].color = info.IsUltimate
+                        ? new Color(1f, 0.90f, 0.66f, 0.88f)   // 终结技：柔金
+                        : new Color(0.96f, 0.93f, 0.86f, 0.82f); // 普通：半透明宣纸
+
             }
         }
 
