@@ -21,6 +21,7 @@ namespace WanXiang.Modules.UI
         public int Refund;
         public string Name;
         public string Reason;       // 未发起时的原因（给玩家看）
+        public int DuplicateEssence; // ★ 重复捕获转化的精魄（0=非重复）
     }
 
     public static class CaptureFlow
@@ -72,7 +73,7 @@ namespace WanXiang.Modules.UI
             if (attempt.Success)
             {
                 st.StatCaptures++;   // ★ 目标判定：捕猎（2026-11-19）
-                CommitCapture(def, run, dao);
+                o.DuplicateEssence = CommitCapture(def, run, dao);
                 unit.Retire();   // ★ 收服成功 → 目标退出本场战斗（抓到了还能打是逻辑矛盾）
             }
             WanXiang.Run.RunSave.SaveCurrent();
@@ -82,7 +83,7 @@ namespace WanXiang.Modules.UI
         }
 
         /// <summary>成功写档：图鉴 / 捕获计数 / 异色判定（原胜利流程逻辑，原样保留）。</summary>
-        private static void CommitCapture(BeastDef def, WanXiang.Run.RunState run, float dao)
+        private static int CommitCapture(BeastDef def, WanXiang.Run.RunState run, float dao)
         {
             run.Stats.Captures++;
 
@@ -99,6 +100,20 @@ namespace WanXiang.Modules.UI
             bool first = BeastCodexPrefs.MarkCaught(def.Id);
 
             var meta = WanXiang.Meta.MetaStore.Ensure();
+
+            // ★ 2026-11-20：重复捕获转化精魄 —— 让抓到"图鉴已有"的兽也有价值。
+            //   首次捕获 = 图鉴点亮+可上场；重复捕获 = 直接换局外进化材料。
+            //   这样每次扔球都有回报，收集闭环最后一块补上。
+            int duplicateEssence = 0;
+            if (!first && meta != null)
+            {
+                duplicateEssence = def.Rarity == WanXiang.Battle.Core.Rarity.Legend ? 4
+                                 : def.Rarity == WanXiang.Battle.Core.Rarity.Epic ? 3 : 2;
+                meta.Essence += duplicateEssence;
+                WanXiang.Meta.MetaStore.Save();
+                UnityEngine.Debug.Log("[Capture] 重复异兽「" + def.DisplayName + "」转化为精魄 +" + duplicateEssence);
+            }
+
             meta.CountCaptureForShiny();
             if (!meta.IsShiny(def.Id))
             {
@@ -130,6 +145,7 @@ namespace WanXiang.Modules.UI
             }
             WanXiang.Meta.MetaStore.Save();
             UnityEngine.Debug.Log("[Capture] 捕获成功：" + def.DisplayName + (first ? "（图鉴新收录）" : "（图鉴已有）"));
+            return duplicateEssence;
         }
     }
 }
