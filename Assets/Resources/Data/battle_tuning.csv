@@ -1,3 +1,4 @@
 ﻿key,value,desc
 player_damage_mul,5,测试期：玩家伤害倍率（正式版改回 1）
 enemy_smart_targeting,0,敌方同列威胁优先（0=按位置稳定; 1=先打同列攻击最高的; 坦克仍挡刀）
+show_enemy_intent,1,敌人意图徽章（1=Boss/精英公开意图; 0=全隐藏）

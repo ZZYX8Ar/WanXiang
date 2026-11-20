@@ -466,28 +466,30 @@ namespace WanXiang.Modules.UI
         {
             var rows = Read("battle_tuning", out var header);
             if (rows == null) return;
+            // ★ 2026-11-20 重构：先按 key 收齐所有值，再一次性 Install。
+            //   原实现把 enemy_smart_targeting / show_enemy_intent 嵌在"找到 player_damage_mul"的分支里，
+            //   删掉那一行 ⇒ 三个键一起失效。现在各键独立，缺行各自走默认值。
+            float dmgMul = 1f;
+            bool smart = false;
+            bool showIntent = true;   // 默认开（完全信息博弈）
             for (int i = 0; i < rows.Count; i++)
             {
                 var r = new Row(header, rows[i], "battle_tuning.csv", i + 2, Problems);
-                if (!string.Equals(r.Str("key").Trim(), "player_damage_mul",
-                                   System.StringComparison.OrdinalIgnoreCase)) continue;
-                float v = r.Float("value", 1f);
-                if (v <= 0f) { r.Fail("player_damage_mul 必须 > 0"); continue; }
-                // ★ 2026-11-18：同读敌方威胁目标开关（缺行/非法 ⇒ 默认 false，老存档安全）
-                bool smart = false;
-                for (int j = 0; j < rows.Count; j++)
+                string key = r.Str("key").Trim();
+                if (string.Equals(key, "player_damage_mul", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    var rr = new Row(header, rows[j], "battle_tuning.csv", j + 2, Problems);
-                    if (string.Equals(rr.Str("key").Trim(), "enemy_smart_targeting",
-                                      System.StringComparison.OrdinalIgnoreCase))
-                    { smart = rr.Float("value", 0f) > 0.5f; break; }
+                    float v = r.Float("value", 1f);
+                    if (v <= 0f) { r.Fail("player_damage_mul 必须 > 0"); continue; }
+                    dmgMul = v;
                 }
-                WanXiang.Battle.Core.BattleTuning.Install(v, smart);
-                return;
+                else if (string.Equals(key, "enemy_smart_targeting", System.StringComparison.OrdinalIgnoreCase))
+                    smart = r.Float("value", 0f) > 0.5f;
+                else if (string.Equals(key, "show_enemy_intent", System.StringComparison.OrdinalIgnoreCase))
+                    showIntent = r.Float("value", 1f) > 0.5f;
             }
+            WanXiang.Battle.Core.BattleTuning.Install(dmgMul, smart, showIntent);
         }
 
-        /// <summary>enemies.csv → Core 的 EnemyRoster（敌方专属数值，编队表引用的非玩家 id）。</summary>
         private static void LoadEnemies()
         {
             var rows = Read("enemies", out var header);

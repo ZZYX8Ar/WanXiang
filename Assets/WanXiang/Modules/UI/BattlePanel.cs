@@ -215,6 +215,11 @@ namespace WanXiang.Modules.UI
             //   和平常的探索没有什么区别"）⇒ 一律按 _manualBattle 决定回放模式，不再对 PvP 特判。
             if (_play == null) _play = new BattlePlayback(_req, _manualBattle);
 
+            // ★ 2026-11-20：开局主动刷新一次敌人意图徽章。
+            //   RefreshOrderList 有指纹守卫（顺序/行动者/回合未变则不刷），战斗首帧可能不触发 ⇒
+            //   玩家开局看不见威胁单位的意图。这里显式刷一次，之后交给常规刷新。
+            RefreshEnemyIntent();
+
             // ★ 顶部横幅（用户 2026-10-03 要求）：
             //   第一行 = **节点名称**（"第X幕 · 第 N 节 · 守关（首领）/精英战/遭遇战"），
             //   第二行 = **天时名称 + 该节点天时的效果说明**（WeatherDef.Describe()）。

@@ -50,7 +50,21 @@ namespace WanXiang.Modules.UI
         // ★ 2026-11-17 用户："还是不要这个敌人的攻击意图了，都把敌人遮挡完了"
         //   Core 的 EnemyIntentReader 保留（自检/以后要用），但 UI 层整体关闭。
         //   想重新开启时：把本常量改 true 即可，其余逻辑无需动。
-        private const bool ShowEnemyIntent = false;
+        /// <summary>
+        /// 敌人意图显示开关（2026-11-20 恢复，表驱动 battle_tuning.csv::show_enemy_intent）。
+        /// 完全信息博弈：Boss/精英/高品级敌人公开意图，杂兵保留未知感（避免刷屏）。
+        /// </summary>
+        private static bool ShowEnemyIntent => WanXiang.Battle.Core.BattleTuning.ShowEnemyIntent;
+
+        /// <summary>是否值得公开该敌人的意图（威胁单位才公开）。</summary>
+        private static bool ShouldRevealIntent(WanXiang.Battle.Core.BattleUnit u)
+        {
+            if (u == null || u.Def == null) return false;
+            // 首领永远公开
+            if (WanXiang.Battle.Core.BossCatalog.IsBoss(u.Def.Id)) return true;
+            // 玄品/神品敌人公开（精英梯队的近似判据）
+            return u.Def.Rarity >= WanXiang.Battle.Core.Rarity.Epic;
+        }
 
         private void RefreshEnemyIntent()
         {
@@ -70,6 +84,7 @@ namespace WanXiang.Modules.UI
             {
                 var u = foes[i];
                 if (u == null || !u.IsAlive) continue;
+                if (!ShouldRevealIntent(u)) continue;   // 杂兵不显示意图（保留未知感+防刷屏）
                 int cell = u.Pos.Index;   // GridPos 是 struct，不能用 != null 判断（永远为真）
                 if (cell < 0 || cell >= IntentSlotCount || _intentNodes[cell] == null) continue;
 

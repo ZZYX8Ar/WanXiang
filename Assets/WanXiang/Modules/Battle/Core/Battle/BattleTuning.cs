@@ -14,6 +14,8 @@ namespace WanXiang.Battle.Core
         // ★ 2026-11-18：敌方"同列威胁优先"开关（0=原版按位置，1=打同列攻击最高的）。
         //   只影响同一前排列内的 tie-break，坦克仍挡刀 —— 不改变前后排策略。
         private static bool _enemySmartTargeting = false;
+        // ★ 2026-11-20：敌人意图徽章开关（完全信息博弈，默认开）
+        private static bool _showEnemyIntent = true;
 
         /// <summary>
         /// 玩家造成伤害倍率（普攻/技能/真伤/追击通用；敌方不受影响）。
@@ -32,10 +34,17 @@ namespace WanXiang.Battle.Core
             internal set { _enemySmartTargeting = value; }
         }
 
-        public static void Install(float playerDamageMul, bool enemySmartTargeting = false)
+        public static bool ShowEnemyIntent
+        {
+            get { return _showEnemyIntent; }
+            internal set { _showEnemyIntent = value; }
+        }
+
+        public static void Install(float playerDamageMul, bool enemySmartTargeting = false, bool showEnemyIntent = true)
         {
             _playerDamageMul = playerDamageMul > 0f ? playerDamageMul : 1f;
             _enemySmartTargeting = enemySmartTargeting;
+            _showEnemyIntent = showEnemyIntent;
         }
 
         /// <summary>测试结束：重置为正式数值（表里没配时也走这个）。</summary>
@@ -43,6 +52,7 @@ namespace WanXiang.Battle.Core
         {
             _playerDamageMul = 1f;
             _enemySmartTargeting = false;
+            _showEnemyIntent = true;
         }
     }
 }
