@@ -191,8 +191,12 @@ namespace WanXiang.Modules.UI
             }
 
             if (_tmpRate != null)
-                _tmpRate.text = "收集度 " + WanXiang.Run.CodexUnlock.Count + " / " + ownedTotal +
-                                "（本页 " + shown + "）";
+            {
+                int cnt = WanXiang.Run.CodexUnlock.Count;
+                int atk = WanXiang.Modules.UI.CodexBonus.AtkPct(cnt);
+                string bonus = atk > 0 ? "　<color=#3B6D11>全队攻血 +" + atk + "%</color>" : "";
+                _tmpRate.text = "收集度 " + cnt + " / " + ownedTotal + "（本页 " + shown + "）" + bonus;
+            }
         }
 
         /// <summary>填详情页。未解锁的只显示剪影与提示，不剧透。</summary>

@@ -110,6 +110,7 @@ namespace WanXiang.Modules.UI
             LoadBattleTuning();
             LoadInspirations();
             LoadObjectives();   // ★ 2026-11-19 战斗目标系统
+            LoadCodexBonus();   // ★ 2026-11-20 图鉴收集永久加成
             LoadSquadPresets();
             LoadDifficulty();
             LoadLlm();
@@ -571,6 +572,25 @@ namespace WanXiang.Modules.UI
         // ================================================================
         //  B5 · inspirations.csv（灵感树：三支 ×5，节点只改规则不加数值）
         // ================================================================
+        /// <summary>图鉴收集加成（codex_bonus.csv）—— 收集度换算永久属性，表缺失走内置默认。</summary>
+        private static void LoadCodexBonus()
+        {
+            var rows = Read("codex_bonus", out var header);
+            if (rows == null) return;
+            var list = new System.Collections.Generic.List<WanXiang.Modules.UI.CodexBonus.TierData>();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = new Row(header, rows[i], "codex_bonus.csv", i + 2, Problems);
+                int need = r.Int("need", 0);
+                if (need <= 0) { r.Fail("need 必须 > 0"); continue; }
+                list.Add(new WanXiang.Modules.UI.CodexBonus.TierData
+                {
+                    Need = need, AtkPct = r.Int("atk_pct", 0), HpPct = r.Int("hp_pct", 0),
+                });
+            }
+            WanXiang.Modules.UI.CodexBonus.Install(list);
+        }
+
         /// <summary>战斗目标定义（objectives.csv）—— 数据唯一源，Core 只收 Install。</summary>
         private static void LoadObjectives()
         {

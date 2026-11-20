@@ -282,6 +282,13 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
                         d.BaseHp = UnityEngine.Mathf.RoundToInt(d.BaseHp * run.LevelHpMul);
                     }
 
+                    // ★ 2026-11-20：图鉴收集永久加成（每解锁5只+2%攻血，满30只+12%）
+                    //   加在每只兽的克隆定义上，与等级/进化乘区叠加，让"抓新兽"有长期价值。
+                    float codexAtk = WanXiang.Modules.UI.CodexBonus.AttackMul();
+                    float codexHp = WanXiang.Modules.UI.CodexBonus.HpMul();
+                    if (codexAtk > 1f) d.BaseAtk = UnityEngine.Mathf.RoundToInt(d.BaseAtk * codexAtk);
+                    if (codexHp > 1f) d.BaseHp = UnityEngine.Mathf.RoundToInt(d.BaseHp * codexHp);
+
                     // ★ 2026-11-02 残血进场：上一场结束时的血量百分比（阵亡 = 50%）。
                     //   ⛔ 这里**不能直接改 d.BaseHp** —— 战斗部署时 ApplyPlaceholderStats 会按
                     //      职业基准重算 BaseHp，请求里改的值会被丢掉（本条是踩过坑之后改的）。
