@@ -217,6 +217,19 @@ namespace WanXiang.Modules.UI
             {
                 _picked = index;
                 string result = CampaignEventRuntime.Apply(_event, index);
+                // ★ 2026-11-20 灵感「问津/稀客」：奇遇结算额外灵卵/墨铊
+                {
+                    int egg = WanXiang.Modules.UI.InspirationBonus.EventEggs();
+                    int ink = WanXiang.Modules.UI.InspirationBonus.EventInk();
+                    var runE = WanXiang.Run.RunSave.Current;
+                    if (egg > 0 && runE != null) { runE.Eggs += egg; result += "\n灵感·问津：灵卵 +" + egg; }
+                    if (ink > 0)
+                    {
+                        var metaE = WanXiang.Meta.MetaStore.Ensure();
+                        if (metaE != null) { metaE.Ink += ink; WanXiang.Meta.MetaStore.Save(); result += "\n灵感·稀客：墨铊 +" + ink; }
+                    }
+                    if ((egg > 0 || ink > 0) && runE != null) WanXiang.Run.RunSave.Save(runE);
+                }
                 // ★ 2026-11-14 连续事件（IS「不期而遇」）：本选项指向下一段
                 //   → 在同一面板铺下一段文本/选项，不重开面板、不回地图；
                 //   _eventCallback 保留到最后一段选完才触发。

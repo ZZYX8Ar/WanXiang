@@ -144,6 +144,7 @@ namespace WanXiang.Modules.UI
             if (run.Act != curAct) return;                 // 确认期间局面变了：放弃
 
             run.Act++;
+            WanXiang.Modules.UI.InspirationBonus.GrantActEggs(run);   // ★ 2026-11-20 广陌
             run.NodeOffset = -1;
             if (run.VisitedNodes != null) run.VisitedNodes.Clear();
             if (run.PassedNodes != null) run.PassedNodes.Clear();

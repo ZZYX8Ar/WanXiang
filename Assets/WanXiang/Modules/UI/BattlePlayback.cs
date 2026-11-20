@@ -300,6 +300,23 @@ namespace WanXiang.Modules.UI
                     UnityEngine.Debug.Log("[Battle] 附加目标：" + WanXiang.Battle.Core.ObjectiveRules.Describe(req.GoalId));
             }
 
+            // ★ 2026-11-20 灵感「同袍」：开局全队护盾（8% 最大生命，1 回合）
+            {
+                int pct = InspirationBonus.AllyShieldPct();
+                if (pct > 0 && State != null)
+                {
+                    var mineList = State.UnitsOf(WanXiang.Battle.Core.TeamSide.Player);
+                    int n = 0;
+                    for (int i = 0; i < mineList.Count; i++)
+                    {
+                        var u = mineList[i];
+                        if (u == null || !u.IsAlive) continue;
+                        if (u.AddShield(WanXiang.Battle.Core.CoreMath.RoundDamage(u.MaxHp * pct / 100f), 1) > 0) n++;
+                    }
+                    if (n > 0) UnityEngine.Debug.Log("[Battle] 灵感同袍：全队 " + n + " 只获得 " + pct + "% 最大生命护盾");
+                }
+            }
+
             // B2：把"已装备的道痕"折算成通道加成写入本局状态。
             //   通道列表从 DaoMarkRules.All 自动收集 ⇒ 以后加道痕/通道不用改这里。
             var equippedMarks = DaoMarkPrefs.EquippedMarks();

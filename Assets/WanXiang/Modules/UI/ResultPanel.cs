@@ -355,6 +355,9 @@ namespace WanXiang.Modules.UI
                 //   （"灵卵 +1"）完全不符。现已改为与 GDD 一致：胜利基础 +1。
                 //   Jie/Realm 的递进不再执行（幕推进已由 Act 承担），字段保留以兼容旧存档。
                 cur.Eggs += _eggGain;
+                // ★ 2026-11-20 灵感「轻装」：每胜额外灵卵
+                int winEgg = WanXiang.Modules.UI.InspirationBonus.WinEggs();
+                if (winEgg > 0) { cur.Eggs += winEgg; Debug.Log("[ResultPanel] 灵感轻装：灵卵 +" + winEgg); }
 
                 // ★ 墨铊改为**每场胜利立即到账（局外）** —— 用户 2026-09-25 定案：
                 //   原来每胜 +1 给的是局内 `RunState.Ink`，而那个字段全项目**无人消费**（死数据），
@@ -365,9 +368,11 @@ namespace WanXiang.Modules.UI
                     var metaInk = WanXiang.Meta.MetaStore.Ensure();
                     if (metaInk != null)
                     {
-                        metaInk.Ink += 1;
+                        // ★ 2026-11-20 灵感「开蒙」：每胜额外墨铊
+                        int winInk = 1 + WanXiang.Modules.UI.InspirationBonus.WinInk();
+                        metaInk.Ink += winInk;
                         WanXiang.Meta.MetaStore.Save();
-                        Debug.Log("[ResultPanel] 墨铊 +1（每胜即时，现有 " + metaInk.Ink + "）");
+                        Debug.Log("[ResultPanel] 墨铊 +" + winInk + "（每胜即时，现有 " + metaInk.Ink + "）");
                     }
                 }
 

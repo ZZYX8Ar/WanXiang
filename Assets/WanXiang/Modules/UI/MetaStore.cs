@@ -273,6 +273,18 @@ namespace WanXiang.Meta
             int actReached = System.Math.Max(1, run.Act);
 
             var income = MetaRewards.Settle(meta, nodes, bosses, cleared, actReached);
+            // ★ 2026-11-20 灵感「大灶」：局外结算墨铊 +20%
+            int inkPct = WanXiang.Modules.UI.InspirationBonus.SettleInkBonusPct();
+            if (inkPct > 0)
+            {
+                int extra = income.InkGain * inkPct / 100;
+                if (extra > 0)
+                {
+                    meta.Ink += extra;
+                    income.InkGain += extra;
+                    Debug.Log("[MetaStore] 灵感大灶：结算墨铊 +" + extra + "（+" + inkPct + "%）");
+                }
+            }
             Save();
 
             Debug.Log("[MetaStore] 局外结算：节点 " + nodes + " · 击破 " + bosses +

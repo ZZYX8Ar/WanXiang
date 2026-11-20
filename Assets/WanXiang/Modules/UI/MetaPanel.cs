@@ -67,7 +67,13 @@ namespace WanXiang.Modules.UI
         private const int EvolveInkCost = 8;
 
         /// <summary>升级单价（墨铊）：第 N 级 = 3 + N×2。</summary>
-        private static int UpgradeCost(int curLevel) => 3 + curLevel * 2;
+        private static int UpgradeCost(int curLevel)
+        {
+            int raw = 3 + curLevel * 2;
+            // ★ 2026-11-20 灵感「节流」：升级费用打折，至少 1
+            int off = WanXiang.Modules.UI.InspirationBonus.LevelCostOffPct();
+            return off > 0 ? System.Math.Max(1, raw * (100 - off) / 100) : raw;
+        }
 
         private readonly List<BeastDef> _shown = new List<BeastDef>();
         private readonly List<RectTransform> _items = new List<RectTransform>();

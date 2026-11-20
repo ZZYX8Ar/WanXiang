@@ -354,6 +354,7 @@ namespace WanXiang.Modules.UI
                 if (!_realmMode && lastCell >= 0 && PendingCommit == lastCell && prun.Act < 5)
            {
                             prun.Act++;
+                            WanXiang.Modules.UI.InspirationBonus.GrantActEggs(prun);   // ★ 2026-11-20 广陌
                             prun.Stats.ActsCleared++;   // B2 骨架：通关幕数（道痕来源之一）
                             // B2 骨架：纯色队判定——上阵异兽全同五行（有任一不在表/不足 1 只则不算）
                             {

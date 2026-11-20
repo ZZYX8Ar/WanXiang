@@ -143,6 +143,20 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
             else
                 UnityEngine.Debug.Log("[Weather] 本场无天时（旧行为）");
 
+            // ★ 2026-11-20 灵感「坦途」：秘境第一波不受天时影响
+            {
+                int off = WanXiang.Battle.Core.InspirationRules.EffectValue(
+                    WanXiang.Meta.MetaStore.Ensure()?.InspirationIds, "realm_no_weather");
+                bool firstRealmWave = run != null && run.InRealm && run.RealmWave <= 1;
+                if (off > 0 && firstRealmWave && req.Weather != null)
+                {
+                    req.Weather = null;
+                    req.WeatherName = "";
+                    WanXiang.Campaign.LiveWeather.Current = null;
+                    UnityEngine.Debug.Log("[Weather] 灵感坦途：秘境首波天时已免除");
+                }
+            }
+
             // ★ 镇守战：按**节点种子**从该场域的两名镇守里定一个 ——
             //   信息卡（CampaignPanel）用同一公式，保证"看到的"和"打到的"是同一个。
             //   （泽殍/涡姆、赤髓/灯奴、校核者·零/执行者·壹、无声者/哑钟、枯骨庄家/荷官·蛊）
