@@ -17,6 +17,7 @@ namespace WanXiang.EditorTools
     {
         private const string CampaignPath = "Assets/Resources/UI/Panel_Campaign.prefab";
         private const string BattlePath = "Assets/Resources/UI/Panel_Battle.prefab";
+        private static Sprite _goalSprite;
 
         [MenuItem("WanXiang/UI/补丁：战斗目标 HUD（节点地图+战斗）", priority = 105)]
         internal static void Patch()
@@ -25,6 +26,7 @@ namespace WanXiang.EditorTools
             if (font == null)
                 font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/ArtRes/Fonts/Deng SDF.asset");
             UIBuild.SetFont(font);
+            _goalSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/UI/Kit/icon_codex.png");
 
             PatchOne(CampaignPath, true);
             PatchOne(BattlePath, false);
@@ -66,7 +68,8 @@ namespace WanXiang.EditorTools
                     rt.sizeDelta = new Vector2(48f, 48f);
                     var img = icon.AddComponent<Image>();
                     img.raycastTarget = false;
-                    img.color = new Color(0.90f, 0.72f, 0.32f, 1f);   // 目标金，实例化后按 icon 换 sprite
+                    img.sprite = _goalSprite;                            // 用 kit 图标，不用纯色方块
+                    img.color = new Color(0.95f, 0.85f, 0.62f, 0.95f);  // 淡金染色，运行时按目标类型改
                     icon.SetActive(false);   // 默认隐藏，无目标的节点不显示
                     Debug.Log("[ObjectiveHudPatch] + Item_Node/Img_TargetIcon");
                 }
@@ -85,15 +88,49 @@ namespace WanXiang.EditorTools
 
             // ③ 节点信息面板 Root_NodeInfo 内加目标说明行
             var info = FindDeep(root.transform, "Root_NodeInfo");
+            // 修正已有节点的锚点（幂等升级：老版本用 stretch 导致文字溢出，改为定点锚）
+            if (info != null)
+            {
+                var oldGoal = FindDeep(info, "Tmp_NodeGoal");
+                if (oldGoal != null)
+                {
+                    var ort = (RectTransform)oldGoal;
+                    if (ort.anchorMin != Vector2.zero || Mathf.Abs(ort.anchoredPosition.x) > 0.1f)
+                    {
+                        ort.anchorMin = ort.anchorMax = new Vector2(0f, 1f);
+                        ort.pivot = new Vector2(0f, 1f);
+                        ort.anchoredPosition = new Vector2(40f, -228f);
+                        ort.sizeDelta = new Vector2(380f, 80f);
+                        var otmp = oldGoal.GetComponent<TMP_Text>();
+                        if (otmp != null) { otmp.alignment = TextAlignmentOptions.TopLeft; otmp.fontSize = 19f; }
+                        Debug.Log("[ObjectiveHudPatch] 修正 Tmp_NodeGoal 锚点");
+                    }
+                }
+                // 修正图标：纯色方块 → kit sprite
+                var itemRoot = FindDeep(root.transform, "Item_Node");
+                var oldIcon = itemRoot != null ? FindDeep(itemRoot, "Img_TargetIcon") : null;
+                if (oldIcon != null)
+                {
+                    var imgC = oldIcon.GetComponent<Image>();
+                    if (imgC != null && imgC.sprite == null && _goalSprite != null)
+                    {
+                        imgC.sprite = _goalSprite;
+                        imgC.color = new Color(0.95f, 0.85f, 0.62f, 0.95f);
+                        Debug.Log("[ObjectiveHudPatch] 修正 Img_TargetIcon sprite");
+                    }
+                }
+            }
             if (info != null && FindDeep(info, "Tmp_NodeGoal") == null)
             {
-                var t = NewText(info, "Tmp_NodeGoal", "额外目标：无", 20f,
-                                TextAlignmentOptions.Left, new Color(0.36f, 0.27f, 0.16f, 1f));
+                var t = NewText(info, "Tmp_NodeGoal", "额外目标：无", 19f,
+                                TextAlignmentOptions.TopLeft, new Color(0.36f, 0.27f, 0.16f, 1f));
                 var rt = (RectTransform)t.transform;
-                rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
-                rt.pivot = new Vector2(0.5f, 1f);
-                rt.anchoredPosition = new Vector2(0f, -232f);
-                rt.sizeDelta = new Vector2(-32f, 76f);
+                // ★ 定点锚 + 固定尺寸（避开 stretch+负sizeDelta 的文字起点坑）
+                rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+                rt.pivot = new Vector2(0f, 1f);
+                rt.anchoredPosition = new Vector2(40f, -228f);
+                rt.sizeDelta = new Vector2(380f, 80f);
+                t.enableWordWrapping = true;
                 t.gameObject.SetActive(false);   // 无目标时隐藏
                 Debug.Log("[ObjectiveHudPatch] + Root_NodeInfo/Tmp_NodeGoal");
             }

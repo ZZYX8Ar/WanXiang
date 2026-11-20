@@ -835,7 +835,19 @@ Debug.Log("[Campaign] 图诊断：幕=" + (_graph != null ? _graph.Act.ToString(
                     : "";
                 bool hasGoal = !string.IsNullOrEmpty(gid);
                 _tmpNodeGoal.gameObject.SetActive(hasGoal);
-                if (hasGoal) _tmpNodeGoal.text = "额外目标：" + WanXiang.Battle.Core.ObjectiveRules.Describe(gid);
+                if (hasGoal)
+                {
+                    var goalDef = WanXiang.Battle.Core.ObjectiveRules.Get(gid);
+                    if (goalDef != null)
+                    {
+                        // ★ 2026-11-20：两行分层，避免长文案挤成孤字换行
+                        string desc = goalDef.Desc.Contains("N")
+                            ? goalDef.Desc.Replace("N", goalDef.Param.ToString()) : goalDef.Desc;
+                        _tmpNodeGoal.text = "<size=21><color=#8A6A2F>额外目标 · " + goalDef.Name + "</color></size>"
+                            + "\n<size=17>" + desc + "　<color=#3B6D11>"
+                            + WanXiang.Battle.Core.ObjectiveRules.RewardText(goalDef) + "</color></size>";
+                    }
+                }
             }
             Debug.Log("[Campaign] SelectNode 完成 offset=" + offset + " 名称=\"" + (_tmpNodeName != null ? _tmpNodeName.text : "NULL") + "\"");
 
