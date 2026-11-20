@@ -1,4 +1,4 @@
 ﻿key,value,desc
-player_damage_mul,5,测试期：玩家伤害倍率（正式版改回 1）
+player_damage_mul,2,玩家伤害倍率（2026-11-20实测定为2：8回合/52次施放；5太短3.7回合策略废，1太长23回合且胜率崩）
 enemy_smart_targeting,0,敌方同列威胁优先（0=按位置稳定; 1=先打同列攻击最高的; 坦克仍挡刀）
 show_enemy_intent,1,敌人意图徽章（1=Boss/精英公开意图; 0=全隐藏）
