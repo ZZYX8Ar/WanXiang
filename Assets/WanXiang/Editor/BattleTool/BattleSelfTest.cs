@@ -526,12 +526,10 @@ namespace WanXiang.Editor.BattleTool
                 // ★ 2026-11-16：测试期玩家伤害倍率（battle_tuning.csv）>1 时，
                 //   高伤害 → 怒气按伤害攒得更快 → 首回合放绝技是**预期行为**，不是节奏退化。
                 //   这条"开局不对轰大招"的断言只在正式倍率(1f)下有意义。
-                if (WanXiang.Battle.Core.BattleTuning.PlayerDamageMul > 1.01f)
-                {
-                    c.Info("测试期倍率 ×" + WanXiang.Battle.Core.BattleTuning.PlayerDamageMul.ToString("0.0")
-                           + "：跳过「开局绝技节奏」断言（高伤害会提前攒满怒气，属预期）");
-                }
-                else if (firstUlt >= 2)
+                // ★ 2026-11-20：去掉"倍率>1.01就跳过"的权宜之计。
+                //   断言本意是"绝技不在开局第1回合对轰"，这与伤害倍率无关 ——
+                //   倍率2下绝技首次在第5回合放出，完全应通过。倍率5时代跳过是因当时绝技0释放。
+                if (firstUlt >= 2)
                 {
                     c.Ok("绝技受怒气约束，**开局不会全员放大招**（CD 开局为 0，唯一的闸门就是怒气）");
                 }
