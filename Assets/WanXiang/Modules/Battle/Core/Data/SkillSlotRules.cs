@@ -25,6 +25,14 @@ namespace WanXiang.Battle.Core
         public int HitsDelta;
         public string Target;
         public string Desc;
+
+        // ★ 2026-11-20：真实效果原子（换技能时整段替换 Effects，而不只是改倍率）
+        public string FxKind = "";      // Damage / Heal / Shield / ApplyStatus / StatModifier / RemoveStatus
+        public float FxPower;           // 伤害/护盾倍率 或 StatModifier 增量
+        public string FxTarget = "";    // self / single / all ...
+        public string FxStatus = "";    // 状态 id（burn/marked/...）
+        public int FxStacks;
+        public int FxTurns;
     }
 
     public static class SkillSlotRules

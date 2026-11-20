@@ -268,8 +268,13 @@ namespace WanXiang.Battle.Core
             if (TryEvade(st, src, dst, skill)) return;
 
             // B1：天性「全队暴击」按阵营加成；无表时为 0，Chance 调用次数不变 ⇒ 指纹不变。
+            // ★ 2026-11-20：补上技能施加的 CritRate Modifier（如换技能「凝神」）。
+            //   原本只读 Def + 特性通道，导致 StatKeys.CritRate 的 Modifier 存了却没人读。
+            float critMod = 0f;
+            for (int mi = 0; mi < src.Modifiers.Count; mi++)
+                if (src.Modifiers[mi].StatKey == StatKeys.CritRate) critMod += src.Modifiers[mi].Delta;
             bool crit = st.Random.Chance(src.Def.CritRate
-                + TraitRuntime.Bonus(st, src.Side, TraitChannels.CritRate));
+                + TraitRuntime.Bonus(st, src.Side, TraitChannels.CritRate) + critMod);
             int dmg = ComputeDamage(st, src, dst, el, atom.Power, atom.TrueDamage, crit,
                                     IsAoeTarget(atom.Target));
 

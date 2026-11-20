@@ -815,14 +815,82 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
 
             if (!string.IsNullOrEmpty(entry.Name)) d.Active.Name = entry.Name;
             if (!string.IsNullOrEmpty(entry.Desc)) d.Active.Description = entry.Desc;
-            if (d.Active.Effects == null) return;
-            if (System.Math.Abs(entry.PowerMul - 1f) < 0.001f) return;
-            for (int i = 0; i < d.Active.Effects.Length; i++)
+
+            // ★ 2026-11-20：换技能 = 整段重建效果原子（真正改变打法，不只是改倍率）。
+            //   fx_kind 为空的老条目走原逻辑（只缩放倍率），保证老配置兼容。
+            if (string.IsNullOrEmpty(entry.FxKind))
             {
-                var a = d.Active.Effects[i];
-                if (a.Power > 0f) a.Power *= entry.PowerMul;
-                d.Active.Effects[i] = a;
+                if (d.Active.Effects == null) return;
+                if (System.Math.Abs(entry.PowerMul - 1f) < 0.001f) return;
+                for (int i = 0; i < d.Active.Effects.Length; i++)
+                {
+                    var old = d.Active.Effects[i];
+                    if (old.Power > 0f) old.Power *= entry.PowerMul;
+                    d.Active.Effects[i] = old;
+                }
+                return;
             }
+
+            WanXiang.Battle.Core.EffectAtomKind kind;
+            if (!System.Enum.TryParse(entry.FxKind, true, out kind) || kind == WanXiang.Battle.Core.EffectAtomKind.None)
+                return;
+            WanXiang.Battle.Core.TargetSelector sel = WanXiang.Battle.Core.TargetSelector.SingleHighestAtk;
+            switch ((entry.FxTarget ?? "").ToLowerInvariant())
+            {
+                case "self": sel = WanXiang.Battle.Core.TargetSelector.Self; break;
+                case "single": sel = WanXiang.Battle.Core.TargetSelector.SingleHighestAtk; break;
+                case "all": sel = WanXiang.Battle.Core.TargetSelector.AllEnemies; break;
+                case "allallies": sel = WanXiang.Battle.Core.TargetSelector.AllAllies; break;
+                case "lowest": sel = WanXiang.Battle.Core.TargetSelector.SingleLowestHp; break;
+            }
+
+            // 基础效果原子
+            var atom = new WanXiang.Battle.Core.EffectAtom
+            {
+                Kind = kind, Target = sel, Power = entry.FxPower,
+                Hits = 1, ElementOverride = WanXiang.Battle.Core.Element.None,
+            };
+            if (kind == WanXiang.Battle.Core.EffectAtomKind.Shield)
+            {
+                // 小数按最大生命%处理（如 0.06 = 6% 最大生命）
+                if (entry.FxPower > 0f && entry.FxPower < 1f)
+                { atom.PercentOfMaxHp = entry.FxPower; atom.Power = 0f; }
+                atom.Target = WanXiang.Battle.Core.TargetSelector.Self;
+            }
+            else if (kind == WanXiang.Battle.Core.EffectAtomKind.ApplyStatus)
+            {
+                atom.StatusId = entry.FxStatus ?? "";
+                atom.StatusStacks = entry.FxStacks > 0 ? entry.FxStacks : 1;
+                atom.StatusTurns = entry.FxTurns > 0 ? entry.FxTurns : 2;
+            }
+            else if (kind == WanXiang.Battle.Core.EffectAtomKind.StatModifier)
+            {
+                atom.StatKey = WanXiang.Battle.Core.StatKeys.CritRate;
+                atom.StatDelta = entry.FxPower;
+                atom.Target = WanXiang.Battle.Core.TargetSelector.Self;
+            }
+            else if (kind == WanXiang.Battle.Core.EffectAtomKind.RemoveStatus)
+            {
+                atom.Target = WanXiang.Battle.Core.TargetSelector.Self;
+            }
+
+            // 技能池的 desc 写了"命中挂XX"，这类要有 Damage + ApplyStatus 两个原子
+            var effects = new System.Collections.Generic.List<WanXiang.Battle.Core.EffectAtom>();
+            if (kind == WanXiang.Battle.Core.EffectAtomKind.Damage && !string.IsNullOrEmpty(entry.FxStatus))
+            {
+                var dmg = atom;
+                effects.Add(dmg);
+                var st = new WanXiang.Battle.Core.EffectAtom
+                {
+                    Kind = WanXiang.Battle.Core.EffectAtomKind.ApplyStatus,
+                    Target = sel, StatusId = entry.FxStatus,
+                    StatusStacks = entry.FxStacks > 0 ? entry.FxStacks : 1,
+                    StatusTurns = entry.FxTurns > 0 ? entry.FxTurns : 2,
+                };
+                effects.Add(st);
+            }
+            else effects.Add(atom);
+            d.Active.Effects = effects.ToArray();
         }
 
         /// <summary>把该兽 3 个技能槽的专精等级作用到克隆体上（不改内容目录）。</summary>

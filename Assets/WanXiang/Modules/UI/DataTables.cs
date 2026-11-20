@@ -420,6 +420,12 @@ namespace WanXiang.Modules.UI
                     HitsDelta = r.Int("hitsDelta", 0),
                     Target = r.Str("target"),
                     Desc = r.Str("desc"),
+                    FxKind = r.Str("fx_kind"),
+                    FxPower = r.Float("fx_power", 0f),
+                    FxTarget = r.Str("fx_target"),
+                    FxStatus = r.Str("fx_status"),
+                    FxStacks = r.Int("fx_stacks", 0),
+                    FxTurns = r.Int("fx_turns", 0),
                 });
             }
             if (list.Count == 0) return;
