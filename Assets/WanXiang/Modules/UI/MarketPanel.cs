@@ -27,6 +27,7 @@ namespace WanXiang.Modules.UI
         [SerializeField] private Button[] _goodsBtns;          // 6 张商品卡
         [SerializeField] private Image[] _imgGoodsHead;        // 商品头像
         [SerializeField] private TMP_Text[] _tmpGoodsPrice;    // 价格
+        [SerializeField] private TMP_Text[] _tmpGoodsName;     // ★ 商品名（2026-11-21 补：原没绑，显示"Goods 0"占位）
         [SerializeField] private Image[] _imgGoodsSold;        // 售罄印章
         [SerializeField] private TMP_Text _tmpHint;            // Tmp_Hint
 
@@ -169,6 +170,9 @@ namespace WanXiang.Modules.UI
                     _imgGoodsHead[i].preserveAspect = true;
                     _imgGoodsHead[i].color = _healIcon != null ? tier.Tint : new Color(1f, 1f, 1f, 0.25f);
                 }
+                // ★ 2026-11-21：商品名接线（原字段没绑→prefab默认"Goods 0"一直显示，玩家不知道买什么）
+                if (_tmpGoodsName != null && i < _tmpGoodsName.Length && _tmpGoodsName[i] != null)
+                    _tmpGoodsName[i].text = g.Name;
                 if (_tmpGoodsPrice != null && i < _tmpGoodsPrice.Length && _tmpGoodsPrice[i] != null)
                     _tmpGoodsPrice[i].text = g.Sold ? "已售出" : g.Price + " 灵卵";
                 if (_imgGoodsSold != null && i < _imgGoodsSold.Length && _imgGoodsSold[i] != null)
