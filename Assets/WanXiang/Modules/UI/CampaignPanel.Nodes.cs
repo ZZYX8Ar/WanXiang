@@ -167,12 +167,13 @@ namespace WanXiang.Modules.UI
         {
             if (_selected < 0 || _graph == null)
             {
-                Debug.Log("[Campaign] 先点一个可前往的节点。");
+                // ★ 2026-11-21 实机玩发现：只有Console日志，界面没反应，新手会以为点坏了
+                Dialog.Tip("先选节点", "点地图上带「可前往」标记的节点，再点出征。").Forget();
                 return;
             }
             if (!IsReachable(_selected))
             {
-                Debug.Log("[Campaign] 这个节点不在可达层（只能走相邻下一层）。");
+                Dialog.Tip("走不了这里", "只能走相邻下一层的节点。\n地图上「可前往」的格子才可选。").Forget();
                 return;
             }
 

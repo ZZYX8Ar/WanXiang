@@ -172,6 +172,8 @@ namespace WanXiang.Modules.UI
                     return;
                 }
             }
+            // ★ 2026-11-21 实机玩发现：只有底部一行小灰字，点了没反应会以为按钮坏了
+            Dialog.Tip("三个槽位都满了", "点上面任意一档继承旅程；\n或点该档的「重置」从头开始。").Forget();
             if (_tmpHint != null)
                 _tmpHint.text = "三个槽位都有旅程了 —— 点上面任意一档继承，或先删档再开新程。";
         }
