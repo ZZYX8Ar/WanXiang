@@ -139,7 +139,11 @@ namespace WanXiang.Modules.UI
             // 精英/Boss 节点提高稀有/传说权重。遗物是局内「变强」载体（参考杀戮尖塔）。
             // ★ 2026-11-13 用户：遗物获取途径未定，战斗胜利不再发遗物/弹遗物面板。
             //   结算面板里的三选一卡片整组隐藏，确认按钮直接可点。
-            var draftsRoot = transform.Find("Root_Drafts") ?? transform.Find("Root_Detail/Root_Drafts");
+            // ★ 2026-11-21：实机玩发现 Draft 卡仍显示 —— prefab 实际路径是 Root_Rewards/Root_Drafts，
+            //   旧代码只找 Root_Drafts / Root_Detail/Root_Drafts，找不到就静默没隐藏。
+            var draftsRoot = transform.Find("Root_Rewards/Root_Drafts")
+                          ?? transform.Find("Root_Drafts")
+                          ?? transform.Find("Root_Detail/Root_Drafts");
             if (draftsRoot != null) draftsRoot.gameObject.SetActive(false);
             if (_btnConfirm != null) _btnConfirm.interactable = true;
 

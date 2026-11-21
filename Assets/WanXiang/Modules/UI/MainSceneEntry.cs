@@ -87,7 +87,10 @@ namespace WanXiang.Modules.Boot
                 //   结算必须叠在**节点地图**上（与正常回城一致）：先垫地图，再叠结算。
                 // ★ 2026-10-22 用户："战斗失败查看结果面板后应该直接回主界面，而不是从节点地图开始"
                 //   ⇒ 垫底界面按胜负分流：胜利垫**节点地图**，失败垫**主界面**。
-                if (result != null && result.Win)
+                // ★ 2026-11-21 实测修：平局(Draw)按"撤退→本局继续"处理，与 ResultPanel 口径一致。
+                //   旧代码只判 result.Win ⇒ 平局走"失败垫主界面"，但 ResultPanel 又按回地图处理，
+                //   结果节点地图叠在残留主界面上、且可能被栈重算判掉导致回不去。
+                if (result != null && (result.Win || result.Draw))
                 {
                     // 开图期间压住"补选奖励"提示：奖励由结算面板确认后自己交棒给 RelicPanel
                     SceneFlow.SuppressRewardPrompt = true;
@@ -96,7 +99,7 @@ namespace WanXiang.Modules.Boot
                 }
                 else
                 {
-                    // 失败/撤退：本局结束，主界面垫底（不打开节点地图）
+                    // 真正失败：本局结束，主界面垫底（不打开节点地图）
                     ui.Close<StartPanel>();
                     await ui.OpenAsync<HomePanel>();
                 }

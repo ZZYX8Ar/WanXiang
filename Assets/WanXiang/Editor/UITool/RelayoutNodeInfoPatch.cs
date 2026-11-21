@@ -46,6 +46,18 @@ namespace WanXiang.EditorTools
                     else Debug.LogWarning("[NodeInfoRelayout] 缺节点：" + name);
                 }
 
+                // ★ 顶栏劫数文字压住右上角"星移/返回"按钮（实机截图确认 screenX 1600~1900 重叠）
+                //   移到标题与按钮之间的空隙：anchor居中 + pos(560,0) → screenX [1370,1670]
+                var jie = root.transform.Find("Root_TopBar/Tmp_JieCount") as RectTransform;
+                if (jie != null)
+                {
+                    jie.anchorMin = jie.anchorMax = new Vector2(0.5f, 0.5f);
+                    jie.pivot = new Vector2(0.5f, 0.5f);
+                    jie.anchoredPosition = new Vector2(560f, 0f);
+                    jie.sizeDelta = new Vector2(300f, 48f);
+                    Debug.Log("[NodeInfoRelayout] 顶栏劫数文字已移到空隙区");
+                }
+
                 PrefabUtility.SaveAsPrefabAsset(root, CampaignPath);
                 Debug.Log("[NodeInfoRelayout] 完成，重排 " + changed + "/5 个节点（定点anchor+正尺寸）");
             }
