@@ -27,6 +27,8 @@ namespace WanXiang.Modules.UI
         public int Turns;
         public uint Fingerprint;
         public string Summary = "";
+        /// <summary>★ 2026-11-22：战斗高光统计（玩家友好文案），来自 BattleState 现成 Stat 字段。</summary>
+        public string Highlight = "";
     }
 
     [UIPanel("Panel_Result", Layer = UILayer.Overlay, CachePolicy = UICachePolicy.Transient, FullScreen = false,
@@ -103,7 +105,12 @@ namespace WanXiang.Modules.UI
             SetLine(0, win ? "战斗胜利"
                 : (_isDraw ? "平局 —— " + (req != null ? req.Turns : 0) + " 回合未分胜负"
                 : (req != null && req.Retreated ? "撤退" : "战斗失败")));
-            SetLine(1, "回合数：" + (req != null ? req.Turns : 0));
+            // ★ 2026-11-22：第1行接入战斗高光统计（数据来自BattleState现成Stat，之前算好却没展示）。
+            //   无高光时（如"无法开战"）退回原回合数文案，零回归。
+            string line1 = "回合数：" + (req != null ? req.Turns : 0);
+            if (req != null && !string.IsNullOrEmpty(req.Highlight))
+                line1 += "　" + req.Highlight;
+            SetLine(1, line1);
 
             // ★ 结算信息改为"本局探索回顾"（用户要求）：过程指纹对玩家无意义，去掉；
             //   失败时也要说明"本局已结束"，而不是显示"灵卵 +1"（失败会清空）。

@@ -466,6 +466,17 @@ namespace WanXiang.Modules.UI
                           "｜我方存活=" + mine + " 敌方存活=" + foe + "（PlayerWin=" + _play.PlayerWin + "）");
             }
 
+            // ★ 2026-11-22：把战斗核心已算好、但从没展示的统计接进结算页。
+            //   只挑最有感的 3 项（最大伤害/元素反应/阵亡），用 BattleState 现成字段，玩家友好文案。
+            string highlight = "";
+            if (_play.State != null)
+            {
+                var stH = _play.State;
+                // 精简量词：结算明细行框宽580、字号26，文案需 ≤580 否则换行（实测原版632溢出）
+                highlight = "伤害 " + stH.StatMaxHit + "　反应 " + stH.StatReactions
+                          + "　阵亡 " + stH.StatDeaths;
+            }
+
             var result = new ResultRequest
             {
                 Win = _play.PlayerWin,
@@ -474,6 +485,7 @@ namespace WanXiang.Modules.UI
                 Turns = _play.State.Turn,
                 Fingerprint = _play.State.Log.Fingerprint,
                 Summary = _play.Summary(),
+                Highlight = highlight,
             };
 
             // 播放器循环不推进时（本机编辑器），延时是没有意义的 —— 直接交接
