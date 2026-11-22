@@ -159,6 +159,32 @@ namespace WanXiang.Modules.UI
         ///   只看 AwaitingCommand 的话，玩家会在结算还在飘字时就能点按钮 → 出手被浪费（用户 2026-10-13 报障）。
         ///   HasPendingEvent() 为真 = 还有事件在播 → 此时一律不给点。
         /// </summary>
+        /// <summary>技能按钮置灰的具体原因（2026-11-22，显示在标签第二行）。</summary>
+        private string SkillDisabledReason(int slot, bool selectable, WanXiang.Battle.Core.BattleUnit uR,
+                                           bool silenced, int mp, BattleConfig cfg)
+        {
+            if (uR == null || !uR.CanAct) return "已行动";
+            if (!selectable) return "非当前回合";
+            if (silenced) return "沉默中";
+            if (slot == 1)
+            {
+                if (uR.GetSkill(SkillType.Active) == null) return "未习得";
+                int cost = WanXiang.Battle.Core.BattleState.MpCostOf(SkillType.Active);
+                if (mp < cost) return "灵力不足 " + mp + "/" + cost;
+            }
+            if (slot == 2)
+            {
+                if (uR.GetSkill(SkillType.Ultimate) == null) return "未习得";
+                // 精确区分：冷却中 / 元气未满（对齐 BattleUnit.CanCast 的判定顺序）
+                if (cfg != null && cfg.UseCooldown && uR.Cooldowns[(int)SkillType.Ultimate] > 0)
+                    return "冷却中 " + uR.Cooldowns[(int)SkillType.Ultimate] + " 回合";
+                if (cfg != null && cfg.UltimateNeedsRage)
+                    return "元气不足 " + uR.Rage.ToString("F0") + "/" + (cfg.UltimateRageCost * uR.UltRageCostMul).ToString("F0");
+                return "暂不可用";
+            }
+            return "暂不可用";
+        }
+
         private bool CanCommandNow()
         {
             return _play != null && _play.AwaitingCommand && !_play.Finished && !HasPendingEvent();
@@ -250,6 +276,19 @@ namespace WanXiang.Modules.UI
                     if (si == 2) ok = ok && !silenced && uR.GetSkill(SkillType.Ultimate) != null
                                         && cfg != null && uR.CanCast(SkillType.Ultimate, cfg);
                     _actorSkillBtns[gi].interactable = ok;
+
+                    // ★ 2026-11-22：灰按钮直接显示原因（不用悬浮tooltip，关了提示的玩家也看得见）
+                    //   标签第二行小字："灵力不足" / "沉默中" / "非当前回合" / "次数已用"，可用时清空。
+                    var whyT = _actorSkillBtns[gi].transform.Find("Tmp_Label")?.GetComponent<TMPro.TMP_Text>();
+                    if (whyT != null)
+                    {
+                        string baseName = si == 0 ? "普攻" : si == 1 ? "战记" : "终结技";
+                        var skWhy = uR != null ? uR.GetSkill(si == 0 ? SkillType.Basic : si == 1 ? SkillType.Active : SkillType.Ultimate) : null;
+                        if (skWhy != null && !string.IsNullOrEmpty(skWhy.Name)) baseName = skWhy.Name;
+                        string why = ok ? "" : SkillDisabledReason(si, selectable, uR, silenced, mp, cfg);
+                        whyT.text = string.IsNullOrEmpty(why) ? baseName
+                            : baseName + "\n<size=15><color=#A8452B>" + why + "</color></size>";
+                    }
                 }
             }
 
