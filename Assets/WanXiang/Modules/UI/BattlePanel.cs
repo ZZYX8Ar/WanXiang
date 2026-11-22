@@ -265,7 +265,11 @@ namespace WanXiang.Modules.UI
                         {
                             extra = " · 进度 " + _play.State.StatReactions + "/" + def.Param;
                         }
-                        _tmpTargetText.text = "额外目标：" + def.Name + " — " + def.Desc + extra
+                        // ★ 2026-11-22：desc 里的 "N" 是占位符，替换为真实参数（如速战速决 N=6），
+                        //   否则玩家看到字面量 "N 回合内取胜"。文案与判定同源，不硬编码具体数值。
+                        string shownDesc = def.Desc != null && def.Desc.Contains("N")
+                            ? def.Desc.Replace("N", def.Param.ToString()) : def.Desc;
+                        _tmpTargetText.text = "额外目标：" + def.Name + " — " + shownDesc + extra
                             + "　<color=#3B6D11>" + WanXiang.Battle.Core.ObjectiveRules.RewardText(def) + "</color>";
                     }
                 }
