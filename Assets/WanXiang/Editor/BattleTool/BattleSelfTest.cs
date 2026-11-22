@@ -46,6 +46,7 @@ namespace WanXiang.Editor.BattleTool
             try
             {
                 CheckMatrix(c);
+                CheckReactionCoverage(c);
                 CheckDeterminism(c);
                 CheckCoefficients(c);
                 CheckBoardRules(c);
@@ -123,6 +124,51 @@ namespace WanXiang.Editor.BattleTool
                    $"同属 {coeff.Same:F2}／无关 {coeff.Neutral:F2}");
             c.Note("「相生不参与伤害计算」已由 ElementMatrix.Coefficient 的实现保证" +
                    "（只读 Relation，相生在 Relation 里不产生分支）。");
+        }
+
+        // ================================================================
+        //  1b) 元素反应 10 组配对覆盖（2026-11-22）
+        // ================================================================
+        private static void CheckReactionCoverage(Ctx c)
+        {
+            c.Title("[1b] 元素反应 10 组配对覆盖");
+            var expected = new (Element a, Element b, ReactionKind kind)[]
+            {
+                (Element.Wood,  Element.Water, ReactionKind.Sheng),
+                (Element.Fire,  Element.Earth, ReactionKind.Bulwark),
+                (Element.Fire,  Element.Water, ReactionKind.Steam),
+                (Element.Fire,  Element.Metal, ReactionKind.Forge),
+                (Element.Water, Element.Earth, ReactionKind.Erode),
+                (Element.Metal, Element.Water, ReactionKind.Quench),
+                (Element.Wood,  Element.Fire,  ReactionKind.Kindle),
+                (Element.Wood,  Element.Earth, ReactionKind.TakeRoot),
+                (Element.Wood,  Element.Metal, ReactionKind.Execute),
+                (Element.Metal, Element.Earth, ReactionKind.Bastion),
+            };
+            var seen = new System.Collections.Generic.HashSet<ReactionKind>();
+            int fail = 0;
+            foreach (var e in expected)
+            {
+                var fwd = ElementReactions.Pair(e.a, e.b);
+                var rev = ElementReactions.Pair(e.b, e.a);
+                if (fwd != e.kind || rev != e.kind)
+                {
+                    c.Bad($"{CnOf(e.a)}+{CnOf(e.b)} → 应为 {e.kind}，实得 正{fwd}/反{rev}");
+                    fail++;
+                }
+                else seen.Add(e.kind);
+            }
+            if (fail == 0)
+                c.Ok("10 组反应全部可被元素配对触发，且配对对称（A+B 与 B+A 同结果）");
+            var allPairs = new System.Collections.Generic.HashSet<ReactionKind>();
+            var els = new[] { Element.Wood, Element.Fire, Element.Earth, Element.Metal, Element.Water };
+            for (int i = 0; i < els.Length; i++)
+                for (int j = i + 1; j < els.Length; j++)
+                    allPairs.Add(ElementReactions.Pair(els[i], els[j]));
+            if (allPairs.Count == 10 && !allPairs.Contains(ReactionKind.None))
+                c.Ok("全部 10 种元素两两组合都映射到有效反应，无 None 空档");
+            else
+                c.Bad($"元素对映射有空档：{allPairs.Count} 种唯一结果" + (allPairs.Contains(ReactionKind.None) ? "（含 None）" : ""));
         }
 
         // ================================================================
