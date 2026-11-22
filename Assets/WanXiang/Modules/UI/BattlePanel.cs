@@ -255,16 +255,9 @@ namespace WanXiang.Modules.UI
                     var def = WanXiang.Battle.Core.ObjectiveRules.Get(obj.GoalId);
                     if (def != null)
                     {
-                        string extra = "";
-                        if (def.Kind == WanXiang.Battle.Core.ObjectiveKind.KillByTurn)
-                        {
-                            int left = obj.StartTurn + def.Param - _play.State.Turn;
-                            extra = " · 剩余 " + (left >= 0 ? left.ToString() : "0") + " 回合";
-                        }
-                        else if (def.Param > 0)
-                        {
-                            extra = " · 进度 " + _play.State.StatReactions + "/" + def.Param;
-                        }
+                        // ★ 2026-11-22：进度文本统一走 ObjectiveRules.ProgressText（按目标类型分派）。
+                        //   原来所有目标一律显示"元素反应数/N"，截流/捕猎/素手全显示错。
+                        string extra = WanXiang.Battle.Core.ObjectiveRules.ProgressText(def, obj, _play.State);
                         // ★ 2026-11-22：desc 里的 "N" 是占位符，替换为真实参数（如速战速决 N=6），
                         //   否则玩家看到字面量 "N 回合内取胜"。文案与判定同源，不硬编码具体数值。
                         string shownDesc = def.Desc != null && def.Desc.Contains("N")

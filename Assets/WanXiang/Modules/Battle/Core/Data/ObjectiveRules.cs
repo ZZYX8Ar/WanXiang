@@ -118,6 +118,38 @@ namespace WanXiang.Battle.Core
             return d.Name + "：" + desc + "（" + RewardText(d) + "）";
         }
 
+        /// <summary>
+        /// 目标实时进度文本（2026-11-22）：按 ObjectiveKind 分派到对应统计值。
+        /// ⚠ 不能一律用 StatReactions —— 截流要看绝技数、捕猎要看捕获数、素手要看治疗数。
+        /// 新增目标类型 = 这里加一行，与 _judges 注册表同构。
+        /// </summary>
+        public static string ProgressText(ObjectiveDef d, ObjectiveProgress p, BattleState st)
+        {
+            if (d == null || st == null || p == null || !p.Active) return "";
+            switch (d.Kind)
+            {
+                case ObjectiveKind.KillByTurn:
+                {
+                    int left = p.StartTurn + d.Param - st.Turn;
+                    return " · 剩余 " + (left >= 0 ? left : 0) + " 回合";
+                }
+                case ObjectiveKind.ElementReactions:
+                    return " · 进度 " + st.StatReactions + "/" + d.Param;
+                case ObjectiveKind.CaptureOne:
+                    return " · 已捕获 " + st.StatCaptures + "/" + d.Param;
+                case ObjectiveKind.NoUltimate:
+                    return " · 绝技 " + st.StatUltimates + "/" + d.Param + "（越少越好）";
+                case ObjectiveKind.NoHeal:
+                    return " · 治疗 " + st.StatHealUsed + "/" + d.Param + "（越少越好）";
+                case ObjectiveKind.WinLowHp:
+                    return " · 当前最低血量 " + st.PlayerLowestHpPercent() + "%／需 ≤" + d.Param + "%";
+                case ObjectiveKind.NoDeath:
+                    return " · 阵亡 " + st.StatDeaths + " 只";
+                default:
+                    return "";
+            }
+        }
+
         public static string RewardText(ObjectiveDef d)
         {
             if (d == null) return "";
