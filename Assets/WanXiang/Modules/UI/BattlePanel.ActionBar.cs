@@ -160,11 +160,13 @@ namespace WanXiang.Modules.UI
         ///   HasPendingEvent() 为真 = 还有事件在播 → 此时一律不给点。
         /// </summary>
         /// <summary>技能按钮置灰的具体原因（2026-11-22，显示在标签第二行）。</summary>
-        private string SkillDisabledReason(int slot, bool selectable, WanXiang.Battle.Core.BattleUnit uR,
-                                           bool silenced, int mp, BattleConfig cfg)
+        private string SkillDisabledReason(int slot, bool alive, bool acted, bool canAct,
+                                           WanXiang.Battle.Core.BattleUnit uR, bool silenced, int mp, BattleConfig cfg)
         {
-            if (uR == null || !uR.CanAct) return "已行动";
-            if (!selectable) return "非当前回合";
+            if (uR == null || !alive) return "已倒下";
+            if (acted) return "已行动";
+            if (!canAct) return "等待中";   // 敌方回合/演出中，暂不可下令
+            if (!uR.CanAct) return "无法行动";
             if (silenced) return "沉默中";
             if (slot == 1)
             {
@@ -285,7 +287,7 @@ namespace WanXiang.Modules.UI
                         string baseName = si == 0 ? "普攻" : si == 1 ? "战记" : "终结技";
                         var skWhy = uR != null ? uR.GetSkill(si == 0 ? SkillType.Basic : si == 1 ? SkillType.Active : SkillType.Ultimate) : null;
                         if (skWhy != null && !string.IsNullOrEmpty(skWhy.Name)) baseName = skWhy.Name;
-                        string why = ok ? "" : SkillDisabledReason(si, selectable, uR, silenced, mp, cfg);
+                        string why = ok ? "" : SkillDisabledReason(si, alive, acted, canAct, uR, silenced, mp, cfg);
                         whyT.text = string.IsNullOrEmpty(why) ? baseName
                             : baseName + "\n<size=15><color=#A8452B>" + why + "</color></size>";
                     }
