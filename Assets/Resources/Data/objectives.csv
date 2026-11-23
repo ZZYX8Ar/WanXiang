@@ -5,3 +5,4 @@ obj_element_master,元素大师,我方触发 N 次元素反应,element_reactions
 obj_capture,捕猎,战斗内捕获至少 1 只,capture_one,1,essence,1,ball,8
 obj_no_ultimate,截流,绝技使用不超过 N 次,no_ultimate,2,ink,3,rune,6
 obj_low_hp,险中求胜,以低于 N% 血量取胜,win_low_hp,95,wudao,3,heart,6
+obj_no_death,毫发无伤,全员存活取胜,no_death,0,eggs,2,shield,9
