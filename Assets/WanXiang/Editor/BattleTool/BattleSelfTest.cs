@@ -53,6 +53,7 @@ namespace WanXiang.Editor.BattleTool
                 CheckGrayBox(c);
                 CheckPresentation(c);
                 CheckTraitMechanics(c);
+                CheckSkillStatKeys(c);
             }
             catch (Exception ex)
             {
@@ -845,6 +846,47 @@ namespace WanXiang.Editor.BattleTool
         /// ⚠ 全部用**自造 BeastDef**（id 不在 beasts.csv）⇒ 不依赖 CSV，纯核心验证。
         /// ⚠ 孤高依赖性情表（temperaments.csv），这里不测，避免为了自检去改全局表。
         /// </summary>
+        // ================================================================
+        //  8) 技能属性键（statmod）端到端（2026-11-23）
+        // ================================================================
+        private static void CheckSkillStatKeys(Ctx c)
+        {
+            c.Title("[8] 技能属性键 statmod 端到端");
+            var st = BattleSampleContent.BuildScenario(1, 987UL);
+            var u = st.UnitsOf(TeamSide.Player)[0];
+            float atk0 = u.Attack, spd0 = u.Speed;
+
+            // 锋锐(Attack +8%) / 疾行(Speed +10%) / 凝甲(DamageTaken -8%)
+            u.AddModifier(StatKeys.Attack, 0.08f, 0);
+            u.AddModifier(StatKeys.Speed, 0.10f, 0);
+            u.AddModifier(StatKeys.DamageTaken, -0.08f, 0);
+
+            bool atkOk = System.Math.Abs(u.Attack - atk0 * 1.08f) < 1f;
+            bool spdOk = System.Math.Abs(u.Speed - spd0 * 1.10f) < 1f;
+            if (atkOk && spdOk)
+                c.Ok($"属性键生效：攻击 {atk0:F0}→{u.Attack:F0}，速度 {spd0:F0}→{u.Speed:F0}");
+            else
+                c.Bad($"属性键异常：攻击 {atk0:F0}→{u.Attack:F0}(期望{atk0*1.08f:F0})，" +
+                      $"速度 {spd0:F0}→{u.Speed:F0}(期望{spd0*1.10f:F0})");
+
+            // 未知键不生效、不崩溃（表配置容错）
+            var st2 = BattleSampleContent.BuildScenario(1, 988UL);
+            var u2 = st2.UnitsOf(TeamSide.Player)[0];
+            float before = u2.Attack;
+            u2.AddModifier("BogusStatKey", 5f, 0);
+            if (System.Math.Abs(u2.Attack - before) < 0.01f)
+                c.Ok("未知属性键不改变数值、不崩溃（表配置容错）");
+            else
+                c.Bad("未知属性键错误影响了数值");
+
+            // 带修饰的战斗能跑完
+            var r = BattleSimulator.Run(st);
+            if (r.Turns > 0 && r.EventCount > 0)
+                c.Ok($"带属性修饰战斗正常结算：{r.Outcome} {r.Turns}回合 {r.EventCount}事件");
+            else
+                c.Bad("带属性修饰战斗异常结束");
+        }
+
         private static void CheckTraitMechanics(Ctx c)
         {
             var cfg = BattleConfig.Default;
