@@ -57,6 +57,15 @@ namespace WanXiang.Modules.UI
                     if (o.Slot < 0 || o.Slot > 2) { Debug.LogError("[SkillOverride] 槽位越界 " + key); bad++; }
                     if (string.IsNullOrEmpty(o.Name)) { Debug.LogError("[SkillOverride] 缺技能名 " + key); bad++; }
                     if (string.IsNullOrEmpty(o.Desc)) { Debug.LogError("[SkillOverride] 缺技能描述 " + key); bad++; }
+                    // ★ 2026-11-23：BeastId 有效性校验——拼错的 id 不会匹配任何异兽，
+                    //   技能覆盖静默失效且不报错。用 BeastTable 查表；表未装时跳过（零时序依赖）。
+                    if (WanXiang.Battle.Core.BeastTable.Installed &&
+                        !o.Enemy &&
+                        !WanXiang.Battle.Core.BeastTable.TryGet(o.BeastId, out _))
+                    {
+                        Debug.LogError("[SkillOverride] 未知 BeastId " + o.BeastId + "（" + key + "）—— 该覆盖不会生效");
+                        bad++;
+                    }
                 }
                 Debug.Log("[SkillOverride] 校验完成：异常 " + bad + " 条");
             }
