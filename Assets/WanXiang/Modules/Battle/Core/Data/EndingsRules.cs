@@ -99,6 +99,9 @@ namespace WanXiang.Battle.Core
                 case "n": return c.N;
                 case "captures": return c.Captures;
                 case "realm": return c.Realm;
+                // ★ 2026-11-23：补齐 relic——Ctx已有RelicCount，但此前只有 no_relic 布尔条件能用，
+                //   "relic>=N"（带 N 个遗物通关）写不出会静默不满足。与 no_relic 语义对称。
+                case "relic": return c.RelicCount;
                 default: return -1;                     // 未知 key
             }
         }

@@ -4,4 +4,5 @@ end_n9,险路通天,n>=9,2,ink,80,于九重险峰之上行至尽头,0
 end_hunt,百猎之途,captures>=5,3,eggs,40,以罗网织就的归途,0
 end_mortal,凡人歌,no_relic,4,none,,不假外物，亦是一途,0
 end_ascend,登阶,realm>=2,5,ink,60,境界既至，何须凭依,0
-end_return,归返,default,6,none,,旅途未尽，来日方长,0
+end_relic,遗物相随,relic>=3,6,ink,50,携三器走完全程，器亦有灵,0
+end_return,归返,default,7,none,,旅途未尽，来日方长,0
