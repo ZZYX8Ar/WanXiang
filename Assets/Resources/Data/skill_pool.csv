@@ -1,22 +1,25 @@
-﻿id,name,element,type,tag,powerMul,hitsDelta,target,desc,fx_kind,fx_power,fx_target,fx_status,fx_stacks,fx_turns
-sk_g_guard,守势,None,Active,common,0.9,0,self,通用：为自身附加相当于 60% 最大生命的护盾,Shield,0.6,self,,0,0
-sk_g_focus,凝神,None,Active,common,1.1,0,single,通用：本场暴击率 +10%（持续生效）,StatModifier,0.1,self,,0,0
-sk_g_probe,试探,None,Active,common,0.8,0,single,通用：攻击附带斩标 1 层（受到伤害 +20%，2 回合）,Damage,0.8,single,marked,1,2
-sk_g_cleanse,清心,None,Active,common,0.0,0,self,通用：清除自身 1 个减益状态,RemoveStatus,0,self,,0,0
-sk_wood_thorn,缠藤,Wood,Active,wood,1.0,0,single,木：攻击附带根缚 1 层（目标本回合无法行动）,Damage,1.0,single,root,1,1
-sk_fire_ignite,引燃,Fire,Active,fire,1.0,0,single,火：攻击附带灼烧 2 层（每层每回合持续伤害，3 回合）,Damage,1.0,single,burn,2,3
-sk_earth_bulwark,厚土,Earth,Active,earth,0.8,0,self,土：为自身附加相当于 6% 最大生命的护盾,Shield,0.06,self,,0,0
-sk_metal_rend,裂甲,Metal,Active,metal,1.05,0,single,金：攻击附带裂甲 1 层（护甲与减伤下降，2 回合）,Damage,1.05,single,armor_break,1,2
-sk_water_soak,浸骨,Water,Active,water,0.95,0,single,水：攻击附带湿 1 层（受水伤 +8%，被金命中触发感电，3 回合）,Damage,0.95,single,wet,1,3
-sk_g_renew,回春,None,Active,common,1.0,0,self,通用：回复自身相当于 1.2 倍攻击的生命,Heal,1.2,self,,0,0
-sk_g_venom,淬毒,None,Active,common,0.7,0,single,通用：攻击附带中毒 2 层（每层每回合按攻击者攻击力造成伤害，3 回合）,Damage,0.7,single,poison,2,3
-sk_wood_bloom,春华,Wood,Active,wood,1.0,0,self,木：回复自身相当于 1.0 倍攻击的生命,Heal,1.0,self,,0,0
-sk_wood_bind,缠缚,Wood,Active,wood,0.9,0,single,木：攻击附带根缚 1 层（目标本回合无法行动）,Damage,0.9,single,root,1,1
-sk_fire_blaze,烈焰,Fire,Active,fire,1.3,0,single,火：对单体造成 1.35 倍攻击力的高额伤害,Damage,1.35,single,,0,0
-sk_fire_confuse,焰惑,Fire,Active,fire,0.85,0,single,火：攻击附带混乱 1 层（目标无法行动，2 回合）,Damage,0.85,single,confuse,1,2
-sk_earth_wall,磐石,Earth,Active,earth,0.8,0,self,土：为自身附加相当于 12% 最大生命的护盾,Shield,0.12,self,,0,0
-sk_earth_crack,地裂,Earth,Active,earth,0.9,0,single,土：攻击附带裂甲 2 层（护甲与减伤下降，2 回合）,Damage,0.9,single,armor_break,2,2
-sk_metal_cleave,断金,Metal,Active,metal,1.3,0,single,金：对单体造成 1.3 倍攻击力的高额伤害,Damage,1.3,single,,0,0
-sk_metal_hush,封喉,Metal,Active,metal,0.8,0,single,金：攻击附带沉默 1 层（目标无法释放技能、普攻仍可，2 回合）,Damage,0.8,single,silence,1,2
-sk_water_mend,润泽,Water,Active,water,1.0,0,self,水：回复自身相当于 1.0 倍攻击的生命,Heal,1.0,self,,0,0
-sk_water_freeze,凝冰,Water,Active,water,0.85,0,single,水：攻击附带冻结 1 层（目标无法行动且无法被治疗、受伤+20%，1 回合）,Damage,0.85,single,freeze,1,1
+﻿id,name,element,type,tag,powerMul,hitsDelta,target,desc,fx_kind,fx_power,fx_target,fx_status,fx_stacks,fx_turns,fx_stat
+sk_g_guard,守势,None,Active,common,0.9,0,self,通用：为自身附加相当于 60% 最大生命的护盾,Shield,0.6,self,,0,0,
+sk_g_focus,凝神,None,Active,common,1.1,0,single,通用：本场暴击率 +10%（持续生效）,StatModifier,0.1,self,,0,0,CritRate
+sk_g_probe,试探,None,Active,common,0.8,0,single,通用：攻击附带斩标 1 层（受到伤害 +20%，2 回合）,Damage,0.8,single,marked,1,2,
+sk_g_cleanse,清心,None,Active,common,0.0,0,self,通用：清除自身 1 个减益状态,RemoveStatus,0,self,,0,0,
+sk_wood_thorn,缠藤,Wood,Active,wood,1.0,0,single,木：攻击附带根缚 1 层（目标本回合无法行动）,Damage,1.0,single,root,1,1,
+sk_fire_ignite,引燃,Fire,Active,fire,1.0,0,single,火：攻击附带灼烧 2 层（每层每回合持续伤害，3 回合）,Damage,1.0,single,burn,2,3,
+sk_earth_bulwark,厚土,Earth,Active,earth,0.8,0,self,土：为自身附加相当于 6% 最大生命的护盾,Shield,0.06,self,,0,0,
+sk_metal_rend,裂甲,Metal,Active,metal,1.05,0,single,金：攻击附带裂甲 1 层（护甲与减伤下降，2 回合）,Damage,1.05,single,armor_break,1,2,
+sk_water_soak,浸骨,Water,Active,water,0.95,0,single,水：攻击附带湿 1 层（受水伤 +8%，被金命中触发感电，3 回合）,Damage,0.95,single,wet,1,3,
+sk_g_renew,回春,None,Active,common,1.0,0,self,通用：回复自身相当于 1.2 倍攻击的生命,Heal,1.2,self,,0,0,
+sk_g_venom,淬毒,None,Active,common,0.7,0,single,通用：攻击附带中毒 2 层（每层每回合按攻击者攻击力造成伤害，3 回合）,Damage,0.7,single,poison,2,3,
+sk_wood_bloom,春华,Wood,Active,wood,1.0,0,self,木：回复自身相当于 1.0 倍攻击的生命,Heal,1.0,self,,0,0,
+sk_wood_bind,缠缚,Wood,Active,wood,0.9,0,single,木：攻击附带根缚 1 层（目标本回合无法行动）,Damage,0.9,single,root,1,1,
+sk_fire_blaze,烈焰,Fire,Active,fire,1.3,0,single,火：对单体造成 1.35 倍攻击力的高额伤害,Damage,1.35,single,,0,0,
+sk_fire_confuse,焰惑,Fire,Active,fire,0.85,0,single,火：攻击附带混乱 1 层（目标无法行动，2 回合）,Damage,0.85,single,confuse,1,2,
+sk_earth_wall,磐石,Earth,Active,earth,0.8,0,self,土：为自身附加相当于 12% 最大生命的护盾,Shield,0.12,self,,0,0,
+sk_earth_crack,地裂,Earth,Active,earth,0.9,0,single,土：攻击附带裂甲 2 层（护甲与减伤下降，2 回合）,Damage,0.9,single,armor_break,2,2,
+sk_metal_cleave,断金,Metal,Active,metal,1.3,0,single,金：对单体造成 1.3 倍攻击力的高额伤害,Damage,1.3,single,,0,0,
+sk_metal_hush,封喉,Metal,Active,metal,0.8,0,single,金：攻击附带沉默 1 层（目标无法释放技能、普攻仍可，2 回合）,Damage,0.8,single,silence,1,2,
+sk_water_mend,润泽,Water,Active,water,1.0,0,self,水：回复自身相当于 1.0 倍攻击的生命,Heal,1.0,self,,0,0,
+sk_water_freeze,凝冰,Water,Active,water,0.85,0,single,水：攻击附带冻结 1 层（目标无法行动且无法被治疗、受伤+20%，1 回合）,Damage,0.85,single,freeze,1,1,
+sk_g_harden,凝甲,None,Active,common,1.0,0,self,通用：本场受到的伤害 -8%（减伤）,StatModifier,0.08,self,,0,0,DamageTaken
+sk_g_haste,疾行,None,Active,common,1.0,0,self,通用：本场速度 +10%（更早出手）,StatModifier,0.10,self,,0,0,Speed
+sk_g_edge,锋锐,None,Active,common,1.0,0,self,通用：本场攻击 +8%,StatModifier,0.08,self,,0,0,Attack

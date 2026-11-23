@@ -426,6 +426,7 @@ namespace WanXiang.Modules.UI
                     FxStatus = r.Str("fx_status"),
                     FxStacks = r.Int("fx_stacks", 0),
                     FxTurns = r.Int("fx_turns", 0),
+                    FxStat = r.Str("fx_stat"),
                 });
             }
             if (list.Count == 0) return;

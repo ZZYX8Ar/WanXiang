@@ -33,6 +33,9 @@ namespace WanXiang.Battle.Core
         public string FxStatus = "";    // 状态 id（burn/marked/...）
         public int FxStacks;
         public int FxTurns;
+        // ★ 2026-11-23：StatModifier 的目标属性键（Attack/Speed/DamageTaken/CritRate/CritDamage）。
+        //   空 = 回退 CritRate（兼容旧数据）。未知值由 ApplyLoadout 校验后回退，零崩溃。
+        public string FxStat = "";
     }
 
     public static class SkillSlotRules

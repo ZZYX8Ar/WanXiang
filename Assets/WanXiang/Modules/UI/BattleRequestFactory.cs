@@ -804,6 +804,25 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
         /// ⚠ 只覆写**名字/描述/倍率**，保留原兽的效果原子 —— 避免池条目没有效果导致"空技能"。
         /// ⚠ 配置为空 / id 不在池里 / 五行不匹配 ⇒ 原样不动（零变化）。
         /// </summary>
+        /// <summary>fx_stat 字符串 → 合法 StatKey；空/未知一律回退 CritRate（表缺失零崩溃）。</summary>
+        private static string ResolveStatKey(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return WanXiang.Battle.Core.StatKeys.CritRate;
+            switch (raw.Trim())
+            {
+                case WanXiang.Battle.Core.StatKeys.Attack:
+                case WanXiang.Battle.Core.StatKeys.Speed:
+                case WanXiang.Battle.Core.StatKeys.DamageTaken:
+                case WanXiang.Battle.Core.StatKeys.HealShield:
+                case WanXiang.Battle.Core.StatKeys.CritRate:
+                case WanXiang.Battle.Core.StatKeys.CritDamage:
+                    return raw.Trim();
+                default:
+                    // 未知/拼错的值静默回退，不抛异常也不刷日志（表数据容错，删功能零残肢）
+                    return WanXiang.Battle.Core.StatKeys.CritRate;
+            }
+        }
+
         private static void ApplyLoadout(string beastId, WanXiang.Battle.Core.BeastDef d)
         {
             if (d == null || string.IsNullOrEmpty(beastId) || d.Active == null) return;
@@ -865,7 +884,8 @@ public static bool TryBuild(ContentCatalogSO catalog, string title, string weath
             }
             else if (kind == WanXiang.Battle.Core.EffectAtomKind.StatModifier)
             {
-                atom.StatKey = WanXiang.Battle.Core.StatKeys.CritRate;
+                // ★ 2026-11-23：属性键走表配置（skill_pool.fx_stat），未知值回退暴击率，老数据零回归。
+                atom.StatKey = ResolveStatKey(entry.FxStat);
                 atom.StatDelta = entry.FxPower;
                 atom.Target = WanXiang.Battle.Core.TargetSelector.Self;
             }
