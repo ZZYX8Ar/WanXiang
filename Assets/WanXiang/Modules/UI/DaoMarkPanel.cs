@@ -256,6 +256,7 @@ namespace WanXiang.Modules.UI
             switch (s)
             {
                 case DaoMarkSource.Reactions: return "触发元素反应";
+                case DaoMarkSource.ActsCleared: return "通关幕数";
                 case DaoMarkSource.SameElementActs: return "纯色队通关幕数";
                 case DaoMarkSource.Deaths: return "零阵亡";
                 case DaoMarkSource.FastWins: return "速通场次";

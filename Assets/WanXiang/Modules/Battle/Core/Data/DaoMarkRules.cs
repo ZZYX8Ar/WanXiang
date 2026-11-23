@@ -20,7 +20,7 @@ namespace WanXiang.Battle.Core
         Reactions = 1,      // 触发元素反应次数
         ActsCleared = 2,    // 通关幕数（同元素/零阵亡用）
         Deaths = 3,         // 阵亡数（越少越好，用 0 判定）
-        FastWins = 4,       // 3 回合内结束的场次
+        FastWins = 4,       // 速通场次（战斗核心判定：胜利且回合数 ≤ 快线6，见 BattleState.StatFastWins）
         BossKills = 5,      // 击败首领数
         Captures = 6,       // 捕获数
         MaxHit = 7,         // 单次最大伤害
